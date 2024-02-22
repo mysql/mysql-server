@@ -28,894 +28,894 @@ stored in the following structure:
 Previous names
 ==============
 
-Many test utilities were renamed in 8.4.0. Here is the map from old names to new
+Many test utilities were renamed in 8.4.1. Here is the map from old names to new
 names:
 
-mysql-test/common/binlog_tests/binlog.test 
+mysql-test/extra/binlog_tests/binlog.test
  => mysql-test/common/binlog/binlog.test
-mysql-test/common/binlog_tests/binlog_cache_stat.test 
+mysql-test/extra/binlog_tests/binlog_cache_stat.test
  => mysql-test/common/binlog/binlog_cache_stat.test
-mysql-test/common/binlog_tests/binlog_crash_safe_ddl.inc 
+mysql-test/extra/binlog_tests/binlog_crash_safe_ddl.inc
  => mysql-test/common/binlog/crash_safe_ddl.inc
-mysql-test/common/binlog_tests/binlog_ddl.inc 
+mysql-test/extra/binlog_tests/binlog_ddl.inc
  => mysql-test/common/binlog/ddl.inc
-mysql-test/common/binlog_tests/binlog_ddl_half_atomic.inc 
+mysql-test/extra/binlog_tests/binlog_ddl_half_atomic.inc
  => mysql-test/common/binlog/ddl_half_atomic.inc
-mysql-test/common/binlog_tests/binlog_gtid_mode_permissive_set_gtid_next.inc 
+mysql-test/extra/binlog_tests/binlog_gtid_mode_permissive_set_gtid_next.inc
  => mysql-test/common/binlog/gtid_mode_permissive_set_gtid_next.inc
-mysql-test/common/binlog_tests/binlog_gtid_mode_set_gtid_next.inc 
+mysql-test/extra/binlog_tests/binlog_gtid_mode_set_gtid_next.inc
  => mysql-test/common/binlog/gtid_mode_set_gtid_next.inc
-mysql-test/common/binlog_tests/binlog_gtid_next_xa.inc 
+mysql-test/extra/binlog_tests/binlog_gtid_next_xa.inc
  => mysql-test/common/binlog/gtid_next_xa.inc
-mysql-test/common/binlog_tests/binlog_implicit_commit.inc 
+mysql-test/extra/binlog_tests/binlog_implicit_commit.inc
  => mysql-test/common/binlog/implicit_commit.inc
-mysql-test/common/binlog_tests/binlog_innodb.inc 
+mysql-test/extra/binlog_tests/binlog_innodb.inc
  => mysql-test/common/binlog/innodb.inc
-mysql-test/common/binlog_tests/binlog_mysqlbinlog_fill.inc 
+mysql-test/extra/binlog_tests/binlog_mysqlbinlog_fill.inc
  => mysql-test/common/binlog/mysqlbinlog_fill.inc
-mysql-test/common/binlog_tests/binlog_mysqlbinlog_row.inc 
+mysql-test/extra/binlog_tests/binlog_mysqlbinlog_row.inc
  => mysql-test/common/binlog/mysqlbinlog_row.inc
-mysql-test/common/binlog_tests/binlog_mysqlbinlog_start_stop.inc 
+mysql-test/extra/binlog_tests/binlog_mysqlbinlog_start_stop.inc
  => mysql-test/common/binlog/mysqlbinlog_start_stop.inc
-mysql-test/common/binlog_tests/binlog_row_kill_create_select.test 
+mysql-test/extra/binlog_tests/binlog_row_kill_create_select.test
  => mysql-test/common/binlog/binlog_row_kill_create_select.test
-mysql-test/common/binlog_tests/binlog_select_taking_write_locks.inc 
+mysql-test/extra/binlog_tests/binlog_select_taking_write_locks.inc
  => mysql-test/common/binlog/select_taking_write_locks.inc
-mysql-test/common/binlog_tests/binlog_storage_iterator.inc 
+mysql-test/extra/binlog_tests/binlog_storage_iterator.inc
  => mysql-test/common/binlog/storage_iterator.inc
-mysql-test/common/binlog_tests/binlog_truncate.test 
+mysql-test/extra/binlog_tests/binlog_truncate.test
  => mysql-test/common/binlog/binlog_truncate.test
-mysql-test/common/binlog_tests/binlog_unsafe_commit_parent.inc 
+mysql-test/extra/binlog_tests/binlog_unsafe_commit_parent.inc
  => mysql-test/common/binlog/unsafe_commit_parent.inc
-mysql-test/common/binlog_tests/binlog_xa_prepare_connection.inc 
+mysql-test/extra/binlog_tests/binlog_xa_prepare_connection.inc
  => mysql-test/common/binlog/xa_prepare_connection.inc
-mysql-test/common/binlog_tests/binlog_xa_prepare_disconnect.inc 
+mysql-test/extra/binlog_tests/binlog_xa_prepare_disconnect.inc
  => mysql-test/common/binlog/xa_prepare_disconnect.inc
-mysql-test/common/binlog_tests/binlog_xa_prepared.test 
+mysql-test/extra/binlog_tests/binlog_xa_prepared.test
  => mysql-test/common/binlog/binlog_xa_prepared.test
-mysql-test/common/binlog_tests/binlog_xa_prepared_do_and_restart.inc 
+mysql-test/extra/binlog_tests/binlog_xa_prepared_do_and_restart.inc
  => mysql-test/common/binlog/xa_prepared_do_and_restart.inc
-mysql-test/common/binlog_tests/blackhole.test 
+mysql-test/extra/binlog_tests/blackhole.test
  => mysql-test/common/binlog/blackhole.test
-mysql-test/common/binlog_tests/create_drop_temporary_table.test 
+mysql-test/extra/binlog_tests/create_drop_temporary_table.test
  => mysql-test/common/binlog/create_drop_temporary_table.test
-mysql-test/common/binlog_tests/create_drop_temporary_table_myisam.test 
+mysql-test/extra/binlog_tests/create_drop_temporary_table_myisam.test
  => mysql-test/common/binlog/create_drop_temporary_table_myisam.test
-mysql-test/common/binlog_tests/ctype_cp932.test 
+mysql-test/extra/binlog_tests/ctype_cp932.test
  => mysql-test/common/binlog/ctype_cp932.test
-mysql-test/common/binlog_tests/ctype_cp932_binlog.test 
+mysql-test/extra/binlog_tests/ctype_cp932_binlog.test
  => mysql-test/common/binlog/ctype_cp932_binlog.test
-mysql-test/common/binlog_tests/ctype_ucs_binlog.test 
+mysql-test/extra/binlog_tests/ctype_ucs_binlog.test
  => mysql-test/common/binlog/ctype_ucs_binlog.test
-mysql-test/common/binlog_tests/database.test 
+mysql-test/extra/binlog_tests/database.test
  => mysql-test/common/binlog/database.test
-mysql-test/common/binlog_tests/database_myisam.test 
+mysql-test/extra/binlog_tests/database_myisam.test
  => mysql-test/common/binlog/database_myisam.test
-mysql-test/common/binlog_tests/drop_table.test 
+mysql-test/extra/binlog_tests/drop_table.test
  => mysql-test/common/binlog/drop_table.test
-mysql-test/common/binlog_tests/drop_temp_table.test 
+mysql-test/extra/binlog_tests/drop_temp_table.test
  => mysql-test/common/binlog/drop_temp_table.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency.test
  => mysql-test/common/binlog/enforce_gtid_consistency.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency_create_select_consistent.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_create_select_consistent.test
  => mysql-test/common/binlog/enforce_gtid_consistency_create_select_consistent.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency_nontrx_create_select_violation.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_nontrx_create_select_violation.test
  => mysql-test/common/binlog/enforce_gtid_consistency_nontrx_create_select_violation.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency_statement.inc 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_statement.inc
  => mysql-test/common/binlog/enforce_gtid_consistency_statement.inc
-mysql-test/common/binlog_tests/enforce_gtid_consistency_tmp_consistent.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_tmp_consistent.test
  => mysql-test/common/binlog/enforce_gtid_consistency_tmp_consistent.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency_tmp_violation.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_tmp_violation.test
  => mysql-test/common/binlog/enforce_gtid_consistency_tmp_violation.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency_trx_nontrx_consistent.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_trx_nontrx_consistent.test
  => mysql-test/common/binlog/enforce_gtid_consistency_trx_nontrx_consistent.test
-mysql-test/common/binlog_tests/enforce_gtid_consistency_trx_nontrx_violation.test 
+mysql-test/extra/binlog_tests/enforce_gtid_consistency_trx_nontrx_violation.test
  => mysql-test/common/binlog/enforce_gtid_consistency_trx_nontrx_violation.test
-mysql-test/common/binlog_tests/gtid_next_begin_caused_trx.test 
+mysql-test/extra/binlog_tests/gtid_next_begin_caused_trx.test
  => mysql-test/common/binlog/gtid_next_begin_caused_trx.test
-mysql-test/common/binlog_tests/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test 
+mysql-test/extra/binlog_tests/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test
  => mysql-test/common/binlog/gtid_next_single_stmt_trx_rollback_with_non-trans_table.test
-mysql-test/common/binlog_tests/gtid_next_single_stmt_trx_rollback_with_trans_table.test 
+mysql-test/extra/binlog_tests/gtid_next_single_stmt_trx_rollback_with_trans_table.test
  => mysql-test/common/binlog/gtid_next_single_stmt_trx_rollback_with_trans_table.test
-mysql-test/common/binlog_tests/gtid_next_xa.test 
+mysql-test/extra/binlog_tests/gtid_next_xa.test
  => mysql-test/common/binlog/gtid_next_xa.test
-mysql-test/common/binlog_tests/gtid_next_xa_error_simul.test 
+mysql-test/extra/binlog_tests/gtid_next_xa_error_simul.test
  => mysql-test/common/binlog/gtid_next_xa_error_simul.test
-mysql-test/common/binlog_tests/implicit.test 
+mysql-test/extra/binlog_tests/implicit.test
  => mysql-test/common/binlog/implicit.test
-mysql-test/common/binlog_tests/insert_select-binlog.test 
+mysql-test/extra/binlog_tests/insert_select-binlog.test
  => mysql-test/common/binlog/insert_select-binlog.test
-mysql-test/common/binlog_tests/logical_timestamping.inc 
+mysql-test/extra/binlog_tests/logical_timestamping.inc
  => mysql-test/common/binlog/logical_timestamping.inc
-mysql-test/common/binlog_tests/mix_innodb_myisam_binlog.test 
+mysql-test/extra/binlog_tests/mix_innodb_myisam_binlog.test
  => mysql-test/common/binlog/mix_innodb_myisam_binlog.test
-mysql-test/common/binlog_tests/mix_innodb_myisam_side_effects.test 
+mysql-test/extra/binlog_tests/mix_innodb_myisam_side_effects.test
  => mysql-test/common/binlog/mix_innodb_myisam_side_effects.test
-mysql-test/common/binlog_tests/mysqlbinlog_rewrite_db.test 
+mysql-test/extra/binlog_tests/mysqlbinlog_rewrite_db.test
  => mysql-test/common/binlog/mysqlbinlog_rewrite_db.test
-mysql-test/common/binlog_tests/mysqlbinlog_row_engine.inc 
+mysql-test/extra/binlog_tests/mysqlbinlog_row_engine.inc
  => mysql-test/common/binlog/mysqlbinlog_row_engine.inc
-mysql-test/common/binlog_tests/mysqlbinlog_start_stop_1.inc 
+mysql-test/extra/binlog_tests/mysqlbinlog_start_stop_1.inc
  => mysql-test/common/binlog/mysqlbinlog_start_stop_1.inc
-mysql-test/common/binlog_tests/mysqlbinlog_start_stop_2.inc 
+mysql-test/extra/binlog_tests/mysqlbinlog_start_stop_2.inc
  => mysql-test/common/binlog/mysqlbinlog_start_stop_2.inc
-mysql-test/common/binlog_tests/mysqlbinlog_start_stop_streaming_input_1.inc 
+mysql-test/extra/binlog_tests/mysqlbinlog_start_stop_streaming_input_1.inc
  => mysql-test/common/binlog/mysqlbinlog_start_stop_streaming_input_1.inc
-mysql-test/common/binlog_tests/mysqlbinlog_start_stop_streaming_input_2.inc 
+mysql-test/extra/binlog_tests/mysqlbinlog_start_stop_streaming_input_2.inc
  => mysql-test/common/binlog/mysqlbinlog_start_stop_streaming_input_2.inc
-mysql-test/common/binlog_tests/print_optional_metadata.inc 
+mysql-test/extra/binlog_tests/print_optional_metadata.inc
  => mysql-test/common/binlog/print_optional_metadata.inc
-mysql-test/common/binlog_tests/recovery/end_scenario.inc 
+mysql-test/extra/binlog_tests/recovery/end_scenario.inc
  => mysql-test/common/binlog/recovery/end_scenario.inc
-mysql-test/common/binlog_tests/recovery/kill_copy_malformed_restart.inc 
+mysql-test/extra/binlog_tests/recovery/kill_copy_malformed_restart.inc
  => mysql-test/common/binlog/recovery/kill_copy_malformed_restart.inc
-mysql-test/common/binlog_tests/tmp_table.test 
+mysql-test/extra/binlog_tests/tmp_table.test
  => mysql-test/common/binlog/tmp_table.test
-mysql-test/common/rpl_tests/binlog_transaction_compression.inc 
+mysql-test/extra/rpl_tests/binlog_transaction_compression.inc
  => mysql-test/common/rpl/binlog_transaction_compression.inc
-mysql-test/common/rpl_tests/check_slave_delay.inc 
+mysql-test/extra/rpl_tests/check_slave_delay.inc
  => mysql-test/common/rpl/check_replica_delay.inc
-mysql-test/common/rpl_tests/check_slave_delay_line_topology.inc 
+mysql-test/extra/rpl_tests/check_slave_delay_line_topology.inc
  => mysql-test/common/rpl/check_replica_delay_line_topology.inc
-mysql-test/common/rpl_tests/check_slave_delay_multi_source.inc 
+mysql-test/extra/rpl_tests/check_slave_delay_multi_source.inc
  => mysql-test/common/rpl/check_replica_delay_multi_source.inc
-mysql-test/common/rpl_tests/check_slave_delay_multiple.inc 
+mysql-test/extra/rpl_tests/check_slave_delay_multiple.inc
  => mysql-test/common/rpl/check_replica_delay_multiple.inc
-mysql-test/common/rpl_tests/check_slave_delay_old.inc 
+mysql-test/extra/rpl_tests/check_slave_delay_old.inc
  => mysql-test/common/rpl/check_replica_delay_old.inc
-mysql-test/common/rpl_tests/check_type.inc 
+mysql-test/extra/rpl_tests/check_type.inc
  => mysql-test/common/rpl/check_type.inc
-mysql-test/common/rpl_tests/create_recursive_construct.inc 
+mysql-test/extra/rpl_tests/create_recursive_construct.inc
  => mysql-test/common/rpl/create_recursive_construct.inc
-mysql-test/common/rpl_tests/create_recursive_construct_stmt_capable_engine.inc 
+mysql-test/extra/rpl_tests/create_recursive_construct_stmt_capable_engine.inc
  => mysql-test/common/rpl/create_recursive_construct_stmt_capable_engine.inc
-mysql-test/common/rpl_tests/delayed_slave_wait_on_query.inc 
+mysql-test/extra/rpl_tests/delayed_slave_wait_on_query.inc
  => mysql-test/common/rpl/delayed_replica_wait_on_query.inc
-mysql-test/common/rpl_tests/gtid_disconnect_drop_temporary_table.test 
+mysql-test/extra/rpl_tests/gtid_disconnect_drop_temporary_table.test
  => mysql-test/common/rpl/gtid_disconnect_drop_temporary_table.test
-mysql-test/common/rpl_tests/mts_spco_generate_deadlock.inc 
+mysql-test/extra/rpl_tests/mts_spco_generate_deadlock.inc
  => mysql-test/common/rpl/mta_rpco_generate_deadlock.inc
-mysql-test/common/rpl_tests/mts_spco_generate_deadlock_cleanup.inc 
+mysql-test/extra/rpl_tests/mts_spco_generate_deadlock_cleanup.inc
  => mysql-test/common/rpl/mta_rpco_generate_deadlock_cleanup.inc
-mysql-test/common/rpl_tests/mts_spco_generate_deadlock_setup.inc 
+mysql-test/extra/rpl_tests/mts_spco_generate_deadlock_setup.inc
  => mysql-test/common/rpl/mta_rpco_generate_deadlock_setup.inc
-mysql-test/common/rpl_tests/rpl_EE_err.test 
+mysql-test/extra/rpl_tests/rpl_EE_err.test
  => mysql-test/common/rpl/rpl_EE_err.test
-mysql-test/common/rpl_tests/rpl_auto_increment_innodb.test 
+mysql-test/extra/rpl_tests/rpl_auto_increment_innodb.test
  => mysql-test/common/rpl/rpl_auto_increment_innodb.test
-mysql-test/common/rpl_tests/rpl_auto_increment_insert_view.test 
+mysql-test/extra/rpl_tests/rpl_auto_increment_insert_view.test
  => mysql-test/common/rpl/rpl_auto_increment_insert_view.test
-mysql-test/common/rpl_tests/rpl_auto_increment_invoke_trigger.test 
+mysql-test/extra/rpl_tests/rpl_auto_increment_invoke_trigger.test
  => mysql-test/common/rpl/rpl_auto_increment_invoke_trigger.test
-mysql-test/common/rpl_tests/rpl_auto_increment_myisam.test 
+mysql-test/extra/rpl_tests/rpl_auto_increment_myisam.test
  => mysql-test/common/rpl/rpl_auto_increment_myisam.test
-mysql-test/common/rpl_tests/rpl_autoinc_func_invokes_trigger.test 
+mysql-test/extra/rpl_tests/rpl_autoinc_func_invokes_trigger.test
  => mysql-test/common/rpl/rpl_autoinc_func_invokes_trigger.test
-mysql-test/common/rpl_tests/rpl_binlog_max_cache_size.test 
+mysql-test/extra/rpl_tests/rpl_binlog_max_cache_size.test
  => mysql-test/common/rpl/rpl_binlog_max_cache_size.test
-mysql-test/common/rpl_tests/rpl_blackhole.test 
+mysql-test/extra/rpl_tests/rpl_blackhole.test
  => mysql-test/common/rpl/rpl_blackhole.test
-mysql-test/common/rpl_tests/rpl_change_master.test 
+mysql-test/extra/rpl_tests/rpl_change_master.test
  => mysql-test/common/rpl/change_replication_source.test
-mysql-test/common/rpl_tests/rpl_change_source_bind.inc 
+mysql-test/extra/rpl_tests/rpl_change_source_bind.inc
  => mysql-test/common/rpl/change_replication_source_bind.inc
-mysql-test/common/rpl_tests/rpl_charset.test 
+mysql-test/extra/rpl_tests/rpl_charset.test
  => mysql-test/common/rpl/rpl_charset.test
-mysql-test/common/rpl_tests/rpl_check_gtid.inc 
+mysql-test/extra/rpl_tests/rpl_check_gtid.inc
  => mysql-test/common/rpl/check_gtid.inc
-mysql-test/common/rpl_tests/rpl_check_ps_applier_status_by_worker_gtid_skipped_transaction.inc 
+mysql-test/extra/rpl_tests/rpl_check_ps_applier_status_by_worker_gtid_skipped_transaction.inc
  => mysql-test/common/rpl/check_ps_applier_status_by_worker_gtid_skipped_transaction.inc
-mysql-test/common/rpl_tests/rpl_check_ps_applier_status_by_worker_slave_skip_counter.inc 
+mysql-test/extra/rpl_tests/rpl_check_ps_applier_status_by_worker_slave_skip_counter.inc
  => mysql-test/common/rpl/check_ps_applier_status_by_worker_replica_skip_counter.inc
-mysql-test/common/rpl_tests/rpl_check_ps_connection_applier_status_tables.inc 
+mysql-test/extra/rpl_tests/rpl_check_ps_connection_applier_status_tables.inc
  => mysql-test/common/rpl/check_ps_connection_applier_status_tables.inc
-mysql-test/common/rpl_tests/rpl_check_ps_connection_applier_status_tables_asserts.inc 
+mysql-test/extra/rpl_tests/rpl_check_ps_connection_applier_status_tables_asserts.inc
  => mysql-test/common/rpl/check_ps_connection_applier_status_tables_asserts.inc
-mysql-test/common/rpl_tests/rpl_commit_after_flush.test 
+mysql-test/extra/rpl_tests/rpl_commit_after_flush.test
  => mysql-test/common/rpl/rpl_commit_after_flush.test
-mysql-test/common/rpl_tests/rpl_conflicts.test 
+mysql-test/extra/rpl_tests/rpl_conflicts.test
  => mysql-test/common/rpl/rpl_conflicts.test
-mysql-test/common/rpl_tests/rpl_crash_safe.inc 
+mysql-test/extra/rpl_tests/rpl_crash_safe.inc
  => mysql-test/common/rpl/crash_safe.inc
-mysql-test/common/rpl_tests/rpl_crash_safe.test 
+mysql-test/extra/rpl_tests/rpl_crash_safe.test
  => mysql-test/common/rpl/rpl_crash_safe.test
-mysql-test/common/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test 
+mysql-test/extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
  => mysql-test/common/rpl/rpl_create_drop_temporary_in_function_or_trigger.test
-mysql-test/common/rpl_tests/rpl_create_drop_temporary_in_transaction.test 
+mysql-test/extra/rpl_tests/rpl_create_drop_temporary_in_transaction.test
  => mysql-test/common/rpl/rpl_create_drop_temporary_in_transaction.test
-mysql-test/common/rpl_tests/rpl_create_msr_channels.inc 
+mysql-test/extra/rpl_tests/rpl_create_msr_channels.inc
  => mysql-test/common/rpl/create_msr_channels.inc
-mysql-test/common/rpl_tests/rpl_create_select.inc 
+mysql-test/extra/rpl_tests/rpl_create_select.inc
  => mysql-test/common/rpl/create_select.inc
-mysql-test/common/rpl_tests/rpl_db_stmts_ignored.inc 
+mysql-test/extra/rpl_tests/rpl_db_stmts_ignored.inc
  => mysql-test/common/rpl/db_stmts_ignored.inc
-mysql-test/common/rpl_tests/rpl_deadlock.test 
+mysql-test/extra/rpl_tests/rpl_deadlock.test
  => mysql-test/common/rpl/rpl_deadlock.test
-mysql-test/common/rpl_tests/rpl_delete_no_where.test 
+mysql-test/extra/rpl_tests/rpl_delete_no_where.test
  => mysql-test/common/rpl/rpl_delete_no_where.test
-mysql-test/common/rpl_tests/rpl_do_table_filter_insensitive.inc 
+mysql-test/extra/rpl_tests/rpl_do_table_filter_insensitive.inc
  => mysql-test/common/rpl/do_table_filter_insensitive.inc
-mysql-test/common/rpl_tests/rpl_do_table_filter_sensitive.inc 
+mysql-test/extra/rpl_tests/rpl_do_table_filter_sensitive.inc
  => mysql-test/common/rpl/do_table_filter_sensitive.inc
-mysql-test/common/rpl_tests/rpl_drop_create_temp_table.inc 
+mysql-test/extra/rpl_tests/rpl_drop_create_temp_table.inc
  => mysql-test/common/rpl/drop_create_temp_table.inc
-mysql-test/common/rpl_tests/rpl_drop_create_temp_table.test 
+mysql-test/extra/rpl_tests/rpl_drop_create_temp_table.test
  => mysql-test/common/rpl/rpl_drop_create_temp_table.test
-mysql-test/common/rpl_tests/rpl_drop_multiple_tables.inc 
+mysql-test/extra/rpl_tests/rpl_drop_multiple_tables.inc
  => mysql-test/common/rpl/drop_multiple_tables.inc
-mysql-test/common/rpl_tests/rpl_drop_multiple_tables_in_multiple_ways.inc 
+mysql-test/extra/rpl_tests/rpl_drop_multiple_tables_in_multiple_ways.inc
  => mysql-test/common/rpl/drop_multiple_tables_in_multiple_ways.inc
-mysql-test/common/rpl_tests/rpl_drop_temp.test 
+mysql-test/extra/rpl_tests/rpl_drop_temp.test
  => mysql-test/common/rpl/rpl_drop_temp.test
-mysql-test/common/rpl_tests/rpl_extra_col_master.test 
+mysql-test/extra/rpl_tests/rpl_extra_col_master.test
  => mysql-test/common/rpl/rpl_extra_col_source.test
-mysql-test/common/rpl_tests/rpl_extra_col_slave.test 
+mysql-test/extra/rpl_tests/rpl_extra_col_slave.test
  => mysql-test/common/rpl/rpl_extra_col_replica.test
-mysql-test/common/rpl_tests/rpl_failed_optimize.test 
+mysql-test/extra/rpl_tests/rpl_failed_optimize.test
  => mysql-test/common/rpl/rpl_failed_optimize.test
-mysql-test/common/rpl_tests/rpl_filters.test 
+mysql-test/extra/rpl_tests/rpl_filters.test
  => mysql-test/common/rpl/rpl_filters.test
-mysql-test/common/rpl_tests/rpl_flsh_tbls.test 
+mysql-test/extra/rpl_tests/rpl_flsh_tbls.test
  => mysql-test/common/rpl/rpl_flsh_tbls.test
-mysql-test/common/rpl_tests/rpl_foreign_key.test 
+mysql-test/extra/rpl_tests/rpl_foreign_key.test
  => mysql-test/common/rpl/rpl_foreign_key.test
-mysql-test/common/rpl_tests/rpl_generate_mts_gap.test 
+mysql-test/extra/rpl_tests/rpl_generate_mts_gap.test
  => mysql-test/common/rpl/rpl_generate_mta_gap.test
-mysql-test/common/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc 
+mysql-test/extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc
  => mysql-test/common/rpl/generate_mta_gap_with_missing_relaylog_begin.inc
-mysql-test/common/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_end.inc 
+mysql-test/extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_end.inc
  => mysql-test/common/rpl/generate_mta_gap_with_missing_relaylog_end.inc
-mysql-test/common/rpl_tests/rpl_get_master_version_and_clock.test 
+mysql-test/extra/rpl_tests/rpl_get_master_version_and_clock.test
  => mysql-test/common/rpl/rpl_get_source_version_and_clock.test
-mysql-test/common/rpl_tests/rpl_gtid_create_drop_temporary_in_function_or_trigger.test 
+mysql-test/extra/rpl_tests/rpl_gtid_create_drop_temporary_in_function_or_trigger.test
  => mysql-test/common/rpl/rpl_gtid_create_drop_temporary_in_function_or_trigger.test
-mysql-test/common/rpl_tests/rpl_gtid_drop_table.inc 
+mysql-test/extra/rpl_tests/rpl_gtid_drop_table.inc
  => mysql-test/common/rpl/gtid_drop_table.inc
-mysql-test/common/rpl_tests/rpl_gtid_drop_table.test 
+mysql-test/extra/rpl_tests/rpl_gtid_drop_table.test
  => mysql-test/common/rpl/rpl_gtid_drop_table.test
-mysql-test/common/rpl_tests/rpl_gtid_mixed_rows_and_stmts_tx_isolation_error.inc 
+mysql-test/extra/rpl_tests/rpl_gtid_mixed_rows_and_stmts_tx_isolation_error.inc
  => mysql-test/common/rpl/gtid_mixed_rows_and_stmts_tx_isolation_error.inc
-mysql-test/common/rpl_tests/rpl_gtid_mts_relay_log_recovery.test 
+mysql-test/extra/rpl_tests/rpl_gtid_mts_relay_log_recovery.test
  => mysql-test/common/rpl/rpl_gtid_mta_relay_log_recovery.test
-mysql-test/common/rpl_tests/rpl_gtid_tag.inc 
+mysql-test/extra/rpl_tests/rpl_gtid_tag.inc
  => mysql-test/common/rpl/gtid_tag.inc
-mysql-test/common/rpl_tests/rpl_gtid_xa_cmd_do_db_filter.test 
+mysql-test/extra/rpl_tests/rpl_gtid_xa_cmd_do_db_filter.test
  => mysql-test/common/rpl/rpl_gtid_xa_cmd_do_db_filter.test
-mysql-test/common/rpl_tests/rpl_gtid_xa_cmd_ignore_db_filter.test 
+mysql-test/extra/rpl_tests/rpl_gtid_xa_cmd_ignore_db_filter.test
  => mysql-test/common/rpl/rpl_gtid_xa_cmd_ignore_db_filter.test
-mysql-test/common/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test 
+mysql-test/extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
  => mysql-test/common/rpl/rpl_gtids_restart_receiver_lost_trx.test
-mysql-test/common/rpl_tests/rpl_heartbeat_2slaves.inc 
+mysql-test/extra/rpl_tests/rpl_heartbeat_2slaves.inc
  => mysql-test/common/rpl/heartbeat_2replicas.inc
-mysql-test/common/rpl_tests/rpl_ignore_super_read_only.test 
+mysql-test/extra/rpl_tests/rpl_ignore_super_read_only.test
  => mysql-test/common/rpl/rpl_ignore_super_read_only.test
-mysql-test/common/rpl_tests/rpl_ignore_table_filter_insensitive.inc 
+mysql-test/extra/rpl_tests/rpl_ignore_table_filter_insensitive.inc
  => mysql-test/common/rpl/ignore_table_filter_insensitive.inc
-mysql-test/common/rpl_tests/rpl_ignore_table_filter_sensitive.inc 
+mysql-test/extra/rpl_tests/rpl_ignore_table_filter_sensitive.inc
  => mysql-test/common/rpl/ignore_table_filter_sensitive.inc
-mysql-test/common/rpl_tests/rpl_implicit_commit_binlog.test 
+mysql-test/extra/rpl_tests/rpl_implicit_commit_binlog.test
  => mysql-test/common/rpl/rpl_implicit_commit_binlog.test
-mysql-test/common/rpl_tests/rpl_innodb.test 
+mysql-test/extra/rpl_tests/rpl_innodb.test
  => mysql-test/common/rpl/rpl_innodb.test
-mysql-test/common/rpl_tests/rpl_insert_id.test 
+mysql-test/extra/rpl_tests/rpl_insert_id.test
  => mysql-test/common/rpl/rpl_insert_id.test
-mysql-test/common/rpl_tests/rpl_insert_id_pk.test 
+mysql-test/extra/rpl_tests/rpl_insert_id_pk.test
  => mysql-test/common/rpl/rpl_insert_id_pk.test
-mysql-test/common/rpl_tests/rpl_insert_ignore.test 
+mysql-test/extra/rpl_tests/rpl_insert_ignore.test
  => mysql-test/common/rpl/rpl_insert_ignore.test
-mysql-test/common/rpl_tests/rpl_kill_query.inc 
+mysql-test/extra/rpl_tests/rpl_kill_query.inc
  => mysql-test/common/rpl/kill_query.inc
-mysql-test/common/rpl_tests/rpl_loaddata.test 
+mysql-test/extra/rpl_tests/rpl_loaddata.test
  => mysql-test/common/rpl/rpl_loaddata.test
-mysql-test/common/rpl_tests/rpl_loaddata_s.inc 
+mysql-test/extra/rpl_tests/rpl_loaddata_s.inc
  => mysql-test/common/rpl/loaddata_s.inc
-mysql-test/common/rpl_tests/rpl_loadfile.test 
+mysql-test/extra/rpl_tests/rpl_loadfile.test
  => mysql-test/common/rpl/rpl_loadfile.test
-mysql-test/common/rpl_tests/rpl_log.test 
+mysql-test/extra/rpl_tests/rpl_log.test
  => mysql-test/common/rpl/rpl_log.test
-mysql-test/common/rpl_tests/rpl_lower_case_table_names.test 
+mysql-test/extra/rpl_tests/rpl_lower_case_table_names.test
  => mysql-test/common/rpl/rpl_lower_case_table_names.test
-mysql-test/common/rpl_tests/rpl_max_relay_size.test 
+mysql-test/extra/rpl_tests/rpl_max_relay_size.test
  => mysql-test/common/rpl/rpl_max_relay_size.test
-mysql-test/common/rpl_tests/rpl_mixing_engines.inc 
+mysql-test/extra/rpl_tests/rpl_mixing_engines.inc
  => mysql-test/common/rpl/mixing_engines.inc
-mysql-test/common/rpl_tests/rpl_mixing_engines.test 
+mysql-test/extra/rpl_tests/rpl_mixing_engines.test
  => mysql-test/common/rpl/rpl_mixing_engines.test
-mysql-test/common/rpl_tests/rpl_mts_crash_safe.inc 
+mysql-test/extra/rpl_tests/rpl_mts_crash_safe.inc
  => mysql-test/common/rpl/mta_crash_safe.inc
-mysql-test/common/rpl_tests/rpl_mts_crash_safe.test 
+mysql-test/extra/rpl_tests/rpl_mts_crash_safe.test
  => mysql-test/common/rpl/rpl_mta_crash_safe.test
-mysql-test/common/rpl_tests/rpl_mts_execute_partial_trx_in_relay_log.inc 
+mysql-test/extra/rpl_tests/rpl_mts_execute_partial_trx_in_relay_log.inc
  => mysql-test/common/rpl/mta_execute_partial_trx_in_relay_log.inc
-mysql-test/common/rpl_tests/rpl_mts_pending_events.inc 
+mysql-test/extra/rpl_tests/rpl_mts_pending_events.inc
  => mysql-test/common/rpl/mta_pending_events.inc
-mysql-test/common/rpl_tests/rpl_mts_relay_log_recovery.test 
+mysql-test/extra/rpl_tests/rpl_mts_relay_log_recovery.test
  => mysql-test/common/rpl/rpl_mta_relay_log_recovery.test
-mysql-test/common/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc 
+mysql-test/extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
  => mysql-test/common/rpl/mta_replica_preserve_commit_order_nobinlog.inc
-mysql-test/common/rpl_tests/rpl_mts_spco_acl_commands.test 
+mysql-test/extra/rpl_tests/rpl_mts_spco_acl_commands.test
  => mysql-test/common/rpl/rpl_mta_rpco_acl_commands.test
-mysql-test/common/rpl_tests/rpl_mts_spco_alter_table_commands.test 
+mysql-test/extra/rpl_tests/rpl_mts_spco_alter_table_commands.test
  => mysql-test/common/rpl/rpl_mta_rpco_alter_table_commands.test
-mysql-test/common/rpl_tests/rpl_mts_spco_check_worker_states.inc 
+mysql-test/extra/rpl_tests/rpl_mts_spco_check_worker_states.inc
  => mysql-test/common/rpl/mta_rpco_check_worker_states.inc
-mysql-test/common/rpl_tests/rpl_mts_spco_check_worker_states.test 
+mysql-test/extra/rpl_tests/rpl_mts_spco_check_worker_states.test
  => mysql-test/common/rpl/rpl_mta_rpco_check_worker_states.test
-mysql-test/common/rpl_tests/rpl_mts_spco_commands.test 
+mysql-test/extra/rpl_tests/rpl_mts_spco_commands.test
  => mysql-test/common/rpl/rpl_mta_rpco_commands.test
-mysql-test/common/rpl_tests/rpl_mts_spco_partition_commands.test 
+mysql-test/extra/rpl_tests/rpl_mts_spco_partition_commands.test
  => mysql-test/common/rpl/rpl_mta_rpco_partition_commands.test
-mysql-test/common/rpl_tests/rpl_mts_transaction_retry.inc 
+mysql-test/extra/rpl_tests/rpl_mts_transaction_retry.inc
  => mysql-test/common/rpl/mta_transaction_retry.inc
-mysql-test/common/rpl_tests/rpl_mts_until.inc 
+mysql-test/extra/rpl_tests/rpl_mts_until.inc
  => mysql-test/common/rpl/mta_until.inc
-mysql-test/common/rpl_tests/rpl_multi_query.test 
+mysql-test/extra/rpl_tests/rpl_multi_query.test
  => mysql-test/common/rpl/rpl_multi_query.test
-mysql-test/common/rpl_tests/rpl_multi_source_corrupt_repository.inc 
+mysql-test/extra/rpl_tests/rpl_multi_source_corrupt_repository.inc
  => mysql-test/common/rpl/multi_source_corrupt_repository.inc
-mysql-test/common/rpl_tests/rpl_multi_source_generate_mts_gap.test 
+mysql-test/extra/rpl_tests/rpl_multi_source_generate_mts_gap.test
  => mysql-test/common/rpl/rpl_multi_source_generate_mta_gap.test
-mysql-test/common/rpl_tests/rpl_multi_update.test 
+mysql-test/extra/rpl_tests/rpl_multi_update.test
  => mysql-test/common/rpl/rpl_multi_update.test
-mysql-test/common/rpl_tests/rpl_multi_update2.test 
+mysql-test/extra/rpl_tests/rpl_multi_update2.test
  => mysql-test/common/rpl/rpl_multi_update2.test
-mysql-test/common/rpl_tests/rpl_multi_update3.test 
+mysql-test/extra/rpl_tests/rpl_multi_update3.test
  => mysql-test/common/rpl/rpl_multi_update3.test
-mysql-test/common/rpl_tests/rpl_multiple_trigger.inc 
+mysql-test/extra/rpl_tests/rpl_multiple_trigger.inc
  => mysql-test/common/rpl/multiple_trigger.inc
-mysql-test/common/rpl_tests/rpl_not_null.test 
+mysql-test/extra/rpl_tests/rpl_not_null.test
  => mysql-test/common/rpl/rpl_not_null.test
-mysql-test/common/rpl_tests/rpl_parallel_ddl.test 
+mysql-test/extra/rpl_tests/rpl_parallel_ddl.test
  => mysql-test/common/rpl/rpl_parallel_ddl.test
-mysql-test/common/rpl_tests/rpl_parallel_load.test 
+mysql-test/extra/rpl_tests/rpl_parallel_load.test
  => mysql-test/common/rpl/rpl_parallel_load.test
-mysql-test/common/rpl_tests/rpl_parallel_load_innodb.test 
+mysql-test/extra/rpl_tests/rpl_parallel_load_innodb.test
  => mysql-test/common/rpl/rpl_parallel_load_innodb.test
-mysql-test/common/rpl_tests/rpl_parallel_recovery_core.test 
+mysql-test/extra/rpl_tests/rpl_parallel_recovery_core.test
  => mysql-test/common/rpl/rpl_parallel_recovery_core.test
-mysql-test/common/rpl_tests/rpl_perfschema_applier_xa_status.test 
+mysql-test/extra/rpl_tests/rpl_perfschema_applier_xa_status.test
  => mysql-test/common/rpl/rpl_perfschema_applier_xa_status.test
-mysql-test/common/rpl_tests/rpl_perfschema_order_by.test 
+mysql-test/extra/rpl_tests/rpl_perfschema_order_by.test
  => mysql-test/common/rpl/rpl_perfschema_order_by.test
-mysql-test/common/rpl_tests/rpl_ps_connection_applier_status.inc 
+mysql-test/extra/rpl_tests/rpl_ps_connection_applier_status.inc
  => mysql-test/common/rpl/ps_connection_applier_status.inc
-mysql-test/common/rpl_tests/rpl_ps_connection_applier_status_by_worker_failed_trx.inc 
+mysql-test/extra/rpl_tests/rpl_ps_connection_applier_status_by_worker_failed_trx.inc
  => mysql-test/common/rpl/ps_connection_applier_status_by_worker_failed_trx.inc
-mysql-test/common/rpl_tests/rpl_ps_table_worker_retry.inc 
+mysql-test/extra/rpl_tests/rpl_ps_table_worker_retry.inc
  => mysql-test/common/rpl/ps_table_worker_retry.inc
-mysql-test/common/rpl_tests/rpl_record_compare.test 
+mysql-test/extra/rpl_tests/rpl_record_compare.test
  => mysql-test/common/rpl/rpl_record_compare.test
-mysql-test/common/rpl_tests/rpl_relayrotate.test 
+mysql-test/extra/rpl_tests/rpl_relayrotate.test
  => mysql-test/common/rpl/rpl_relayrotate.test
-mysql-test/common/rpl_tests/rpl_rename_index.inc 
+mysql-test/extra/rpl_tests/rpl_rename_index.inc
  => mysql-test/common/rpl/rename_index.inc
-mysql-test/common/rpl_tests/rpl_replica_start_after_clone.inc 
+mysql-test/extra/rpl_tests/rpl_replica_start_after_clone.inc
  => mysql-test/common/rpl/replica_start_after_clone.inc
-mysql-test/common/rpl_tests/rpl_replica_start_after_clone_cleanup.inc 
+mysql-test/extra/rpl_tests/rpl_replica_start_after_clone_cleanup.inc
  => mysql-test/common/rpl/replica_start_after_clone_cleanup.inc
-mysql-test/common/rpl_tests/rpl_replication_observers_example_plugin_server_startup.inc 
+mysql-test/extra/rpl_tests/rpl_replication_observers_example_plugin_server_startup.inc
  => mysql-test/common/rpl/replication_observers_example_plugin_server_startup.inc
-mysql-test/common/rpl_tests/rpl_replication_timestamps.inc 
+mysql-test/extra/rpl_tests/rpl_replication_timestamps.inc
  => mysql-test/common/rpl/replication_timestamps.inc
-mysql-test/common/rpl_tests/rpl_reset_slave.test 
+mysql-test/extra/rpl_tests/rpl_reset_slave.test
  => mysql-test/common/rpl/rpl_reset_replica.test
-mysql-test/common/rpl_tests/rpl_reset_slave_all_thread_safe.inc 
+mysql-test/extra/rpl_tests/rpl_reset_slave_all_thread_safe.inc
  => mysql-test/common/rpl/reset_replica_all_thread_safe.inc
-mysql-test/common/rpl_tests/rpl_rewrt_db.test 
+mysql-test/extra/rpl_tests/rpl_rewrt_db.test
  => mysql-test/common/rpl/rpl_rewrt_db.test
-mysql-test/common/rpl_tests/rpl_rollback_to_savepoint.inc 
+mysql-test/extra/rpl_tests/rpl_rollback_to_savepoint.inc
  => mysql-test/common/rpl/rollback_to_savepoint.inc
-mysql-test/common/rpl_tests/rpl_row_001.test 
+mysql-test/extra/rpl_tests/rpl_row_001.test
  => mysql-test/common/rpl/rpl_row_001.test
-mysql-test/common/rpl_tests/rpl_row_UUID.test 
+mysql-test/extra/rpl_tests/rpl_row_UUID.test
  => mysql-test/common/rpl/rpl_row_UUID.test
-mysql-test/common/rpl_tests/rpl_row_basic.test 
+mysql-test/extra/rpl_tests/rpl_row_basic.test
  => mysql-test/common/rpl/rpl_row_basic.test
-mysql-test/common/rpl_tests/rpl_row_blob.test 
+mysql-test/extra/rpl_tests/rpl_row_blob.test
  => mysql-test/common/rpl/rpl_row_blob.test
-mysql-test/common/rpl_tests/rpl_row_empty_imgs.test 
+mysql-test/extra/rpl_tests/rpl_row_empty_imgs.test
  => mysql-test/common/rpl/rpl_row_empty_imgs.test
-mysql-test/common/rpl_tests/rpl_row_event_max_size.inc 
+mysql-test/extra/rpl_tests/rpl_row_event_max_size.inc
  => mysql-test/common/rpl/row_event_max_size.inc
-mysql-test/common/rpl_tests/rpl_row_func003.test 
+mysql-test/extra/rpl_tests/rpl_row_func003.test
  => mysql-test/common/rpl/rpl_row_func003.test
-mysql-test/common/rpl_tests/rpl_row_idempotency.test 
+mysql-test/extra/rpl_tests/rpl_row_idempotency.test
  => mysql-test/common/rpl/rpl_row_idempotency.test
-mysql-test/common/rpl_tests/rpl_row_img.test 
+mysql-test/extra/rpl_tests/rpl_row_img.test
  => mysql-test/common/rpl/rpl_row_img.test
-mysql-test/common/rpl_tests/rpl_row_img_blobs.test 
+mysql-test/extra/rpl_tests/rpl_row_img_blobs.test
  => mysql-test/common/rpl/rpl_row_img_blobs.test
-mysql-test/common/rpl_tests/rpl_row_img_diff_indexes.test 
+mysql-test/extra/rpl_tests/rpl_row_img_diff_indexes.test
  => mysql-test/common/rpl/rpl_row_img_diff_indexes.test
-mysql-test/common/rpl_tests/rpl_row_jsondiff_basic.inc 
+mysql-test/extra/rpl_tests/rpl_row_jsondiff_basic.inc
  => mysql-test/common/rpl/row_jsondiff_basic.inc
-mysql-test/common/rpl_tests/rpl_row_jsondiff_datatypes.inc 
+mysql-test/extra/rpl_tests/rpl_row_jsondiff_datatypes.inc
  => mysql-test/common/rpl/row_jsondiff_datatypes.inc
-mysql-test/common/rpl_tests/rpl_row_jsondiff_error_scenario.inc 
+mysql-test/extra/rpl_tests/rpl_row_jsondiff_error_scenario.inc
  => mysql-test/common/rpl/row_jsondiff_error_scenario.inc
-mysql-test/common/rpl_tests/rpl_row_jsondiff_exit.inc 
+mysql-test/extra/rpl_tests/rpl_row_jsondiff_exit.inc
  => mysql-test/common/rpl/row_jsondiff_exit.inc
-mysql-test/common/rpl_tests/rpl_row_jsondiff_init.inc 
+mysql-test/extra/rpl_tests/rpl_row_jsondiff_init.inc
  => mysql-test/common/rpl/row_jsondiff_init.inc
-mysql-test/common/rpl_tests/rpl_row_jsondiff_scenario.inc 
+mysql-test/extra/rpl_tests/rpl_row_jsondiff_scenario.inc
  => mysql-test/common/rpl/row_jsondiff_scenario.inc
-mysql-test/common/rpl_tests/rpl_row_sp002.test 
+mysql-test/extra/rpl_tests/rpl_row_sp002.test
  => mysql-test/common/rpl/rpl_row_sp002.test
-mysql-test/common/rpl_tests/rpl_row_sp003.test 
+mysql-test/extra/rpl_tests/rpl_row_sp003.test
  => mysql-test/common/rpl/rpl_row_sp003.test
-mysql-test/common/rpl_tests/rpl_row_sp006.test 
+mysql-test/extra/rpl_tests/rpl_row_sp006.test
  => mysql-test/common/rpl/rpl_row_sp006.test
-mysql-test/common/rpl_tests/rpl_row_sp007.test 
+mysql-test/extra/rpl_tests/rpl_row_sp007.test
  => mysql-test/common/rpl/rpl_row_sp007.test
-mysql-test/common/rpl_tests/rpl_row_tabledefs.test 
+mysql-test/extra/rpl_tests/rpl_row_tabledefs.test
  => mysql-test/common/rpl/rpl_row_tabledefs.test
-mysql-test/common/rpl_tests/rpl_seconds_behind_master_mts_logical_clock.test 
+mysql-test/extra/rpl_tests/rpl_seconds_behind_master_mts_logical_clock.test
  => mysql-test/common/rpl/rpl_seconds_behind_source_mta_logical_clock.test
-mysql-test/common/rpl_tests/rpl_seconds_behind_master_mts_type_database.test 
+mysql-test/extra/rpl_tests/rpl_seconds_behind_master_mts_type_database.test
  => mysql-test/common/rpl/rpl_seconds_behind_source_mta_type_database.test
-mysql-test/common/rpl_tests/rpl_semi_sync_ack_thread.inc 
+mysql-test/extra/rpl_tests/rpl_semi_sync_ack_thread.inc
  => mysql-test/common/rpl/semi_sync_ack_thread.inc
-mysql-test/common/rpl_tests/rpl_semi_sync_after_sync.test 
+mysql-test/extra/rpl_tests/rpl_semi_sync_after_sync.test
  => mysql-test/common/rpl/rpl_semi_sync_after_sync.test
-mysql-test/common/rpl_tests/rpl_semi_sync_deadlock.test 
+mysql-test/extra/rpl_tests/rpl_semi_sync_deadlock.test
  => mysql-test/common/rpl/rpl_semi_sync_deadlock.test
-mysql-test/common/rpl_tests/rpl_semi_sync_group_commit_deadlock.inc 
+mysql-test/extra/rpl_tests/rpl_semi_sync_group_commit_deadlock.inc
  => mysql-test/common/rpl/semi_sync_group_commit_deadlock.inc
-mysql-test/common/rpl_tests/rpl_set_null.test 
+mysql-test/extra/rpl_tests/rpl_set_null.test
  => mysql-test/common/rpl/rpl_set_null.test
-mysql-test/common/rpl_tests/rpl_sp.test 
+mysql-test/extra/rpl_tests/rpl_sp.test
  => mysql-test/common/rpl/rpl_sp.test
-mysql-test/common/rpl_tests/rpl_split_statements.test 
+mysql-test/extra/rpl_tests/rpl_split_statements.test
  => mysql-test/common/rpl/rpl_split_statements.test
-mysql-test/common/rpl_tests/rpl_split_statements_debug.test 
+mysql-test/extra/rpl_tests/rpl_split_statements_debug.test
  => mysql-test/common/rpl/rpl_split_statements_debug.test
-mysql-test/common/rpl_tests/rpl_start_stop_slave.test 
+mysql-test/extra/rpl_tests/rpl_start_stop_slave.test
  => mysql-test/common/rpl/rpl_start_stop_replica.test
-mysql-test/common/rpl_tests/rpl_stm_EE_err2.test 
+mysql-test/extra/rpl_tests/rpl_stm_EE_err2.test
  => mysql-test/common/rpl/rpl_stm_EE_err2.test
-mysql-test/common/rpl_tests/rpl_stop_middle_group.test 
+mysql-test/extra/rpl_tests/rpl_stop_middle_group.test
  => mysql-test/common/rpl/rpl_stop_middle_group.test
-mysql-test/common/rpl_tests/rpl_stop_slave.test 
+mysql-test/extra/rpl_tests/rpl_stop_slave.test
  => mysql-test/common/rpl/rpl_stop_replica.test
-mysql-test/common/rpl_tests/rpl_stress_test.inc 
+mysql-test/extra/rpl_tests/rpl_stress_test.inc
  => mysql-test/common/rpl/stress_test.inc
-mysql-test/common/rpl_tests/rpl_sv_relay_space.test 
+mysql-test/extra/rpl_tests/rpl_sv_relay_space.test
  => mysql-test/common/rpl/rpl_sv_relay_space.test
-mysql-test/common/rpl_tests/rpl_sync_relay_log_info.inc 
+mysql-test/extra/rpl_tests/rpl_sync_relay_log_info.inc
  => mysql-test/common/rpl/sync_relay_log_info.inc
-mysql-test/common/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc 
+mysql-test/extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
  => mysql-test/common/rpl/sync_relay_log_info_assert_pos.inc
-mysql-test/common/rpl_tests/rpl_temp_error.test 
+mysql-test/extra/rpl_tests/rpl_temp_error.test
  => mysql-test/common/rpl/rpl_temp_error.test
-mysql-test/common/rpl_tests/rpl_test_framework.inc 
+mysql-test/extra/rpl_tests/rpl_test_framework.inc
  => mysql-test/common/rpl/test_framework.inc
-mysql-test/common/rpl_tests/rpl_timestamps_line_topology.inc 
+mysql-test/extra/rpl_tests/rpl_timestamps_line_topology.inc
  => mysql-test/common/rpl/timestamps_line_topology.inc
-mysql-test/common/rpl_tests/rpl_tmp_table_and_DDL.test 
+mysql-test/extra/rpl_tests/rpl_tmp_table_and_DDL.test
  => mysql-test/common/rpl/rpl_tmp_table_and_DDL.test
-mysql-test/common/rpl_tests/rpl_trig004.test 
+mysql-test/extra/rpl_tests/rpl_trig004.test
  => mysql-test/common/rpl/rpl_trig004.test
-mysql-test/common/rpl_tests/rpl_truncate.test 
+mysql-test/extra/rpl_tests/rpl_truncate.test
  => mysql-test/common/rpl/rpl_truncate.test
-mysql-test/common/rpl_tests/rpl_truncate_helper.test 
+mysql-test/extra/rpl_tests/rpl_truncate_helper.test
  => mysql-test/common/rpl/rpl_truncate_helper.test
-mysql-test/common/rpl_tests/rpl_trx_boundary_parser.inc 
+mysql-test/extra/rpl_tests/rpl_trx_boundary_parser.inc
  => mysql-test/common/rpl/trx_boundary_parser.inc
-mysql-test/common/rpl_tests/rpl_trx_boundary_parser_all_steps.inc 
+mysql-test/extra/rpl_tests/rpl_trx_boundary_parser_all_steps.inc
  => mysql-test/common/rpl/trx_boundary_parser_all_steps.inc
-mysql-test/common/rpl_tests/rpl_trx_boundary_parser_one_step.inc 
+mysql-test/extra/rpl_tests/rpl_trx_boundary_parser_one_step.inc
  => mysql-test/common/rpl/trx_boundary_parser_one_step.inc
-mysql-test/common/rpl_tests/rpl_trx_boundary_parser_warning.inc 
+mysql-test/extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
  => mysql-test/common/rpl/trx_boundary_parser_warning.inc
-mysql-test/common/rpl_tests/rpl_variables_stm.test 
+mysql-test/extra/rpl_tests/rpl_variables_stm.test
  => mysql-test/common/rpl/rpl_variables_stm.test
-mysql-test/common/rpl_tests/rpl_xa_gtid_next.inc 
+mysql-test/extra/rpl_tests/rpl_xa_gtid_next.inc
  => mysql-test/common/rpl/xa_gtid_next.inc
-mysql-test/common/rpl_tests/rpl_xa_mixed_engines.inc 
+mysql-test/extra/rpl_tests/rpl_xa_mixed_engines.inc
  => mysql-test/common/rpl/xa_mixed_engines.inc
-mysql-test/common/rpl_tests/source_pos_wait.inc 
+mysql-test/extra/rpl_tests/source_pos_wait.inc
  => mysql-test/common/rpl/source_pos_wait.inc
-mysql-test/common/rpl_tests/type_conversions.test 
+mysql-test/extra/rpl_tests/type_conversions.test
  => mysql-test/common/rpl/type_conversions.test
-mysql-test/common/xa_crash_safe_tests/assert_recovery_message.inc 
+mysql-test/extra/xa_crash_safe_tests/assert_recovery_message.inc
  => mysql-test/common/xa_crash_safe/assert_recovery_message.inc
-mysql-test/common/xa_crash_safe_tests/assert_row_count.inc 
+mysql-test/extra/xa_crash_safe_tests/assert_row_count.inc
  => mysql-test/common/xa_crash_safe/assert_row_count.inc
-mysql-test/common/xa_crash_safe_tests/assert_se_recovery_message.inc 
+mysql-test/extra/xa_crash_safe_tests/assert_se_recovery_message.inc
  => mysql-test/common/xa_crash_safe/assert_se_recovery_message.inc
-mysql-test/common/xa_crash_safe_tests/assert_xa_recover.inc 
+mysql-test/extra/xa_crash_safe_tests/assert_xa_recover.inc
  => mysql-test/common/xa_crash_safe/assert_xa_recover.inc
-mysql-test/common/xa_crash_safe_tests/cleanup_connection.inc 
+mysql-test/extra/xa_crash_safe_tests/cleanup_connection.inc
  => mysql-test/common/xa_crash_safe/cleanup_connection.inc
-mysql-test/common/xa_crash_safe_tests/end_utility_functions.inc 
+mysql-test/extra/xa_crash_safe_tests/end_utility_functions.inc
  => mysql-test/common/xa_crash_safe/end_utility_functions.inc
-mysql-test/common/xa_crash_safe_tests/setup.inc 
+mysql-test/extra/xa_crash_safe_tests/setup.inc
  => mysql-test/common/xa_crash_safe/setup.inc
-mysql-test/common/xa_crash_safe_tests/utility_functions.inc 
+mysql-test/extra/xa_crash_safe_tests/utility_functions.inc
  => mysql-test/common/xa_crash_safe/utility_functions.inc
-mysql-test/include/assert_binlog_events.inc 
+mysql-test/include/assert_binlog_events.inc
  => mysql-test/include/rpl/assert_binlog_events.inc
-mysql-test/include/assert_gtid_mode_on.inc 
+mysql-test/include/assert_gtid_mode_on.inc
  => mysql-test/include/rpl/assert_gtid_mode_on.inc
-mysql-test/include/assert_logical_timestamps.inc 
+mysql-test/include/assert_logical_timestamps.inc
  => mysql-test/include/rpl/assert_logical_timestamps.inc
-mysql-test/include/assert_rbr_only_flags.inc 
+mysql-test/include/assert_rbr_only_flags.inc
  => mysql-test/include/rpl/assert_rbr_only_flags.inc
-mysql-test/include/assert_semisync_yesno_tx_increment.inc 
+mysql-test/include/assert_semisync_yesno_tx_increment.inc
  => mysql-test/include/rpl/assert_semisync_yesno_tx_increment.inc
-mysql-test/include/assert_transaction_length.inc 
+mysql-test/include/assert_transaction_length.inc
  => mysql-test/include/rpl/assert_transaction_length.inc
-mysql-test/include/assert_transaction_length_all_logs.inc 
+mysql-test/include/assert_transaction_length_all_logs.inc
  => mysql-test/include/rpl/assert_transaction_length_all_logs.inc
-mysql-test/include/begin_replace_gtid_combination.inc 
+mysql-test/include/begin_replace_gtid_combination.inc
  => mysql-test/include/rpl/begin_replace_gtid_combination.inc
-mysql-test/include/binlog_inject_error.inc 
+mysql-test/include/binlog_inject_error.inc
  => mysql-test/include/rpl/deprecated/binlog_inject_error.inc
-mysql-test/include/check_slave_is_running.inc 
+mysql-test/include/check_slave_is_running.inc
  => mysql-test/include/rpl/assert_replica_running.inc
-mysql-test/include/check_slave_no_error.inc 
+mysql-test/include/check_slave_no_error.inc
  => mysql-test/include/rpl/assert_replica_no_error.inc
-mysql-test/include/check_slave_param.inc 
+mysql-test/include/check_slave_param.inc
  => mysql-test/include/rpl/assert_replica_status.inc
-mysql-test/include/cleanup_fake_relay_log.inc 
+mysql-test/include/cleanup_fake_relay_log.inc
  => mysql-test/include/rpl/cleanup_fake_relay_log.inc
-mysql-test/include/disable_binlog.inc 
+mysql-test/include/disable_binlog.inc
  => mysql-test/include/rpl/disable_binlog.inc
-mysql-test/include/end_replace_gtid_combination.inc 
+mysql-test/include/end_replace_gtid_combination.inc
  => mysql-test/include/rpl/end_replace_gtid_combination.inc
-mysql-test/include/force_binlog_format_statement.inc 
+mysql-test/include/force_binlog_format_statement.inc
  => mysql-test/include/rpl/force_binlog_format_statement.inc
-mysql-test/include/get_gtid_time.inc 
+mysql-test/include/get_gtid_time.inc
  => mysql-test/include/rpl/get_gtid_time.inc
-mysql-test/include/get_immediate_commit_timestamp.inc 
+mysql-test/include/get_immediate_commit_timestamp.inc
  => mysql-test/include/rpl/get_immediate_commit_timestamp.inc
-mysql-test/include/get_immediate_server_version.inc 
+mysql-test/include/get_immediate_server_version.inc
  => mysql-test/include/rpl/get_immediate_server_version.inc
-mysql-test/include/get_mysqlbinlog_decoded_rows.inc 
+mysql-test/include/get_mysqlbinlog_decoded_rows.inc
  => mysql-test/include/rpl/get_mysqlbinlog_decoded_rows.inc
-mysql-test/include/get_original_commit_timestamp.inc 
+mysql-test/include/get_original_commit_timestamp.inc
  => mysql-test/include/rpl/get_original_commit_timestamp.inc
-mysql-test/include/get_original_server_version.inc 
+mysql-test/include/get_original_server_version.inc
  => mysql-test/include/rpl/get_original_server_version.inc
-mysql-test/include/get_relay_log_pos.inc 
+mysql-test/include/get_relay_log_pos.inc
  => mysql-test/include/rpl/convert_binlog_position_to_relay_log_position.inc
-mysql-test/include/gtid_prepare_and_execute_stmt.inc 
+mysql-test/include/gtid_prepare_and_execute_stmt.inc
  => mysql-test/include/rpl/gtid_prepare_and_execute_stmt.inc
-mysql-test/include/gtid_step_assert.inc 
+mysql-test/include/gtid_step_assert.inc
  => mysql-test/include/rpl/gtid_step_assert.inc
-mysql-test/include/gtid_step_assert_on_retrieved.inc 
+mysql-test/include/gtid_step_assert_on_retrieved.inc
  => mysql-test/include/rpl/gtid_step_assert_on_retrieved.inc
-mysql-test/include/gtid_step_reset.inc 
+mysql-test/include/gtid_step_reset.inc
  => mysql-test/include/rpl/gtid_step_reset.inc
-mysql-test/include/gtid_step_reset_on_retrieved.inc 
+mysql-test/include/gtid_step_reset_on_retrieved.inc
  => mysql-test/include/rpl/gtid_step_reset_on_retrieved.inc
-mysql-test/include/gtid_utils.inc 
+mysql-test/include/gtid_utils.inc
  => mysql-test/include/rpl/gtid_utils.inc
-mysql-test/include/gtid_utils_end.inc 
+mysql-test/include/gtid_utils_end.inc
  => mysql-test/include/rpl/gtid_utils_end.inc
-mysql-test/include/install_semisync.inc 
+mysql-test/include/install_semisync.inc
  => mysql-test/include/rpl/install_semisync.inc
-mysql-test/include/install_semisync_replica.inc 
+mysql-test/include/install_semisync_replica.inc
  => mysql-test/include/rpl/install_semisync_replica.inc
-mysql-test/include/install_semisync_source.inc 
+mysql-test/include/install_semisync_source.inc
  => mysql-test/include/rpl/install_semisync_source.inc
-mysql-test/include/kill_query_and_diff_master_slave.inc 
+mysql-test/include/kill_query_and_diff_master_slave.inc
  => mysql-test/include/rpl/kill_query_and_diff_source_replica.inc
-mysql-test/include/kill_wait_for_executed_gtid_set.inc 
+mysql-test/include/kill_wait_for_executed_gtid_set.inc
  => mysql-test/include/rpl/kill_wait_for_executed_gtid_set.inc
-mysql-test/include/master-slave.inc 
+mysql-test/include/master-slave.inc
  => mysql-test/include/rpl/init_source_replica.inc
-mysql-test/include/mysqlbinlog.inc 
+mysql-test/include/mysqlbinlog.inc
  => mysql-test/include/rpl/mysqlbinlog.inc
-mysql-test/include/mysqlbinlog_have_debug.inc 
+mysql-test/include/mysqlbinlog_have_debug.inc
  => mysql-test/include/have_mysqlbinlog_debug.inc
-mysql-test/include/mysqlbinlog_raw_mode.inc 
+mysql-test/include/mysqlbinlog_raw_mode.inc
  => mysql-test/include/rpl/mysqlbinlog_raw_mode.inc
-mysql-test/include/ndb_restore_master.inc 
+mysql-test/include/ndb_restore_master.inc
  => mysql-test/common/rpl/ndb_restore_source.inc
-mysql-test/include/ndb_restore_slave_eoption.inc 
+mysql-test/include/ndb_restore_slave_eoption.inc
  => mysql-test/common/rpl/ndb_restore_replica_option.inc
-mysql-test/include/not_binlog_format_mixed.inc 
+mysql-test/include/not_binlog_format_mixed.inc
  => mysql-test/include/rpl/deprecated/not_binlog_format_mixed.inc
-mysql-test/include/not_binlog_format_row.inc 
+mysql-test/include/not_binlog_format_row.inc
  => mysql-test/include/rpl/deprecated/not_binlog_format_row.inc
-mysql-test/include/not_binlog_format_statement.inc 
+mysql-test/include/not_binlog_format_statement.inc
  => mysql-test/include/rpl/deprecated/not_binlog_format_statement.inc
-mysql-test/include/not_mts_replica_parallel_workers.inc 
+mysql-test/include/not_mts_replica_parallel_workers.inc
  => mysql-test/include/not_replica_parallel_workers.inc
-mysql-test/include/only_mts_replica_parallel_type_database.inc 
+mysql-test/include/only_mts_replica_parallel_type_database.inc
  => mysql-test/include/have_replica_parallel_type_database.inc
-mysql-test/include/only_mts_replica_parallel_type_logical_clock.inc 
+mysql-test/include/only_mts_replica_parallel_type_logical_clock.inc
  => mysql-test/include/have_replica_parallel_type_logical_clock.inc
-mysql-test/include/only_mts_replica_parallel_workers.inc 
+mysql-test/include/only_mts_replica_parallel_workers.inc
  => mysql-test/include/have_replica_parallel_workers.inc
-mysql-test/include/only_replica_preserve_commit_order.inc 
+mysql-test/include/only_replica_preserve_commit_order.inc
  => mysql-test/include/have_replica_preserve_commit_order.inc
-mysql-test/include/purge_first_log.inc 
+mysql-test/include/purge_first_log.inc
  => mysql-test/include/rpl/purge_first_binlog.inc
-mysql-test/include/relocate_binlogs.inc 
+mysql-test/include/relocate_binlogs.inc
  => mysql-test/include/rpl/relocate_binlogs.inc
-mysql-test/include/restart_slave_sql.inc 
+mysql-test/include/restart_slave_sql.inc
  => mysql-test/include/rpl/restart_applier.inc
-mysql-test/include/restore_binlog.inc 
+mysql-test/include/restore_binlog.inc
  => mysql-test/include/rpl/restore_binlog.inc
-mysql-test/include/restore_default_binlog_format.inc 
+mysql-test/include/restore_default_binlog_format.inc
  => mysql-test/include/rpl/restore_default_binlog_format.inc
-mysql-test/include/rpl_change_topology.inc 
+mysql-test/include/rpl_change_topology.inc
  => mysql-test/include/rpl/change_topology.inc
-mysql-test/include/rpl_change_topology_helper.inc 
+mysql-test/include/rpl_change_topology_helper.inc
  => mysql-test/include/rpl/impl/change_topology_helper.inc
-mysql-test/include/rpl_change_topology_merge_variables.inc 
+mysql-test/include/rpl_change_topology_merge_variables.inc
  => mysql-test/include/rpl/impl/change_topology_merge_variables.inc
-mysql-test/include/rpl_clear_asynchronous_failover_configuration.inc 
+mysql-test/include/rpl_clear_asynchronous_failover_configuration.inc
  => mysql-test/include/rpl/clear_asynchronous_failover_configuration.inc
-mysql-test/include/rpl_clear_priv_checks_user_configuration.inc 
+mysql-test/include/rpl_clear_priv_checks_user_configuration.inc
  => mysql-test/include/rpl/clear_priv_checks_user_configuration.inc
-mysql-test/include/rpl_connect.inc 
+mysql-test/include/rpl_connect.inc
  => mysql-test/include/rpl/connect.inc
-mysql-test/include/rpl_connection.inc 
+mysql-test/include/rpl_connection.inc
  => mysql-test/include/connection.inc
-mysql-test/include/rpl_connection_master.inc 
+mysql-test/include/rpl_connection_master.inc
  => mysql-test/include/rpl/connection_source.inc
-mysql-test/include/rpl_connection_master1.inc 
+mysql-test/include/rpl_connection_master1.inc
  => mysql-test/include/rpl/connection_source1.inc
-mysql-test/include/rpl_connection_slave.inc 
+mysql-test/include/rpl_connection_slave.inc
  => mysql-test/include/rpl/connection_replica.inc
-mysql-test/include/rpl_connection_slave1.inc 
+mysql-test/include/rpl_connection_slave1.inc
  => mysql-test/include/rpl/connection_replica1.inc
-mysql-test/include/rpl_default_connections.inc 
+mysql-test/include/rpl_default_connections.inc
  => mysql-test/include/rpl/default_connections.inc
-mysql-test/include/rpl_diff.inc 
+mysql-test/include/rpl_diff.inc
  => mysql-test/include/rpl/diff.inc
-mysql-test/include/rpl_end.inc 
+mysql-test/include/rpl_end.inc
  => mysql-test/include/rpl/deinit.inc
-mysql-test/include/rpl_events.inc 
+mysql-test/include/rpl_events.inc
  => mysql-test/common/rpl/events.inc
-mysql-test/include/rpl_for_each_connection.inc 
+mysql-test/include/rpl_for_each_connection.inc
  => mysql-test/include/rpl/for_each_connection.inc
-mysql-test/include/rpl_for_each_server.inc 
+mysql-test/include/rpl_for_each_server.inc
  => mysql-test/include/rpl/for_each_server.inc
-mysql-test/include/rpl_for_each_server_stmt.inc 
+mysql-test/include/rpl_for_each_server_stmt.inc
  => mysql-test/include/rpl/for_each_server_stmt.inc
-mysql-test/include/rpl_generate_sync_chain.inc 
+mysql-test/include/rpl_generate_sync_chain.inc
  => mysql-test/include/rpl/impl/generate_sync_chain.inc
-mysql-test/include/rpl_get_end_of_relay_log.inc 
+mysql-test/include/rpl_get_end_of_relay_log.inc
  => mysql-test/include/rpl/save_relay_log_file_position.inc
-mysql-test/include/rpl_get_instance_priv_checks_user.inc 
+mysql-test/include/rpl_get_instance_priv_checks_user.inc
  => mysql-test/include/rpl/get_instance_priv_checks_user.inc
-mysql-test/include/rpl_get_log_encryption_key_id.inc 
+mysql-test/include/rpl_get_log_encryption_key_id.inc
  => mysql-test/include/rpl/get_log_encryption_key_id.inc
-mysql-test/include/rpl_group_replication_default_connections.inc 
+mysql-test/include/rpl_group_replication_default_connections.inc
  => mysql-test/include/rpl/group_replication_default_connections.inc
-mysql-test/include/rpl_group_replication_plugin_installed.inc 
+mysql-test/include/rpl_group_replication_plugin_installed.inc
  => mysql-test/include/rpl/group_replication_plugin_installed.inc
-mysql-test/include/rpl_gtid_only_configuration.inc 
+mysql-test/include/rpl_gtid_only_configuration.inc
  => mysql-test/include/rpl/impl/gtid_only_configuration.inc
-mysql-test/include/rpl_hash_scan_assertion.inc 
+mysql-test/include/rpl_hash_scan_assertion.inc
  => mysql-test/include/rpl/hash_scan_assertion.inc
-mysql-test/include/rpl_init.inc 
+mysql-test/include/rpl_init.inc
  => mysql-test/include/rpl/init.inc
-mysql-test/include/rpl_ip_mix.inc 
+mysql-test/include/rpl_ip_mix.inc
  => mysql-test/common/rpl/ip_mix.inc
-mysql-test/include/rpl_ip_mix2.inc 
+mysql-test/include/rpl_ip_mix2.inc
  => mysql-test/common/rpl/ip_mix2.inc
-mysql-test/include/rpl_ipv6.inc 
+mysql-test/include/rpl_ipv6.inc
  => mysql-test/common/rpl/ipv6.inc
-mysql-test/include/rpl_loaddata_charset.inc 
+mysql-test/include/rpl_loaddata_charset.inc
  => mysql-test/common/rpl/loaddata_charset.inc
-mysql-test/include/rpl_log_file_max_number.inc 
+mysql-test/include/rpl_log_file_max_number.inc
  => mysql-test/include/rpl/log_file_max_number.inc
-mysql-test/include/rpl_mta_apply_in_order.inc 
+mysql-test/include/rpl_mta_apply_in_order.inc
  => mysql-test/include/rpl/mta_apply_in_order.inc
-mysql-test/include/rpl_multi_engine.inc 
+mysql-test/include/rpl_multi_engine.inc
  => mysql-test/common/rpl/multi_engine.inc
-mysql-test/include/rpl_multi_engine3.inc 
+mysql-test/include/rpl_multi_engine3.inc
  => mysql-test/common/rpl/multi_engine3.inc
-mysql-test/include/rpl_pfs_assert_status.inc 
+mysql-test/include/rpl_pfs_assert_status.inc
  => mysql-test/include/rpl/pfs_assert_status.inc
-mysql-test/include/rpl_priv_checks_user_configuration.inc 
+mysql-test/include/rpl_priv_checks_user_configuration.inc
  => mysql-test/include/rpl/priv_checks_user_configuration.inc
-mysql-test/include/rpl_read_binlog_index_into_table.inc 
+mysql-test/include/rpl_read_binlog_index_into_table.inc
  => mysql-test/include/rpl/read_binlog_index_into_table.inc
-mysql-test/include/rpl_receive_event_count.inc 
+mysql-test/include/rpl_receive_event_count.inc
  => mysql-test/include/rpl/receive_event_count.inc
-mysql-test/include/rpl_reconnect.inc 
+mysql-test/include/rpl_reconnect.inc
  => mysql-test/include/rpl/reconnect.inc
-mysql-test/include/rpl_reset.inc 
+mysql-test/include/rpl_reset.inc
  => mysql-test/include/rpl/reset.inc
-mysql-test/include/rpl_reset_slave.inc 
+mysql-test/include/rpl_reset_slave.inc
  => mysql-test/include/rpl/reset_replica.inc
-mysql-test/include/rpl_reset_slave_helper.inc 
+mysql-test/include/rpl_reset_slave_helper.inc
  => mysql-test/include/rpl/impl/reset_replica_helper.inc
-mysql-test/include/rpl_restart_server.inc 
+mysql-test/include/rpl_restart_server.inc
  => mysql-test/include/rpl/restart_server.inc
-mysql-test/include/rpl_row_img_general_loop.inc 
+mysql-test/include/rpl_row_img_general_loop.inc
  => mysql-test/common/rpl/row_img_general_loop.inc
-mysql-test/include/rpl_row_img_parts_assertion.inc 
+mysql-test/include/rpl_row_img_parts_assertion.inc
  => mysql-test/include/rpl/row_img_parts_assertion.inc
-mysql-test/include/rpl_row_img_parts_master_slave.inc 
+mysql-test/include/rpl_row_img_parts_master_slave.inc
  => mysql-test/include/rpl/row_img_parts_source_replica.inc
-mysql-test/include/rpl_row_img_set.inc 
+mysql-test/include/rpl_row_img_set.inc
  => mysql-test/include/rpl/row_img_set.inc
-mysql-test/include/rpl_set_gtid_mode.inc 
+mysql-test/include/rpl_set_gtid_mode.inc
  => mysql-test/include/rpl/set_gtid_mode.inc
-mysql-test/include/rpl_skip_to_end_of_relay_log.inc 
+mysql-test/include/rpl_skip_to_end_of_relay_log.inc
  => mysql-test/include/rpl/skip_to_end_of_relay_log.inc
-mysql-test/include/rpl_start_server.inc 
+mysql-test/include/rpl_start_server.inc
  => mysql-test/include/rpl/start_server.inc
-mysql-test/include/rpl_start_slaves.inc 
+mysql-test/include/rpl_start_slaves.inc
  => mysql-test/include/rpl/start_all_replicas.inc
-mysql-test/include/rpl_stop_server.inc 
+mysql-test/include/rpl_stop_server.inc
  => mysql-test/include/rpl/stop_server.inc
-mysql-test/include/rpl_stop_slaves.inc 
+mysql-test/include/rpl_stop_slaves.inc
  => mysql-test/include/rpl/stop_all_replicas.inc
-mysql-test/include/rpl_sync.inc 
+mysql-test/include/rpl_sync.inc
  => mysql-test/include/rpl/sync.inc
-mysql-test/include/rpl_udf.inc 
+mysql-test/include/rpl_udf.inc
  => mysql-test/common/rpl/udf.inc
-mysql-test/include/save_binlog_position.inc 
+mysql-test/include/save_binlog_position.inc
  => mysql-test/include/rpl/save_binlog_file_position.inc
-mysql-test/include/save_io_thread_pos.inc 
+mysql-test/include/save_io_thread_pos.inc
  => mysql-test/include/rpl/save_received_position.inc
-mysql-test/include/save_master_pos.inc 
+mysql-test/include/save_master_pos.inc
  => mysql-test/include/rpl/save_server_position.inc
-mysql-test/include/save_semisync_yesno_tx.inc 
+mysql-test/include/save_semisync_yesno_tx.inc
  => mysql-test/include/rpl/save_semisync_yesno_tx.inc
-mysql-test/include/set_gtid_next.inc 
+mysql-test/include/set_gtid_next.inc
  => mysql-test/include/rpl/set_gtid_next.inc
-mysql-test/include/set_gtid_next_gtid_mode_agnostic.inc 
+mysql-test/include/set_gtid_next_gtid_mode_agnostic.inc
  => mysql-test/include/rpl/set_gtid_next_gtid_mode_agnostic.inc
-mysql-test/include/set_privilege_checks_user_as_system_user.inc 
+mysql-test/include/set_privilege_checks_user_as_system_user.inc
  => mysql-test/include/rpl/set_privilege_checks_user_as_system_user.inc
-mysql-test/include/setup_fake_relay_log.inc 
+mysql-test/include/setup_fake_relay_log.inc
  => mysql-test/include/rpl/setup_fake_relay_log.inc
-mysql-test/include/show_all_binlogs.inc 
+mysql-test/include/show_all_binlogs.inc
  => mysql-test/include/rpl/debug/show_all_binlogs.inc
-mysql-test/include/show_all_relay_logs.inc 
+mysql-test/include/show_all_relay_logs.inc
  => mysql-test/include/rpl/debug/show_all_relay_logs.inc
-mysql-test/include/show_binary_logs.inc 
+mysql-test/include/show_binary_logs.inc
  => mysql-test/include/rpl/deprecated/show_binary_logs.inc
-mysql-test/include/show_binlog_events.inc 
+mysql-test/include/show_binlog_events.inc
  => mysql-test/include/rpl/deprecated/show_binlog_events.inc
-mysql-test/include/show_events.inc 
+mysql-test/include/show_events.inc
  => mysql-test/include/rpl/deprecated/show_events.inc
-mysql-test/include/show_master_logs.inc 
+mysql-test/include/show_master_logs.inc
  => mysql-test/include/rpl/deprecated/show_binary_logs_vertical.inc
-mysql-test/include/show_master_status.inc 
+mysql-test/include/show_master_status.inc
  => mysql-test/include/rpl/deprecated/show_binary_log_status.inc
-mysql-test/include/show_relaylog_events.inc 
+mysql-test/include/show_relaylog_events.inc
  => mysql-test/include/rpl/deprecated/show_relaylog_events.inc
-mysql-test/include/show_rpl_debug_info.inc 
+mysql-test/include/show_rpl_debug_info.inc
  => mysql-test/include/rpl/debug/show_debug_info.inc
-mysql-test/include/show_slave_status.inc 
+mysql-test/include/show_slave_status.inc
  => mysql-test/include/rpl/deprecated/show_replica_status.inc
-mysql-test/include/start_slave.inc 
+mysql-test/include/start_slave.inc
  => mysql-test/include/rpl/start_replica.inc
-mysql-test/include/start_slave_io.inc 
+mysql-test/include/start_slave_io.inc
  => mysql-test/include/rpl/start_receiver.inc
-mysql-test/include/start_slave_sql.inc 
+mysql-test/include/start_slave_sql.inc
  => mysql-test/include/rpl/start_applier.inc
-mysql-test/include/stop_dump_threads.inc 
+mysql-test/include/stop_dump_threads.inc
  => mysql-test/include/rpl/stop_dump_threads.inc
-mysql-test/include/stop_slave.inc 
+mysql-test/include/stop_slave.inc
  => mysql-test/include/rpl/stop_replica.inc
-mysql-test/include/stop_slave_io.inc 
+mysql-test/include/stop_slave_io.inc
  => mysql-test/include/rpl/stop_receiver.inc
-mysql-test/include/stop_slave_sql.inc 
+mysql-test/include/stop_slave_sql.inc
  => mysql-test/include/rpl/stop_applier.inc
-mysql-test/include/sync_slave_io.inc 
+mysql-test/include/sync_slave_io.inc
  => mysql-test/include/rpl/sync_received_with_saved.inc
-mysql-test/include/sync_slave_io_with_master.inc 
+mysql-test/include/sync_slave_io_with_master.inc
  => mysql-test/include/rpl/sync_to_replica_received.inc
-mysql-test/include/sync_slave_sql.inc 
+mysql-test/include/sync_slave_sql.inc
  => mysql-test/include/rpl/sync_with_saved.inc
-mysql-test/include/sync_slave_sql_with_io.inc 
+mysql-test/include/sync_slave_sql_with_io.inc
  => mysql-test/include/rpl/sync_with_recieved.inc
-mysql-test/include/sync_slave_sql_with_master.inc 
+mysql-test/include/sync_slave_sql_with_master.inc
  => mysql-test/include/rpl/sync_to_replica.inc
-mysql-test/include/uninstall_semisync.inc 
+mysql-test/include/uninstall_semisync.inc
  => mysql-test/include/rpl/uninstall_semisync.inc
-mysql-test/include/uninstall_semisync_replica.inc 
+mysql-test/include/uninstall_semisync_replica.inc
  => mysql-test/include/rpl/uninstall_semisync_replica.inc
-mysql-test/include/uninstall_semisync_source.inc 
+mysql-test/include/uninstall_semisync_source.inc
  => mysql-test/include/rpl/uninstall_semisync_source.inc
-mysql-test/include/unsafe_binlog.inc 
+mysql-test/include/unsafe_binlog.inc
  => mysql-test/common/binlog/unsafe_binlog.inc
-mysql-test/include/wait_for_binlog_event.inc 
+mysql-test/include/wait_for_binlog_event.inc
  => mysql-test/include/rpl/wait_for_binlog_event.inc
-mysql-test/include/wait_for_mta_checkpoint.inc 
+mysql-test/include/wait_for_mta_checkpoint.inc
  => mysql-test/include/rpl/wait_for_mta_checkpoint.inc
-mysql-test/include/wait_for_ndb_committed_to_binlog.inc 
+mysql-test/include/wait_for_ndb_committed_to_binlog.inc
  => mysql-test/include/rpl/wait_for_ndb_committed_to_binlog.inc
-mysql-test/include/wait_for_rpl_pfs_status.inc 
+mysql-test/include/wait_for_rpl_pfs_status.inc
  => mysql-test/include/wait_for_pfs_status.inc
-mysql-test/include/wait_for_semisync_source_status_off.inc 
+mysql-test/include/wait_for_semisync_source_status_off.inc
  => mysql-test/include/rpl/wait_for_semisync_source_status_off.inc
-mysql-test/include/wait_for_semisync_source_status_on.inc 
+mysql-test/include/wait_for_semisync_source_status_on.inc
  => mysql-test/include/rpl/wait_for_semisync_source_status_on.inc
-mysql-test/include/wait_for_slave_io_error.inc 
+mysql-test/include/wait_for_slave_io_error.inc
  => mysql-test/include/rpl/wait_for_receiver_error.inc
-mysql-test/include/wait_for_slave_io_to_start.inc 
+mysql-test/include/wait_for_slave_io_to_start.inc
  => mysql-test/include/rpl/wait_for_receiver_to_start.inc
-mysql-test/include/wait_for_slave_io_to_stop.inc 
+mysql-test/include/wait_for_slave_io_to_stop.inc
  => mysql-test/include/rpl/wait_for_receiver_to_stop.inc
-mysql-test/include/wait_for_slave_param.inc 
+mysql-test/include/wait_for_slave_param.inc
  => mysql-test/include/rpl/wait_for_replica_status.inc
-mysql-test/include/wait_for_slave_sql_error.inc 
+mysql-test/include/wait_for_slave_sql_error.inc
  => mysql-test/include/rpl/wait_for_applier_error.inc
-mysql-test/include/wait_for_slave_sql_error_and_restart.inc 
+mysql-test/include/wait_for_slave_sql_error_and_restart.inc
  => mysql-test/include/rpl/wait_for_applier_error_and_restart.inc
-mysql-test/include/wait_for_slave_sql_error_and_skip.inc 
+mysql-test/include/wait_for_slave_sql_error_and_skip.inc
  => mysql-test/include/rpl/wait_for_applier_error_and_skip.inc
-mysql-test/include/wait_for_slave_sql_to_start.inc 
+mysql-test/include/wait_for_slave_sql_to_start.inc
  => mysql-test/include/rpl/wait_for_applier_to_start.inc
-mysql-test/include/wait_for_slave_sql_to_stop.inc 
+mysql-test/include/wait_for_slave_sql_to_stop.inc
  => mysql-test/include/rpl/wait_for_applier_to_stop.inc
-mysql-test/include/wait_for_slave_to_start.inc 
+mysql-test/include/wait_for_slave_to_start.inc
  => mysql-test/include/rpl/wait_for_replica_to_start.inc
-mysql-test/include/wait_for_slave_to_stop.inc 
+mysql-test/include/wait_for_slave_to_stop.inc
  => mysql-test/include/rpl/wait_for_replica_to_stop.inc
-mysql-test/include/wait_for_slave_to_sync_with_master.inc 
+mysql-test/include/wait_for_slave_to_sync_with_master.inc
  => mysql-test/include/rpl/deprecated/wait_for_replica_to_sync_with_source.inc
-mysql-test/include/wait_for_wait_for_executed_gtid_set.inc 
+mysql-test/include/wait_for_wait_for_executed_gtid_set.inc
  => mysql-test/include/rpl/wait_for_wait_for_executed_gtid_set.inc
-mysql-test/suite/binlog/include/binlog_expire_logs_seconds.inc 
+mysql-test/suite/binlog/include/binlog_expire_logs_seconds.inc
  => mysql-test/common/binlog/expire_logs_seconds.inc
-mysql-test/suite/binlog/include/binlog_gtid_response_packet.inc 
+mysql-test/suite/binlog/include/binlog_gtid_response_packet.inc
  => mysql-test/common/binlog/gtid_response_packet.inc
-mysql-test/suite/binlog/include/binlog_reset_master_to_option.inc 
+mysql-test/suite/binlog/include/binlog_reset_master_to_option.inc
  => mysql-test/common/binlog/reset_binary_logs_and_gtids_to_option.inc
-mysql-test/suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc 
+mysql-test/suite/binlog/include/binlog_rotate_binlog_master_key_errors.inc
  => mysql-test/common/binlog/rotate_binlog_master_key_errors.inc
-mysql-test/suite/binlog/include/binlog_rotate_binlog_master_key_work.inc 
+mysql-test/suite/binlog/include/binlog_rotate_binlog_master_key_work.inc
  => mysql-test/common/binlog/rotate_binlog_master_key_work.inc
-mysql-test/suite/binlog/include/binlog_server_crash_recovery.inc 
+mysql-test/suite/binlog/include/binlog_server_crash_recovery.inc
  => mysql-test/common/binlog/server_crash_recovery.inc
-mysql-test/suite/funcs_1/views/views_master.inc 
+mysql-test/suite/funcs_1/views/views_master.inc
  => mysql-test/suite/funcs_1/views/views_main.inc
-mysql-test/suite/group_replication/include/gr_change_master_hidden.inc 
+mysql-test/suite/group_replication/include/gr_change_master_hidden.inc
  => mysql-test/suite/group_replication/include/gr_change_replication_source_hidden.inc
-mysql-test/suite/group_replication/include/gr_mts_indexes_commit_order_validation.inc 
+mysql-test/suite/group_replication/include/gr_mts_indexes_commit_order_validation.inc
  => mysql-test/suite/group_replication/include/gr_mta_indexes_commit_order_validation.inc
-mysql-test/suite/ndb_rpl/ndb_master-slave.inc 
+mysql-test/suite/ndb_rpl/ndb_master-slave.inc
  => mysql-test/suite/ndb_rpl/ndb_rpl_init_source_replica.inc
-mysql-test/suite/ndb_rpl/ndb_master-slave_2ch.inc 
+mysql-test/suite/ndb_rpl/ndb_master-slave_2ch.inc
  => mysql-test/suite/ndb_rpl/ndb_rpl_init_source_replica_2ch.inc
-mysql-test/suite/ndb_rpl/ndb_master-slave_2ch_end.inc 
+mysql-test/suite/ndb_rpl/ndb_master-slave_2ch_end.inc
  => mysql-test/suite/ndb_rpl/ndb_rpl_init_source_replica_2ch_end.inc
-mysql-test/suite/ndb_rpl/ndb_setup_slave.inc 
+mysql-test/suite/ndb_rpl/ndb_setup_slave.inc
  => mysql-test/suite/ndb_rpl/ndb_setup_replica.inc
-mysql-test/suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc 
+mysql-test/suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
  => mysql-test/suite/ndb_rpl/t/ndb_rpl_change_replication_source_to_epoch.inc
-mysql-test/suite/ndb_rpl/t/ndb_slave_exec_info_init.inc 
+mysql-test/suite/ndb_rpl/t/ndb_slave_exec_info_init.inc
  => mysql-test/suite/ndb_rpl/t/ndb_replica_exec_info_init.inc
-mysql-test/suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc 
+mysql-test/suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
  => mysql-test/suite/ndb_rpl/t/show_replica_max_replicated_epoch.inc
-mysql-test/suite/rpl/include/rpl_auto_increment.inc 
+mysql-test/suite/rpl/include/rpl_auto_increment.inc
  => mysql-test/common/rpl/auto_increment.inc
-mysql-test/suite/rpl/include/rpl_mixed_check_db.inc 
+mysql-test/suite/rpl/include/rpl_mixed_check_db.inc
  => mysql-test/common/rpl/mixed_check_db.inc
-mysql-test/suite/rpl/include/rpl_mixed_check_table.inc 
+mysql-test/suite/rpl/include/rpl_mixed_check_table.inc
  => mysql-test/common/rpl/mixed_check_table.inc
-mysql-test/suite/rpl/include/rpl_mixed_ddl.inc 
+mysql-test/suite/rpl/include/rpl_mixed_ddl.inc
  => mysql-test/common/rpl/mixed_ddl.inc
-mysql-test/suite/rpl/include/rpl_mixed_show_binlog_format.inc 
+mysql-test/suite/rpl/include/rpl_mixed_show_binlog_format.inc
  => mysql-test/common/rpl/mixed_show_binlog_format.inc
-mysql-test/suite/rpl/include/rpl_only_stmt_unsafe.inc 
+mysql-test/suite/rpl/include/rpl_only_stmt_unsafe.inc
  => mysql-test/common/rpl/only_stmt_unsafe.inc
-mysql-test/suite/rpl/include/rpl_partition.inc 
+mysql-test/suite/rpl/include/rpl_partition.inc
  => mysql-test/common/rpl/partition.inc
-mysql-test/suite/rpl/include/rpl_partition_info.inc 
+mysql-test/suite/rpl/include/rpl_partition_info.inc
  => mysql-test/common/rpl/partition_info.inc
-mysql-test/suite/rpl/include/rpl_partition_info_update.inc 
+mysql-test/suite/rpl/include/rpl_partition_info_update.inc
  => mysql-test/common/rpl/partition_info_update.inc
-mysql-test/suite/rpl/include/rpl_rotate_binlog_master_key_errors.inc 
+mysql-test/suite/rpl/include/rpl_rotate_binlog_master_key_errors.inc
  => mysql-test/common/rpl/rotate_binlog_master_key_errors.inc
-mysql-test/suite/rpl/include/rpl_row_event_max_size_show_binlog.inc 
+mysql-test/suite/rpl/include/rpl_row_event_max_size_show_binlog.inc
  => mysql-test/common/rpl/row_event_max_size_show_binlog.inc
-mysql-test/suite/rpl/include/rpl_row_stages_validate.inc 
+mysql-test/suite/rpl/include/rpl_row_stages_validate.inc
  => mysql-test/common/rpl/row_stages_validate.inc
-mysql-test/suite/rpl/include/rpl_secondary_engine_load.inc 
+mysql-test/suite/rpl/include/rpl_secondary_engine_load.inc
  => mysql-test/common/rpl/secondary_engine_load.inc
-mysql-test/suite/rpl/include/rpl_with.inc 
+mysql-test/suite/rpl/include/rpl_with.inc
  => mysql-test/common/rpl/with.inc
