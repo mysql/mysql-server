@@ -39,3 +39,4 @@ cmake-build-debug/
 bld/
 boost_1_77_0.tar.bz2
 boost_1_77_0/
+benchbase/
