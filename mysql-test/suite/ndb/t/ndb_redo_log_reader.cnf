@@ -1,0 +1,30 @@
+!include ../my.cnf
+
+[cluster_config.1]
+ndbd=,,,
+# As few and as small fragment log files as possible to consume less resources.
+NoOfFragmentLogFiles=3
+FragmentLogFileSize=4M
+
+[cluster_config.ndbd.1.1]
+InitFragmentLogFiles=full
+
+[cluster_config.ndbd.2.1]
+InitFragmentLogFiles=sparse
+
+[cluster_config.ndbd.3.1]
+EncryptedFileSystem=1
+InitFragmentLogFiles=full
+
+[cluster_config.ndbd.4.1]
+EncryptedFileSystem=1
+InitFragmentLogFiles=sparse
+
+[ndbd.3.1]
+filesystem-password="ToPSeCReT"
+
+[ndbd.4.1]
+filesystem-password="ToPSeCReT"
+
+[ndb_secretsfile_reader]
+filesystem-password="ToPSeCReT"
