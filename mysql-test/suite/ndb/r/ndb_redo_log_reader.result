@@ -1,0 +1,15 @@
+
+# Node 1 uses InitFragmentLogFiles=full
+Node 1 is being restarted
+
+# NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -lap
+# NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -mbyte 2
+Database node 1 is being started.
+
+# Node 2 uses InitFragmentLogFiles=sparse
+Node 2 is being restarted
+
+# NDB_REDO_LOG_READER ndb_2_fs/D8/DBLQH/S0.FragLog -lap
+# NDB_REDO_LOG_READER ndb_2_fs/D8/DBLQH/S0.FragLog -mbyte 2
+Database node 2 is being started.
+

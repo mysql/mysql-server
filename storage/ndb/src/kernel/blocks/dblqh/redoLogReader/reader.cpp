@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 // the file in a human readable format.
 //
 // Usage: redoLogFileReader <file> [-noprint] [-nocheck] 
-//        [-mbyte <0-15>] [-mbyteHeaders] [-pageHeaders] 
+//        [-mbyte <0-1023>] [-mbyteHeaders] [-pageHeaders]
 //	
 //----------------------------------------------------------------
 
@@ -137,6 +137,51 @@ int main(int argc, char** argv)
       // Print out mbyte number, page number and page index.
       ndbout << j << ":" << i << ":" << wordIndex << endl 
 	     << " " << j*32 + i << ":" << wordIndex << " ";
+      /*
+       * Neither Ndb version nor last word of page data should be zero for an
+       * initialized page. Use that as indicator for unused page that should
+       * not be processed.
+       */
+      if (thePageHeader->m_ndb_version == 0 && thePageHeader->lastWord() == 0)
+      {
+        if (thePrintFlag) ndbout << " UNUSED PAGE" << endl;
+        if (onlyLap)
+        {
+          ndbout_c("(no lap information)");
+          continue;
+        }
+        if (theCheckFlag)
+        {
+          int k;
+          for (k = 0; k < REDOLOG_PAGESIZE && redoLogPage[i * REDOLOG_PAGESIZE + k]==0; k++);
+          if (k < REDOLOG_PAGESIZE)
+          {
+            ndbout << "Error in assumed unused page. Got " << k << " initial "
+                      "zero words, expected " << REDOLOG_PAGESIZE <<
+                      " zero words." << endl;
+            doExit();
+          }
+        }
+        if (onlyMbyteHeaders)
+        {
+          // Show only the first page header in every mbyte of the file.
+          break;
+        }
+        if (onlyPageHeaders)
+        {
+          // Show only page headers. Continue with the next page in this for loop.
+          continue;
+        }
+        if (words_from_previous_page != 0)
+        {
+	  ndbout << "Error in assumed unused page. Got " << words_from_previous_page
+                 << " words from previous page, expected none." << endl;
+	  doExit();
+        }
+        ndbout << endl;
+        continue;
+      }
+
       if (thePrintFlag) ndbout << (*thePageHeader);
       if (onlyLap)
       {
@@ -152,19 +197,25 @@ int main(int argc, char** argv)
 	  doExit();
 	}
 	
-	Uint32 checkSum = 37;
-        for (int ps = 1; ps < REDOLOG_PAGESIZE; ps++)
-          checkSum = redoLogPage[i*REDOLOG_PAGESIZE+ps] ^ checkSum;
+        /*
+         * Checksum value 37 is the hard coded value for checksum used when
+         * writing file without actually calculating any checksum.
+         */
+        if (redoLogPage[i*REDOLOG_PAGESIZE] != 37)
+        {
+	  Uint32 checkSum = 37;
+          for (int ps = 1; ps < REDOLOG_PAGESIZE; ps++)
+            checkSum = redoLogPage[i*REDOLOG_PAGESIZE+ps] ^ checkSum;
 
-        if (checkSum != redoLogPage[i*REDOLOG_PAGESIZE]){
-	  ndbout_c("WRONG CHECKSUM: checksum = 0x%x expected: 0x%x",
-                   redoLogPage[i*REDOLOG_PAGESIZE],
-                   checkSum);
-	  //doExit();
-	}
-	else
-	  ndbout << "expected checksum: " << checkSum << endl;
-
+          if (checkSum != redoLogPage[i*REDOLOG_PAGESIZE]){
+            ndbout_c("WRONG CHECKSUM: checksum = 0x%x expected: 0x%x",
+                     redoLogPage[i*REDOLOG_PAGESIZE],
+                     checkSum);
+            doExit();
+	  }
+          else
+            ndbout << "expected checksum: " << checkSum << endl;
+        }
       }
 
       lastPage = i != 0 && thePageHeader->lastPage();
@@ -199,6 +250,7 @@ int main(int argc, char** argv)
                  << " " << j*32 + i-1 << ":" << REDOLOG_PAGESIZE-words_from_previous_page << " ";
 	  words_from_previous_page = 0;
 	}
+        else if (wordIndex == (Int32) lastWord) break;
 	else
 	{
 	  // Print out mbyte number, page number and word index.
@@ -417,7 +469,7 @@ Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords) {
 void usage(const char * prg){
   ndbout << endl << "Usage: ndbd_read_log_reader [OPTIONS]:" << endl << prg 
 	 << " <Binary log file> [-noprint] [-dump] [-twiddle] [-lap] [-nocheck] [--help] " 
-	 <<"[-mbyte <0-15>] [-mbyteheaders] [-pageheaders] [-filedescriptors] [-page <0-31>]  [-pageindex <12-8191>]"
+	 <<"[-mbyte <0-1023>] [-mbyteheaders] [-pageheaders] [-filedescriptors] [-page <0-31>]  [-pageindex <12-8191>]"
 	 << endl << endl;
   
 }

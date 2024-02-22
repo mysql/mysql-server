@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ NdbOut& operator<<(NdbOut& no, const CommitTransactionRecord& ctr) {
   printOut("Record type:", ctr.m_recordType);
   printOut("TableId", ctr.m_tableId);
   printOut("SchemaVersion:", ctr.m_schemaVersion);
-  printOut("FfragmentId", ctr.m_fragmentId);
+  printOut("FragmentId", ctr.m_fragmentId);
   printOut("File no. of Prep. Op.", ctr.m_fileNumberOfPrepareOperation);
   printOut("Start page no. of Prep. Op.", ctr.m_startPageNumberOfPrepareOperation);
   printOut("Start page index of Prep. Op.", ctr.m_startPageIndexOfPrepareOperation);
@@ -120,7 +120,7 @@ NdbOut& operator<<(NdbOut& no, const InvalidCommitTransactionRecord& ictr) {
   no << "------INVALID COMMIT TRANSACTION RECORD--------" << endl << endl;
   printOut("Record type:", ictr.m_recordType);
   printOut("TableId", ictr.m_tableId);
-  printOut("FfragmentId", ictr.m_fragmentId);
+  printOut("FragmentId", ictr.m_fragmentId);
   printOut("File no. of Prep. Op.", ictr.m_fileNumberOfPrepareOperation);
   printOut("Start page no. of Prep. Op.", ictr.m_startPageNumberOfPrepareOperation);
   printOut("Start page index of Prep. Op.", ictr.m_startPageIndexOfPrepareOperation);
@@ -184,7 +184,7 @@ NdbOut& operator<<(NdbOut& no, const PrepareOperationRecord& por) {
 
 #if 1
   // Print keydata
-  Uint32* p = (Uint32*)&por.m_keyInfo;
+  const Uint32* p = &por.m_key_attr_Info[0];
   for(Uint32 i=0; i < por.m_keyLength; i++){    
     printOut("keydata:", *p);
     p++;
