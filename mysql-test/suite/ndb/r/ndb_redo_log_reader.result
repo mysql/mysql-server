@@ -1,0 +1,51 @@
+1,0,full 2,0,sparse 3,1,full 4,1,sparse
+# Node 1 uses InitFragmentLogFiles=full
+Node 1 is being restarted
+
+# NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -lap
+Warning: Option '-lap' is deprecated, use '--lap' instead.
+# NDB_REDO_LOG_READER ndb_1_fs/D8/DBLQH/S0.FragLog -mbyte 2
+Warning: Option '-mbyte' is deprecated, use '--mbyte' instead.
+Database node 1 is being started.
+
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+Node 4: STARTED
+# Node 2 uses InitFragmentLogFiles=sparse
+Node 2 is being restarted
+
+# NDB_REDO_LOG_READER --lap ndb_2_fs/D8/DBLQH/S0.FragLog
+# NDB_REDO_LOG_READER --mbyte=2 ndb_2_fs/D8/DBLQH/S0.FragLog
+Database node 2 is being started.
+
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+Node 4: STARTED
+# Node 3 uses InitFragmentLogFiles=full and EncryptedFileSystem=1
+Node 3 is being restarted
+
+# NDBXFRM --decrypt-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog /home/msundell/dev/mysql/bld-8.0/mysql-test/var/tmp/S0.FragLog-decrypted3
+# NDB_REDO_LOG_READER --file-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog -lap
+Warning: Option '-lap' is deprecated, use '--lap' instead.
+# NDB_REDO_LOG_READER --file-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog -mbyte 2
+Warning: Option '-mbyte' is deprecated, use '--mbyte' instead.
+Database node 3 is being started.
+
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+Node 4: STARTED
+# Node 4 uses InitFragmentLogFiles=sparse and EncryptedFileSystem=1
+# NDBXFRM --decrypt-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog /home/msundell/dev/mysql/bld-8.0/mysql-test/var/tmp/S0.FragLog-decrypted4
+Node 4 is being restarted
+
+# NDB_REDO_LOG_READER --file-key-from-stdin --lap /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog
+# NDB_REDO_LOG_READER --file-key-from-stdin --mbyte=2 /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog
+Database node 4 is being started.
+
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+Node 4: STARTED
