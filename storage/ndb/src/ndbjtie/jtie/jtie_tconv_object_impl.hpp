@@ -359,6 +359,11 @@ struct Result<_jtie_ObjectMapper<J> *, C *const>
 template <typename J, typename C>
 struct Target<_jtie_ObjectMapper<J> *, C> : Target<_jtie_Object *, C> {};
 
+// specialize Target (note usage of C, which is a direct type)
+template <typename J, typename C>
+struct Target<_jtie_ObjectMapper<J> *, const C>
+    : Target<_jtie_Object *, const C> {};
+
 // specialize Param for pointers (note usage of C)
 template <typename J, typename C>
 struct Param<_jtie_ObjectMapper<J> *, C *> : ObjectParam<_jtie_Object *, C *> {
