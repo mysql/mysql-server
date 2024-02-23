@@ -103,8 +103,8 @@
 %else
 %{?el7:%global __strip /opt/rh/devtoolset-11/root/usr/bin/strip}
 %endif
-%{?el8:%global __strip /opt/rh/gcc-toolset-12/root/usr/bin/strip}
-%{?el9:%global __strip /opt/rh/gcc-toolset-12/root/usr/bin/strip}
+%{?el8:%global __strip /opt/rh/gcc-toolset-13/root/usr/bin/strip}
+%{?el9:%global __strip /opt/rh/gcc-toolset-13/root/usr/bin/strip}
 %{?el8:%global __brp_strip_static_archive %{nil}}
 %{?el9:%global __brp_strip_static_archive %{nil}}
 
@@ -176,18 +176,18 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el7:BuildRequires:  devtoolset-11-binutils}
 %{?el7:BuildRequires:  devtoolset-11-dwz}
 %endif
-%{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
-%{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
-%{?el8:BuildRequires:  gcc-toolset-12-binutils}
-%{?el8:BuildRequires:  gcc-toolset-12-dwz}
-%{?el8:BuildRequires:  gcc-toolset-12-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-12-gcc}
-%{?el9:BuildRequires:  gcc-toolset-12-annobin-annocheck}
-%{?el9:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
-%{?el9:BuildRequires:  gcc-toolset-12-binutils}
-%{?el9:BuildRequires:  gcc-toolset-12-dwz}
-%{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
-%{?el9:BuildRequires:  gcc-toolset-12-gcc}
+%{?el8:BuildRequires:  gcc-toolset-13-annobin-annocheck}
+%{?el8:BuildRequires:  gcc-toolset-13-annobin-plugin-gcc}
+%{?el8:BuildRequires:  gcc-toolset-13-binutils}
+%{?el8:BuildRequires:  gcc-toolset-13-dwz}
+%{?el8:BuildRequires:  gcc-toolset-13-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-13-gcc}
+%{?el9:BuildRequires:  gcc-toolset-13-annobin-annocheck}
+%{?el9:BuildRequires:  gcc-toolset-13-annobin-plugin-gcc}
+%{?el9:BuildRequires:  gcc-toolset-13-binutils}
+%{?el9:BuildRequires:  gcc-toolset-13-dwz}
+%{?el9:BuildRequires:  gcc-toolset-13-gcc-c++}
+%{?el9:BuildRequires:  gcc-toolset-13-gcc}
 BuildRequires:  bison >= 2.1
 BuildRequires:  elfutils
 BuildRequires:  perl
