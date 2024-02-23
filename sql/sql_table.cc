@@ -6011,7 +6011,7 @@ bool fk_is_key_exact_match_order(uint fk_col_count, const F &fk_columns,
 
   uint matched_columns = 0;
   for (const dd::Index_element *idx_el : idx->elements()) {
-    if (idx_el->is_hidden()) continue;
+    if (idx_el->is_hidden() || idx_el->is_prefix()) continue;
     if (my_strcasecmp(system_charset_info, idx_el->column().name().c_str(),
                       fk_columns(matched_columns)) == 0)
       matched_columns++;
@@ -6290,14 +6290,16 @@ const dd::Index *find_fk_parent_key(THD *thd, handlerton *hton,
         So if there is suitable unique parent key we will always find
         it before any non-unique key.
       */
-      if ((idx->type() == dd::Index::IT_PRIMARY ||
+      bool is_standard_fk =
+          (idx->type() == dd::Index::IT_PRIMARY ||
            idx->type() == dd::Index::IT_UNIQUE) &&
-          fk_is_key_exact_match_order(fk_col_count, fk_columns, idx))
-        return idx;
-      if (!thd->variables.restrict_fk_on_non_standard_key) {
+          fk_is_key_exact_match_order(fk_col_count, fk_columns, idx);
+      if (thd->variables.restrict_fk_on_non_standard_key) {
+        if (is_standard_fk) return idx;
+      } else {
         if (fk_key_is_full_prefix_match(fk_col_count, fk_columns, idx,
                                         use_hidden)) {
-          if (!thd->slave_thread) {
+          if (!is_standard_fk && !thd->slave_thread) {
             deprecated_use_fk_on_non_standard_key_last_timestamp =
                 my_micro_time();
             deprecated_use_fk_on_non_standard_key_count++;

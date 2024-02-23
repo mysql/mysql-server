@@ -3183,7 +3183,7 @@ bool check_non_standard_key_exists_in_fk(THD *thd, const Table *table) {
         uint num_matched_cols = 0;
         auto fk_element_iter = fk->elements().begin();
         for (const dd::Index_element *idx_el : idx->elements()) {
-          if (idx_el->is_hidden()) continue;
+          if (idx_el->is_hidden() && idx_el->is_prefix()) continue;
           if (my_strcasecmp(
                   system_charset_info, idx_el->column().name().c_str(),
                   (*fk_element_iter)->referenced_column_name().c_str()) == 0)
