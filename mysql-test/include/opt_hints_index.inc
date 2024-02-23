@@ -113,6 +113,10 @@ ORDER BY a;
 EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ * FROM t1
 ORDER BY a;
 
+# i_a cannot be used for ref access.
+--replace_regex $elide_costs
+EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1 WHERE a = 100;
+
 # Ignore all indexes.
 --replace_regex $elide_costs
 EXPLAIN SELECT /*+ NO_INDEX(t1) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
@@ -183,4 +187,14 @@ EXPLAIN SELECT /*+ ORDER_INDEX(t x) */
  WHERE MATCH (x) AGAINST ('abc')
  ORDER BY MATCH (x) AGAINST ('abc') DESC;
 
+--replace_regex $elide_costs
+EXPLAIN SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
+--replace_regex $elide_costs
+EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 DROP TABLE t;
+
+# Check for NO_JOIN_INDEX
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
+EXPLAIN SELECT /*+ NO_JOIN_INDEX (t1) */ f1 FROM t1 WHERE f1 = 578;
+
+DROP TABLE t1;

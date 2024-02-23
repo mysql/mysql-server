@@ -1017,9 +1017,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       // up being parameterized on multiple outer tables. However, since
       // parameterized paths are less flexible in joining than
       // non-parameterized ones, it can be advantageous to not use all parts
-      // of the index; it's impossible to say locally. Thus, we enumerate
-      // all possible subsets of table parameters that may be useful, to
-      // make sure we don't miss any such paths.
+      // of the index; it's impossible to say locally. Thus, we enumerate all
+      // possible subsets of table parameters that may be useful, to make sure
+      // we don't miss any such paths.
       table_map want_parameter_tables = 0;
       for (const SargablePredicate &sp :
            m_graph->nodes[node_idx].sargable_predicates()) {
@@ -2731,6 +2731,10 @@ bool CostingReceiver::ProposeRefAccess(
     table_map allowed_parameter_tables, int ordering_idx, bool *found_ref) {
   KEY *key = &table->key_info[key_idx];
 
+  if (!table->keys_in_use_for_query.is_set(key_idx)) {
+    return false;
+  }
+
   if (key->flags & HA_FULLTEXT) {
     return false;
   }
@@ -3063,14 +3067,12 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
                  return HasConstantEqualityForField(sargable_predicates,
                                                     key_part.field);
                })) {
-      *found = true;
-      bool found_ref = false;
       if (ProposeRefAccess(
               table, node_idx, index_info.key_idx,
               /*force_num_output_rows_after_filter=*/-1.0, /*reverse=*/false,
               /*allowed_parameter_tables=*/0,
               m_orderings->RemapOrderingIndex(index_info.forward_order),
-              &found_ref)) {
+              found)) {
         return true;
       }
     }
@@ -3575,6 +3577,13 @@ bool CostingReceiver::ProposeFullTextIndexScan(
     TABLE *table, int node_idx, Item_func_match *match, int predicate_idx,
     int ordering_idx, double force_num_output_rows_after_filter) {
   const unsigned key_idx = match->key;
+  const LogicalOrderings::StateIndex ordering_state =
+      m_orderings->SetOrder(ordering_idx);
+  const bool use_order = (ordering_state != 0);
+  if (!use_order && !table->keys_in_use_for_query.is_set(key_idx)) {
+    return false;
+  }
+
   Index_lookup *ref = new (m_thd->mem_root) Index_lookup;
   if (init_ref(m_thd, /*keyparts=*/1, /*length=*/0, key_idx, ref)) {
     return true;
@@ -3632,11 +3641,6 @@ bool CostingReceiver::ProposeFullTextIndexScan(
 
   const double cost = EstimateCostForRefAccess(m_thd, table, key_idx,
                                                num_output_rows_from_index);
-
-  const LogicalOrderings::StateIndex ordering_state =
-      m_orderings->SetOrder(ordering_idx);
-
-  const bool use_order = (ordering_state != 0);
 
   AccessPath *path = NewFullTextSearchAccessPath(
       m_thd, table, ref, match, use_order,

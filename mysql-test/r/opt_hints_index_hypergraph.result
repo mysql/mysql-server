@@ -137,6 +137,11 @@ ORDER BY a;
 EXPLAIN
 -> Index scan on t1 using i_a  (rows=256)
 
+EXPLAIN SELECT /*+ ORDER_INDEX(t1 i_a) */ a FROM t1 WHERE a = 100;
+EXPLAIN
+-> Filter: (t1.a = 100)  (rows=32)
+    -> Covering index scan on t1 using i_a  (rows=256)
+
 EXPLAIN SELECT /*+ NO_INDEX(t1) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.c = 3) and (t1.a = 1) and (t1.b = 2))  (rows=0.0156)
@@ -246,4 +251,20 @@ ORDER BY MATCH (x) AGAINST ('abc') DESC;
 EXPLAIN
 -> Full-text covering index search on t using x (x='abc')  (rows=0.444)
 
+EXPLAIN SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
+EXPLAIN
+-> Full-text index search on t using x (x='abc')  (rows=0.444)
+
+EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
+EXPLAIN
+-> Filter: (match t.x against ('abc'))  (rows=0.444)
+    -> Table scan on t  (rows=4)
+
 DROP TABLE t;
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
+EXPLAIN SELECT /*+ NO_JOIN_INDEX (t1) */ f1 FROM t1 WHERE f1 = 578;
+EXPLAIN
+-> Filter: (t1.f1 = 578)  (cost=0.35..0.35 rows=1)
+    -> Table scan on t1  (cost=0.25..0.25 rows=1)
+
+DROP TABLE t1;
