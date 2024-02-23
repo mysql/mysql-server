@@ -56,6 +56,10 @@ class Trpman : public SimulatedBlock {
 
   void execDBINFO_SCANREQ(Signal *);
 
+  void execNODE_START_REP(Signal *);
+  void execREAD_CONFIG_REQ(Signal *);
+  void execSTTOR(Signal *);
+
   void execNDB_TAMPER(Signal *);
   void execDUMP_STATE_ORD(Signal *);
 
@@ -141,6 +145,7 @@ class TrpmanProxy : public LocalProxy {
   void execNDB_TAMPER(Signal *);
   void execDUMP_STATE_ORD(Signal *);
   void execACTIVATE_TRP_REQ(Signal *);
+  void execNODE_START_REP(Signal *);
 
  protected:
   SimulatedBlock *newWorker(Uint32 instanceNo) override;

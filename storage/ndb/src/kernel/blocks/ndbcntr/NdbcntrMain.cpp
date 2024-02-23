@@ -187,7 +187,7 @@ static BlockInfo ALL_BLOCKS[] = {
     {DBDIH_REF, 1, 7000, 7173, true},    {DBLQH_REF, 1, 5000, 5030, true},
     {DBACC_REF, 1, 3000, 3999, true},    {DBTUP_REF, 1, 4000, 4007, true},
     {DBDICT_REF, 1, 6000, 6003, true},   {NDBCNTR_REF, 0, 1000, 1999, true},
-    {CMVMI_REF, 1, 9000, 9999, true},  // before QMGR
+    {CMVMI_REF, 1, 9600, 9999, true},  // before QMGR
     {QMGR_REF, 1, 1, 999, true},         {TRIX_REF, 1, 0, 0, true},
     {BACKUP_REF, 1, 10000, 10999, true}, {DBUTIL_REF, 1, 11000, 11999, true},
     {SUMA_REF, 1, 13000, 13999, true},   {DBTUX_REF, 1, 12000, 12999, true},
@@ -197,16 +197,16 @@ static BlockInfo ALL_BLOCKS[] = {
     {THRMAN_REF, 1, 0, 0, true},         {DBQLQH_REF, 1, 0, 0, false},
     {DBQACC_REF, 1, 0, 0, false},        {DBQTUP_REF, 1, 0, 0, false},
     {QBACKUP_REF, 1, 0, 0, false},       {DBQTUX_REF, 1, 0, 0, false},
-    {QRESTORE_REF, 1, 0, 0, false}};
+    {QRESTORE_REF, 1, 0, 0, false},      {TRPMAN_REF, 1, 0, 0, true}};
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS) / sizeof(BlockInfo);
 
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
-    CMVMI_REF,  NDBFS_REF,   DBINFO_REF, DBTUP_REF,   DBACC_REF,   DBTC_REF,
-    DBLQH_REF,  DBTUX_REF,   DBDICT_REF, DBDIH_REF,   NDBCNTR_REF, QMGR_REF,
-    TRIX_REF,   BACKUP_REF,  DBUTIL_REF, SUMA_REF,    TSMAN_REF,   LGMAN_REF,
-    PGMAN_REF,  RESTORE_REF, DBSPJ_REF,  THRMAN_REF,  DBQLQH_REF,  DBQACC_REF,
-    DBQTUP_REF, QBACKUP_REF, DBQTUX_REF, QRESTORE_REF};
+    CMVMI_REF,  TRPMAN_REF, NDBFS_REF,   DBINFO_REF, DBTUP_REF,   DBACC_REF,
+    DBTC_REF,   DBLQH_REF,  DBTUX_REF,   DBDICT_REF, DBDIH_REF,   NDBCNTR_REF,
+    QMGR_REF,   TRIX_REF,   BACKUP_REF,  DBUTIL_REF, SUMA_REF,    TSMAN_REF,
+    LGMAN_REF,  PGMAN_REF,  RESTORE_REF, DBSPJ_REF,  THRMAN_REF,  DBQLQH_REF,
+    DBQACC_REF, DBQTUP_REF, QBACKUP_REF, DBQTUX_REF, QRESTORE_REF};
 
 /*******************************/
 /*  CONTINUEB                  */

@@ -66,7 +66,9 @@ Trpman::Trpman(Block_context &ctx, Uint32 instanceno)
   addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &Trpman::execSYNC_THREAD_VIA_REQ);
   addRecSignal(GSN_ACTIVATE_TRP_REQ, &Trpman::execACTIVATE_TRP_REQ);
   addRecSignal(GSN_UPD_QUERY_DIST_ORD, &Trpman::execUPD_QUERY_DIST_ORD);
-
+  addRecSignal(GSN_NODE_START_REP, &Trpman::execNODE_START_REP, true);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Trpman::execREAD_CONFIG_REQ);
+  addRecSignal(GSN_STTOR, &Trpman::execSTTOR);
   addRecSignal(GSN_NDB_TAMPER, &Trpman::execNDB_TAMPER, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trpman::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trpman::execDBINFO_SCANREQ);
@@ -159,7 +161,6 @@ void Trpman::execOPEN_COMORD(Signal *signal) {
       }
     }
   }
-
 done:
   /**
    * NO REPLY for now
@@ -632,6 +633,73 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+void Trpman::execNODE_START_REP(Signal *signal) {
+  jamEntry();
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(9002) && signal->theData[0] == getOwnNodeId()) {
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = 9001;
+    execDUMP_STATE_ORD(signal);
+  }
+#endif
+}
+
+void Trpman::execREAD_CONFIG_REQ(Signal *signal) {
+  jamEntry();
+  const ReadConfigReq *req = (ReadConfigReq *)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  ReadConfigConf *conf = (ReadConfigConf *)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, ReadConfigConf::SignalLength,
+             JBB);
+}
+
+void Trpman::execSTTOR(Signal *signal) {
+  jamEntry();
+  Uint32 theStartPhase = signal->theData[1];
+
+  jamEntry();
+  if (theStartPhase == 8) {
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(9004)) {
+      CLEAR_ERROR_INSERT_VALUE;
+      Uint32 tmp[25];
+      Uint32 len = signal->getLength();
+      memcpy(tmp, signal->theData, sizeof(tmp));
+
+      Uint32 db;
+      for (db = 1; db < MAX_NDB_NODES; db++) {
+        if (db == getOwnNodeId()) continue;
+        if (getNodeInfo(db).getType() == NodeInfo::DB) break;
+      }
+      ndbrequire(db < MAX_NDB_NODES);
+
+      Uint32 i = c_error_9000_nodes_mask.find(1);
+      const TrpId trpId = get_the_only_base_trp(i);
+      if (handles_this_trp(trpId)) {
+        signal->theData[0] = i;
+        sendSignal(calcQmgrBlockRef(db), GSN_API_FAILREQ, signal, 1, JBA);
+        g_eventLogger->info("stopping %u using %u", i, db);
+
+        memcpy(signal->theData, tmp, sizeof(tmp));
+        sendSignalWithDelay(reference(), GSN_STTOR, signal, 100, len);
+        return;
+      }
+    }
+#endif
+  }
+
+  signal->theData[3] = 1;
+  signal->theData[4] = 8;
+  signal->theData[5] = 255;
+  BlockReference ref = !isNdbMtLqh() ? NDBCNTR_REF : TRPMAN_REF;
+  sendSignal(ref, GSN_STTORRY, signal, 6, JBB);
+  return;
+}
+
 void Trpman::execNDB_TAMPER(Signal *signal) {
   jamEntry();
   SimulatedBlock::execNDB_TAMPER(signal);
@@ -646,6 +714,21 @@ void Trpman::execNDB_TAMPER(Signal *signal) {
     g_eventLogger->info("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
     CLEAR_ERROR_INSERT_VALUE;
   }
+
+  if (ERROR_INSERTED(9006)) {
+    g_eventLogger->info("Activating error 9006 for SEGV of all nodes");
+    /*
+     * Disable this injected crash to generate core files. We can not use the
+     * CRASH_INSERTION macro here since it modifies the node start type in an
+     * unwanted way when testing fix for Bug #24945638 STOPONERROR = 0 WITH
+     * UNCONTROLLED EXIT RESTARTS IN SAME WAY AS PREVIOUS RESTART.
+     * Instead, we explicitly turn off core file generation by directly
+     * modifying the opt_core variable of main.cpp.
+     */
+    extern bool opt_core;
+    opt_core = false;
+    raise(SIGSEGV);
+  }
 #endif
 }  // execNDB_TAMPER()
 
@@ -656,6 +739,7 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
 #ifdef ERROR_INSERT
   if (arg == 9000 || arg == 9002) {
     SET_ERROR_INSERT_VALUE(arg);
+    c_error_9000_nodes_mask.clear();
     for (Uint32 i = 1; i < signal->getLength(); i++)
       c_error_9000_nodes_mask.set(signal->theData[i]);
   }
@@ -681,16 +765,29 @@ void Trpman::execDUMP_STATE_ORD(Signal *signal) {
     c_error_9000_nodes_mask.set(signal->theData[1]);
   }
 
-  if (arg == 9005 && signal->getLength() == 2 && ERROR_INSERTED(9004)) {
-    Uint32 db = signal->theData[1];
-    Uint32 i = c_error_9000_nodes_mask.find(1);
-    const TrpId trpId = get_the_only_base_trp(i);
-    if (handles_this_trp(trpId)) {
-      signal->theData[0] = i;
-      sendSignal(calcQmgrBlockRef(db), GSN_API_FAILREQ, signal, 1, JBA);
-      g_eventLogger->info("stopping %u using %u", i, db);
+  if (arg == 9006) {
+    Uint32 delay = 1000;
+    switch (signal->getLength()) {
+      case 1:
+        break;
+      case 2:
+        delay = signal->theData[1];
+        break;
+      default: {
+        Uint32 dmin = signal->theData[1];
+        Uint32 dmax = signal->theData[2];
+        delay = dmin + (rand() % (dmax - dmin));
+        break;
+      }
     }
-    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = arg;
+    if (delay == 0) {
+      execNDB_TAMPER(signal);
+    } else if (delay < 10) {
+      sendSignal(reference(), GSN_NDB_TAMPER, signal, 1, JBB);
+    } else {
+      sendSignalWithDelay(reference(), GSN_NDB_TAMPER, signal, delay, 1);
+    }
   }
 #endif
 
@@ -1005,6 +1102,7 @@ TrpmanProxy::TrpmanProxy(Block_context &ctx) : LocalProxy(TRPMAN, ctx) {
   addRecSignal(GSN_SYNC_THREAD_VIA_CONF,
                &TrpmanProxy::execSYNC_THREAD_VIA_CONF);
   addRecSignal(GSN_ACTIVATE_TRP_REQ, &TrpmanProxy::execACTIVATE_TRP_REQ);
+  addRecSignal(GSN_NODE_START_REP, &TrpmanProxy::execNODE_START_REP, true);
 }
 
 TrpmanProxy::~TrpmanProxy() {}
@@ -1213,5 +1311,15 @@ void TrpmanProxy::execACTIVATE_TRP_REQ(Signal *signal) {
     jam();
     Uint32 ref = numberToRef(number(), workerInstance(i), getOwnNodeId());
     sendSignal(ref, GSN_ACTIVATE_TRP_REQ, signal, signal->getLength(), JBB);
+  }
+}
+
+void TrpmanProxy::execNODE_START_REP(Signal *signal) {
+  jamEntry();
+  // Resend to workers
+  for (Uint32 i = 0; i < c_workers; i++) {
+    jam();
+    Uint32 ref = numberToRef(number(), workerInstance(i), getOwnNodeId());
+    sendSignal(ref, GSN_NODE_START_REP, signal, signal->getLength(), JBB);
   }
 }
