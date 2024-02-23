@@ -1,0 +1,52 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+use test;
+
+create table t1 (
+  a int not null,
+  b varchar(8) not null,
+  primary key (a,b)
+) engine=ndbcluster;
+
+create table t2 (
+  b varchar(8) not null,
+  a int not null,
+  primary key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+
+insert into t1 (a, b) values (66051, "ABCD");
+
+insert into t2 (b, a) values ("ABCD", 66051);
+
+--error 1452
+insert into t2 (b, a) values ("DCBA", 15066);
+
+--echo Backing up data
+--source include/ndb_backup.inc
+disable_query_log; drop table t2; drop table t1; enable_query_log;
+
+--let $restore= $NDB_RESTORE -b $the_backup_id
+--let $backup= $NDB_BACKUPS-$the_backup_id
+--let $trash= $NDB_TOOLS_OUTPUT
+
+--echo Restoring data
+
+--exec $restore -n 1 --restore-meta --disable-indexes $backup >> $trash
+--exec $restore -n 1 --restore-data                   $backup >> $trash
+--exec $restore -n 2 --restore-data                   $backup >> $trash
+--exec $restore -n 2 --rebuild-indexes                $backup >> $trash
+
+--error 1452
+insert into t2 (b, a) values ("DCBA", 15066);
+
+select * from t1;
+select * from t2;
+
+# Cleanup
+
+disable_query_log; drop table t2; drop table t1; enable_query_log;
+
+--remove_file $trash
+--source suite/ndb/include/backup_restore_cleanup.inc

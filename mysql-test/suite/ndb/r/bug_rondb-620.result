@@ -1,0 +1,26 @@
+use test;
+create table t1 (
+a int not null,
+b varchar(8) not null,
+primary key (a,b)
+) engine=ndbcluster;
+create table t2 (
+b varchar(8) not null,
+a int not null,
+primary key (b,a),
+constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b) values (66051, "ABCD");
+insert into t2 (b, a) values ("ABCD", 66051);
+insert into t2 (b, a) values ("DCBA", 15066);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`,`a`) REFERENCES `t1` (`b`,`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Backing up data
+Restoring data
+insert into t2 (b, a) values ("DCBA", 15066);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`,`a`) REFERENCES `t1` (`b`,`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+select * from t1;
+a	b
+66051	ABCD
+select * from t2;
+b	a
+ABCD	66051
