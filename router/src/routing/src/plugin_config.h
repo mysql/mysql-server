@@ -29,6 +29,7 @@
 #include "mysqlrouter/routing_plugin_export.h"
 
 #include <string>
+#include <string_view>
 
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/plugin_config.h"
@@ -53,8 +54,8 @@ class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
    */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
 
-  std::string get_default(const std::string &option) const override;
-  bool is_required(const std::string &option) const override;
+  std::string get_default(std::string_view option) const override;
+  bool is_required(std::string_view option) const override;
 
   uint16_t get_option_max_connections(
       const mysql_harness::ConfigSection *section);

@@ -59,8 +59,8 @@ class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
   /**
    * @param option name of the option
    */
-  std::string get_default(const std::string &option) const override;
-  bool is_required(const std::string &option) const override;
+  std::string get_default(std::string_view option) const override;
+  bool is_required(std::string_view option) const override;
 
   mutable std::unique_ptr<ClusterMetadataDynamicState>
       metadata_cache_dynamic_state;

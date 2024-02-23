@@ -89,7 +89,7 @@ class HARNESS_EXPORT BasePluginConfig {
    */
   std::string get_option_description(
       const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
+      std::string_view option) const;
 
   /**
    * Gets the default for the given option.
@@ -100,14 +100,14 @@ class HARNESS_EXPORT BasePluginConfig {
    * @param option name of the option
    * @return default value for given option as std::string
    */
-  virtual std::string get_default(const std::string &option) const = 0;
+  virtual std::string get_default(std::string_view option) const = 0;
 
   /**
    * Returns whether the given option is required.
    *
    * @return bool
    */
-  virtual bool is_required(const std::string &option) const = 0;
+  virtual bool is_required(std::string_view option) const = 0;
 
   /**
    * get option value.
@@ -125,8 +125,7 @@ class HARNESS_EXPORT BasePluginConfig {
    */
   template <class Func>
   decltype(auto) get_option(const mysql_harness::ConfigSection *section,
-                            const std::string &option,
-                            Func &&transformer) const {
+                            std::string_view option, Func &&transformer) const {
     const auto value = get_option_string_or_default_(section, option);
 
     return transformer(value, get_option_description(section, option));
@@ -150,7 +149,7 @@ class HARNESS_EXPORT BasePluginConfig {
    */
   template <class Func>
   decltype(auto) get_option_no_default(
-      const mysql_harness::ConfigSection *section, const std::string &option,
+      const mysql_harness::ConfigSection *section, std::string_view option,
       Func &&transformer) const {
     const auto value = get_option_string_(section, option);
 
@@ -172,7 +171,7 @@ class HARNESS_EXPORT BasePluginConfig {
   // line-break
   std::string
   get_option_string(const mysql_harness::ConfigSection *section,
-                    const std::string &option) const {
+                    std::string_view option) const {
     return get_option(section, option,
                       [](auto const &value, auto const &) { return value; });
   }
@@ -200,7 +199,7 @@ class HARNESS_EXPORT BasePluginConfig {
   [[deprecated("used get_option(..., IntOption<T>{}) instead")]]
   // line-break
   T get_uint_option(const mysql_harness::ConfigSection *section,
-                  const std::string &option, T min_value = 0,
+                  std::string_view option, T min_value = 0,
                   T max_value = std::numeric_limits<T>::max()) const {
     return get_option(section, option, IntOption<T>{min_value, max_value});
   }
@@ -227,7 +226,7 @@ class HARNESS_EXPORT BasePluginConfig {
   // line-break
   std::chrono::milliseconds
   get_option_milliseconds(
-      const mysql_harness::ConfigSection *section, const std::string &option,
+      const mysql_harness::ConfigSection *section, std::string_view option,
       double min_value = 0.0,
       double max_value = std::numeric_limits<double>::max()) const {
     return get_option(section, option,
@@ -265,7 +264,7 @@ class HARNESS_EXPORT BasePluginConfig {
    */
   std::optional<std::string> get_option_string_(
       const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
+      std::string_view option) const;
 
   /**
    * get value of an option from a config-section.
@@ -277,7 +276,7 @@ class HARNESS_EXPORT BasePluginConfig {
    */
   std::string get_option_string_or_default_(
       const mysql_harness::ConfigSection *section,
-      const std::string &option) const;
+      std::string_view option) const;
 };
 
 }  // namespace mysql_harness

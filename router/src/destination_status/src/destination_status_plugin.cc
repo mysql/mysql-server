@@ -66,7 +66,7 @@ class DestinationStatusPluginConfig : public mysql_harness::BasePluginConfig {
         error_quarantine_interval(get_option(section, kOptionInterval,
                                              IntOption<uint32_t>{1, 3600})) {}
 
-  std::string get_default(const std::string &option) const override {
+  std::string get_default(std::string_view option) const override {
     const std::map<std::string_view, std::string> defaults{
         {kOptionThreshold, std::to_string(kDefaultErrorQuarantineThreshold)},
         {kOptionInterval,
@@ -77,8 +77,7 @@ class DestinationStatusPluginConfig : public mysql_harness::BasePluginConfig {
     return it == defaults.end() ? std::string() : it->second;
   }
 
-  [[nodiscard]] bool is_required(
-      const std::string & /* option */) const override {
+  [[nodiscard]] bool is_required(std::string_view /* option */) const override {
     return false;
   }
 

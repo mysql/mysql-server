@@ -91,8 +91,8 @@ class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
     GET_OPTION_CHECKED(name, section, "name", StringOption{});
   }
 
-  std::string get_default(const std::string &option) const override {
-    const std::map<std::string, std::string> defaults{
+  std::string get_default(std::string_view option) const override {
+    const std::map<std::string_view, std::string> defaults{
         {"require", "valid-user"},
     };
 
@@ -103,7 +103,7 @@ class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
     return it->second;
   }
 
-  bool is_required(const std::string &option) const override {
+  bool is_required(std::string_view option) const override {
     if (option == "name") return true;
     if (option == "backend") return true;
     if (option == "method") return true;

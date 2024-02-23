@@ -75,11 +75,11 @@ class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
     GET_OPTION_CHECKED(require_realm, section, kRequireRealm, StringOption{});
   }
 
-  std::string get_default(const std::string & /* option */) const override {
+  std::string get_default(std::string_view /* option */) const override {
     return {};
   }
 
-  bool is_required(const std::string &option) const override {
+  bool is_required(std::string_view option) const override {
     if (option == kRequireRealm) return true;
     return false;
   }
