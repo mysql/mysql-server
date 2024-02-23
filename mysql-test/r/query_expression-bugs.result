@@ -372,3 +372,72 @@ SELECT pk FROM c WHERE pk IN (SELECT 2 EXCEPT SELECT 4) ORDER BY pk;
 pk
 2
 DROP TABLE c;
+#
+# Bug#36332697 IN predicate containing EXCEPT ALL set operation gives wrong result
+#
+CREATE TABLE t(i INTEGER);
+INSERT INTO t VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# This results in a single row of 2.
+(SELECT 2 AS two UNION ALL SELECT 2)
+EXCEPT ALL
+SELECT 2;
+two
+2
+# Before the fix, this same set inside an IN predicate used to
+# return an empty result set even though one of the rows in t
+# has the value 2.
+SELECT i FROM t WHERE i IN ( (SELECT 2 UNION ALL SELECT 2)
+EXCEPT ALL
+SELECT 2 );
+i
+2
+EXPLAIN ANALYZE SELECT i FROM t WHERE i IN ( (SELECT 2 UNION ALL SELECT 2)
+EXCEPT ALL
+SELECT 2 );
+EXPLAIN
+-> Filter: <in_optimizer>(t.i,<exists>(select #2))  (...) (actual rows=1 loops=1)
+    -> Table scan on t  (...) (actual rows=5 loops=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (...) (actual rows=0.2 loops=5)
+            -> Table scan on <except temporary>  (...) (actual rows=0.2 loops=5)
+                -> Except all materialize  (...) (actual rows=0.2 loops=5)
+                    -> Table scan on <union temporary>  (...) (actual rows=0.4 loops=5)
+                        -> Union all materialize  (...) (actual rows=0.4 loops=5)
+                            -> Filter: (<cache>(t.i) = <ref_null_helper>(2))  (...) (actual rows=0.2 loops=5)
+                                -> Rows fetched before execution  (...) (actual rows=1 loops=5)
+                            -> Filter: (<cache>(t.i) = <ref_null_helper>(2))  (...) (actual rows=0.2 loops=5)
+                                -> Rows fetched before execution  (...) (actual rows=1 loops=5)
+                    -> Filter: (<cache>(t.i) = <ref_null_helper>(2))  (...) (actual rows=0.25 loops=4)
+                        -> Rows fetched before execution  (...) (actual rows=1 loops=4)
+
+# Using tmp table index based de-duplication didn't help; same issue
+SET optimizer_switch="hash_set_operations=off";
+SELECT i FROM t WHERE i IN ( (SELECT 2 UNION ALL SELECT 2)
+EXCEPT ALL
+SELECT 2 );
+i
+2
+EXPLAIN ANALYZE SELECT i FROM t WHERE i IN ( (SELECT 2 UNION ALL SELECT 2)
+EXCEPT ALL
+SELECT 2 );
+EXPLAIN
+-> Filter: <in_optimizer>(t.i,<exists>(select #2))  (...) (actual rows=1 loops=1)
+    -> Table scan on t  (...) (actual rows=5 loops=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (...) (actual rows=0.2 loops=5)
+            -> Table scan on <except temporary>  (...) (actual rows=0.2 loops=5)
+                -> Except all materialize  (...) (actual rows=0.2 loops=5)
+                    -> Table scan on <union temporary>  (...) (actual rows=0.4 loops=5)
+                        -> Union all materialize  (...) (actual rows=0.4 loops=5)
+                            -> Filter: (<cache>(t.i) = <ref_null_helper>(2))  (...) (actual rows=0.2 loops=5)
+                                -> Rows fetched before execution  (...) (actual rows=1 loops=5)
+                            -> Filter: (<cache>(t.i) = <ref_null_helper>(2))  (...) (actual rows=0.2 loops=5)
+                                -> Rows fetched before execution  (...) (actual rows=1 loops=5)
+                    -> Filter: (<cache>(t.i) = <ref_null_helper>(2))  (...) (actual rows=1 loops=1)
+                        -> Rows fetched before execution  (...) (actual rows=1 loops=1)
+
+SET optimizer_switch="hash_set_operations=default";
+DROP TABLE t;

@@ -3366,14 +3366,28 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(
     path = add_filter_access_path(thd, path, having_cond, query_block);
   }
 
+  Query_expression *const qe = query_expression();
+
+  // For IN/EXISTS subqueries, it's ok to optimize with limit 1 for top level
+  // of set operation in the presence of EXCEPT ALL, but in not nested set
+  // operands lest we lose rows significant to the result of the EXCEPT ALL.
+  const bool skip_limit =
+      (qe->m_contains_except_all &&
+       // check that qe inside subquery: no user given
+       // limit/offset can interfere,
+       // cf. ER_NOT_SUPPORTED_YET("LIMIT & IN/ALL/ANY/SOME
+       // subquery"), so safe to assume the limit is the
+       // optimization we want to suppress
+       qe->item != nullptr && qe->query_term()->query_block() != query_block);
+
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
   // common case, but not for CALC_FOUND_ROWS. OFFSET also isn't handled there.
-  if (query_expression()->select_limit_cnt != HA_POS_ERROR ||
-      query_expression()->offset_limit_cnt != 0) {
-    path = NewLimitOffsetAccessPath(
-        thd, path, query_expression()->select_limit_cnt,
-        query_expression()->offset_limit_cnt, calc_found_rows, false,
-        /*send_records_override=*/nullptr);
+  if ((qe->select_limit_cnt != HA_POS_ERROR && !skip_limit) ||
+      qe->offset_limit_cnt != 0) {
+    path =
+        NewLimitOffsetAccessPath(thd, path, qe->select_limit_cnt,
+                                 qe->offset_limit_cnt, calc_found_rows, false,
+                                 /*send_records_override=*/nullptr);
   }
 
   return path;

@@ -1,3 +1,4 @@
+--source include/elide_costs.inc
 
 --echo #
 --echo # Bug#35686098 Assertion `n < size()' failed in Element_type& Mem_root_array_YY
@@ -154,3 +155,42 @@ SELECT pk FROM c WHERE pk IN (SELECT 2 EXCEPT SELECT 4);
 SELECT pk FROM c WHERE pk IN (SELECT 2 EXCEPT SELECT 4) ORDER BY pk;
 
 DROP TABLE c;
+
+--echo #
+--echo # Bug#36332697 IN predicate containing EXCEPT ALL set operation gives wrong result
+--echo #
+CREATE TABLE t(i INTEGER);
+INSERT INTO t VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t;
+
+--echo # This results in a single row of 2.
+(SELECT 2 AS two UNION ALL SELECT 2)
+EXCEPT ALL
+SELECT 2;
+
+--echo # Before the fix, this same set inside an IN predicate used to
+--echo # return an empty result set even though one of the rows in t
+--echo # has the value 2.
+let $query =
+SELECT i FROM t WHERE i IN ( (SELECT 2 UNION ALL SELECT 2)
+                             EXCEPT ALL
+                             SELECT 2 );
+eval $query;
+--replace_regex $elide_costs_and_time_and_row_estimate
+--skip_if_hypergraph  # Different plan.
+eval EXPLAIN ANALYZE $query;
+
+--echo # Using tmp table index based de-duplication didn't help; same issue
+SET optimizer_switch="hash_set_operations=off";
+let $query =
+SELECT i FROM t WHERE i IN ( (SELECT 2 UNION ALL SELECT 2)
+                             EXCEPT ALL
+                             SELECT 2 );
+eval $query;
+--replace_regex $elide_costs_and_time_and_row_estimate
+--skip_if_hypergraph  # Different plan.
+eval EXPLAIN ANALYZE $query;
+
+SET optimizer_switch="hash_set_operations=default";
+
+DROP TABLE t;

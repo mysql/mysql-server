@@ -471,6 +471,10 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
       auto *qb = qts->query_block();
       assert(qts->m_children.size() >= 2);
 
+      if (qts->term_type() == QT_EXCEPT &&
+          qts->m_first_distinct == std::numeric_limits<int64_t>::max())
+        m_contains_except_all = true;
+
       qb->make_active_options(
           (added_options & (OPTION_FOUND_ROWS | OPTION_BUFFER_RESULT)) |
               OPTION_NO_CONST_TABLES | SELECT_NO_UNLOCK,

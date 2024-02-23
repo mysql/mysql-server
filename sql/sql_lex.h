@@ -812,6 +812,10 @@ class Query_expression {
 
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
+
+  /* For IN/EXISTS predicates, we may not push down LIMIT 1 safely if true*/
+  bool m_contains_except_all{false};
+
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
   /**
