@@ -1276,7 +1276,6 @@ The following options may be given as the first argument:
  When this option is enabled, connections attempted using
  insecure transport will be rejected.  Secure transports
  are SSL/TLS, Unix socket or Shared Memory (on Windows).
- (Defaults to on; use --skip-require-secure-transport to disable.)
  --restrict-fk-on-non-standard-key 
  Disallow the creation of foreign keys referencing
  non-unique key or partial key
@@ -1939,7 +1938,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
-require-secure-transport TRUE
+require-secure-transport FALSE
 restrict-fk-on-non-standard-key TRUE
 rpl-read-size 8192
 rpl-stop-replica-timeout 31536000

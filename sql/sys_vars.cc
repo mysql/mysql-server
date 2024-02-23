@@ -3686,7 +3686,7 @@ static Sys_var_bool Sys_require_secure_transport(
     "When this option is enabled, connections attempted using insecure "
     "transport will be rejected.  Secure transports are SSL/TLS, "
     "Unix socket or Shared Memory (on Windows).",
-    GLOBAL_VAR(opt_require_secure_transport), CMD_LINE(OPT_ARG), DEFAULT(true),
+    GLOBAL_VAR(opt_require_secure_transport), CMD_LINE(OPT_ARG), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_require_secure_transport),
     ON_UPDATE(nullptr));
 
