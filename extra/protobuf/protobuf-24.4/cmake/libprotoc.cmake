@@ -3,6 +3,11 @@
 include(${protobuf_SOURCE_DIR}/src/file_lists.cmake)
 include(${protobuf_SOURCE_DIR}/cmake/protobuf-configure-target.cmake)
 
+FOREACH(_lang csharp java objectivec php ruby rust)
+  LIST(FILTER libprotoc_hdrs EXCLUDE REGEX ".*/${_lang}/.*")
+  LIST(FILTER libprotoc_srcs EXCLUDE REGEX ".*/${_lang}/.*")
+ENDFOREACH()
+
 add_library(libprotoc ${protobuf_SHARED_OR_STATIC}
   ${libprotoc_srcs}
   ${libprotoc_hdrs}
