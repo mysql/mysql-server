@@ -655,17 +655,22 @@ DROP TABLE child, parent;
 CREATE TABLE parent (i INT, a VARCHAR(10), b VARCHAR(10),
 PRIMARY KEY (i), UNIQUE u(i,a(5)), UNIQUE u1(i,a,b(5)));
 CREATE TABLE child (i INT, a VARCHAR(10), FOREIGN KEY (i, a) REFERENCES parent (i, a));
+Warnings:
+Warning	6124	Foreign key 'child_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
-child_ibfk_1	u	test	parent
+child_ibfk_1	u1	test	parent
 ALTER TABLE parent RENAME KEY u1 TO u2;
+Warnings:
+Warning	6124	Foreign key 'child_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
+Warning	6124	Foreign key 'child_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
-child_ibfk_1	u	test	parent
+child_ibfk_1	u2	test	parent
 DROP TABLE child, parent;
 SET restrict_fk_on_non_standard_key=ON;
 Warnings:

@@ -4993,5 +4993,70 @@ show create table t2;
 DROP TABLE t2, t1;
 SET restrict_fk_on_non_standard_key=ON;
 
+--echo # Case 8 - FK on Prefix Column key should fail
+CREATE TABLE t1 (f1 INT, f2 VARCHAR(100), UNIQUE KEY(f2(10)));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(100),
+                 FOREIGN KEY(f2) REFERENCES t1(f2));
+DROP TABLE t1;
+
+--echo # Case 9 - FK on Prefix Partial Column unique key should fail
+CREATE TABLE t1 (f1 INT, f2 VARCHAR(100), UNIQUE KEY(f1, f2(10)));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(10),
+                 FOREIGN KEY(f1) REFERENCES t1(f1));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(10),
+                 FOREIGN KEY(f2) REFERENCES t1(f2));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(10),
+                 FOREIGN KEY(f1, f2) REFERENCES t1(f1, f2));
+
+DROP TABLE t1;
+--echo # Case 10 - FK on Partial Column with multiple unique key should fail
+CREATE TABLE t1 (f1 INT, f2 VARCHAR(100), f3 VARCHAR(100),
+                 UNIQUE KEY(f1, f2(10)),
+                 UNIQUE KEY(f1, f2, f3(10)));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(100), f3 VARCHAR(10),
+                 FOREIGN KEY(f1, f2, f3) REFERENCES t1(f1, f2, f3));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(10),
+                 FOREIGN KEY(f1) REFERENCES t1(f1));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(100), f3 VARCHAR(100),
+                 FOREIGN KEY(f1, f2) REFERENCES t1(f1, f2));
+
+--echo # Case 11 - FK on Partial Column unique key with prefix should pass
+--echo #           with restrict_fk_on_non_standard_key set to off
+SET restrict_fk_on_non_standard_key=OFF;
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(10),
+                 FOREIGN KEY(f1, f2) REFERENCES t1(f1, f2));
+
+--echo # Case 12 - FK on Composite Unique key with prefix should fail
+--echo #           with restrict_fk_on_non_standard_key set to off
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE t3(f1 INT, f2 VARCHAR(10), f3 VARCHAR(10),
+                FOREIGN KEY(f1, f2, f3) REFERENCES t1(f1, f2, f3));
+DROP TABLE t2, t1;
+
+SET restrict_fk_on_non_standard_key=ON;
+
+--echo # Case 13 - FK on Functional Index column should fail
+CREATE TABLE ft1 (f1 VARCHAR(100), UNIQUE INDEX idx1 ((SUBSTRING(f1, 1, 10))) );
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE ft2 (f1 VARCHAR(100),
+                FOREIGN KEY(f1) REFERENCES ft1(f1));
+drop table ft1;
+
+--echo # Case 14 - FK on virtual generated column index should fail
+CREATE TABLE t1 (f1 VARCHAR(10), f2 VARCHAR(10),
+                 f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL,
+                 UNIQUE INDEX(f3));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE t2 (f1 VARCHAR(100),
+                FOREIGN KEY(f1) REFERENCES t1(f3));
+drop table t1;
+
 #Cleanup
 SET FOREIGN_KEY_CHECKS = DEFAULT;
