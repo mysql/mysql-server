@@ -150,14 +150,14 @@ class PluginConfig : public mysql_harness::BasePluginConfig {
     GET_OPTION_CHECKED(tls_version, section, "tls_version", StringOption{});
   }
 
-  std::string get_default(const std::string &option) const override {
+  std::string get_default(std::string_view option) const override {
     std::error_code ec;
     const auto cwd = stdx::filesystem::current_path(ec);
     if (ec) {
       throw std::system_error(ec);
     }
 
-    const std::map<std::string, std::string> defaults{
+    const std::map<std::string_view, std::string> defaults{
         {"bind_address", "0.0.0.0"},
         {"module_prefix", cwd.native()},
         {"port", "3306"},
@@ -172,7 +172,7 @@ class PluginConfig : public mysql_harness::BasePluginConfig {
     return it->second;
   }
 
-  bool is_required(const std::string &option) const override {
+  bool is_required(std::string_view option) const override {
     if (option == "filename") return true;
     return false;
   }

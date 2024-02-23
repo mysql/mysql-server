@@ -44,14 +44,15 @@ std::string BasePluginConfig::get_section_name(
   return section->name + ":" + section->key;
 }
 
-static std::string option_description(const std::string &section_name,
-                                      const std::string &option) {
-  return "option " + option + " in [" + section_name + "]";
+static std::string option_description(std::string_view section_name,
+                                      std::string_view option) {
+  return "option " + std::string(option) + " in [" + std::string(section_name) +
+         "]";
 }
 
 std::string BasePluginConfig::get_option_description(
     const mysql_harness::ConfigSection *section,
-    const std::string &option) const {
+    std::string_view option) const {
   auto section_name = section->get_section_name(option);
   // if get_section_name can't resolve the section name because the option is
   // unknown, fall back to the current section-name.
@@ -63,7 +64,7 @@ std::string BasePluginConfig::get_option_description(
 
 std::optional<std::string> BasePluginConfig::get_option_string_(
     const mysql_harness::ConfigSection *section,
-    const std::string &option) const {
+    std::string_view option) const {
   std::optional<std::string> value;
 
   if (is_required(option)) {
@@ -91,7 +92,7 @@ std::optional<std::string> BasePluginConfig::get_option_string_(
 
 std::string BasePluginConfig::get_option_string_or_default_(
     const mysql_harness::ConfigSection *section,
-    const std::string &option) const {
+    std::string_view option) const {
   std::optional<std::string> value = get_option_string_(section, option);
 
   if (value && !value->empty()) return value.value();

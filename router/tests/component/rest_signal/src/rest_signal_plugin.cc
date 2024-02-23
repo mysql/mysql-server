@@ -52,11 +52,11 @@ class RestRouterPluginConfig : public mysql_harness::BasePluginConfig {
   explicit RestRouterPluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section) {}
 
-  std::string get_default(const std::string & /* option */) const override {
+  std::string get_default(std::string_view /* option */) const override {
     return {};
   }
 
-  bool is_required(const std::string & /* option */) const override {
+  bool is_required(std::string_view /* option */) const override {
     return false;
   }
 };

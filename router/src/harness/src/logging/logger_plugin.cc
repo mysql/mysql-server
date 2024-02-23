@@ -206,13 +206,11 @@ class LoggingPluginConfig : public mysql_harness::BasePluginConfig {
     }
   }
 
-  std::string get_default(const std::string & /*option*/) const override {
-    return "";
+  std::string get_default(std::string_view /*option*/) const override {
+    return {};
   }
 
-  bool is_required(const std::string & /*option*/) const override {
-    return false;
-  }
+  bool is_required(std::string_view /*option*/) const override { return false; }
 
   void expose_initial_configuration(const std::string &key) const {
     using DC = mysql_harness::DynamicConfig;

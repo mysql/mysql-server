@@ -468,22 +468,22 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
     return mysql_harness::join(TlsServerContext::default_ciphers(), ":");
   }
 
-  std::string get_default(const std::string &option) const override {
-    const std::map<std::string, std::string> defaults{
+  std::string get_default(std::string_view option) const override {
+    const std::map<std::string_view, std::string> defaults{
         {"bind_address", kDefaultBindAddress},
         {"port", std::to_string(kDefaultPort)},
         {"ssl", std::to_string(kDefaultSsl)},
         {"ssl_cipher", get_default_ciphers()},
     };
 
-    auto it = defaults.find(option);
+    const auto it = defaults.find(option);
     if (it == defaults.end()) {
       return std::string();
     }
     return it->second;
   }
 
-  bool is_required(const std::string & /* option */) const override {
+  bool is_required(std::string_view /* option */) const override {
     return false;
   }
 

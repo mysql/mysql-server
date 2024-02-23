@@ -62,14 +62,19 @@ static void inplace_lower(std::string *str) {
   std::transform(str->begin(), str->end(), str->begin(), ::tolower);
 }
 
-static std::string lower(std::string str) {
-  std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-  return str;
+static std::string lower(std::string_view str) {
+  std::string out;
+  out.resize(str.size());
+
+  std::transform(str.begin(), str.end(), out.begin(), ::tolower);
+
+  return out;
 }
 
-static void check_option(const std::string &str) {
-  if (!all_of(str.begin(), str.end(), is_valid_conf_ident_char))
-    throw bad_option("Not a legal option name: '" + str + "'");
+static void check_option(std::string_view str) {
+  if (!std::all_of(str.begin(), str.end(), is_valid_conf_ident_char)) {
+    throw bad_option("Not a legal option name: '" + std::string(str) + "'");
+  }
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -155,14 +160,14 @@ std::string ConfigSection::do_replace(const std::string &value,
   return result;
 }
 
-std::string ConfigSection::get(const std::string &option) const {
+std::string ConfigSection::get(std::string_view option) const {
   check_option(option);  // throws bad_option (std::runtime_error)
   auto result = do_locate(option);
   if (std::get<1>(result)) return do_replace(std::get<0>(result)->second);
-  throw bad_option("Value for '" + option + "' not found");
+  throw bad_option("Value for '" + std::string(option) + "' not found");
 }
 
-std::string ConfigSection::get_section_name(const std::string &option) const {
+std::string ConfigSection::get_section_name(std::string_view option) const {
   check_option(option);
   if (!has(option)) {
     return "";
@@ -179,13 +184,13 @@ std::string ConfigSection::get_section_name() const {
   return key.empty() ? name : name + ":" + key;
 }
 
-bool ConfigSection::has(const std::string &option) const {
+bool ConfigSection::has(std::string_view option) const {
   check_option(option);  // throws bad_option (std::runtime_error)
   return std::get<1>(do_locate(option));
 }
 
 std::pair<ConfigSection::OptionMap::const_iterator, bool>
-ConfigSection::do_locate(const std::string &option) const noexcept {
+ConfigSection::do_locate(std::string_view option) const noexcept {
   auto it = options_.find(lower(option));
   if (it != options_.end()) return {it, true};
 
@@ -218,12 +223,12 @@ void Config::copy_guts(const Config &source) noexcept {
 }
 
 bool Config::has(const std::string &section, const std::string &key) const {
-  auto it = sections_.find(make_pair(section, key));
+  auto it = sections_.find(std::make_pair(section, key));
   return (it != sections_.end());
 }
 
-bool Config::has_any(const std::string &section) const {
-  for (auto &it : sections_) {
+bool Config::has_any(std::string_view section) const {
+  for (const auto &it : sections_) {
     if (it.first.first == section) return true;
   }
   return false;
@@ -272,11 +277,11 @@ const ConfigSection &Config::get(const std::string &section,
   return const_cast<Config *>(this)->get(section, key);
 }
 
-std::string Config::get_default(const std::string &option) const {
+std::string Config::get_default(std::string_view option) const {
   return defaults_->get(option);  // throws bad_option (std::runtime_error)
 }
 
-bool Config::has_default(const std::string &option) const {
+bool Config::has_default(std::string_view option) const {
   return defaults_->has(option);  // throws bad_option (std::runtime_error)
 }
 
@@ -525,7 +530,7 @@ void Config::update(const Config &other) {
 
 Config::ConstSectionList Config::sections() const {
   decltype(sections()) result;
-  for (auto &section : sections_) result.push_back(&section.second);
+  for (const auto &section : sections_) result.push_back(&section.second);
   return result;
 }
 

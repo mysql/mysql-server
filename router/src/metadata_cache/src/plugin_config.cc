@@ -55,8 +55,8 @@ template <typename T>
 using IntOption = mysql_harness::IntOption<T>;
 
 std::string MetadataCachePluginConfig::get_default(
-    const std::string &option) const {
-  static const std::map<std::string, std::string> defaults{
+    std::string_view option) const {
+  static const std::map<std::string_view, std::string> defaults{
       {"address", std::string{metadata_cache::kDefaultMetadataAddress}},
       {"ttl", ms_to_seconds_string(mysqlrouter::kDefaultMetadataTTLCluster)},
       {"auth_cache_ttl",
@@ -77,7 +77,7 @@ std::string MetadataCachePluginConfig::get_default(
   return it->second;
 }
 
-bool MetadataCachePluginConfig::is_required(const std::string &option) const {
+bool MetadataCachePluginConfig::is_required(std::string_view option) const {
   const std::vector<std::string> required{
       "user",
   };

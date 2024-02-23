@@ -81,7 +81,7 @@ class ConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
         idle_timeout(get_option(section, kIdleTimeout, IntOption<uint32_t>{})) {
   }
 
-  std::string get_default(const std::string &option) const override {
+  std::string get_default(std::string_view option) const override {
     const std::map<std::string_view, std::string> defaults{
         {kMaxIdleServerConnections,
          std::to_string(kDefaultMaxIdleServerConnections)},
@@ -92,8 +92,7 @@ class ConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
     return it == defaults.end() ? std::string() : it->second;
   }
 
-  [[nodiscard]] bool is_required(
-      const std::string & /* option */) const override {
+  [[nodiscard]] bool is_required(std::string_view /* option */) const override {
     return false;
   }
 
