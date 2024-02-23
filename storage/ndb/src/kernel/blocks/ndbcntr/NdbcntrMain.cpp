@@ -143,7 +143,7 @@ static BlockInfo ALL_BLOCKS[] = {
   { DBTUP_REF,   1 ,  4000,  4007 },
   { DBDICT_REF,  1 ,  6000,  6003 },
   { NDBCNTR_REF, 0 ,  1000,  1999 },
-  { CMVMI_REF,   1 ,  9000,  9999 }, // before QMGR
+  { CMVMI_REF,   1 ,  9600,  9999 }, // before QMGR
   { QMGR_REF,    1 ,     1,   999 },
   { TRIX_REF,    1 ,     0,     0 },
   { BACKUP_REF,  1 , 10000, 10999 },
@@ -157,12 +157,14 @@ static BlockInfo ALL_BLOCKS[] = {
   ,{ DBINFO_REF, 1 ,     0,     0 }
   ,{ DBSPJ_REF,  1 ,     0,     0 }
   ,{ THRMAN_REF, 1 ,     0,     0 }
+  ,{ TRPMAN_REF, 1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   CMVMI_REF,
+  TRPMAN_REF,  
   NDBFS_REF,
   DBINFO_REF,
   DBTUP_REF,

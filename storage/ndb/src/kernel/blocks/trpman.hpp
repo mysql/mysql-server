@@ -51,6 +51,9 @@ public:
   void execROUTE_ORD(Signal* signal);
 
   void execDBINFO_SCANREQ(Signal*);
+  void execNODE_START_REP(Signal *);
+  void execREAD_CONFIG_REQ(Signal *);
+  void execSTTOR(Signal *);
 
   void execNDB_TAMPER(Signal*);
   void execDUMP_STATE_ORD(Signal*);
@@ -108,6 +111,7 @@ public:
   void execROUTE_ORD(Signal* signal);
   void execNDB_TAMPER(Signal*);
   void execDUMP_STATE_ORD(Signal*);
+  void execNODE_START_REP(Signal *);
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 };

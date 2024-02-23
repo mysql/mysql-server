@@ -63,9 +63,8 @@ private:
 
   void execEVENT_SUBSCRIBE_REQ(Signal *);
   void execCANCEL_SUBSCRIPTION_REQ(Signal *);
-
-  void execTESTSIG(Signal* signal);
-  void execNODE_START_REP(Signal* signal);
+  
+  void execTESTSIG(Signal *signal);
 
   void execCONTINUEB(Signal* signal);
 
