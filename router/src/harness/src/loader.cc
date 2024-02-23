@@ -620,7 +620,7 @@ std::exception_ptr Loader::run() {
 
   if (!first_eptr) {
     try {
-      expose_initial_config_all();
+      expose_config_all(/*initial*/ true);
     } catch (const std::exception &e) {
       log_warning(
           "Failed storing plugins initial configuration in DynamicConfig: %s",
@@ -1179,34 +1179,18 @@ void Loader::check_default_config_options_supported() {
   }
 }
 
-void Loader::expose_initial_config_all() {
+void Loader::expose_config_all(const bool initial) {
   // expose "common" application options
   if (expose_app_config_clb_) {
-    expose_app_config_clb_(config_.get_default_section());
+    expose_app_config_clb_(initial, config_.get_default_section());
   }
 
   // let each plugin expose its options
   PluginFuncEnv env(&appinfo_, nullptr);
   for (const ConfigSection *section : config_.sections()) {
     const auto &plugin = plugins_.at(section->name).plugin();
-    if (plugin->expose_initial_configuration) {
-      plugin->expose_initial_configuration(&env, section->key.c_str());
-    }
-  }
-}
-
-void Loader::expose_default_config_all() {
-  // expose "common" application options defaults
-  if (expose_app_defaults_clb_) {
-    expose_app_defaults_clb_();
-  }
-
-  // let each plugin expose its options defaults
-  PluginFuncEnv env(&appinfo_, nullptr);
-  for (const ConfigSection *section : config_.sections()) {
-    const auto &plugin = plugins_.at(section->name).plugin();
-    if (plugin->expose_default_configuration) {
-      plugin->expose_default_configuration(&env, section->key.c_str());
+    if (plugin->expose_configuration) {
+      plugin->expose_configuration(&env, section->key.c_str(), initial);
     }
   }
 }

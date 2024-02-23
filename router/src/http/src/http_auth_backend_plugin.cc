@@ -45,6 +45,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
@@ -130,23 +131,6 @@ class PluginConfig : public mysql_harness::BasePluginConfig {
   bool is_required(std::string_view option) const override {
     if (option == "backend") return true;
     return false;
-  }
-
-  void expose_initial_configuration(const std::string &key) const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"http_authentication_backends", key};
-
-    DC::instance().set_option_configured(id, "backend", backend);
-    DC::instance().set_option_configured(id, "filename", filename);
-  }
-
-  void expose_default_configuration(const std::string &key) const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"http_authentication_backends", key};
-
-    DC::instance().set_option_default(
-        id, "backend", std::string(kHttpAuthPluginDefaultBackend));
-    DC::instance().set_option_default(id, "filename", "");
   }
 };
 }  // namespace
@@ -239,6 +223,33 @@ static const std::array<const char *, 2> required = {{
     "router_protobuf",
 }};
 
+namespace {
+
+class HttpAuthBackendConfigExposer
+    : public mysql_harness::SectionConfigExposer {
+ public:
+  using DC = mysql_harness::DynamicConfig;
+  HttpAuthBackendConfigExposer(
+      const bool initial, const PluginConfig &plugin_config,
+      const mysql_harness::ConfigSection &default_section,
+      const std::string &key)
+      : mysql_harness::SectionConfigExposer(
+            initial, default_section,
+            DC::SectionId{"http_authentication_backends", key}),
+        plugin_config_(plugin_config) {}
+
+  void expose() override {
+    expose_option("backend", plugin_config_.backend,
+                  std::string(kHttpAuthPluginDefaultBackend));
+    expose_option("filename", plugin_config_.filename, "");
+  }
+
+ private:
+  const PluginConfig &plugin_config_;
+};
+
+}  // namespace
+
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
                                  const char *key, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
@@ -251,22 +262,10 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
     }
 
     PluginConfig config(section);
-    if (initial) {
-      config.expose_initial_configuration(key);
-    } else {
-      config.expose_default_configuration(key);
-    }
+    HttpAuthBackendConfigExposer(initial, config,
+                                 info->config->get_default_section(), key)
+        .expose();
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char *key) {
-  expose_configuration(env, key, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char *key) {
-  expose_configuration(env, key, false);
 }
 
 extern "C" {
@@ -289,7 +288,6 @@ mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
         false,    // declares_readiness
         http_backend_supported_options.size(),
         http_backend_supported_options.data(),
-        expose_initial_configuration,
-        expose_default_configuration,
+        expose_configuration,
 };
 }

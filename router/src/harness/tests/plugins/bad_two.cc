@@ -60,7 +60,6 @@ mysql_harness::Plugin EXAMPLE_API harness_plugin_routertestplugin_bad_two = {
     nullptr,  // stop
     false,    // declares_readiness
     0, nullptr,
-    nullptr,  // expose_initial_configuration
-    nullptr,  // expose_default_configuration
+    nullptr,  // expose_configuration
 };
 }

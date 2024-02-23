@@ -1010,17 +1010,34 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
       get_opt(user_options, "client_ssl_cert", default_client_ssl_cert);
   options.client_ssl_key =
       get_opt(user_options, "client_ssl_key", default_client_ssl_key);
-  options.client_ssl_cipher = get_opt(user_options, "client_ssl_cipher", "");
-  options.client_ssl_curves = get_opt(user_options, "client_ssl_curves", "");
+  options.client_ssl_cipher =
+      get_opt(user_options, "client_ssl_cipher",
+              std::string(routing::kDefaultClientSslCipherBootstrap));
+  options.client_ssl_curves =
+      get_opt(user_options, "client_ssl_curves",
+              std::string(routing::kDefaultClientSslCurvesBootstrap));
   options.client_ssl_dh_params =
-      get_opt(user_options, "client_ssl_dh_params", "");
+      get_opt(user_options, "client_ssl_dh_params",
+              std::string(routing::kDefaultClientSslDhParamsBootstrap));
 
-  options.server_ssl_ca = get_opt(user_options, "server_ssl_ca", "");
-  options.server_ssl_capath = get_opt(user_options, "server_ssl_capath", "");
-  options.server_ssl_crl = get_opt(user_options, "server_ssl_crl", "");
-  options.server_ssl_crlpath = get_opt(user_options, "server_ssl_crlpath", "");
-  options.server_ssl_cipher = get_opt(user_options, "server_ssl_cipher", "");
-  options.server_ssl_curves = get_opt(user_options, "server_ssl_curves", "");
+  options.server_ssl_ca =
+      get_opt(user_options, "server_ssl_ca",
+              std::string(routing::kDefaultServerSslCaBootstrap));
+  options.server_ssl_capath =
+      get_opt(user_options, "server_ssl_capath",
+              std::string(routing::kDefaultServerSslCaPathBootstrap));
+  options.server_ssl_crl =
+      get_opt(user_options, "server_ssl_crl",
+              std::string(routing::kDefaultServerSslCrlFileBootstrap));
+  options.server_ssl_crlpath =
+      get_opt(user_options, "server_ssl_crlpath",
+              std::string(routing::kDefaultServerSslCrlPathBootstrap));
+  options.server_ssl_cipher =
+      get_opt(user_options, "server_ssl_cipher",
+              std::string(routing::kDefaultServerSslCipherBootstrap));
+  options.server_ssl_curves =
+      get_opt(user_options, "server_ssl_curves",
+              std::string(routing::kDefaultServerSslCurvesBootstrap));
   options.server_ssl_verify =
       get_opt(user_options, "server_ssl_verify",
               std::string(routing::kDefaultServerSslVerify));
@@ -1507,16 +1524,9 @@ std::string ConfigGenerator::bootstrap_deployment(
     }
 
     mysql_harness::Loader loader{"bootstrap", config};
-    loader.register_expose_app_config_callback(
-        expose_router_initial_configuration);
-    loader.register_expose_app_defaults_callback(
-        expose_router_default_configuration);
+    loader.register_expose_app_config_callback(expose_router_configuration);
     loader.load_all();
-    if (!full) {
-      loader.expose_initial_config_all();
-    } else {
-      loader.expose_default_config_all();
-    }
+    loader.expose_config_all(!full);
   };
 
   // See the comment above the lambda for explanation why this is called twice.

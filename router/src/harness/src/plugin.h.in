@@ -496,16 +496,10 @@ struct Plugin {
   const char *const *supported_options;
 
   /**
-   * Expose the initial plugin configuration in the DynamicConfig object.
+   * Expose plugin configuration in the DynamicConfig object.
    *
    */
-  void (*expose_initial_configuration)(PluginFuncEnv *env, const char *key);
-
-  /**
-   * Expose default plugin configuration in the DynamicConfig object.
-   *
-   */
-  void (*expose_default_configuration)(PluginFuncEnv *env, const char *key);
+  void (*expose_configuration)(PluginFuncEnv *env, const char *key, bool initial);
 };
 
 /**

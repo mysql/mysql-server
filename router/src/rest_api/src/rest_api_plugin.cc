@@ -38,6 +38,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"  // ::join()
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_utils.h"
@@ -73,20 +74,6 @@ class RestApiPluginConfig : public mysql_harness::BasePluginConfig {
 
   bool is_required(std::string_view /* option */) const override {
     return false;
-  }
-
-  void expose_initial_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"rest_configs", kSectionName};
-
-    DC::instance().set_option_configured(id, "require_realm", require_realm);
-  }
-
-  void expose_default_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"rest_configs", kSectionName};
-
-    DC::instance().set_option_default(id, "require_realm", "");
   }
 };
 
@@ -296,8 +283,31 @@ static const std::array<const char *, 2> plugin_requires = {{
     "logger",
 }};
 
+namespace {
+
+class RestApiConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
+  using DC = mysql_harness::DynamicConfig;
+  RestApiConfigExposer(const bool initial,
+                       const RestApiPluginConfig &plugin_config,
+                       const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(
+            initial, default_section,
+            DC::SectionId{"rest_configs", kSectionName}),
+        plugin_config_(plugin_config) {}
+
+  void expose() override {
+    expose_option("require_realm", plugin_config_.require_realm, "");
+  }
+
+ private:
+  const RestApiPluginConfig &plugin_config_;
+};
+
+}  // namespace
+
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
-                                 bool initial) {
+                                 const char * /*key*/, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (!info->config) return;
@@ -305,23 +315,10 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
   for (const mysql_harness::ConfigSection *section : info->config->sections()) {
     if (section->name == kSectionName) {
       RestApiPluginConfig config{section};
-      if (initial) {
-        config.expose_initial_configuration();
-      } else {
-        config.expose_default_configuration();
-      }
+      RestApiConfigExposer(initial, config, info->config->get_default_section())
+          .expose();
     }
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, false);
 }
 
 extern "C" {
@@ -343,7 +340,6 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
     true,     // declares_readiness
     supported_options.size(),
     supported_options.data(),
-    expose_initial_configuration,
-    expose_default_configuration,
+    expose_configuration,
 };
 }
