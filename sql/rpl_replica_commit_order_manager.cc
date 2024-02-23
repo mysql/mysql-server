@@ -137,6 +137,10 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
     worker->report_commit_order_deadlock();
     rollback_status = true;
     return true;
+  } else {
+    // If the worker is at the head of the queue, then no point in killing
+    // a transaction due to an ephemeral deadlock that might have happened.
+    worker->reset_commit_order_deadlock();
   }
   return false;
 }

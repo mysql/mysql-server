@@ -937,9 +937,12 @@ class Slave_worker : public Relay_log_info {
                              uint end_relay_number, my_off_t end_relay_pos);
   void assign_partition_db(Log_event *ev);
 
+ public:
+  /**
+    Set the flag the signals a deadlock to false
+  */
   void reset_commit_order_deadlock();
 
- public:
   /**
      Returns an array with the expected column numbers of the primary key
      fields of the table repository.
