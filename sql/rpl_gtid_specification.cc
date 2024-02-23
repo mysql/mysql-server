@@ -141,8 +141,8 @@ std::size_t Gtid_specification::automatic_to_string(char *buf) const {
     strncpy(buf + pos, Gtid_specification::str_automatic_sep, sep_len + 1);
     pos += sep_len;
     pos += automatic_tag.to_string(buf + pos);
+    buf[pos++] = '\0';
   }
-  buf[pos++] = '\0';
   return pos;
 }
 
