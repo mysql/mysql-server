@@ -301,7 +301,7 @@ static const std::array<const char *, 2> required = {{
 }};
 
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
-                                 bool initial) {
+                                 const char * /*key*/, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (!info->config) return;
@@ -309,23 +309,9 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
   for (const mysql_harness::ConfigSection *section : info->config->sections()) {
     if (section->name == kSectionName) {
       MetadataCachePluginConfig config{section};
-      if (initial) {
-        config.expose_initial_configuration();
-      } else {
-        config.expose_default_configuration();
-      }
+      config.expose_configuration(info->config->get_default_section(), initial);
     }
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, false);
 }
 
 extern "C" {
@@ -349,7 +335,6 @@ mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
         true,     // declares_readiness
         metadata_cache_supported_options.size(),
         metadata_cache_supported_options.data(),
-        expose_initial_configuration,
-        expose_default_configuration,
+        expose_configuration,
 };
 }

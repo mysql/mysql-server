@@ -59,9 +59,11 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/process_state_component.h"
+#include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
+#include "mysql_router_thread.h"  // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/config_files.h"
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/default_paths.h"
@@ -532,8 +534,7 @@ void MySQLRouter::init_loader(mysql_harness::LoaderConfig &config) {
   }
 
   loader_->register_supported_app_options(router_supported_options);
-  loader_->register_expose_app_config_callback(
-      expose_router_initial_configuration);
+  loader_->register_expose_app_config_callback(expose_router_configuration);
 }
 
 void MySQLRouter::start() {
@@ -2140,95 +2141,85 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
 
 void MySQLRouter::show_usage() noexcept { show_usage(true); }
 
-void expose_router_default_configuration() {
+namespace {
+
+class RouterAppConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
   using DC = mysql_harness::DynamicConfig;
-  const DC::SectionId id{"common", ""};
+  RouterAppConfigExposer(const bool initial,
+                         const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(initial, default_section,
+                                            DC::SectionId{"common", ""}) {}
 
-  auto set_default = [&](const std::string &option, const auto &default_value) {
-    DC::instance().set_option_default(id, option, default_value);
-  };
+  void expose() override {
+    // set "global" router options from DEFAULT section
+    auto expose_int_option = [&](const std::string &option,
+                                 const int64_t default_val) {
+      auto value = default_val;
+      if (default_section_.has(option)) {
+        try {
+          value = mysql_harness::option_as_int<int64_t>(
+              default_section_.get(option), "");
+        } catch (...) {
+          // if it failed fallback to setting default
+        }
+      }
 
-  set_default("name", kSystemRouterName);
-  set_default("max_total_connections",
-              static_cast<int64_t>(routing::kDefaultMaxTotalConnections));
-  set_default("user", kDefaultSystemUserName);
+      expose_option(option, value, default_val);
+    };
 
-  set_default("connect_timeout",
-              mysqlrouter::MySQLSession::kDefaultConnectTimeout);
-  set_default("read_timeout", mysqlrouter::MySQLSession::kDefaultReadTimeout);
-  set_default("max_idle_server_connections",
-              kDefaultMaxIdleServerConnectionsBootstrap);
-  set_default("client_ssl_mode",
-              std::string(routing::kDefaultClientSslModeBootstrap));
-  set_default("server_ssl_mode",
-              std::string(routing::kDefaultServerSslModeBootstrap));
-  set_default("server_ssl_verify",
-              std::string(routing::kDefaultServerSslVerify));
-  set_default("unknown_config_option", "error");
-  set_default("router_require_enforce", routing::kDefaultRequireEnforce);
-}
+    auto expose_str_option = [&](const std::string &option,
+                                 const std::string &default_val,
+                                 bool skip_if_empty = false) {
+      auto value = default_val;
+      if (default_section_.has(option)) {
+        value = default_section_.get(option);
+      }
 
-void expose_router_initial_configuration(
-    const mysql_harness::ConfigSection &section) {
-  using DC = mysql_harness::DynamicConfig;
-  const DC::SectionId id{"common", ""};
+      const OptionValue op_val = (skip_if_empty && value.empty())
+                                     ? OptionValue(std::monostate{})
+                                     : value;
+      const OptionValue op_default_val = (skip_if_empty && default_val.empty())
+                                             ? OptionValue(std::monostate{})
+                                             : default_val;
 
-  auto set_option = [&](const std::string &option, const auto &value) {
-    DC::instance().set_option_configured(id, option, value);
-  };
+      expose_option(option, op_val, op_default_val);
+    };
 
-  // set "global" router options from DEFAULT section
-  int64_t max_total_connections{routing::kDefaultMaxTotalConnections};
-  if (section.has("max_total_connections")) {
-    try {
-      max_total_connections = mysql_harness::option_as_int<int64_t>(
-          section.get("max_total_connections"), "");
-    } catch (...) {
-    }
+    auto expose_bool_option = [&](const std::string &option,
+                                  const bool &default_val) {
+      auto value = default_val;
+      if (default_section_.has(option)) {
+        value = default_section_.get(option) != "0";
+      }
+      expose_option(option, value, default_val);
+    };
+
+    expose_int_option(
+        "max_total_connections",
+        static_cast<int64_t>(routing::kDefaultMaxTotalConnections));
+    expose_str_option("name", kSystemRouterName);
+    // only share a user if it is not empty
+    expose_str_option("user", kDefaultSystemUserName, true);
+    expose_str_option("unknown_config_option", "error");
+    expose_bool_option("router_require_enforce",
+                       routing::kDefaultRequireEnforce);
+    expose_int_option(
+        "thread_stack_size",
+        static_cast<int64_t>(mysql_harness::kDefaultStackSizeInKiloBytes));
+    expose_int_option("connect_timeout",
+                      mysqlrouter::MySQLSession::kDefaultConnectTimeout);
+    expose_int_option("read_timeout",
+                      mysqlrouter::MySQLSession::kDefaultReadTimeout);
+    expose_int_option(
+        "max_idle_server_connections",
+        static_cast<int64_t>(kDefaultMaxIdleServerConnectionsBootstrap));
   }
-  set_option("max_total_connections", max_total_connections);
+};
 
-  std::string name{kSystemRouterName};
-  if (section.has("name")) {
-    name = section.get("name");
-  }
-  set_option("name", name);
+}  // namespace
 
-  std::string user;
-  if (section.has("user")) {
-    user = section.get("user");
-  }
-  set_option("user", user);
-
-  // set router options from DEFAULT section that are written by bootstrap but
-  // are used as plugins options if the plugins do not overwrite those
-  auto set_int_option_if_present = [&](const std::string &option) {
-    if (section.has(option)) {
-      set_option(option, mysql_harness::option_as_int<int64_t>(
-                             section.get(option), ""));
-    }
-  };
-
-  auto set_str_option_if_present = [&](const std::string &option) {
-    if (section.has(option)) {
-      set_option(option, section.get(option));
-    }
-  };
-
-  auto set_bool_option_if_present = [&](const std::string &option) {
-    if (section.has(option)) {
-      set_option(option, section.get(option) != "0");
-    }
-  };
-
-  set_int_option_if_present("connect_timeout");
-  set_int_option_if_present("read_timeout");
-  set_int_option_if_present("max_idle_server_connections");
-  set_str_option_if_present("client_ssl_cert");
-  set_str_option_if_present("client_ssl_key");
-  set_str_option_if_present("client_ssl_mode");
-  set_str_option_if_present("server_ssl_mode");
-  set_str_option_if_present("server_ssl_verify");
-  set_str_option_if_present("unknown_config_option");
-  set_bool_option_if_present("router_require_enforce");
+void expose_router_configuration(const bool initial,
+                                 const mysql_harness::ConfigSection &section) {
+  RouterAppConfigExposer(initial, section).expose();
 }

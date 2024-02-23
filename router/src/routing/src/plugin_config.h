@@ -60,8 +60,9 @@ class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
   uint16_t get_option_max_connections(
       const mysql_harness::ConfigSection *section);
 
-  void expose_initial_configuration(const std::string &key) const;
-  void expose_default_configuration(const std::string &key) const;
+  void expose_configuration(const std::string &key,
+                            const mysql_harness::ConfigSection &default_section,
+                            const bool initial) const;
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

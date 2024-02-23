@@ -201,6 +201,5 @@ mysql_harness::Plugin REST_SIGNAL_EXPORT harness_plugin_rest_signal = {
     0,
     nullptr,
     nullptr,
-    nullptr,
 };
 }

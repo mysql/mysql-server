@@ -119,6 +119,7 @@ SET(harness_source
   process_state_component.cc
   log_reopen_component.cc
   dynamic_config.cc
+  section_config_exposer.cc
   )
 
 IF(WIN32)

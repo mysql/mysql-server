@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
@@ -119,8 +120,8 @@ class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
    * dynamic state file . */
   uint64_t get_view_id() const;
 
-  void expose_initial_configuration() const;
-  void expose_default_configuration() const;
+  void expose_configuration(const mysql_harness::ConfigSection &default_section,
+                            const bool initial) const;
 
  private:
   /** @brief Gets a list of metadata servers.

@@ -42,20 +42,20 @@ namespace routing {
  *
  * 0 == no timeout used.
  */
-constexpr const int kDefaultWaitTimeout{0};
+constexpr int kDefaultWaitTimeout{0};
 
 /** Max number of active routes for this routing instance.
  *
  * 0 == no limit per route
  */
-constexpr const int kDefaultMaxConnections{0};
+constexpr int kDefaultMaxConnections{0};
 
 /** Timeout connecting to destination (in seconds).
  *
  * Constant defining how long we wait to establish connection with the server
  * before we give up.
  */
-constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{
+constexpr std::chrono::seconds kDefaultDestinationConnectionTimeout{
     mysqlrouter::MySQLSession::kDefaultConnectTimeout};
 
 /** Maximum connect or handshake errors per host.
@@ -64,17 +64,17 @@ constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{
  * blocked. Such errors can happen when the client does not reply
  * the handshake, sends an incorrect packet, or garbage.
  */
-constexpr const unsigned long long kDefaultMaxConnectErrors{100};
+constexpr unsigned long long kDefaultMaxConnectErrors{100};
 
 /**
  * Default bind address used when no bind address is configured.
  */
-constexpr const std::string_view kDefaultBindAddress{"127.0.0.1"};
+constexpr std::string_view kDefaultBindAddress{"127.0.0.1"};
 
 /**
  * Default bind address written to the config file during bootstrap.
  */
-constexpr const std::string_view kDefaultBindAddressBootstrap{"0.0.0.0"};
+constexpr std::string_view kDefaultBindAddressBootstrap{"0.0.0.0"};
 
 /** Default net buffer length.
  *
@@ -82,7 +82,7 @@ constexpr const std::string_view kDefaultBindAddressBootstrap{"0.0.0.0"};
  *
  * This should match the default of the latest MySQL Server.
  */
-constexpr const unsigned int kDefaultNetBufferLength{16384};
+constexpr unsigned int kDefaultNetBufferLength{16384};
 
 /**
  * Timeout waiting for handshake response from client.
@@ -90,91 +90,135 @@ constexpr const unsigned int kDefaultNetBufferLength{16384};
  * The number of seconds that MySQL Router waits for a handshake response.
  * The default value is 9 seconds (default MySQL Server minus 1).
  */
-constexpr const std::chrono::seconds kDefaultClientConnectTimeout{9};
+constexpr std::chrono::seconds kDefaultClientConnectTimeout{9};
 
 /**
  * delay in milliseconds before an idling connection may be moved to the pool
  * when connection sharing is allowed.
  */
-constexpr const std::chrono::milliseconds kDefaultConnectionSharingDelay{1000};
+constexpr std::chrono::milliseconds kDefaultConnectionSharingDelay{1000};
 
 /**
  * The number of seconds that MySQL Router waits between checking for
  * reachability of an unreachable destination.
  */
-constexpr const std::chrono::seconds
-    kDefaultUnreachableDestinationRefreshInterval{1};
+constexpr std::chrono::seconds kDefaultUnreachableDestinationRefreshInterval{1};
 
 /**
  * Default SSL session cache mode.
  */
-constexpr const bool kDefaultSslSessionCacheMode{true};
+constexpr bool kDefaultSslSessionCacheMode{true};
 
 /**
  * Default SSL session cache size.
  */
-constexpr const unsigned int kDefaultSslSessionCacheSize{1024};
+constexpr unsigned int kDefaultSslSessionCacheSize{1024};
 
 /**
  * Default SSL session cache timeout.
  */
-constexpr const std::chrono::seconds kDefaultSslSessionCacheTimeout{300};
+constexpr std::chrono::seconds kDefaultSslSessionCacheTimeout{300};
 
 /**
  * Default Connect Retry timeout.
  */
-constexpr const std::chrono::seconds kDefaultConnectRetryTimeout{7};
+constexpr std::chrono::seconds kDefaultConnectRetryTimeout{7};
 
 /**
  * Default Wait For My Writes timeout.
  */
-constexpr const bool kDefaultWaitForMyWrites{true};
+constexpr bool kDefaultWaitForMyWrites{true};
 
 /**
  * Default Wait For My Writes timeout.
  */
-constexpr const std::chrono::seconds kDefaultWaitForMyWritesTimeout{2};
+constexpr std::chrono::seconds kDefaultWaitForMyWritesTimeout{2};
 
 /**
  * Default client SSL mode used when none is configured.
  */
-constexpr const std::string_view kDefaultClientSslMode{""};
+constexpr std::string_view kDefaultClientSslMode{""};
 
 /**
  * Default client SSL mode written to the configuration file on bootstrap.
  */
-constexpr const std::string_view kDefaultClientSslModeBootstrap{"PREFERRED"};
+constexpr std::string_view kDefaultClientSslModeBootstrap{"PREFERRED"};
+
+/**
+ * Default client SSL cipher written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultClientSslCipherBootstrap{""};
+
+/**
+ * Default client SSL curves written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultClientSslCurvesBootstrap{""};
+
+/**
+ * Default client SSL DH params written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultClientSslDhParamsBootstrap{""};
 
 /**
  * Default server SSL mode used when none is configured.
  */
-constexpr const std::string_view kDefaultServerSslMode{"AS_CLIENT"};
+constexpr std::string_view kDefaultServerSslMode{"AS_CLIENT"};
 
 /**
  * Default client SSL mode written to the configuration file on bootstrap.
  */
-constexpr const std::string_view kDefaultServerSslModeBootstrap{"PREFERRED"};
+constexpr std::string_view kDefaultServerSslModeBootstrap{"PREFERRED"};
 
 /**
  * Default server SSL verify.
  */
-constexpr const std::string_view kDefaultServerSslVerify{"DISABLED"};
+constexpr std::string_view kDefaultServerSslVerify{"DISABLED"};
+
+/**
+ * Default server SSL cipher written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultServerSslCipherBootstrap{""};
+
+/**
+ * Default server SSL curves written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultServerSslCurvesBootstrap{""};
+
+/**
+ * Default server SSL CA written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultServerSslCaBootstrap{""};
+
+/**
+ * Default server SSL CA path written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultServerSslCaPathBootstrap{""};
+
+/**
+ * Default server SSL CRL file written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultServerSslCrlFileBootstrap{""};
+
+/**
+ * Default server SSL CRL path written to the configuration file on bootstrap.
+ */
+constexpr std::string_view kDefaultServerSslCrlPathBootstrap{""};
 
 /**
  * Default connection sharing status.
  */
-constexpr const bool kDefaultConnectionSharing{false};
+constexpr bool kDefaultConnectionSharing{false};
 
 /**
  * Default maximum total connections handled by all the routing endpoints.
  */
-constexpr const uint64_t kDefaultMaxTotalConnections{512};
+constexpr uint64_t kDefaultMaxTotalConnections{512};
 
 /**
  * Default for the configuration option determining if the Router enforces the
  * router_require attribute of the user.
  */
-constexpr const bool kDefaultRequireEnforce{true};
+constexpr bool kDefaultRequireEnforce{true};
 
 enum class RoutingBootstrapSectionType {
   kClassicRw,
@@ -189,13 +233,14 @@ constexpr uint16_t kDefaultPortClassicRo{6447};
 constexpr uint16_t kDefaultPortXRw{6448};
 constexpr uint16_t kDefaultPortXRo{6449};
 constexpr uint16_t kDefaultPortRwSplit{6450};
+// by default sockets are not available
+constexpr std::string_view kDefaultNamedSocket{""};
 
-constexpr const std::string_view kDefaultClassicRwSectionName{"bootstrap_rw"};
-constexpr const std::string_view kDefaultClassicRoSectionName{"bootstrap_ro"};
-constexpr const std::string_view kDefaultXRwSectionName{"bootstrap_x_rw"};
-constexpr const std::string_view kDefaultXRoSectionName{"bootstrap_x_ro"};
-constexpr const std::string_view kDefaultRwSplitSectionName{
-    "bootstrap_rw_split"};
+constexpr std::string_view kDefaultClassicRwSectionName{"bootstrap_rw"};
+constexpr std::string_view kDefaultClassicRoSectionName{"bootstrap_ro"};
+constexpr std::string_view kDefaultXRwSectionName{"bootstrap_x_rw"};
+constexpr std::string_view kDefaultXRoSectionName{"bootstrap_x_ro"};
+constexpr std::string_view kDefaultRwSplitSectionName{"bootstrap_rw_split"};
 
 /** @brief Modes supported by Routing plugin */
 enum class RoutingMode {

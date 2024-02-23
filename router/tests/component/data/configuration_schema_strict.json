@@ -46,8 +46,7 @@
                         "server_ssl_crl": { "enum": [ "" ] },
                         "server_ssl_crlpath": { "enum": [ "" ] },
                         "connection_sharing": { "enum": [ false] },
-                        "connection_sharing_delay": { "enum": [ 1.0 ] },
-                        "access_mode": { "enum": [ "" ] }
+                        "connection_sharing_delay": { "enum": [ 1.0 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
                                  "named_socket", "connect_timeout", "routing_strategy",
@@ -56,7 +55,7 @@
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
                                  "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
                                  "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
-                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay"]
                 },
                 "required": ["default"]
             }

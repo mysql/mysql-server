@@ -39,6 +39,7 @@
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/section_config_exposer.h"
 
 #include "mysqlrouter/destination_status_component.h"
 #include "mysqlrouter/destination_status_plugin_export.h"
@@ -79,28 +80,6 @@ class DestinationStatusPluginConfig : public mysql_harness::BasePluginConfig {
 
   [[nodiscard]] bool is_required(std::string_view /* option */) const override {
     return false;
-  }
-
-  void expose_initial_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-
-    DC::SectionId id{kSectionName, ""};
-
-    DC::instance().set_option_configured(id, kOptionThreshold,
-                                         error_quarantine_threshold);
-    DC::instance().set_option_configured(id, kOptionInterval,
-                                         error_quarantine_interval.count());
-  }
-
-  void expose_default_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-
-    DC::SectionId id{kSectionName, ""};
-
-    DC::instance().set_option_default(id, kOptionThreshold,
-                                      kDefaultErrorQuarantineThreshold);
-    DC::instance().set_option_default(id, kOptionInterval,
-                                      kDefaultErrorQuarantineInterval);
   }
 };
 
@@ -147,22 +126,35 @@ const static std::array<const char *, 2> required = {{
     "io",
 }};
 
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  const mysql_harness::AppInfo *info = get_app_info(env);
+namespace {
 
-  if (!info->config) return;
+class DestinationStatusConfigExposer
+    : public mysql_harness::SectionConfigExposer {
+ public:
+  using DC = mysql_harness::DynamicConfig;
+  DestinationStatusConfigExposer(
+      const bool initial, const DestinationStatusPluginConfig &plugin_config,
+      const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(initial, default_section,
+                                            DC::SectionId{kSectionName, ""}),
+        plugin_config_(plugin_config) {}
 
-  for (const mysql_harness::ConfigSection *section : info->config->sections()) {
-    if (section->name == kSectionName) {
-      DestinationStatusPluginConfig config{section};
-      config.expose_initial_configuration();
-    }
+  void expose() override {
+    expose_option(kOptionThreshold, plugin_config_.error_quarantine_threshold,
+                  kDefaultErrorQuarantineThreshold);
+    expose_option(kOptionInterval,
+                  plugin_config_.error_quarantine_interval.count(),
+                  kDefaultErrorQuarantineInterval);
   }
-}
 
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
+ private:
+  const DestinationStatusPluginConfig &plugin_config_;
+};
+
+}  // namespace
+
+static void expose_configuration(mysql_harness::PluginFuncEnv *env,
+                                 const char * /*key*/, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (!info->config) return;
@@ -170,7 +162,10 @@ static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
   for (const mysql_harness::ConfigSection *section : info->config->sections()) {
     if (section->name == kSectionName) {
       DestinationStatusPluginConfig config{section};
-      config.expose_default_configuration();
+
+      DestinationStatusConfigExposer(initial, config,
+                                     info->config->get_default_section())
+          .expose();
     }
   }
 }
@@ -195,7 +190,6 @@ mysql_harness::Plugin DESTINATION_STATUS_PLUGIN_EXPORT
         false,    // declares_readiness
         destination_status_supported_options.size(),
         destination_status_supported_options.data(),
-        expose_initial_configuration,
-        expose_default_configuration,
+        expose_configuration,
 };
 }

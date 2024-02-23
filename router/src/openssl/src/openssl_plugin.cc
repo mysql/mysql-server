@@ -57,7 +57,6 @@ mysql_harness::Plugin ROUTER_OPENSSL_EXPORT harness_plugin_router_openssl = {
     nullptr,  // stop
     false,    // declare_readiness
     0, nullptr,
-    nullptr,  // expose_initial_configuration
-    nullptr,  // expose_default_configuration
+    nullptr,  // expose_configuration
 };
 }

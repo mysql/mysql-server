@@ -37,6 +37,7 @@
 #include "dim.h"
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/supported_metadata_cache_options.h"
@@ -238,114 +239,94 @@ static double duration_to_double(const auto &duration) {
       .count();
 }
 
-void MetadataCachePluginConfig::expose_initial_configuration() const {
-  using DC = mysql_harness::DynamicConfig;
-  // the metadata_cache options are split into 2 groups:
-  // 1. metadata_cache - router config related
-  // 2. routing - cluster/replicaset routing related
-  const DC::SectionId metadata_cache_id{"metadata_cache", ""};
-  const DC::SectionId routing_id{"routing_rules", ""};
+namespace {
 
-  auto set_mdc_option = [&](const std::string &option, const auto &value) {
-    DC::instance().set_option_configured(metadata_cache_id, option, value);
-  };
+class MetadataCacheConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
+  MetadataCacheConfigExposer(
+      const bool initial, const MetadataCachePluginConfig &plugin_config,
+      const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(initial, default_section,
+                                            {"metadata_cache", ""}),
+        plugin_config_(plugin_config) {}
 
-  auto set_routing_option = [&](const std::string &option, const auto &value) {
-    DC::instance().set_option_configured(routing_id, option, value);
-  };
-
-  set_mdc_option("user", user);
-  set_mdc_option("ttl", duration_to_double(ttl));
-  set_mdc_option("auth_cache_ttl", duration_to_double(auth_cache_ttl));
-  set_mdc_option("auth_cache_refresh_interval",
-                 duration_to_double(auth_cache_refresh_interval));
-  // set_mdc_option("cluster_name", cluster_name);
-  set_mdc_option("connect_timeout", connect_timeout);
-  set_mdc_option("read_timeout", read_timeout);
-  set_mdc_option("use_gr_notifications", use_gr_notifications);
-  // set_mdc_option("cluster_type", mysqlrouter::to_string(cluster_type));
-
-  // This is the id in the table storing that data so we don't want redundancy
-  // there
-  // set_mdc_option("router_id", router_id);
-
-  if (!target_cluster.empty()) {
-    set_routing_option("target_cluster", target_cluster);
-  }
-
-  set_routing_option("invalidated_cluster_policy",
-                     mysqlrouter::to_string(invalidated_cluster_policy));
-  set_routing_option("use_replica_primary_as_rw", use_replica_primary_as_rw);
-  set_routing_option("unreachable_quorum_allowed_traffic",
-                     to_string(unreachable_quorum_allowed_traffic));
-  set_routing_option("stats_updates_frequency",
-                     stats_updates_frequency.count());
-  set_routing_option("read_only_targets", to_string(read_only_targets));
-}
-
-void MetadataCachePluginConfig::expose_default_configuration() const {
-  using DC = mysql_harness::DynamicConfig;
-  const DC::SectionId metadata_cache_id{"metadata_cache", ""};
-  const DC::SectionId routing_id{"routing_rules", ""};
-
-  auto set_mdc_default = [&](const std::string &option,
-                             const auto &default_value) {
-    DC::instance().set_option_default(metadata_cache_id, option, default_value);
-  };
-
-  auto set_mdc_default2 = [&](const std::string &option,
-                              const auto &default_value_cluster,
-                              const auto &default_value_clusterset) {
-    DC::instance().set_option_default(metadata_cache_id, option,
-                                      default_value_cluster,
-                                      default_value_clusterset);
-  };
-
-  auto set_routing_default = [&](const std::string &option,
-                                 const auto &default_value) {
-    DC::instance().set_option_default(routing_id, option, default_value);
-  };
-
-  auto set_routing_default2 = [&](const std::string &option,
-                                  const auto &default_value_cluster,
-                                  const auto &default_value_clusterset) {
-    DC::instance().set_option_default(routing_id, option, default_value_cluster,
-                                      default_value_clusterset);
-  };
-
-  // set_mdc_default("user", user, std::monostate{});
-  set_mdc_default2(
-      "ttl", duration_to_double(mysqlrouter::kDefaultMetadataTTLCluster),
-      duration_to_double(mysqlrouter::kDefaultMetadataTTLClusterSet));
-  set_mdc_default("auth_cache_ttl",
+  void expose() override {
+    expose_option("user", plugin_config_.user, std::monostate{});
+    expose_option(
+        "ttl", duration_to_double(plugin_config_.ttl),
+        duration_to_double(mysqlrouter::kDefaultMetadataTTLCluster),
+        duration_to_double(mysqlrouter::kDefaultMetadataTTLClusterSet), false);
+    expose_option("auth_cache_ttl",
+                  duration_to_double(plugin_config_.auth_cache_ttl),
                   duration_to_double(metadata_cache::kDefaultAuthCacheTTL));
 
-  // for clusterset default is smaller than default TTL so it is getting bumped
-  // to default TTL
-  static_assert(mysqlrouter::kDefaultMetadataTTLClusterSet >=
-                metadata_cache::kDefaultAuthCacheRefreshInterval);
-  set_mdc_default2(
-      "auth_cache_refresh_interval",
-      duration_to_double(metadata_cache::kDefaultAuthCacheRefreshInterval),
-      duration_to_double(mysqlrouter::kDefaultMetadataTTLClusterSet));
-  // we do not share cluster_name
-  // set_mdc_default("cluster_name", cluster_name, std::monostate{});
-  set_mdc_default("connect_timeout", metadata_cache::kDefaultConnectTimeout);
-  set_mdc_default("read_timeout", metadata_cache::kDefaultReadTimeout);
-  set_mdc_default2("use_gr_notifications",
-                   mysqlrouter::kDefaultUseGRNotificationsCluster,
-                   mysqlrouter::kDefaultUseGRNotificationsClusterSet);
-  // we don't share cluster_type nor router_id
-  // set_mdc_default("cluster_type", mysqlrouter::to_string(cluster_type));
-  // set_mdc_default("router_id", router_id);
+    // for clusterset default is smaller than default TTL so it is getting
+    // bumped to default TTL
+    static_assert(mysqlrouter::kDefaultMetadataTTLClusterSet >=
+                  metadata_cache::kDefaultAuthCacheRefreshInterval);
+    expose_option(
+        "auth_cache_refresh_interval",
+        duration_to_double(plugin_config_.auth_cache_refresh_interval),
+        duration_to_double(metadata_cache::kDefaultAuthCacheRefreshInterval),
+        duration_to_double(mysqlrouter::kDefaultMetadataTTLClusterSet), false);
+    expose_option("connect_timeout", plugin_config_.connect_timeout,
+                  metadata_cache::kDefaultConnectTimeout);
+    expose_option("read_timeout", plugin_config_.read_timeout,
+                  metadata_cache::kDefaultReadTimeout);
+    expose_option("use_gr_notifications", plugin_config_.use_gr_notifications,
+                  mysqlrouter::kDefaultUseGRNotificationsCluster,
+                  mysqlrouter::kDefaultUseGRNotificationsClusterSet, false);
+  }
 
-  set_routing_default2("target_cluster", std::monostate{}, target_cluster);
-  set_routing_default(
-      "invalidated_cluster_policy",
-      mysqlrouter::to_string(kDefautlInvalidatedClusterRoutingPolicy));
-  set_routing_default("use_replica_primary_as_rw", false);
-  set_routing_default("unreachable_quorum_allowed_traffic",
-                      to_string(kDefaultQuorumConnectionLostAllowTraffic));
-  set_routing_default("stats_updates_frequency", -1);
-  set_routing_default("read_only_targets", to_string(kDefaultReadOnlyTargets));
+ private:
+  const MetadataCachePluginConfig &plugin_config_;
+};
+
+class RoutingRulesConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
+  RoutingRulesConfigExposer(const bool initial,
+                            const MetadataCachePluginConfig &plugin_config,
+                            const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(initial, default_section,
+                                            {"routing_rules", ""}),
+        plugin_config_(plugin_config) {}
+
+  void expose() override {
+    expose_option("target_cluster",
+                  plugin_config_.target_cluster.empty()
+                      ? OptionValue(std::monostate{})
+                      : OptionValue(plugin_config_.target_cluster),
+                  std::monostate{}, plugin_config_.target_cluster, false);
+    expose_option(
+        "invalidated_cluster_policy",
+        mysqlrouter::to_string(plugin_config_.invalidated_cluster_policy),
+        mysqlrouter::to_string(kDefautlInvalidatedClusterRoutingPolicy));
+
+    expose_option("use_replica_primary_as_rw",
+                  plugin_config_.use_replica_primary_as_rw, false);
+    expose_option("unreachable_quorum_allowed_traffic",
+                  to_string(plugin_config_.unreachable_quorum_allowed_traffic),
+                  to_string(kDefaultQuorumConnectionLostAllowTraffic));
+    expose_option("stats_updates_frequency",
+                  plugin_config_.stats_updates_frequency.count(), -1);
+    expose_option("read_only_targets",
+                  to_string(plugin_config_.read_only_targets),
+                  to_string(kDefaultReadOnlyTargets));
+  }
+
+ private:
+  const MetadataCachePluginConfig &plugin_config_;
+};
+
+}  // namespace
+
+void MetadataCachePluginConfig::expose_configuration(
+    const mysql_harness::ConfigSection &default_section,
+    const bool initial) const {
+  // the metadata_cache options are split into 2 groups:
+  // 1. metadata_cache - router config related
+  MetadataCacheConfigExposer(initial, *this, default_section).expose();
+
+  // 2. routing - cluster/replicaset routing related
+  RoutingRulesConfigExposer(initial, *this, default_section).expose();
 }
