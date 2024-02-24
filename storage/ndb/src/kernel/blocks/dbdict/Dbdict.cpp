@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2024, Hopsworks and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25035,6 +25036,56 @@ void Dbdict::createFK_prepare(Signal *signal, SchemaOpPtr op_ptr) {
   writeTableFile(signal, op_ptr, impl_req->fkId, sec, &cb);
 }
 
+void
+Dbdict::map_fk_columns(Ptr<ForeignKeyRec> fk_ptr,
+                       Uint32 *parent_to_child,
+                       Uint32 *child_to_parent)
+{
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_CHILD_OI) == 0)
+  {
+    jam();
+    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
+    memcpy(tmp, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      Uint32 col = tmp[i];
+      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
+      {
+        if (fk_ptr.p->m_childColumns[j] == col)
+        {
+          parent_to_child[i] = fk_ptr.p->m_parentColumns[j];
+          break;
+        }
+      }
+    }
+  }
+
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0)
+  {
+    jam();
+    /**
+     * PK/UI are stored in attribute id order...so sort child columns
+     *   in parent order...
+     */
+    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
+    memcpy(tmp, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      Uint32 col = tmp[i];
+      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
+      {
+        if (fk_ptr.p->m_parentColumns[j] == col)
+        {
+          child_to_parent[i] = fk_ptr.p->m_childColumns[j];
+          break;
+        }
+      }
+    }
+  }
+}
+
 void Dbdict::createFK_writeTableConf(Signal *signal, Uint32 op_key,
                                      Uint32 ret) {
   D("createFK_writeTableConf");
@@ -25086,46 +25137,10 @@ void Dbdict::createFK_writeTableConf(Signal *signal, Uint32 op_key,
    *  into access on a child row
    */
   Uint32 parent_to_child[MAX_ATTRIBUTES_IN_INDEX];
-  memcpy(parent_to_child, fk_ptr.p->m_parentColumns,
-         4 * fk_ptr.p->m_columnCount);
-  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_CHILD_OI) == 0) {
-    jam();
-    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
-    memcpy(tmp, fk_ptr.p->m_childColumns, 4 * fk_ptr.p->m_columnCount);
-    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
-    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++) {
-      Uint32 col = tmp[i];
-      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++) {
-        if (fk_ptr.p->m_childColumns[j] == col) {
-          parent_to_child[i] = fk_ptr.p->m_parentColumns[j];
-          break;
-        }
-      }
-    }
-  }
-
   Uint32 child_to_parent[MAX_ATTRIBUTES_IN_INDEX];
-  memcpy(child_to_parent, fk_ptr.p->m_childColumns,
-         4 * fk_ptr.p->m_columnCount);
-  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0) {
-    jam();
-    /**
-     * PK/UI are stored in attribute id order...so sort child columns
-     *   in parent order...
-     */
-    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
-    memcpy(tmp, fk_ptr.p->m_parentColumns, 4 * fk_ptr.p->m_columnCount);
-    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
-    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++) {
-      Uint32 col = tmp[i];
-      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++) {
-        if (fk_ptr.p->m_parentColumns[j] == col) {
-          child_to_parent[i] = fk_ptr.p->m_childColumns[j];
-          break;
-        }
-      }
-    }
-  }
+  memcpy(parent_to_child, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+  memcpy(child_to_parent, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+  map_fk_columns(fk_ptr, &parent_to_child[0], &child_to_parent[0]);
 
   BlockReference ref = DBTC_REF;
   LinearSectionPtr ptr[3];
@@ -25457,10 +25472,24 @@ void Dbdict::buildFK_prepare(Signal *signal, SchemaOpPtr op_ptr) {
     for (Uint32 i = 0; i < parentColumns.sz; i++) parentColumns.id[i] = i;
   }
 
+  /**
+   * RONDB-620:
+   *   If the user has defined the FOREIGN KEY CONSTRAINT with multiple
+   *   columns and in different order to the parent tables primary key
+   *   definition we could read the key from the child table with key
+   *   columns in wrong order, thus creating a PK which has the columns
+   *   in wrong order.
+   */
+  Uint32 parent_to_child[MAX_ATTRIBUTES_IN_INDEX];
+  Uint32 child_to_parent[MAX_ATTRIBUTES_IN_INDEX];
+  memcpy(parent_to_child, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+  memcpy(child_to_parent, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+  map_fk_columns(fk_ptr, &parent_to_child[0], &child_to_parent[0]);
+
   LinearSectionPtr ptr[3];
   ptr[0].p = parentColumns.id;
   ptr[0].sz = parentColumns.sz;
-  ptr[1].p = fk_ptr.p->m_childColumns;
+  ptr[1].p = child_to_parent;
   ptr[1].sz = fk_ptr.p->m_columnCount;
 
   sendSignal(TRIX_REF, GSN_BUILD_FK_IMPL_REQ, signal,
