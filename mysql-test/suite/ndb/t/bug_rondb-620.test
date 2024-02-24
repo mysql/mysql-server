@@ -1,52 +1,191 @@
 -- source include/have_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
-
+--let $trash= $NDB_TOOLS_OUTPUT
 use test;
 
+# Vary primary/unique key
+
+--echo Case: (a,b) P<-P (b,a)
 create table t1 (
   a int not null,
-  b varchar(8) not null,
+  b int not null,
   primary key (a,b)
 ) engine=ndbcluster;
-
 create table t2 (
-  b varchar(8) not null,
+  b int not null,
   a int not null,
   primary key (b,a),
   constraint fk1 foreign key (b, a) references t1 (b, a)
 ) engine=ndbcluster;
+insert into t1 (a, b) values (1, 2);
+insert into t2 (b, a) values (2, 1);
+--let forbidden_insert= insert into t2 (b, a) values (102, 101);
+--let where_clause= b=2 and a=7
+--source bug_rondb-620_helper.inc
 
-insert into t1 (a, b) values (66051, "ABCD");
+--echo Case: (a,b) <-P (b,a)
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key (b),
+  unique key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  a int not null,
+  primary key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b) values (1, 2);
+insert into t2 (b, a) values (2, 1);
+--let forbidden_insert= insert into t2 (b, a) values (102, 101);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
 
-insert into t2 (b, a) values ("ABCD", 66051);
+--echo Case: (a,b) <- (b,a)
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key (b),
+  unique key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  a int not null,
+  primary key (a),
+  unique key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b) values (1, 2);
+insert into t2 (b, a) values (2, 1);
+--let forbidden_insert= insert into t2 (b, a) values (102, 101);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
 
---error 1452
-insert into t2 (b, a) values ("DCBA", 15066);
+--echo Case: (a,b) P<- (b,a)
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  a int not null,
+  primary key (a),
+  unique key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b) values (1, 2);
+insert into t2 (b, a) values (2, 1);
+--let forbidden_insert= insert into t2 (b, a) values (102, 101);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
 
---echo Backing up data
---source include/ndb_backup.inc
-disable_query_log; drop table t2; drop table t1; enable_query_log;
+# Vary presence of other column
 
---let $restore= $NDB_RESTORE -b $the_backup_id
---let $backup= $NDB_BACKUPS-$the_backup_id
---let $trash= $NDB_TOOLS_OUTPUT
+--echo Case: (a,_c,b) P<-P (b,a)
+create table t1 (
+  a int not null,
+  _c int not null,
+  b int not null,
+  primary key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  a int not null,
+  primary key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b, _c) values (1, 2, 3);
+insert into t2 (b, a) values (2, 1);
+--let forbidden_insert= insert into t2 (b, a) values (102, 101);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
 
---echo Restoring data
+--echo Case: (a,b) P<-P (b,_c,a)
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  _c int not null,
+  a int not null,
+  primary key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b) values (1, 2);
+insert into t2 (b, a, _c) values (2, 1, 3);
+--let forbidden_insert= insert into t2 (b, a, _c) values (102, 101, 103);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
 
---exec $restore -n 1 --restore-meta --disable-indexes $backup >> $trash
---exec $restore -n 1 --restore-data                   $backup >> $trash
---exec $restore -n 2 --restore-data                   $backup >> $trash
---exec $restore -n 2 --rebuild-indexes                $backup >> $trash
+--echo Case: (_c,a,b) P<-P (b,a,_c)
+create table t1 (
+  _c int not null,
+  a int not null,
+  b int not null,
+  primary key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  a int not null,
+  _c int not null,
+  primary key (b,a),
+  constraint fk1 foreign key (b, a) references t1 (b, a)
+) engine=ndbcluster;
+insert into t1 (a, b, _c) values (1, 2, 3);
+insert into t2 (b, a, _c) values (2, 1, 3);
+--let forbidden_insert= insert into t2 (b, a, _c) values (102, 101, 103);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
 
---error 1452
-insert into t2 (b, a) values ("DCBA", 15066);
+# Vary FK order
 
-select * from t1;
-select * from t2;
+--echo Case: (a,b) P<-P (b,a)
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key (a,b)
+) engine=ndbcluster;
+create table t2 (
+  b int not null,
+  a int not null,
+  primary key (b,a),
+  constraint fk1 foreign key (a, b) references t1 (a, b)
+) engine=ndbcluster;
+insert into t1 (a, b) values (1, 2);
+insert into t2 (b, a) values (2, 1);
+--let forbidden_insert= insert into t2 (b, a) values (102, 101);
+--let where_clause= b=2 and a=1
+--source bug_rondb-620_helper.inc
+
+--echo Case: (a,b,_c,d,e) P<- (a,_c,e,d,b)
+create table t1 (
+  a int not null,
+  b varchar(8) not null,
+  _c int not null,
+  d int not null,
+  e int not null,
+  primary key (a,b,d,e)
+) engine=ndbcluster;
+create table t2 (
+  a int not null,
+  _c int not null,
+  e int not null,
+  d int not null,
+  b varchar(8) not null,
+  primary key (a),
+  unique key (a,e,d,b),
+  constraint fk1 foreign key (b, e, d, a) references t1 (b, e, d, a)
+) engine=ndbcluster;
+insert into t1 (a, b, _c, d, e) values (1, "ABCD", 3, 4, 5);
+insert into t2 (a, _c, e, d, b) values (1, 9, 5, 4, "ABCD");
+--let forbidden_insert= insert into t2 (a, _c, e, d, b) values (1, 9, 5, 4, 'DCBA');
+--let where_clause= a=1 and b='ABCD' and d=4 and e=5
+--source bug_rondb-620_helper.inc
 
 # Cleanup
-
-disable_query_log; drop table t2; drop table t1; enable_query_log;
-
 --remove_file $trash
 --source suite/ndb/include/backup_restore_cleanup.inc
