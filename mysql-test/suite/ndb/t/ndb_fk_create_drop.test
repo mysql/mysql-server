@@ -41,18 +41,18 @@ show create table child;
 # child pk, uk, oi
 # not supported
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table child algorithm=inplace, add constraint fk7 foreign key (a) references parent(c);
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table child algorithm=inplace, add constraint fk8 foreign key (a) references parent(c);
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table child algorithm=inplace, add constraint fk9 foreign key (a) references parent(c);
 
 drop table child, parent;
