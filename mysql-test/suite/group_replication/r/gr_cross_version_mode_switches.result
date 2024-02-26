@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 [connection server1]
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
 SET SESSION sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
@@ -19,15 +19,15 @@ SET @debug2_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
-call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
-call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
 SET SESSION sql_log_bin=1;
 include/start_group_replication.inc
 
 # 2. Set M2 as primary, it fails due to higher patch version.
 
 SELECT group_replication_switch_to_single_primary_mode("MEMBER_UUID");;
-ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member is not the lowest version in the group.
 include/gr_assert_mpm_consistency.inc
 
 # 3. Switch to single-primary mode.
@@ -46,7 +46,7 @@ Mode switched to multi-primary successfully.
 [connection server3]
 SET @member_weight3_save= @@GLOBAL.group_replication_member_weight;
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
 SET SESSION sql_log_bin=1;
 include/start_group_replication.inc
 include/gr_assert_mpm_consistency.inc
@@ -67,7 +67,7 @@ include/gr_assert_spm_consistency.inc
 #    Assert configurations are not changed.
 
 SELECT group_replication_set_as_primary("MEMBER_UUID");;
-ERROR HY000: The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member is not the lowest version in the group.
 include/gr_assert_spm_consistency.inc
 
 # 7. Switch to multi-primary mode.

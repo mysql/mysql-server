@@ -986,10 +986,6 @@ int configure_group_member_manager() {
   DBUG_EXECUTE_IF("group_replication_compatibility_restore_version", {
     local_member_plugin_version = Member_version(lv.plugin_version);
   };);
-  DBUG_EXECUTE_IF("group_replication_legacy_election_version",
-                  { local_member_plugin_version = Member_version(0x080012); };);
-  DBUG_EXECUTE_IF("group_replication_legacy_election_version2",
-                  { local_member_plugin_version = Member_version(0x080015); };);
   DBUG_EXECUTE_IF("group_replication_version_8_0_28",
                   { local_member_plugin_version = Member_version(0x080028); };);
   DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
@@ -1135,14 +1131,6 @@ int configure_compatibility_manager() {
   DBUG_EXECUTE_IF("group_replication_compatibility_restore_version", {
     Member_version current_version = lv.plugin_version;
     compatibility_mgr->set_local_version(current_version);
-  };);
-  DBUG_EXECUTE_IF("group_replication_legacy_election_version", {
-    Member_version higher_version(0x080012);
-    compatibility_mgr->set_local_version(higher_version);
-  };);
-  DBUG_EXECUTE_IF("group_replication_legacy_election_version2", {
-    Member_version higher_version(0x080015);
-    compatibility_mgr->set_local_version(higher_version);
   };);
   DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
     Member_version version(MEMBER_VERSION_REMOVING_VCLE);

@@ -72,12 +72,6 @@
 #define TRANSACTION_WITH_GUARANTEES_VERSION 0x080014
 
 /*
-  Version from which patch version number is also considered during member
-  join, view changes or primary member selection.
-*/
-#define PRIMARY_ELECTION_PATCH_CONSIDERATION 0x080017
-
-/*
   Version from which group replication and the server support cloning
 */
 #define CLONE_GR_SUPPORT_VERSION 0x080400
