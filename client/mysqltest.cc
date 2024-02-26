@@ -5624,8 +5624,8 @@ static void do_disable_testcase(struct st_command *command) {
                      sizeof(disable_testcase_args) / sizeof(struct command_arg),
                      ' ');
 
-  /// Check if the bug number argument to disable_testcase is in a
-  /// proper format.
+  // Check if the bug number argument to disable_testcase is in a
+  // proper format.
   if (validate_bug_number_argument(ds_bug_number.str) == 0) {
     free_dynamic_strings(&ds_bug_number);
     die("Bug number mentioned in '%s' command is not in a correct format. "
@@ -5675,10 +5675,19 @@ static bool kill_process(int pid) {
   bool killed = true;
 #ifdef _WIN32
   HANDLE proc;
-  proc = OpenProcess(PROCESS_TERMINATE, false, pid);
+  proc = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, false, pid);
   if (proc == nullptr) return true; /* Process could not be found. */
 
-  if (!TerminateProcess(proc, 201)) killed = false;
+  // The `TerminateProcess()` is asynchronous. After it returns success, the
+  // process may be still being closed and finalized. The `WaitForSingleObject`
+  // is needed to wait for the process object to get into signaled state.
+  if (TerminateProcess(proc, 201)) {
+    // `INFINITE` is used as the process is killed and really need to be closed
+    // very soon.
+    WaitForSingleObject(proc, INFINITE);
+  } else {
+    killed = false;
+  }
 
   CloseHandle(proc);
 #else
