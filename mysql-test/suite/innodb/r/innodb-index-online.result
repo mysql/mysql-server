@@ -47,8 +47,14 @@ COMMIT;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 ERROR 23000: Duplicate entry '4' for key 't1.c2'
 DELETE FROM t1 WHERE c1 = 7;
+SET restrict_fk_on_non_standard_key = OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't1'
+SET restrict_fk_on_non_standard_key = ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 ALTER TABLE t1 ADD UNIQUE INDEX(c2), LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
 DROP INDEX c2 ON t1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);

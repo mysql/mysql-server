@@ -6,7 +6,7 @@
 --echo #
 
 --echo # A non-unique index cannot serve as parent index.
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       INDEX ix(i),
                       FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
@@ -31,7 +31,7 @@ SHOW CREATE TABLE self_ref;
 DROP TABLE self_ref;
 
 --echo # But not if it's not unique.
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
                       INDEX ix(i),
                       FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;

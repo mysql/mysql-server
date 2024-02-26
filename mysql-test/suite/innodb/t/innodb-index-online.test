@@ -80,8 +80,10 @@ DELETE FROM t1 WHERE c1 = 7;
 connection con1;
 # The new FOREIGN KEY will make a new supporting index be created, but there
 # is no additional index that can be used as parent index.
+SET restrict_fk_on_non_standard_key = OFF;
 --error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE;
+SET restrict_fk_on_non_standard_key = ON;
 # The previous DEBUG_SYNC should be ignored, because an exclusive lock
 # has been requested and the online log is not being allocated.
 ALTER TABLE t1 ADD UNIQUE INDEX(c2), LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
