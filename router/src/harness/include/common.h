@@ -119,61 +119,6 @@ std::string serial_comma(InputIt start, InputIt finish,
 }
 
 /**
- * Returns string containing list of the elements separated by selected
- * delimiter.
- *
- * To return a list of the first five prime numbers as "The first five prime
- * numbers are 2, 3, 5, 7, 11":
- *
- * @code
- * std::vector<int> primes{2, 3, 5, 7, 11};
- * std::cout << "The first five prime numbers are "
- *           << list_elements(primes.begin(), primes.end()) << std::endl;
- * @endcode
- *
- * @param start Input iterator to start of range.
- * @param finish Input iterator to one-after-end of range.
- * @param delim Delimiter to use. Defaults to ",".
- *
- * @return string containing list of the elements
- */
-template <class InputIt>
-std::string list_elements(InputIt start, InputIt finish,
-                          const std::string &delim = ",") {
-  std::string result;
-  for (auto cur = start; cur != finish; ++cur) {
-    if (cur != start) result += delim;
-    result += *cur;
-  }
-
-  return result;
-}
-
-/**
- * Returns string containing list of the elements separated by selected
- * delimiter.
- *
- * To return a list of the first five prime numbers as "The first five prime
- * numbers are 2, 3, 5, 7, 11":
- *
- * @code
- * std::vector<int> primes{2, 3, 5, 7, 11};
- * std::cout << "The first five prime numbers are "
- *           << list_elements(primes) << std::endl;
- * @endcode
- *
- * @param collection Collection of the elements to output.
- * @param delim Delimiter to use. Defaults to ",".
- *
- * @return string containing list of the elements
- */
-template <class Collection>
-std::string list_elements(Collection collection,
-                          const std::string &delim = ",") {
-  return list_elements(collection.begin(), collection.end(), delim);
-}
-
-/**
  * Gets a Value from std::map for given Key. Returns provided default if the Key
  * is not in the map.
  */
