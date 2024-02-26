@@ -1485,3 +1485,74 @@ SELECT f1, f2 FROM (SELECT f1, f2 FROM t1 GROUP BY f1, f2 WITH ROLLUP) as dt
 WHERE f2 IS NULL;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36246859: Collation issue: ERROR 1253 (42000):
+--echo #               COLLATION '' is not valid for CHARACTER SET
+--echo #
+
+CREATE TABLE t1 (f1 char(10)
+CHARACTER SET latin1 COLLATE latin1_spanish_ci DEFAULT NULL)
+DEFAULT CHARSET=latin1 COLLATE=latin1_spanish_ci;
+INSERT INTO t1 VALUES ('C');
+INSERT INTO t1 VALUES ('D');
+
+# Set charset to latin for creating the view.
+SET character_set_client = latin1;
+SET character_set_connection = latin1;
+CREATE VIEW v1 AS
+SELECT 'A' COLLATE latin1_spanish_ci AS field1 FROM t1
+UNION
+SELECT 'B' COLLATE latin1_spanish_ci AS field1 FROM t1 AS t2;
+
+# Use a different charset now to query the view.
+SET character_set_connection = default;
+# Condition pushdown to view "v1" should happen
+# without any errors as it now uses the view's
+# connection context when "field1" is replaced
+# with "'A' COLLATE latin1_spanish_ci".
+let $query = SELECT * FROM v1 WHERE field1 IN ('C');
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+let $query = SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
+            WHERE field1 IN ('A');
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+# view context of "v1" is not used when cloning the condition
+# "field1 IN ('C') OR COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1)"
+# to be pushed down in case of SET operations. It is used only when
+# "field1" is replaced with "'A' COLLATE latin1_spanish_ci".
+let $query = SELECT * FROM v1
+             WHERE field1 IN ('C') OR
+                   COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP VIEW v1;
+
+#Simplified repro
+# Set charset to latin for creating the view.
+SET character_set_client = latin1;
+SET character_set_connection = latin1;
+CREATE VIEW v1 AS SELECT 'A' COLLATE latin1_spanish_ci AS field1 FROM t1;
+
+# Use a different charset now to query the view.
+SET character_set_connection = default;
+# We do not want the view to be merged. So set "derived_merge" should be off.
+SET optimizer_switch="derived_merge=off";
+let $query = SELECT * FROM v1 WHERE field1 IN ('C');
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+SET optimizer_switch=default;
+SET character_set_client = default;
+
+DROP VIEW v1;
+DROP TABLE t1;

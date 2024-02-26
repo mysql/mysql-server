@@ -1069,7 +1069,8 @@ Item *Item_field::replace_with_derived_expr(uchar *arg) {
   if (derived_table != table_ref) return this;
   Query_block *query_block = dti->m_derived_query_block;
   return query_block->clone_expression(
-      current_thd, query_block->get_derived_expr(field->field_index()));
+      current_thd, query_block->get_derived_expr(field->field_index()),
+      derived_table);
 }
 
 Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
@@ -8848,7 +8849,7 @@ Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
   // block, the context to resolve the field will be different than
   // the derived table context (dt1).
   return dti->m_derived_query_block->outer_query_block()->clone_expression(
-      current_thd, ref_item());
+      current_thd, ref_item(), dti->m_derived_table);
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {

@@ -2295,3 +2295,69 @@ f1	f2
 2	NULL
 NULL	NULL
 DROP TABLE t1;
+#
+# Bug#36246859: Collation issue: ERROR 1253 (42000):
+#               COLLATION '' is not valid for CHARACTER SET
+#
+CREATE TABLE t1 (f1 char(10)
+CHARACTER SET latin1 COLLATE latin1_spanish_ci DEFAULT NULL)
+DEFAULT CHARSET=latin1 COLLATE=latin1_spanish_ci;
+INSERT INTO t1 VALUES ('C');
+INSERT INTO t1 VALUES ('D');
+SET character_set_client = latin1;
+SET character_set_connection = latin1;
+CREATE VIEW v1 AS
+SELECT 'A' COLLATE latin1_spanish_ci AS field1 FROM t1
+UNION
+SELECT 'B' COLLATE latin1_spanish_ci AS field1 FROM t1 AS t2;
+SET character_set_connection = default;
+EXPLAIN FORMAT=tree SELECT * FROM v1 WHERE field1 IN ('C');
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT * FROM v1 WHERE field1 IN ('C');
+field1
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
+WHERE field1 IN ('A');
+EXPLAIN
+-> Table scan on dt  (rows=4)
+    -> Union materialize with deduplication  (rows=4)
+        -> Table scan on v1  (rows=2)
+            -> Union materialize with deduplication  (rows=2)
+                -> Table scan on t1  (rows=2)
+                -> Zero rows (Impossible WHERE)  (rows=0)
+        -> Table scan on v1  (rows=2)
+            -> Union materialize with deduplication  (rows=2)
+                -> Table scan on t1  (rows=2)
+                -> Zero rows (Impossible WHERE)  (rows=0)
+
+SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
+WHERE field1 IN ('A');
+field1
+A
+EXPLAIN FORMAT=tree SELECT * FROM v1
+WHERE field1 IN ('C') OR
+COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT * FROM v1
+WHERE field1 IN ('C') OR
+COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
+field1
+DROP VIEW v1;
+SET character_set_client = latin1;
+SET character_set_connection = latin1;
+CREATE VIEW v1 AS SELECT 'A' COLLATE latin1_spanish_ci AS field1 FROM t1;
+SET character_set_connection = default;
+SET optimizer_switch="derived_merge=off";
+EXPLAIN FORMAT=tree SELECT * FROM v1 WHERE field1 IN ('C');
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT * FROM v1 WHERE field1 IN ('C');
+field1
+SET optimizer_switch=default;
+SET character_set_client = default;
+DROP VIEW v1;
+DROP TABLE t1;

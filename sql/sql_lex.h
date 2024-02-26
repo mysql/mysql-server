@@ -1840,7 +1840,7 @@ class Query_block : public Query_term {
 
   /// Creates a clone for the given expression by re-parsing the
   /// expression. Used in condition pushdown to derived tables.
-  Item *clone_expression(THD *thd, Item *item);
+  Item *clone_expression(THD *thd, Item *item, Table_ref *derived_table);
   /// Returns an expression from the select list of the query block
   /// using the field's index in a derived table.
   Item *get_derived_expr(uint expr_index);
