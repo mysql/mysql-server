@@ -447,22 +447,14 @@ lsn_t buf_pool_get_oldest_modification_lwm(void) {
   }
 }
 
-/** Get total buffer pool statistics.
-@param[out] LRU_len Length of all lru lists
-@param[out] free_len Length of all free lists
-@param[out] flush_list_len Length of all flush lists */
 void buf_get_total_list_len(ulint *LRU_len, ulint *free_len,
                             ulint *flush_list_len) {
-  ulint i;
-
   *LRU_len = 0;
   *free_len = 0;
   *flush_list_len = 0;
 
-  for (i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    buf_pool_t *buf_pool = buf_pool_from_array(i);
 
     *LRU_len += UT_LIST_GET_LEN(buf_pool->LRU);
     *free_len += UT_LIST_GET_LEN(buf_pool->free);
@@ -1128,16 +1120,12 @@ buf_block_t *buf_pool_contains_zip(buf_pool_t *buf_pool, const void *data) {
 #endif /* UNIV_DEBUG */
 
 /** Checks that all file pages in the buffer chunk are in a replaceable state.
- @return address of a non-free block, or NULL if all freed */
-static const buf_block_t *buf_chunk_not_freed(
-    buf_chunk_t *chunk) /*!< in: chunk being checked */
-{
-  buf_block_t *block;
-  ulint i;
+@param[in] chunk The chunk to be checked
+@return address of a non-free block, or NULL if all freed */
+static void buf_assert_all_are_replaceable(buf_chunk_t *chunk) {
+  buf_block_t *block = chunk->blocks;
 
-  block = chunk->blocks;
-
-  for (i = chunk->size; i--; block++) {
+  for (auto i = chunk->size; i--; block++) {
     switch (buf_block_get_state(block)) {
       case BUF_BLOCK_POOL_WATCH:
       case BUF_BLOCK_ZIP_PAGE:
@@ -1155,18 +1143,19 @@ static const buf_block_t *buf_chunk_not_freed(
         break;
       case BUF_BLOCK_FILE_PAGE:
         buf_page_mutex_enter(block);
-        auto ready = buf_flush_ready_for_replace(&block->page);
-        buf_page_mutex_exit(block);
-
-        if (!ready) {
-          return (block);
+        const auto &bpage = block->page;
+        if (!buf_flush_ready_for_replace(&bpage)) {
+          ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_83)
+              << "Page " << bpage.id
+              << " still fixed or dirty, io_fix = " << bpage.get_io_fix()
+              << " buf_fix_count = " << bpage.buf_fix_count.load()
+              << " oldest_lsn = " << bpage.get_oldest_lsn()
+              << " type = " << fil_page_get_type(block->frame);
         }
-
+        buf_page_mutex_exit(block);
         break;
     }
   }
-
-  return (nullptr);
 }
 
 /** Set buffer pool size variables
@@ -6027,25 +6016,15 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
 @param[in]      buf_pool        buffer pool instance */
-static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
-  ulint i;
-  buf_chunk_t *chunk;
-
+static void buf_assert_all_are_replaceable(buf_pool_t *buf_pool) {
   ut_ad(buf_pool);
 
-  chunk = buf_pool->chunks;
+  buf_chunk_t *chunk = buf_pool->chunks;
 
-  for (i = buf_pool->n_chunks; i--; chunk++) {
+  for (auto i = buf_pool->n_chunks; i--; chunk++) {
     mutex_enter(&buf_pool->LRU_list_mutex);
-
-    const buf_block_t *block = buf_chunk_not_freed(chunk);
-
+    buf_assert_all_are_replaceable(chunk);
     mutex_exit(&buf_pool->LRU_list_mutex);
-
-    if (block) {
-      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_83)
-          << "Page " << block->page.id << " still fixed or dirty";
-    }
   }
 }
 
@@ -6060,11 +6039,9 @@ static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
 /** Invalidates file pages in one buffer pool instance
 @param[in]      buf_pool        buffer pool instance */
 static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
-  ulint i;
-
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-  for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
+  for (size_t i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
     /* As this function is called during startup and during redo application
     phase during recovery, a flush might be requested either by
     recv_writer thread (which is not started yet, or paused by writer_mutex), or
@@ -6078,8 +6055,11 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
     ensure there is NO write activity happening. */
     buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
   }
-
-  ut_d(buf_must_be_all_freed_instance(buf_pool));
+  /* It is crucial that the BP must contain only pages in replaceable state,
+  before we attempt to free them using buf_LRU_scan_and_free_block(), because
+  this function skips over pages which aren't replaceable, and we promise to
+  our caller that all pages will be removed from BP.*/
+  ut_d(buf_assert_all_are_replaceable(buf_pool));
 
   while (buf_LRU_scan_and_free_block(buf_pool, true)) {
   }
@@ -6848,25 +6828,15 @@ void buf_print_io(FILE *file) /*!< in/out: buffer where to print */
   ut::free(pool_info);
 }
 
-/** Refreshes the statistics used to print per-second averages. */
-void buf_refresh_io_stats_all(void) {
-  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
-
-    buf_refresh_io_stats(buf_pool);
+void buf_refresh_io_stats_all() {
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    buf_refresh_io_stats(buf_pool_from_array(i));
   }
 }
 
-/** Aborts the current process if there is any page in other state. */
-void buf_must_be_all_freed(void) {
-  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_t *buf_pool;
-
-    buf_pool = buf_pool_from_array(i);
-
-    buf_must_be_all_freed_instance(buf_pool);
+void buf_assert_all_are_replaceable() {
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    buf_assert_all_are_replaceable(buf_pool_from_array(i));
   }
 }
 

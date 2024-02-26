@@ -2882,7 +2882,7 @@ static lsn_t srv_shutdown_log() {
 
   /* No redo log might be generated since now. */
   log_background_threads_inactive_validate();
-  buf_must_be_all_freed();
+  buf_assert_all_are_replaceable();
 
   const lsn_t lsn = log_get_lsn(*log_sys);
 
@@ -2908,7 +2908,7 @@ static lsn_t srv_shutdown_log() {
     ut_a(err == DB_SUCCESS);
   }
 
-  buf_must_be_all_freed();
+  buf_assert_all_are_replaceable();
   ut_a(lsn == log_get_lsn(*log_sys));
 
   if (srv_downgrade_logs) {

@@ -134,4 +134,20 @@ new os_event is allowed to be created. */
 void os_event_global_destroy(void);
 
 #endif /* !UNIV_HOTBACKUP */
+
+/** A RAII wrapper for os_event_t. */
+class Os_event_t {
+ public:
+  Os_event_t() { m_event = os_event_create(); }
+  Os_event_t(Os_event_t &&other) : m_event(other.m_event) {
+    other.m_event = nullptr;
+  }
+  ~Os_event_t() { os_event_destroy(m_event); }
+
+  operator os_event_t() { return m_event; }
+
+ private:
+  os_event_t m_event;
+};
+
 #endif /* !os0event_h */

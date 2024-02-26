@@ -10411,10 +10411,17 @@ const byte *fil_tablespace_redo_extend(const byte *ptr, const byte *end,
     return ptr;
   }
 
-#if defined(UNIV_DEBUG)
-  /* Validate that there are no pages in the buffer pool. */
-  buf_must_be_all_freed();
-#endif /* UNIV_DEBUG */
+  /* We are about to write zeros to pages on disc. We should ensure that these
+  pages aren't cached in BP. This is trivial, because we know the BP doesn't
+  contain any page at all. */
+#ifdef UNIV_DEBUG
+  {
+    ulint LRU_len, free_len, flush_list_len;
+    buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
+    ut_a_eq(LRU_len, 0);
+    ut_a_eq(flush_list_len, 0);
+  }
+#endif
 
   /* Adjust the actual allocation size to take care of the allocation
   problems described above.

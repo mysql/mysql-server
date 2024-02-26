@@ -690,7 +690,7 @@ double buf_get_modified_ratio_pct(void);
 void buf_refresh_io_stats_all();
 
 /** Assert that all file pages in the buffer are in a replaceable state. */
-void buf_must_be_all_freed(void);
+void buf_assert_all_are_replaceable();
 
 /** Computes number of pending I/O read operations for the buffer pool.
 @return number of pending i/o reads */

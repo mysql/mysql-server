@@ -7629,8 +7629,8 @@ ER_IB_MSG_697
 ER_IB_MSG_LOG_CORRUPT
   eng "The redo log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
 
-ER_IB_MSG_699
-  eng "%llu pages with log records were left unprocessed!"
+ER_IB_MSG_UNPROCESSED_REDO_LOG_RECORDS
+  eng "%zu pages with log records were left unprocessed!"
 
 ER_IB_MSG_LOG_FORMAT_OLD_AND_LOG_CORRUPTED
   eng "Upgrade after a crash is not supported. This redo log was created with %s, and it appears corrupted. Please follow the instructions at %s"

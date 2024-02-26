@@ -77,9 +77,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 
-/** Number of pages flushed through non flush_list flushes. */
-static ulint buf_lru_flush_page_count = 0;
-
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
 static uint buf_flush_lsn_scan_factor = 3;
@@ -681,7 +678,7 @@ void buf_flush_insert_sorted_into_flush_list(
   buf_flush_list_mutex_exit(buf_pool);
 }
 
-bool buf_flush_ready_for_replace(buf_page_t *bpage) {
+bool buf_flush_ready_for_replace(const buf_page_t *bpage) {
   ut_d(auto buf_pool = buf_pool_from_bpage(bpage));
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
@@ -1606,7 +1603,7 @@ static ulint buf_flush_try_neighbors(const page_id_t &page_id,
 }
 
 /** Check if the block is modified and ready for flushing.
-If ready to flush then flush the page and try o flush its neighbors. The caller
+If ready to flush then flush the page and try to flush its neighbors. The caller
 must hold the buffer pool list mutex corresponding to the type of flush.
 @param[in]  bpage       buffer control block,
                         must be buf_page_in_file(bpage)
@@ -1814,11 +1811,6 @@ static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
   }
 
   buf_pool->lru_hp.set(nullptr);
-
-  /* We keep track of all flushes happening as part of LRU
-  flush. When estimating the desired rate at which flush_list
-  should be flushed, we factor in this value. */
-  buf_lru_flush_page_count += count;
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 

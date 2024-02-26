@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0byte.h"
 #include "ut0new.h"
+#include "ut0todo_counter.h"
 
 #include <list>
 #include <set>
@@ -521,8 +522,8 @@ struct recv_sys_t {
 
 #ifndef UNIV_HOTBACKUP
 
-  /*!< mutex protecting the fields apply_log_recs, n_addrs, and the
-  state field in each recv_addr struct */
+  /** mutex protecting the fields apply_log_recs, decrements of
+  n_pages_to_recover, and the state field in each recv_addr struct */
   ib_mutex_t mutex;
 
   /** mutex coordinating flushing between recv_writer_thread and
@@ -547,9 +548,6 @@ struct recv_sys_t {
   this flag tells the i/o-handler if it should do log record
   application */
   bool apply_log_recs;
-
-  /** This is true when a log rec application batch is running */
-  bool apply_batch_on;
 
   /** Buffer for parsing log records */
   byte *buf;
@@ -616,8 +614,11 @@ struct recv_sys_t {
   /** Hash table of pages, indexed by SpaceID. */
   Spaces *spaces;
 
-  /** Number of not processed hashed file addresses in the hash table */
-  ulint n_addrs;
+  /** Number of unique unprocessed page ids in the spaces nested hash table.
+  Increments are done only from the main recovery thread before apply starts.
+  Decrements are done from multiple threads during batch apply phase, and are
+  protected by the recv_sys_t::mutex. */
+  ut::Todo_counter n_pages_to_recover;
 
   /** Doublewrite buffer pages, destroyed after recovery completes */
   dblwr::recv::DBLWR *dblwr;
@@ -675,10 +676,6 @@ roll-forward */
 #define RECV_SCAN_SIZE (4 * UNIV_PAGE_SIZE)
 
 extern size_t recv_n_frames_for_pages_per_pool_instance;
-
-/** A list of tablespaces for which (un)encryption process was not
-completed before crash. */
-extern std::list<space_id_t> recv_encr_ts_list;
 
 #include "log0recv.ic"
 
