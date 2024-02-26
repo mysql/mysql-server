@@ -50,7 +50,7 @@
 --source include/connection.inc
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
 SET SESSION sql_log_bin=1;
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -64,8 +64,8 @@ SET @debug2_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
-call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
-call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
 SET SESSION sql_log_bin=1;
 --source include/start_group_replication.inc
 
@@ -122,7 +122,7 @@ SET @member_weight3_save= @@GLOBAL.group_replication_member_weight;
 # Later group will switch to single-primary mode and M3 will become read-only.
 # So add suppression now.
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member is not the lowest version in the group.");
 SET SESSION sql_log_bin=1;
 
 --source include/start_group_replication.inc
