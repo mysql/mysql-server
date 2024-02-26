@@ -215,7 +215,7 @@ create table t1 (
   foreign key (b) references t2(c)
 ) engine=ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 create table t2 (
   pk1 int not null primary key,
   c int
