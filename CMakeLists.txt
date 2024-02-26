@@ -110,7 +110,12 @@ ELSEIF(UNIX)
 ENDIF()
 
 # CMake 3.5 is needed for TARGET_SOURCES(... $<TARGET_OBJECTS:${LIB}_objlib>)
-CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
+# CMake 3.7 is needed for VERSION_GREATER_EQUAL
+# CMake 3.8 is needed for cxx_std_17
+# CMake 3.10 is needed for the bundled abseil sources,
+#       but 3.8.2 seems to work OK
+# For the set of currently supported platforms, we can bump up to:
+CMAKE_MINIMUM_REQUIRED(VERSION 3.11.2)
 
 # Will set GIT_EXECUTABLE and GIT_FOUND
 FIND_PACKAGE(Git)
