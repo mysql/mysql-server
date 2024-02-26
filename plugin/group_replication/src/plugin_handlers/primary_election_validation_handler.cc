@@ -130,26 +130,12 @@ Primary_election_validation_handler::validate_primary_version(
     }
   }
 
-  /* If all group members are above 8.0.17, consider patch level.
-     Else only major version is considered for back-portability. */
   if (!uuid.empty()) {
-    if (lowest_member_version >= PRIMARY_ELECTION_PATCH_CONSIDERATION) {
-      if (lowest_member_version < primary_member_version) {
-        error_msg.assign(
-            "The appointed primary member has a version that is"
-            " greater than the one of some of the members"
-            " in the group.");
-        return INVALID_PRIMARY;
-      }
-    } else {
-      if (lowest_member_version.get_major_version() <
-          primary_member_version.get_major_version()) {
-        error_msg.assign(
-            "The appointed primary member has a major version that is"
-            " greater than the one of some of the members"
-            " in the group.");
-        return INVALID_PRIMARY;
-      }
+    if (lowest_member_version < primary_member_version) {
+      error_msg.assign(
+          "The appointed primary member is not the lowest version"
+          " in the group.");
+      return INVALID_PRIMARY;
     }
   }
 
