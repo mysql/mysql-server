@@ -1,0 +1,91 @@
+--source include/have_ndb.inc
+
+# Ndb only support referencing unique parent keys. And whenever the unique
+# parent index is missing the foreign key DDL statement should fail with
+# ER_FK_NO_UNIQUE_INDEX_PARENT. But for consistency the error
+# ER_FK_NO_INDEX_PARENT will be used if restrict_fk_on_non_standard_key option
+# is off. This option should typically not be used for applications that only
+# uses Ndb tables. And the option is only intended to be available during a
+# deprecation mode.
+
+SET @@restrict_fk_on_non_standard_key = OFF;
+
+--echo # test: parent key no index
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a)
+) engine ndb;
+
+--error ER_FK_NO_INDEX_PARENT
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+
+drop table t1;
+
+--echo # test: parent key no unique index
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error ER_FK_NO_INDEX_PARENT
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+
+drop table t1;
+
+--echo # A non-unique index cannot serve as parent index.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+                      INDEX ix(i),
+                      FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+
+--echo #
+--echo # Create child tables before parents
+--echo # by turning off foreign_key_checks for this session
+--echo #
+
+select @@foreign_key_checks;
+set @@foreign_key_checks=0;
+
+--echo #
+--echo # Create child table and then the parent
+--echo # which does not match any index
+--echo #
+
+create table t1 (
+  pk int not null primary key,
+  b int,
+  foreign key (b) references t2(c)
+) engine=ndb;
+
+# Suppress the warning this test case generates
+--disable_query_log ONCE
+call mtr.add_suppression(".* no matching index could be found");
+
+--error ER_FK_NO_INDEX_PARENT
+create table t2 (
+  pk1 int not null primary key,
+  c int
+) engine=ndb;
+
+drop table t1;
+
+set @@foreign_key_checks=1;
+
+SET @@restrict_fk_on_non_standard_key = ON;
