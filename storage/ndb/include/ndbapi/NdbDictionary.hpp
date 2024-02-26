@@ -2376,9 +2376,6 @@ class NdbDictionary {
      * @return       -1 if error.
      *
      */
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int listObjects(List &list, Object::Type type = Object::TypeUndefined);
-#endif
     int listObjects(List &list,
                     Object::Type type = Object::TypeUndefined) const;
     int listObjects(List &list, Object::Type type, bool fullyQualified) const;
@@ -2444,9 +2441,6 @@ class NdbDictionary {
      *       return fully qualified names i.e reversed logic
      * @return  0 if successful, otherwise -1
      */
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int listIndexes(List &list, const char *tableName);
-#endif
     int listIndexes(List &list, const char *tableName) const;
     int listIndexes(List &list, const char *tableName,
                     bool fullyQualified) const;
@@ -2509,9 +2503,6 @@ class NdbDictionary {
      * @param list   Empty list to hold events returned in the dictionary
      * @return 0 if successful otherwise -1.
      */
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    int listEvents(List &list);
-#endif
     int listEvents(List &list) const;
 
     /** @} *******************************************************************/
