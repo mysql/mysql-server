@@ -910,7 +910,7 @@ static dberr_t log_rename_file_low(const Log_files_context &ctx
 
 #ifndef _WIN32
   if (success) {
-    log_flush_directory_low(ctx.m_root_path.c_str());
+    log_flush_directory_low(log_directory_path(ctx));
   }
 #endif /* !_WIN32 */
 
