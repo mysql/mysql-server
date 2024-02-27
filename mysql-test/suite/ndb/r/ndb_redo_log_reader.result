@@ -26,10 +26,10 @@ Node 4: STARTED
 # Node 3 uses InitFragmentLogFiles=full and EncryptedFileSystem=1
 Node 3 is being restarted
 
-# NDBXFRM --decrypt-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog /home/msundell/dev/mysql/bld-8.0/mysql-test/var/tmp/S0.FragLog-decrypted3
-# NDB_REDO_LOG_READER --file-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog -lap
+# NDBXFRM --decrypt-key-from-stdin NDB_REDO_LOG_FILE3 DECRYPTED_FILE3
+# NDB_REDO_LOG_READER --file-key-from-stdin NDB_REDO_LOG_FILE3 -lap
 Warning: Option '-lap' is deprecated, use '--lap' instead.
-# NDB_REDO_LOG_READER --file-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.3/ndb_3_fs/D8/DBLQH/S0.FragLog -mbyte 2
+# NDB_REDO_LOG_READER --file-key-from-stdin NDB_REDO_LOG_FILE3 -mbyte 2
 Warning: Option '-mbyte' is deprecated, use '--mbyte' instead.
 Database node 3 is being started.
 
@@ -38,11 +38,11 @@ Node 2: STARTED
 Node 3: STARTED
 Node 4: STARTED
 # Node 4 uses InitFragmentLogFiles=sparse and EncryptedFileSystem=1
-# NDBXFRM --decrypt-key-from-stdin /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog /home/msundell/dev/mysql/bld-8.0/mysql-test/var/tmp/S0.FragLog-decrypted4
+# NDBXFRM --decrypt-key-from-stdin NDB_REDO_LOG_FILE4 DECRYPTED_FILE4
 Node 4 is being restarted
 
-# NDB_REDO_LOG_READER --file-key-from-stdin --lap /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog
-# NDB_REDO_LOG_READER --file-key-from-stdin --mbyte=2 /home/msundell/dev/mysql/bld-8.0/mysql-test/var/mysql_cluster.1/ndbd.4/ndb_4_fs/D8/DBLQH/S0.FragLog
+# NDB_REDO_LOG_READER --file-key-from-stdin --lap NDB_REDO_LOG_FILE4
+# NDB_REDO_LOG_READER --file-key-from-stdin --mbyte=2 NDB_REDO_LOG_FILE4
 Database node 4 is being started.
 
 Node 1: STARTED

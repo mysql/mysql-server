@@ -51,15 +51,12 @@ exec $NDB_SECRETSFILE_READER
 let $DECRYPTED_FILE3=$MYSQL_TMP_DIR/S0.FragLog-decrypted3;
 
 exec $NDB_MGM -e "3 RESTART -n";
-replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR;
-echo # NDBXFRM --decrypt-key-from-stdin $NDB_REDO_LOG_FILE3 $DECRYPTED_FILE3;
+echo # NDBXFRM --decrypt-key-from-stdin NDB_REDO_LOG_FILE3 DECRYPTED_FILE3;
 exec $NDBXFRM --decrypt-key-from-stdin < $secret_key3 $NDB_REDO_LOG_FILE3 $DECRYPTED_FILE3;
-replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
-echo # NDB_REDO_LOG_READER --file-key-from-stdin $NDB_REDO_LOG_FILE3 -lap;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin NDB_REDO_LOG_FILE3 -lap;
 exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key3
     $NDB_REDO_LOG_FILE3 -lap 2>&1 >> $NDB_TOOLS_OUTPUT;
-replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
-echo # NDB_REDO_LOG_READER --file-key-from-stdin $NDB_REDO_LOG_FILE3 -mbyte 2;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin NDB_REDO_LOG_FILE3 -mbyte 2;
 exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key3
     $NDB_REDO_LOG_FILE3 -mbyte 2 2>&1 >> $NDB_TOOLS_OUTPUT;
 exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key3
@@ -74,16 +71,13 @@ exec $NDB_SECRETSFILE_READER
     > $secret_key4;
 let $DECRYPTED_FILE4=$MYSQL_TMP_DIR/S0.FragLog-decrypted4;
 
-replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR;
-echo # NDBXFRM --decrypt-key-from-stdin $NDB_REDO_LOG_FILE4 $DECRYPTED_FILE4;
+echo # NDBXFRM --decrypt-key-from-stdin NDB_REDO_LOG_FILE4 DECRYPTED_FILE4;
 exec $NDB_MGM -e "4 RESTART -n";
 exec $NDBXFRM --decrypt-key-from-stdin < $secret_key4 $NDB_REDO_LOG_FILE4 $DECRYPTED_FILE4;
-replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
-echo # NDB_REDO_LOG_READER --file-key-from-stdin --lap $NDB_REDO_LOG_FILE4;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin --lap NDB_REDO_LOG_FILE4;
 exec $NDB_REDO_LOG_READER --lap --file-key-from-stdin < $secret_key4
     $NDB_REDO_LOG_FILE4 >> $NDB_TOOLS_OUTPUT;
-replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
-echo # NDB_REDO_LOG_READER --file-key-from-stdin --mbyte=2 $NDB_REDO_LOG_FILE4;
+echo # NDB_REDO_LOG_READER --file-key-from-stdin --mbyte=2 NDB_REDO_LOG_FILE4;
 exec $NDB_REDO_LOG_READER --mbyte=2 --file-key-from-stdin < $secret_key4
     $NDB_REDO_LOG_FILE4 >> $NDB_TOOLS_OUTPUT;
 exec $NDB_REDO_LOG_READER --file-key-from-stdin < $secret_key4
