@@ -241,7 +241,7 @@ numchars()  - returns number of characters (in SQL terminology),
               in the given string, e.g. in the SQL function CHAR_LENGTH().
 charpos()   - calculates the offset of the given position in the string.
               Used in SQL functions LEFT(), RIGHT(), SUBSTRING(), 
-              INSERT()
+              INSERT(), LOCATE()
 
 well_formed_len()
             - returns length of a given multi-byte string in bytes

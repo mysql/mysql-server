@@ -5851,3 +5851,39 @@ WHERE CHAR(t1.vkey) NOT LIKE 'YVR';
 c_0
 1
 DROP TABLE t0, t1;
+#
+# Bug#36277823 Contribution: Fix multibyte bugs in my_instr_mb
+#
+SET NAMES utf8mb4;
+SELECT LOCATE('a', 'Å');
+LOCATE('a', 'Å')
+1
+SELECT LOCATE('Å', 'a');
+LOCATE('Å', 'a')
+1
+SELECT LOCATE('aÅ', 'aÅ');
+LOCATE('aÅ', 'aÅ')
+1
+SELECT LOCATE('Åa', 'Åa');
+LOCATE('Åa', 'Åa')
+1
+SELECT LOCATE('ss', 'ß');
+LOCATE('ss', 'ß')
+1
+SELECT LOCATE('ß', 'ss');
+LOCATE('ß', 'ss')
+1
+SELECT LOCATE("", "ÅÅ", 2);
+LOCATE("", "ÅÅ", 2)
+2
+SELECT LOCATE('àà', 'aaa', 2);
+LOCATE('àà', 'aaa', 2)
+2
+SELECT LOCATE('viii', 'Ⅷ', 1);
+LOCATE('viii', 'Ⅷ', 1)
+1
+SELECT LOCATE('', 'å', 3);
+LOCATE('', 'å', 3)
+0
+SET NAMES DEFAULT;
+>>>>>>> e4e4251f728 (Bug#36277823 Contribution: Fix multibyte bugs in my_instr_mb)

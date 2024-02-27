@@ -4266,44 +4266,47 @@ bool Item_func_locate::resolve_type(THD *thd) {
   return false;
 }
 
+/*
+   LOCATE(substr,str), LOCATE(substr,str,pos)
+   Note that the argument order is switched here,
+   see Locate_instantiator::instantiate in item_create.cc
+ */
 longlong Item_func_locate::val_int() {
   assert(fixed);
   // Evaluate the string argument first
   const CHARSET_INFO *cs = collation.collation;
-  String *a = eval_string_arg(cs, args[0], &value1);
-  if (a == nullptr) return error_int();
+  String *haystack = eval_string_arg(cs, args[0], &value1);
+  if (haystack == nullptr) return error_int();
 
   // Evaluate substring argument in same character set as string argument
-  String *b = eval_string_arg(cs, args[1], &value2);
-  if (b == nullptr) return error_int();
+  String *needle = eval_string_arg(cs, args[1], &value2);
+  if (needle == nullptr) return error_int();
 
   null_value = false;
   /* must be longlong to avoid truncation */
-  longlong start = 0;
-  longlong start0 = 0;
-  my_match_t match;
+  longlong start_byte = 0;
+  longlong start_pos = 0;
 
   if (arg_count == 3) {
     const longlong tmp = args[2]->val_int();
     if ((null_value = args[2]->null_value) || tmp <= 0) return 0;
-    start0 = start = tmp - 1;
+    start_pos = tmp - 1;
 
-    if (start > static_cast<longlong>(a->length())) return 0;
+    if (start_pos > static_cast<longlong>(haystack->numchars())) return 0;
 
-    /* start is now sufficiently valid to pass to charpos function */
-    start = a->charpos((int)start);
-
-    if (start + b->length() > a->length()) return 0;
+    /* start_pos is now sufficiently valid to pass to charpos function */
+    start_byte = haystack->charpos(static_cast<size_t>(start_pos));
   }
 
-  if (!b->length())  // Found empty string at start
-    return start + 1;
+  if (needle->length() == 0)  // Found empty string at start
+    return start_pos + 1;
 
-  if (!cs->coll->strstr(cs, a->ptr() + start,
-                        static_cast<uint>(a->length() - start), b->ptr(),
-                        b->length(), &match, 1))
+  my_match_t match;
+  if (!cs->coll->strstr(cs, haystack->ptr() + start_byte,
+                        static_cast<size_t>(haystack->length() - start_byte),
+                        needle->ptr(), needle->length(), &match, 1))
     return 0;
-  return static_cast<longlong>(match.mb_len) + start0 + 1;
+  return static_cast<longlong>(match.mb_len) + start_pos + 1;
 }
 
 void Item_func_locate::print(const THD *thd, String *str,

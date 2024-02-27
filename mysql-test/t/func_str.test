@@ -2703,3 +2703,23 @@ FROM t0 LEFT JOIN t1 ON t0.vkey = t1.vkey
 WHERE CHAR(t1.vkey) NOT LIKE 'YVR';
 
 DROP TABLE t0, t1;
+
+--echo #
+--echo # Bug#36277823 Contribution: Fix multibyte bugs in my_instr_mb
+--echo #
+
+SET NAMES utf8mb4;
+
+SELECT LOCATE('a', 'Å');
+SELECT LOCATE('Å', 'a');
+SELECT LOCATE('aÅ', 'aÅ');
+SELECT LOCATE('Åa', 'Åa');
+SELECT LOCATE('ss', 'ß');
+SELECT LOCATE('ß', 'ss');
+SELECT LOCATE("", "ÅÅ", 2);
+SELECT LOCATE('àà', 'aaa', 2);
+SELECT LOCATE('viii', 'Ⅷ', 1);
+SELECT LOCATE('', 'å', 3);
+
+SET NAMES DEFAULT;
+

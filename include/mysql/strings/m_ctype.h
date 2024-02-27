@@ -248,8 +248,8 @@ struct MY_COLLATION_HANDLER {
   bool (*init)(CHARSET_INFO *, MY_CHARSET_LOADER *, MY_CHARSET_ERRMSG *);
   void (*uninit)(CHARSET_INFO *, MY_CHARSET_LOADER *);
   /* Collation routines */
-  int (*strnncoll)(const CHARSET_INFO *, const uint8_t *, size_t,
-                   const uint8_t *, size_t, bool);
+  int (*strnncoll)(const CHARSET_INFO *, const uint8_t *s, size_t slen,
+                   const uint8_t *t, size_t tlen, bool t_is_prefix);
   /**
     Compare the two strings under the pad rules given by the collation.
 
