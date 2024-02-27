@@ -102,13 +102,13 @@ INSERT INTO towns VALUES
 ('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
 ,('Oxford','Oxfordshire');
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
@@ -210,7 +210,7 @@ create table t1 (
   primary key using hash (a)
 ) engine ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -226,7 +226,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
 
@@ -241,7 +241,7 @@ create table t1 (
   key (b)
 ) engine ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -257,7 +257,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
 
@@ -336,7 +336,7 @@ create table t1 (
   unique key using hash (b, c)
 ) engine ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -352,7 +352,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
 

@@ -1,0 +1,66 @@
+SET @@restrict_fk_on_non_standard_key = OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
+# test: parent key no index
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
+drop table t1;
+# test: parent key no unique index
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
+drop table t1;
+# A non-unique index cannot serve as parent index.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+INDEX ix(i),
+FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ref_fk_1' in the referenced table 'self_ref'
+#
+# Create child tables before parents
+# by turning off foreign_key_checks for this session
+#
+select @@foreign_key_checks;
+@@foreign_key_checks
+1
+set @@foreign_key_checks=0;
+#
+# Create child table and then the parent
+# which does not match any index
+#
+create table t1 (
+pk int not null primary key,
+b int,
+foreign key (b) references t2(c)
+) engine=ndb;
+create table t2 (
+pk1 int not null primary key,
+c int
+) engine=ndb;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_fk_1' in the referenced table 't2'
+drop table t1;
+set @@foreign_key_checks=1;
+SET @@restrict_fk_on_non_standard_key = ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.

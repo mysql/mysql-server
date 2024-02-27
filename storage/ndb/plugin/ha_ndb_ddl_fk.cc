@@ -1407,8 +1407,14 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
     }
 
     if (!parent_primary_key && parent_index == nullptr) {
-      my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name.str ? fk->name.str : "",
-               parent_tab.get_table()->getName());
+      if (thd->variables.restrict_fk_on_non_standard_key)
+        my_error(ER_FK_NO_UNIQUE_INDEX_PARENT, MYF(0),
+                 fk->name.str ? fk->name.str : "",
+                 parent_tab.get_table()->getName());
+      else
+        my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
+                 fk->name.str ? fk->name.str : "",
+                 parent_tab.get_table()->getName());
       return err_default;
     }
 
@@ -1608,8 +1614,12 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
         const NDBINDEX *idx =
             find_matching_index(dict, dsttab.get_table(), cols, parent_primary);
         if (!parent_primary && idx == nullptr) {
-          my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
-                   dsttab.get_table()->getName());
+          if (thd->variables.restrict_fk_on_non_standard_key)
+            my_error(ER_FK_NO_UNIQUE_INDEX_PARENT, MYF(0), fk.getName(),
+                     dsttab.get_table()->getName());
+          else
+            my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
+                     dsttab.get_table()->getName());
           return HA_ERR_CANNOT_ADD_FOREIGN;
         }
         fk.setParent(*dsttab.get_table(), idx, cols);
@@ -1860,7 +1870,12 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
 
       if (!parent_primary_key && parent_index == nullptr) {
         assert(false);
-        my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(), table->getName());
+        if (thd->variables.restrict_fk_on_non_standard_key)
+          my_error(ER_FK_NO_UNIQUE_INDEX_PARENT, MYF(0), fk.getName(),
+                   table->getName());
+        else
+          my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
+                   table->getName());
         return err_default;
       }
 
