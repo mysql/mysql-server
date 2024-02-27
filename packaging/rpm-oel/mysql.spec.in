@@ -159,11 +159,11 @@ Vendor:         %{mysql_vendor}
 Source7:        %{compatsrc}
 %endif
 %if 0%{?rhel} >= 8
-BuildRequires:  cmake >= 3.6.1
+BuildRequires:  cmake >= 3.14.6
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
 %else
-BuildRequires:  cmake3 >= 3.6.1
+BuildRequires:  cmake3 >= 3.14.6
 %endif
 %ifarch aarch64
 %{?el7:BuildRequires:  devtoolset-10-gcc}
@@ -188,7 +188,7 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el9:BuildRequires:  gcc-toolset-12-dwz}
 %{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
 %{?el9:BuildRequires:  gcc-toolset-12-gcc}
-BuildRequires:  bison >= 2.1
+BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
