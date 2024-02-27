@@ -128,7 +128,7 @@ disconnect proxy_con;
 --echo connect(proxy_con,localhost,proxy_user,proxied_user);
 --disable_query_log
 # This should fail, no grant
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(proxy_con,localhost,proxy_user,proxied_user);
 --enable_query_log
 GRANT PROXY ON proxied_user TO ''@'';
@@ -165,7 +165,7 @@ disconnect proxy_con;
 --echo connect(proxy_con,localhost,proxy_user,proxied_user);
 --disable_query_log
 # This should fail, no grant
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(proxy_con,localhost,proxy_user,proxied_user);
 --enable_query_log
 GRANT PROXY ON proxied_user TO ''@'';

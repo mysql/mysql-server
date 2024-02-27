@@ -94,7 +94,7 @@ COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
 install plugin test_plugin_server soname 'PLUGIN_AUTH';
-ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv6.example.com' (using password: YES)
+ERROR HY000: Access denied for user 'plug'@'santa.claus.ipv6.example.com', missing proxy privilege.
 "Dumping performance_schema.host_cache"
 IP	2001:db8::6:6
 HOST	santa.claus.ipv6.example.com
@@ -123,7 +123,7 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-ERROR 28000: Access denied for user 'plug'@'santa.claus.ipv6.example.com' (using password: YES)
+ERROR HY000: Access denied for user 'plug'@'santa.claus.ipv6.example.com', missing proxy privilege.
 "Dumping performance_schema.host_cache"
 IP	2001:db8::6:6
 HOST	santa.claus.ipv6.example.com

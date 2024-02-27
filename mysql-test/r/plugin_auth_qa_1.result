@@ -8,7 +8,7 @@ CREATE USER plug_user
 IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
+ERROR 6126 (HY000): Access denied for user 'plug_user'@'localhost', missing proxy privilege.
 GRANT PROXY ON plug_dest TO plug_user;
 mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
@@ -17,7 +17,7 @@ user()
 plug_user@localhost
 RENAME USER plug_dest TO new_dest;
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
+ERROR 6127 (HY000): Access denied for user 'plug_user'@'localhost', proxied user doesn't exist.
 GRANT PROXY ON new_dest TO plug_user;
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
@@ -137,7 +137,7 @@ NULL
 connection default;
 disconnect proxy_con;
 connect(proxy_con,localhost,proxy_user,proxied_user);
-ERROR 28000: Access denied for user 'proxy_user'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'proxy_user'@'localhost', missing proxy privilege.
 GRANT PROXY ON proxied_user TO ''@'';
 connect(proxy_con,localhost,proxied_user,proxied_user_passwd);
 SELECT USER(),CURRENT_USER();
@@ -173,7 +173,7 @@ NULL
 connection default;
 disconnect proxy_con;
 connect(proxy_con,localhost,proxy_user,proxied_user);
-ERROR 28000: Access denied for user 'proxy_user'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'proxy_user'@'localhost', missing proxy privilege.
 GRANT PROXY ON proxied_user TO ''@'';
 connect(proxy_con,localhost,proxied_user,proxied_user_passwd);
 SELECT USER(),CURRENT_USER();

@@ -112,7 +112,7 @@ qa_test_6_dest	caching_sha2_password
 qa_test_6_user	qa_auth_interface
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'qa_test_6_user'@'localhost' (using password: YES)
+ERROR 6126 (HY000): Access denied for user 'qa_test_6_user'@'localhost', missing proxy privilege.
 CREATE USER root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
 GRANT PROXY ON qa_test_6_dest TO root;
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');

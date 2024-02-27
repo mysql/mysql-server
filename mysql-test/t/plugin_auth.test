@@ -25,7 +25,7 @@ SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
 # This should fail, no grant
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(plug_con,localhost,plug,plug_dest);
 --enable_query_log
 
@@ -123,7 +123,7 @@ GRANT ALL PRIVILEGES ON *.* TO grant_plug;
 REVOKE SYSTEM_USER ON *.* FROM grant_plug;
 --disable_query_log
 # This should fail, no grant
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(grant_plug_con,localhost,grant_plug,grant_plug_dest);
 --enable_query_log
 
@@ -606,7 +606,7 @@ SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
 # This should fail, no grant
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(plug_user22,localhost,user_name_len_22_01234,user_name_len_22_0dest);
 --enable_query_log
 
@@ -633,7 +633,7 @@ SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
 # This should fail, no grant
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(plug_user32,localhost,очень_очень_очень_длинный_юзер__,очень_очень_очень_длинный_дест__);
 --enable_query_log
 
