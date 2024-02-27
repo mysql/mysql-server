@@ -178,11 +178,11 @@ class HARNESS_EXPORT ConfigSection {
    */
   void update(const ConfigSection &other);  // throws bad_section
 
-  std::string get(const std::string &option) const;
+  std::string get(std::string_view option) const;
   void set(const std::string &option,
            const std::string &value);  // throws bad_option
   void add(const std::string &option, const std::string &value);
-  bool has(const std::string &option) const;
+  bool has(std::string_view option) const;
 
   /**
    * Range for options in section.
@@ -210,7 +210,7 @@ class HARNESS_EXPORT ConfigSection {
    * @option option The name of the option
    * @return The name of the ConfigSection which option is specified.
    */
-  std::string get_section_name(const std::string &option) const;
+  std::string get_section_name(std::string_view option) const;
 
   /*
    * Returns name of the section.
@@ -233,7 +233,7 @@ class HARNESS_EXPORT ConfigSection {
   const int kMaxInterpolationDepth = 10;
 
   std::pair<OptionMap::const_iterator, bool> do_locate(
-      const std::string &option) const noexcept;
+      std::string_view option) const noexcept;
 
   const std::shared_ptr<const ConfigSection> defaults_;
   OptionMap options_;
@@ -477,12 +477,12 @@ class HARNESS_EXPORT Config {
   /**
    * @return True if a section exists, no matter what the key is.
    */
-  bool has_any(const std::string &section) const;
+  bool has_any(std::string_view section) const;
 
   // all 3 below throw bad_option (std::runtime_error) on illegal option name
   // (one that contains illegal characters) */
-  std::string get_default(const std::string &option) const;
-  bool has_default(const std::string &option) const;
+  std::string get_default(std::string_view option) const;
+  bool has_default(std::string_view option) const;
   void set_default(const std::string &option, const std::string &value);
 
   bool is_reserved(const std::string &word) const;

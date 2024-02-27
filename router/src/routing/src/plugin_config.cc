@@ -739,8 +739,8 @@ RoutingPluginConfig::RoutingPluginConfig(
   }
 }
 
-std::string RoutingPluginConfig::get_default(const std::string &option) const {
-  static const std::map<std::string, std::string> defaults{
+std::string RoutingPluginConfig::get_default(std::string_view option) const {
+  static const std::map<std::string_view, std::string> defaults{
       {"bind_address", std::string{routing::kDefaultBindAddress}},
       {"max_connections", std::to_string(routing::kDefaultMaxConnections)},
       {"connect_timeout",
@@ -783,8 +783,8 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
   return it->second;
 }
 
-bool RoutingPluginConfig::is_required(const std::string &option) const {
-  return (option == "destinations"sv);
+bool RoutingPluginConfig::is_required(std::string_view option) const {
+  return option == "destinations";
 }
 
 void RoutingPluginConfig::expose_initial_configuration(

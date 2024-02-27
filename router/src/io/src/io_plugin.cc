@@ -93,8 +93,8 @@ class IoPluginConfig : public mysql_harness::BasePluginConfig {
     GET_OPTION_CHECKED(num_threads, section, "threads", num_threads_op);
   }
 
-  std::string get_default(const std::string &option) const override {
-    const std::map<std::string, std::string> defaults{
+  std::string get_default(std::string_view option) const override {
+    const std::map<std::string_view, std::string> defaults{
         {"backend", IoBackend::preferred()},
         {"threads", "0"},
     };
@@ -106,7 +106,7 @@ class IoPluginConfig : public mysql_harness::BasePluginConfig {
     return it->second;
   }
 
-  bool is_required(const std::string & /* option */) const override {
+  bool is_required(std::string_view /* option */) const override {
     return false;
   }
 
