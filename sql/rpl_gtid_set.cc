@@ -911,6 +911,23 @@ static size_t get_string_length(rpl_gno gno) {
   return len;
 }
 
+bool Gtid_set::contains_tags() const {
+  assert(tsid_map != nullptr);
+  for (const auto &tsid_it : tsid_map->get_sorted_sidno()) {
+    rpl_sidno sidno = tsid_it.second;
+    if (contains_sidno(sidno)) {
+      Const_interval_iterator ivit(this, sidno);
+      if (ivit.get() != nullptr) {
+        auto tsid = tsid_map->sidno_to_tsid(sidno);
+        if (tsid.is_tagged()) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 size_t Gtid_set::get_string_length(const Gtid_set::String_format *sf) const {
   assert(tsid_map != nullptr);
   if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();

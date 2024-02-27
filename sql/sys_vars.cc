@@ -6479,11 +6479,23 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   bool starts_with_plus = false;
   enum_return_status ret = gtid_set.add_gtid_text(
       var->save_result.string_value.str, nullptr, &starts_with_plus);
-
   if (ret != RETURN_STATUS_OK) {
     error = true;
     goto end;
   }
+
+  if (gtid_set.contains_tags()) {
+    // check tagged GTID privs
+    Security_context *sctx = thd->security_context();
+    if (!sctx->has_global_grant(STRING_WITH_LEN("TRANSACTION_GTID_TAG"))
+             .first) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "TRANSACTION_GTID_TAG and SYSTEM_VARIABLES_ADMIN");
+      error = true;
+      goto end;
+    }
+  }
+
   ret = gtid_state->add_lost_gtids(&gtid_set, starts_with_plus);
   if (ret != RETURN_STATUS_OK) {
     error = true;
