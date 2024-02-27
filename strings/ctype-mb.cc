@@ -354,19 +354,17 @@ size_t my_well_formed_len_mb(const CHARSET_INFO *cs, const char *b,
   return (size_t)(b - b_start);
 }
 
-unsigned my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
-                     const char *s, size_t s_length, my_match_t *match,
-                     unsigned nmatch) {
+bool my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
+                 const char *s, size_t s_length, my_match_t *match) {
   const char *end, *b0;
   int res = 0;
 
   if (!s_length) {
-    if (nmatch) {
-      match->beg = 0;
+    if (match != nullptr) {
       match->end = 0;
       match->mb_len = 0;
     }
-    return 1; /* Empty string is always found */
+    return true; /* Empty string is always found */
   }
 
   b0 = b;
@@ -378,24 +376,18 @@ unsigned my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
     if (!cs->coll->strnncoll(cs, pointer_cast<const uint8_t *>(b), b_length,
                              pointer_cast<const uint8_t *>(s), s_length,
                              true /* t_is_prefix */)) {
-      if (nmatch) {
-        match[0].beg = 0;
-        match[0].end = (unsigned)(b - b0);
-        match[0].mb_len = res;
-        if (nmatch > 1) {
-          match[1].beg = match[0].end;
-          match[1].end = match[0].end + (unsigned)s_length;
-          match[1].mb_len = 0; /* Not computed */
-        }
+      if (match != nullptr) {
+        match->end = static_cast<unsigned>(b - b0);
+        match->mb_len = res;
       }
-      return 2;
+      return true;
     }
     mb_len = (mb_len = my_ismbchar(cs, b, end)) ? mb_len : 1;
     b += mb_len;
     b_length -= mb_len;
     res++;
   }
-  return 0;
+  return false;
 }
 
 /* BINARY collations handlers for MB charsets */

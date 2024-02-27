@@ -4304,7 +4304,7 @@ longlong Item_func_locate::val_int() {
   my_match_t match;
   if (!cs->coll->strstr(cs, haystack->ptr() + start_byte,
                         static_cast<size_t>(haystack->length() - start_byte),
-                        needle->ptr(), needle->length(), &match, 1))
+                        needle->ptr(), needle->length(), &match))
     return 0;
   return static_cast<longlong>(match.mb_len) + start_pos + 1;
 }

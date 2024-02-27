@@ -5886,4 +5886,3 @@ SELECT LOCATE('', 'å', 3);
 LOCATE('', 'å', 3)
 0
 SET NAMES DEFAULT;
->>>>>>> e4e4251f728 (Bug#36277823 Contribution: Fix multibyte bugs in my_instr_mb)

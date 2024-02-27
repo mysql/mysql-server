@@ -397,23 +397,21 @@ static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uint8_t *dst,
   return srclen;
 }
 
-static unsigned my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]],
-                             const char *b, size_t b_length, const char *s,
-                             size_t s_length, my_match_t *match,
-                             unsigned nmatch) {
+static bool my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
+                         size_t b_length, const char *s, size_t s_length,
+                         my_match_t *match) {
   const uint8_t *str = nullptr;
   const uint8_t *search = nullptr;
   const uint8_t *end = nullptr;
   const uint8_t *search_end = nullptr;
 
   if (s_length <= b_length) {
-    if (!s_length) {
-      if (nmatch) {
-        match->beg = 0;
+    if (s_length == 0) {
+      if (match != nullptr) {
         match->end = 0;
         match->mb_len = 0;
       }
-      return 1; /* Empty string is always found */
+      return true; /* Empty string is always found */
     }
 
     str = pointer_cast<const uint8_t *>(b);
@@ -430,22 +428,15 @@ static unsigned my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]],
         while (j != search_end)
           if ((*i++) != (*j++)) goto skip;
 
-        if (nmatch > 0) {
-          match[0].beg = 0;
-          match[0].end = (unsigned)(str - pointer_cast<const uint8_t *>(b) - 1);
-          match[0].mb_len = match[0].end;
-
-          if (nmatch > 1) {
-            match[1].beg = match[0].end;
-            match[1].end = (unsigned)(match[0].end + s_length);
-            match[1].mb_len = match[1].end - match[1].beg;
-          }
+        if (match != nullptr) {
+          match->end = (unsigned)(str - pointer_cast<const uint8_t *>(b) - 1);
+          match->mb_len = match->end;
         }
-        return 2;
+        return true;
       }
     }
   }
-  return 0;
+  return false;
 }
 }  // extern "C"
 

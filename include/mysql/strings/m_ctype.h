@@ -168,7 +168,6 @@ struct MY_UNI_IDX {
 };
 
 struct my_match_t {
-  unsigned beg;
   unsigned end;
   unsigned mb_len;
 };
@@ -310,9 +309,8 @@ struct MY_COLLATION_HANDLER {
 
   int (*strcasecmp)(const CHARSET_INFO *, const char *, const char *);
 
-  unsigned (*strstr)(const CHARSET_INFO *, const char *b, size_t b_length,
-                     const char *s, size_t s_length, my_match_t *match,
-                     unsigned nmatch);
+  bool (*strstr)(const CHARSET_INFO *, const char *b, size_t b_length,
+                 const char *s, size_t s_length, my_match_t *match);
 
   /**
     Compute a sort hash for the given key. This hash must preserve equality

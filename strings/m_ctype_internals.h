@@ -68,9 +68,9 @@ extern void my_hash_sort_simple(const CHARSET_INFO *cs, const uint8_t *key,
 extern size_t my_lengthsp_8bit(const CHARSET_INFO *cs, const char *ptr,
                                size_t length);
 
-extern unsigned my_instr_simple(const CHARSET_INFO *, const char *b,
-                                size_t b_length, const char *s, size_t s_length,
-                                my_match_t *match, unsigned nmatch);
+extern bool my_instr_simple(const CHARSET_INFO *, const char *b,
+                            size_t b_length, const char *s, size_t s_length,
+                            my_match_t *match);
 
 /* Functions for 8bit */
 extern size_t my_caseup_str_8bit(const CHARSET_INFO *, char *);
@@ -193,9 +193,8 @@ size_t my_charpos_mb3(const CHARSET_INFO *, const char *b, const char *e,
                       size_t pos);
 size_t my_well_formed_len_mb(const CHARSET_INFO *, const char *b, const char *e,
                              size_t pos, int *error);
-unsigned my_instr_mb(const CHARSET_INFO *, const char *b, size_t b_length,
-                     const char *s, size_t s_length, my_match_t *match,
-                     unsigned nmatch);
+bool my_instr_mb(const CHARSET_INFO *, const char *b, size_t b_length,
+                 const char *s, size_t s_length, my_match_t *match);
 
 int my_strnncoll_mb_bin(const CHARSET_INFO *cs, const uint8_t *s, size_t slen,
                         const uint8_t *t, size_t tlen, bool t_is_prefix);

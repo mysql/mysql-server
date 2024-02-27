@@ -1395,8 +1395,8 @@ static char *my_case_str(char *str, size_t str_len, const char *token,
                          size_t token_len) {
   my_match_t match;
 
-  const uint status = my_charset_latin1.coll->strstr(
-      &my_charset_latin1, str, str_len, token, token_len, &match, 1);
+  const bool status = my_charset_latin1.coll->strstr(
+      &my_charset_latin1, str, str_len, token, token_len, &match);
 
   return status ? str + match.end : nullptr;
 }

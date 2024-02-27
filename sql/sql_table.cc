@@ -4477,7 +4477,7 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field) {
     if (sql_field->charset->coll->strstr(sql_field->charset,
                                          sql_field->interval->type_names[i],
                                          sql_field->interval->type_lengths[i],
-                                         comma_buf, comma_length, nullptr, 0)) {
+                                         comma_buf, comma_length, nullptr)) {
       const ErrConvString err(sql_field->interval->type_names[i],
                               sql_field->interval->type_lengths[i],
                               sql_field->charset);
