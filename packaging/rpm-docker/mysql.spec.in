@@ -87,11 +87,11 @@ Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        @BOOST_DOWNLOAD_URL@
 %if 0%{?rhel} >= 8
-BuildRequires:  cmake >= 3.6.1
+BuildRequires:  cmake >= 3.11.2
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
 %else
-BuildRequires:  cmake3 >= 3.6.1
+BuildRequires:  cmake3 >= 3.11.2
 %endif
 %{?el6:BuildRequires:  devtoolset-8-gcc}
 %{?el6:BuildRequires:  devtoolset-8-gcc-c++}
@@ -118,7 +118,7 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el9:BuildRequires:  gcc-toolset-12-dwz}
 %{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
 %{?el9:BuildRequires:  gcc-toolset-12-gcc}
-BuildRequires:  bison >= 2.1
+BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel

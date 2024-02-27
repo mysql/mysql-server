@@ -104,8 +104,8 @@ URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source10:       @BOOST_DOWNLOAD_URL@
-BuildRequires:  cmake >= 2.8.2
-BuildRequires:  bison >= 2.1
+BuildRequires:  cmake >= 3.11.2
+BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  perl
 BuildRequires:  perl(Config)
