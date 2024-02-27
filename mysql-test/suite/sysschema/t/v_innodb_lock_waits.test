@@ -36,3 +36,7 @@ DESC sys.x$innodb_lock_waits;
 SELECT * FROM sys.x$innodb_lock_waits;
 --enable_result_log
 
+EXPLAIN SELECT * FROM sys.innodb_lock_waits;
+
+EXPLAIN SELECT * FROM sys.x$innodb_lock_waits;
+
