@@ -1102,7 +1102,7 @@ UPDATE t1 SET c = 5 WHERE a = 3;
 ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
 Warnings:
-Warning	6124	Foreign Key 't2_ibfk_1' referring to non unique key or partial columns in key are deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 UPDATE t1 SET c = 10 WHERE a = 1;
 SELECT c FROM t2;
 c
@@ -3135,7 +3135,7 @@ UPDATE t1 SET c = 5 WHERE a = 3;
 ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
 Warnings:
-Warning	6124	Foreign Key 't2_ibfk_1' referring to non unique key or partial columns in key are deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 UPDATE t1 SET c = 10 WHERE a = 1;
 SELECT c FROM t2;
 c
@@ -5168,7 +5168,7 @@ UPDATE t1 SET c = 5 WHERE a = 3;
 ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
 Warnings:
-Warning	6124	Foreign Key 't2_ibfk_1' referring to non unique key or partial columns in key are deprecated and will be removed in a future release.
+Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 UPDATE t1 SET c = 10 WHERE a = 1;
 SELECT c FROM t2;
 c
