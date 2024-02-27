@@ -706,7 +706,6 @@ bool Item_subselect::exec(THD *thd) {
   // have iterators, so make sure to create them if they're missing.
   if (!query_expr()->is_optimized()) {
     if (query_expr()->optimize(thd, /*materialize_destination=*/nullptr,
-                               /*create_iterators=*/false,
                                /*finalize_access_paths=*/false))
       return true;
 

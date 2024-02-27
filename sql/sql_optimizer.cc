@@ -430,7 +430,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
       // Derived tables and const subqueries are already optimized
       if (!unit->is_optimized() &&
           unit->optimize(thd, /*materialize_destination=*/nullptr,
-                         /*create_iterators=*/false,
                          /*finalize_access_paths=*/false))
         return true;
     }

@@ -1032,14 +1032,19 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   Query_expression *unit = lex->unit;
 
   if (unit->optimize(thd, /*materialize_destination=*/nullptr,
-                     /*create_iterators=*/true, /*finalize_access_paths=*/true))
+                     /*finalize_access_paths=*/true))
     return true;
+
+  DBUG_EXECUTE_IF("ast", { unit->DebugPrintQueryPlan(thd, "ast"); });
 
   // Calculate the current statement cost.
   accumulate_statement_cost(lex);
 
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;
+
+  // Create iterators for the chosen query plan before execution.
+  if (unit->create_iterators(thd)) return true;
 
   // We know by now that execution will complete (successful or with error)
   lex->set_exec_completed();
@@ -2053,7 +2058,6 @@ bool Query_block::optimize(THD *thd, bool finalize_access_paths) {
     // Derived tables and const subqueries are already optimized
     if (!query_expression->is_optimized() &&
         query_expression->optimize(thd, /*materialize_destination=*/nullptr,
-                                   /*create_iterators=*/false,
                                    /*finalize_access_paths=*/true))
       return true;
   }

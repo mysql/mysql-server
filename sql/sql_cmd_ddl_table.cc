@@ -112,14 +112,18 @@ static bool populate_table(THD *thd, LEX *lex) {
 
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) return true;
 
-  if (unit->optimize(thd, nullptr, true, /*finalize_access_paths=*/true))
-    return true;
+  if (unit->optimize(thd, nullptr, /*finalize_access_paths=*/true)) return true;
+
+  DBUG_EXECUTE_IF("ast", { unit->DebugPrintQueryPlan(thd, "ast"); });
 
   // Calculate the current statement cost.
   accumulate_statement_cost(lex);
 
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;
+
+  // Create iterators for the chosen query plan before execution.
+  if (unit->create_iterators(thd)) return true;
 
   if (unit->execute(thd)) return true;
 

@@ -886,7 +886,7 @@ class Query_expression {
 
   /**
     Ensures that there are iterators created for the access paths created
-    by optimize(), even if it was called with create_access_paths = false.
+    by optimize(), even if it is not a top-level Query_expression.
     If there are already iterators, it is a no-op. optimize() must have
     been called earlier.
 
@@ -897,6 +897,14 @@ class Query_expression {
     optimization.
    */
   bool force_create_iterators(THD *thd);
+
+  /**
+    Creates iterators for the access paths created by optimize(). Usually called
+    on a top-level Query_expression, but can also be called on non-top level
+    expressions from force_create_iterators(). See force_create_iterators() for
+    details.
+   */
+  bool create_iterators(THD *thd);
 
   /// See optimize().
   bool unfinished_materialization() const { return !m_operands.empty(); }
@@ -946,10 +954,6 @@ class Query_expression {
     @param materialize_destination What table to try to materialize into,
       or nullptr if the caller does not intend to materialize the result.
 
-    @param create_iterators If false, only access paths are created,
-      not iterators. Only top level query blocks (these that we are to call
-      exec() on) should have iterators. See also force_create_iterators().
-
     @param finalize_access_paths Relevant for the hypergraph optimizer only.
       If false, the given access paths will _not_ be finalized, so you cannot
       create iterators from it before finalize() is called (see
@@ -959,7 +963,7 @@ class Query_expression {
       allowed to finalize a query block once. "Fake" query blocks (see
       query_term.h) are always finalized.
    */
-  bool optimize(THD *thd, TABLE *materialize_destination, bool create_iterators,
+  bool optimize(THD *thd, TABLE *materialize_destination,
                 bool finalize_access_paths);
 
   /**
@@ -968,6 +972,10 @@ class Query_expression {
     (ie., after any calls to change_to_access_path_without_in2exists()).
    */
   bool finalize(THD *thd);
+
+#ifndef NDEBUG
+  void DebugPrintQueryPlan(THD *thd, const char *keyword) const;
+#endif
 
   /**
     Do everything that would be needed before running Init() on the root

@@ -1962,7 +1962,6 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
       // Derived tables and const subqueries are already optimized
       if (!unit->is_optimized() &&
           unit->optimize(explain_thd, /*materialize_destination=*/nullptr,
-                         /*create_iterators=*/false,
                          /*finalize_access_paths=*/true))
         return true; /* purecov: inspected */
     }

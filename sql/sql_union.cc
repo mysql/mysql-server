@@ -994,14 +994,8 @@ static bool use_iterator(TABLE *materialize_destination,
 }
 
 bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
-                                bool create_iterators,
                                 bool finalize_access_paths) {
   DBUG_TRACE;
-
-  if (!finalize_access_paths) {
-    assert(!create_iterators);
-  }
-
   assert(is_prepared() && !is_optimized());
 
   Change_current_query_block save_query_block(thd);
@@ -1119,46 +1113,6 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
     }
   }
 
-  if (create_iterators && IteratorsAreNeeded(thd, m_root_access_path)) {
-    JOIN *join = query_term()->query_block()->join;
-
-    DBUG_EXECUTE_IF(
-        "ast", Query_term *qn = m_query_term;
-        DBUG_PRINT("ast", ("\n%s", thd->query().str)); if (qn) {
-          std::ostringstream buf;
-          qn->debugPrint(0, buf);
-          DBUG_PRINT("ast", ("\n%s", buf.str().c_str()));
-        });
-
-    DBUG_EXECUTE_IF(
-        "ast", bool is_root_of_join = (join != nullptr); DBUG_PRINT(
-            "ast", ("Query plan:\n%s\n",
-                    PrintQueryPlan(0, m_root_access_path, join, is_root_of_join)
-                        .c_str())););
-
-    m_root_iterator = CreateIteratorFromAccessPath(
-        thd, m_root_access_path, join, /*eligible_for_batch_mode=*/true);
-    if (m_root_iterator == nullptr) {
-      return true;
-    }
-
-    if (thd->lex->using_hypergraph_optimizer()) {
-      if (finalize_full_text_functions(thd, this)) {
-        return true;
-      }
-    }
-
-    if (false) {
-      // This can be useful during debugging.
-      // TODO(sgunders): Consider adding the SET DEBUG force-subplan line here,
-      // like we have on EXPLAIN FORMAT=tree if subplan_tokens is active.
-      bool is_root_of_join = (join != nullptr);
-      fprintf(
-          stderr, "Query plan:\n%s\n",
-          PrintQueryPlan(0, m_root_access_path, join, is_root_of_join).c_str());
-    }
-  }
-
   // When done with the outermost query expression, and if max_join_size is in
   // effect, estimate the total number of row accesses in the query, and error
   // out if it exceeds max_join_size.
@@ -1188,11 +1142,24 @@ bool Query_expression::finalize(THD *thd) {
 }
 
 bool Query_expression::force_create_iterators(THD *thd) {
+  assert(IteratorsAreNeeded(thd, m_root_access_path));
   if (m_root_iterator == nullptr) {
-    JOIN *join = is_set_operation() ? nullptr : first_query_block()->join;
-    m_root_iterator = CreateIteratorFromAccessPath(
-        thd, m_root_access_path, join, /*eligible_for_batch_mode=*/true);
+    return create_iterators(thd);
   }
+  return false;
+}
+
+bool Query_expression::create_iterators(THD *thd) {
+  assert(m_root_iterator == nullptr);
+
+  if (!IteratorsAreNeeded(thd, m_root_access_path)) {
+    return false;
+  }
+
+  JOIN *const top_join = query_term()->query_block()->join;
+  m_root_iterator =
+      CreateIteratorFromAccessPath(thd, m_root_access_path, top_join,
+                                   /*eligible_for_batch_mode=*/true);
 
   if (m_root_iterator == nullptr) return true;
 
@@ -1204,6 +1171,25 @@ bool Query_expression::force_create_iterators(THD *thd) {
 
   return false;
 }
+
+#ifndef NDEBUG
+void Query_expression::DebugPrintQueryPlan(THD *thd,
+                                           const char *keyword) const {
+  DBUG_PRINT(keyword, ("\n%s", thd->query().str));
+  if (m_query_term != nullptr) {
+    std::ostringstream buf;
+    m_query_term->debugPrint(0, buf);
+    DBUG_PRINT(keyword, ("\n%s", buf.str().c_str()));
+  }
+
+  JOIN *const join = query_term()->query_block()->join;
+  const bool is_root_of_join = join != nullptr;
+  DBUG_PRINT(
+      keyword,
+      ("Query plan:\n%s\n",
+       PrintQueryPlan(0, m_root_access_path, join, is_root_of_join).c_str()));
+}
+#endif
 
 /**
   Helper method: create a materialized access path, estimate its cost and

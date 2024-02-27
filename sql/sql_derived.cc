@@ -1654,7 +1654,7 @@ bool Table_ref::optimize_derived(THD *thd) {
     }
   }
 
-  if (unit->optimize(thd, table, /*create_iterators=*/false,
+  if (unit->optimize(thd, table,
                      /*finalize_access_paths=*/true) ||
       thd->is_error())
     return true;
