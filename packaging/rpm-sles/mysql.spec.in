@@ -97,8 +97,8 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-BuildRequires:  cmake >= 2.8.2
-BuildRequires:  bison >= 2.1
+BuildRequires:  cmake >= 3.14.6
+BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  perl
 BuildRequires:  perl(Config)

@@ -68,7 +68,7 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-BuildRequires:  bison >= 2.1
+BuildRequires:  bison >= 3.0.4
 BuildRequires:  cmake
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  elfutils
