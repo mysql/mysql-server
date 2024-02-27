@@ -769,6 +769,7 @@ INCLUDE(fprofile)
 INCLUDE(fido2)
 INCLUDE(win_jemalloc)
 INCLUDE(libs_mysql_create_library)
+INCLUDE(libcno)
 
 # To simplify building of JET, skip all dependencies for other targets.
 IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
@@ -1734,6 +1735,9 @@ ENDIF()
 
 # See whether backtrace is supported.
 MYSQL_CHECK_BACKTRACE()
+
+# Add bundled libcno
+MYSQL_CHECK_CNO()
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB()
