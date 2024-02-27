@@ -1,0 +1,20 @@
+CREATE TABLE test (
+num INTEGER,
+content varchar(255)
+) ENGINE = InnoDB;
+INSERT INTO test (num, content) VALUES
+(1, 'What would I do without your snarky comments?');
+SELECT * FROM test;
+num	content
+1	What would I do without your snarky comments?
+ALTER TABLE test ADD INDEX idx_num(num);
+ALTER TABLE test ADD FULLTEXT INDEX idx_content(content);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM test WHERE num = 1;
+num	content
+1	What would I do without your snarky comments?
+SELECT * FROM test WHERE MATCH(content) AGAINST('without');
+num	content
+1	What would I do without your snarky comments?
+DROP TABLE test;

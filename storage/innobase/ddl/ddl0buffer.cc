@@ -114,40 +114,42 @@ void Key_sort_buffer::sort(Dup *dup) noexcept {
   merge_sort(&m_dtuples[0], &aux[0], 0, m_n_tuples, compare_key);
 }
 
-dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
+dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer,
+                                   Function persist) noexcept {
   std::pair<const byte *, const byte *> bounds{
       io_buffer.first, io_buffer.first + io_buffer.second};
 
-  size_t i{};
+  /* Points past the filled part of buffer */
   auto ptr = io_buffer.first;
-  const auto n_fields = dict_index_get_n_fields(m_index);
 
-  auto write = [=](decltype(io_buffer) &io_buffer,
-                   decltype(ptr) &ptr) -> dberr_t {
+  /* Move as many blocks as possible out of the buffer by persisting them */
+  auto write_buffer = [io_buffer, &ptr, persist]() -> dberr_t {
     auto persist_buffer = io_buffer;
 
-    const size_t to_write = ptr - io_buffer.first;
-    persist_buffer.second = to_write;
+    const size_t buf_filled = ptr - io_buffer.first;
+    persist_buffer.second = ut_uint64_align_down(buf_filled, IO_BLOCK_SIZE);
 
-    os_offset_t n_written{};
-    auto err = f(persist_buffer, n_written);
+    auto err = persist(persist_buffer);
 
     if (err != DB_SUCCESS) {
       return err;
     }
 
-    ut_a(n_written <= to_write);
-    const auto n_move = to_write - n_written;
+    const os_offset_t bytes_written = persist_buffer.second;
+    const auto bytes_remaining = buf_filled - bytes_written;
 
     ptr = io_buffer.first;
-    memmove(ptr, ptr + n_written, n_move);
-    ptr += n_move;
+    memmove(ptr, ptr + bytes_written, bytes_remaining);
+    ptr += bytes_remaining;
 
     /* Remaining contents of buffer must be less than the needed alignment.*/
-    ut_ad(n_move < IO_BLOCK_SIZE);
+    ut_ad(bytes_remaining < IO_BLOCK_SIZE);
 
     return DB_SUCCESS;
   };
+
+  size_t i{};
+  const auto n_fields = dict_index_get_n_fields(m_index);
 
   for (const auto &fields : m_dtuples) {
     if (i++ >= m_n_tuples) {
@@ -186,12 +188,14 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
 
     const auto rec_size = need + size;
 
-    if (unlikely(ptr + rec_size >= bounds.second)) {
-      const auto err = write(io_buffer, ptr);
+    /* If serialized record won't fit in buffer, make space in the buffer
+     by persisting a portion of it */
+    if (unlikely(ptr + rec_size > bounds.second)) {
+      const auto err = write_buffer();
       if (err != DB_SUCCESS) {
         return err;
       }
-      ut_a(ptr + rec_size < bounds.second);
+      ut_a(ptr + rec_size <= bounds.second);
     }
 
     memcpy(ptr, prefix, need);
@@ -206,14 +210,37 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
     ptr += size;
   }
 
-  /* Write an "end-of-chunk" marker. */
+  ut_a(ptr <= bounds.second);
+
+  /* At this point there is some data remaining in buffer. It needs
+  to be persisted, followed by zero-filled region at least 1 byte in
+  length and aligned to IO_BLOCK_SIZE ("end-of-chunk" marker) */
+  size_t buf_filled = ptr - io_buffer.first;
+  size_t aligned_size = ut_uint64_align_up(buf_filled + 1, IO_BLOCK_SIZE);
+
+  /* Check if adding the end-of-chunk marker would overflow the buffer */
+  if (aligned_size > io_buffer.second) {
+    /* If so, persist a portion of the buffer to free it up */
+    const auto err = write_buffer();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+    ut_ad(ptr > io_buffer.first);
+    ut_a(size_t(ptr - io_buffer.first) < IO_BLOCK_SIZE);
+    /* After writing buffer contains [0, IO_BLOCK_SIZE) bytes,
+    so aligning it to  IO_BLOCK_SIZE guarantees space for
+    end-of-chunk marker */
+    aligned_size = IO_BLOCK_SIZE;
+  }
+
+  /* Append the end-of-chunk marker. */
   ut_a(ptr < bounds.second);
+  auto pad_end = io_buffer.first + aligned_size;
+  ut_ad(pad_end > ptr);
+  size_t pad_length = pad_end - ptr;
+  memset(ptr, 0, pad_length);
 
-  *ptr++ = 0;
-
-  io_buffer.second = ptr - io_buffer.first;
-
-  return f(io_buffer, io_buffer.second);
+  return persist({io_buffer.first, aligned_size});
 }
 
 int Key_sort_buffer::compare(const dfield_t *lhs, const dfield_t *rhs,

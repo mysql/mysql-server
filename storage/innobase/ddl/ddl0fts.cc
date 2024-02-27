@@ -914,7 +914,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
         auto &file = handler->m_file;
         handler->m_offsets.push_back(file.m_size);
 
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
+        auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
           return builder->append(file, io_buffer);
         };
 
@@ -1043,7 +1043,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
 
       handler->m_offsets.push_back(file.m_size);
 
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
+      auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
         return builder->append(file, io_buffer);
       };
 
