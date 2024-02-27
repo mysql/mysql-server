@@ -25,7 +25,7 @@ let $i = $tcs;
 while ($i)
 {
   eval CREATE TABLE XY.T_$i (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT,
-                             primary key(a, b), unique(b)) ENGINE=InnoDB;
+                             primary key(a, b), unique(a)) ENGINE=InnoDB;
   dec $i;
 }
 
