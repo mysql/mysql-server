@@ -67,7 +67,7 @@ class RestApi {
    * if no handler accepts the request, a HTTP response with status 404 will be
    * sent.
    */
-  void handle_paths(HttpRequest &req);
+  void handle_paths(http::base::Request &req);
 
   /**
    * get the uri path prefix.

@@ -38,7 +38,7 @@
 #include "mysqlrouter/routing_component.h"
 
 bool RestRoutingDestinations::on_handle_request(
-    HttpRequest &req, const std::string & /* base_path */,
+    http::base::Request &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {
   if (!ensure_no_params(req)) return true;
 
@@ -50,7 +50,7 @@ bool RestRoutingDestinations::on_handle_request(
     return true;
   }
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
 #if 0

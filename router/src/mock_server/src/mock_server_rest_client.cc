@@ -54,19 +54,19 @@ void MockServerRestClient::set_globals(const std::string &globals_json) {
                              " failed (early): " + put_req.error_msg());
   }
 
-  if (put_req.get_response_code() <= 0u) {
+  if (put_req.get_response_code() <= 0) {
     throw std::runtime_error(std::string("HTTP Request to ") + http_hostname_ +
                              ":" + std::to_string(http_port_) +
                              " failed: " + put_req.error_msg());
   }
 
-  if (put_req.get_response_code() != 204u) {
+  if (put_req.get_response_code() != 204) {
     throw std::runtime_error(
         std::string("Invalid response code from HTTP PUT request: ") +
         std::to_string(put_req.get_response_code()));
   }
 
-  auto put_resp_body = put_req.get_input_buffer();
+  auto &put_resp_body = put_req.get_input_buffer();
   if ((put_resp_body.length() != 0u)) {
     throw std::runtime_error(
         std::string("Invalid response body length from HTTP PUT request: ") +
@@ -85,19 +85,19 @@ std::string MockServerRestClient::get_globals_as_json_string() {
                              " failed (early): " + req.error_msg());
   }
 
-  if (req.get_response_code() != 200u) {
+  if (req.get_response_code() != 200) {
     throw std::runtime_error(
         std::string("Invalid response code from HTTP PUT request: ") +
         std::to_string(req.get_response_code()));
   }
 
-  if (strcmp(req.get_input_headers().get("Content-Type"), "application/json") !=
-      0) {
+  auto pvalue = req.get_input_headers().find("Content-Type");
+  if (pvalue == nullptr || strcmp(pvalue->c_str(), "application/json") != 0) {
     throw std::runtime_error(std::string("Invalid response Conten-Type: ") +
-                             req.get_input_headers().get("Content-Type"));
+                             (pvalue ? *pvalue : ""));
   }
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   if (!(resp_body.length() > 0u)) {
     throw std::runtime_error(std::string("Invalid response buffer size: ") +
                              std::to_string(resp_body.length()));
@@ -161,7 +161,7 @@ void MockServerRestClient::send_delete(const std::string &uri) {
                              " failed (early): " + kill_req.error_msg());
   }
 
-  if (kill_req.get_response_code() != 200u) {
+  if (kill_req.get_response_code() != 200) {
     throw std::runtime_error(std::string("HTTP Delete Request on ") + uri +
                              " failed (invalid response code): " +
                              std::to_string(kill_req.get_response_code()));

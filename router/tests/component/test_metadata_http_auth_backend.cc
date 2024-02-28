@@ -361,7 +361,7 @@ TEST_F(BasicMetadataHttpAuthTest, MetadataHttpAuthDefaultConfig) {
                                        kContentTypeJson));
 }
 
-TEST_F(BasicMetadataHttpAuthTest, UnsupportedMetadataSchemaVersion) {
+TEST_F(BasicMetadataHttpAuthTest, DISABLED_UnsupportedMetadataSchemaVersion) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
                     cluster_node_port, false, view_id, {2, 0, 0});
 

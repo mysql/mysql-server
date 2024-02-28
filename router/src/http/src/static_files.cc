@@ -37,22 +37,21 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <event2/http.h>  // evhttp_uridecode
-
+#include "http/base/uri.h"
 #include "mysql/harness/stdx/io/file_handle.h"
-#include "mysqlrouter/http_auth_realm_component.h"
-#include "mysqlrouter/http_server_component.h"
+#include "mysqlrouter/component/http_auth_realm_component.h"
+#include "mysqlrouter/component/http_server_auth.h"
+#include "mysqlrouter/component/http_server_component.h"
 
 #include "content_type.h"
 
-void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
-  HttpUri parsed_uri{req.get_uri()};
+HttpStaticFolderHandler::HttpStaticFolderHandler(std::string static_basedir,
+                                                 std::string require_realm)
+    : static_basedir_(std::move(static_basedir)),
+      require_realm_{std::move(require_realm)} {}
 
-  // failed to parse the URI
-  if (!parsed_uri) {
-    req.send_error(HttpStatusCode::BadRequest);
-    return;
-  }
+void HttpStaticFolderHandler::handle_request(http::base::Request &req) {
+  auto &parsed_uri{req.get_uri()};
 
   if (req.get_method() != HttpMethod::Get &&
       req.get_method() != HttpMethod::Head) {
@@ -78,10 +77,11 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   std::string file_path{static_basedir_};
 
   file_path += "/";
-  const auto unescaped = HttpUri::decode(parsed_uri.get_path(), 1);
-  file_path += http_uri_path_canonicalize(unescaped);
+  const auto unescaped =
+      mysqlrouter::URIParser::decode(parsed_uri.get_path(), true);
+  file_path += http::base::http_uri_path_canonicalize(unescaped);
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
 
   struct stat st;
   if (-1 == stat(file_path.c_str(), &st)) {
@@ -140,21 +140,22 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
 
     req.add_last_modified(st.st_mtime);
 
-    auto chunk = req.get_output_buffer();
-    // if the file-size is 0, there is nothing to send ... and it triggers a
-    // mmap() error
-    if (st.st_size > 0) {
-      // only use sendfile if packet is large enough as it will be sent in sep
-      // TCP packet/syscall
-      //
-      // using TCP_CORK would help here
-      // if (st.st_size > 64 * 1024) {
-      //    evbuffer_set_flags(chunk, EVBUFFER_FLAG_DRAINS_TO_FD);
-      // }
-      chunk.add_file(fh.release(), 0, st.st_size);
-      // file_fd is owned by evbuffer_add_file(), don't close it
-    } else {
-      fh.close();
+    auto &chunk = req.get_output_buffer();
+    chunk.get().resize(st.st_size);
+
+    ssize_t offset = 0;
+
+    while (offset != st.st_size) {
+      auto result =
+          ::read(fh.native_handle(), &chunk.get()[offset], st.st_size);
+
+      if (result < 0) {
+        if (errno == EINTR) continue;
+        req.send_error(HttpStatusCode::InternalError);
+        return;
+      }
+
+      offset += result;
     }
 
     // file exists

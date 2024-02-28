@@ -45,12 +45,12 @@
 
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 
-bool RestRouterStatus::on_handle_request(HttpRequest &req,
+bool RestRouterStatus::on_handle_request(http::base::Request &req,
                                          const std::string & /* base_path */,
                                          const std::vector<std::string> &) {
   if (!ensure_no_params(req)) return true;
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
   if (!ensure_modified_since(req, last_modified_)) return true;

@@ -24,7 +24,7 @@
 */
 #include "http_auth_realm.h"
 
-#include "mysqlrouter/http_auth_backend_component.h"
+#include "mysqlrouter/component/http_auth_backend_component.h"
 
 std::error_code HttpAuthRealm::authenticate(const std::string &username,
                                             const std::string &password) const {

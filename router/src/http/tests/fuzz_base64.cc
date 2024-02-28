@@ -23,7 +23,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "../src/base64.h"
+#include "mysqlrouter/base64.h"
 
 #include <string>
 #include <system_error>

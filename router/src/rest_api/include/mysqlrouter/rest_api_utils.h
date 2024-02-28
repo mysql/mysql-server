@@ -36,8 +36,8 @@
 
 #include <rapidjson/document.h>
 
+#include "http/base/request.h"
 #include "mysql/harness/utility/string.h"  // string_format()
-#include "mysqlrouter/http_request.h"
 
 /**
  * send a JsonProblem HTTP response.
@@ -53,7 +53,8 @@
  * @param status_code HTTP Status code of the problem message
  * @param fields fields on the problem message
  */
-void send_rfc7807_error(HttpRequest &req, HttpStatusCode::key_type status_code,
+void send_rfc7807_error(http::base::Request &req,
+                        HttpStatusCode::key_type status_code,
                         const std::map<std::string, std::string> &fields);
 
 /**
@@ -66,7 +67,8 @@ void send_rfc7807_error(HttpRequest &req, HttpStatusCode::key_type status_code,
  * @retval true if HTTP method is allowed
  * @retval false if HTTP is not allowed and HTTP response has been sent
  */
-bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods);
+bool ensure_http_method(http::base::Request &req,
+                        HttpMethod::Bitset allowed_methods);
 
 /**
  * ensure request is authenticated.
@@ -78,7 +80,7 @@ bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods);
  * @retval false if authentication was not successful and HTTP response has been
  * sent
  */
-bool ensure_auth(HttpRequest &req, const std::string require_realm);
+bool ensure_auth(http::base::Request &req, const std::string require_realm);
 
 /**
  * ensure request has no parameters.
@@ -90,14 +92,14 @@ bool ensure_auth(HttpRequest &req, const std::string require_realm);
  * @retval false if request contained a query-string and HTTP response has
  * been sent
  */
-bool ensure_no_params(HttpRequest &req);
+bool ensure_no_params(http::base::Request &req);
 
 /**
  * send a JsonProblem "Not Found" error.
  *
  * @param req HttpRequest object to send error-msg
  */
-void send_rfc7807_not_found_error(HttpRequest &req);
+void send_rfc7807_not_found_error(http::base::Request &req);
 
 /**
  * ensure resource has modified since client received it.
@@ -109,7 +111,7 @@ void send_rfc7807_not_found_error(HttpRequest &req);
  * @retval false if client has the same resource and HTTP response has been
  * sent
  */
-bool ensure_modified_since(HttpRequest &req, time_t last_modified);
+bool ensure_modified_since(http::base::Request &req, time_t last_modified);
 
 /**
  * send json document as HTTP response.
@@ -120,7 +122,8 @@ bool ensure_modified_since(HttpRequest &req, time_t last_modified);
  * @param status_code HTTP Status code of the problem message
  * @param json_doc json document to send as response
  */
-void send_json_document(HttpRequest &req, HttpStatusCode::key_type status_code,
+void send_json_document(http::base::Request &req,
+                        HttpStatusCode::key_type status_code,
                         const rapidjson::Document &json_doc);
 
 /**

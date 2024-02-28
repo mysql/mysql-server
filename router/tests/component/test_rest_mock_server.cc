@@ -35,7 +35,6 @@
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
-#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
@@ -135,15 +134,15 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 200u);
-  EXPECT_THAT(req.get_input_headers().get("Content-Type"),
+  EXPECT_EQ(req.get_response_code(), 200);
+  EXPECT_THAT(req.get_input_headers().find_cstr("Content-Type"),
               ::testing::StrEq("application/json"));
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_GT(resp_body.length(), 0u);
   auto resp_body_content = resp_body.pop_front(resp_body.length());
 
@@ -220,13 +219,13 @@ TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// slow connect");
@@ -279,16 +278,16 @@ TEST_F(RestMockServerRestServerMockTest, unknown_url_fails) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg() << std::endl;
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg()
       << std::endl;
 
-  EXPECT_EQ(req.get_response_code(), 404u);
-  EXPECT_THAT(req.get_input_headers().get("Content-Type"),
+  EXPECT_EQ(req.get_response_code(), 404);
+  EXPECT_THAT(req.get_input_headers().find_cstr("Content-Type"),
               ::testing::StrEq("text/html"));
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_GT(resp_body.length(), 0u);
   auto resp_body_content = resp_body.pop_front(resp_body.length());
 }
@@ -317,13 +316,13 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_no_json) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg() << std::endl;
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 415u);
+  EXPECT_EQ(req.get_response_code(), 415);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 }
 
@@ -353,13 +352,13 @@ TEST_F(RestMockServerRestServerMockTest, put_root_fails) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 404u);
+  EXPECT_EQ(req.get_response_code(), 404);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_NE(resp_body.length(), 0u);
 }
 
@@ -480,7 +479,7 @@ TEST_F(RestMockServerNestingTest, nesting) {
 class RestMockServerMethodsTest
     : public RestMockServerRestServerMockTest,
       public ::testing::WithParamInterface<
-          std::tuple<unsigned int, std::string, unsigned int>> {};
+          std::tuple<unsigned int, std::string, int>> {};
 
 /**
  * ensure OPTIONS, HEAD and others work.
@@ -509,7 +508,7 @@ TEST_P(RestMockServerMethodsTest, methods_avail) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
@@ -578,20 +577,20 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_ok) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 }
 
 class RestMockServerRequestTest
     : public RestMockServerRestServerMockTest,
       public ::testing::WithParamInterface<
-          std::tuple<int, const char *, const char *, unsigned int>> {};
+          std::tuple<int, const char *, const char *, int>> {};
 
 /**
  * ensure valid and invalid JSON results in the correct behaviour.
@@ -623,7 +622,7 @@ TEST_P(RestMockServerRequestTest, request) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
@@ -640,15 +639,15 @@ TEST_P(RestMockServerRequestTest, request) {
                          << std::to_string(http_port_)
                          << " failed (early): " << get_req.error_msg();
 
-    ASSERT_GT(get_req.get_response_code(), 0u)
+    ASSERT_GT(get_req.get_response_code(), 0)
         << "HTTP Request to " << http_hostname << ":"
         << std::to_string(http_port_) << " failed: " << get_req.error_msg();
 
-    EXPECT_EQ(get_req.get_response_code(), 200u);
-    EXPECT_THAT(get_req.get_input_headers().get("Content-Type"),
+    EXPECT_EQ(get_req.get_response_code(), 200);
+    EXPECT_THAT(get_req.get_input_headers().find_cstr("Content-Type"),
                 ::testing::StrEq("application/json"));
 
-    auto get_resp_body = get_req.get_input_buffer();
+    auto &get_resp_body = get_req.get_input_buffer();
     EXPECT_GT(get_resp_body.length(), 0u);
     auto get_resp_body_content =
         get_resp_body.pop_front(get_resp_body.length());
@@ -718,13 +717,13 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
                        << std::to_string(http_port_)
                        << " failed (early): " << put_req.error_msg();
 
-  ASSERT_GT(put_req.get_response_code(), 0u)
+  ASSERT_GT(put_req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << put_req.error_msg();
 
-  EXPECT_EQ(put_req.get_response_code(), 204u);
+  EXPECT_EQ(put_req.get_response_code(), 204);
 
-  auto put_resp_body = put_req.get_input_buffer();
+  auto &put_resp_body = put_req.get_input_buffer();
   EXPECT_EQ(put_resp_body.length(), 0u);
 
   // GET request
@@ -735,15 +734,15 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
                        << std::to_string(http_port_)
                        << " failed (early): " << get_req.error_msg();
 
-  ASSERT_GT(get_req.get_response_code(), 0u)
+  ASSERT_GT(get_req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << get_req.error_msg();
 
-  EXPECT_EQ(get_req.get_response_code(), 200u);
-  EXPECT_THAT(get_req.get_input_headers().get("Content-Type"),
+  EXPECT_EQ(get_req.get_response_code(), 200);
+  EXPECT_THAT(get_req.get_input_headers().find_cstr("Content-Type"),
               ::testing::StrEq("application/json"));
 
-  auto get_resp_body = get_req.get_input_buffer();
+  auto &get_resp_body = get_req.get_input_buffer();
   EXPECT_GT(get_resp_body.length(), 0u);
   auto get_resp_body_content = get_resp_body.pop_front(get_resp_body.length());
 
@@ -804,13 +803,13 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 200u);
+  EXPECT_EQ(req.get_response_code(), 200);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// check connection is killed");
@@ -844,13 +843,13 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query
@@ -885,13 +884,13 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query
@@ -929,11 +928,11 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_password) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
   // mysql query
   mysqlrouter::MySQLSession client;
@@ -981,13 +980,13 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_empty_password) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query
@@ -1034,14 +1033,14 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_username) {
                    << std::to_string(http_port_)
                    << " failed (early): " << req.error_msg();
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request to " << http_hostname << ":"
       << std::to_string(http_port_) << " failed: " << req.error_msg();
 
-  EXPECT_EQ(req.get_response_code(), 204u);
+  EXPECT_EQ(req.get_response_code(), 204);
 
-  auto resp_body = req.get_input_buffer();
-  EXPECT_EQ(resp_body.length(), 0u);
+  auto &resp_body = req.get_input_buffer();
+  EXPECT_EQ(resp_body.length(), 0);
 
   // mysql query
   mysqlrouter::MySQLSession client;

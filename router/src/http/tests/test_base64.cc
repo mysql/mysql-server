@@ -24,7 +24,7 @@
 */
 
 // there is a another base64.h in the server's code
-#include "../src/base64.h"
+#include "mysqlrouter/base64.h"
 
 #include <stdexcept>
 #include <tuple>

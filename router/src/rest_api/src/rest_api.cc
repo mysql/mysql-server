@@ -27,7 +27,7 @@
 
 #include "mysqlrouter/rest_api_utils.h"
 
-bool RestApiSpecHandler::try_handle_request(HttpRequest &req,
+bool RestApiSpecHandler::try_handle_request(http::base::Request &req,
                                             const std::string & /* base_path */,
                                             const std::vector<std::string> &) {
   if (!ensure_http_method(req, HttpMethod::Get | HttpMethod::Head)) {
@@ -40,7 +40,7 @@ bool RestApiSpecHandler::try_handle_request(HttpRequest &req,
 
   if (!ensure_no_params(req)) return true;
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
   if (!req.is_modified_since(last_modified_)) {
@@ -52,10 +52,7 @@ bool RestApiSpecHandler::try_handle_request(HttpRequest &req,
 
   req.add_last_modified(last_modified_);
   if (req.get_method() == HttpMethod::Get) {
-    auto chunk = req.get_output_buffer();
-    chunk.add(spec.data(), spec.size());
-
-    req.send_reply(HttpStatusCode::Ok, "Ok", chunk);
+    req.send_reply(HttpStatusCode::Ok, "Ok", spec);
   } else {
     // HEAD has no content, but a Content-Length
     //
@@ -68,6 +65,6 @@ bool RestApiSpecHandler::try_handle_request(HttpRequest &req,
   return true;
 }
 
-void RestApiHttpRequestHandler::handle_request(HttpRequest &req) {
+void RestApiHttpRequestHandler::handle_request(http::base::Request &req) {
   rest_api_->handle_paths(req);
 }

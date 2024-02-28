@@ -39,6 +39,7 @@
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
 
+#include "http/base/request.h"
 #include "mysqlrouter/rest_client.h"
 
 class RestApi;
@@ -58,7 +59,7 @@ class REST_API_EXPORT BaseRestApiHandler {
    * @retval false request has not been handled (no response has been sent)
    */
   virtual bool try_handle_request(
-      HttpRequest &req, const std::string &base_path,
+      http::base::Request &req, const std::string &base_path,
       const std::vector<std::string> &path_matches) = 0;
 
   virtual ~BaseRestApiHandler();
@@ -77,11 +78,11 @@ class REST_API_EXPORT RestApiHandler : public BaseRestApiHandler {
       : require_realm_(require_realm), allowed_methods_(allowed_methods) {}
 
   bool try_handle_request(
-      HttpRequest &req, const std::string &base_path,
+      http::base::Request &req, const std::string &base_path,
       const std::vector<std::string> &path_matches) override;
 
   virtual bool on_handle_request(
-      HttpRequest &req, const std::string &base_path,
+      http::base::Request &req, const std::string &base_path,
       const std::vector<std::string> &path_matches) = 0;
 
  private:

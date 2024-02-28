@@ -93,30 +93,30 @@ std::error_code RestMetadataClient::fetch(
 
   RestClient rest_client(io_ctx, hostname_, port_, username_, password_);
 
-  HttpRequest get_req = rest_client.request_sync(HttpMethod::Get, url);
+  auto get_req = rest_client.request_sync(HttpMethod::Get, url);
 
   if (!get_req) {
     return make_error_code(FetchErrorc::request_failed);
   }
 
   switch (get_req.get_response_code()) {
-    case 200u:
+    case 200:
       break;
-    case 404u:
-    case 503u:
+    case 404:
+    case 503:
       return make_error_code(FetchErrorc::not_ready_yet);
-    case 401u:
+    case 401:
       return make_error_code(FetchErrorc::authentication_required);
     default:
       return make_error_code(FetchErrorc::not_ok);
   }
 
-  if (get_req.get_input_headers().get("Content-Type") !=
+  if (get_req.get_input_headers().find_cstr("Content-Type") !=
       std::string("application/json")) {
     return make_error_code(FetchErrorc::unexpected_content_type);
   }
 
-  auto resp_buffer = get_req.get_input_buffer();
+  auto &resp_buffer = get_req.get_input_buffer();
 
   size_t content_length = resp_buffer.length();
   if (content_length == 0u) {

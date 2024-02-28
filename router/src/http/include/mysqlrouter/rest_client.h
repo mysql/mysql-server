@@ -25,47 +25,80 @@
 #ifndef MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
 #define MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
 
-#include "mysqlrouter/http_client.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "http/base/method.h"
+#include "http/base/uri.h"
+#include "http/client/client.h"
+#include "http/client/request.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/tls_client_context.h"
+
+#include "mysqlrouter/http_client_export.h"
 
 constexpr const char kRestAPIVersion[] = "20190715";
 
+using IOContext = net::io_context;
+
 class HTTP_CLIENT_EXPORT RestClient {
  public:
-  RestClient(IOContext &io_ctx, const std::string &address, uint16_t port)
-      : http_client_{std::unique_ptr<HttpClient>{
-            new HttpClient(io_ctx, address, port)}} {}
+  using Request = http::client::Request;
+  using HttpUri = http::base::Uri;
 
-  RestClient(IOContext &io_ctx, const std::string &address, uint16_t port,
-             const std::string &username, const std::string &password)
-      : username_{username},
-        password_{password},
-        http_client_{std::unique_ptr<HttpClient>{
-            new HttpClient(io_ctx, address, port)}} {}
+ public:
+  RestClient(IOContext &io_ctx, const std::string &default_host,
+             uint16_t default_port, const std::string &default_username = {},
+             const std::string &default_password = {});
 
-  RestClient(IOContext &io_ctx, const HttpUri &u, const std::string &username,
-             const std::string &password)
-      : username_{username},
-        password_{password},
-        http_client_{std::unique_ptr<HttpClient>{
-            new HttpClient(io_ctx, u.get_host(), u.get_port())}} {}
+  // The path, query, fragment parts of the URI, are ignored
+  // (overwritten when specifying the request).
+  RestClient(IOContext &io_ctx,
+             const HttpUri &default_uri = HttpUri{"http://127.0.0.1"})
+      : io_context_{io_ctx},
+        uri_{default_uri},
+        http_client_{std::make_unique<http::client::Client>(io_ctx)} {}
 
-  // build a RestClient around an existing HttpClient object that's consumed
-  RestClient(std::unique_ptr<HttpClient> &&http_client)
-      : http_client_{std::move(http_client)} {}
+  RestClient(IOContext &io_ctx, TlsClientContext &&tls_context,
+             const HttpUri &default_uri = HttpUri{"http://127.0.0.1"})
+      : io_context_{io_ctx},
+        uri_{default_uri},
+        http_client_{std::make_unique<http::client::Client>(
+            io_ctx, std::move(tls_context))} {}
 
-  HttpRequest request_sync(
-      HttpMethod::type method, const std::string &uri,
-      const std::string &request_body = {},
-      const std::string &content_type = "application/json");
+  // Request might be send to different host than the default one.
+  // 'uri' parameter overrides default uri settings.
+  Request request_sync(http::base::method::key_type method, const HttpUri &uri,
+                       const std::string &request_body = {},
+                       const std::string &content_type = "application/json");
+
+  // Use default host, for this request.
+  Request request_sync(http::base::method::key_type method,
+                       const std::string &path,
+                       const std::string &request_body = {},
+                       const std::string &content_type = "application/json");
 
   operator bool() const { return http_client_->operator bool(); }
 
-  std::string error_msg() const { return http_client_->error_msg(); }
+  std::string error_msg() const { return http_client_->error_message(); }
 
  private:
-  std::string username_;
-  std::string password_;
-  std::unique_ptr<HttpClient> http_client_;
+  static std::string make_userinfo(const std::string &user,
+                                   const std::string &password) {
+    if (password.empty()) return user;
+
+    std::string result = user;
+
+    result += ':';
+    result += password;
+    return result;
+  }
+
+  net::io_context &io_context_;
+  HttpUri uri_{"/"};
+  std::unique_ptr<http::client::Client> http_client_;
 };
 
-#endif
+#endif  // MYSQL_ROUTER_REST_CLIENT_H_INCLUDED

@@ -39,8 +39,8 @@
 #include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"  // ::join()
 
+#include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/http_constants.h"
-#include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
 #include "mysqlrouter/rest_routing_export.h"
 #include "mysqlrouter/supported_rest_options.h"

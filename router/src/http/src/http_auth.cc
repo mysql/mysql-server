@@ -28,11 +28,12 @@
 #include <algorithm>
 #include <string>
 
+#include "http/base/request.h"
 #include "http_auth_backend.h"
 #include "http_auth_error.h"
-#include "http_auth_method_basic.h"
 #include "matcher.h"
-#include "mysqlrouter/http_server_component.h"
+#include "mysqlrouter/component/http_auth_method_basic.h"
+#include "mysqlrouter/component/http_server_auth.h"
 
 std::string HttpQuotedString::quote(const std::string &str) {
   std::string out;
@@ -171,29 +172,28 @@ std::string HttpAuthCredentials::str() const {
   return out;
 }
 
-bool HttpAuth::require_auth(HttpRequest &req,
+bool HttpAuth::require_auth(http::base::Request &req,
                             std::shared_ptr<HttpAuthRealm> realm) {
   constexpr char kAuthorization[]{"Authorization"};
   constexpr char kWwwAuthenticate[]{"WWW-Authenticate"};
   constexpr char kMethodBasic[]{"Basic"};
   // enforce authentication
-  auto authorization = req.get_input_headers().get(kAuthorization);
+  auto authorization = req.get_input_headers().find(kAuthorization);
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
 
   // no Authorization, tell the client to authenticate
   if (authorization == nullptr) {
     out_hdrs.add(kWwwAuthenticate, HttpAuthChallenge(realm->method(), "",
                                                      {{"realm", realm->name()}})
-                                       .str()
-                                       .c_str());
+                                       .str());
     req.send_reply(HttpStatusCode::Unauthorized);
     return true;
   }
 
   // split Basic <...>
   std::error_code ec;
-  auto creds = HttpAuthCredentials::from_header(authorization, ec);
+  auto creds = HttpAuthCredentials::from_header(*authorization, ec);
   if (ec) {
     // parsing header failed
     req.send_reply(HttpStatusCode::BadRequest);

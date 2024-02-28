@@ -61,7 +61,6 @@
 #include "mysqlrouter/classic_protocol_codec_message.h"
 #include "mysqlrouter/classic_protocol_frame.h"
 #include "mysqlrouter/classic_protocol_message.h"
-#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/utils.h"
 #include "openssl_version.h"  // ROUTER_OPENSSL_VERSION
 #include "process_manager.h"
