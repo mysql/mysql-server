@@ -2186,15 +2186,6 @@ class RouterAppConfigExposer : public mysql_harness::SectionConfigExposer {
       expose_option(option, op_val, op_default_val);
     };
 
-    auto expose_bool_option = [&](const std::string &option,
-                                  const bool &default_val) {
-      auto value = default_val;
-      if (default_section_.has(option)) {
-        value = default_section_.get(option) != "0";
-      }
-      expose_option(option, value, default_val);
-    };
-
     expose_int_option(
         "max_total_connections",
         static_cast<int64_t>(routing::kDefaultMaxTotalConnections));
@@ -2202,18 +2193,6 @@ class RouterAppConfigExposer : public mysql_harness::SectionConfigExposer {
     // only share a user if it is not empty
     expose_str_option("user", kDefaultSystemUserName, true);
     expose_str_option("unknown_config_option", "error");
-    expose_bool_option("router_require_enforce",
-                       routing::kDefaultRequireEnforce);
-    expose_int_option(
-        "thread_stack_size",
-        static_cast<int64_t>(mysql_harness::kDefaultStackSizeInKiloBytes));
-    expose_int_option("connect_timeout",
-                      mysqlrouter::MySQLSession::kDefaultConnectTimeout);
-    expose_int_option("read_timeout",
-                      mysqlrouter::MySQLSession::kDefaultReadTimeout);
-    expose_int_option(
-        "max_idle_server_connections",
-        static_cast<int64_t>(kDefaultMaxIdleServerConnectionsBootstrap));
   }
 };
 

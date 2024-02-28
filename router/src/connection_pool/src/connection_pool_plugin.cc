@@ -170,7 +170,7 @@ class ConnectionPoolConfigExposer : public mysql_harness::SectionConfigExposer {
   void expose() override {
     expose_option(kMaxIdleServerConnections,
                   plugin_config_.max_idle_server_connections,
-                  kDefaultMaxIdleServerConnectionsBootstrap);
+                  kDefaultMaxIdleServerConnectionsBootstrap, true);
     expose_option(kIdleTimeout, plugin_config_.idle_timeout,
                   kDefaultIdleTimeout);
   }
