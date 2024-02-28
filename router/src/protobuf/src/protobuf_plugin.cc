@@ -53,7 +53,6 @@ mysql_harness::Plugin ROUTER_PROTOBUF_EXPORT harness_plugin_router_protobuf = {
     nullptr,  // stop
     false,    // declare_readiness
     0, nullptr,
-    nullptr,  // expose_initial_configuration
-    nullptr,  // expose_default_configuration
+    nullptr,  // expose_configuration
 };
 }

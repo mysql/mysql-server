@@ -43,6 +43,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/section_config_exposer.h"
 
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
@@ -94,25 +95,6 @@ class ConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
 
   [[nodiscard]] bool is_required(std::string_view /* option */) const override {
     return false;
-  }
-
-  void expose_initial_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-    DC::SectionId id{kSectionName, ""};
-
-    DC::instance().set_option_configured(id, kMaxIdleServerConnections,
-                                         max_idle_server_connections);
-    DC::instance().set_option_configured(id, kIdleTimeout, idle_timeout);
-  }
-
-  void expose_default_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-    DC::SectionId id{kSectionName, ""};
-
-    DC::instance().set_option_default(
-        id, kMaxIdleServerConnections,
-        kDefaultMaxIdleServerConnectionsBootstrap);
-    DC::instance().set_option_default(id, kIdleTimeout, kDefaultIdleTimeout);
   }
 };
 
@@ -173,8 +155,34 @@ const static std::array<const char *, 2> required = {{
     "io",
 }};
 
+namespace {
+
+class ConnectionPoolConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
+  using DC = mysql_harness::DynamicConfig;
+  ConnectionPoolConfigExposer(
+      bool initial, const ConnectionPoolPluginConfig &plugin_config,
+      const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(initial, default_section,
+                                            DC::SectionId{kSectionName, ""}),
+        plugin_config_(plugin_config) {}
+
+  void expose() override {
+    expose_option(kMaxIdleServerConnections,
+                  plugin_config_.max_idle_server_connections,
+                  kDefaultMaxIdleServerConnectionsBootstrap);
+    expose_option(kIdleTimeout, plugin_config_.idle_timeout,
+                  kDefaultIdleTimeout);
+  }
+
+ private:
+  const ConnectionPoolPluginConfig &plugin_config_;
+};
+
+}  // namespace
+
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
-                                 bool initial) {
+                                 const char * /*key*/, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (!info->config) return;
@@ -182,23 +190,11 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
   for (const mysql_harness::ConfigSection *section : info->config->sections()) {
     if (section->name == kSectionName) {
       ConnectionPoolPluginConfig config{section};
-      if (initial) {
-        config.expose_initial_configuration();
-      } else {
-        config.expose_default_configuration();
-      }
+      ConnectionPoolConfigExposer(initial, config,
+                                  info->config->get_default_section())
+          .expose();
     }
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, false);
 }
 
 extern "C" {
@@ -221,7 +217,6 @@ mysql_harness::Plugin CONNECTION_POOL_PLUGIN_EXPORT
         false,    // declares_readiness
         supported_options.size(),
         supported_options.data(),
-        expose_initial_configuration,
-        expose_default_configuration,
+        expose_configuration,
 };
 }

@@ -583,22 +583,9 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
     }
 
     RoutingPluginConfig config(section);
-    if (initial) {
-      config.expose_initial_configuration(key);
-    } else {
-      config.expose_default_configuration(key);
-    }
+    config.expose_configuration(key, info->config->get_default_section(),
+                                initial);
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char *key) {
-  expose_configuration(env, key, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char *key) {
-  expose_configuration(env, key, false);
 }
 
 mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
@@ -620,6 +607,5 @@ mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
     true,     // declares_readiness
     routing_supported_options.size(),
     routing_supported_options.data(),
-    expose_initial_configuration,
-    expose_default_configuration,
+    expose_configuration,
 };

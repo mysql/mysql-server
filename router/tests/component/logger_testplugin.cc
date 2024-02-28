@@ -85,7 +85,6 @@ mysql_harness::Plugin PLUGIN_API harness_plugin_routertestplugin_logger = {
     nullptr,  // stop
     true,     // declares_readiness
     logger_sink_supported_options.size(), logger_sink_supported_options.data(),
-    nullptr,  // expose_initial_configuration
-    nullptr,  // expose_default_configuration
+    nullptr,  // expose_configuration
 };
 }

@@ -82,7 +82,6 @@ mysql_harness::Plugin MAGIC_API harness_plugin_routertestplugin_magic = {
     nullptr,  // stop
     false,    // declares_readiness
     0, nullptr,
-    nullptr,  // expose_initial_configuration
-    nullptr,  // expose_default_configuration
+    nullptr,  // expose_configuration
 };
 }

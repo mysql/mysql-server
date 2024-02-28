@@ -53,6 +53,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
@@ -108,35 +109,6 @@ class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
     if (option == "backend") return true;
     if (option == "method") return true;
     return false;
-  }
-
-  void expose_initial_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"http_authentication_realm", ""};
-
-    auto set_option = [&](const std::string &option, const auto &value) {
-      DC::instance().set_option_configured(id, option, value);
-    };
-
-    set_option("name", name);
-    set_option("backend", backend);
-    set_option("method", method);
-    set_option("require", require);
-  }
-
-  void expose_default_configuration() const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"http_authentication_realm", ""};
-
-    auto set_default = [&](const std::string &option,
-                           const auto &default_value) {
-      DC::instance().set_option_default(id, option, default_value);
-    };
-
-    set_default("name", "default_realm");
-    set_default("backend", std::string(kHttpDefaultAuthBackendName));
-    set_default("method", std::string(kHttpDefaultAuthMethod));
-    set_default("require", get_default("require"));
   }
 };
 
@@ -230,8 +202,37 @@ static const std::array<const char *, 1> required = {{
     "logger",
 }};
 
+namespace {
+
+class HttpAuthRealmConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
+  using DC = mysql_harness::DynamicConfig;
+  HttpAuthRealmConfigExposer(
+      const bool initial, const HttpAuthRealmPluginConfig &plugin_config,
+      const mysql_harness::ConfigSection &default_section)
+      : mysql_harness::SectionConfigExposer(
+            initial, default_section,
+            DC::SectionId{"http_authentication_realm", ""}),
+        plugin_config_(plugin_config) {}
+
+  void expose() override {
+    expose_option("name", plugin_config_.name, "default_realm");
+    expose_option("backend", plugin_config_.backend,
+                  std::string(kHttpDefaultAuthBackendName));
+    expose_option("method", plugin_config_.method,
+                  std::string(kHttpDefaultAuthMethod));
+    expose_option("require", plugin_config_.require,
+                  plugin_config_.get_default("require"));
+  }
+
+ private:
+  const HttpAuthRealmPluginConfig &plugin_config_;
+};
+
+}  // namespace
+
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
-                                 bool initial) {
+                                 const char * /*key*/, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (!info->config) return;
@@ -239,23 +240,11 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
   for (const mysql_harness::ConfigSection *section : info->config->sections()) {
     if (section->name == kSectionName) {
       HttpAuthRealmPluginConfig config{section};
-      if (initial) {
-        config.expose_initial_configuration();
-      } else {
-        config.expose_default_configuration();
-      }
+      HttpAuthRealmConfigExposer(initial, config,
+                                 info->config->get_default_section())
+          .expose();
     }
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, false);
 }
 
 extern "C" {
@@ -277,7 +266,6 @@ mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     false,    // declares_readiness
     http_auth_realm_suported_options.size(),
     http_auth_realm_suported_options.data(),
-    expose_initial_configuration,
-    expose_default_configuration,
+    expose_configuration,
 };
 }

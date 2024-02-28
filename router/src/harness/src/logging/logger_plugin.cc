@@ -35,6 +35,7 @@
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/logging/supported_logger_options.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/utility/string.h"  // join
 
@@ -212,42 +213,6 @@ class LoggingPluginConfig : public mysql_harness::BasePluginConfig {
 
   bool is_required(std::string_view /*option*/) const override { return false; }
 
-  void expose_initial_configuration(const std::string &key) const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"loggers", key};
-
-    auto set_option = [&](const std::string &option, const auto &value) {
-      DC::instance().set_option_configured(id, option, value);
-    };
-
-    set_option(kLogFilename, filename);
-    set_option(kDestination, destination);
-    set_option(kLogLevel, mysql_harness::logging::log_level_to_string(level));
-    set_option(kLogTimestampPrecision,
-               mysql_harness::logging::log_timestamp_precision_to_string(
-                   timestamp_precision));
-  }
-
-  void expose_default_configuration(const std::string &key) const {
-    using DC = mysql_harness::DynamicConfig;
-    const DC::SectionId id{"loggers", key};
-
-    auto set_default = [&](const std::string &option,
-                           const auto &default_value) {
-      DC::instance().set_option_default(id, option, default_value);
-    };
-
-    set_default(kLogFilename, mysql_harness::logging::kDefaultLogFilename);
-    set_default(kDestination, "");
-    set_default(kLogLevel,
-                mysql_harness::logging::log_level_to_string(
-                    mysql_harness::logging::kDefaultLogLevelBootstrap));
-    set_default(kLogTimestampPrecision,
-                mysql_harness::logging::log_timestamp_precision_to_string(
-                    mysql_harness::logging::LogTimestampPrecision::kSec));
-  }
-
- private:
   static constexpr const char *kLogLevel =
       mysql_harness::logging::kConfigOptionLogLevel;
   static constexpr const char *kLogTimestampPrecision =
@@ -528,8 +493,43 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   g_on_switch_to_configured_loggers_clbs.clear();
 }
 
+namespace {
+
+class LoggerConfigExposer : public mysql_harness::SectionConfigExposer {
+ public:
+  using DC = mysql_harness::DynamicConfig;
+  LoggerConfigExposer(const bool initial,
+                      const LoggingPluginConfig &plugin_config,
+                      const mysql_harness::ConfigSection &default_section,
+                      const std::string &key)
+      : mysql_harness::SectionConfigExposer(initial, default_section,
+                                            DC::SectionId{"loggers", key}),
+        plugin_config_(plugin_config) {}
+
+  void expose() override {
+    expose_option(plugin_config_.kLogFilename, plugin_config_.filename,
+                  mysql_harness::logging::kDefaultLogFilename);
+    expose_option(plugin_config_.kDestination, plugin_config_.destination, "");
+    expose_option(
+        plugin_config_.kLogLevel,
+        mysql_harness::logging::log_level_to_string(plugin_config_.level),
+        mysql_harness::logging::log_level_to_string(
+            mysql_harness::logging::kDefaultLogLevelBootstrap));
+    expose_option(plugin_config_.kLogTimestampPrecision,
+                  mysql_harness::logging::log_timestamp_precision_to_string(
+                      plugin_config_.timestamp_precision),
+                  mysql_harness::logging::log_timestamp_precision_to_string(
+                      mysql_harness::logging::LogTimestampPrecision::kSec));
+  }
+
+ private:
+  const LoggingPluginConfig &plugin_config_;
+};
+
+}  // namespace
+
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
-                                 bool initial) {
+                                 const char * /*key*/, bool initial) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (!info->config) return;
@@ -551,26 +551,14 @@ static void expose_configuration(mysql_harness::PluginFuncEnv *env,
             sink, config, default_log_filename, default_log_level,
             default_log_timestamp_precision);
 
-        if (initial) {
-          plugin_conf.expose_initial_configuration(sink);
-        } else {
-          plugin_conf.expose_default_configuration(sink);
-        }
+        LoggerConfigExposer(initial, plugin_conf,
+                            info->config->get_default_section(), sink)
+            .expose();
       } catch (const std::exception &e) {
         log_warning("Failed exposing logger sink configuration: %s", e.what());
       }
     }
   }
-}
-
-static void expose_initial_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, true);
-}
-
-static void expose_default_configuration(mysql_harness::PluginFuncEnv *env,
-                                         const char * /*key*/) {
-  expose_configuration(env, false);
 }
 
 mysql_harness::Plugin harness_plugin_logger = {
@@ -590,6 +578,5 @@ mysql_harness::Plugin harness_plugin_logger = {
     logger_supported_options.size(),
     logger_supported_options.data(),
 
-    expose_initial_configuration,
-    expose_default_configuration,
+    expose_configuration,
 };

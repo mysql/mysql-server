@@ -44,7 +44,6 @@ mysql_harness::Plugin harness_plugin_consolelog = {
     false,    // declares_readiness
     logger_sink_supported_options.size(),
     logger_sink_supported_options.data(),
-    nullptr,  // expose_initial_configuration
-    nullptr,  // expose_default_configuration
+    nullptr,  // expose_configuration
 };
 }

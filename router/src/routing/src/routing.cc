@@ -131,7 +131,6 @@ RoutingBootstrapSectionType get_section_type_from_routing_name(
     return RoutingBootstrapSectionType::kXRo;
   } else if (name == kDefaultXRoSectionName) {
   } else {
-    assert(name == kDefaultRwSplitSectionName);
   }
 
   return RoutingBootstrapSectionType::kRwSplit;

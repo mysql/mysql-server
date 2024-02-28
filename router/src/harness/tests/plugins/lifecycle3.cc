@@ -67,7 +67,6 @@ mysql_harness::Plugin LIFECYCLE3_API
         nullptr,  // stop
         false,    // declares_readiness
         0, nullptr,
-        nullptr,  // expose_initial_configuration
-        nullptr,  // expose_default_configuration
+        nullptr,  // expose_configuration
 };
 }

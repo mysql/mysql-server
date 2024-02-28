@@ -851,22 +851,15 @@ class HARNESS_EXPORT Loader {
    * configuration is requested. This callback is supposed to expose the
    * application-level configration options (not plugin specific ones).
    *
-   * @param clb callback to register
+   * @param clb callback to register that takes 2 parameters
+   *            - bool indicating if the requested configuration is the initial
+   *              one (if true) or default (false)
+   *            - object representing default section of the current
+   *              configuration
    */
   void register_expose_app_config_callback(
-      std::function<void(const ConfigSection &)> clb) {
+      std::function<void(const bool, const ConfigSection &)> clb) {
     expose_app_config_clb_ = clb;
-  }
-
-  /**
-   * Register a callback that the Loader will call when exposing of the all
-   * configuration defaults is requested. This callback is supposed to expose
-   * the application-level configration defaults (not plugin specific ones).
-   *
-   * @param clb callback to register
-   */
-  void register_expose_app_defaults_callback(std::function<void()> clb) {
-    expose_app_defaults_clb_ = clb;
   }
 
   /**
@@ -877,14 +870,11 @@ class HARNESS_EXPORT Loader {
   /**
    * Request the application and all the configured plugins to expose their
    * configuration in the DyncamicConfig object.
+   *
+   * @param initial if true initial configuration is to exposed, default
+   *                configuration otherwise
    */
-  void expose_initial_config_all();
-
-  /**
-   * Request the application and all the configured plugins to expose their
-   * defaults in the DyncamicConfig object.
-   */
-  void expose_default_config_all();
+  void expose_config_all(const bool initial);
 
  private:
   enum class Status { UNVISITED, ONGOING, VISITED };
@@ -1075,11 +1065,8 @@ class HARNESS_EXPORT Loader {
   // called after "main_loop()" exited.
   std::function<void()> after_first_finished_;
 
-  // called as a part of expose_initial_config_all()
-  std::function<void(const ConfigSection &)> expose_app_config_clb_;
-
-  // called as a part of expose_default_config_all()
-  std::function<void()> expose_app_defaults_clb_;
+  // called as a part of expose_config_all()
+  std::function<void(const bool, const ConfigSection &)> expose_app_config_clb_;
 
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
