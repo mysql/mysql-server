@@ -29,7 +29,7 @@
 #include "mysql/binlog/event/compression/base.h"                    // type
 #include "mysql/binlog/event/compression/buffer/grow_constraint.h"  // Grow_constraint
 #include "mysql/binlog/event/compression/buffer/managed_buffer_sequence.h"  // Managed_buffer_sequence
-#include "mysql/binlog/event/nodiscard.h"  // NODISCARD
+#include "mysql/utils/nodiscard.h"  // NODISCARD
 
 #include <limits>  // std::numeric_limits
 

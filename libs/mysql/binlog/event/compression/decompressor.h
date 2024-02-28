@@ -28,7 +28,7 @@
 #include "mysql/binlog/event/compression/buffer/grow_constraint.h"  // Grow_constraint
 #include "mysql/binlog/event/compression/buffer/managed_buffer.h"  // Managed_buffer
 #include "mysql/binlog/event/compression/decompress_status.h"  // Decompress_status
-#include "mysql/binlog/event/nodiscard.h"                      // NODISCARD
+#include "mysql/utils/nodiscard.h"                             // NODISCARD
 
 namespace mysql::binlog::event::compression {
 

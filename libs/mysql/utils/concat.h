@@ -32,10 +32,10 @@
 #include <sstream>  // std::ostringstream
 #include <string>   // std::string
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlUtils
 /// @{
 
-namespace mysql::binlog::event::string {
+namespace mysql::utils {
 
 namespace internal {
 
@@ -67,7 +67,7 @@ std::string concat(Args... args) {
   return out.str();
 }
 
-}  // namespace mysql::binlog::event::string
+}  // namespace mysql::utils
 
 /// @}
 

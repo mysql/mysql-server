@@ -41,7 +41,7 @@
 #include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view
 #include "mysql/binlog/event/compression/buffer/grow_calculator.h"  // buffer::Grow_calculator
 #include "mysql/binlog/event/compression/buffer/grow_status.h"  // buffer::Grow_status
-#include "mysql/binlog/event/nodiscard.h"                       // NODISCARD
+#include "mysql/utils/nodiscard.h"                              // NODISCARD
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 

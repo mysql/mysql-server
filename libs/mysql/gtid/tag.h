@@ -29,10 +29,10 @@
 #include <memory>
 #include <string>
 
-#include "mysql/binlog/event/nodiscard.h"
 #include "mysql/gtid/gtid_constants.h"
 #include "mysql/gtid/gtid_format.h"
 #include "mysql/gtid/tag_plain.h"
+#include "mysql/utils/nodiscard.h"
 
 /// @addtogroup GroupLibsMysqlGtid
 /// @{

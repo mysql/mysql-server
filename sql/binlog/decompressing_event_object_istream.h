@@ -28,7 +28,7 @@
 
 #include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 #include "sql/binlog_reader.h"
 #include "sql/raii/targeted_stringstream.h"
 

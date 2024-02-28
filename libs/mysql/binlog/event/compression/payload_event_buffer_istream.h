@@ -32,7 +32,7 @@
 #include "mysql/binlog/event/compression/factory.h"  // mysqlns::compression::Factory
 #include "mysql/binlog/event/control_events.h"  // Transaction_payload_event
 #include "mysql/binlog/event/event_reader.h"    // Event_reader
-#include "mysql/binlog/event/nodiscard.h"       // NODISCARD
+#include "mysql/utils/nodiscard.h"              // NODISCARD
 
 /// @addtogroup GroupLibsMysqlBinlogEvent
 /// @{

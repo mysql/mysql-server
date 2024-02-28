@@ -27,7 +27,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/binlog/event/compression/compressor.h"
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 #include "sql_string.h"
 
 /**

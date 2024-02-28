@@ -24,7 +24,7 @@
 #ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CONSTRAINT_H
 #define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CONSTRAINT_H
 
-#include "mysql/binlog/event/nodiscard.h"  // NODISCARD
+#include "mysql/utils/nodiscard.h"  // NODISCARD
 
 #include <algorithm>  // std::min
 #include <limits>     // std::numeric_limits

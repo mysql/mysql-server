@@ -24,10 +24,10 @@
 #include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
 
 #include "mysql/binlog/event/byteorder.h"
-#include "mysql/binlog/event/string/concat.h"
 #include "mysql/binlog/event/wrapper_functions.h"
+#include "mysql/utils/concat.h"
 
-using mysql::binlog::event::string::concat;
+using mysql::utils::concat;
 
 namespace mysql::binlog::event::compression {
 

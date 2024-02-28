@@ -30,7 +30,7 @@
 #include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"
 #include "mysql/binlog/event/compression/compressor.h"
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 
 struct ZSTD_outBuffer_s;
 

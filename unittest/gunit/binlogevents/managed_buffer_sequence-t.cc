@@ -30,9 +30,9 @@
 #include <iterator>    // std::distance
 
 #include "mysql/binlog/event/math/math.h"
-#include "mysql/binlog/event/string/concat.h"
+#include "mysql/utils/concat.h"
 
-using mysql::binlog::event::string::concat;
+using mysql::utils::concat;
 
 namespace mysql::binlog::event::compression::buffer {
 namespace managed_buffer_sequence::unittest {

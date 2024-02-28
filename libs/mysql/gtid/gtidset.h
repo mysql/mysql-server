@@ -29,11 +29,11 @@
 #include <set>
 #include <sstream>
 
-#include "mysql/binlog/event/nodiscard.h"
 #include "mysql/gtid/global.h"
 #include "mysql/gtid/gtid.h"
 #include "mysql/gtid/tag.h"
 #include "mysql/gtid/tsid.h"
+#include "mysql/utils/nodiscard.h"
 
 /// @addtogroup GroupLibsMysqlGtid
 /// @{

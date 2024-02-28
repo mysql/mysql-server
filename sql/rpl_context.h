@@ -29,7 +29,7 @@
 
 #include "my_inttypes.h"                                // IWYU pragma: keep
 #include "mysql/binlog/event/compression/compressor.h"  // mysql::binlog::event::compression::Compressor
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 
 #include "mysql/binlog/event/compression/factory.h"
 #include "sql/binlog/group_commit/bgc_ticket.h"

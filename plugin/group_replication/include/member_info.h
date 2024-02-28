@@ -43,7 +43,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/member_version.h"
 #include "plugin/group_replication/include/plugin_constants.h"

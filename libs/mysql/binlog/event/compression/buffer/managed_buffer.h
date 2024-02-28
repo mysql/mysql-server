@@ -37,7 +37,7 @@
 #include "grow_status.h"                       // buffer::Grow_status
 #include "mysql/allocators/allocator.h"        // Allocator
 #include "mysql/allocators/memory_resource.h"  // Memory_resource
-#include "mysql/binlog/event/nodiscard.h"      // NODISCARD
+#include "mysql/utils/nodiscard.h"             // NODISCARD
 #include "rw_buffer.h"                         // buffer::Rw_buffer
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE

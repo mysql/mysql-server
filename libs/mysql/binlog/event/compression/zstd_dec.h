@@ -29,7 +29,7 @@
 
 #include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/decompressor.h"
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 
 namespace mysql::binlog::event::compression {
 

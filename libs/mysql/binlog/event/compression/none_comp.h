@@ -25,7 +25,7 @@
 #define MYSQL_BINLOG_EVENT_COMPRESSION_NONE_COMP_H
 
 #include "compressor.h"
-#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/utils/nodiscard.h"
 
 namespace mysql::binlog::event::compression {
 
