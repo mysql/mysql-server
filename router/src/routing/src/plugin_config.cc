@@ -892,6 +892,9 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
                       routing::kDefaultConnectionSharingDelay)
                       .count(),
                   true);
+    expose_option("router_require_enforce",
+                  plugin_config_.router_require_enforce,
+                  routing::kDefaultRequireEnforce, true);
 
     // expose access_mode only if it is not empty
     const auto access_mode =
