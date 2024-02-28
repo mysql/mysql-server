@@ -33,12 +33,12 @@
 
 #include <limits>
 
-#include "grow_calculator.h"                        // buffer::Grow_calculator
-#include "grow_status.h"                            // buffer::Grow_status
-#include "mysql/binlog/event/nodiscard.h"           // NODISCARD
-#include "mysql/binlog/event/resource/allocator.h"  // Allocator
-#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
-#include "rw_buffer.h"                                    // buffer::Rw_buffer
+#include "grow_calculator.h"                   // buffer::Grow_calculator
+#include "grow_status.h"                       // buffer::Grow_status
+#include "mysql/allocators/allocator.h"        // Allocator
+#include "mysql/allocators/memory_resource.h"  // Memory_resource
+#include "mysql/binlog/event/nodiscard.h"      // NODISCARD
+#include "rw_buffer.h"                         // buffer::Rw_buffer
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
@@ -116,8 +116,8 @@ class Managed_buffer : public buffer::Rw_buffer<Char_tp> {
   using typename Rw_buffer_t::Size_t;
   // As soon as all platforms support it, change to:
   // using Allocator_t = std::pmr::polymorphic_allocator<Char_t>;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
-  using Char_allocator_t = mysql::binlog::event::resource::Allocator<Char_t>;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
+  using Char_allocator_t = mysql::allocators::Allocator<Char_t>;
   using Grow_calculator_t = Grow_calculator;
 
   /// Construct a new object without a default buffer.

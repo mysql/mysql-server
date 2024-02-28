@@ -38,7 +38,7 @@
 // #include <memory_resource>  // std::pmr::polymorphic_allocator
 #include <list>    // std::list
 #include <vector>  // std::vector
-#include "mysql/binlog/event/resource/allocator.h"
+#include "mysql/allocators/allocator.h"
 
 #include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"  // buffer::Buffer_sequence_view
 #include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view

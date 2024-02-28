@@ -27,10 +27,10 @@
 #define ZSTD_STATIC_LINKING_ONLY 1
 #include <zstd.h>
 
+#include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"
 #include "mysql/binlog/event/compression/compressor.h"
 #include "mysql/binlog/event/nodiscard.h"
-#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
 struct ZSTD_outBuffer_s;
 
@@ -42,7 +42,7 @@ class Zstd_comp : public Compressor {
   using typename Compressor::Char_t;
   using typename Compressor::Managed_buffer_sequence_t;
   using typename Compressor::Size_t;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
   using Compression_level_t = int;
   static constexpr type type_code = ZSTD;
 

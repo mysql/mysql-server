@@ -35,13 +35,13 @@
 #include <limits>     // std::numeric_limits
 #include <vector>     // std::vector
 
+#include "mysql/allocators/allocator.h"        // Allocator
+#include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view
 #include "mysql/binlog/event/compression/buffer/grow_calculator.h"  // buffer::Grow_calculator
 #include "mysql/binlog/event/compression/buffer/grow_status.h"  // buffer::Grow_status
 #include "mysql/binlog/event/compression/buffer/rw_buffer_sequence.h"  // buffer::Rw_buffer_sequence
-#include "mysql/binlog/event/nodiscard.h"                 // NODISCARD
-#include "mysql/binlog/event/resource/allocator.h"        // Allocator
-#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
+#include "mysql/binlog/event/nodiscard.h"  // NODISCARD
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
@@ -128,8 +128,8 @@ class Managed_buffer_sequence
   using Grow_calculator_t = Grow_calculator;
   using Buffer_allocator_t =
       typename Buffer_sequence_view_t::Buffer_allocator_t;
-  using Char_allocator_t = mysql::binlog::event::resource::Allocator<Char_t>;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Char_allocator_t = mysql::allocators::Allocator<Char_t>;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
 
   /// Construct a new, empty object.
   ///

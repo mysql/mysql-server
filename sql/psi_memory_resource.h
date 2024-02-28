@@ -24,11 +24,10 @@
 #ifndef PSI_MEMORY_RESOURCE_H_
 #define PSI_MEMORY_RESOURCE_H_
 
-#include "mysql/binlog/event/resource/memory_resource.h"
+#include "mysql/allocators/memory_resource.h"
 #include "sql/psi_memory_key.h"
 
 /// Return a PSI-enabled Memory_resource using the given key.
-mysql::binlog::event::resource::Memory_resource psi_memory_resource(
-    PSI_memory_key key);
+mysql::allocators::Memory_resource psi_memory_resource(PSI_memory_key key);
 
 #endif  // PSI_MEMORY_RESOURCE_H_

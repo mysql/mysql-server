@@ -25,14 +25,14 @@
 #define MYSQL_BINLOG_EVENT_COMPRESSION_FACTORY_H
 
 #include <memory>
+#include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/compressor.h"
 #include "mysql/binlog/event/compression/decompressor.h"
-#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
 namespace mysql::binlog::event::compression {
 
 class Factory {
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
 
  public:
   static std::unique_ptr<Compressor> build_compressor(

@@ -26,9 +26,9 @@
 
 #include <queue>
 
+#include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
 #include "mysql/binlog/event/nodiscard.h"
-#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 #include "sql/binlog_reader.h"
 #include "sql/raii/targeted_stringstream.h"
 
@@ -76,7 +76,7 @@ class Decompressing_event_object_istream {
   using Fde_ref_t = const mysql::binlog::event::Format_description_event &;
   using Status_t = mysql::binlog::event::compression::Decompress_status;
   using Grow_calculator_t = Buffer_stream_t::Grow_calculator_t;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
 
   /// Construct stream over a file, decompressing payload events.
   ///

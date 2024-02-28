@@ -29,14 +29,14 @@
 #ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_SEQUENCE_VIEW_H
 #define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_SEQUENCE_VIEW_H
 
-#include <algorithm>                                // std::min
-#include <cassert>                                  // assert
-#include <cstring>                                  // std::memcpy
-#include <limits>                                   // std::numeric_limits
-#include <memory>                                   // std::allocator
-#include <type_traits>                              // std::conditional
-#include <vector>                                   // std::vector
-#include "mysql/binlog/event/resource/allocator.h"  // mysql::binlog::event::resource::Allocator
+#include <algorithm>                     // std::min
+#include <cassert>                       // assert
+#include <cstring>                       // std::memcpy
+#include <limits>                        // std::numeric_limits
+#include <memory>                        // std::allocator
+#include <type_traits>                   // std::conditional
+#include <vector>                        // std::vector
+#include "mysql/allocators/allocator.h"  // mysql::allocators::Allocator
 
 #include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view
 #include "mysql/binlog/event/compression/buffer/grow_calculator.h"  // buffer::Grow_calculator
@@ -74,8 +74,7 @@ class Buffer_sequence_view {
   using Char_t = Char_tp;
   using Size_t = std::size_t;
   using Buffer_view_t = Buffer_view<Char_t>;
-  using Buffer_allocator_t =
-      mysql::binlog::event::resource::Allocator<Buffer_view_t>;
+  using Buffer_allocator_t = mysql::allocators::Allocator<Buffer_view_t>;
   using Container_t = Container_tp<Buffer_view_t, Buffer_allocator_t>;
   using Const_iterator_t = typename Container_t::const_iterator;
   using Iterator_t =

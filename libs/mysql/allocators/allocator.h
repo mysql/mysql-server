@@ -26,18 +26,18 @@
 /// @brief Allocator class that uses a polymorphic Memory_resource to
 /// allocate memory.
 
-#ifndef MYSQL_BINLOG_EVENT_RESOURCE_ALLOCATOR_H
-#define MYSQL_BINLOG_EVENT_RESOURCE_ALLOCATOR_H
+#ifndef MYSQL_ALLOCATORS_ALLOCATOR_H
+#define MYSQL_ALLOCATORS_ALLOCATOR_H
 
 #include <cassert>  // assert
 #include <limits>   // std::numeric_limits
 
-#include "mysql/binlog/event/resource/memory_resource.h"
+#include "mysql/allocators/memory_resource.h"
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlAllocators
 /// @{
 
-namespace mysql::binlog::event::resource {
+namespace mysql::allocators {
 
 /// @brief Allocator using a Memory_resource to do the allocator.
 ///
@@ -141,8 +141,8 @@ bool operator!=([[maybe_unused]] const Allocator<T> &a1,
   return true;
 }
 
-}  // namespace mysql::binlog::event::resource
+}  // namespace mysql::allocators
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_RESOURCE_ALLOCATOR_H
+#endif  // MYSQL_ALLOCATORS_ALLOCATOR_H

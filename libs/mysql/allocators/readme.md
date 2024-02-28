@@ -1,7 +1,7 @@
-\page PageLibsMysql MySQL Libraries
+\page PageLibsMysqlAllocators Library: Allocators
 
 <!---
-Copyright (c) 2023, 2024, Oracle and/or its affiliates.
+Copyright (c) 2024, Oracle and/or its affiliates.
 //
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,33 +25,9 @@ along with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 -->
 
-MySQL Libraries
-===============
+<!--
+MySQL Allocators Library
+========================
+-->
 
-MySQL Libraries contain code shared between different system components:
-e.g. MySQL Server, MySQL Client, MySQL Components, MySQL Plugins.
-
-MySQL Libraries define experimental API used internally in MySQL,
-which is subject to change. Use on your own responsibility.
-
-For now, we build only the static libraries.
-
-Libraries defined on this level:
-- \subpage PageLibsMysqlGtid
-- \subpage PageLibsMysqlBinlog
-- \subpage PageLibsMysqlSerialization
-- \subpage PageLibsMysqlUtils
-
-
-\defgroup GroupLibsMysql Libraries
-
-\defgroup GroupLibsMysqlAllocators Allocators
-\ingroup GroupLibsMysql
-\defgroup GroupLibsMysqlBinlogEvent Binlog Event
-\ingroup GroupLibsMysql
-\defgroup GroupLibsMysqlGtid GTID
-\ingroup GroupLibsMysql
-\defgroup GroupLibsMysqlSerialization Serialization
-\ingroup GroupLibsMysql
-\defgroup GroupLibsMysqlUtils Utils
-\ingroup GroupLibsMysql
+Code documentation: @ref GroupLibsMysqlAllocators.

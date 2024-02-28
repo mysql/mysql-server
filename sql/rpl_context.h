@@ -268,7 +268,7 @@ class Transaction_compression_ctx {
  public:
   using Compressor_ptr_t = std::shared_ptr<Compressor_t>;
   using Managed_buffer_sequence_t = Compressor_t::Managed_buffer_sequence_t;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
 
   explicit Transaction_compression_ctx(PSI_memory_key key);
 

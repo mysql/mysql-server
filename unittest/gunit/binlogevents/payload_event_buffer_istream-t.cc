@@ -88,7 +88,7 @@ class PayloadEventBufferStreamTest {
       mysql::binlog::event::compression::Payload_event_buffer_istream;
   using Buffer_ptr_t = Stream_t::Buffer_ptr_t;
   static constexpr auto type_code = Compressor_t::type_code;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
 
   // Change to true to get more debug info
   static constexpr bool m_trace = false;

@@ -25,16 +25,16 @@
 ///
 /// @brief Class that wraps resources in a polymorphic manner.
 
-#ifndef MYSQL_BINLOG_EVENT_RESOURCE_MEMORY_RESOURCE_H
-#define MYSQL_BINLOG_EVENT_RESOURCE_MEMORY_RESOURCE_H
+#ifndef MYSQL_ALLOCATORS_MEMORY_RESOURCE_H
+#define MYSQL_ALLOCATORS_MEMORY_RESOURCE_H
 
 #include <cstdlib>
 #include <functional>
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlAllocators
 /// @{
 
-namespace mysql::binlog::event::resource {
+namespace mysql::allocators {
 
 /// Polymorphism-free memory resource class with custom allocator and
 /// deallocator functions.
@@ -128,8 +128,8 @@ class Memory_resource {
   const Deallocator_t m_deallocator;
 };
 
-}  // namespace mysql::binlog::event::resource
+}  // namespace mysql::allocators
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_RESOURCE_MEMORY_RESOURCE_H
+#endif  // MYSQL_ALLOCATORS_MEMORY_RESOURCE_H

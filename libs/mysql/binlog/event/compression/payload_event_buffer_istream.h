@@ -71,9 +71,9 @@ class Payload_event_buffer_istream {
   using Buffer_view_t = Managed_buffer_t::Buffer_view_t;
   using Buffer_ptr_t = std::shared_ptr<Buffer_view_t>;
   using Managed_buffer_ptr_t = std::shared_ptr<Managed_buffer_t>;
-  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+  using Memory_resource_t = mysql::allocators::Memory_resource;
   template <class T>
-  using Allocator_t = mysql::binlog::event::resource::Allocator<T>;
+  using Allocator_t = mysql::allocators::Allocator<T>;
 
   /// Construct the stream from the raw compressed data.
   ///
