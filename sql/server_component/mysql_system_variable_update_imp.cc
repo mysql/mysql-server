@@ -122,6 +122,11 @@ static bool common_system_variable_update_set(Set_variables_helper &hlp,
                                               my_h_string variable_base,
                                               my_h_string variable_name,
                                               Item *variable_value) {
+  /* Cannot set system variable when server is shutting down. */
+  rwlock_scoped_lock rdlock(&LOCK_server_shutting_down, false, __FILE__,
+                            __LINE__);
+  if (server_shutting_down) return true;
+
   String *base = reinterpret_cast<String *>(variable_base);
   String *name = reinterpret_cast<String *>(variable_name);
 
