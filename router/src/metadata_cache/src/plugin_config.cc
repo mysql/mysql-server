@@ -272,7 +272,7 @@ class MetadataCacheConfigExposer : public mysql_harness::SectionConfigExposer {
     expose_option("connect_timeout", plugin_config_.connect_timeout,
                   metadata_cache::kDefaultConnectTimeout);
     expose_option("read_timeout", plugin_config_.read_timeout,
-                  metadata_cache::kDefaultReadTimeout);
+                  metadata_cache::kDefaultReadTimeout, true);
     expose_option("use_gr_notifications", plugin_config_.use_gr_notifications,
                   mysqlrouter::kDefaultUseGRNotificationsCluster,
                   mysqlrouter::kDefaultUseGRNotificationsClusterSet, false);
