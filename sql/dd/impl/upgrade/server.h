@@ -105,6 +105,7 @@ class Upgrade_error_counter {
   bool has_errors();
   bool has_too_many_errors();
   Upgrade_error_counter operator++(int);
+  Upgrade_error_counter operator--(int);
 };
 
 /**
@@ -120,6 +121,7 @@ class Syntax_error_handler : public Internal_error_handler {
   bool handle_condition(THD *, uint sql_errno, const char *,
                         Sql_condition::enum_severity_level *,
                         const char *msg) override;
+  void reset_last_condition();
 
   static bool has_too_many_errors();
   static bool has_errors();
