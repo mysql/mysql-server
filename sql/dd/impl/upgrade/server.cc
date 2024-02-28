@@ -205,6 +205,22 @@ bool Syntax_error_handler::handle_condition(
   return false;
 }
 
+void Syntax_error_handler::reset_last_condition() {
+  // This method was created to handle a corner case in upgrades to 8.4
+  // where old servers contain routines with unsupported terminology.
+  // TODO: As upgrades to 9.0 only come from 8.4+, this code can be removed
+  // in 9.0
+  assert(
+      dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade_from_before(
+          bootstrap::SERVER_VERSION_80400) &&
+      strstr(reason.c_str(), " to use near 'SLAVE STATUS"));
+
+  parse_error_count--;
+  if (m_global_counter) (*m_global_counter)--;
+  is_parse_error = false;
+  reason = "";
+}
+
 bool Syntax_error_handler::has_too_many_errors() {
   return parse_error_count > MAX_SERVER_CHECK_FAILS;
 }
@@ -223,6 +239,10 @@ bool Upgrade_error_counter::has_too_many_errors() {
 }
 Upgrade_error_counter Upgrade_error_counter::operator++(int) {
   m_error_count++;
+  return *this;
+}
+Upgrade_error_counter Upgrade_error_counter::operator--(int) {
+  m_error_count--;
   return *this;
 }
 
@@ -791,15 +811,30 @@ static bool check_events(THD *thd, std::unique_ptr<Schema> &schema,
 }
 
 static bool check_routines(THD *thd, std::unique_ptr<Schema> &schema,
+                           Syntax_error_handler &error_handler,
                            Upgrade_error_counter *error_count) {
   std::unique_ptr<Object_key> routine_key(
       dd::Routine::DD_table::create_key_by_schema_id(schema->id()));
 
   auto process_routine = [&](std::unique_ptr<dd::Routine> &routine) {
-    if (invalid_routine(thd, *schema, *routine))
-      LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "Routine",
-             schema->name().c_str(), routine->name().c_str(),
-             Syntax_error_handler::error_message());
+    if (invalid_routine(thd, *schema, *routine)) {
+      // This is a corner case in upgrades to 8.4 where old servers contain
+      // routines with unsupported terminology.
+      // TODO: As upgrades to 9.0 only come from 8.4+, this code can be removed
+      // in 9.0
+      if (dd::bootstrap::DD_bootstrap_ctx::instance()
+              .is_server_upgrade_from_before(bootstrap::SERVER_VERSION_80400) &&
+          schema->name() == "sys" && routine->name() == "diagnostics" &&
+          strstr(Syntax_error_handler::error_message(),
+                 " to use near 'SLAVE STATUS")) {
+        error_handler.reset_last_condition();
+        thd->clear_error();
+      } else {
+        LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "Routine",
+               schema->name().c_str(), routine->name().c_str(),
+               Syntax_error_handler::error_message());
+      }
+    }
     return error_count->has_too_many_errors();
   };
 
@@ -1005,7 +1040,7 @@ bool do_server_upgrade_checks(THD *thd) {
   auto process_schema = [&](std::unique_ptr<Schema> &schema) {
     return check_tables(thd, schema, &shared_spaces, &error_count) ||
            check_events(thd, schema, &error_count) ||
-           check_routines(thd, schema, &error_count) ||
+           check_routines(thd, schema, error_handler, &error_count) ||
            check_views(thd, schema, &error_count);
   };
 
