@@ -68,9 +68,12 @@ IF(MSVC AND (FPROFILE_GENERATE OR FPROFILE_USE))
          "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
   STRING(REPLACE "/LTCG" "" CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
          "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
-  # Suppress linker warnings generated as a consequence of combining
-  # CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS with __declspec(dllexport)
-  STRING(APPEND CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO " /IGNORE:4197")
+ENDIF()
+
+# Suppress linker warnings generated as a consequence of combining
+# CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS with __declspec(dllexport)
+IF(MSVC)
+  STRING(APPEND CMAKE_SHARED_LINKER_FLAGS " /IGNORE:4197")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wzero-as-null-pointer-constant" HAS_WARN_FLAG)
