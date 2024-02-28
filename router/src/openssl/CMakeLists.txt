@@ -22,3 +22,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 ADD_SUBDIRECTORY(src)
+
+IF(WITH_UNIT_TESTS)
+  ADD_SUBDIRECTORY(tests)
+ENDIF()

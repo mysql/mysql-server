@@ -82,7 +82,7 @@ void fetch_json(RestClient &rest_client, const std::string &uri,
 }
 
 void request_json(RestClient &rest_client, const std::string &uri,
-                  HttpMethod::type http_method,
+                  HttpMethod::key_type http_method,
                   HttpStatusCode::key_type http_status_code,
                   JsonDocument &json_doc,
                   const std::string &expected_content_type) {
@@ -93,12 +93,12 @@ void request_json(RestClient &rest_client, const std::string &uri,
   ASSERT_TRUE(req) << "HTTP Request to failed (early): " << req.error_msg()
                    << std::endl;
 
-  ASSERT_GT(req.get_response_code(), 0u)
+  ASSERT_GT(req.get_response_code(), 0)
       << "HTTP Request failed: " << req.error_msg() << std::endl;
 
   ASSERT_EQ(req.get_response_code(), http_status_code);
   if (!expected_content_type.empty()) {
-    ASSERT_THAT(req.get_input_headers().get("Content-Type"),
+    ASSERT_THAT(req.get_input_headers().find_cstr("Content-Type"),
                 ::testing::StrEq(expected_content_type));
   }
 
@@ -106,7 +106,7 @@ void request_json(RestClient &rest_client, const std::string &uri,
   if (http_method != HttpMethod::Head &&
       http_status_code != HttpStatusCode::Unauthorized &&
       http_status_code != HttpStatusCode::Forbidden) {
-    auto resp_body = req.get_input_buffer();
+    auto &resp_body = req.get_input_buffer();
     ASSERT_GT(resp_body.length(), 0u);
     auto resp_body_content = resp_body.pop_front(resp_body.length());
 
@@ -178,7 +178,7 @@ void mark_object_additional_properties(JsonValue &v,
   }
 }
 
-std::string http_method_to_string(const HttpMethod::type method) {
+std::string http_method_to_string(const HttpMethod::key_type method) {
   switch (method) {
     case HttpMethod::Get:
       return "GET";

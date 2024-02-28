@@ -28,7 +28,7 @@
 #include "mysqlrouter/rest_api_utils.h"
 
 bool RestApiHandler::try_handle_request(
-    HttpRequest &req, const std::string &base_path,
+    http::base::Request &req, const std::string &base_path,
     const std::vector<std::string> &path_matches) {
   if (!ensure_http_method(req, allowed_methods_)) return true;
   if (!ensure_auth(req, require_realm_)) return true;

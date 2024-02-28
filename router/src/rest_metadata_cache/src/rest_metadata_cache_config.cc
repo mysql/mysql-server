@@ -41,7 +41,7 @@ static rapidjson::Value json_value_from_string(const std::string &s,
   return {s.data(), s.size(), allocator};
 }
 
-bool handle_params(HttpRequest &req) {
+bool handle_params(http::base::Request &req) {
   auto md_api = metadata_cache::MetadataCacheAPI::instance();
 
   if (!req.get_uri().get_query().empty()) {
@@ -64,7 +64,7 @@ bool handle_params(HttpRequest &req) {
 }
 
 bool RestMetadataCacheConfig::on_handle_request(
-    HttpRequest &req, const std::string & /* base_path */,
+    http::base::Request &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {
   if (!handle_params(req)) return true;
 
@@ -74,7 +74,7 @@ bool RestMetadataCacheConfig::on_handle_request(
     return true;
   }
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
   rapidjson::Document json_doc;

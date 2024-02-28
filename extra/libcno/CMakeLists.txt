@@ -16,13 +16,13 @@ SET(LIBCNO_GENERATE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-# Following targets, were created to mimic behavior of following
+# Following targets were created to mimic behavior of following
 # files supplied by libcno:
 #
 #    ./cno/hpack-data.py
 #    ./cno/Makefile
 #
-# The output of this application, is and C header file, which
+# The output of this application is a C header file, which
 # is used by 'libcno' internally. The file is not included directly
 # in MySQL source code, because its big and hard to read.
 #
@@ -56,7 +56,7 @@ ADD_LIBRARY(cno STATIC
   ${LIBCNO_VERSION_DIR}/picohttpparser/picohttpparser.c
   )
 TARGET_INCLUDE_DIRECTORIES(cno
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${LIBCNO_VERSION_DIR}/
+  SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${LIBCNO_VERSION_DIR}/
   PRIVATE ${LIBCNO_GENERATE_DIR}
   )
 ADD_DEPENDENCIES(cno

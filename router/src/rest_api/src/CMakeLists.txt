@@ -31,7 +31,7 @@ TARGET_INCLUDE_DIRECTORIES(rest_api_lib
     ${PROJECT_SOURCE_DIR}/src/harness/include/
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     )
-TARGET_LINK_LIBRARIES(rest_api_lib PUBLIC router_lib;http_auth_realm_lib)
+TARGET_LINK_LIBRARIES(rest_api_lib PUBLIC router_lib;http_server;http_auth_realm_lib)
 
 ADD_HARNESS_PLUGIN(rest_api
   SOURCES

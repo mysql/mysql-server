@@ -23,10 +23,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -78,7 +77,7 @@ struct HuffmanCode {
 
 struct Node {
   Node(std::shared_ptr<Node> l, std::shared_ptr<Node> r) : left{l}, right{r} {}
-  explicit Node(uint64_t c) : ch{c} {}
+  Node(uint64_t c) : ch{c} {}
 
   std::shared_ptr<Node> left;
   std::shared_ptr<Node> right;
@@ -355,9 +354,8 @@ int main(int argc, const char *argv[]) {
           ->bit_length;
 
   if (argc != 2) {
-    std::cerr << "This application requires single argument,\n";
-    std::cerr << "which should be a path pointin where generate\n";
-    std::cerr << "the'output-file:\n\n";
+    std::cerr << "This application requires an argument:\n";
+    std::cerr << "\tPATH_OUTPUT_FILE - location of theoutput-file\n\n";
     std::cerr << "\tcno_huffman_generator PATH_OUTPUT_FILE\n";
     return EXIT_FAILURE;
   }

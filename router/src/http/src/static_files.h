@@ -28,16 +28,15 @@
 
 #include <string>
 
-#include "mysqlrouter/http_server_component.h"
+#include "http/base/request.h"
+#include "mysqlrouter/component/http_server_component.h"
 
-class HttpStaticFolderHandler : public BaseRequestHandler {
+class HttpStaticFolderHandler : public ::http::base::RequestHandler {
  public:
   explicit HttpStaticFolderHandler(std::string static_basedir,
-                                   std::string require_realm)
-      : static_basedir_(std::move(static_basedir)),
-        require_realm_{std::move(require_realm)} {}
+                                   std::string require_realm);
 
-  void handle_request(HttpRequest &req) override;
+  void handle_request(http::base::Request &req) override;
 
  private:
   std::string static_basedir_;

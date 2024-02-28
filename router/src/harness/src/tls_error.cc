@@ -87,8 +87,9 @@ const std::error_category &tls_err_category() noexcept {
    public:
     const char *name() const noexcept override { return "tls_err"; }
     std::string message(int ev) const override {
-      std::array<char, 120> buf;
-      return ERR_error_string(ev, buf.data());
+      std::array<char, 512> buffer{0};
+      ERR_error_string_n(ev, buffer.data(), buffer.size());
+      return buffer.data();
     }
   };
 

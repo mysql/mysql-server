@@ -35,7 +35,7 @@ class RestClustersNodes : public RestApiHandler {
   RestClustersNodes(const std::string &require_realm)
       : RestApiHandler(require_realm, HttpMethod::Get) {}
 
-  bool on_handle_request(HttpRequest &req, const std::string &base_path,
+  bool on_handle_request(http::base::Request &req, const std::string &base_path,
                          const std::vector<std::string> &path_matches) override;
 };
 

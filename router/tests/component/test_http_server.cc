@@ -27,16 +27,15 @@
 #include <system_error>
 #include <thread>
 
-#include <event2/event.h>  // EVENT__HAVE_OPENSSL
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "config_builder.h"
 #include "dim.h"
 #include "gtest_testname.h"
+#include "http/base/uri.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"
-#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -75,19 +74,6 @@ using namespace std::chrono_literals;
 const std::string kHttpBasedir(kPlaceholderHttpBaseDir);
 
 uint16_t kHttpDefaultPort{8081};
-
-static constexpr const char kSslSupportIsDisabled[]{
-    "SSL support disabled at compile-time"};
-
-static constexpr bool is_with_ssl_support() {
-  return
-#if defined(EVENT__HAVE_OPENSSL)
-      true
-#else
-      false
-#endif
-      ;
-}
 
 static void ParamPrinter(
     const std::vector<std::pair<std::string, std::string>> &fields,
@@ -131,12 +117,13 @@ struct HttpServerPlainParams {
   int http_method;
   std::string raw_uri_path;
   std::string raw_uri_query;
-  unsigned int status_code;
+  int status_code;
 
   friend void PrintTo(const HttpServerPlainParams &p, std::ostream *os) {
     if (p.expected_success) {
       ParamPrinter(
           {
+              {"test_name", ::testing::PrintToString(p.test_name)},
               {"test_scenario_id",
                ::testing::PrintToString(p.test_scenario_id)},
               {"raw_path", ::testing::PrintToString(p.raw_uri_path)},
@@ -714,7 +701,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      HttpMethod::Get,
      "/with_index/index.html",
-     std::string(15 * 1024, 'a'),
+     std::string(15 * 1024, 'a') + "=1",
      200},
 
     {"URI parser, double question-mark",
@@ -745,7 +732,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "^$",
      "",
      HttpMethod::Get,
-     "/with_index/index[].html",
+     "/with_index/index%5B%5D.html",
      "",
      404},
 
@@ -884,9 +871,7 @@ static const char kServerCertRsa1024File[]{
     "server-sha1-1024-cert.pem"};  // 1024 bit
 #endif
 
-#ifdef EVENT__HAVE_OPENSSL
 static const char kWrongServerCertCaFile[]{"ca-sha512.pem"};
-#endif
 const char kDhParams4File[]{"dhparams-4.pem"};
 const char kDhParams2048File[]{"dhparams-2048.pem"};
 
@@ -1091,7 +1076,7 @@ TEST_P(HttpClientSecureTest, ensure) {
     }
   });
 
-  HttpUri u;
+  ::http::base::Uri u;
   u.set_scheme("https");
   u.set_port(http_port_);
   u.set_host(http_hostname_);
@@ -1099,10 +1084,7 @@ TEST_P(HttpClientSecureTest, ensure) {
 
   IOContext io_ctx;
 
-  auto http_client = std::make_unique<HttpsClient>(io_ctx, std::move(tls_ctx),
-                                                   u.get_host(), u.get_port());
-
-  RestClient rest_client(std::move(http_client));
+  RestClient rest_client(io_ctx, std::move(tls_ctx), u);
 
   SCOPED_TRACE("// wait http port connectable");
 
@@ -1111,7 +1093,7 @@ TEST_P(HttpClientSecureTest, ensure) {
   ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
   SCOPED_TRACE("// GETing " + u.join());
-  auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
+  auto req = rest_client.request_sync(HttpMethod::Get, u);
   if (should_succeeed) {
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), 404);
@@ -1120,7 +1102,6 @@ TEST_P(HttpClientSecureTest, ensure) {
   }
 }
 
-#ifdef EVENT__HAVE_OPENSSL
 static const HttpClientSecureParams http_client_secure_params[]{
     //
     {"default-client-cipher", "WL12524::TS_CR_06", kServerCertCaFile,
@@ -1154,8 +1135,6 @@ INSTANTIATE_TEST_SUITE_P(
           info.param.test_name +
           (info.param.should_succeeed == false ? " fails" : " succeeds"));
     });
-
-#endif
 
 //
 // http_server, broken-config, SSL
@@ -1248,7 +1227,7 @@ TEST_P(HttpServerSecureTest, ensure) {
                     true, false, GetParam().expected_success ? 20s : -1s)};
 
   if (GetParam().expected_success) {
-    HttpUri u;
+    http::base::Uri u;
     u.set_scheme("https");
     u.set_port(http_port_);
     u.set_host(http_hostname_);
@@ -1260,16 +1239,13 @@ TEST_P(HttpServerSecureTest, ensure) {
 
     tls_ctx.ssl_ca(ssl_cert_data_dir_.join(kServerCertCaFile).str(), "");
 
-    auto http_client = std::make_unique<HttpsClient>(
-        io_ctx, std::move(tls_ctx), u.get_host(), u.get_port());
-
-    RestClient rest_client(std::move(http_client));
+    RestClient rest_client(io_ctx, std::move(tls_ctx));
 
     SCOPED_TRACE("// wait for port ready");
     ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
     SCOPED_TRACE("// GETing " + u.join());
-    auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
+    auto req = rest_client.request_sync(HttpMethod::Get, u);
     ASSERT_TRUE(req) << rest_client.error_msg();
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
@@ -1364,10 +1340,8 @@ const HttpServerSecureParams http_server_secure_params[]{
           std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "AES128-SHA:TLSv1.2"},
      },
-     // if SSL support is disabled in libevent, we should see a failure,
-     // success otherwise
-     is_with_ssl_support(),
-     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+     true,
+     ""},
     {"ssl=1, cert, only acceptable ciphers",
      "WL12524::TS_CR_07",
      {
@@ -1380,10 +1354,8 @@ const HttpServerSecureParams http_server_secure_params[]{
           std::string(kPlaceholderStddataDir) + "/" + kServerCertFile},
          {"ssl_cipher", "ECDHE-RSA-AES128-SHA256"},
      },
-     // if SSL support is disabled in libevent, we should see a failure,
-     // success otherwise
-     is_with_ssl_support(),
-     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+     true,
+     ""},
     {"dh_param file does not exist",
      "",
      {
@@ -1427,10 +1399,8 @@ const HttpServerSecureParams http_server_secure_params[]{
          // force a DHE cipher that's known to the server
          {"ssl_cipher", "DHE-RSA-AES256-SHA256"},
      },
-     // if SSL support is disabled in libevent, we should see a failure,
-     // success otherwise
-     is_with_ssl_support(),
-     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+     true,
+     ""},
     {"dh ciphers, strong dh-params",
      "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
      {
@@ -1446,10 +1416,8 @@ const HttpServerSecureParams http_server_secure_params[]{
          {"ssl_dh_param",
           std::string(kPlaceholderDatadir) + "/" + kDhParams2048File},
      },
-     // if SSL support is disabled in libevent, we should see a failure,
-     // success otherwise
-     is_with_ssl_support(),
-     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+     true,
+     ""},
     {"non-dh-cipher, strong dh-params",
      "WL12524::TS_SR4_01,WL12524::TS_SR3_01",
      {
@@ -1464,10 +1432,8 @@ const HttpServerSecureParams http_server_secure_params[]{
          {"ssl_dh_param",
           std::string(kPlaceholderDatadir) + "/" + kDhParams2048File},
      },
-     // if SSL support is disabled in libevent, we should see a failure,
-     // success otherwise
-     is_with_ssl_support(),
-     is_with_ssl_support() ? "" : kSslSupportIsDisabled},
+     true,
+     ""},
     {"dh ciphers, weak dh-params",
      "WL12524::TS_SR7_01",
      {
@@ -1519,7 +1485,7 @@ const HttpServerSecureParams http_server_secure_params_pre_openssl_111[]{
      // connection will fail as ciphers can't be negotiated or libevent may
      // not support SSL
      false,
-     is_with_ssl_support() ? "no cipher match" : kSslSupportIsDisabled},
+     "no cipher match"},
 };
 
 INSTANTIATE_TEST_SUITE_P(

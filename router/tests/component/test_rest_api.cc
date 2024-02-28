@@ -40,7 +40,6 @@
 #include "dim.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"

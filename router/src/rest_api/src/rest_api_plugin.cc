@@ -40,7 +40,7 @@
 #include "mysql/harness/plugin_config.h"
 #include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"  // ::join()
-#include "mysqlrouter/http_server_component.h"
+#include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/rest_api_utils.h"
 
 #include "rest_api.h"
@@ -199,7 +199,7 @@ void RestApi::remove_path(const std::string &path) {
       rest_api_handlers_.end());
 }
 
-void RestApi::handle_paths(HttpRequest &req) {
+void RestApi::handle_paths(http::base::Request &req) {
   std::string uri_path(req.get_uri().get_path());
 
   // strip prefix from uri path

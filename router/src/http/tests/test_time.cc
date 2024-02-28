@@ -27,6 +27,7 @@
 
 #include <ctime>  // time_t
 
+#include "http/base/http_time.h"
 #include "mysqlrouter/http_client.h"
 
 class HttpTimeParsesTest : public ::testing::Test,
@@ -43,14 +44,14 @@ class HttpTimeThrowsTest : public ::testing::Test,
 };
 
 TEST_P(HttpTimeParsesTest, time_from_rfc5322_fixdate) {
-  EXPECT_NO_THROW(
-      EXPECT_THAT(time_from_rfc5322_fixdate(std::get<0>(GetParam())),
-                  ::testing::Eq(std::get<1>(GetParam()))));
+  EXPECT_NO_THROW(EXPECT_THAT(
+      http::base::time_from_rfc5322_fixdate(std::get<0>(GetParam())),
+      ::testing::Eq(std::get<1>(GetParam()))));
 
   char date_buf[30];
   EXPECT_NO_THROW(
-      EXPECT_THAT(time_to_rfc5322_fixdate(std::get<1>(GetParam()), date_buf,
-                                          sizeof(date_buf)),
+      EXPECT_THAT(http::base::time_to_rfc5322_fixdate(
+                      std::get<1>(GetParam()), date_buf, sizeof(date_buf)),
                   ::testing::Eq(29)));
 
   // equal, if you ignore whitespace
@@ -76,7 +77,8 @@ INSTANTIATE_TEST_SUITE_P(
                         "Thu, 31 May 2018 05:18:20 GMT")));
 
 TEST_P(HttpTimeThrowsTest, time_from_rfc5322_fixdate_p) {
-  EXPECT_THROW(time_from_rfc5322_fixdate(GetParam()), std::out_of_range);
+  EXPECT_THROW(http::base::time_from_rfc5322_fixdate(GetParam()),
+               std::out_of_range);
 }
 
 INSTANTIATE_TEST_SUITE_P(HttpTimeThrows, HttpTimeThrowsTest,

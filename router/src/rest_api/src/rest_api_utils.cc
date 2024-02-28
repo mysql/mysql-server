@@ -32,35 +32,33 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
+#include "http/base/request.h"
 #include "mysql/harness/utility/string.h"  // join
-#include "mysqlrouter/http_auth_realm_component.h"
-#include "mysqlrouter/http_server_component.h"  // HttpAuth::require_auth()
+#include "mysqlrouter/component/http_auth_realm_component.h"
+#include "mysqlrouter/component/http_server_auth.h"
 
-void send_json_document(HttpRequest &req, HttpStatusCode::key_type status_code,
+void send_json_document(http::base::Request &req,
+                        HttpStatusCode::key_type status_code,
                         const rapidjson::Document &json_doc) {
   // serialize json-document into a string
-  auto chunk = req.get_output_buffer();
+  rapidjson::StringBuffer json_buf;
 
   {
-    rapidjson::StringBuffer json_buf;
-    {
-      rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+    rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
 
-      json_doc.Accept(json_writer);
+    json_doc.Accept(json_writer);
 
-    }  // free json_doc and json_writer early
+  }  // free json_doc and json_writer early
 
-    // perhaps we could use evbuffer_add_reference() and a unique-ptr on
-    // json_buf here. needs to be benchmarked
-    chunk.add(json_buf.GetString(), json_buf.GetSize());
-  }  // free json_buf early
   req.send_reply(status_code,
-                 HttpStatusCode::get_default_status_text(status_code), chunk);
+                 HttpStatusCode::get_default_status_text(status_code),
+                 {json_buf.GetString(), json_buf.GetSize()});
 }
 
-void send_rfc7807_error(HttpRequest &req, HttpStatusCode::key_type status_code,
+void send_rfc7807_error(http::base::Request &req,
+                        HttpStatusCode::key_type status_code,
                         const std::map<std::string, std::string> &fields) {
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/problem+json");
 
   rapidjson::Document json_doc;
@@ -80,7 +78,7 @@ void send_rfc7807_error(HttpRequest &req, HttpStatusCode::key_type status_code,
   send_json_document(req, status_code, json_doc);
 }
 
-void send_rfc7807_not_found_error(HttpRequest &req) {
+void send_rfc7807_not_found_error(http::base::Request &req) {
   send_rfc7807_error(req, HttpStatusCode::NotFound,
                      {
                          {"title", "URI not found"},
@@ -88,7 +86,8 @@ void send_rfc7807_not_found_error(HttpRequest &req) {
                      });
 }
 
-bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods) {
+bool ensure_http_method(http::base::Request &req,
+                        HttpMethod::Bitset allowed_methods) {
   if ((HttpMethod::Bitset(req.get_method()) & allowed_methods).any())
     return true;
 
@@ -112,7 +111,7 @@ bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods) {
   if ((allowed_methods & HttpMethod::Bitset(HttpMethod::Delete)).any())
     allowed_method_names.push_back("DELETE");
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Allow", mysql_harness::join(allowed_method_names, ",").c_str());
 
   send_rfc7807_error(
@@ -127,7 +126,7 @@ bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods) {
   return false;
 }
 
-bool ensure_auth(HttpRequest &req, const std::string require_realm) {
+bool ensure_auth(http::base::Request &req, const std::string require_realm) {
   if (!require_realm.empty()) {
     if (auto realm =
             HttpAuthRealmComponent::get_instance().get(require_realm)) {
@@ -143,7 +142,7 @@ bool ensure_auth(HttpRequest &req, const std::string require_realm) {
   return true;
 }
 
-bool ensure_no_params(HttpRequest &req) {
+bool ensure_no_params(http::base::Request &req) {
   if (!req.get_uri().get_query().empty()) {
     send_rfc7807_error(req, HttpStatusCode::BadRequest,
                        {
@@ -156,7 +155,7 @@ bool ensure_no_params(HttpRequest &req) {
   return true;
 }
 
-bool ensure_modified_since(HttpRequest &req, time_t last_modified) {
+bool ensure_modified_since(http::base::Request &req, time_t last_modified) {
   if (!req.is_modified_since(last_modified)) {
     req.send_reply(HttpStatusCode::NotModified);
     return false;

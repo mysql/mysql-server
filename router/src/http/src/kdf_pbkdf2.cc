@@ -41,7 +41,7 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
-#include "base64.h"
+#include "mysqlrouter/base64.h"
 
 std::vector<uint8_t> Pbkdf2::salt() {
   std::vector<uint8_t> out(16);
