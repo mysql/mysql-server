@@ -200,7 +200,7 @@ int table_events_stages_common::make_row(PFS_events_stages *stage) {
   ulonglong timer_end;
 
   auto *unsafe = (PFS_stage_class *)stage->m_class;
-  PFS_stage_class *klass = sanitize_stage_class(unsafe);
+  const PFS_stage_class *klass = sanitize_stage_class(unsafe);
   if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -333,7 +333,10 @@ PFS_engine_table *table_events_stages_current::create(
 }
 
 table_events_stages_current::table_events_stages_current()
-    : table_events_stages_common(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : table_events_stages_common(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_events_stages_current::reset_position() {
   m_pos.m_index = 0;
@@ -343,14 +346,12 @@ void table_events_stages_current::reset_position() {
 int table_events_stages_current::rnd_init(bool) { return 0; }
 
 int table_events_stages_current::rnd_next() {
-  PFS_thread *pfs_thread;
-  PFS_events_stages *stage;
-
   m_pos.set_at(&m_next_pos);
+
   PFS_thread_iterator it = global_thread_container.iterate(m_pos.m_index);
-  pfs_thread = it.scan_next(&m_pos.m_index);
+  PFS_thread *pfs_thread = it.scan_next(&m_pos.m_index);
   if (pfs_thread != nullptr) {
-    stage = &pfs_thread->m_stage_current;
+    PFS_events_stages *stage = &pfs_thread->m_stage_current;
     m_next_pos.set_after(&m_pos);
     return make_row(stage);
   }
@@ -359,14 +360,11 @@ int table_events_stages_current::rnd_next() {
 }
 
 int table_events_stages_current::rnd_pos(const void *pos) {
-  PFS_thread *pfs_thread;
-  PFS_events_stages *stage;
-
   set_position(pos);
 
-  pfs_thread = global_thread_container.get(m_pos.m_index);
+  PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index);
   if (pfs_thread != nullptr) {
-    stage = &pfs_thread->m_stage_current;
+    PFS_events_stages *stage = &pfs_thread->m_stage_current;
     return make_row(stage);
   }
 
@@ -422,7 +420,7 @@ PFS_engine_table *table_events_stages_history::create(
 }
 
 table_events_stages_history::table_events_stages_history()
-    : table_events_stages_common(&m_share, &m_pos), m_pos(), m_next_pos() {}
+    : table_events_stages_common(&m_share, &m_pos), m_opened_index(nullptr) {}
 
 void table_events_stages_history::reset_position() {
   m_pos.reset();
@@ -468,22 +466,19 @@ int table_events_stages_history::rnd_next() {
 }
 
 int table_events_stages_history::rnd_pos(const void *pos) {
-  PFS_thread *pfs_thread;
-  PFS_events_stages *stage;
-
   assert(events_stages_history_per_thread != 0);
   set_position(pos);
 
   assert(m_pos.m_index_2 < events_stages_history_per_thread);
 
-  pfs_thread = global_thread_container.get(m_pos.m_index_1);
+  const PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
     if (!pfs_thread->m_stages_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_stages_history_index)) {
       return HA_ERR_RECORD_DELETED;
     }
 
-    stage = &pfs_thread->m_stages_history[m_pos.m_index_2];
+    PFS_events_stages *stage = &pfs_thread->m_stages_history[m_pos.m_index_2];
 
     if (stage->m_class != nullptr) {
       return make_row(stage);

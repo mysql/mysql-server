@@ -145,7 +145,6 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   assert(klass != nullptr);
   assert(n > 0);
   assert(size > 0);
-  void *ptr = nullptr;
   const size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
@@ -154,7 +153,7 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
     return nullptr;
   }
 
-  ptr = pfs_malloc(klass, array_size, flags);
+  void *ptr = pfs_malloc(klass, array_size, flags);
   if (nullptr == ptr) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
                klass->m_class.m_name.str());

@@ -75,7 +75,7 @@ table_session_account_connect_attrs::table_session_account_connect_attrs()
     : table_session_connect(&m_share) {}
 
 bool table_session_account_connect_attrs::thread_fits(PFS_thread *thread) {
-  PFS_thread *current_thread = PFS_thread::get_current_thread();
+  const PFS_thread *current_thread = PFS_thread::get_current_thread();
   /* The current thread may not have instrumentation attached. */
   if (current_thread == nullptr) {
     return false;

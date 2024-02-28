@@ -154,12 +154,6 @@ static size_t size_of_session_error_stat_buffer() {
 */
 static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
                             enum ha_stat_type stat) {
-  char buf[1024];
-  uint buflen;
-  const char *name;
-  int i;
-  size_t size;
-
   DBUG_TRACE;
 
   /*
@@ -175,7 +169,10 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
 
   size_t total_memory = 0;
 
-  for (i = 0; /* empty */; i++) {
+  for (int i = 0; /* empty */; i++) {
+    const char *name;
+    size_t size;
+
     switch (i) {
       case 0:
         name = "events_waits_current.size";
@@ -820,7 +817,6 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         size = global_prepared_stmt_container.get_memory();
         total_memory += size;
         break;
-
       case 143:
         name = "(account_hash).count";
         size = account_hash.count;
@@ -905,7 +901,6 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         name = "host_cache.size";
         size = sizeof(Host_entry);
         break;
-
       case 162:
         name = "(pfs_memory_class).row_size";
         size = sizeof(PFS_memory_class);
@@ -919,7 +914,6 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         size = memory_class_max * sizeof(PFS_memory_class);
         total_memory += size;
         break;
-
       case 165:
         name = "memory_summary_by_thread_by_event_name.row_size";
         size = sizeof(PFS_memory_safe_stat);
@@ -1339,7 +1333,8 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         break;
     }
 
-    buflen = (uint)(longlong10_to_str(size, buf, 10) - buf);
+    char buf[1024];
+    const uint buflen = (uint)(longlong10_to_str(size, buf, 10) - buf);
     if (print(thd, PERFORMANCE_SCHEMA_str.str, PERFORMANCE_SCHEMA_str.length,
               name, strlen(name), buf, buflen)) {
       return true;
@@ -1909,7 +1904,7 @@ ulong ha_perfschema::index_flags(uint, uint, bool) const {
     /* ha_perfschema::index_flags is const, can not save in m_table_share. */
   }
 
-  const ulong flags = HA_KEY_SCAN_NOT_ROR;
+  constexpr ulong flags = HA_KEY_SCAN_NOT_ROR;
 
   if (!tmp) {
     unlock_pfs_external_table_shares();

@@ -112,7 +112,7 @@ ha_rows table_ews_global_by_event_name::get_row_count() {
 }
 
 table_ews_global_by_event_name::table_ews_global_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   // For all cases except IDLE
   m_normalizer = time_normalizer::get_wait();
 }
@@ -241,7 +241,6 @@ int table_ews_global_by_event_name::rnd_pos(const void *pos) {
         return make_table_io_row(&global_table_io_class);
       }
       return make_table_lock_row(&global_table_lock_class);
-      break;
     case pos_ews_global_by_event_name::VIEW_SOCKET:
       socket_class = find_socket_class(m_pos.m_index_2);
       if (socket_class) {
@@ -270,9 +269,8 @@ int table_ews_global_by_event_name::rnd_pos(const void *pos) {
 
 int table_ews_global_by_event_name::index_init(uint idx [[maybe_unused]],
                                                bool) {
-  PFS_index_ews_global_by_event_name *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_ews_global_by_event_name);
+  auto *result = PFS_NEW(PFS_index_ews_global_by_event_name);
   m_opened_index = result;
   m_index = result;
   return 0;

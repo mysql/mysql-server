@@ -197,25 +197,25 @@ static_assert(sizeof(pk_pos_data_lock_wait) == 2 * (128 + sizeof(size_t)));
 /** A row of table PERFORMANCE_SCHEMA.DATA_LOCK_WAITS. */
 struct row_data_lock_wait {
   /** Column ENGINE */
-  const char *m_engine;
+  const char *m_engine{nullptr};
   /** Engine (REQUESTING_LOCK_ID, BLOCKING_LOCK_ID) key */
   pk_pos_data_lock_wait m_hidden_pk;
   /** Column REQUESTING_ENGINE_TRANSACTION_ID */
-  ulonglong m_requesting_transaction_id;
+  ulonglong m_requesting_transaction_id{0};
   /** Column REQUESTING_THREAD_ID */
-  ulonglong m_requesting_thread_id;
+  ulonglong m_requesting_thread_id{0};
   /** Column REQUESTING_EVENT_ID */
-  ulonglong m_requesting_event_id;
+  ulonglong m_requesting_event_id{0};
   /** Column REQUESTING_OBJECT_INSTANCE_BEGIN */
-  const void *m_requesting_identity;
+  const void *m_requesting_identity{nullptr};
   /** Column BLOCKING_ENGINE_TRANSACTION_ID */
-  ulonglong m_blocking_transaction_id;
+  ulonglong m_blocking_transaction_id{0};
   /** Column BLOCKING_THREAD_ID */
-  ulonglong m_blocking_thread_id;
+  ulonglong m_blocking_thread_id{0};
   /** Column BLOCKING_EVENT_ID */
-  ulonglong m_blocking_event_id;
+  ulonglong m_blocking_event_id{0};
   /** Column BLOCKING_OBJECT_INSTANCE_BEGIN */
-  const void *m_blocking_identity;
+  const void *m_blocking_identity{nullptr};
 };
 
 class PFS_index_data_locks : public PFS_engine_index {
@@ -679,7 +679,7 @@ class PFS_data_container_allocator : public PFS_std_allocator<T> {
       : PFS_std_allocator<T>(other) {}
 
   template <class U>
-  constexpr PFS_data_container_allocator(
+  constexpr explicit PFS_data_container_allocator(
       const PFS_data_container_allocator<U> &u) noexcept
       : PFS_std_allocator<T>(u) {}
 };
@@ -687,15 +687,15 @@ class PFS_data_container_allocator : public PFS_std_allocator<T> {
 class PFS_data_cache {
  private:
   typedef std::unordered_set<std::string, std::hash<std::string>,
-                             std::equal_to<std::string>,
+                             std::equal_to<>,
                              PFS_data_container_allocator<std::string>>
       set_type;
 
   set_type m_set;
 
  public:
-  PFS_data_cache() {}
-  ~PFS_data_cache() {}
+  PFS_data_cache() = default;
+  ~PFS_data_cache() = default;
 
   const char *cache_data(const char *ptr, size_t length) {
     /*

@@ -103,7 +103,6 @@ PFS_engine_table *table_variables_by_thread::create(PFS_engine_table_share *) {
 ha_rows table_variables_by_thread::get_row_count() {
   mysql_mutex_lock(&LOCK_plugin_delete);
 #ifndef NDEBUG
-  extern mysql_mutex_t LOCK_plugin;
   mysql_mutex_assert_not_owner(&LOCK_plugin);
 #endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
@@ -116,8 +115,7 @@ ha_rows table_variables_by_thread::get_row_count() {
 table_variables_by_thread::table_variables_by_thread()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(true),
-      m_pos(),
-      m_next_pos() {}
+      m_opened_index(nullptr) {}
 
 void table_variables_by_thread::reset_position() {
   m_pos.reset();
@@ -175,9 +173,8 @@ int table_variables_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the system variable hash. */
   m_sysvar_cache.initialize_session();
 
-  PFS_index_variables_by_thread *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_variables_by_thread);
+  auto *result = PFS_NEW(PFS_index_variables_by_thread);
   m_opened_index = result;
   m_index = result;
 

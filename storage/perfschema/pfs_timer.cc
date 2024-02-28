@@ -60,7 +60,7 @@ static struct time_normalizer
 };
 
 void init_timers() {
-  const double pico_frequency = 1.0e12;
+  constexpr double pico_frequency = 1.0e12;
 
   my_timer_init(&pfs_timer_info);
 

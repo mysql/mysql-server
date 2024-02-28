@@ -105,7 +105,9 @@ PFS_engine_table *table_error_log::create(PFS_engine_table_share *) {
 }
 
 // dest
-table_error_log::table_error_log() : cursor_by_error_log(&m_share) {}
+table_error_log::table_error_log() : cursor_by_error_log(&m_share) {
+  m_message[0] = '\0';
+}
 
 /// Match function / comparator for the key on the LOGGED column
 bool PFS_key_error_log_logged::match(const log_sink_pfs_event *row) {
@@ -141,18 +143,16 @@ bool PFS_index_error_log_by_thread_id::match(log_sink_pfs_event *row) {
 /// Match function / comparator for the key on the PRIO column
 bool PFS_key_error_log_prio::match(const log_sink_pfs_event *row) {
   const auto record_value = (enum_prio)(row->m_prio + 1);
-  int cmp = 0;
+  int cmp;
 
   if (m_is_null) {
     cmp = 1;
+  } else if (record_value < m_prio) {
+    cmp = -1;
+  } else if (record_value > m_prio) {
+    cmp = +1;
   } else {
-    if (record_value < m_prio) {
-      cmp = -1;
-    } else if (record_value > m_prio) {
-      cmp = +1;
-    } else {
-      cmp = 0;
-    }
+    cmp = 0;
   }
 
   switch (m_find_flag) {

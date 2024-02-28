@@ -120,8 +120,7 @@ ha_rows table_status_by_user::get_row_count() {
 table_status_by_user::table_status_by_user()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(true),
-      m_pos(),
-      m_next_pos() {}
+      m_opened_index(nullptr) {}
 
 void table_status_by_user::reset_position() {
   m_pos.reset();
@@ -179,9 +178,8 @@ int table_status_by_user::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();
 
-  PFS_index_status_by_user *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_status_by_user);
+  auto *result = PFS_NEW(PFS_index_status_by_user);
   m_opened_index = result;
   m_index = result;
   return 0;

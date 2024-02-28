@@ -146,7 +146,10 @@ ha_rows table_esms_by_program::get_row_count() {
 }
 
 table_esms_by_program::table_esms_by_program()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_statement();
 }
 
@@ -183,9 +186,8 @@ int table_esms_by_program::rnd_pos(const void *pos) {
 }
 
 int table_esms_by_program::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_esms_by_program *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_esms_by_program);
+  auto *result = PFS_NEW(PFS_index_esms_by_program);
   m_opened_index = result;
   m_index = result;
   return 0;

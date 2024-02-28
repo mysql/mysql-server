@@ -100,7 +100,8 @@ table_session_status::table_session_status()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(false),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_session_status::reset_position() {
   m_pos.m_index = 0;
@@ -149,9 +150,8 @@ int table_session_status::index_init(uint idx [[maybe_unused]], bool) {
   /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
 
-  PFS_index_session_status *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_session_status);
+  auto *result = PFS_NEW(PFS_index_session_status);
   m_opened_index = result;
   m_index = result;
   return 0;

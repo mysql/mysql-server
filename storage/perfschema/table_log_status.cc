@@ -117,7 +117,7 @@ struct st_register_hton_arg {
 };
 
 static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
-  auto *vargs = (st_register_hton_arg *)arg;
+  const auto *vargs = (st_register_hton_arg *)arg;
   auto *hton = plugin_data<handlerton *>(plugin);
   bool result = false;
 
@@ -187,7 +187,7 @@ int table_log_status::make_row() {
       res = Log_resource_factory::get_wrapper(mi, &json_replication_array);
       error = DBUG_EVALUATE_IF("log_status_oom_mi", 1, !res);
       if (error) {
-        char errfmt[] =
+        constexpr const char errfmt[] =
             "failed to allocate memory to collect "
             "information from replication channel '%s'";
         char errbuf[sizeof(errfmt) + CHANNEL_NAME_LENGTH];
@@ -289,7 +289,7 @@ err_unlock:
 end:
   /* Delete all wrappers */
   while (!resources.empty()) {
-    Log_resource *wrapper = resources.back();
+    const Log_resource *wrapper = resources.back();
     resources.pop_back();
     delete wrapper;
   }

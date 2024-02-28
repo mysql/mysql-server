@@ -148,7 +148,10 @@ ha_rows table_tiws_by_table::get_row_count() {
 }
 
 table_tiws_by_table::table_tiws_by_table()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_wait();
 }
 
@@ -190,9 +193,8 @@ int table_tiws_by_table::rnd_pos(const void *pos) {
 }
 
 int table_tiws_by_table::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_tiws_by_table *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_tiws_by_table);
+  auto *result = PFS_NEW(PFS_index_tiws_by_table);
   m_opened_index = result;
   m_index = result;
   return 0;

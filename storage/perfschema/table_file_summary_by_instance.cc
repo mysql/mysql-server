@@ -145,7 +145,10 @@ ha_rows table_file_summary_by_instance::get_row_count() {
 }
 
 table_file_summary_by_instance::table_file_summary_by_instance()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_wait();
 }
 

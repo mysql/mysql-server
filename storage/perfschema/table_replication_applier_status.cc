@@ -138,13 +138,11 @@ int table_replication_applier_status::rnd_next() {
 int table_replication_applier_status::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Master_info *mi = nullptr;
-
   set_position(pos);
 
   channel_map.rdlock();
 
-  mi = channel_map.get_mi_at_pos(m_pos.m_index);
+  Master_info *mi = channel_map.get_mi_at_pos(m_pos.m_index);
   if (mi) {
     res = make_row(mi);
   }
@@ -156,9 +154,8 @@ int table_replication_applier_status::rnd_pos(const void *pos) {
 
 int table_replication_applier_status::index_init(uint idx [[maybe_unused]],
                                                  bool) {
-  PFS_index_rpl_applier_status *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_rpl_applier_status);
+  auto *result = PFS_NEW(PFS_index_rpl_applier_status);
   m_opened_index = result;
   m_index = result;
   return 0;
@@ -190,8 +187,6 @@ int table_replication_applier_status::index_next() {
 }
 
 int table_replication_applier_status::make_row(Master_info *mi) {
-  char *slave_sql_running_state = nullptr;
-
   assert(mi != nullptr);
   assert(mi->rli != nullptr);
 
@@ -201,7 +196,7 @@ int table_replication_applier_status::make_row(Master_info *mi) {
 
   mysql_mutex_lock(&mi->rli->info_thd_lock);
 
-  slave_sql_running_state = const_cast<char *>(
+  const char *slave_sql_running_state = const_cast<char *>(
       mi->rli->info_thd ? mi->rli->info_thd->proc_info() : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 

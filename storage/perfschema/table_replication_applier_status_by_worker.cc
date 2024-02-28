@@ -166,19 +166,19 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi) {
     /* NULL THREAD_ID is represented by 0 */
     row.thread_id = 0;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     mysql_mutex_assert_owner(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
       /* STS will use SQL thread as workers on this table */
       if (mi->rli->get_worker_count() == 0) {
-        PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
-#ifdef HAVE_PSI_THREAD_INTERFACE
+        PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
         if (psi != nullptr) {
           row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
       }
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     if (!m_key.match(row.thread_id)) {
       return false;
@@ -195,18 +195,18 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(
     /* NULL THREAD_ID is represented by 0 */
     row.thread_id = 0;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     mysql_mutex_assert_owner(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
       if (worker) {
-        PSI_thread *psi [[maybe_unused]] = thd_get_psi(worker->info_thd);
-#ifdef HAVE_PSI_THREAD_INTERFACE
+        PSI_thread *psi = thd_get_psi(worker->info_thd);
         if (psi != nullptr) {
           row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
       }
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     if (!m_key.match(row.thread_id)) {
       return false;
@@ -223,7 +223,7 @@ PFS_engine_table *table_replication_applier_status_by_worker::create(
 
 table_replication_applier_status_by_worker::
     table_replication_applier_status_by_worker()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {}
 
 table_replication_applier_status_by_worker::
     ~table_replication_applier_status_by_worker() = default;
@@ -291,7 +291,6 @@ int table_replication_applier_status_by_worker::rnd_next() {
 int table_replication_applier_status_by_worker::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Slave_worker *worker;
   Master_info *mi;
   size_t wc;
 
@@ -317,7 +316,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos) {
   } else {
     /* Multi Thread Slave */
     if (m_pos.m_index_2 < wc) {
-      worker = mi->rli->get_worker(m_pos.m_index_2);
+      Slave_worker *worker = mi->rli->get_worker(m_pos.m_index_2);
       if (worker != nullptr) {
         make_row(worker);
         res = 0;
@@ -433,15 +432,15 @@ int table_replication_applier_status_by_worker::make_row(Master_info *mi) {
   memcpy(m_row.channel_name, (char *)mi->get_channel(),
          m_row.channel_name_length);
 
-  if (mi->rli->slave_running) {
-    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
+  if (mi->rli->slave_running) {
+    PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (mi->rli->slave_running) {
     m_row.service_state = PS_RPL_YES;
@@ -496,15 +495,15 @@ int table_replication_applier_status_by_worker::make_row(Slave_worker *w) {
   {
     MUTEX_LOCK(lock, &w->jobs_lock);
 
-    if (w->running_status == Slave_worker::RUNNING) {
-      PSI_thread *psi [[maybe_unused]] = thd_get_psi(w->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
+    if (w->running_status == Slave_worker::RUNNING) {
+      PSI_thread *psi = thd_get_psi(w->info_thd);
       if (psi != nullptr) {
         m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         m_row.thread_id_is_null = false;
       }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     if (w->running_status == Slave_worker::RUNNING) {
       m_row.service_state = PS_RPL_YES;

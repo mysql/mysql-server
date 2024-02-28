@@ -50,7 +50,7 @@ struct st_binary_log_transaction_compression_stats {
   std::vector<binlog::monitoring::Compression_stats *> stats;
 
   void clear() {
-    for (auto *x : stats) delete x;
+    for (const auto *x : stats) delete x;
     stats.clear();
   }
 
@@ -197,7 +197,7 @@ int table_binary_log_transaction_compression_stats::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   Field *f;
   buf[0] = 0;
-  auto &row = m_rows.stats[m_pos.m_index];
+  const auto &row = m_rows.stats[m_pos.m_index];
 
   std::string first_trx_id, last_trx_id;
   uint64_t first_trx_compressed_bytes{0}, last_trx_compressed_bytes{0};
@@ -238,11 +238,11 @@ int table_binary_log_transaction_compression_stats::read_row_values(
           break;
         case 5: /** COMPRESSION_PERCENTAGE */
         {
-          auto cbytes =
+          const auto cbytes =
               static_cast<double>(row->get_counter_compressed_bytes());
-          auto ubytes =
+          const auto ubytes =
               static_cast<double>(row->get_counter_uncompressed_bytes());
-          auto compression = 1.0 - (cbytes / ubytes);
+          const auto compression = 1.0 - (cbytes / ubytes);
           set_field_short(f, static_cast<short>(round(compression * 100)));
           break;
         }

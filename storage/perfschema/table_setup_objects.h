@@ -57,9 +57,9 @@ struct row_setup_objects {
   /** Column OBJECT_NAME. */
   PFS_object_name m_object_name;
   /** Column ENABLED. */
-  bool *m_enabled_ptr;
+  bool *m_enabled_ptr{nullptr};
   /** Column TIMED. */
-  bool *m_timed_ptr;
+  bool *m_timed_ptr{nullptr};
 };
 
 class PFS_index_setup_objects : public PFS_engine_index {

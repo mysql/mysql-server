@@ -56,9 +56,9 @@ struct row_setup_actors {
   /** Column ROLE. */
   PFS_role_name m_role_name;
   /** Column ENABLED. */
-  bool *m_enabled_ptr;
+  bool *m_enabled_ptr{nullptr};
   /** Column HISTORY. */
-  bool *m_history_ptr;
+  bool *m_history_ptr{nullptr};
 };
 
 class PFS_index_setup_actors : public PFS_engine_index {

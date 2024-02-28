@@ -117,7 +117,7 @@ ha_rows table_mems_by_thread_by_event_name::get_row_count() {
 }
 
 table_mems_by_thread_by_event_name::table_mems_by_thread_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {}
 
 void table_mems_by_thread_by_event_name::reset_position() {
   m_pos.reset();
@@ -149,14 +149,11 @@ int table_mems_by_thread_by_event_name::rnd_next() {
 }
 
 int table_mems_by_thread_by_event_name::rnd_pos(const void *pos) {
-  PFS_thread *thread;
-  PFS_memory_class *memory_class;
-
   set_position(pos);
 
-  thread = global_thread_container.get(m_pos.m_index_1);
+  PFS_thread *thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != nullptr) {
-    memory_class = find_memory_class(m_pos.m_index_2);
+    PFS_memory_class *memory_class = find_memory_class(m_pos.m_index_2);
     if (memory_class != nullptr) {
       if (!memory_class->is_global()) {
         return make_row(thread, memory_class);

@@ -68,8 +68,6 @@ class ha_perfschema : public handler {
 
   const char *index_type(uint key_number);
 
-  const char **bas_ext() const;
-
   /** Capabilities of the performance schema tables. */
   ulonglong table_flags() const override {
     /*

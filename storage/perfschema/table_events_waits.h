@@ -52,51 +52,51 @@ struct THR_LOCK;
 /** A row of table_events_waits_common. */
 struct row_events_waits {
   /** Column THREAD_ID. */
-  ulonglong m_thread_internal_id;
+  ulonglong m_thread_internal_id{0};
   /** Column EVENT_ID. */
-  ulonglong m_event_id;
+  ulonglong m_event_id{0};
   /** Column END_EVENT_ID. */
-  ulonglong m_end_event_id;
+  ulonglong m_end_event_id{0};
   /** Column NESTING_EVENT_ID. */
-  ulonglong m_nesting_event_id;
+  ulonglong m_nesting_event_id{0};
   /** Column NESTING_EVENT_TYPE. */
   enum_event_type m_nesting_event_type;
   /** Column EVENT_NAME. */
-  const char *m_name;
+  const char *m_name{nullptr};
   /** Length in bytes of @c m_name. */
-  uint m_name_length;
+  uint m_name_length{0};
   /** Column TIMER_START. */
-  ulonglong m_timer_start;
+  ulonglong m_timer_start{0};
   /** Column TIMER_END. */
-  ulonglong m_timer_end;
+  ulonglong m_timer_end{0};
   /** Column TIMER_WAIT. */
-  ulonglong m_timer_wait;
+  ulonglong m_timer_wait{0};
   /** Column OBJECT_TYPE. */
-  const char *m_object_type;
+  const char *m_object_type{nullptr};
   /** Length in bytes of @c m_object_type. */
-  uint m_object_type_length;
+  uint m_object_type_length{0};
   /** Column OBJECT_SCHEMA. */
   PFS_schema_name m_object_schema;
   /** Column OBJECT_NAME. */
   char m_object_name[COL_OBJECT_NAME_EXTENDED_SIZE];
   /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  uint m_object_name_length{0};
   /** Column INDEX_NAME. */
   char m_index_name[COL_INDEX_NAME_SIZE];
   /** Length in bytes of @c m_index_name. */
-  uint m_index_name_length;
+  uint m_index_name_length{0};
   /** Column OBJECT_INSTANCE_BEGIN. */
   intptr m_object_instance_addr;
   /** Column SOURCE. */
   char m_source[COL_SOURCE_SIZE];
   /** Length in bytes of @c m_source. */
-  uint m_source_length;
+  uint m_source_length{0};
   /** Column OPERATION. */
   enum_operation_type m_operation;
   /** Column NUMBER_OF_BYTES. */
-  ulonglong m_number_of_bytes;
+  ulonglong m_number_of_bytes{0};
   /** Column FLAGS. */
-  uint m_flags;
+  uint m_flags{0};
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */

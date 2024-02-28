@@ -41,15 +41,15 @@ static void test_no_registration() {
   PFS_file_key file_key;
   PFS_socket_key socket_key;
   PFS_memory_key memory_key;
-  PFS_mutex_class *mutex;
-  PFS_rwlock_class *rwlock;
-  PFS_cond_class *cond;
-  PFS_thread_class *thread;
-  PFS_file_class *file;
-  PFS_socket_class *socket;
-  PFS_memory_class *memory;
-  PFS_meter_class *meter;
-  PFS_metric_class *metric;
+  const PFS_mutex_class *mutex;
+  const PFS_rwlock_class *rwlock;
+  const PFS_cond_class *cond;
+  const PFS_thread_class *thread;
+  const PFS_file_class *file;
+  const PFS_socket_class *socket;
+  const PFS_memory_class *memory;
+  const PFS_meter_class *meter;
+  const PFS_metric_class *metric;
   /* PFS_table_share *table; */
   PFS_meter_key meter_key;
   PFS_metric_key metric_key;
@@ -521,8 +521,8 @@ static void test_socket_registration() {
 
 static void test_table_registration() {
 #ifdef LATER
-  PFS_table_share *table_share;
-  PFS_table_share *table_share_2;
+  const PFS_table_share *table_share;
+  const PFS_table_share *table_share_2;
 
   PFS_thread fake_thread;
   fake_thread.m_table_share_hash_pins = NULL;
@@ -639,7 +639,7 @@ static void test_memory_registration() {
 static void test_meter_registration() {
   int rc;
   PFS_meter_key key;
-  PFS_meter_class *meter;
+  const PFS_meter_class *meter;
   PSI_meter_info_v1 meter_info;
   memset(&meter_info, 0, sizeof(meter_info));
 
@@ -688,7 +688,7 @@ static void test_meter_registration() {
 static void test_metric_registration() {
   int rc;
   PFS_metric_key key;
-  PFS_metric_class *metric;
+  const PFS_metric_class *metric;
   PSI_metric_info_v1 metric_info;
   memset(&metric_info, 0, sizeof(metric_info));
 
@@ -742,8 +742,8 @@ void set_wait_stat(PFS_instr_class *klass) {
   stat->m_sum = 999;
 }
 
-bool is_empty_stat(PFS_instr_class *klass) {
-  PFS_single_stat *stat;
+bool is_empty_stat(const PFS_instr_class *klass) {
+  const PFS_single_stat *stat;
   stat = &global_instr_class_waits_array[klass->m_event_name_index];
 
   if (stat->m_count != 0) return false;
@@ -759,21 +759,21 @@ static void test_instruments_reset() {
   PFS_sync_key key;
   PFS_file_key file_key;
   PFS_socket_key socket_key;
-  PFS_mutex_class *mutex_1;
-  PFS_mutex_class *mutex_2;
-  PFS_mutex_class *mutex_3;
-  PFS_rwlock_class *rwlock_1;
-  PFS_rwlock_class *rwlock_2;
-  PFS_rwlock_class *rwlock_3;
-  PFS_cond_class *cond_1;
-  PFS_cond_class *cond_2;
-  PFS_cond_class *cond_3;
-  PFS_file_class *file_1;
-  PFS_file_class *file_2;
-  PFS_file_class *file_3;
-  PFS_socket_class *socket_1;
-  PFS_socket_class *socket_2;
-  PFS_socket_class *socket_3;
+  const PFS_mutex_class *mutex_1;
+  const PFS_mutex_class *mutex_2;
+  const PFS_mutex_class *mutex_3;
+  const PFS_rwlock_class *rwlock_1;
+  const PFS_rwlock_class *rwlock_2;
+  const PFS_rwlock_class *rwlock_3;
+  const PFS_cond_class *cond_1;
+  const PFS_cond_class *cond_2;
+  const PFS_cond_class *cond_3;
+  const PFS_file_class *file_1;
+  const PFS_file_class *file_2;
+  const PFS_file_class *file_3;
+  const PFS_socket_class *socket_1;
+  const PFS_socket_class *socket_2;
+  const PFS_socket_class *socket_3;
 
   rc = init_sync_class(3, 3, 3);
   ok(rc == 0, "init (sync)");

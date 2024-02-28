@@ -179,18 +179,12 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
 
 static uint digest_hash_func(const LF_HASH *, const uchar *key,
                              size_t key_len [[maybe_unused]]) {
-  const PFS_digest_key *digest_key;
-  uint64 nr1;
-  uint64 nr2;
-
   assert(key_len == sizeof(PFS_digest_key));
-  digest_key = reinterpret_cast<const PFS_digest_key *>(key);
+  const auto *digest_key = reinterpret_cast<const PFS_digest_key *>(key);
   assert(digest_key != nullptr);
 
-  nr1 = 0;
-  nr2 = 0;
-
-  nr1 = murmur3_32(digest_key->m_hash, DIGEST_HASH_SIZE, nr2);
+  uint64 nr2 = 0;
+  uint64 nr1 = murmur3_32(digest_key->m_hash, DIGEST_HASH_SIZE, nr2);
   digest_key->m_schema_name.hash(&nr1, &nr2);
 
   return nr1;
@@ -277,7 +271,7 @@ PFS_statements_digest_stat *find_or_create_digest(
 
   int res;
   uint retry_count = 0;
-  const uint retry_max = 3;
+  constexpr uint retry_max = 3;
   size_t safe_index;
   size_t attempts = 0;
   PFS_statements_digest_stat **entry;

@@ -119,8 +119,7 @@ int table_users::delete_all_rows() {
 table_users::table_users() : cursor_by_user(&m_share) {}
 
 int table_users::index_init(uint, bool) {
-  PFS_index_users *result = nullptr;
-  result = PFS_NEW(PFS_index_users_by_user);
+  PFS_index_users *result = PFS_NEW(PFS_index_users_by_user);
   m_opened_index = result;
   m_index = result;
   return 0;

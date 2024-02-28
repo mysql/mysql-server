@@ -162,7 +162,7 @@ class All_host_THD_visitor_adapter : public Do_THD_Impl {
     PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != nullptr) {
-      PFS_account *account = sanitize_account(pfs->m_account);
+      const PFS_account *account = sanitize_account(pfs->m_account);
       if (account != nullptr) {
         if (account->m_host == m_host) {
           m_visitor->visit_THD(thd);
@@ -203,7 +203,7 @@ void PFS_connection_iterator::visit_host(PFS_host *host, bool with_accounts,
     PFS_thread *pfs = it.scan_next();
 
     while (pfs != nullptr) {
-      PFS_account *safe_account = sanitize_account(pfs->m_account);
+      const PFS_account *safe_account = sanitize_account(pfs->m_account);
       if (((safe_account != nullptr) && (safe_account->m_host == host)) /* 1 */
           || (pfs->m_host == host))                                     /* 2 */
       {
@@ -234,7 +234,7 @@ class All_user_THD_visitor_adapter : public Do_THD_Impl {
     PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != nullptr) {
-      PFS_account *account = sanitize_account(pfs->m_account);
+      const PFS_account *account = sanitize_account(pfs->m_account);
       if (account != nullptr) {
         if (account->m_user == m_user) {
           m_visitor->visit_THD(thd);
@@ -275,7 +275,7 @@ void PFS_connection_iterator::visit_user(PFS_user *user, bool with_accounts,
     PFS_thread *pfs = it.scan_next();
 
     while (pfs != nullptr) {
-      PFS_account *safe_account = sanitize_account(pfs->m_account);
+      const PFS_account *safe_account = sanitize_account(pfs->m_account);
       if (((safe_account != nullptr) && (safe_account->m_user == user)) /* 1 */
           || (pfs->m_user == user))                                     /* 2 */
       {
@@ -359,7 +359,7 @@ void PFS_instance_iterator::visit_all_mutex(PFS_instance_visitor *visitor) {
 void PFS_instance_iterator::visit_all_mutex_classes(
     PFS_instance_visitor *visitor) {
   PFS_mutex_class *pfs = mutex_class_array;
-  PFS_mutex_class *pfs_last = pfs + mutex_class_max;
+  const PFS_mutex_class *pfs_last = pfs + mutex_class_max;
   for (; pfs < pfs_last; pfs++) {
     if (pfs->m_name.length() != 0) {
       visitor->visit_mutex_class(pfs);
@@ -386,7 +386,7 @@ void PFS_instance_iterator::visit_all_rwlock(PFS_instance_visitor *visitor) {
 void PFS_instance_iterator::visit_all_rwlock_classes(
     PFS_instance_visitor *visitor) {
   PFS_rwlock_class *pfs = rwlock_class_array;
-  PFS_rwlock_class *pfs_last = pfs + rwlock_class_max;
+  const PFS_rwlock_class *pfs_last = pfs + rwlock_class_max;
   for (; pfs < pfs_last; pfs++) {
     if (pfs->m_name.length() != 0) {
       visitor->visit_rwlock_class(pfs);
@@ -413,7 +413,7 @@ void PFS_instance_iterator::visit_all_cond(PFS_instance_visitor *visitor) {
 void PFS_instance_iterator::visit_all_cond_classes(
     PFS_instance_visitor *visitor) {
   PFS_cond_class *pfs = cond_class_array;
-  PFS_cond_class *pfs_last = pfs + cond_class_max;
+  const PFS_cond_class *pfs_last = pfs + cond_class_max;
   for (; pfs < pfs_last; pfs++) {
     if (pfs->m_name.length() != 0) {
       visitor->visit_cond_class(pfs);
@@ -440,7 +440,7 @@ void PFS_instance_iterator::visit_all_file(PFS_instance_visitor *visitor) {
 void PFS_instance_iterator::visit_all_file_classes(
     PFS_instance_visitor *visitor) {
   PFS_file_class *pfs = file_class_array;
-  PFS_file_class *pfs_last = pfs + file_class_max;
+  const PFS_file_class *pfs_last = pfs + file_class_max;
   for (; pfs < pfs_last; pfs++) {
     if (pfs->m_name.length() != 0) {
       visitor->visit_file_class(pfs);
@@ -672,7 +672,7 @@ class Proc_all_table_handles : public PFS_buffer_processor<PFS_table> {
       : m_visitor(visitor) {}
 
   void operator()(PFS_table *pfs) override {
-    PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
+    const PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
     if (safe_share != nullptr) {
       m_visitor->visit_table(pfs);
     }
@@ -954,8 +954,8 @@ PFS_connection_all_statement_visitor::~PFS_connection_all_statement_visitor() =
     default;
 
 void PFS_connection_all_statement_visitor::visit_global() {
-  PFS_statement_stat *stat = global_instr_class_statements_array;
-  PFS_statement_stat *stat_last = stat + statement_class_max;
+  const PFS_statement_stat *stat = global_instr_class_statements_array;
+  const PFS_statement_stat *stat_last = stat + statement_class_max;
   for (; stat < stat_last; stat++) {
     m_stat.aggregate(stat);
   }
@@ -1174,8 +1174,8 @@ void PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs) {
 }
 
 PFS_connection_status_visitor::PFS_connection_status_visitor(
-    System_status_var *status_vars)
-    : m_status_vars(status_vars) {
+    System_status_var *vars)
+    : m_status_vars(vars) {
   memset(m_status_vars, 0, sizeof(System_status_var));
 }
 
@@ -1273,7 +1273,7 @@ void PFS_object_wait_visitor::visit_table_share(PFS_table_share *pfs) {
 }
 
 void PFS_object_wait_visitor::visit_table(PFS_table *pfs) {
-  PFS_table_share *table_share = sanitize_table_share(pfs->m_share);
+  const PFS_table_share *table_share = sanitize_table_share(pfs->m_share);
   if (table_share != nullptr) {
     const uint safe_key_count = sanitize_index_count(table_share->m_key_count);
     pfs->m_table_stat.sum(&m_stat, safe_key_count);
@@ -1312,7 +1312,7 @@ void PFS_table_io_wait_visitor::visit_table_share(PFS_table_share *pfs) {
 }
 
 void PFS_table_io_wait_visitor::visit_table(PFS_table *pfs) {
-  PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
+  const PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
 
   if (likely(safe_share != nullptr)) {
     PFS_table_io_stat io_stat;
@@ -1358,14 +1358,13 @@ void PFS_table_io_stat_visitor::visit_table_share(PFS_table_share *pfs) {
 }
 
 void PFS_table_io_stat_visitor::visit_table(PFS_table *pfs) {
-  PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
+  const PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
 
   if (likely(safe_share != nullptr)) {
     const uint safe_key_count = sanitize_index_count(safe_share->m_key_count);
-    uint index;
 
     /* Aggregate index stats */
-    for (index = 0; index < safe_key_count; index++) {
+    for (uint index = 0; index < safe_key_count; index++) {
       m_stat.aggregate(&pfs->m_table_stat.m_index_stat[index]);
     }
 

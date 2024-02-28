@@ -202,7 +202,10 @@ ha_rows table_prepared_stmt_instances::get_row_count() {
 }
 
 table_prepared_stmt_instances::table_prepared_stmt_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_statement();
 }
 

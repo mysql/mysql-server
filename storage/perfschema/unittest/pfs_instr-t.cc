@@ -98,13 +98,13 @@ static void test_no_instances() {
   PFS_file_class dummy_file_class;
   PFS_table_share dummy_table_share;
   PFS_socket_class dummy_socket_class;
-  PFS_mutex *mutex;
-  PFS_rwlock *rwlock;
-  PFS_cond *cond;
-  PFS_thread *thread;
-  PFS_file *file;
-  PFS_socket *socket;
-  PFS_table *table;
+  const PFS_mutex *mutex;
+  const PFS_rwlock *rwlock;
+  const PFS_cond *cond;
+  const PFS_thread *thread;
+  const PFS_file *file;
+  const PFS_socket *socket;
+  const PFS_table *table;
   PFS_global_param param;
 
   dummy_mutex_class.m_event_name_index = 0;
@@ -261,19 +261,19 @@ static void test_with_instances() {
   PFS_socket_class dummy_socket_class;
   PFS_table_share dummy_table_share;
   PFS_mutex *mutex_1;
-  PFS_mutex *mutex_2;
+  const PFS_mutex *mutex_2;
   PFS_rwlock *rwlock_1;
-  PFS_rwlock *rwlock_2;
+  const PFS_rwlock *rwlock_2;
   PFS_cond *cond_1;
-  PFS_cond *cond_2;
+  const PFS_cond *cond_2;
   PFS_thread *thread_1;
-  PFS_thread *thread_2;
+  const PFS_thread *thread_2;
   PFS_file *file_1;
   PFS_file *file_2;
   PFS_socket *socket_1;
-  PFS_socket *socket_2;
+  const PFS_socket *socket_2;
   PFS_table *table_1;
-  PFS_table *table_2;
+  const PFS_table *table_2;
   PFS_global_param param;
 
   memset(&param, 0xFF, sizeof(param));
@@ -339,10 +339,10 @@ static void test_with_instances() {
   dummy_cond_class.m_timed = true;
   dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
 
-  dummy_thread_class.m_enabled = 0;
+  dummy_thread_class.m_enabled = false;
   dummy_thread_class.m_flags = 0;
   dummy_thread_class.m_singleton = nullptr;
-  dummy_thread_class.m_history = 0;
+  dummy_thread_class.m_history = false;
   snprintf(dummy_thread_class.m_os_name, PFS_MAX_OS_NAME_LENGTH, "OS_NAME");
 
   dummy_file_class.m_event_name_index = 3;

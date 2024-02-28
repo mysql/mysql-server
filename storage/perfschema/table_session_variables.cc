@@ -92,7 +92,6 @@ PFS_engine_table *table_session_variables::create(PFS_engine_table_share *) {
 ha_rows table_session_variables::get_row_count() {
   mysql_mutex_lock(&LOCK_plugin_delete);
 #ifndef NDEBUG
-  extern mysql_mutex_t LOCK_plugin;
   mysql_mutex_assert_not_owner(&LOCK_plugin);
 #endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
@@ -106,7 +105,8 @@ table_session_variables::table_session_variables()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(false),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_session_variables::reset_position() {
   m_pos.m_index = 0;
@@ -155,9 +155,8 @@ int table_session_variables::index_init(uint idx [[maybe_unused]], bool) {
   */
   m_sysvar_cache.materialize_all(current_thd);
 
-  PFS_index_session_variables *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_session_variables);
+  auto *result = PFS_NEW(PFS_index_session_variables);
   m_opened_index = result;
   m_index = result;
 

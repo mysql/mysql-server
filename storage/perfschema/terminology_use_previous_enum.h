@@ -21,8 +21,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _TERMINOLOGY_USE_PREVIOUS_ENUM_H_
-#define _TERMINOLOGY_USE_PREVIOUS_ENUM_H_
+#ifndef TERMINOLOGY_USE_PREVIOUS_ENUM_H_
+#define TERMINOLOGY_USE_PREVIOUS_ENUM_H_
 
 /**
   In respect to the organization of modules, this really belongs in
@@ -56,4 +56,4 @@ enum enum_compatibility_version {
 
 }  // namespace terminology_use_previous
 
-#endif  // _TERMINOLOGY_USE_PREVIOUS_ENUM_H_
+#endif  // TERMINOLOGY_USE_PREVIOUS_ENUM_H_

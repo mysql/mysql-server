@@ -138,7 +138,10 @@ int table_esms_by_digest::delete_all_rows() {
 ha_rows table_esms_by_digest::get_row_count() { return digest_max; }
 
 table_esms_by_digest::table_esms_by_digest()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_statement();
 }
 
@@ -190,9 +193,8 @@ int table_esms_by_digest::rnd_pos(const void *pos) {
 }
 
 int table_esms_by_digest::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_esms_by_digest *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_esms_by_digest);
+  auto *result = PFS_NEW(PFS_index_esms_by_digest);
   m_opened_index = result;
   m_index = result;
   return 0;

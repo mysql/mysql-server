@@ -77,7 +77,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
   for (const auto &key_and_value : thd->user_vars) {
-    user_var_entry *sql_uvar = key_and_value.second.get();
+    const user_var_entry *sql_uvar = key_and_value.second.get();
 
     /*
       m_array is a container of objects (not pointers)
@@ -107,7 +107,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
     bool null_value;
     String *str_value;
     String str_buffer;
-    const uint decimals = DECIMAL_NOT_SPECIFIED;
+    constexpr uint decimals = DECIMAL_NOT_SPECIFIED;
     str_value = sql_uvar->val_str(&null_value, &str_buffer, decimals);
     if (str_value != nullptr) {
       pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
@@ -185,7 +185,7 @@ ha_rows table_uvar_by_thread::get_row_count() {
 }
 
 table_uvar_by_thread::table_uvar_by_thread()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {}
 
 void table_uvar_by_thread::reset_position() {
   m_pos.reset();
@@ -234,9 +234,8 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
 }
 
 int table_uvar_by_thread::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_uvar_by_thread *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_uvar_by_thread);
+  auto *result = PFS_NEW(PFS_index_uvar_by_thread);
   m_opened_index = result;
   m_index = result;
   return 0;

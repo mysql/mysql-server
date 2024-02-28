@@ -3151,7 +3151,7 @@ void pfs_set_thread_id_vc(PSI_thread *thread, ulonglong processlist_id) {
   @sa PSI_v2::get_current_thread_internal_id.
 */
 ulonglong pfs_get_current_thread_internal_id_vc() {
-  PFS_thread *pfs = my_thread_get_THR_PFS();
+  const PFS_thread *pfs = my_thread_get_THR_PFS();
   if (unlikely(pfs == nullptr)) {
     return 0;
   }
@@ -3163,7 +3163,7 @@ ulonglong pfs_get_current_thread_internal_id_vc() {
   @sa PSI_v2::get_thread_internal_id.
 */
 ulonglong pfs_get_thread_internal_id_vc(PSI_thread *thread) {
-  auto *pfs = reinterpret_cast<PFS_thread *>(thread);
+  const auto *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == nullptr)) {
     return 0;
   }
@@ -3684,7 +3684,7 @@ void pfs_detect_telemetry_vc(PSI_thread *thread [[maybe_unused]]) {
   // Dirty read
   telemetry_t *actual_telemetry = g_telemetry.m_ptr.load();
 
-  telemetry_t *expected_telemetry = pfs_thread->m_telemetry;
+  const telemetry_t *expected_telemetry = pfs_thread->m_telemetry;
 
   if (actual_telemetry != expected_telemetry) {
     server_telemetry_tracing_lock();
@@ -3781,7 +3781,7 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -3888,7 +3888,7 @@ static PSI_rwlock_locker *pfs_start_rwlock_wait_v2(
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4017,7 +4017,7 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4109,7 +4109,7 @@ PSI_table_locker *pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
   assert(static_cast<int>(op) >= 0);
   assert(static_cast<uint>(op) < array_elements(table_io_operation_map));
   assert(state != nullptr);
-  auto *pfs_table = reinterpret_cast<PFS_table *>(table);
+  const auto *pfs_table = reinterpret_cast<PFS_table *>(table);
   assert(pfs_table != nullptr);
   assert(pfs_table->m_share != nullptr);
 
@@ -4148,7 +4148,7 @@ PSI_table_locker *pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4270,7 +4270,7 @@ PSI_table_locker *pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4391,7 +4391,7 @@ PSI_file_locker *pfs_get_thread_file_name_locker_vc(
     state->m_wait = wait;
     flags |= STATE_FLAG_EVENT;
 
-    PFS_events_waits *parent_event = wait - 1;
+    const PFS_events_waits *parent_event = wait - 1;
     wait->m_event_type = EVENT_TYPE_WAIT;
     wait->m_nesting_event_id = parent_event->m_event_id;
     wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4483,7 +4483,7 @@ PSI_file_locker *pfs_get_thread_file_stream_locker_vc(
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4613,7 +4613,7 @@ PSI_file_locker *pfs_get_thread_file_descriptor_locker_vc(
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -4709,7 +4709,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -5005,7 +5005,7 @@ PSI_idle_locker *pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
   @sa PSI_v1::end_idle_wait.
 */
 void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
-  auto *state = reinterpret_cast<PSI_idle_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_idle_locker_state *>(locker);
   assert(state != nullptr);
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
@@ -5063,7 +5063,7 @@ void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
   @sa PSI_v1::end_mutex_wait.
 */
 void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
-  auto *state = reinterpret_cast<PSI_mutex_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_mutex_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -5132,7 +5132,7 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
   @sa PSI_v2::end_rwlock_rdwait.
 */
 void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
-  auto *state = reinterpret_cast<PSI_rwlock_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_rwlock_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -5208,7 +5208,7 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
   @sa PSI_v2::end_rwlock_wrwait.
 */
 void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
-  auto *state = reinterpret_cast<PSI_rwlock_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_rwlock_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -5282,7 +5282,7 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
   @sa PSI_v1::end_cond_wait.
 */
 void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
-  auto *state = reinterpret_cast<PSI_cond_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_cond_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -5341,7 +5341,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
   @sa PSI_v1::end_table_io_wait.
 */
 void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
-  auto *state = reinterpret_cast<PSI_table_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_table_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -5433,7 +5433,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
   @sa PSI_v1::end_table_lock_wait.
 */
 void pfs_end_table_lock_wait_v1(PSI_table_locker *locker) {
-  auto *state = reinterpret_cast<PSI_table_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_table_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -5630,7 +5630,7 @@ void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
   @sa PSI_v1::end_file_wait.
 */
 void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
-  auto *state = reinterpret_cast<PSI_file_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_file_locker_state *>(locker);
   assert(state != nullptr);
   auto *file = reinterpret_cast<PFS_file *>(state->m_file);
   auto *klass = reinterpret_cast<PFS_file_class *>(state->m_class);
@@ -5739,7 +5739,7 @@ void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
 */
 void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
                                   uint src_line) {
-  auto *state = reinterpret_cast<PSI_file_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_file_locker_state *>(locker);
   assert(state != nullptr);
 
   switch (state->m_operation) {
@@ -5763,7 +5763,7 @@ void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
   @sa PSI_v1::end_file_close_wait.
 */
 void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc) {
-  auto *state = reinterpret_cast<PSI_file_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_file_locker_state *>(locker);
   assert(state != nullptr);
   auto *file = reinterpret_cast<PFS_file *>(state->m_file);
 
@@ -5878,9 +5878,10 @@ PSI_stage_progress *pfs_start_stage_v1(PSI_stage_key key, const char *src_file,
 
   PFS_events_stages *pfs = &pfs_thread->m_stage_current;
   PFS_events_waits *child_wait = &pfs_thread->m_events_waits_stack[0];
-  PFS_events_statements *parent_statement = &pfs_thread->m_statement_stack[0];
+  const PFS_events_statements *parent_statement =
+      &pfs_thread->m_statement_stack[0];
 
-  PFS_instr_class *old_class = pfs->m_class;
+  const PFS_instr_class *old_class = pfs->m_class;
   if (old_class != nullptr) {
     PFS_stage_stat *event_name_array;
     event_name_array = pfs_thread->write_instr_class_stages_stats();
@@ -5966,7 +5967,7 @@ PSI_stage_progress *pfs_start_stage_v1(PSI_stage_key key, const char *src_file,
 }
 
 PSI_stage_progress *pfs_get_current_stage_progress_v1() {
-  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+  const PFS_thread *pfs_thread = my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == nullptr)) {
     return nullptr;
   }
@@ -5975,8 +5976,6 @@ PSI_stage_progress *pfs_get_current_stage_progress_v1() {
 }
 
 void pfs_end_stage_v1() {
-  ulonglong timer_value = 0;
-
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == nullptr)) {
     return;
@@ -5995,7 +5994,7 @@ void pfs_end_stage_v1() {
 
   PFS_events_stages *pfs = &pfs_thread->m_stage_current;
 
-  PFS_instr_class *old_class = pfs->m_class;
+  const PFS_instr_class *old_class = pfs->m_class;
   if (old_class != nullptr) {
     PFS_stage_stat *event_name_array;
     event_name_array = pfs_thread->write_instr_class_stages_stats();
@@ -6003,7 +6002,7 @@ void pfs_end_stage_v1() {
 
     /* Finish old event */
     if (old_class->m_timed) {
-      timer_value = get_stage_timer();
+      const ulonglong timer_value = get_stage_timer();
       pfs->m_timer_end = timer_value;
 
       /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
@@ -6026,7 +6025,8 @@ void pfs_end_stage_v1() {
 
     /* New waits will now be attached directly to the parent statement. */
     PFS_events_waits *child_wait = &pfs_thread->m_events_waits_stack[0];
-    PFS_events_statements *parent_statement = &pfs_thread->m_statement_stack[0];
+    const PFS_events_statements *parent_statement =
+        &pfs_thread->m_statement_stack[0];
     child_wait->m_event_id = parent_statement->m_event_id;
     child_wait->m_event_type = parent_statement->m_event_type;
 
@@ -6657,15 +6657,14 @@ void pfs_start_statement_vc(PSI_statement_locker *locker, const char *db,
       child_wait->m_event_id = event_id;
       child_wait->m_event_type = EVENT_TYPE_STATEMENT;
 
-      PFS_events_statements *parent_statement = nullptr;
-      PFS_events_transactions *parent_transaction =
+      const PFS_events_transactions *parent_transaction =
           &pfs_thread->m_transaction_current;
       ulonglong parent_event = 0;
       enum_event_type parent_type = EVENT_TYPE_STATEMENT;
       uint parent_level = 0;
 
       if (pfs_thread->m_events_statements_count > 0) {
-        parent_statement = pfs - 1;
+        const PFS_events_statements *parent_statement = pfs - 1;
         parent_event = parent_statement->m_event_id;
         parent_type = parent_statement->m_event_type;
         parent_level = parent_statement->m_nesting_event_level + 1;
@@ -6683,7 +6682,7 @@ void pfs_start_statement_vc(PSI_statement_locker *locker, const char *db,
 
       /* Set parent Stored Procedure information for this statement. */
       if (sp_share) {
-        auto *parent_sp = reinterpret_cast<PFS_program *>(sp_share);
+        const auto *parent_sp = reinterpret_cast<PFS_program *>(sp_share);
         pfs->m_sp_type = parent_sp->m_key.m_type;
         pfs->m_schema_name = parent_sp->m_key.m_schema_name;
         pfs->m_object_name = parent_sp->m_key.m_object_name;
@@ -6774,7 +6773,7 @@ void pfs_set_statement_text_vc(PSI_statement_locker *locker, const char *text,
 
 void pfs_set_statement_query_id_vc(PSI_statement_locker *locker,
                                    ulonglong query_id) {
-  auto *state = reinterpret_cast<PSI_statement_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_statement_locker_state *>(locker);
   if (unlikely(state == nullptr)) {
     return;
   }
@@ -6896,13 +6895,12 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
   auto *klass = reinterpret_cast<PFS_statement_class *>(state->m_class);
   assert(klass != nullptr);
 
-  ulonglong cpu_time_end;
   ulonglong timer_end = 0;
   ulonglong cpu_time = 0;
   ulonglong wait_time = 0;
 
   if (flags & STATE_FLAG_CPU) {
-    cpu_time_end = get_thread_cpu_timer();
+    const ulonglong cpu_time_end = get_thread_cpu_timer();
     cpu_time = cpu_time_end - state->m_cpu_time_start;
   }
 
@@ -6932,7 +6930,6 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
     }
   }
 
-  const sql_digest_storage *digest_storage = nullptr;
   PFS_statements_digest_stat *digest_stat = nullptr;
   PFS_program *pfs_program = nullptr;
   PFS_prepared_stmt *pfs_prepared_stmt = nullptr;
@@ -6942,6 +6939,7 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
   PFS_statement_stat *prepared_stmt_stat = nullptr;
 
   if (pfs_flags & STATE_FLAG_BASE) {
+    const sql_digest_storage *digest_storage = nullptr;
     PFS_statement_stat *event_name_array;
     const uint index = klass->m_event_name_index;
     if (pfs_flags & STATE_FLAG_THREAD) {
@@ -7498,7 +7496,7 @@ static PSI_sp_locker *pfs_start_sp_vc(PSI_sp_locker_state *state,
   }
 
   if (flag_thread_instrumentation) {
-    PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+    const PFS_thread *pfs_thread = my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == nullptr)) {
       return nullptr;
     }
@@ -7511,7 +7509,7 @@ static PSI_sp_locker *pfs_start_sp_vc(PSI_sp_locker_state *state,
     sp share might be null in case when stat array is full and no new
     stored program stats are being inserted into it.
   */
-  auto *pfs_program = reinterpret_cast<PFS_program *>(sp_share);
+  const auto *pfs_program = reinterpret_cast<PFS_program *>(sp_share);
   if (pfs_program == nullptr || !pfs_program->m_enabled) {
     return nullptr;
   }
@@ -7529,18 +7527,15 @@ static PSI_sp_locker *pfs_start_sp_vc(PSI_sp_locker_state *state,
 }
 
 static void pfs_end_sp_vc(PSI_sp_locker *locker) {
-  auto *state = reinterpret_cast<PSI_sp_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_sp_locker_state *>(locker);
   assert(state != nullptr);
-
-  ulonglong timer_end;
-  ulonglong wait_time;
 
   auto *pfs_program = reinterpret_cast<PFS_program *>(state->m_sp_share);
   PFS_sp_stat *stat = &pfs_program->m_sp_stat;
 
   if (state->m_flags & STATE_FLAG_TIMED) {
-    timer_end = get_statement_timer();
-    wait_time = timer_end - state->m_timer_start;
+    const ulonglong timer_end = get_statement_timer();
+    const ulonglong wait_time = timer_end - state->m_timer_start;
 
     /* Now use this timer_end and wait_time for timing information. */
     stat->aggregate_value(wait_time);
@@ -7583,7 +7578,7 @@ void pfs_notify_statement_query_attributes_vc(PSI_statement_locker *locker
   }
 
   if (state->m_telemetry_locker != nullptr) {
-    auto *telemetry = reinterpret_cast<telemetry_t *>(state->m_telemetry);
+    const auto *telemetry = reinterpret_cast<telemetry_t *>(state->m_telemetry);
     assert(telemetry != nullptr);
     state->m_telemetry_locker = telemetry->m_tel_stmt_notify_qa(
         state->m_telemetry_locker, with_query_attributes,
@@ -7609,7 +7604,7 @@ void pfs_statement_abort_telemetry_vc(PSI_statement_locker *locker
   assert(state != nullptr);
 
   if (state->m_telemetry_locker != nullptr) {
-    auto *telemetry = reinterpret_cast<telemetry_t *>(state->m_telemetry);
+    const auto *telemetry = reinterpret_cast<telemetry_t *>(state->m_telemetry);
     assert(telemetry != nullptr);
     telemetry->m_tel_stmt_abort(state->m_telemetry_locker);
     state->m_telemetry_locker = nullptr;
@@ -7676,7 +7671,7 @@ PSI_transaction_locker *pfs_get_thread_transaction_locker_v1(
 
       const uint statements_count = pfs_thread->m_events_statements_count;
       if (statements_count > 0) {
-        PFS_events_statements *pfs_statement =
+        const PFS_events_statements *pfs_statement =
             &pfs_thread->m_statement_stack[statements_count - 1];
         pfs->m_nesting_event_id = pfs_statement->m_event_id;
         pfs->m_nesting_event_type = pfs_statement->m_event_type;
@@ -7736,7 +7731,7 @@ void pfs_start_transaction_v1(PSI_transaction_locker *locker,
 
 void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
                                  const void *sid, const void *gtid_spec) {
-  auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
   assert(state != nullptr);
   assert(sid != nullptr);
   assert(gtid_spec != nullptr);
@@ -7753,7 +7748,7 @@ void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
 
 void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker, const void *xid,
                                 int xa_state) {
-  auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
   assert(state != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
@@ -7770,7 +7765,7 @@ void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker, const void *xid,
 
 void pfs_set_transaction_xa_state_v1(PSI_transaction_locker *locker,
                                      int xa_state) {
-  auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
   assert(state != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
@@ -7787,7 +7782,7 @@ void pfs_set_transaction_trxid_v1(PSI_transaction_locker *locker,
                                   const ulonglong *trxid) {
   assert(trxid != nullptr);
 
-  auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
   assert(state != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
@@ -7831,7 +7826,7 @@ void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
 }
 
 void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit) {
-  auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_transaction_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -7913,14 +7908,13 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit) {
   @sa PSI_v1::end_socket_wait.
 */
 void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count) {
-  auto *state = reinterpret_cast<PSI_socket_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_socket_locker_state *>(locker);
   assert(state != nullptr);
 
   auto *socket = reinterpret_cast<PFS_socket *>(state->m_socket);
   assert(socket != nullptr);
 
   ulonglong timer_end = 0;
-  ulonglong wait_time = 0;
   PFS_byte_stat *byte_stat;
   const uint flags = state->m_flags;
   const size_t bytes = ((int)byte_count > -1 ? byte_count : 0);
@@ -7959,7 +7953,7 @@ void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count) {
   /* Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED) {
     timer_end = get_wait_timer();
-    wait_time = timer_end - state->m_timer_start;
+    const ulonglong wait_time = timer_end - state->m_timer_start;
 
     /* Aggregate to the socket instrument for now (timed) */
     byte_stat->aggregate(wait_time, bytes);
@@ -8043,7 +8037,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
 }
 
 struct PSI_digest_locker *pfs_digest_start_vc(PSI_statement_locker *locker) {
-  auto *statement_state =
+  const auto *statement_state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   assert(statement_state != nullptr);
 
@@ -8069,7 +8063,7 @@ void pfs_digest_end_vc(PSI_digest_locker *locker,
 
     state->m_digest = digest;
 
-    const uint req_flags =
+    constexpr uint req_flags =
         STATE_FLAG_THREAD | STATE_FLAG_EVENT | STATE_FLAG_DIGEST;
 
     if ((state->m_pfs_flags & req_flags) == req_flags) {
@@ -8195,7 +8189,7 @@ void pfs_set_prepared_stmt_text_vc(PSI_prepared_stmt *prepared_stmt,
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   assert(pfs_prepared_stmt != nullptr);
 
-  const uint max_len = COL_INFO_SIZE;
+  constexpr uint max_len = COL_INFO_SIZE;
   if (text_len > max_len) {
     text_len = max_len;
   }
@@ -8289,7 +8283,7 @@ int pfs_set_thread_connect_attrs_vc(const char *buffer, uint length,
 */
 void pfs_get_current_thread_event_id_vc(ulonglong *internal_thread_id,
                                         ulonglong *event_id) {
-  PFS_thread *pfs = my_thread_get_THR_PFS();
+  const PFS_thread *pfs = my_thread_get_THR_PFS();
 
   if (pfs != nullptr) {
     *internal_thread_id = pfs->m_thread_internal_id;
@@ -8316,7 +8310,7 @@ void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
 */
 void pfs_get_thread_event_id_vc(PSI_thread *psi, ulonglong *internal_thread_id,
                                 ulonglong *event_id) {
-  auto *pfs = reinterpret_cast<PFS_thread *>(psi);
+  const auto *pfs = reinterpret_cast<PFS_thread *>(psi);
 
   if (pfs != nullptr) {
     *internal_thread_id = pfs->m_thread_internal_id;
@@ -8344,7 +8338,7 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
     return PSI_NOT_INSTRUMENTED;
   }
 
-  PFS_memory_class *klass = find_memory_class(key);
+  const PFS_memory_class *klass = find_memory_class(key);
   if (klass == nullptr) {
     *owner_thread = nullptr;
     return PSI_NOT_INSTRUMENTED;
@@ -8502,7 +8496,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
   auto **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   assert(owner_thread != nullptr);
 
-  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
+  const PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
   if (klass == nullptr) {
     *owner_thread = nullptr;
     return PSI_NOT_INSTRUMENTED;
@@ -8667,7 +8661,6 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size, PSI_thread *owner) {
 
   const uint index = klass->m_event_name_index;
   PFS_memory_stat_free_delta delta_buffer;
-  PFS_memory_stat_free_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global()) {
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
@@ -8685,7 +8678,8 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size, PSI_thread *owner) {
         PFS_memory_safe_stat *stat;
         event_name_array = pfs_thread->write_instr_class_memory_stats();
         stat = &event_name_array[index];
-        delta = stat->count_free(size, &delta_buffer);
+        PFS_memory_stat_free_delta *delta =
+            stat->count_free(size, &delta_buffer);
 
         if (delta != nullptr) {
           pfs_thread->carry_memory_stat_free_delta(delta, index);
@@ -8715,11 +8709,10 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size, PSI_thread *owner) {
 
   DEBUG_TRACE_MEMORY("GF()", nullptr, klass, size);
   PFS_memory_shared_stat *event_name_array;
-  PFS_memory_shared_stat *stat;
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
   event_name_array = global_instr_class_memory_array;
   if (event_name_array) {
-    stat = &event_name_array[index];
+    PFS_memory_shared_stat *stat = &event_name_array[index];
     (void)stat->count_free(size, &delta_buffer);
   }
 }
@@ -8744,7 +8737,7 @@ PSI_metadata_lock *pfs_create_metadata_lock_vc(
     return nullptr;
   }
 
-  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+  const PFS_thread *pfs_thread = my_thread_get_THR_PFS();
   if (pfs_thread == nullptr) {
     return nullptr;
   }
@@ -8822,7 +8815,7 @@ PSI_metadata_locker *pfs_start_metadata_wait_vc(
       state->m_wait = wait;
       flags |= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event = wait - 1;
+      const PFS_events_waits *parent_event = wait - 1;
       wait->m_event_type = EVENT_TYPE_WAIT;
       wait->m_nesting_event_id = parent_event->m_event_id;
       wait->m_nesting_event_type = parent_event->m_event_type;
@@ -8865,7 +8858,7 @@ PSI_metadata_locker *pfs_start_metadata_wait_vc(
 }
 
 void pfs_end_metadata_wait_vc(PSI_metadata_locker *locker, int) {
-  auto *state = reinterpret_cast<PSI_metadata_locker_state *>(locker);
+  const auto *state = reinterpret_cast<PSI_metadata_locker_state *>(locker);
   assert(state != nullptr);
 
   ulonglong timer_end = 0;
@@ -9009,13 +9002,13 @@ void pfs_unload_plugin_v1(const char *plugin_name [[maybe_unused]]) {
   */
 
   /* Temporarily disable the SOURCE column in all tables. */
-  pfs_unload_plugin_ref_count++;
+  ++pfs_unload_plugin_ref_count;
 
   /* Find the relevant events, set source file strings to NULL. */
   reset_source_file_pointers();
 
   /* Re-enable the SOURCE column in all tables. */
-  pfs_unload_plugin_ref_count--;
+  --pfs_unload_plugin_ref_count;
 }
 
 /**

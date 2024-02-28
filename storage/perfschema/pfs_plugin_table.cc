@@ -246,13 +246,11 @@ bool plugin_table_service_initialized = false;
  */
 static int write_row(PFS_engine_table *pfs_table, TABLE *table,
                      unsigned char *buf [[maybe_unused]], Field **fields) {
-  int result = 0;
-  Field *f;
-  auto *temp = (table_plugin_table *)pfs_table;
+  const auto *temp = (table_plugin_table *)pfs_table;
 
-  for (; (f = *fields); fields++) {
+  for (Field *f; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
-      result = temp->m_st_table->write_column_value(
+      const int result = temp->m_st_table->write_column_value(
           temp->plugin_table_handle, (PSI_field *)f, f->field_index());
       if (result) {
         return result;
@@ -269,11 +267,9 @@ static int write_row(PFS_engine_table *pfs_table, TABLE *table,
  *
  * @param share        table share to be initialized
  * @param proxy_share  Proxy shared passed from plugin/component
- *
- * return 0 for success
  */
-static int initialize_table_share(PFS_engine_table_share *share,
-                                  PFS_engine_table_share_proxy *proxy_share) {
+static void initialize_table_share(PFS_engine_table_share *share,
+                                   PFS_engine_table_share_proxy *proxy_share) {
   /* Set acl */
   switch (proxy_share->m_acl) {
     case READONLY:
@@ -338,8 +334,6 @@ static int initialize_table_share(PFS_engine_table_share *share,
   thr_lock_init(share->m_thr_lock_ptr);
 
   share->m_ref_count = 0;
-
-  return 0;
 }
 
 /**
@@ -409,15 +403,8 @@ static int pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
     auto *temp_share = new PFS_engine_table_share();
 
     /* Initialize table share for this new table */
-    if (initialize_table_share(temp_share, temp_st_share)) {
-      /* Delete all the initialized table shares till now */
-      for (auto *share : share_list) {
-        pfs_external_table_shares.remove_share(share);
-        destroy_table_share(share);
-      }
-      pfs_external_table_shares.unlock_share_list();
-      return 1;
-    }
+    initialize_table_share(temp_share, temp_st_share);
+
     /* Add share to PFS shares list */
     pfs_external_table_shares.add_share(temp_share);
     share_list.push_back(temp_share);
@@ -475,7 +462,7 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
 
   /* Check if any of the table, in the list, doesn't exist. */
   for (uint i = 0; i < share_list_count; i++) {
-    PFS_engine_table_share_proxy *temp_st_share = st_share_list[i];
+    const PFS_engine_table_share_proxy *temp_st_share = st_share_list[i];
     assert(temp_st_share && temp_st_share->m_table_name &&
            temp_st_share->m_table_name_length > 0);
 
@@ -502,7 +489,7 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
    *
    * Now traverse share_list and drop tables using DD API.
    */
-  for (auto *share : share_list) {
+  for (const auto *share : share_list) {
     if (drop_native_table_for_pfs(PERFORMANCE_SCHEMA_str.str,
                                   share->m_table_def->get_name())) {
       return 1;
@@ -1256,7 +1243,7 @@ void set_field_null_v1(PSI_field *f) {
 }
 
 unsigned int get_parts_found_v1(PSI_key_reader *reader) {
-  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto *pfs_reader = (PFS_key_reader *)reader;
   return pfs_reader->m_parts_found;
 }
 

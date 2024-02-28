@@ -53,7 +53,7 @@ static void get_metric_simple_integer(void *measurement_context,
   assert(delivery != nullptr);
   // OTEL only supports int64_t integer counters, clamp wider types
   const T measurement = *(T *)measurement_context;
-  const int64_t value = Clamp<int64_t>(measurement);
+  const auto value = Clamp<int64_t>(measurement);
   delivery->value_int64(delivery_context, value);
 }
 
@@ -63,7 +63,7 @@ static void get_metric_mutex_instances_lost(
   // see show_func_mutex_instances_lost()
   assert(delivery != nullptr);
   const auto measurement = global_mutex_container.get_lost_counter();
-  const int64_t value = Clamp<int64_t>(measurement);
+  const auto value = Clamp<int64_t>(measurement);
   delivery->value_int64(delivery_context, value);
 }
 

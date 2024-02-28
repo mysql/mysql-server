@@ -199,7 +199,7 @@ static version_vector_t version_vector = {
 
 namespace terminology_use_previous {
 
-compatible_name_t lookup(PFS_class_type class_type, const std::string str,
+compatible_name_t lookup(PFS_class_type class_type, const std::string &str,
                          bool use_prefix) {
   for (version_vector_t::size_type int_version = 0;
        int_version < version_vector.size(); ++int_version) {

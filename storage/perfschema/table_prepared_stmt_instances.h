@@ -46,24 +46,24 @@
 */
 struct row_prepared_stmt_instances {
   /** Column OBJECT_INSTANCE_BEGIN. */
-  const void *m_identity;
+  const void *m_identity{nullptr};
 
   /** Column STMT_ID. */
-  ulonglong m_stmt_id;
+  ulonglong m_stmt_id{0};
 
   /** Column STMT_NAME. */
   char m_stmt_name[COL_INFO_SIZE];
-  int m_stmt_name_length;
+  int m_stmt_name_length{0};
 
   /** Column SQL_TEXT. */
   char m_sql_text[COL_INFO_SIZE];
-  int m_sql_text_length;
+  int m_sql_text_length{0};
 
   /** Column OWNER_THREAD_ID. */
-  ulonglong m_owner_thread_id;
+  ulonglong m_owner_thread_id{0};
 
   /** Column OWNER_EVENT_ID. */
-  ulonglong m_owner_event_id;
+  ulonglong m_owner_event_id{0};
 
   /** Column OWNER_OBJECT_TYPE. */
   enum_object_type m_owner_object_type;
@@ -81,7 +81,7 @@ struct row_prepared_stmt_instances {
   PFS_stat_row m_reprepare_stat;
 
   /** Column EXECUTION_ENGINE. */
-  bool m_secondary;
+  bool m_secondary{false};
 
   /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
   PFS_statement_stat_row m_execute_stat;

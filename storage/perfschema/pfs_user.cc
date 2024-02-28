@@ -164,7 +164,7 @@ PFS_user *find_or_create_user(PFS_thread *thread, const PFS_user_name *user) {
   PFS_user **entry;
   PFS_user *pfs;
   uint retry_count = 0;
-  const uint retry_max = 3;
+  constexpr uint retry_max = 3;
   pfs_dirty_state dirty_state;
 
 search:
@@ -291,7 +291,7 @@ void PFS_user::release() { dec_refcount(); }
 
 void PFS_user::rebase_memory_stats() {
   PFS_memory_shared_stat *stat = m_instr_class_memory_stats;
-  PFS_memory_shared_stat *stat_last = stat + memory_class_max;
+  const PFS_memory_shared_stat *stat_last = stat + memory_class_max;
   for (; stat < stat_last; stat++) {
     stat->reset();
   }

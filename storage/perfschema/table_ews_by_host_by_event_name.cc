@@ -120,7 +120,7 @@ ha_rows table_ews_by_host_by_event_name::get_row_count() {
 }
 
 table_ews_by_host_by_event_name::table_ews_by_host_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   // For all cases except IDLE
   m_normalizer = time_normalizer::get_wait();
 }
@@ -232,9 +232,8 @@ int table_ews_by_host_by_event_name::rnd_pos(const void *pos) {
 
 int table_ews_by_host_by_event_name::index_init(uint idx [[maybe_unused]],
                                                 bool) {
-  PFS_index_ews_by_host_by_event_name *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_ews_by_host_by_event_name);
+  auto *result = PFS_NEW(PFS_index_ews_by_host_by_event_name);
   m_opened_index = result;
   m_index = result;
   return 0;

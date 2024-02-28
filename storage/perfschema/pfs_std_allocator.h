@@ -39,10 +39,11 @@ struct PFS_std_allocator {
  public:
   typedef T value_type;
 
-  PFS_std_allocator(PFS_builtin_memory_class *klass) : m_klass(klass) {}
+  explicit PFS_std_allocator(PFS_builtin_memory_class *klass)
+      : m_klass(klass) {}
 
   template <class U>
-  constexpr PFS_std_allocator(const PFS_std_allocator<U> &u) noexcept
+  constexpr explicit PFS_std_allocator(const PFS_std_allocator<U> &u) noexcept
       : m_klass(u.get_class()) {}
 
   [[nodiscard]] T *allocate(std::size_t n) {

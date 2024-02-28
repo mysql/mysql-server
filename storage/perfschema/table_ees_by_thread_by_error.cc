@@ -115,7 +115,7 @@ ha_rows table_ees_by_thread_by_error::get_row_count() {
 }
 
 table_ees_by_thread_by_error::table_ees_by_thread_by_error()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {}
 
 void table_ees_by_thread_by_error::reset_position() {
   m_pos.reset();
@@ -161,9 +161,8 @@ int table_ees_by_thread_by_error::rnd_pos(const void *pos) {
 }
 
 int table_ees_by_thread_by_error::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_ees_by_thread_by_error *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_ees_by_thread_by_error);
+  auto *result = PFS_NEW(PFS_index_ees_by_thread_by_error);
   m_opened_index = result;
   m_index = result;
   return 0;

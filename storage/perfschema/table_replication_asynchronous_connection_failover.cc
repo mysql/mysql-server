@@ -227,7 +227,7 @@ int table_replication_asynchronous_connection_failover::read_row_values(
     return HA_ERR_END_OF_FILE;
   }
 
-  for (Field *f = nullptr; (f = *fields); fields++) {
+  for (Field *f; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */

@@ -66,25 +66,25 @@ enum enum_rpl_yes_no {
 */
 struct st_row_coordinator {
   char channel_name[CHANNEL_NAME_LENGTH];
-  uint channel_name_length;
+  uint channel_name_length{0};
   ulonglong thread_id{0};
-  bool thread_id_is_null;
+  bool thread_id_is_null{0};
   enum_rpl_yes_no service_state;
-  uint last_error_number;
+  uint last_error_number{0};
   char last_error_message[MAX_SLAVE_ERRMSG];
-  uint last_error_message_length;
-  ulonglong last_error_timestamp;
+  uint last_error_message_length{0};
+  ulonglong last_error_timestamp{0};
   char last_processed_trx[Gtid::MAX_TEXT_LENGTH + 1];
-  uint last_processed_trx_length;
-  ulonglong last_processed_trx_original_commit_timestamp;
-  ulonglong last_processed_trx_immediate_commit_timestamp;
-  ulonglong last_processed_trx_start_buffer_timestamp;
-  ulonglong last_processed_trx_end_buffer_timestamp;
+  uint last_processed_trx_length{0};
+  ulonglong last_processed_trx_original_commit_timestamp{0};
+  ulonglong last_processed_trx_immediate_commit_timestamp{0};
+  ulonglong last_processed_trx_start_buffer_timestamp{0};
+  ulonglong last_processed_trx_end_buffer_timestamp{0};
   char processing_trx[Gtid::MAX_TEXT_LENGTH + 1];
-  uint processing_trx_length;
-  ulonglong processing_trx_original_commit_timestamp;
-  ulonglong processing_trx_immediate_commit_timestamp;
-  ulonglong processing_trx_start_buffer_timestamp;
+  uint processing_trx_length{0};
+  ulonglong processing_trx_original_commit_timestamp{0};
+  ulonglong processing_trx_immediate_commit_timestamp{0};
+  ulonglong processing_trx_start_buffer_timestamp{0};
 };
 
 class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index {

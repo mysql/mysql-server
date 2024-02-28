@@ -136,7 +136,7 @@ struct PFS_ALIGNED PFS_user : public PFS_connection_slice {
     PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME.
     Immutable, safe to use without internal lock.
   */
-  PFS_memory_shared_stat *m_instr_class_memory_stats;
+  PFS_memory_shared_stat *m_instr_class_memory_stats{nullptr};
 };
 
 int init_user(const PFS_global_param *param);

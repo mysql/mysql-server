@@ -55,7 +55,7 @@ static void set_channel_name(void *const, const char &, size_t) {}
 static void set_group_name(void *const context, const char &value,
                            size_t length) {
   auto *row = static_cast<struct st_row_connect_status *>(context);
-  const size_t max = UUID_LENGTH;
+  constexpr size_t max = UUID_LENGTH;
   length = std::min(length, max);
 
   row->group_name_is_null = false;
@@ -65,7 +65,7 @@ static void set_group_name(void *const context, const char &value,
 static void set_source_uuid(void *const context, const char &value,
                             size_t length) {
   auto *row = static_cast<struct st_row_connect_status *>(context);
-  const size_t max = UUID_LENGTH;
+  constexpr size_t max = UUID_LENGTH;
   length = std::min(length, max);
 
   row->source_uuid_is_null = false;
@@ -156,14 +156,14 @@ bool PFS_index_rpl_connection_status_by_thread::match(Master_info *mi) {
     /* NULL THREAD_ID is represented by 0 */
     row.thread_id = 0;
 
-    if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-      PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
+    if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
+      PSI_thread *psi = thd_get_psi(mi->info_thd);
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     if (!m_key.match(row.thread_id)) {
       return false;
@@ -179,7 +179,10 @@ PFS_engine_table *table_replication_connection_status::create(
 }
 
 table_replication_connection_status::table_replication_connection_status()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 table_replication_connection_status::~table_replication_connection_status() =
     default;
@@ -195,12 +198,11 @@ ha_rows table_replication_connection_status::get_row_count() {
 }
 
 int table_replication_connection_status::rnd_next() {
-  Master_info *mi = nullptr;
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
-    mi = channel_map.get_mi_at_pos(m_pos.m_index);
+    Master_info *mi = channel_map.get_mi_at_pos(m_pos.m_index);
     if (channel_map.is_channel_configured(mi)) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
@@ -252,13 +254,11 @@ int table_replication_connection_status::index_init(uint idx, bool) {
 }
 
 int table_replication_connection_status::index_next() {
-  Master_info *mi = nullptr;
-
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
-    mi = channel_map.get_mi_at_pos(m_pos.m_index);
+    Master_info *mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
     if (channel_map.is_channel_configured(mi)) {
       if (m_opened_index->match(mi)) {
@@ -330,15 +330,15 @@ int table_replication_connection_status::make_row(Master_info *mi) {
     }
   }
 
-  if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
+  if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
+    PSI_thread *psi = thd_get_psi(mi->info_thd);
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   m_row.count_received_heartbeats = mi->received_heartbeats;
   // Time in microseconds since epoch.

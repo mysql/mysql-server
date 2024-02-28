@@ -97,7 +97,7 @@ table_processlist::table_processlist() : cursor_by_thread(&m_share) {
 }
 
 int table_processlist::set_access() {
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   if (thd == nullptr) {
     /* Robustness, no user session. */
     m_row_priv.m_auth = PROCESSLIST_DENIED;

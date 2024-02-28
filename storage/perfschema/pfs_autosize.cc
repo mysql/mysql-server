@@ -88,7 +88,7 @@ PFS_sizing_data large_data = {
     /* Session connect attrs. */
     512};
 
-static PFS_sizing_data *estimate_hints(PFS_global_param *param) {
+static PFS_sizing_data *estimate_hints(const PFS_global_param *param) {
   if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
       (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&
       (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT)) {
@@ -108,7 +108,7 @@ static PFS_sizing_data *estimate_hints(PFS_global_param *param) {
   return &large_data;
 }
 
-static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h) {
+static void apply_heuristic(PFS_global_param *p, const PFS_sizing_data *h) {
   if (p->m_events_waits_history_sizing < 0) {
     p->m_events_waits_history_sizing = h->m_events_waits_history_sizing;
   }
@@ -231,7 +231,7 @@ void pfs_automated_sizing(PFS_global_param *param) {
     param->m_metric_class_sizing = 0;
 #endif
 
-    PFS_sizing_data *heuristic;
+    const PFS_sizing_data *heuristic;
     heuristic = estimate_hints(param);
     apply_heuristic(param, heuristic);
 

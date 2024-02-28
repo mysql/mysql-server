@@ -102,6 +102,7 @@ table_esmh_global::table_esmh_global()
     : PFS_engine_table(&m_share, &m_pos),
       m_pos(0),
       m_next_pos(0),
+      m_opened_index(nullptr),
       m_materialized(false) {}
 
 void table_esmh_global::reset_position() {
@@ -131,9 +132,8 @@ int table_esmh_global::rnd_pos(const void *pos) {
 }
 
 int table_esmh_global::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_esmh_global *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_esmh_global);
+  auto *result = PFS_NEW(PFS_index_esmh_global);
   m_opened_index = result;
   m_index = result;
   return 0;
@@ -157,11 +157,10 @@ void table_esmh_global::materialize() {
     PFS_histogram *histogram = &global_statements_histogram;
 
     ulong index;
-    ulonglong count = 0;
     ulonglong count_and_lower = 0;
 
     for (index = 0; index < NUMBER_OF_BUCKETS; index++) {
-      count = histogram->read_bucket(index);
+      const ulonglong count = histogram->read_bucket(index);
       count_and_lower += count;
 
       PFS_esmh_global_bucket &b = m_materialized_histogram.m_buckets[index];

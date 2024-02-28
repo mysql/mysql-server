@@ -124,7 +124,10 @@ PFS_engine_table *table_socket_summary_by_instance::create(
 }
 
 table_socket_summary_by_instance::table_socket_summary_by_instance()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_wait();
 }
 

@@ -39,7 +39,10 @@ ha_rows cursor_by_thread::get_row_count() {
 }
 
 cursor_by_thread::cursor_by_thread(const PFS_engine_table_share *share)
-    : PFS_engine_table(share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void cursor_by_thread::reset_position() {
   m_pos.m_index = 0;

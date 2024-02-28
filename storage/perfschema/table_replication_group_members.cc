@@ -51,7 +51,7 @@
 static void set_channel_name(void *const context, const char &value,
                              size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = CHANNEL_NAME_LENGTH;
+  constexpr size_t max = CHANNEL_NAME_LENGTH;
   length = std::min(length, max);
 
   row->channel_name_length = length;
@@ -61,7 +61,7 @@ static void set_channel_name(void *const context, const char &value,
 static void set_member_id(void *const context, const char &value,
                           size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = UUID_LENGTH;
+  constexpr size_t max = UUID_LENGTH;
   length = std::min(length, max);
 
   row->member_id_length = length;
@@ -71,7 +71,7 @@ static void set_member_id(void *const context, const char &value,
 static void set_member_host(void *const context, const char &value,
                             size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = HOSTNAME_LENGTH;
+  constexpr size_t max = HOSTNAME_LENGTH;
   length = std::min(length, max);
 
   row->member_host_length = length;
@@ -86,7 +86,7 @@ static void set_member_port(void *const context, unsigned int value) {
 static void set_member_state(void *const context, const char &value,
                              size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = NAME_LEN;
+  constexpr size_t max = NAME_LEN;
   length = std::min(length, max);
 
   row->member_state_length = length;
@@ -96,7 +96,7 @@ static void set_member_state(void *const context, const char &value,
 static void set_member_version(void *const context, const char &value,
                                size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = NAME_LEN;
+  constexpr size_t max = NAME_LEN;
   length = std::min(length, max);
 
   row->member_version_length = length;
@@ -106,7 +106,7 @@ static void set_member_version(void *const context, const char &value,
 static void set_member_role(void *const context, const char &value,
                             size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = NAME_LEN;
+  constexpr size_t max = NAME_LEN;
   length = std::min(length, max);
 
   row->member_role_length = length;
@@ -116,7 +116,7 @@ static void set_member_role(void *const context, const char &value,
 static void set_member_communication_stack(void *const context,
                                            const char &value, size_t length) {
   auto *row = static_cast<struct st_row_group_members *>(context);
-  const size_t max = NAME_LEN;
+  constexpr size_t max = NAME_LEN;
   length = std::min(length, max);
 
   row->member_communication_stack_length = length;

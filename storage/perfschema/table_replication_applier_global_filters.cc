@@ -110,12 +110,12 @@ ha_rows table_replication_applier_global_filters::get_row_count() {
 
 int table_replication_applier_global_filters::rnd_next() {
   int res = HA_ERR_END_OF_FILE;
-  Rpl_pfs_filter *rpl_pfs_filter = nullptr;
 
   rpl_global_filter.rdlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next()) {
     /* Get ith rpl_pfs_filter from global replication filters. */
-    rpl_pfs_filter = rpl_global_filter.get_filter_at_pos(m_pos.m_index);
+    Rpl_pfs_filter *rpl_pfs_filter =
+        rpl_global_filter.get_filter_at_pos(m_pos.m_index);
 
     if (rpl_pfs_filter == nullptr) {
       break;
@@ -131,12 +131,12 @@ int table_replication_applier_global_filters::rnd_next() {
 
 int table_replication_applier_global_filters::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
-  Rpl_pfs_filter *rpl_pfs_filter = nullptr;
   set_position(pos);
 
   rpl_global_filter.rdlock();
   /* Get ith rpl_pfs_filter from global replication filters. */
-  rpl_pfs_filter = rpl_global_filter.get_filter_at_pos(m_pos.m_index - 1);
+  Rpl_pfs_filter *rpl_pfs_filter =
+      rpl_global_filter.get_filter_at_pos(m_pos.m_index - 1);
   if (rpl_pfs_filter) {
     make_row(rpl_pfs_filter);
     res = 0;

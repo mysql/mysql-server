@@ -236,7 +236,7 @@ int table_events_transactions_common::make_row(
   ulonglong timer_end;
 
   auto *unsafe = (PFS_transaction_class *)transaction->m_class;
-  PFS_transaction_class *klass = sanitize_transaction_class(unsafe);
+  const PFS_transaction_class *klass = sanitize_transaction_class(unsafe);
   if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -289,8 +289,8 @@ int table_events_transactions_common::make_row(
      Given a TSID, it can generate the textual representation of the
      GTID.
   */
-  Gtid_specification *gtid_spec = &transaction->m_gtid_spec;
-  mysql::gtid::Tsid tsid(transaction->m_tsid);
+  const Gtid_specification *gtid_spec = &transaction->m_gtid_spec;
+  const mysql::gtid::Tsid tsid(transaction->m_tsid);
   m_row.m_gtid_length = gtid_spec->to_string(tsid, m_row.m_gtid);
   m_row.m_xid = transaction->m_xid;
   m_row.m_isolation_level = transaction->m_isolation_level;
@@ -309,7 +309,7 @@ int table_events_transactions_common::make_row(
 }
 
 /** Size of XID converted to null-terminated hex string prefixed with 0x. */
-static const ulong XID_BUFFER_SIZE = XIDDATASIZE * 2 + 2 + 1;
+static constexpr ulong XID_BUFFER_SIZE = XIDDATASIZE * 2 + 2 + 1;
 
 /**
   Convert the XID to HEX string prefixed by '0x'
@@ -518,7 +518,8 @@ PFS_engine_table *table_events_transactions_current::create(
 table_events_transactions_current::table_events_transactions_current()
     : table_events_transactions_common(&m_share, &m_pos),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_events_transactions_current::reset_position() {
   m_pos.m_index = 0;
@@ -545,14 +546,11 @@ int table_events_transactions_current::rnd_next() {
 }
 
 int table_events_transactions_current::rnd_pos(const void *pos) {
-  PFS_thread *pfs_thread;
-  PFS_events_transactions *transaction;
-
   set_position(pos);
 
-  pfs_thread = global_thread_container.get(m_pos.m_index);
+  PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index);
   if (pfs_thread != nullptr) {
-    transaction = &pfs_thread->m_transaction_current;
+    PFS_events_transactions *transaction = &pfs_thread->m_transaction_current;
     if (transaction->m_class != nullptr) {
       return make_row(transaction);
     }
@@ -610,8 +608,7 @@ PFS_engine_table *table_events_transactions_history::create(
 
 table_events_transactions_history::table_events_transactions_history()
     : table_events_transactions_common(&m_share, &m_pos),
-      m_pos(),
-      m_next_pos() {}
+      m_opened_index(nullptr) {}
 
 void table_events_transactions_history::reset_position() {
   m_pos.reset();
@@ -656,22 +653,20 @@ int table_events_transactions_history::rnd_next() {
 }
 
 int table_events_transactions_history::rnd_pos(const void *pos) {
-  PFS_thread *pfs_thread;
-  PFS_events_transactions *transaction;
-
   assert(events_transactions_history_per_thread != 0);
   set_position(pos);
 
   assert(m_pos.m_index_2 < events_transactions_history_per_thread);
 
-  pfs_thread = global_thread_container.get(m_pos.m_index_1);
+  const PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
     if (!pfs_thread->m_transactions_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_transactions_history_index)) {
       return HA_ERR_RECORD_DELETED;
     }
 
-    transaction = &pfs_thread->m_transactions_history[m_pos.m_index_2];
+    PFS_events_transactions *transaction =
+        &pfs_thread->m_transactions_history[m_pos.m_index_2];
     if (transaction->m_class != nullptr) {
       return make_row(transaction);
     }

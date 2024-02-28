@@ -100,7 +100,8 @@ table_persisted_variables::table_persisted_variables()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(false),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_persisted_variables::reset_position() {
   m_pos.m_index = 0;
@@ -149,9 +150,8 @@ int table_persisted_variables::index_init(uint idx [[maybe_unused]], bool) {
   */
   m_sysvar_cache.materialize_all(current_thd);
 
-  PFS_index_persisted_variables *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_persisted_variables);
+  auto *result = PFS_NEW(PFS_index_persisted_variables);
   m_opened_index = result;
   m_index = result;
 

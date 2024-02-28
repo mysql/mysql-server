@@ -79,7 +79,8 @@ class PFS_key_error_log_logged : public PFS_key_ulonglong {
   bool match(const log_sink_pfs_event *row);
 
  private:
-  ulonglong m_key_value;  // TIMESTAMP(6) (microsecond precision) as ulonglong
+  ulonglong m_key_value{
+      0};  // TIMESTAMP(6) (microsecond precision) as ulonglong
 };
 
 /// index on the LOGGED (timestamp/primary key) column

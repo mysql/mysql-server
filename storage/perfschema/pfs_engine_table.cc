@@ -935,7 +935,7 @@ static bool allow_drop_schema_privilege() {
       in particular to drop unknown tables,
       see PFS_unknown_acl::check()
   */
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   if (thd == nullptr) {
     return false;
   }
@@ -950,7 +950,7 @@ static bool allow_drop_schema_privilege() {
 ACL_internal_access_result PFS_internal_schema_access::check(ulong want_access,
                                                              ulong *,
                                                              bool) const {
-  const ulong always_forbidden =
+  constexpr ulong always_forbidden =
       CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
       EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |
       ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL;
@@ -1018,7 +1018,7 @@ static bool allow_drop_table_privilege() {
     Here, we want to prevent DROP / ALTER  while allowing TRUNCATE.
     Note that we must also allow GRANT to transfer the truncate privilege.
   */
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   if (thd == nullptr) {
     return false;
   }
@@ -1033,12 +1033,12 @@ PFS_readonly_acl pfs_readonly_acl;
 ACL_internal_access_result PFS_readonly_acl::check(
     ulong want_access, ulong *granted_access,
     bool any_combination_will_do) const {
-  const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 CREATE_ACL | DROP_ACL | REFERENCES_ACL |
-                                 INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL |
-                                 SHOW_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
+  constexpr ulong always_forbidden =
+      INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL |
+      REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
+      TRIGGER_ACL | LOCK_TABLES_ACL;
 
-  const ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+  constexpr ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
   const ulong want_forbidden = want_access & always_forbidden;
 
@@ -1090,12 +1090,12 @@ PFS_truncatable_acl pfs_truncatable_acl;
 ACL_internal_access_result PFS_truncatable_acl::check(
     ulong want_access, ulong *granted_access,
     bool any_combination_will_do) const {
-  const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
-                                 TRIGGER_ACL | LOCK_TABLES_ACL;
+  constexpr ulong always_forbidden =
+      INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | REFERENCES_ACL |
+      INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL |
+      LOCK_TABLES_ACL;
 
-  const ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+  constexpr ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
   ulong want_allowable = want_access & can_be_allowed;
 
@@ -1141,11 +1141,11 @@ PFS_updatable_acl pfs_updatable_acl;
 ACL_internal_access_result PFS_updatable_acl::check(
     ulong want_access, ulong *granted_access,
     bool any_combination_will_do) const {
-  const ulong always_forbidden =
+  constexpr ulong always_forbidden =
       INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL |
       INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
-  const ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+  constexpr ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
   const ulong want_forbidden = want_access & always_forbidden;
 
@@ -1172,11 +1172,11 @@ PFS_editable_acl pfs_editable_acl;
 ACL_internal_access_result PFS_editable_acl::check(
     ulong want_access, ulong *granted_access,
     bool any_combination_will_do) const {
-  const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
-                                 TRIGGER_ACL;
+  constexpr ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
+                                     ALTER_ACL | CREATE_VIEW_ACL |
+                                     SHOW_VIEW_ACL | TRIGGER_ACL;
 
-  const ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+  constexpr ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
   ulong want_forbidden = want_access & always_forbidden;
 
@@ -1216,10 +1216,10 @@ ACL_internal_access_result PFS_unknown_acl::check(
     in the performance schema,
     relax error messages otherwise.
   */
-  const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
+  constexpr ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
+                                     ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
 
-  const ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
+  constexpr ulong can_be_allowed = TABLE_ACLS & (~always_forbidden);
 
   const ulong want_forbidden = want_access & always_forbidden;
 
@@ -1404,7 +1404,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
 
-    auto *pos = (uchar *)buffer;
+    const auto *pos = (uchar *)buffer;
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);
 
@@ -1452,7 +1452,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     *buffer_length = (uint)string_len;
 
     const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
-    auto *pos = (uchar *)buffer;
+    const auto *pos = (uchar *)buffer;
     if (cs->mbmaxlen > 1) {
       size_t char_length;
       char_length =

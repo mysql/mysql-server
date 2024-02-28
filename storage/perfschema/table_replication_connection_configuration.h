@@ -69,44 +69,44 @@ enum enum_ssl_allowed {
 */
 struct st_row_connect_config {
   char channel_name[CHANNEL_NAME_LENGTH];
-  uint channel_name_length;
+  uint channel_name_length{0};
   char host[HOSTNAME_LENGTH];
-  uint host_length;
-  uint port;
+  uint host_length{0};
+  uint port{0};
   char user[USERNAME_LENGTH];
-  uint user_length;
+  uint user_length{0};
   char network_interface[HOSTNAME_LENGTH];
-  uint network_interface_length;
+  uint network_interface_length{0};
   enum_rpl_yes_no auto_position;
   enum_ssl_allowed ssl_allowed;
   char ssl_ca_file[FN_REFLEN];
-  uint ssl_ca_file_length;
+  uint ssl_ca_file_length{0};
   char ssl_ca_path[FN_REFLEN];
-  uint ssl_ca_path_length;
+  uint ssl_ca_path_length{0};
   char ssl_certificate[FN_REFLEN];
-  uint ssl_certificate_length;
+  uint ssl_certificate_length{0};
   char ssl_cipher[FN_REFLEN];
-  uint ssl_cipher_length;
+  uint ssl_cipher_length{0};
   char ssl_key[FN_REFLEN];
-  uint ssl_key_length;
+  uint ssl_key_length{0};
   enum_rpl_yes_no ssl_verify_server_certificate;
   char ssl_crl_file[FN_REFLEN];
-  uint ssl_crl_file_length;
+  uint ssl_crl_file_length{0};
   char ssl_crl_path[FN_REFLEN];
-  uint ssl_crl_path_length;
-  uint connection_retry_interval;
-  ulong connection_retry_count;
-  double heartbeat_interval;
+  uint ssl_crl_path_length{0};
+  uint connection_retry_interval{0};
+  ulong connection_retry_count{0};
+  double heartbeat_interval{0.0};
   char tls_version[FN_REFLEN];
-  uint tls_version_length;
+  uint tls_version_length{0};
   char public_key_path[FN_REFLEN];
-  uint public_key_path_length;
+  uint public_key_path_length{0};
   enum_rpl_yes_no get_public_key;
   char network_namespace[NAME_LEN];
-  uint network_namespace_length;
+  uint network_namespace_length{0};
   char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
-  uint compression_algorithm_length;
-  uint zstd_compression_level;
+  uint compression_algorithm_length{0};
+  uint zstd_compression_level{0};
   /*
     tls_ciphersuites = NULL means that TLS 1.3 default ciphersuites
     are enabled. To allow a value that can either be NULL or a string,

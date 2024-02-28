@@ -39,7 +39,7 @@ struct PFS_histogram {
  public:
   void reset();
 
-  void increment_bucket(uint bucket_index) { m_bucket[bucket_index]++; }
+  void increment_bucket(uint bucket_index) { ++m_bucket[bucket_index]; }
 
   ulonglong read_bucket(uint bucket_index) { return m_bucket[bucket_index]; }
 

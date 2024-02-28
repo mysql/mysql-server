@@ -207,7 +207,7 @@ PFS_program *find_or_create_program(
   PFS_program **entry;
   PFS_program *pfs = nullptr;
   uint retry_count = 0;
-  const uint retry_max = 3;
+  constexpr uint retry_max = 3;
   pfs_dirty_state dirty_state;
 
 search:
@@ -283,8 +283,7 @@ void drop_program(PFS_thread *thread, enum_object_type object_type,
       lf_hash_search(&program_hash, pins, &key, sizeof(key)));
 
   if (entry && (entry != MY_LF_ERRPTR)) {
-    PFS_program *pfs = nullptr;
-    pfs = *entry;
+    PFS_program *pfs = *entry;
 
     lf_hash_delete(&program_hash, pins, &key, sizeof(key));
     global_program_container.deallocate(pfs);

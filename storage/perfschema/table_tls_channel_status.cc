@@ -125,7 +125,7 @@ void table_tls_channel_status::materialize() {
   */
   pfs_tls_channels_lock_for_read();
   const tls_channels &channels = pfs_get_instrumented_tls_channels();
-  for (auto *channel : channels) {
+  for (const auto *channel : channels) {
     process_one_channel(channel);
   }
   pfs_tls_channels_unlock();

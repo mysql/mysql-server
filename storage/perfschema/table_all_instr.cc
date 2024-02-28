@@ -43,7 +43,7 @@ ha_rows table_all_instr::get_row_count() {
 }
 
 table_all_instr::table_all_instr(const PFS_engine_table_share *share)
-    : PFS_engine_table(share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(share, &m_pos), m_opened_index(nullptr) {}
 
 void table_all_instr::reset_position() {
   m_pos.reset();

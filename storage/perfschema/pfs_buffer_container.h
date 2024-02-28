@@ -205,7 +205,7 @@ class PFS_buffer_container {
   int init(size_t max_size) {
     if (max_size > 0) {
       m_array.m_max = max_size;
-      int rc = m_allocator->alloc_array(&m_array);
+      const int rc = m_allocator->alloc_array(&m_array);
       if (rc != 0) {
         m_allocator->free_array(&m_array);
         return 1;
@@ -228,7 +228,7 @@ class PFS_buffer_container {
     value_type *pfs;
 
     pfs = m_array.allocate(dirty_state, m_max);
-    if (pfs == NULL) {
+    if (pfs == nullptr) {
       m_lost++;
     }
 
@@ -252,7 +252,7 @@ class PFS_buffer_container {
       if (pfs->m_lock.is_populated()) {
         fct(pfs);
       }
-      pfs++;
+      ++pfs;
     }
   }
 
@@ -262,7 +262,7 @@ class PFS_buffer_container {
 
     while (pfs < pfs_last) {
       fct(pfs);
-      pfs++;
+      ++pfs;
     }
   }
 
@@ -274,7 +274,7 @@ class PFS_buffer_container {
       if (pfs->m_lock.is_populated()) {
         proc(pfs);
       }
-      pfs++;
+      ++pfs;
     }
   }
 
@@ -284,7 +284,7 @@ class PFS_buffer_container {
 
     while (pfs < pfs_last) {
       proc(pfs);
-      pfs++;
+      ++pfs;
     }
   }
 
@@ -296,13 +296,13 @@ class PFS_buffer_container {
       return pfs;
     }
 
-    return NULL;
+    return nullptr;
   }
 
   value_type *get(uint index, bool *has_more) {
     if (index >= m_max) {
       *has_more = false;
-      return NULL;
+      return nullptr;
     }
 
     *has_more = true;
@@ -310,18 +310,17 @@ class PFS_buffer_container {
   }
 
   value_type *sanitize(value_type *unsafe) {
-    intptr offset;
     value_type *pfs = m_array.get_first();
     value_type *pfs_last = m_array.get_last();
 
     if ((pfs <= unsafe) && (unsafe < pfs_last)) {
-      offset = ((intptr)unsafe - (intptr)pfs) % sizeof(value_type);
+      const intptr offset = ((intptr)unsafe - (intptr)pfs) % sizeof(value_type);
       if (offset == 0) {
         return unsafe;
       }
     }
 
-    return NULL;
+    return nullptr;
   }
 
   ulong m_lost;
@@ -336,16 +335,16 @@ class PFS_buffer_container {
 
     while (pfs < pfs_last) {
       if (pfs->m_lock.is_populated()) {
-        uint found = pfs - pfs_first;
+        const uint found = pfs - pfs_first;
         *found_index = found;
         index = found + 1;
         return pfs;
       }
-      pfs++;
+      ++pfs;
     }
 
     index = m_max;
-    return NULL;
+    return nullptr;
   }
 
   size_t m_max;
@@ -389,6 +388,11 @@ class PFS_buffer_scalable_container {
   explicit PFS_buffer_scalable_container(allocator_type *allocator) {
     m_allocator = allocator;
     m_initialized = false;
+    m_full = true;
+    m_max = PFS_PAGE_COUNT * PFS_PAGE_SIZE;
+    m_max_page_count = PFS_PAGE_COUNT;
+    m_last_page_size = PFS_PAGE_SIZE;
+    m_lost = 0;
   }
 
   int init(long max_size) {
@@ -463,7 +467,7 @@ class PFS_buffer_scalable_container {
   }
 
   size_t get_row_count() {
-    size_t page_count = m_max_page_index.m_size_t.load();
+    const size_t page_count = m_max_page_index.m_size_t.load();
     size_t result = page_count * PFS_PAGE_SIZE;
 
     if ((page_count > 0) && (m_last_page_size != PFS_PAGE_SIZE)) {
@@ -484,8 +488,6 @@ class PFS_buffer_scalable_container {
     }
 
     size_t index;
-    size_t monotonic;
-    size_t monotonic_max;
     size_t current_page_count;
     value_type *pfs;
     array_type *array;
@@ -496,8 +498,8 @@ class PFS_buffer_scalable_container {
     current_page_count = m_max_page_index.m_size_t.load();
 
     if (current_page_count != 0) {
-      monotonic = m_monotonic.m_size_t.load();
-      monotonic_max = monotonic + current_page_count;
+      size_t monotonic = m_monotonic.m_size_t.load();
+      size_t monotonic_max = monotonic + current_page_count;
 
       if (unlikely(monotonic >= monotonic_max)) {
         /*
@@ -600,7 +602,7 @@ class PFS_buffer_scalable_container {
           builtin_memory_scalable_buffer.count_alloc(sizeof(array_type));
 
           array->m_max = get_page_logical_size(current_page_count);
-          int rc = m_allocator->alloc_array(array);
+          const int rc = m_allocator->alloc_array(array);
           if (rc != 0) {
             m_allocator->free_array(array);
             delete array;
@@ -720,7 +722,7 @@ class PFS_buffer_scalable_container {
           if (pfs->m_lock.is_populated()) {
             fct(pfs);
           }
-          pfs++;
+          ++pfs;
         }
       }
     }
@@ -740,7 +742,7 @@ class PFS_buffer_scalable_container {
 
         while (pfs < pfs_last) {
           fct(pfs);
-          pfs++;
+          ++pfs;
         }
       }
     }
@@ -762,7 +764,7 @@ class PFS_buffer_scalable_container {
           if (pfs->m_lock.is_populated()) {
             proc(pfs);
           }
-          pfs++;
+          ++pfs;
         }
       }
     }
@@ -776,13 +778,13 @@ class PFS_buffer_scalable_container {
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
-      if (page != NULL) {
+      if (page != nullptr) {
         pfs = page->get_first();
         pfs_last = page->get_last();
 
         while (pfs < pfs_last) {
           proc(pfs);
-          pfs++;
+          ++pfs;
         }
       }
     }
@@ -901,16 +903,16 @@ class PFS_buffer_scalable_container {
 
       while (pfs < pfs_last) {
         if (pfs->m_lock.is_populated()) {
-          uint found =
+          const uint found =
               index_1 * PFS_PAGE_SIZE + static_cast<uint>(pfs - pfs_first);
           *found_index = found;
           index = found + 1;
           return pfs;
         }
-        pfs++;
+        ++pfs;
       }
 
-      index_1++;
+      ++index_1;
       index_2 = 0;
     }
 
@@ -1131,7 +1133,7 @@ class PFS_partitioned_buffer_scalable_container {
 
     if (partition_index >= PFS_PARTITION_COUNT) {
       *has_more = false;
-      return NULL;
+      return nullptr;
     }
 
     *has_more = true;
@@ -1369,12 +1371,12 @@ extern PFS_prepared_stmt_container global_prepared_stmt_container;
 
 class PFS_account_array : public PFS_buffer_default_array<PFS_account> {
  public:
-  PFS_single_stat *m_instr_class_waits_array;
-  PFS_stage_stat *m_instr_class_stages_array;
-  PFS_statement_stat *m_instr_class_statements_array;
-  PFS_transaction_stat *m_instr_class_transactions_array;
-  PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_shared_stat *m_instr_class_memory_array;
+  PFS_single_stat *m_instr_class_waits_array{nullptr};
+  PFS_stage_stat *m_instr_class_stages_array{nullptr};
+  PFS_statement_stat *m_instr_class_statements_array{nullptr};
+  PFS_transaction_stat *m_instr_class_transactions_array{nullptr};
+  PFS_error_stat *m_instr_class_errors_array{nullptr};
+  PFS_memory_shared_stat *m_instr_class_memory_array{nullptr};
 };
 
 class PFS_account_allocator {
@@ -1397,12 +1399,12 @@ extern PFS_account_container global_account_container;
 
 class PFS_host_array : public PFS_buffer_default_array<PFS_host> {
  public:
-  PFS_single_stat *m_instr_class_waits_array;
-  PFS_stage_stat *m_instr_class_stages_array;
-  PFS_statement_stat *m_instr_class_statements_array;
-  PFS_transaction_stat *m_instr_class_transactions_array;
-  PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_shared_stat *m_instr_class_memory_array;
+  PFS_single_stat *m_instr_class_waits_array{nullptr};
+  PFS_stage_stat *m_instr_class_stages_array{nullptr};
+  PFS_statement_stat *m_instr_class_statements_array{nullptr};
+  PFS_transaction_stat *m_instr_class_transactions_array{nullptr};
+  PFS_error_stat *m_instr_class_errors_array{nullptr};
+  PFS_memory_shared_stat *m_instr_class_memory_array{nullptr};
 };
 
 class PFS_host_allocator {
@@ -1424,24 +1426,24 @@ extern PFS_host_container global_host_container;
 
 class PFS_thread_array : public PFS_buffer_default_array<PFS_thread> {
  public:
-  PFS_single_stat *m_instr_class_waits_array;
-  PFS_stage_stat *m_instr_class_stages_array;
-  PFS_statement_stat *m_instr_class_statements_array;
-  PFS_transaction_stat *m_instr_class_transactions_array;
-  PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_safe_stat *m_instr_class_memory_array;
+  PFS_single_stat *m_instr_class_waits_array{nullptr};
+  PFS_stage_stat *m_instr_class_stages_array{nullptr};
+  PFS_statement_stat *m_instr_class_statements_array{nullptr};
+  PFS_transaction_stat *m_instr_class_transactions_array{nullptr};
+  PFS_error_stat *m_instr_class_errors_array{nullptr};
+  PFS_memory_safe_stat *m_instr_class_memory_array{nullptr};
 
-  PFS_events_waits *m_waits_history_array;
-  PFS_events_stages *m_stages_history_array;
-  PFS_events_statements *m_statements_history_array;
-  PFS_events_statements *m_statements_stack_array;
-  PFS_events_transactions *m_transactions_history_array;
-  char *m_session_connect_attrs_array;
+  PFS_events_waits *m_waits_history_array{nullptr};
+  PFS_events_stages *m_stages_history_array{nullptr};
+  PFS_events_statements *m_statements_history_array{nullptr};
+  PFS_events_statements *m_statements_stack_array{nullptr};
+  PFS_events_transactions *m_transactions_history_array{nullptr};
+  char *m_session_connect_attrs_array{nullptr};
 
-  char *m_current_stmts_text_array;
-  char *m_history_stmts_text_array;
-  unsigned char *m_current_stmts_digest_token_array;
-  unsigned char *m_history_stmts_digest_token_array;
+  char *m_current_stmts_text_array{nullptr};
+  char *m_history_stmts_text_array{nullptr};
+  unsigned char *m_current_stmts_digest_token_array{nullptr};
+  unsigned char *m_history_stmts_digest_token_array{nullptr};
 };
 
 class PFS_thread_allocator {
@@ -1463,12 +1465,12 @@ extern PFS_thread_container global_thread_container;
 
 class PFS_user_array : public PFS_buffer_default_array<PFS_user> {
  public:
-  PFS_single_stat *m_instr_class_waits_array;
-  PFS_stage_stat *m_instr_class_stages_array;
-  PFS_statement_stat *m_instr_class_statements_array;
-  PFS_transaction_stat *m_instr_class_transactions_array;
-  PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_shared_stat *m_instr_class_memory_array;
+  PFS_single_stat *m_instr_class_waits_array{nullptr};
+  PFS_stage_stat *m_instr_class_stages_array{nullptr};
+  PFS_statement_stat *m_instr_class_statements_array{nullptr};
+  PFS_transaction_stat *m_instr_class_transactions_array{nullptr};
+  PFS_error_stat *m_instr_class_errors_array{nullptr};
+  PFS_memory_shared_stat *m_instr_class_memory_array{nullptr};
 };
 
 class PFS_user_allocator {

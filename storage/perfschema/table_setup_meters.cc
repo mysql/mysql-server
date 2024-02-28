@@ -89,7 +89,10 @@ PFS_engine_table *table_setup_meters::create(PFS_engine_table_share *) {
 ha_rows table_setup_meters::get_row_count() { return meter_class_count(); }
 
 table_setup_meters::table_setup_meters()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(1),
+      m_next_pos(1),
+      m_opened_index(nullptr) {}
 
 void table_setup_meters::reset_position() {
   m_pos.m_index = 1;
@@ -97,15 +100,13 @@ void table_setup_meters::reset_position() {
 }
 
 int table_setup_meters::rnd_next() {
-  PFS_meter_class *instr_class = nullptr;
-
   /* Do not advertise meters when disabled. */
   if (!pfs_initialized) {
     return HA_ERR_END_OF_FILE;
   }
 
   for (m_pos.set_at(&m_next_pos);; m_pos.next()) {
-    instr_class = find_meter_class(m_pos.m_index);
+    PFS_meter_class *instr_class = find_meter_class(m_pos.m_index);
 
     if (instr_class) {
       m_next_pos.set_after(&m_pos);
@@ -119,8 +120,6 @@ int table_setup_meters::rnd_next() {
 }
 
 int table_setup_meters::rnd_pos(const void *pos) {
-  PFS_meter_class *instr_class = nullptr;
-
   /* Do not advertise meters when disabled. */
   if (!pfs_initialized) {
     return HA_ERR_END_OF_FILE;
@@ -128,7 +127,7 @@ int table_setup_meters::rnd_pos(const void *pos) {
 
   set_position(pos);
 
-  instr_class = find_meter_class(m_pos.m_index);
+  PFS_meter_class *instr_class = find_meter_class(m_pos.m_index);
 
   if (instr_class) {
     return make_row(instr_class);
@@ -149,15 +148,13 @@ int table_setup_meters::index_init(uint idx [[maybe_unused]], bool) {
 }
 
 int table_setup_meters::index_next() {
-  PFS_meter_class *instr_class = nullptr;
-
   /* Do not advertise meters when disabled. */
   if (!pfs_initialized) {
     return HA_ERR_END_OF_FILE;
   }
 
   for (m_pos.set_at(&m_next_pos);; m_pos.next()) {
-    instr_class = find_meter_class(m_pos.m_index);
+    PFS_meter_class *instr_class = find_meter_class(m_pos.m_index);
 
     if (instr_class) {
       if (m_opened_index->match(instr_class)) {

@@ -214,9 +214,11 @@ class Status_variable {
         m_type(SHOW_UNDEF),
         m_scope(SHOW_SCOPE_UNDEF),
         m_charset(nullptr),
-        m_initialized(false) {}
+        m_initialized(false) {
+    m_value_str[0] = '\0';
+  }
 
-  Status_variable(const SHOW_VAR *show_var, System_status_var *status_vars,
+  Status_variable(const SHOW_VAR *show_var, System_status_var *vars,
                   enum_var_type query_scope);
 
   bool is_null() const { return !m_initialized; }
@@ -232,7 +234,7 @@ class Status_variable {
 
  private:
   bool m_initialized;
-  void init(const SHOW_VAR *show_var, System_status_var *status_vars,
+  void init(const SHOW_VAR *show_var, System_status_var *vars,
             enum_var_type query_scope);
 };
 
@@ -740,8 +742,8 @@ class PFS_status_variable_cache : public PFS_variable_cache<Status_variable> {
 
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,
-                System_status_var *status_vars, const char *prefix,
-                bool nested_array, bool strict);
+                System_status_var *vars, const char *prefix, bool nested_array,
+                bool strict);
 };
 
 /* Callback functions to sum status variables for a given user, host or account.

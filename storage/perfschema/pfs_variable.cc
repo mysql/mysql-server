@@ -64,7 +64,6 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
       m_current_thd(current_thd),
       m_pfs_thread(nullptr),
       m_pfs_client(nullptr),
-      m_thd_finder(),
       m_cache(PSI_INSTRUMENT_ME),
       m_initialized(false),
       m_external_init(external_init),
@@ -92,7 +91,6 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   m_query_scope = scope;
 
 #ifndef NDEBUG
-  extern mysql_mutex_t LOCK_plugin;
   mysql_mutex_assert_not_owner(&LOCK_plugin);
 #endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
@@ -135,21 +133,16 @@ bool PFS_system_variable_cache::match_scope(int scope) {
   switch (scope) {
     case sys_var::GLOBAL:
       return m_query_scope == OPT_GLOBAL;
-      break;
 
     case sys_var::SESSION:
       return (m_query_scope == OPT_GLOBAL || m_query_scope == OPT_SESSION);
-      break;
 
     case sys_var::ONLY_SESSION:
       return m_query_scope == OPT_SESSION;
-      break;
 
     default:
       return false;
-      break;
   }
-  return false;
 }
 
 /**
@@ -544,16 +537,16 @@ int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd) {
         }
       };
 
-      auto *persist_variables = pv->get_persisted_dynamic_variables();
+      const auto *persist_variables = pv->get_persisted_dynamic_variables();
       if (persist_variables != nullptr)
         push_set_variables_to_cache(*persist_variables, m_cache);
 
-      auto *persist_sensitive_variables =
+      const auto *persist_sensitive_variables =
           pv->get_persisted_dynamic_sensitive_variables(m_safe_thd);
       if (persist_sensitive_variables != nullptr)
         push_set_variables_to_cache(*persist_sensitive_variables, m_cache);
 
-      auto *persist_parse_early_variables =
+      const auto *persist_parse_early_variables =
           pv->get_persisted_dynamic_parse_early_variables();
       if (persist_parse_early_variables != nullptr)
         push_set_variables_to_cache(*persist_parse_early_variables, m_cache);
@@ -744,7 +737,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
     return;
   }
 
-  THD *current_thread = current_thd;
+  const THD *current_thread = current_thd;
 
   m_name = show_var->name;
   m_name_length = strlen(m_name);
@@ -914,24 +907,18 @@ bool PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope,
     case SHOW_SCOPE_GLOBAL:
       return (m_query_scope == OPT_GLOBAL) ||
              (!strict && (m_query_scope == OPT_SESSION));
-      break;
     case SHOW_SCOPE_SESSION:
       /* Ignore session-only vars if aggregating by user, host or account. */
       if (m_aggregate) {
         return false;
-      } else {
-        return (m_query_scope == OPT_SESSION);
       }
-      break;
+      return (m_query_scope == OPT_SESSION);
     case SHOW_SCOPE_ALL:
       return (m_query_scope == OPT_GLOBAL || m_query_scope == OPT_SESSION);
-      break;
     case SHOW_SCOPE_UNDEF:
     default:
       return false;
-      break;
   }
-  return false;
 }
 
 /*
@@ -970,7 +957,6 @@ bool PFS_status_variable_cache::can_aggregate(
     case SHOW_LONGLONG_STATUS:
     case SHOW_LONG_STATUS:
       return true;
-      break;
 
     /* Server and plugin */
     case SHOW_UNDEF:
@@ -998,7 +984,6 @@ bool PFS_status_variable_cache::can_aggregate(
     case SHOW_LONG_NOFLUSH:
     default:
       return false;
-      break;
   }
 }
 
@@ -1130,7 +1115,7 @@ char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
 char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
                                                     const char *name) {
   char name_buf[SHOW_VAR_MAX_NAME_LEN];
-  const size_t buf_len = sizeof(name_buf);
+  constexpr size_t buf_len = sizeof(name_buf);
   make_show_var_name(prefix, name, name_buf, buf_len);
   return m_current_thd->mem_strdup(name_buf); /* freed at statement end */
 }
@@ -1158,15 +1143,15 @@ bool PFS_status_variable_cache::do_initialize_session() {
   start.
 */
 System_status_var *PFS_status_variable_cache::set_status_vars() {
-  System_status_var *status_vars;
+  System_status_var *vars;
   if (m_safe_thd == m_current_thd &&
       m_current_thd->initial_status_var != nullptr) {
-    status_vars = m_current_thd->initial_status_var;
+    vars = m_current_thd->initial_status_var;
   } else {
-    status_vars = &m_safe_thd->status_var;
+    vars = &m_safe_thd->status_var;
   }
 
-  return status_vars;
+  return vars;
 }
 
 /**
@@ -1256,9 +1241,8 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
     */
-    System_status_var *status_vars = set_status_vars();
-    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false,
-             false);
+    System_status_var *vars = set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), vars, "", false, false);
 
     m_materialized = true;
     ret = 0;
@@ -1304,9 +1288,8 @@ int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
     */
-    System_status_var *status_vars = set_status_vars();
-    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false,
-             true);
+    System_status_var *vars = set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), vars, "", false, true);
 
     m_materialized = true;
     ret = 0;
@@ -1346,9 +1329,8 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
     */
-    System_status_var *status_vars = set_status_vars();
-    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false,
-             true);
+    System_status_var *vars = set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), vars, "", false, true);
 
     m_materialized = true;
     ret = 0;
@@ -1407,7 +1389,7 @@ int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client) {
 */
 void PFS_status_variable_cache::manifest(THD *thd,
                                          const SHOW_VAR *show_var_array,
-                                         System_status_var *status_vars,
+                                         System_status_var *vars,
                                          const char *prefix, bool nested_array,
                                          bool strict) {
   for (const SHOW_VAR *show_var_iter = show_var_array;
@@ -1450,8 +1432,8 @@ void PFS_status_variable_cache::manifest(THD *thd,
         init_show_var_array(), except where a SHOW_FUNC resolves into a
         SHOW_ARRAY, such as with InnoDB. Recurse to expand the sub array.
       */
-      manifest(thd, (SHOW_VAR *)show_var_ptr->value, status_vars,
-               show_var_ptr->name, true, strict);
+      manifest(thd, (SHOW_VAR *)show_var_ptr->value, vars, show_var_ptr->name,
+               true, strict);
     } else {
       /* Add the materialized status variable to the cache. */
       SHOW_VAR show_var = *show_var_ptr;
@@ -1464,7 +1446,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
       }
 
       /* Convert status value to string format. Add to the cache. */
-      const Status_variable status_var(&show_var, status_vars, m_query_scope);
+      const Status_variable status_var(&show_var, vars, m_query_scope);
       m_cache.push_back(status_var);
     }
   }
@@ -1474,7 +1456,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
   CLASS Status_variable
 */
 Status_variable::Status_variable(const SHOW_VAR *show_var,
-                                 System_status_var *status_vars,
+                                 System_status_var *vars,
                                  enum_var_type query_scope)
     : m_name(nullptr),
       m_name_length(0),
@@ -1483,7 +1465,7 @@ Status_variable::Status_variable(const SHOW_VAR *show_var,
       m_scope(SHOW_SCOPE_UNDEF),
       m_charset(nullptr),
       m_initialized(false) {
-  init(show_var, status_vars, query_scope);
+  init(show_var, vars, query_scope);
 }
 
 /**
@@ -1491,8 +1473,7 @@ Status_variable::Status_variable(const SHOW_VAR *show_var,
   show_var->value is an offset into status_vars.
   NOTE: Assumes LOCK_status is held.
 */
-void Status_variable::init(const SHOW_VAR *show_var,
-                           System_status_var *status_vars,
+void Status_variable::init(const SHOW_VAR *show_var, System_status_var *vars,
                            enum_var_type query_scope) {
   if (show_var == nullptr || show_var->name == nullptr) {
     return;
@@ -1504,9 +1485,8 @@ void Status_variable::init(const SHOW_VAR *show_var,
 
   /* Get the value of the status variable. */
   const char *value;
-  value =
-      get_one_variable(current_thd, show_var, query_scope, m_type, status_vars,
-                       &m_charset, m_value_str, &m_value_length);
+  value = get_one_variable(current_thd, show_var, query_scope, m_type, vars,
+                           &m_charset, m_value_str, &m_value_length);
   m_value_length = std::min(m_value_length, size_t{SHOW_VAR_FUNC_BUFF_SIZE});
 
   /* Returned value may reference a string other than m_value_str. */

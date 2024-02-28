@@ -115,8 +115,8 @@ ha_rows table_esmh_by_digest::get_row_count() { return digest_max; }
 table_esmh_by_digest::table_esmh_by_digest()
     : PFS_engine_table(&m_share, &m_pos),
       m_materialized_digest(nullptr),
-      m_pos(),
-      m_next_pos() {}
+      m_materialized_histogram(),
+      m_opened_index(nullptr) {}
 
 void table_esmh_by_digest::reset_position() {
   m_pos.reset();
@@ -167,9 +167,8 @@ int table_esmh_by_digest::rnd_pos(const void *pos) {
 }
 
 int table_esmh_by_digest::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_esmh_by_digest *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_esmh_by_digest);
+  auto *result = PFS_NEW(PFS_index_esmh_by_digest);
   m_opened_index = result;
   m_index = result;
   return 0;
@@ -213,11 +212,10 @@ void table_esmh_by_digest::materialize(
     PFS_histogram *histogram = &digest_stat->m_histogram;
 
     ulong index;
-    ulonglong count = 0;
     ulonglong count_and_lower = 0;
 
     for (index = 0; index < NUMBER_OF_BUCKETS; index++) {
-      count = histogram->read_bucket(index);
+      const ulonglong count = histogram->read_bucket(index);
       count_and_lower += count;
 
       PFS_esmh_by_digest_bucket &b = m_materialized_histogram.m_buckets[index];

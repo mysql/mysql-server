@@ -119,8 +119,7 @@ ha_rows table_status_by_host::get_row_count() {
 table_status_by_host::table_status_by_host()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(true),
-      m_pos(),
-      m_next_pos() {}
+      m_opened_index(nullptr) {}
 
 void table_status_by_host::reset_position() {
   m_pos.reset();
@@ -179,9 +178,8 @@ int table_status_by_host::index_init(uint idx [[maybe_unused]], bool) {
    * materializing. */
   m_status_cache.initialize_client_session();
 
-  PFS_index_status_by_host *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_status_by_host);
+  auto *result = PFS_NEW(PFS_index_status_by_host);
   m_opened_index = result;
   m_index = result;
   return 0;

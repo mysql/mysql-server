@@ -58,11 +58,11 @@ struct THR_LOCK;
 */
 struct st_row_rpl_async_conn_failover_managed {
   char channel_name[CHANNEL_NAME_LENGTH];
-  uint channel_name_length;
+  uint channel_name_length{0};
   char managed_name[HOSTNAME_LENGTH];
-  uint managed_name_length;
+  uint managed_name_length{0};
   char managed_type[HOSTNAME_LENGTH];
-  uint managed_type_length;
+  uint managed_type_length{0};
   Json_wrapper configuration;
 };
 

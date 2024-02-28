@@ -172,8 +172,8 @@ void PFS_memory_shared_stat::rebase() {
 void PFS_memory_shared_stat::count_builtin_alloc(size_t size) {
   m_used = true;
 
-  m_alloc_count++;
-  m_free_count_capacity++;
+  ++m_alloc_count;
+  ++m_free_count_capacity;
   m_alloc_size += size;
   m_free_size_capacity += size;
 
@@ -183,8 +183,8 @@ void PFS_memory_shared_stat::count_builtin_alloc(size_t size) {
   old_value = m_alloc_count_capacity.fetch_sub(1);
 
   /* Adjustment */
-  if (old_value <= 0) {
-    m_alloc_count_capacity++;
+  if (old_value == 0) {
+    ++m_alloc_count_capacity;
   }
 
   /* Optimistic */
@@ -199,8 +199,8 @@ void PFS_memory_shared_stat::count_builtin_alloc(size_t size) {
 void PFS_memory_shared_stat::count_builtin_free(size_t size) {
   m_used = true;
 
-  m_free_count++;
-  m_alloc_count_capacity++;
+  ++m_free_count;
+  ++m_alloc_count_capacity;
   m_free_size += size;
   m_alloc_size_capacity += size;
 
@@ -210,8 +210,8 @@ void PFS_memory_shared_stat::count_builtin_free(size_t size) {
   old_value = m_free_count_capacity.fetch_sub(1);
 
   /* Adjustment */
-  if (old_value <= 0) {
-    m_free_count_capacity++;
+  if (old_value == 0) {
+    ++m_free_count_capacity;
   }
 
   /* Optimistic */
@@ -227,19 +227,19 @@ PFS_memory_stat_alloc_delta *PFS_memory_shared_stat::count_alloc(
     size_t size, PFS_memory_stat_alloc_delta *delta) {
   m_used = true;
 
-  m_alloc_count++;
-  m_free_count_capacity++;
+  ++m_alloc_count;
+  ++m_free_count_capacity;
   m_alloc_size += size;
   m_free_size_capacity += size;
 
   if ((m_alloc_count_capacity >= 1) && (m_alloc_size_capacity >= size)) {
-    m_alloc_count_capacity--;
+    --m_alloc_count_capacity;
     m_alloc_size_capacity -= size;
     return nullptr;
   }
 
   if (m_alloc_count_capacity >= 1) {
-    m_alloc_count_capacity--;
+    --m_alloc_count_capacity;
     delta->m_alloc_count_delta = 0;
   } else {
     delta->m_alloc_count_delta = 1;
@@ -260,19 +260,19 @@ PFS_memory_stat_free_delta *PFS_memory_shared_stat::count_free(
     size_t size, PFS_memory_stat_free_delta *delta) {
   m_used = true;
 
-  m_free_count++;
-  m_alloc_count_capacity++;
+  ++m_free_count;
+  ++m_alloc_count_capacity;
   m_free_size += size;
   m_alloc_size_capacity += size;
 
   if ((m_free_count_capacity >= 1) && (m_free_size_capacity >= size)) {
-    m_free_count_capacity--;
+    --m_free_count_capacity;
     m_free_size_capacity -= size;
     return nullptr;
   }
 
   if (m_free_count_capacity >= 1) {
-    m_free_count_capacity--;
+    --m_free_count_capacity;
     delta->m_free_count_delta = 0;
   } else {
     delta->m_free_count_delta = 1;

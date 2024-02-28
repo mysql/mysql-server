@@ -118,8 +118,7 @@ int table_accounts::delete_all_rows() {
 table_accounts::table_accounts() : cursor_by_account(&m_share) {}
 
 int table_accounts::index_init(uint, bool) {
-  PFS_index_accounts *result = nullptr;
-  result = PFS_NEW(PFS_index_accounts_by_user_host);
+  PFS_index_accounts *result = PFS_NEW(PFS_index_accounts_by_user_host);
   m_opened_index = result;
   m_index = result;
   return 0;

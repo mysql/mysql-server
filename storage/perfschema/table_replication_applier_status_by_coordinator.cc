@@ -121,18 +121,18 @@ bool PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi) {
     /* NULL THREAD_ID is represented by 0 */
     row.thread_id = 0;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     mysql_mutex_lock(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
       PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
-#ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
     }
 
     mysql_mutex_unlock(&mi->rli->data_lock);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     if (!m_key.match(row.thread_id)) {
       return false;
@@ -149,7 +149,10 @@ PFS_engine_table *table_replication_applier_status_by_coordinator::create(
 
 table_replication_applier_status_by_coordinator::
     table_replication_applier_status_by_coordinator()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 table_replication_applier_status_by_coordinator::
     ~table_replication_applier_status_by_coordinator() = default;
@@ -195,13 +198,11 @@ int table_replication_applier_status_by_coordinator::rnd_next() {
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
-  Master_info *mi = nullptr;
-
   set_position(pos);
 
   channel_map.rdlock();
 
-  mi = channel_map.get_mi_at_pos(m_pos.m_index);
+  Master_info *mi = channel_map.get_mi_at_pos(m_pos.m_index);
   if (mi) {
     res = make_row(mi);
   }
@@ -278,15 +279,15 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   m_row.thread_id = 0;
   m_row.thread_id_is_null = true;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   if (mi->rli->slave_running) {
     PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
-#ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
-#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (mi->rli->slave_running) {
     m_row.service_state = PS_RPL_YES;

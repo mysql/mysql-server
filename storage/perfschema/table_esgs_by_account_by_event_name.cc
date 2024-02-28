@@ -121,7 +121,7 @@ ha_rows table_esgs_by_account_by_event_name::get_row_count() {
 }
 
 table_esgs_by_account_by_event_name::table_esgs_by_account_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_stage();
 }
 
@@ -152,14 +152,11 @@ int table_esgs_by_account_by_event_name::rnd_next() {
 }
 
 int table_esgs_by_account_by_event_name::rnd_pos(const void *pos) {
-  PFS_account *account;
-  PFS_stage_class *stage_class;
-
   set_position(pos);
 
-  account = global_account_container.get(m_pos.m_index_1);
+  PFS_account *account = global_account_container.get(m_pos.m_index_1);
   if (account != nullptr) {
-    stage_class = find_stage_class(m_pos.m_index_2);
+    PFS_stage_class *stage_class = find_stage_class(m_pos.m_index_2);
     if (stage_class) {
       return make_row(account, stage_class);
     }
@@ -170,9 +167,8 @@ int table_esgs_by_account_by_event_name::rnd_pos(const void *pos) {
 
 int table_esgs_by_account_by_event_name::index_init(uint idx [[maybe_unused]],
                                                     bool) {
-  PFS_index_esgs_by_account_by_event_name *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_esgs_by_account_by_event_name);
+  auto *result = PFS_NEW(PFS_index_esgs_by_account_by_event_name);
   m_opened_index = result;
   m_index = result;
   return 0;

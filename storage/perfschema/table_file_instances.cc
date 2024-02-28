@@ -103,7 +103,10 @@ ha_rows table_file_instances::get_row_count() {
 }
 
 table_file_instances::table_file_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_file_instances::reset_position() {
   m_pos.m_index = 0;

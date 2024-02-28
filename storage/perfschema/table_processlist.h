@@ -51,29 +51,29 @@ struct PFS_thread;
 */
 struct row_processlist {
   /** Column ID. */
-  ulonglong m_processlist_id;
+  ulonglong m_processlist_id{0};
   /** Column USER. */
   PFS_user_name m_user_name;
   /** Column HOST (and PORT). */
   char m_hostname[HOST_AND_PORT_LENGTH];
   /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  uint m_hostname_length{0};
   /** Column DB. */
   PFS_schema_name m_db_name;
   /** Column COMMAND. */
-  int m_command;
+  int m_command{0};
   /** Column TIME. */
-  time_t m_start_time;
+  time_t m_start_time{0};
   /** Column STATE. */
-  const char *m_processlist_state_ptr;
+  const char *m_processlist_state_ptr{nullptr};
   /** Length in bytes of @c m_processlist_state_ptr. */
-  uint m_processlist_state_length;
+  uint m_processlist_state_length{0};
   /** Column INFO. */
-  const char *m_processlist_info_ptr;
+  const char *m_processlist_info_ptr{nullptr};
   /** Length in bytes of @c m_processlist_info_ptr. */
-  uint m_processlist_info_length;
+  uint m_processlist_info_length{0};
   /** Column EXECUTION_ENGINE. */
-  bool m_secondary;
+  bool m_secondary{false};
 };
 
 class PFS_index_processlist_by_processlist_id : public PFS_index_threads {

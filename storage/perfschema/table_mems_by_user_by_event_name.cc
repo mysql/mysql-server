@@ -119,7 +119,7 @@ ha_rows table_mems_by_user_by_event_name::get_row_count() {
 }
 
 table_mems_by_user_by_event_name::table_mems_by_user_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {}
 
 void table_mems_by_user_by_event_name::reset_position() {
   m_pos.reset();
@@ -151,14 +151,11 @@ int table_mems_by_user_by_event_name::rnd_next() {
 }
 
 int table_mems_by_user_by_event_name::rnd_pos(const void *pos) {
-  PFS_user *user;
-  PFS_memory_class *memory_class;
-
   set_position(pos);
 
-  user = global_user_container.get(m_pos.m_index_1);
+  PFS_user *user = global_user_container.get(m_pos.m_index_1);
   if (user != nullptr) {
-    memory_class = find_memory_class(m_pos.m_index_2);
+    PFS_memory_class *memory_class = find_memory_class(m_pos.m_index_2);
     if (memory_class != nullptr) {
       if (!memory_class->is_global()) {
         return make_row(user, memory_class);
@@ -171,9 +168,8 @@ int table_mems_by_user_by_event_name::rnd_pos(const void *pos) {
 
 int table_mems_by_user_by_event_name::index_init(uint idx [[maybe_unused]],
                                                  bool) {
-  PFS_index_mems_by_user_by_event_name *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_mems_by_user_by_event_name);
+  auto *result = PFS_NEW(PFS_index_mems_by_user_by_event_name);
   m_opened_index = result;
   m_index = result;
   return 0;

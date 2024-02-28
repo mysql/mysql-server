@@ -133,7 +133,10 @@ ha_rows table_socket_instances::get_row_count() {
 }
 
 table_socket_instances::table_socket_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_socket_instances::reset_position() {
   m_pos.m_index = 0;
@@ -236,7 +239,7 @@ int table_socket_instances::make_row(PFS_socket *pfs) {
   m_row.m_fd = pfs->m_fd;
   m_row.m_state =
       (pfs->m_idle ? PSI_SOCKET_STATE_IDLE : PSI_SOCKET_STATE_ACTIVE);
-  PFS_thread *safe_thread = sanitize_thread(pfs->m_thread_owner);
+  const PFS_thread *safe_thread = sanitize_thread(pfs->m_thread_owner);
 
   if (safe_thread != nullptr) {
     m_row.m_thread_id = safe_thread->m_thread_internal_id;

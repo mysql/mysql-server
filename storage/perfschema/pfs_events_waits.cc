@@ -153,7 +153,7 @@ void insert_events_waits_history_long(PFS_events_waits *wait) {
 
 static void fct_reset_events_waits_current(PFS_thread *pfs_thread) {
   PFS_events_waits *pfs_wait = pfs_thread->m_events_waits_stack;
-  PFS_events_waits *pfs_wait_last = pfs_wait + WAIT_STACK_SIZE;
+  const PFS_events_waits *pfs_wait_last = pfs_wait + WAIT_STACK_SIZE;
 
   for (; pfs_wait < pfs_wait_last; pfs_wait++) {
     pfs_wait->m_wait_class = NO_WAIT_CLASS;
@@ -167,7 +167,7 @@ void reset_events_waits_current() {
 
 static void fct_reset_events_waits_history(PFS_thread *pfs_thread) {
   PFS_events_waits *wait = pfs_thread->m_waits_history;
-  PFS_events_waits *wait_last = wait + events_waits_history_per_thread;
+  const PFS_events_waits *wait_last = wait + events_waits_history_per_thread;
 
   pfs_thread->m_waits_history_index = 0;
   pfs_thread->m_waits_history_full = false;
@@ -187,7 +187,7 @@ void reset_events_waits_history_long() {
   events_waits_history_long_full = false;
 
   PFS_events_waits *wait = events_waits_history_long_array;
-  PFS_events_waits *wait_last = wait + events_waits_history_long_size;
+  const PFS_events_waits *wait_last = wait + events_waits_history_long_size;
   for (; wait < wait_last; wait++) {
     wait->m_wait_class = NO_WAIT_CLASS;
   }

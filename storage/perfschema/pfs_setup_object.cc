@@ -86,17 +86,13 @@ static bool is_table(enum_object_type object_type) {
 static uint setup_object_hash_func(const LF_HASH *, const uchar *key,
                                    size_t key_len [[maybe_unused]]) {
   const PFS_setup_object_key *setup_object_key;
-  uint64 nr1;
-  uint64 nr2;
 
   assert(key_len == sizeof(PFS_setup_object_key));
   setup_object_key = reinterpret_cast<const PFS_setup_object_key *>(key);
   assert(setup_object_key != nullptr);
 
-  nr1 = 0;
-  nr2 = 0;
-
-  nr1 = setup_object_key->m_object_type;
+  uint64 nr1 = setup_object_key->m_object_type;
+  uint64 nr2 = 0;
   setup_object_key->m_schema_name.hash(&nr1, &nr2);
 
   if (is_table(setup_object_key->m_object_type)) {
@@ -307,7 +303,6 @@ static void lookup_setup_object(PFS_thread *thread,
                                 bool *timed) {
   PFS_setup_object_key key;
   PFS_setup_object **entry;
-  PFS_setup_object *pfs;
   int i;
 
   /*
@@ -361,7 +356,7 @@ static void lookup_setup_object(PFS_thread *thread,
         lf_hash_search(&setup_object_hash, pins, &key, sizeof(key)));
 
     if (entry && (entry != MY_LF_ERRPTR)) {
-      pfs = *entry;
+      const PFS_setup_object *pfs = *entry;
       *enabled = pfs->m_enabled;
       *timed = pfs->m_timed;
       lf_hash_search_unpin(pins);

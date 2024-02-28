@@ -293,10 +293,8 @@ struct PFS_instr_class {
     switch (m_type) {
       case PFS_CLASS_SOCKET:
         return true;
-        break;
       default:
         return false;
-        break;
     };
   }
 
@@ -373,22 +371,22 @@ struct PFS_ALIGNED PFS_metric_class : public PFS_instr_class {
   pfs_lock m_lock;
 
   /** Metric name with length. */
-  const char *m_metric;
-  uint m_metric_length;
+  const char *m_metric{nullptr};
+  uint m_metric_length{0};
   /** Metric group with length. */
-  const char *m_group;
-  uint m_group_length;
+  const char *m_group{nullptr};
+  uint m_group_length{0};
   /** Metric unit with length. */
-  const char *m_unit;
-  uint m_unit_length;
+  const char *m_unit{nullptr};
+  uint m_unit_length{0};
   /** Metric description with length. */
-  const char *m_description;
-  uint m_description_length;
-  MetricNumType m_num_type;
-  MetricOTELType m_metric_type;
-  PSI_metric_key m_key;
+  const char *m_description{nullptr};
+  uint m_description_length{0};
+  MetricNumType m_num_type{MetricNumType::METRIC_INTEGER};
+  MetricOTELType m_metric_type{MetricOTELType::ASYNC_COUNTER};
+  PSI_metric_key m_key{0};
   measurement_callback_t m_measurement_callback;
-  void *m_measurement_context;
+  void *m_measurement_context{nullptr};
 };
 
 /** Instrumentation metadata for a meter. */
@@ -396,18 +394,18 @@ struct PFS_ALIGNED PFS_meter_class : public PFS_instr_class {
   pfs_lock m_lock;
 
   /** Meter name with length. */
-  const char *m_meter;
-  uint m_meter_length;
+  const char *m_meter{nullptr};
+  uint m_meter_length{0};
   /** Meter export frequency in seconds. */
-  uint m_frequency;
+  uint m_frequency{0};
   /** Meter description with length. */
-  const char *m_description;
-  uint m_description_length;
-  PSI_meter_key m_key;
+  const char *m_description{nullptr};
+  uint m_description_length{0};
+  PSI_meter_key m_key{0};
 
   /** Metrics belonging to this meter. */
-  PSI_metric_key *m_metrics;
-  uint m_metrics_size;
+  PSI_metric_key *m_metrics{nullptr};
+  uint m_metrics_size{0};
 };
 
 /** Key identifying a table share. */

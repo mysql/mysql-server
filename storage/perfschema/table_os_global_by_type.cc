@@ -140,7 +140,7 @@ ha_rows table_os_global_by_type::get_row_count() {
 }
 
 table_os_global_by_type::table_os_global_by_type()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   // FIXME, verify
   m_normalizer = time_normalizer::get_wait();
 }

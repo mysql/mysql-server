@@ -122,7 +122,10 @@ PFS_engine_table *table_replication_applier_configuration::create(
 
 table_replication_applier_configuration::
     table_replication_applier_configuration()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 table_replication_applier_configuration::
     ~table_replication_applier_configuration() = default;
@@ -177,9 +180,8 @@ int table_replication_applier_configuration::rnd_pos(const void *pos) {
 int table_replication_applier_configuration::index_init(uint idx
                                                         [[maybe_unused]],
                                                         bool) {
-  PFS_index_rpl_applier_config *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_rpl_applier_config);
+  auto *result = PFS_NEW(PFS_index_rpl_applier_config);
   m_opened_index = result;
   m_index = result;
   return 0;
@@ -269,7 +271,7 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
   assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (Field *f = nullptr; (f = *fields); fields++) {
+  for (Field *f; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /**channel_name*/

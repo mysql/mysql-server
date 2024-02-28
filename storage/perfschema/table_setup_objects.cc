@@ -130,8 +130,6 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
   String *object_name = &object_name_data;
   enum_yes_no enabled_value = ENUM_YES;
   enum_yes_no timed_value = ENUM_YES;
-  bool enabled = true;
-  bool timed = true;
 
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
@@ -173,8 +171,8 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
     return HA_ERR_NO_REFERENCED_ROW;
   }
 
-  enabled = (enabled_value == ENUM_YES);
-  timed = (timed_value == ENUM_YES);
+  const bool enabled = (enabled_value == ENUM_YES);
+  const bool timed = (timed_value == ENUM_YES);
 
   PFS_schema_name schema_value;
   PFS_object_name object_value;
@@ -211,7 +209,10 @@ ha_rows table_setup_objects::get_row_count() {
 }
 
 table_setup_objects::table_setup_objects()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_setup_objects::reset_position() {
   m_pos.m_index = 0;
@@ -247,9 +248,8 @@ int table_setup_objects::rnd_pos(const void *pos) {
 }
 
 int table_setup_objects::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_setup_objects *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_setup_objects);
+  auto *result = PFS_NEW(PFS_index_setup_objects);
   m_opened_index = result;
   m_index = result;
   return 0;

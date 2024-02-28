@@ -90,7 +90,10 @@ PFS_engine_table *table_setup_threads::create(PFS_engine_table_share *) {
 ha_rows table_setup_threads::get_row_count() { return thread_class_max; }
 
 table_setup_threads::table_setup_threads()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(1),
+      m_next_pos(1),
+      m_opened_index(nullptr) {}
 
 void table_setup_threads::reset_position() {
   m_pos.m_index = 1;
@@ -98,15 +101,13 @@ void table_setup_threads::reset_position() {
 }
 
 int table_setup_threads::rnd_next() {
-  PFS_thread_class *instr_class = nullptr;
-
   /* Do not advertise threads when disabled. */
   if (!pfs_initialized) {
     return HA_ERR_END_OF_FILE;
   }
 
   for (m_pos.set_at(&m_next_pos);; m_pos.next()) {
-    instr_class = find_thread_class(m_pos.m_index);
+    PFS_thread_class *instr_class = find_thread_class(m_pos.m_index);
 
     if (instr_class) {
       m_next_pos.set_after(&m_pos);
@@ -120,8 +121,6 @@ int table_setup_threads::rnd_next() {
 }
 
 int table_setup_threads::rnd_pos(const void *pos) {
-  PFS_thread_class *instr_class = nullptr;
-
   /* Do not advertise threads when disabled. */
   if (!pfs_initialized) {
     return HA_ERR_END_OF_FILE;
@@ -129,7 +128,7 @@ int table_setup_threads::rnd_pos(const void *pos) {
 
   set_position(pos);
 
-  instr_class = find_thread_class(m_pos.m_index);
+  PFS_thread_class *instr_class = find_thread_class(m_pos.m_index);
 
   if (instr_class) {
     return make_row(instr_class);
@@ -150,15 +149,13 @@ int table_setup_threads::index_init(uint idx [[maybe_unused]], bool) {
 }
 
 int table_setup_threads::index_next() {
-  PFS_thread_class *instr_class = nullptr;
-
   /* Do not advertise threads when disabled. */
   if (!pfs_initialized) {
     return HA_ERR_END_OF_FILE;
   }
 
   for (m_pos.set_at(&m_next_pos);; m_pos.next()) {
-    instr_class = find_thread_class(m_pos.m_index);
+    PFS_thread_class *instr_class = find_thread_class(m_pos.m_index);
 
     if (instr_class) {
       if (m_opened_index->match(instr_class)) {

@@ -88,7 +88,7 @@ bool PFS_index_table_handles_by_object::match(PFS_table *pfs) {
     }
   }
 
-  PFS_table_share *share = sanitize_table_share(pfs->m_share);
+  const PFS_table_share *share = sanitize_table_share(pfs->m_share);
   if (share == nullptr) {
     return false;
   }
@@ -143,7 +143,10 @@ ha_rows table_table_handles::get_row_count() {
 }
 
 table_table_handles::table_table_handles()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_table_handles::reset_position() {
   m_pos.m_index = 0;

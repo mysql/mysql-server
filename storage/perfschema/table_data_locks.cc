@@ -103,9 +103,7 @@ ha_rows table_data_locks::get_row_count() {
 table_data_locks::table_data_locks()
     : PFS_engine_table(&m_share, &m_pk_pos),
       m_row(nullptr),
-      m_pos(),
-      m_next_pos(),
-      m_pk_pos() {
+      m_opened_index(nullptr) {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
     m_iterator[i] = nullptr;
   }
@@ -204,7 +202,7 @@ int table_data_locks::rnd_pos(const void *pos) {
   */
   static_assert(COUNT_DATA_LOCK_ENGINES == 1,
                 "We don't support multiple engines yet.");
-  const unsigned int index = 0;
+  constexpr unsigned int index = 0;
 
   if (m_iterator[index] == nullptr) {
     if (g_data_lock_inspector[index] == nullptr) {

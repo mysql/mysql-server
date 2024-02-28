@@ -120,19 +120,19 @@ static void test_oom() {
   PFS_socket_class dummy_socket_class;
   PFS_table_share dummy_table_share;
   PFS_mutex *mutex_1;
-  PFS_mutex *mutex_2;
+  const PFS_mutex *mutex_2;
   PFS_rwlock *rwlock_1;
-  PFS_rwlock *rwlock_2;
+  const PFS_rwlock *rwlock_2;
   PFS_cond *cond_1;
-  PFS_cond *cond_2;
+  const PFS_cond *cond_2;
   PFS_thread *thread_1;
-  PFS_thread *thread_2;
+  const PFS_thread *thread_2;
   PFS_file *file_1;
-  PFS_file *file_2;
+  const PFS_file *file_2;
   PFS_socket *socket_1;
-  PFS_socket *socket_2;
+  const PFS_socket *socket_2;
   PFS_table *table_1;
-  PFS_table *table_2;
+  const PFS_table *table_2;
 
   memset(&param, 0xFF, sizeof(param));
   param.m_enabled = true;
@@ -192,10 +192,10 @@ static void test_oom() {
   dummy_rwlock_class.m_timed = true;
   dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
 
-  dummy_thread_class.m_enabled = 0;
+  dummy_thread_class.m_enabled = false;
   dummy_thread_class.m_flags = 0;
   dummy_thread_class.m_singleton = nullptr;
-  dummy_thread_class.m_history = 0;
+  dummy_thread_class.m_history = false;
   snprintf(dummy_thread_class.m_os_name, PFS_MAX_OS_NAME_LENGTH, "OS_NAME");
 
   dummy_cond_class.m_event_name_index = 2;
@@ -311,7 +311,7 @@ static void test_oom() {
   thread_2 = create_thread(&dummy_thread_class, 12, nullptr, 0);
   ok(thread_2 == nullptr, "oom (create thread)");
 
-  PSI_thread *thread;
+  const PSI_thread *thread;
 
   /* Per thread wait. */
   memset(&param, 0, sizeof(param));

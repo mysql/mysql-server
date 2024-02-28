@@ -326,7 +326,7 @@ int main(int, char **) {
   plan(69);
   do_all_tests();
   charset_uninit();
-  int retval = exit_status();
+  const int retval = exit_status();
   my_end(0);
   return retval;
 }

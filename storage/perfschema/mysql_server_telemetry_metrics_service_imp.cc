@@ -165,15 +165,15 @@ class meter_iterator {
 
 class metric_iterator {
  private:
-  uint m_meter_idx;
-  uint m_metric_idx;
+  uint m_meter_idx{0};
+  uint m_metric_idx{0};
 
  protected:
   bool next_metric(uint start) {
     // find next metric within selected meter
     if (metric_class_max < 1) return true;
     m_metric_idx = start;
-    PFS_meter_class *meter = &(meter_class_array[m_meter_idx]);
+    const PFS_meter_class *meter = &(meter_class_array[m_meter_idx]);
     PFS_metric_key key = 0;
     while (m_metric_idx < meter->m_metrics_size) {
       key = meter->m_metrics[m_metric_idx];
@@ -232,7 +232,7 @@ class metric_iterator {
     assert(m_metric_idx < metric_class_max);
     if (m_metric_idx >= metric_class_max) return nullptr;
 
-    PFS_meter_class *meter = &(meter_class_array[m_meter_idx]);
+    const PFS_meter_class *meter = &(meter_class_array[m_meter_idx]);
     assert(m_metric_idx < meter->m_metrics_size);
     if (m_metric_idx >= meter->m_metrics_size) return nullptr;
 
@@ -294,7 +294,7 @@ bool imp_meters_iterator_create(telemetry_meters_iterator *out_iterator
 bool imp_meters_iterator_destroy(telemetry_meters_iterator iterator
                                  [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<meter_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<meter_iterator *>(iterator);
   assert(iter_ptr != nullptr);
   delete iter_ptr;
   return false;
@@ -322,12 +322,12 @@ bool imp_meters_iterator_next(telemetry_meters_iterator iterator
 bool imp_meters_get_name(telemetry_meters_iterator iterator [[maybe_unused]],
                          my_h_string *out_name_handle [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<meter_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<meter_iterator *>(iterator);
   assert(iter_ptr != nullptr);
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
 
-  PFS_meter_class *meter = iter_ptr->get_current();
+  const PFS_meter_class *meter = iter_ptr->get_current();
   assert(meter != nullptr);
 
   if (meter == nullptr) {
@@ -390,12 +390,12 @@ bool imp_meters_get_description(telemetry_meters_iterator iterator
                                 [[maybe_unused]],
                                 my_h_string *out_desc_handle [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<meter_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<meter_iterator *>(iterator);
   assert(iter_ptr != nullptr);
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
 
-  PFS_meter_class *meter = iter_ptr->get_current();
+  const PFS_meter_class *meter = iter_ptr->get_current();
   assert(meter != nullptr);
 
   if (meter == nullptr) {
@@ -435,7 +435,7 @@ bool imp_metrics_iterator_create(const char *meter [[maybe_unused]],
 bool imp_metrics_iterator_destroy(telemetry_metrics_iterator iterator
                                   [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
   assert(iter_ptr != nullptr);
   delete iter_ptr;
   return false;
@@ -463,12 +463,12 @@ bool imp_metrics_iterator_next(telemetry_metrics_iterator iterator
 bool imp_metrics_get_group(telemetry_metrics_iterator iterator [[maybe_unused]],
                            my_h_string *out_group_handle [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
   assert(iter_ptr != nullptr);
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
 
-  PFS_metric_class *metric = iter_ptr->get_current();
+  const PFS_metric_class *metric = iter_ptr->get_current();
   assert(metric != nullptr);
   assert(metric->m_group != nullptr);
 
@@ -490,12 +490,12 @@ bool imp_metrics_get_group(telemetry_metrics_iterator iterator [[maybe_unused]],
 bool imp_metrics_get_name(telemetry_metrics_iterator iterator [[maybe_unused]],
                           my_h_string *out_name_handle [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
   assert(iter_ptr != nullptr);
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
 
-  PFS_metric_class *metric = iter_ptr->get_current();
+  const PFS_metric_class *metric = iter_ptr->get_current();
   assert(metric != nullptr);
   assert(metric->m_metric != nullptr);
 
@@ -520,12 +520,12 @@ bool imp_metrics_get_description(telemetry_metrics_iterator iterator
                                  my_h_string *out_desc_handle
                                  [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
   assert(iter_ptr != nullptr);
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
 
-  PFS_metric_class *metric = iter_ptr->get_current();
+  const PFS_metric_class *metric = iter_ptr->get_current();
   assert(metric != nullptr);
   assert(metric->m_metric != nullptr);
 
@@ -548,11 +548,11 @@ bool imp_metrics_get_description(telemetry_metrics_iterator iterator
 bool imp_metrics_get_unit(telemetry_metrics_iterator iterator [[maybe_unused]],
                           my_h_string *out_unit_handle [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
   assert(iter_ptr != nullptr);
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
-  PFS_metric_class *metric = iter_ptr->get_current();
+  const PFS_metric_class *metric = iter_ptr->get_current();
   assert(metric != nullptr);
   assert(metric->m_metric != nullptr);
 
@@ -618,7 +618,7 @@ bool imp_metrics_get_value(telemetry_metrics_iterator iterator [[maybe_unused]],
                            [[maybe_unused]],
                            void *delivery_context [[maybe_unused]]) {
 #ifdef HAVE_PSI_METRICS_INTERFACE
-  auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
+  const auto *iter_ptr = reinterpret_cast<metric_iterator *>(iterator);
   assert(iter_ptr != nullptr);
   // status variable values should be read within the lock, see
   // imp_measurement_start/end
@@ -626,7 +626,7 @@ bool imp_metrics_get_value(telemetry_metrics_iterator iterator [[maybe_unused]],
 
   mysql_rwlock_rdlock(&LOCK_pfs_metrics);
 
-  PFS_metric_class *metric = iter_ptr->get_current();
+  const PFS_metric_class *metric = iter_ptr->get_current();
   assert(metric != nullptr);
 
   metric->m_measurement_callback(metric->m_measurement_context, delivery,

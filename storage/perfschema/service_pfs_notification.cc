@@ -131,9 +131,9 @@ struct PFS_notification_registry {
   PFS_notification_registry() : m_head(nullptr), m_count(0) {}
 
   ~PFS_notification_registry() {
-    auto *node = m_head.load();
+    const auto *node = m_head.load();
     while (node != nullptr) {
-      auto *next = node->m_next.load();
+      const auto *next = node->m_next.load();
       delete node;
       node = next;
     }
@@ -181,7 +181,7 @@ struct PFS_notification_registry {
     @return 0 if successful, 1 otherwise
   */
   int disable(int handle) {
-    const int max_attempts = 8;
+    constexpr int max_attempts = 8;
     const time_t timeout = 250000; /* .25s */
     auto *node = m_head.load();
 
@@ -226,7 +226,7 @@ struct PFS_notification_registry {
 
     while (node != nullptr) {
       /* Is a callback registered for this event? */
-      auto cb_map = node->m_cb_map.load();
+      const auto cb_map = node->m_cb_map.load();
 
       if ((cb_map & event_type) != 0) {
         /* No ref count for permanent registrations. */
@@ -235,7 +235,7 @@ struct PFS_notification_registry {
         }
 
         /* Bump ref count, decrement in get_next(). */
-        auto refs = node->m_refs.fetch_add(1);
+        const auto refs = node->m_refs.fetch_add(1);
 
         /* Verify that node is still enabled. */
         if ((refs & FREE_MASK) == 0) {
@@ -268,7 +268,7 @@ struct PFS_notification_registry {
 
     while (next != nullptr) {
       /* Is a callback registered for this event? */
-      auto cb_map = next->m_cb_map.load();
+      const auto cb_map = next->m_cb_map.load();
 
       if ((cb_map & event_type) != 0) {
         /* No ref count for permanent registrations. */
@@ -277,7 +277,7 @@ struct PFS_notification_registry {
         }
 
         /* Bump ref count, decrement in next call to get_next(). */
-        auto refs = next->m_refs.fetch_add(1);
+        const auto refs = next->m_refs.fetch_add(1);
 
         /* Verify that node is still enabled. */
         if ((refs & FREE_MASK) == 0) {
@@ -292,8 +292,8 @@ struct PFS_notification_registry {
   }
 
  private:
-  static const std::uint32_t REFS_MASK = 0x7FFFFFFF;
-  static const std::uint32_t FREE_MASK = 0x80000000;
+  static constexpr std::uint32_t REFS_MASK = 0x7FFFFFFF;
+  static constexpr std::uint32_t FREE_MASK = 0x80000000;
 
   std::atomic<PFS_notification_node *> m_head;
   std::atomic<std::uint32_t> m_count;
@@ -350,7 +350,7 @@ void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
   }
 
   while (node != nullptr) {
-    auto callback = *node->m_cb.thread_create;
+    const auto callback = *node->m_cb.thread_create;
     if (callback != nullptr) {
       callback(&thread_attrs);
     }
@@ -377,7 +377,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
   }
 
   while (node != nullptr) {
-    auto callback = *node->m_cb.thread_destroy;
+    const auto callback = *node->m_cb.thread_destroy;
     if (callback != nullptr) {
       callback(&thread_attrs);
     }
@@ -414,7 +414,7 @@ void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
   }
 
   while (node != nullptr) {
-    auto callback = *node->m_cb.session_connect;
+    const auto callback = *node->m_cb.session_connect;
     if (callback != nullptr) {
       callback(&thread_attrs);
     }
@@ -452,7 +452,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
   }
 
   while (node != nullptr) {
-    auto callback = *node->m_cb.session_disconnect;
+    const auto callback = *node->m_cb.session_disconnect;
     if (callback != nullptr) {
       callback(&thread_attrs);
     }
@@ -478,7 +478,7 @@ void pfs_notify_session_change_user(PSI_thread *thread [[maybe_unused]]) {
   }
 
   while (node != nullptr) {
-    auto callback = *node->m_cb.session_change_user;
+    const auto callback = *node->m_cb.session_change_user;
     if (callback != nullptr) {
       callback(&thread_attrs);
     }

@@ -499,7 +499,7 @@ class PFS_connection_memory_visitor : public PFS_connection_visitor {
 class PFS_connection_status_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  explicit PFS_connection_status_visitor(System_status_var *status_vars);
+  explicit PFS_connection_status_visitor(System_status_var *vars);
   ~PFS_connection_status_visitor() override;
   void visit_global() override;
   void visit_host(PFS_host *pfs) override;

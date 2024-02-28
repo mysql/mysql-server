@@ -56,27 +56,25 @@ struct THR_LOCK;
 /** A row of PERFORMANCE_SCHEMA.SOCKET_INSTANCES. */
 struct row_socket_instances {
   /** Column EVENT_NAME. */
-  const char *m_event_name;
+  const char *m_event_name{nullptr};
   /** Length in bytes of @c m_event_name. */
-  uint m_event_name_length;
+  uint m_event_name_length{0};
   /** Column OBJECT_INSTANCE_BEGIN */
-  const void *m_identity;
+  const void *m_identity{nullptr};
   /** Column THREAD_ID */
-  ulonglong m_thread_id;
+  ulonglong m_thread_id{0};
   /** True if thread_is is set */
-  bool m_thread_id_set;
+  bool m_thread_id_set{false};
   /** Column SOCKET_ID */
-  uint m_fd;
+  uint m_fd{0};
   /** Socket ip address, IPV4 or IPV6 */
   char m_ip[INET6_ADDRSTRLEN + 1];
   /** Length in bytes of @c m_ip. */
-  uint m_ip_length;
+  uint m_ip_length{0};
   /** Column PORT */
-  uint m_port;
+  uint m_port{0};
   /** Socket state: ACTIVE or IDLE */
   PSI_socket_state m_state;
-
-  row_socket_instances() { m_thread_id_set = false; }
 };
 
 class PFS_index_socket_instances : public PFS_engine_index {

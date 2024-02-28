@@ -51,11 +51,11 @@ struct row_file_instances {
   /** Column FILE_NAME. */
   PFS_file_name m_file_name;
   /** Column EVENT_NAME. */
-  const char *m_event_name;
+  const char *m_event_name{nullptr};
   /** Length in bytes of @c m_event_name. */
-  uint m_event_name_length;
+  uint m_event_name_length{0};
   /** Column OPEN_COUNT. */
-  uint m_open_count;
+  uint m_open_count{0};
 };
 
 class PFS_index_file_instances : public PFS_engine_index {

@@ -111,7 +111,7 @@ ha_rows table_esgs_by_thread_by_event_name::get_row_count() {
 }
 
 table_esgs_by_thread_by_event_name::table_esgs_by_thread_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_stage();
 }
 
@@ -142,14 +142,11 @@ int table_esgs_by_thread_by_event_name::rnd_next() {
 }
 
 int table_esgs_by_thread_by_event_name::rnd_pos(const void *pos) {
-  PFS_thread *thread;
-  PFS_stage_class *stage_class;
-
   set_position(pos);
 
-  thread = global_thread_container.get(m_pos.m_index_1);
+  PFS_thread *thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != nullptr) {
-    stage_class = find_stage_class(m_pos.m_index_2);
+    PFS_stage_class *stage_class = find_stage_class(m_pos.m_index_2);
     if (stage_class) {
       return make_row(thread, stage_class);
     }

@@ -97,7 +97,7 @@ static void initialize_performance_schema_helper(PFS_global_param *param) {
 
 static void test_oom() {
   PFS_global_param param;
-  PFS_account *pfs_account;
+  const PFS_account *pfs_account;
   PFS_user_name username;
   PFS_host_name hostname;
 

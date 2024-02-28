@@ -48,7 +48,7 @@
 /* test helpers, to simulate the setup */
 
 static void setup_thread(PSI_thread *t, bool enabled) {
-  PFS_thread *t2 = (PFS_thread *)t;
+  auto *t2 = (PFS_thread *)t;
   t2->m_enabled = enabled;
 }
 
@@ -56,7 +56,7 @@ static void setup_thread(PSI_thread *t, bool enabled) {
 
 static PFS_file *lookup_file_by_name(const char *name) {
   PFS_file *pfs;
-  size_t len = strlen(name);
+  const size_t len = strlen(name);
   size_t dirlen;
   const char *filename;
   size_t filename_length;
@@ -86,8 +86,8 @@ static PFS_file *lookup_file_by_name(const char *name) {
 /* tests */
 
 static void test_bootstrap() {
-  void *psi;
-  void *psi_2;
+  const void *psi;
+  const void *psi_2;
   PSI_thread_bootstrap *thread_boot;
   PSI_mutex_bootstrap *mutex_boot;
   PSI_rwlock_bootstrap *rwlock_boot;
@@ -935,7 +935,7 @@ static void test_init_disabled() {
   PSI_mutex *mutex_A1;
   PSI_rwlock *rwlock_A1;
   PSI_cond *cond_A1;
-  PFS_file *file_A1;
+  const PFS_file *file_A1;
   PSI_socket *socket_A1;
   PSI_thread *thread_1;
 
@@ -1797,7 +1797,7 @@ static void test_file_instrumentation_leak() {
 
 #ifdef LATER
 static void test_enabled() {
-  PSI *psi;
+  const PSI *psi;
 
   diag("test_enabled");
 
@@ -1823,22 +1823,22 @@ static void test_enabled() {
 #endif
 
 static void test_event_name_index() {
-  PSI_thread_service_t *thread_service;
+  const PSI_thread_service_t *thread_service;
   PSI_mutex_service_t *mutex_service;
   PSI_rwlock_service_t *rwlock_service;
   PSI_cond_service_t *cond_service;
   PSI_file_service_t *file_service;
   PSI_socket_service_t *socket_service;
-  PSI_table_service_t *table_service;
-  PSI_mdl_service_t *mdl_service;
-  PSI_idle_service_t *idle_service;
-  PSI_stage_service_t *stage_service;
-  PSI_statement_service_t *statement_service;
-  PSI_transaction_service_t *transaction_service;
-  PSI_memory_service_t *memory_service;
-  PSI_error_service_t *error_service;
-  PSI_data_lock_service_t *data_lock_service;
-  PSI_tls_channel_service_t *tls_channel_service;
+  const PSI_table_service_t *table_service;
+  const PSI_mdl_service_t *mdl_service;
+  const PSI_idle_service_t *idle_service;
+  const PSI_stage_service_t *stage_service;
+  const PSI_statement_service_t *statement_service;
+  const PSI_transaction_service_t *transaction_service;
+  const PSI_memory_service_t *memory_service;
+  const PSI_error_service_t *error_service;
+  const PSI_data_lock_service_t *data_lock_service;
+  const PSI_tls_channel_service_t *tls_channel_service;
 
   PSI_thread_bootstrap *thread_boot;
   PSI_mutex_bootstrap *mutex_boot;
@@ -2013,7 +2013,7 @@ static void test_event_name_index() {
           PSI_TLS_CHANNEL_VERSION_1);
   ok(tls_channel_service != nullptr, "tls_channel_service");
 
-  PFS_mutex_class *mutex_class;
+  const PFS_mutex_class *mutex_class;
   PSI_mutex_key dummy_mutex_key_1;
   PSI_mutex_key dummy_mutex_key_2;
   PSI_mutex_info dummy_mutexes[] = {{&dummy_mutex_key_1, "M-1", 0, 0, ""},
@@ -2027,7 +2027,7 @@ static void test_event_name_index() {
   ok(mutex_class != nullptr, "mutex class 2");
   ok(mutex_class->m_event_name_index == 5, "index 5");
 
-  PFS_rwlock_class *rwlock_class;
+  const PFS_rwlock_class *rwlock_class;
   PSI_rwlock_key dummy_rwlock_key_1;
   PSI_rwlock_key dummy_rwlock_key_2;
   PSI_rwlock_info dummy_rwlocks[] = {{&dummy_rwlock_key_1, "RW-1", 0, 0, ""},
@@ -2041,7 +2041,7 @@ static void test_event_name_index() {
   ok(rwlock_class != nullptr, "rwlock class 2");
   ok(rwlock_class->m_event_name_index == 17, "index 17");
 
-  PFS_cond_class *cond_class;
+  const PFS_cond_class *cond_class;
   PSI_cond_key dummy_cond_key_1;
   PSI_cond_key dummy_cond_key_2;
   PSI_cond_info dummy_conds[] = {{&dummy_cond_key_1, "C-1", 0, 0, ""},
@@ -2055,7 +2055,7 @@ static void test_event_name_index() {
   ok(cond_class != nullptr, "cond class 2");
   ok(cond_class->m_event_name_index == 35, "index 35");
 
-  PFS_file_class *file_class;
+  const PFS_file_class *file_class;
   PSI_file_key dummy_file_key_1;
   PSI_file_key dummy_file_key_2;
   PSI_file_info dummy_files[] = {{&dummy_file_key_1, "F-1", 0, 0, ""},
@@ -2069,7 +2069,7 @@ static void test_event_name_index() {
   ok(file_class != nullptr, "file class 2");
   ok(file_class->m_event_name_index == 75, "index 75");
 
-  PFS_socket_class *socket_class;
+  const PFS_socket_class *socket_class;
   PSI_socket_key dummy_socket_key_1;
   PSI_socket_key dummy_socket_key_2;
   PSI_socket_info dummy_sockets[] = {{&dummy_socket_key_1, "S-1", 0, 0, ""},
@@ -2360,7 +2360,7 @@ static void test_file_operations() {
   PSI_file_locker_state state_A, state_B;
   File fd1, fd2;
   const char *filename1, *filename2;
-  int rc = 0;
+  int rc;
 
   PSI_file_key file_key;
   PSI_file_info all_file[] = {{&file_key, "File Class", 0, 0, ""}};
