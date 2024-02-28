@@ -3112,6 +3112,8 @@ ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
 ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
 SET FOREIGN_KEY_CHECKS = 1;
 ALTER TABLE self DROP KEY u, ADD KEY nu(u);
+Warnings:
+Warning	6124	Foreign key 'nu' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
 ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
 ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
@@ -3200,6 +3202,8 @@ DROP TABLE child, parent;
 CREATE TABLE self (fk INT, pkfk INT,
 FOREIGN KEY (fk) REFERENCES self (pkfk),
 FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+Warnings:
+Warning	6124	Foreign key 'pkfk' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
@@ -3270,12 +3274,11 @@ information_schema.referential_constraints WHERE table_name = 'child';
 REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
 parent	NULL
 DROP TABLE child, parent;
-SET restrict_fk_on_non_standard_key=ON;
-Warnings:
-Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 CREATE TABLE self (fk INT, pkfk1 INT, pkfk2 INT,
 FOREIGN KEY (fk) REFERENCES self (pkfk1),
 FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+Warnings:
+Warning	6124	Foreign key 'pkfk1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
@@ -3294,6 +3297,8 @@ REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
 grandparent1	PRIMARY
 self	NULL
 ALTER TABLE self ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+Warnings:
+Warning	6124	Foreign key 'pkfk1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
@@ -3314,6 +3319,9 @@ grandparent1	PRIMARY
 grandparent2	PRIMARY
 self	NULL
 DROP TABLE self, grandparent1, grandparent2;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Bug#25722927 "NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
 #
@@ -4801,9 +4809,6 @@ DROP TABLES child, parent;
 SET FOREIGN_KEY_CHECKS=0;
 CREATE TABLE child (fk1 INT, fk2 INT, CONSTRAINT c FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
 SET FOREIGN_KEY_CHECKS=1;
-SET restrict_fk_on_non_standard_key=OFF;
-Warnings:
-Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE parent (pk INT PRIMARY KEY, a INT, UNIQUE ua(a));
 Warnings:
 Warning	6124	Foreign key 'c' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
@@ -4837,24 +4842,38 @@ DROP TABLE parent;
 #
 CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
 KEY(a), FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk));
+Warnings:
+Warning	6124	Foreign key 'a' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT,
 UNIQUE(b), FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk));
+Warnings:
+Warning	6124	Foreign key 'b' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP TABLES self1, self2;
 CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT, KEY(a));
 ALTER TABLE self1 ADD FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk);
+Warnings:
+Warning	6124	Foreign key 'a' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT, UNIQUE(b));
 ALTER TABLE self2 ADD FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk);
+Warnings:
+Warning	6124	Foreign key 'b' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP TABLES self1, self2;
 # Test for complex multi-column case.
 CREATE TABLE self (a INT, b INT, c INT, fk1 INT, fk2 INT, fk3 INT,
 PRIMARY KEY (a,b), KEY(c, a),
 FOREIGN KEY (fk1, fk2, fk3) REFERENCES self (c, a, b));
+Warnings:
+Warning	6124	Foreign key 'c' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP TABLE self;
 # Test for removing parent key.
 CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
 KEY k1(a, pk), UNIQUE k2(a),
 FOREIGN KEY (fk1, fk2) REFERENCES self (a, pk));
+Warnings:
+Warning	6124	Foreign key 'k2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 ALTER TABLE self DROP KEY k1;
+Warnings:
+Warning	6124	Foreign key 'k2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 DROP TABLE self;
 # But again this is not supposed to work for hidden columns added to
 # primary key.
@@ -5266,6 +5285,9 @@ DROP TABLE t1;
 #     orphan non-self-referencing foreign key. Parent index does not
 #     exist in the table.
 #     Table rename operation fails in this case.
+SET restrict_fk_on_non_standard_key = OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT,
 FOREIGN KEY(f2) REFERENCES t2(f3));
 ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
@@ -5277,6 +5299,9 @@ ERROR HY000: Failed to add the foreign key constraint. Missing index for constra
 RENAME TABLE t1 TO t2;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key = ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 # 11. Test case to verify table rename operation on the table containing
 #     orphan non-self-referencing foreign key. Table's column is not
 #     compatible with the foreign key's referenced column.
@@ -5446,4 +5471,34 @@ CREATE TABLE t2 (f1 VARCHAR(100),
 FOREIGN KEY(f1) REFERENCES t1(f3));
 ERROR HY000: Foreign key 't2_ibfk_1' uses virtual column 'f3' which is not supported.
 drop table t1;
+# Case 15 - Self Referencing FK with non unique key
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT, INDEX ix(i),
+FOREIGN KEY (j) REFERENCES self_ref(i));
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+CREATE TABLE self_ref(pk INT, i INT, j INT, k INT, key(pk),
+FOREIGN KEY (j,k) REFERENCES self_ref(pk,i));
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+# Case 16 - Self Referencing FK with partial key
+CREATE TABLE self_ref(pk INT, i INT, j INT, k INT, UNIQUE KEY(pk, i),
+FOREIGN KEY (j) REFERENCES self_ref(pk));
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+# Case 17 - Self Referencing FK with prefix key
+CREATE TABLE self_ref(f1 VARCHAR(100), f2 VARCHAR(100),
+PRIMARY KEY(f1(10)),
+FOREIGN KEY (f2) REFERENCES self_ref(f1));
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+SET FOREIGN_KEY_CHECKS=OFF;
+CREATE TABLE t1 (pk INT PRIMARY KEY, b INT,
+FOREIGN KEY (b) REFERENCES t2(c));
+CREATE TABLE t2 (pk1 INT PRIMARY KEY, c INT);
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 't1_ibfk_1' in the referenced table 't2'
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
+CREATE TABLE t2 (pk1 INT PRIMARY KEY, c INT);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET FOREIGN_KEY_CHECKS = DEFAULT;

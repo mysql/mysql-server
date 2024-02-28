@@ -3153,7 +3153,6 @@ SHOW CREATE TABLE parent;
 SELECT referenced_table_name, unique_constraint_name FROM
   information_schema.referential_constraints WHERE table_name = 'child';
 DROP TABLE child, parent;
-SET restrict_fk_on_non_standard_key=ON;
 
 CREATE TABLE self (fk INT, pkfk1 INT, pkfk2 INT,
                    FOREIGN KEY (fk) REFERENCES self (pkfk1),
@@ -3169,6 +3168,7 @@ SELECT referenced_table_name, unique_constraint_name FROM
   ORDER BY referenced_table_name;
 DROP TABLE self, grandparent1, grandparent2;
 
+SET restrict_fk_on_non_standard_key=ON;
 
 --echo #
 --echo # Bug#25722927 "NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
@@ -4531,7 +4531,6 @@ DROP TABLES child, parent;
 SET FOREIGN_KEY_CHECKS=0;
 CREATE TABLE child (fk1 INT, fk2 INT, CONSTRAINT c FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
 SET FOREIGN_KEY_CHECKS=1;
-SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE parent (pk INT PRIMARY KEY, a INT, UNIQUE ua(a));
 SELECT constraint_name, unique_constraint_name FROM information_schema.referential_constraints
   WHERE constraint_schema='test' AND constraint_name='c';
@@ -4909,6 +4908,7 @@ DROP TABLE t1;
 --echo #     orphan non-self-referencing foreign key. Parent index does not
 --echo #     exist in the table.
 --echo #     Table rename operation fails in this case.
+SET restrict_fk_on_non_standard_key = OFF;
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT,
                  FOREIGN KEY(f2) REFERENCES t2(f3));
 --error ER_FK_NO_INDEX_PARENT
@@ -4920,6 +4920,7 @@ ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
 --error ER_FK_NO_INDEX_PARENT
 RENAME TABLE t1 TO t2;
 DROP TABLE t1;
+SET restrict_fk_on_non_standard_key = ON;
 
 --echo # 11. Test case to verify table rename operation on the table containing
 --echo #     orphan non-self-referencing foreign key. Table's column is not
@@ -5058,5 +5059,38 @@ CREATE TABLE t2 (f1 VARCHAR(100),
                 FOREIGN KEY(f1) REFERENCES t1(f3));
 drop table t1;
 
+-- echo # Case 15 - Self Referencing FK with non unique key
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT, INDEX ix(i),
+                      FOREIGN KEY (j) REFERENCES self_ref(i));
+
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE self_ref(pk INT, i INT, j INT, k INT, key(pk),
+                      FOREIGN KEY (j,k) REFERENCES self_ref(pk,i));
+
+-- echo # Case 16 - Self Referencing FK with partial key
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE self_ref(pk INT, i INT, j INT, k INT, UNIQUE KEY(pk, i),
+                      FOREIGN KEY (j) REFERENCES self_ref(pk));
+
+-- echo # Case 17 - Self Referencing FK with prefix key
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE self_ref(f1 VARCHAR(100), f2 VARCHAR(100),
+                      PRIMARY KEY(f1(10)),
+                      FOREIGN KEY (f2) REFERENCES self_ref(f1));
+
+SET FOREIGN_KEY_CHECKS=OFF;
+CREATE TABLE t1 (pk INT PRIMARY KEY, b INT,
+                 FOREIGN KEY (b) REFERENCES t2(c));
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE t2 (pk1 INT PRIMARY KEY, c INT);
+
+SET restrict_fk_on_non_standard_key=OFF;
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE t2 (pk1 INT PRIMARY KEY, c INT);
+
+DROP TABLE t1;
+
+SET restrict_fk_on_non_standard_key=ON;
 #Cleanup
 SET FOREIGN_KEY_CHECKS = DEFAULT;

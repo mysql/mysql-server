@@ -704,17 +704,24 @@ WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 self_ibfk_1	u3	test	self
 DROP TABLE self;
+SET restrict_fk_on_non_standard_key=OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE self (i INT, j INT, i2 INT, j2 INT,
 d INT GENERATED ALWAYS AS (i) VIRTUAL,
 e INT GENERATED ALWAYS AS (j) VIRTUAL,
 PRIMARY KEY (i), UNIQUE u(i,d), UNIQUE u1(i,j,e),
 FOREIGN KEY (i2, j2) REFERENCES self (i, j));
+Warnings:
+Warning	6124	Foreign key 'u1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 self_ibfk_1	u1	test	self
 ALTER TABLE self RENAME KEY u1 TO u2;
+Warnings:
+Warning	6124	Foreign key 'u2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
@@ -724,18 +731,25 @@ DROP TABLE self;
 CREATE TABLE self (i INT, a VARCHAR(10), b VARCHAR(10), i2 INT, a2 VARCHAR(10),
 PRIMARY KEY (i), UNIQUE u(i,a(5)), UNIQUE u1(i,a,b(5)),
 FOREIGN KEY (i2, a2) REFERENCES self (i, a));
+Warnings:
+Warning	6124	Foreign key 'u1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 self_ibfk_1	u1	test	self
 ALTER TABLE self RENAME KEY u1 TO u2;
+Warnings:
+Warning	6124	Foreign key 'u2' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 self_ibfk_1	u2	test	self
 DROP TABLE self;
+SET restrict_fk_on_non_standard_key=ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 SET @@foreign_key_checks= DEFAULT;
 SET SESSION debug= '-d,skip_dd_table_access_check';
 #

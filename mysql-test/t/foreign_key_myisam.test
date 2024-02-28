@@ -121,6 +121,7 @@ SET FOREIGN_KEY_CHECKS=1;
 --echo # table to previously orphan foreign key by changing table storage
 --echo # engine.
 SET FOREIGN_KEY_CHECKS=0;
+SET restrict_fk_on_non_standard_key = OFF;
 CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent (pk)) ENGINE=InnoDB;
 CREATE TABLE parent (pk INT) ENGINE=MyISAM;
 --error ER_FK_NO_INDEX_PARENT
@@ -153,6 +154,7 @@ CREATE TABLE parent (pk INT) ENGINE=MyISAM;
 --error ER_FK_NO_INDEX_PARENT
 ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
 DROP TABLE parent;
+SET restrict_fk_on_non_standard_key = ON;
 
 --echo #
 --echo # Check that unique constraint name is correctly updated when parent

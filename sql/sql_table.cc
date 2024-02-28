@@ -5524,6 +5524,68 @@ static bool fk_key_is_full_prefix_match(Alter_info *alter_info,
   return (match_count == fk_col_count);
 }
 
+namespace {
+/**
+  Check if candidate parent key contains exactly the same columns as the
+  foreign key in same order.
+
+  @param  alter_info      Alter_info object describing parent table.
+  @param  fk              FOREIGN_KEY object describing the foreign key.
+  @param  key             Pointer to KEY representing the parent index.
+
+  @retval True  - Key is proper parent key for the foreign key.
+  @retval False - Key can't be parent key for the foreign key.
+*/
+bool fk_is_key_exact_match_order(Alter_info *alter_info, FOREIGN_KEY *fk,
+                                 const KEY *key) {
+  if (fk->key_parts != key->user_defined_key_parts) return false;
+  uint matched_columns = 0;
+  for (uint col_idx = 0; col_idx < key->user_defined_key_parts; ++col_idx) {
+    // Prefix parts are considered non-matching.
+    if (key->key_part[col_idx].key_part_flag & HA_PART_KEY_SEG) break;
+    const Create_field *col =
+        get_field_by_index(alter_info, key->key_part[col_idx].fieldnr);
+
+    if (my_strcasecmp(system_charset_info, col->field_name,
+                      fk->fk_key_part[col_idx].str) == 0)
+      matched_columns++;
+  }
+  return (matched_columns == fk->key_parts);
+}
+
+/**
+  Report new error code ER_FK_NO_UNIQUE_INDEX_PARENT when session variable
+  restrict_fk_on_non_standard_key is ON and ER_FK_NO_INDEX_PARENT when it
+  if OFF.
+
+  @param  thd             Thread handle.
+  @param  fk_name         Name of the foreign key.
+  @param  table_name      Name of the referenced table name.
+*/
+void report_fk_index_error(THD *thd, const char *fk_name,
+                           const char *table_name) {
+  if (thd->variables.restrict_fk_on_non_standard_key)
+    my_error(ER_FK_NO_UNIQUE_INDEX_PARENT, MYF(0), fk_name, table_name);
+  else
+    my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk_name, table_name);
+}
+
+/**
+  Raise warning when foreign key is created on non-unique key or partial key,
+  increment the deprecated fk usage count, and last time stamp it occurred.
+
+  @param  thd             Thread handle.
+  @param  key_name        Name of the index key name.
+*/
+void warn_fk_on_non_standard_key(THD *thd, const char *key_name) {
+  deprecated_use_fk_on_non_standard_key_last_timestamp = my_micro_time();
+  deprecated_use_fk_on_non_standard_key_count++;
+  push_warning_printf(
+      thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_NON_STANDARD_KEY,
+      ER_THD(thd, ER_WARN_DEPRECATED_NON_STANDARD_KEY), key_name);
+}
+}  // namespace
+
 /**
   Check if parent key for self-referencing foreign key exists, set
   foreign key's unique constraint name accordingly. Emit error if
@@ -5609,19 +5671,30 @@ static bool prepare_self_ref_fk_parent_key(
           hidden_cols_key = key_info_buffer;
       }
 
-      if (fk_key_is_full_prefix_match(alter_info, fk->key_parts,
-                                      fk_columns_lambda, key,
-                                      hidden_cols_key)) {
-        /*
-          We only store names of PK or UNIQUE keys in UNIQUE_CONSTRAINT_NAME.
-          InnoDB allows non-unique indexes as parent keys for which NULL is
-          stored.
-        */
-        if (key->flags & HA_NOSAME)
+      bool is_standard_fk = (key->flags & HA_NOSAME) &&
+                            fk_is_key_exact_match_order(alter_info, fk, key);
+      if (thd->variables.restrict_fk_on_non_standard_key) {
+        if (is_standard_fk) {
           fk->unique_index_name = key->name;
-        else
-          fk->unique_index_name = nullptr;
-        return false;
+          return false;
+        }
+      } else {
+        if (fk_key_is_full_prefix_match(alter_info, fk->key_parts,
+                                        fk_columns_lambda, key,
+                                        hidden_cols_key)) {
+          if (!is_standard_fk && !thd->slave_thread)
+            warn_fk_on_non_standard_key(thd, key->name);
+          /*
+            We only store names of PK or UNIQUE keys in UNIQUE_CONSTRAINT_NAME.
+            InnoDB allows non-unique indexes as parent keys for which NULL is
+            stored.
+          */
+          if (key->flags & HA_NOSAME)
+            fk->unique_index_name = key->name;
+          else
+            fk->unique_index_name = nullptr;
+          return false;
+        }
       }
     } else {
       /*
@@ -5641,7 +5714,7 @@ static bool prepare_self_ref_fk_parent_key(
   //  No matching parent key!
   if (old_fk_table == nullptr) {
     // This is new foreign key for which parent key is missing.
-    my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
+    report_fk_index_error(thd, fk->name, fk->ref_table.str);
   } else {
     /*
       Old foreign key for which parent key or supporting key must have
@@ -6299,15 +6372,8 @@ const dd::Index *find_fk_parent_key(THD *thd, handlerton *hton,
       } else {
         if (fk_key_is_full_prefix_match(fk_col_count, fk_columns, idx,
                                         use_hidden)) {
-          if (!is_standard_fk && !thd->slave_thread) {
-            deprecated_use_fk_on_non_standard_key_last_timestamp =
-                my_micro_time();
-            deprecated_use_fk_on_non_standard_key_count++;
-            push_warning_printf(
-                thd, Sql_condition::SL_WARNING,
-                ER_WARN_DEPRECATED_NON_STANDARD_KEY,
-                ER_THD(thd, ER_WARN_DEPRECATED_NON_STANDARD_KEY), fk_name);
-          }
+          if (!is_standard_fk && !thd->slave_thread)
+            warn_fk_on_non_standard_key(thd, fk_name);
           return idx;
         }
       }
@@ -6458,10 +6524,7 @@ bool prepare_fk_parent_key(THD *thd, handlerton *hton,
     }
     return false;
   }
-  if (thd->variables.restrict_fk_on_non_standard_key)
-    my_error(ER_FK_NO_UNIQUE_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
-  else
-    my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
+  report_fk_index_error(thd, fk->name, fk->ref_table.str);
   return true;
 }
 
@@ -6525,8 +6588,8 @@ bool prepare_fk_parent_key(THD *thd, handlerton *hton,
         No old version of parent table definition. This must be CREATE
         TABLE or RENAME TABLE (or possibly ALTER TABLE RENAME).
       */
-      my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name().c_str(),
-               fk->referenced_table_name().c_str());
+      report_fk_index_error(thd, fk->name().c_str(),
+                            fk->referenced_table_name().c_str());
     } else {
       /*
         This is ALTER TABLE which dropped parent key.

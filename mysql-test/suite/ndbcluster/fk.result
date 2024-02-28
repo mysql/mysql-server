@@ -6,7 +6,7 @@
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
 INDEX ix(i),
 FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ref_fk_1' in the referenced table 'self_ref'
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_fk_1' in the referenced table 'self_ref'
 # But a unique index is fine.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
 UNIQUE INDEX ix(i),
@@ -46,7 +46,7 @@ DROP TABLE self_ref;
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
 INDEX ix(i),
 FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ref_fk_1' in the referenced table 'self_ref'
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_fk_1' in the referenced table 'self_ref'
 # If there is an index with the same columns as the referenced ones,
 # but in different order, the index may be used as parent index. This
 # index may also serve as supporting index.

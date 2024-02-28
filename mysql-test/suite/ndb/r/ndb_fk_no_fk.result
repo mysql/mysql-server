@@ -199,7 +199,7 @@ create table t2 (
 pk1 int not null primary key,
 c int
 ) engine=ndb;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_fk_1' in the referenced table 't2'
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 't1_fk_1' in the referenced table 't2'
 # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)

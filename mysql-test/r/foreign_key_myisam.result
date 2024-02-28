@@ -100,6 +100,9 @@ SET FOREIGN_KEY_CHECKS=1;
 # table to previously orphan foreign key by changing table storage
 # engine.
 SET FOREIGN_KEY_CHECKS=0;
+SET restrict_fk_on_non_standard_key = OFF;
+Warnings:
+Warning	4166	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release. Foreign key referring to non-unique or partial keys is unsafe and may break replication.
 CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent (pk)) ENGINE=InnoDB;
 CREATE TABLE parent (pk INT) ENGINE=MyISAM;
 ALTER TABLE parent ENGINE=InnoDB;
@@ -130,6 +133,9 @@ CREATE TABLE parent (pk INT) ENGINE=MyISAM;
 ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
 DROP TABLE parent;
+SET restrict_fk_on_non_standard_key = ON;
+Warnings:
+Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
 #
 # Check that unique constraint name is correctly updated when parent
 # table is added to orphan foreign key by changing table SE.
