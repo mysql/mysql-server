@@ -67,6 +67,8 @@ class HARNESS_EXPORT SectionConfigExposer {
 
   virtual ~SectionConfigExposer() = default;
 
+  SectionConfigExposer(const SectionConfigExposer &) = delete;
+
  protected:
   /**
    * Exposes plugin instance configuration.
