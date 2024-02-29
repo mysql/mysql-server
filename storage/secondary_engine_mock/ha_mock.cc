@@ -46,6 +46,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/opt_trace.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -96,6 +97,11 @@ class LoadedTables {
 };
 
 LoadedTables *loaded_tables{nullptr};
+
+/**
+  Statement context class for the MOCK engine.
+*/
+class Mock_statement_context : public Secondary_engine_statement_context {};
 
 /**
   Execution context class for the MOCK engine. It allocates some data
@@ -227,6 +233,33 @@ int ha_mock::unload_table(const char *db_name, const char *table_name,
 }
 
 }  // namespace mock
+
+namespace {
+bool SecondaryEnginePrePrepareHook(THD *thd) {
+  if (thd->m_current_query_cost <=
+      static_cast<double>(thd->variables.secondary_engine_cost_threshold)) {
+    Opt_trace_context *const trace = &thd->opt_trace;
+    if (trace->is_started()) {
+      const Opt_trace_object wrapper(trace);
+      Opt_trace_object oto(trace, "secondary_engine_not_used");
+      oto.add_alnum("reason",
+                    "The estimated query cost does not exceed "
+                    "secondary_engine_cost_threshold.");
+      oto.add("cost", thd->m_current_query_cost);
+      oto.add("threshold", thd->variables.secondary_engine_cost_threshold);
+    }
+    return false;
+  }
+
+  if (thd->secondary_engine_statement_context() == nullptr) {
+    /* Prepare this query's specific statment context */
+    std::unique_ptr<Secondary_engine_statement_context> ctx =
+        std::make_unique<Mock_statement_context>();
+    thd->set_secondary_engine_statement_context(std::move(ctx));
+  }
+  return true;
+}
+}  // namespace
 
 static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
   DBUG_EXECUTE_IF("secondary_engine_mock_prepare_error", {
@@ -365,6 +398,7 @@ static int Init(MYSQL_PLUGIN p) {
   hton->flags = HTON_IS_SECONDARY_ENGINE;
   hton->db_type = DB_TYPE_UNKNOWN;
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
+  hton->secondary_engine_pre_prepare_hook = SecondaryEnginePrePrepareHook;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
   hton->secondary_engine_flags =
