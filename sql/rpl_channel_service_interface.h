@@ -616,4 +616,20 @@ bool set_replication_failover_channels_configuration(
  */
 bool force_my_replication_failover_channels_configuration_on_all_members();
 
+/**
+ Calculate transactions that are waiting to be applied on channel.
+
+ gtid_set_to_apply will contain a list of UUIDs with intervals that represent
+ transactions that will be applied.
+
+  @param[in]  channel name of the channel
+  @param[out] gtid_set_to_apply transactions on backlog to be applied.
+
+  @return the operation status
+    @retval 0  OK
+    @retval !=0   Error
+ */
+int channel_get_gtid_set_to_apply(const char *channel,
+                                  std::string &gtid_set_to_apply);
+
 #endif  // RPL_SERVICE_INTERFACE_INCLUDE
