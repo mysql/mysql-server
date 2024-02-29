@@ -5995,14 +5995,13 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader &it,
        * A new charset is first accessed here on this node.
        * TODO use separate thread (e.g. via NDBFS) if need to load from file
        */
-      CHARSET_INFO *cs = get_charset(csNumber, MYF(0));
+      const CHARSET_INFO *cs = get_charset(csNumber, MYF(0));
       if (cs == NULL) {
         parseP->errorCode = CreateTableRef::InvalidCharset;
         parseP->errorLine = __LINE__;
         return;
       }
-      // XXX should be done somewhere in mysql
-      all_charsets[cs->number] = cs;
+      ndbassert(cs->number == csNumber);
       unsigned i = 0;
       while (i < noOfCharsets) {
         if (charsets[i] == csNumber) break;
