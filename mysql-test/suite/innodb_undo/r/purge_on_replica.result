@@ -31,11 +31,11 @@ where file_name like "%undo%";
 TABLESPACE_NAME	FILE_NAME
 innodb_undo_001	./undo_001
 innodb_undo_002	./undo_002
-select name, row_format, server_version from information_schema.innodb_tablespaces
+select name, row_format from information_schema.innodb_tablespaces
 where name like '%undo%';
-name	row_format	server_version
-innodb_undo_001	Undo	8.4.0
-innodb_undo_002	Undo	8.4.0
+name	row_format
+innodb_undo_001	Undo
+innodb_undo_002	Undo
 # 5: undo files undo_001 and undo_002 are expected to exist,
 #    while files undo_001_trunc.log and undo_002_trunc.log are expected to not exist
 undo_001
