@@ -1,0 +1,99 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Assert that server1 hasn't logged message. There aren't
+#    transactions from applier relay log to be applied on
+#    recovery
+include/assert_grep.inc [Log transactions to be applied from applier relay log]
+include/assert_grep.inc [Log transactions applied from applier relay log]
+
+############################################################
+# 2. Assert that server2 hasn't logged message. There aren't
+#    transactions from applier relay log to be applied on
+#    recovery
+[connection server2]
+include/assert_grep.inc [Log transactions to be applied from applier relay log]
+include/assert_grep.inc [Log transactions applied from applier relay log]
+
+############################################################
+# 3. Stop SQL Threads on server2 so that all remote transactions
+# are only queued on relay log. Execute some transactions on
+# server1.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl/sync.inc
+[connection server2]
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+################################################################
+# 4. Wait until server2 receives and certifies the transaction.
+[connection server2]
+
+############################################################
+# 5. Make both members leave the group.
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
+include/stop_group_replication.inc
+SET DEBUG_SYNC= 'RESET';
+
+############################################################
+# 6. Start Group Replication only on server2. Validate that
+# Member state is RECOVERING, despite being the only group
+# member, since it is applying group applier relay log.
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection server2]
+SET GLOBAL debug= '+d,group_replication_skip_read_mode';
+include/start_and_bootstrap_group_replication.inc
+[connection server_2]
+UNLOCK TABLES;
+[connection server2]
+include/gr_wait_for_member_state.inc
+SET GLOBAL debug= '-d,group_replication_skip_read_mode';
+
+############################################################
+# 7. Assert that server1 and server2 have the same data and
+# GTID_EXECUTED.
+[connection server1]
+include/assert.inc ['There is a value 1 in table t1 on server1']
+[connection server2]
+include/assert.inc ['There is a value 1 in table t1 on server2']
+include/assert.inc ['server2 GTID_EXECUTED must contain the 2 transactions']
+
+############################################################
+# 8. Assert that server has transactions from applier relay
+#    log to be applied on recovery.
+include/assert_grep.inc [Log transactions to be applied from applier relay log]
+############################################################
+# 9. Assert that server applied  transactions from applier
+#    relay log.
+include/assert_grep.inc [Log transactions applied from applier relay log]
+
+############################################################
+# 10. Clean up.
+[connection server1]
+include/start_group_replication.inc
+DROP TABLE t1;
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
+include/group_replication_end.inc

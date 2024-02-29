@@ -1128,6 +1128,53 @@ int channel_get_network_namespace(const char *channel, std::string &net_ns) {
   return 0;
 }
 
+int channel_get_gtid_set_to_apply(const char *channel,
+                                  std::string &gtid_set_to_apply) {
+  DBUG_TRACE;
+
+  int error = 0;
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel);
+
+  if (mi == nullptr) {
+    channel_map.unlock();
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
+  }
+
+  mi->inc_reference();
+  channel_map.unlock();
+  Tsid_map tsid_map{nullptr};
+  Gtid_set gtids{&tsid_map, nullptr};
+
+  /* RECEIVED_TRANSACTION_SET */
+  mi->rli->get_tsid_lock()->wrlock();
+  if (RETURN_STATUS_OK != gtids.add_gtid_set(mi->rli->get_gtid_set())) {
+    error = 1;
+  }
+  mi->rli->get_tsid_lock()->unlock();
+
+  mi->dec_reference();
+
+  if (error) {
+    return error;
+  }
+
+  /* GTID_EXECUTED */
+  global_tsid_lock->wrlock();
+  gtids.remove_gtid_set(gtid_state->get_executed_gtids());
+  global_tsid_lock->unlock();
+
+  char *gtids_string = nullptr;
+  if (-1 != gtids.to_string(&gtids_string)) {
+    gtid_set_to_apply.assign(gtids_string);
+  } else {
+    error = ER_OUTOFMEMORY;
+  }
+  my_free(gtids_string);
+
+  return error;
+}
+
 bool channel_is_stopping(const char *channel,
                          enum_channel_thread_types thd_type) {
   bool is_stopping = false;
