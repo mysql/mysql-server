@@ -12698,6 +12698,9 @@ ER_THREAD_POOL_MTL_DISABLE
 ER_THREAD_POOL_MTL_REENABLE
   eng "Re-enabling MTL in thread group %u since it is down to %u long running transactions."
 
+ER_LOG_PARTITION_PREFIX_KEY_NOT_SUPPORTED
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is not supported."
+
 ER_LDAP_AUTH_INFO_USER_MAP
   eng "Login user: %s@%s (external: %s) authenticated as: %s"
 
@@ -12721,17 +12724,6 @@ ER_ACCESS_DENIED_NO_PROXY_WITH_NAME
 #
 # End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
-
-#
-# Start of 9.0 error messages intended to be written to the server error log.
-# Append 8.x error log messages to the end of the _previous_ section.
-# Messages intended to be sent to _clients_ go in messages_to_clients.txt!
-#
-
-start-error-number 15500
-
-ER_LOG_PARTITION_PREFIX_KEY_NOT_SUPPORTED
-  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is not supported."
 
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
