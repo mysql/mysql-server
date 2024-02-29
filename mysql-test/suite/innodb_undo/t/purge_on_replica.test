@@ -52,7 +52,7 @@ connection slave;
 
 select tablespace_name, file_name from information_schema.files
   where file_name like "%undo%";
-select name, row_format, server_version from information_schema.innodb_tablespaces
+select name, row_format from information_schema.innodb_tablespaces
   where name like '%undo%';
 
 let $MYSQLD_DATADIR = `select @@datadir`;
