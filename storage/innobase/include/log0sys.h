@@ -119,6 +119,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   alignas(ut::INNODB_CACHE_LINE_SIZE)
       ut::aligned_array_pointer<byte, LOG_BUFFER_ALIGNMENT> buf;
   // byte = unsigned char, LOG_BUFFER_ALIGNMENT = 512
+  // storage/innobase/include/ut0cpu_cache.h, ut::INNODB_CACHE_LINE_SIZE = 64
 
   /** Size of the log buffer expressed in number of data bytes,
   that is excluding bytes for headers and footers of log blocks. */
