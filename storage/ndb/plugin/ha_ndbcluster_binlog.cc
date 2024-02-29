@@ -6995,7 +6995,7 @@ bool Ndb_binlog_thread::check_reconnect_incident(
   log_verbose(1, "Check for incidents");
 
   if (incident_id == MYSQLD_STARTUP) {
-    LOG_INFO log_info;
+    Log_info log_info;
     mysql_bin_log.get_current_log(&log_info);
     log_verbose(60, " - current binlog file: %s", log_info.log_file_name);
 

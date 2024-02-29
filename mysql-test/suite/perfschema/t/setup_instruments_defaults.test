@@ -23,7 +23,7 @@ AND enabled = 'no' AND timed = 'no';
 
 SELECT * FROM performance_schema.setup_instruments
 WHERE name IN (
-  'wait/synch/mutex/sql/LOG_INFO::lock',
+  'wait/synch/mutex/sql/Log_info::lock',
   'wait/synch/mutex/sql/THD::LOCK_thd_list')
 AND enabled = 'yes' AND timed = 'yes'
 ORDER BY name;

@@ -764,7 +764,7 @@ class Master_info : public Rpl_info {
     @param [out] linfo Where the relay log coordinates shall be stored.
   */
 
-  void get_flushed_relay_log_info(LOG_INFO *linfo);
+  void get_flushed_relay_log_info(Log_info *linfo);
 
   /**
     Marks the receiver position information (master_log_name, master_log_pos)
@@ -802,7 +802,7 @@ class Master_info : public Rpl_info {
     Holds the relay log coordinates (file name and position) of the last master
     coordinates flushed into Master_info repository.
   */
-  LOG_INFO flushed_relay_log_info;
+  Log_info flushed_relay_log_info;
 
   /**
     Is the replica working in GTID only mode, meaning it does not

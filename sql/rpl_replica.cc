@@ -1015,7 +1015,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
 static int find_first_relay_log_with_rotate_from_master(Relay_log_info *rli) {
   DBUG_TRACE;
   int error = 0;
-  LOG_INFO linfo;
+  Log_info linfo;
   bool got_rotate_from_master = false;
   int pos;
   char source_log_file[FN_REFLEN];
@@ -6193,7 +6193,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   // Value-initialization, to avoid compiler warnings on push_back.
   Slave_job_group job_worker = Slave_job_group();
 
-  LOG_INFO linfo;
+  Log_info linfo;
   my_off_t offset = 0;
   MY_BITMAP *groups = &rli->recovery_groups;
   THD *thd = current_thd;

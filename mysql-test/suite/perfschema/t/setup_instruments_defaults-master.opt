@@ -20,7 +20,7 @@
 --loose-performance-schema-instrument='  unknown%instrument/event/name with blanks   = YES'
 --loose-performance-schema-instrument='unknown/instrument/event/name = TRUE'
 --loose-performance-schema-instrument='stage/sql/creating table = COUNTED'
---loose-performance-schema-instrument='wait/synch/mutex/sql/LOG_INFO::lock = 1'
+--loose-performance-schema-instrument='wait/synch/mutex/sql/Log_info::lock = 1'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/THD::LOCK_thd_data= TRUE'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/hash_filo::lock =FALSE'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data= NO'

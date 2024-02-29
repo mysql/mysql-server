@@ -159,7 +159,7 @@ class Rows_log_event;
 class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
-struct LOG_INFO;
+struct Log_info;
 
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;

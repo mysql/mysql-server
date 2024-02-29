@@ -26,7 +26,7 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-call mtr.add_suppression("MYSQL_BIN_LOG::add_log_to_index failed to copy index file to crash safe index file.");
+call mtr.add_suppression("Binlog_index::add_log_to_index failed to copy index file to crash safe index file.");
 call mtr.add_suppression("Disk is full writing *");
 call mtr.add_suppression("Retry in 60 secs. *");
 call mtr.add_suppression("Error writing file*");

@@ -376,13 +376,13 @@ int Clone_Snapshot::update_binlog_position() {
   all transaction up to the updated binary log position are committed. */
 
   /* 1. Read binary log position from innodb. */
-  LOG_INFO log_info1;
+  Log_info log_info1;
   char file_name[TRX_SYS_MYSQL_LOG_NAME_LEN + 1];
   uint64_t file_pos;
   trx_sys_read_binlog_position(&file_name[0], file_pos);
 
   /* 2. Get current binary log position. */
-  LOG_INFO log_info;
+  Log_info log_info;
   mysql_bin_log.get_current_log(&log_info);
 
   /* 3. Check and write binary log position in Innodb. */

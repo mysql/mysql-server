@@ -71,9 +71,9 @@ select count(name) from mutex_instances
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_server_started";
 
-# LOG_INFO object are created on demand, and are not global.
+# Log_info object are created on demand, and are not global.
 # select count(name) from mutex_instances
-#  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
+#  where name like "wait/synch/mutex/sql/Log_info::lock";
 
 # The event scheduler may be disabled
 # select count(name) from mutex_instances

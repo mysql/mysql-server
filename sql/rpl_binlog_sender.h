@@ -33,7 +33,7 @@
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
-#include "sql/binlog.h"    // LOG_INFO
+#include "sql/binlog.h"    // Log_info
 #include "sql/binlog_reader.h"
 #include "sql/rpl_gtid.h"
 #include "sql/sql_error.h"  // Diagnostics_area
@@ -96,7 +96,7 @@ class Binlog_sender {
   bool m_gtid_clear_fd_created_flag;
 
   /* The binlog file it is reading */
-  LOG_INFO m_linfo;
+  Log_info m_linfo;
 
   mysql::binlog::event::enum_binlog_checksum_alg m_event_checksum_alg;
   mysql::binlog::event::enum_binlog_checksum_alg m_slave_checksum_alg;

@@ -103,7 +103,7 @@ class Binlog_iterator_ctx {
   bool m_is_valid{false};
   /// @brief The log file information to lock files from being purged,
   ///        i.e., the log one is reading from.
-  LOG_INFO m_linfo{};
+  Log_info m_linfo{};
 
   /// @brief Get the next file to open object
   ///

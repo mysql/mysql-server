@@ -100,7 +100,7 @@ class Rpl_applier_reader {
     It stores offset of relay log index to speed up finding next relay log
     files.
   */
-  LOG_INFO m_linfo;
+  Log_info m_linfo;
   bool m_relay_log_purge = relay_log_purge;
 
   class Stage_controller;

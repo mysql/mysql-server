@@ -1032,6 +1032,7 @@ SET(BINLOG_SOURCE
   binlog/decompressing_event_object_istream.cc
   binlog/services/iterator/file_storage.cc
   binlog.cc
+  binlog_index.cc
   binlog_istream.cc
   binlog_ostream.cc
   binlog_reader.cc
