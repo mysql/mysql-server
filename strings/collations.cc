@@ -113,7 +113,9 @@ const CHARSET_INFO *mysql::collation::find_by_name(const Name &name) {
   return entry()->find_by_name(name);
 }
 
-const CHARSET_INFO *find_by_id(unsigned id) { return entry()->find_by_id(id); }
+const CHARSET_INFO *mysql::collation::find_by_id(unsigned id) {
+  return entry()->find_by_id(id);
+}
 
 const CHARSET_INFO *mysql::collation::find_primary(Name cs_name) {
   // Needed by lexer, to parse e.g. "select _utf8 0xD0B0D0B1D0B2;"
