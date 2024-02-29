@@ -2227,6 +2227,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       thd->bind_parameter_values = nullptr;
       thd->bind_parameter_values_count = 0;
+      thd->set_secondary_engine_statement_context(nullptr);
 
       /* Need to set error to true for graceful shutdown */
       if ((thd->lex->sql_command == SQLCOM_SHUTDOWN) &&

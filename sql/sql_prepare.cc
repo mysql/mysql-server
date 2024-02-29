@@ -2860,6 +2860,9 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   bool error;
   bool reprepared_for_types [[maybe_unused]] = false;
 
+  auto scope_guard = create_scope_guard(
+      [thd] { thd->set_secondary_engine_statement_context(nullptr); });
+
   /* Check if we got an error when sending long data */
   if (m_arena.get_state() == Query_arena::STMT_ERROR) {
     my_message(m_last_errno, m_last_error, MYF(0));

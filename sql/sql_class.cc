@@ -874,6 +874,11 @@ void THD::set_transaction(Transaction_ctx *transaction_ctx) {
   m_transaction.reset(transaction_ctx);
 }
 
+void THD::set_secondary_engine_statement_context(
+    std::unique_ptr<Secondary_engine_statement_context> context) {
+  m_secondary_engine_statement_context = std::move(context);
+}
+
 bool THD::set_db(const LEX_CSTRING &new_db) {
   bool result;
   /*
@@ -1433,6 +1438,8 @@ THD::~THD() {
   THD_CHECK_SENTRY(this);
   DBUG_TRACE;
   DBUG_PRINT("info", ("THD dtor, this %p", this));
+
+  assert(m_secondary_engine_statement_context == nullptr);
 
   if (has_incremented_gtid_automatic_count) {
     gtid_state->decrease_gtid_automatic_tagged_count();

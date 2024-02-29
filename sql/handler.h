@@ -2580,9 +2580,13 @@ using se_after_commit_t = void (*)(void *arg);
 using se_before_rollback_t = void (*)(void *arg);
 
 /**
- * Notify plugins when a SELECT query was executed. The plugins will be notified
- * only if the query is not considered "fast-running", i.e., its estimated cost
- * is less than the currently configured 'secondary_engine_cost_threshold'.
+  Notify plugins when a SELECT query was executed. The plugins will be notified
+  only if the query is not considered secondary engine relevant, i.e.:
+  1. for a query with missing secondary_engine_statement_ctx, its estimated cost
+   is greater than the currently configured 'secondary_engine_cost_threshold'
+  2. for queries with secondary_engine_statement_ctx, wherever
+   secondary_engine_statement_ctx::is_primary_engine_optimal() returns False
+   indicating secondary engine relevance.
  */
 using notify_after_select_t = void (*)(THD *thd, SelectExecutedIn executed_in);
 
@@ -2591,6 +2595,19 @@ using notify_after_select_t = void (*)(THD *thd, SelectExecutedIn executed_in);
  */
 using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
                                        const char *db, const char *table_name);
+
+/**
+  Secondary engine hook called after PRIMARY_TENTATIVELY optimization is
+  complete, and decides if secondary engine optimization will be performed, and
+  comparison of primary engine cost and secondary engine cost will determine
+  which engine to use for execution.
+ @param[in]     thd     current thd.
+ @return :
+  @retval true When secondary_engine's prepare hook is to be further called
+  @retval false When secondary_engine's prepare hook is NOT to be further called
+
+ */
+using secondary_engine_pre_prepare_hook_t = bool (*)(THD *thd);
 
 /**
  * Notify plugins when a table is dropped.
@@ -2967,6 +2984,11 @@ struct handlerton {
   /// @see secondary_engine_check_optimizer_request_t for function signature.
   secondary_engine_check_optimizer_request_t
       secondary_engine_check_optimizer_request;
+
+  /* Pointer to a function that is called at the end of the PRIMARY_TENTATIVELY
+   * optimization stage, which also decides that the statement should be
+   * attempted offloaded to a secondary storage engine. */
+  secondary_engine_pre_prepare_hook_t secondary_engine_pre_prepare_hook;
 
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;

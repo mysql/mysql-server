@@ -123,10 +123,7 @@ static bool populate_table(THD *thd, LEX *lex) {
 
   if (unit->execute(thd)) return true;
 
-  if (thd->m_current_query_cost >
-      thd->variables.secondary_engine_cost_threshold) {
-    notify_plugins_after_select(thd, lex->m_sql_cmd);
-  }
+  notify_plugins_after_select(thd, lex->m_sql_cmd);
 
   return false;
 }

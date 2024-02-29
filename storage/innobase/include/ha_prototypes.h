@@ -472,7 +472,7 @@ ulong thd_parallel_read_threads(THD *thd);
 
 /** Return the maximum buffer size to use for DDL.
 @param[in]      thd       Session instance, or nullptr to query the global
-                          innodb_parallel_read_threads value.
+                          innodb_ddl_buffer_size value.
 @return memory upper limit in bytes. */
 [[nodiscard]] ulong thd_ddl_buffer_size(THD *thd);
 
