@@ -132,28 +132,28 @@ std::string DynamicConfig::get_json_as_string(
 
 void DynamicConfig::set_option(const ValueType value_type,
                                const SectionId &section_id,
-                               const OptionName &option_name,
+                               std::string_view option_name,
                                const OptionValue &value) {
   auto &config = get_config(value_type);
 
   if (config.count(section_id) == 0) {
     SectionOptions section_options;
-    section_options[option_name] = value;
+    section_options[std::string(option_name)] = value;
     config[section_id].options = std::move(section_options);
   } else {
     auto &section_options = config[section_id].options;
-    section_options[option_name] = value;
+    section_options[std::string(option_name)] = value;
   }
 }
 
 void DynamicConfig::set_option_configured(const SectionId &section_id,
-                                          const OptionName &option_name,
+                                          std::string_view option_name,
                                           const OptionValue &value) {
   set_option(ValueType::ConfiguredValue, section_id, option_name, value);
 }
 
 void DynamicConfig::set_option_default(
-    const SectionId &section_id, const OptionName &option_name,
+    const SectionId &section_id, std::string_view option_name,
     const OptionValue &default_value_cluster,
     const OptionValue &default_value_clusterset) {
   set_option(ValueType::DefaultForCluster, section_id, option_name,
@@ -163,7 +163,7 @@ void DynamicConfig::set_option_default(
 }
 
 void DynamicConfig::set_option_default(const SectionId &section_id,
-                                       const OptionName &option_name,
+                                       std::string_view option_name,
                                        const OptionValue &default_value) {
   set_option_default(section_id, option_name, default_value, default_value);
 }

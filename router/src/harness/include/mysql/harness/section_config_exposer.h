@@ -28,6 +28,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <variant>
 
 #include "harness_export.h"
@@ -91,7 +92,7 @@ class HARNESS_EXPORT SectionConfigExposer {
    * @param is_common indicates whether the options is supposed to also be
    * shared in the "common" section of the configuration
    */
-  void expose_option(const std::string &option, const OptionValue &value,
+  void expose_option(std::string_view option, const OptionValue &value,
                      const OptionValue &default_value, bool is_common = false);
 
   /**
@@ -105,33 +106,33 @@ class HARNESS_EXPORT SectionConfigExposer {
    * @param is_common indicates whether the options is supposed to also be
    * shared in the "common" section of the configuration
    */
-  void expose_option(const std::string &option, const OptionValue &value,
+  void expose_option(std::string_view option, const OptionValue &value,
                      const OptionValue &default_value_cluster,
                      const OptionValue &default_value_clusterset,
                      bool is_common);
 
  private:
-  void expose_str_option(const std::string &option, const OptionValue &value,
+  void expose_str_option(std::string_view option, const OptionValue &value,
                          const OptionValue &default_value_cluster,
                          const OptionValue &default_value_clusterset,
                          bool is_common = false);
 
-  void expose_int_option(const std::string &option, const OptionValue &value,
+  void expose_int_option(std::string_view option, const OptionValue &value,
                          const OptionValue &default_value_cluster,
                          const OptionValue &default_value_clusterset,
                          bool is_common = false);
 
-  void expose_double_option(const std::string &option, const OptionValue &value,
+  void expose_double_option(std::string_view option, const OptionValue &value,
                             const OptionValue &default_value_cluster,
                             const OptionValue &default_value_clusterset,
                             bool is_common = false);
 
-  void expose_bool_option(const std::string &option, const OptionValue &value,
+  void expose_bool_option(std::string_view option, const OptionValue &value,
                           const OptionValue &default_value_cluster,
                           const OptionValue &default_value_clusterset,
                           bool is_common = false);
 
-  void expose_default(const std::string &option,
+  void expose_default(std::string_view option,
                       const auto &default_value_cluster,
                       const auto &default_value_clusterset, bool is_common) {
     DC::instance().set_option_default(

@@ -25,12 +25,15 @@
 
 #include <array>
 #include <cstring>  // strlen
+#include <initializer_list>
 #include <map>
 #include <string>
 
 #include "mysql/harness/filesystem.h"  // Path
+#include "mysql/harness/supported_config_options.h"
 #include "mysqlrouter/default_paths.h"
-#include "mysqlrouter/utils.h"  // substitute_envvar
+#include "mysqlrouter/supported_router_options.h"  // kEventSourceName
+#include "mysqlrouter/utils.h"                     // substitute_envvar
 #include "router_config.h"
 
 #ifndef _WIN32
@@ -78,27 +81,28 @@ std::map<std::string, std::string> get_default_paths(
                             .dirname()
                             .str();  // throws std::invalid_argument
 
-  std::map<std::string, std::string> params = {
-      {"program", kProgramName},
-      {"origin", origin.str()},
-#ifdef _WIN32
-      {"event_source_name", MYSQL_ROUTER_PACKAGE_NAME},
-#endif
-      {"logging_folder",
-       ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
-      {"plugin_folder",
-       ensure_absolute_path(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
-      {"runtime_folder",
-       ensure_absolute_path(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
-      {"config_folder",
-       ensure_absolute_path(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
-      {"data_folder", ensure_absolute_path(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
+  std::map<std::string, std::string> params;
 
   // foreach param, s/{origin}/<basedir>/
-  for (auto it : params) {
-    std::string &param = params.at(it.first);
-    param.assign(
-        mysqlrouter::substitute_variable(param, "{origin}", origin.str()));
+  for (const auto &it :
+       std::initializer_list<std::pair<std::string_view, std::string>>{
+           {"program", kProgramName},
+           {"origin", origin.str()},
+#ifdef _WIN32
+           {router::options::kEventSourceName, MYSQL_ROUTER_PACKAGE_NAME},
+#endif
+           {mysql_harness::loader::options::kLoggingFolder,
+            ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
+           {mysql_harness::loader::options::kPluginFolder,
+            ensure_absolute_path(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
+           {mysql_harness::loader::options::kRuntimeFolder,
+            ensure_absolute_path(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
+           {mysql_harness::loader::options::kConfigFolder,
+            ensure_absolute_path(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
+           {mysql_harness::loader::options::kDataFolder,
+            ensure_absolute_path(MYSQL_ROUTER_DATA_FOLDER, basedir)}}) {
+    params.emplace(it.first, mysqlrouter::substitute_variable(
+                                 it.second, "{origin}", origin.str()));
   }
   return params;
 }

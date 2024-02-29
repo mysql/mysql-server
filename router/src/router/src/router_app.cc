@@ -61,6 +61,7 @@
 #include "mysql/harness/process_state_component.h"
 #include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/signal_handler.h"
+#include "mysql/harness/supported_config_options.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysql_router_thread.h"  // kDefaultStackSizeInKiloByte
@@ -368,10 +369,11 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
 }
 
 void MySQLRouter::init_dynamic_state(mysql_harness::Config &config) {
-  if (config.has_default("dynamic_state")) {
+  if (config.has_default(router::options::kDynamicState)) {
     using mysql_harness::DynamicState;
 
-    const std::string dynamic_state_file = config.get_default("dynamic_state");
+    const std::string dynamic_state_file =
+        config.get_default(router::options::kDynamicState);
     DIM::instance().set_DynamicState(
         [=]() { return new DynamicState(dynamic_state_file); },
         std::default_delete<mysql_harness::DynamicState>());
@@ -440,10 +442,11 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
   harness_assert(use_os_log == false);
 #endif
 
-  if (!config.has_default("logging_folder"))
-    config.set_default("logging_folder", "");
+  if (!config.has_default(mysql_harness::loader::options::kLoggingFolder))
+    config.set_default(mysql_harness::loader::options::kLoggingFolder, "");
 
-  const std::string logging_folder = config.get_default("logging_folder");
+  const std::string logging_folder =
+      config.get_default(mysql_harness::loader::options::kLoggingFolder);
 
   // setup logging
   {
@@ -567,8 +570,9 @@ void MySQLRouter::start() {
 #ifndef _WIN32
   // --user param given on the command line has a priority over
   // the user in the configuration
-  if (user_cmd_line_.empty() && config.has_default("user")) {
-    set_user(config.get_default("user"), true, this->sys_user_operations_);
+  if (user_cmd_line_.empty() && config.has_default(router::options::kUser)) {
+    set_user(config.get_default(router::options::kUser), true,
+             this->sys_user_operations_);
   }
 #endif
 
@@ -579,8 +583,8 @@ void MySQLRouter::start() {
   // Setup pidfile path for the application.
   // Order of significance: commandline > config file > ROUTER_PID envvar
   if (pid_file_path_.empty()) {
-    if (config.has_default("pid_file")) {
-      const std::string pidfile = config.get_default("pid_file");
+    if (config.has_default(router::options::kPidFile)) {
+      const std::string pidfile = config.get_default(router::options::kPidFile);
       if (!pidfile.empty()) {
         pid_file_path_ = pidfile;
       } else {
@@ -2153,7 +2157,7 @@ class RouterAppConfigExposer : public mysql_harness::SectionConfigExposer {
 
   void expose() override {
     // set "global" router options from DEFAULT section
-    auto expose_int_option = [&](const std::string &option,
+    auto expose_int_option = [&](std::string_view option,
                                  const int64_t default_val) {
       auto value = default_val;
       if (default_section_.has(option)) {
@@ -2168,7 +2172,7 @@ class RouterAppConfigExposer : public mysql_harness::SectionConfigExposer {
       expose_option(option, value, default_val);
     };
 
-    auto expose_str_option = [&](const std::string &option,
+    auto expose_str_option = [&](std::string_view option,
                                  const std::string &default_val,
                                  bool skip_if_empty = false) {
       auto value = default_val;
@@ -2187,11 +2191,11 @@ class RouterAppConfigExposer : public mysql_harness::SectionConfigExposer {
     };
 
     expose_int_option(
-        "max_total_connections",
+        router::options::kMaxTotalConnections,
         static_cast<int64_t>(routing::kDefaultMaxTotalConnections));
-    expose_str_option("name", kSystemRouterName);
+    expose_str_option(router::options::kName, kSystemRouterName);
     // only share a user if it is not empty
-    expose_str_option("user", kDefaultSystemUserName, true);
+    expose_str_option(router::options::kUser, kDefaultSystemUserName, true);
     expose_str_option("unknown_config_option", "error");
   }
 };

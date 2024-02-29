@@ -26,12 +26,13 @@
 #include "mysql/harness/section_config_exposer.h"
 
 #include <cassert>
+#include <string_view>
 
 #include "mysql/harness/config_option.h"
 
 namespace mysql_harness {
 
-void SectionConfigExposer::expose_option(const std::string &option,
+void SectionConfigExposer::expose_option(std::string_view option,
                                          const OptionValue &value,
                                          const OptionValue &default_value,
                                          bool is_common) {
@@ -54,7 +55,7 @@ void SectionConfigExposer::expose_option(const std::string &option,
 }
 
 void SectionConfigExposer::expose_option(
-    const std::string &option, const OptionValue &value,
+    std::string_view option, const OptionValue &value,
     const OptionValue &default_value_cluster,
     const OptionValue &default_value_clusterset, bool is_common) {
   if (std::holds_alternative<int64_t>(value) ||
@@ -83,7 +84,7 @@ void SectionConfigExposer::expose_option(
 }
 
 void SectionConfigExposer::expose_str_option(
-    const std::string &option, const OptionValue &value,
+    std::string_view option, const OptionValue &value,
     const OptionValue &default_value_cluster,
     const OptionValue &default_value_clusterset, bool is_common) {
   if (mode_ == Mode::ExposeInitialConfig) {
@@ -105,7 +106,7 @@ void SectionConfigExposer::expose_str_option(
 }
 
 void SectionConfigExposer::expose_int_option(
-    const std::string &option, const OptionValue &value,
+    std::string_view option, const OptionValue &value,
     const OptionValue &default_value_cluster,
     const OptionValue &default_value_clusterset, bool is_common) {
   if (mode_ == Mode::ExposeInitialConfig) {
@@ -133,7 +134,7 @@ void SectionConfigExposer::expose_int_option(
 }
 
 void SectionConfigExposer::expose_double_option(
-    const std::string &option, const OptionValue &value,
+    std::string_view option, const OptionValue &value,
     const OptionValue &default_value_cluster,
     const OptionValue &default_value_clusterset, bool is_common) {
   if (mode_ == Mode::ExposeInitialConfig) {
@@ -161,7 +162,7 @@ void SectionConfigExposer::expose_double_option(
 }
 
 void SectionConfigExposer::expose_bool_option(
-    const std::string &option, const OptionValue &value,
+    std::string_view option, const OptionValue &value,
     const OptionValue &default_value_cluster,
     const OptionValue &default_value_clusterset, bool is_common) {
   if (mode_ == Mode::ExposeInitialConfig) {

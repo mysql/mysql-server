@@ -413,120 +413,128 @@ class MaxConnectionsOption {
 RoutingPluginConfig::RoutingPluginConfig(
     const mysql_harness::ConfigSection *section)
     : BasePluginConfig{section}, metadata_cache_(false) {
-  GET_OPTION_NO_DEFAULT_CHECKED(protocol, section, "protocol",
+  namespace options = routing::options;
+
+  GET_OPTION_NO_DEFAULT_CHECKED(protocol, section, options::kProtocol,
                                 ProtocolOption{});
-  GET_OPTION_CHECKED(destinations, section, "destinations",
+  GET_OPTION_CHECKED(destinations, section, options::kDestinations,
                      DestinationsOption{metadata_cache_});
-  GET_OPTION_CHECKED(bind_port, section, "bind_port", BindPortOption{});
+  GET_OPTION_CHECKED(bind_port, section, options::kBindPort, BindPortOption{});
   auto bind_address_op = TCPAddressOption{false, bind_port};
-  GET_OPTION_CHECKED(bind_address, section, "bind_address", bind_address_op);
-  GET_OPTION_CHECKED(named_socket, section, "socket", NamedSocketOption{});
-  GET_OPTION_CHECKED(connect_timeout, section, "connect_timeout",
+  GET_OPTION_CHECKED(bind_address, section, options::kBindAddress,
+                     bind_address_op);
+  GET_OPTION_CHECKED(named_socket, section, options::kSocket,
+                     NamedSocketOption{});
+  GET_OPTION_CHECKED(connect_timeout, section, options::kConnectTimeout,
                      IntOption<uint16_t>{1});
   auto routing_strategy_op = RoutingStrategyOption{metadata_cache_};
-  GET_OPTION_NO_DEFAULT_CHECKED(routing_strategy, section, "routing_strategy",
-                                routing_strategy_op);
-  GET_OPTION_CHECKED(max_connections, section, "max_connections",
+  GET_OPTION_NO_DEFAULT_CHECKED(routing_strategy, section,
+                                options::kRoutingStrategy, routing_strategy_op);
+  GET_OPTION_CHECKED(max_connections, section, options::kMaxConnections,
                      MaxConnectionsOption{});
   auto max_connect_errors_op = IntOption<uint32_t>{1, UINT32_MAX};
-  GET_OPTION_CHECKED(max_connect_errors, section, "max_connect_errors",
+  GET_OPTION_CHECKED(max_connect_errors, section, options::kMaxConnectErrors,
                      max_connect_errors_op);
   auto client_connect_timeout_op = IntOption<uint32_t>{2, 31536000};
-  GET_OPTION_CHECKED(client_connect_timeout, section, "client_connect_timeout",
-                     client_connect_timeout_op);
+  GET_OPTION_CHECKED(client_connect_timeout, section,
+                     options::kClientConnectTimeout, client_connect_timeout_op);
   auto net_buffer_length_op = IntOption<uint32_t>{1024, 1048576};
-  GET_OPTION_CHECKED(net_buffer_length, section, "net_buffer_length",
+  GET_OPTION_CHECKED(net_buffer_length, section, options::kNetBufferLength,
                      net_buffer_length_op);
   auto thread_stack_size_op = IntOption<uint32_t>{1, 65535};
-  GET_OPTION_CHECKED(thread_stack_size, section, "thread_stack_size",
+  GET_OPTION_CHECKED(thread_stack_size, section, options::kThreadStackSize,
                      thread_stack_size_op);
   auto source_ssl_mode_op =
       SslModeOption{SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
                     SslMode::kPassthrough, SslMode::kDefault};
-  GET_OPTION_CHECKED(source_ssl_mode, section, "client_ssl_mode",
+  GET_OPTION_CHECKED(source_ssl_mode, section, options::kClientSslMode,
                      source_ssl_mode_op);
-  GET_OPTION_CHECKED(source_ssl_cert, section, "client_ssl_cert",
+  GET_OPTION_CHECKED(source_ssl_cert, section, options::kClientSslCert,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_key, section, "client_ssl_key", StringOption{});
-  GET_OPTION_CHECKED(source_ssl_cipher, section, "client_ssl_cipher",
+  GET_OPTION_CHECKED(source_ssl_key, section, options::kClientSslKey,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_ca_file, section, "client_ssl_ca",
+  GET_OPTION_CHECKED(source_ssl_cipher, section, options::kClientSslCipher,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_ca_dir, section, "client_ssl_capath",
+  GET_OPTION_CHECKED(source_ssl_ca_file, section, options::kClientSslCa,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_crl_file, section, "client_ssl_crl",
+  GET_OPTION_CHECKED(source_ssl_ca_dir, section, options::kClientSslCaPath,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_crl_dir, section, "client_ssl_crlpath",
+  GET_OPTION_CHECKED(source_ssl_crl_file, section, options::kClientSslCrl,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_curves, section, "client_ssl_curves",
+  GET_OPTION_CHECKED(source_ssl_crl_dir, section, options::kClientSslCrlPath,
                      StringOption{});
-  GET_OPTION_CHECKED(source_ssl_dh_params, section, "client_ssl_dh_params",
+  GET_OPTION_CHECKED(source_ssl_curves, section, options::kClientSslCurves,
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_dh_params, section, options::kClientSslDhParams,
                      StringOption{});
   auto dest_ssl_mode_op = SslModeOption{SslMode::kDisabled, SslMode::kPreferred,
                                         SslMode::kRequired, SslMode::kAsClient};
-  GET_OPTION_CHECKED(dest_ssl_mode, section, "server_ssl_mode",
+  GET_OPTION_CHECKED(dest_ssl_mode, section, options::kServerSslMode,
                      dest_ssl_mode_op);
-  GET_OPTION_CHECKED(dest_ssl_cert, section, "server_ssl_cert", StringOption{});
-  GET_OPTION_CHECKED(dest_ssl_key, section, "server_ssl_key", StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_cert, section, options::kServerSslCert,
+                     StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_key, section, options::kServerSslKey,
+                     StringOption{});
   auto dest_ssl_verify_op = SslVerifyOption{
       SslVerify::kDisabled, SslVerify::kVerifyCa, SslVerify::kVerifyIdentity};
-  GET_OPTION_CHECKED(dest_ssl_verify, section, "server_ssl_verify",
+  GET_OPTION_CHECKED(dest_ssl_verify, section, options::kServerSslVerify,
                      dest_ssl_verify_op);
-  GET_OPTION_CHECKED(dest_ssl_cipher, section, "server_ssl_cipher",
+  GET_OPTION_CHECKED(dest_ssl_cipher, section, options::kServerSslCipher,
                      StringOption{});
-  GET_OPTION_CHECKED(dest_ssl_ca_file, section, "server_ssl_ca",
+  GET_OPTION_CHECKED(dest_ssl_ca_file, section, options::kServerSslCa,
                      StringOption{});
-  GET_OPTION_CHECKED(dest_ssl_ca_dir, section, "server_ssl_capath",
+  GET_OPTION_CHECKED(dest_ssl_ca_dir, section, options::kServerSslCaPath,
                      StringOption{});
-  GET_OPTION_CHECKED(dest_ssl_crl_file, section, "server_ssl_crl",
+  GET_OPTION_CHECKED(dest_ssl_crl_file, section, options::kServerSslCrl,
                      StringOption{});
-  GET_OPTION_CHECKED(dest_ssl_crl_dir, section, "server_ssl_crlpath",
+  GET_OPTION_CHECKED(dest_ssl_crl_dir, section, options::kServerSslCrlPath,
                      StringOption{});
-  GET_OPTION_CHECKED(dest_ssl_curves, section, "server_ssl_curves",
+  GET_OPTION_CHECKED(dest_ssl_curves, section, options::kServerSslCurves,
                      StringOption{});
   auto ssl_session_cache_size_op = IntOption<uint32_t>{1, 0x7fffffff};
   auto ssl_session_cache_timeout_op = IntOption<uint32_t>{0, 84600};
   GET_OPTION_CHECKED(client_ssl_session_cache_mode, section,
-                     "client_ssl_session_cache_mode", BoolOption{});
+                     options::kClientSslSessionCacheMode, BoolOption{});
   GET_OPTION_CHECKED(client_ssl_session_cache_size, section,
-                     "client_ssl_session_cache_size",
+                     options::kClientSslSessionCacheSize,
                      ssl_session_cache_size_op);
   GET_OPTION_CHECKED(client_ssl_session_cache_timeout, section,
-                     "client_ssl_session_cache_timeout",
+                     options::kClientSslSessionCacheTimeout,
                      ssl_session_cache_timeout_op);
   GET_OPTION_CHECKED(server_ssl_session_cache_mode, section,
-                     "server_ssl_session_cache_mode", BoolOption{});
+                     options::kServerSslSessionCacheMode, BoolOption{});
   GET_OPTION_CHECKED(server_ssl_session_cache_size, section,
-                     "server_ssl_session_cache_size",
+                     options::kServerSslSessionCacheSize,
                      ssl_session_cache_size_op);
   GET_OPTION_CHECKED(server_ssl_session_cache_timeout, section,
-                     "server_ssl_session_cache_timeout",
+                     options::kServerSslSessionCacheTimeout,
                      ssl_session_cache_timeout_op);
-  GET_OPTION_CHECKED(router_require_enforce, section, "router_require_enforce",
+  GET_OPTION_CHECKED(router_require_enforce, section,
+                     options::kRouterRequireEnforce, BoolOption{});
+
+  GET_OPTION_CHECKED(connection_sharing, section, options::kConnectionSharing,
                      BoolOption{});
 
-  GET_OPTION_CHECKED(connection_sharing, section, "connection_sharing",
-                     BoolOption{});
-
-  static_assert(mysql_harness::str_in_collection(routing_supported_options,
-                                                 "connection_sharing_delay"));
+  static_assert(mysql_harness::str_in_collection(
+      routing_supported_options, options::kConnectionSharingDelay));
   connection_sharing_delay =
       std::chrono::duration_cast<std::chrono::milliseconds>(
           std::chrono::duration<double, std::chrono::seconds::period>(
-              get_option(section, "connection_sharing_delay",
+              get_option(section, options::kConnectionSharingDelay,
                          DoubleOption{0})));
 
-  static_assert(mysql_harness::str_in_collection(routing_supported_options,
-                                                 "connect_retry_timeout"));
+  static_assert(mysql_harness::str_in_collection(
+      routing_supported_options, options::kConnectRetryTimeout));
   connect_retry_timeout =
-      get_option(section, "connect_retry_timeout",
+      get_option(section, options::kConnectRetryTimeout,
                  mysql_harness::MilliSecondsOption{0, 3600});
 
-  GET_OPTION_CHECKED(access_mode, section, "access_mode", AccessModeOption{});
-  GET_OPTION_CHECKED(wait_for_my_writes, section, "wait_for_my_writes",
+  GET_OPTION_CHECKED(access_mode, section, options::kAccessMode,
+                     AccessModeOption{});
+  GET_OPTION_CHECKED(wait_for_my_writes, section, options::kWaitForMyWrites,
                      BoolOption{});
   GET_OPTION_CHECKED(
-      wait_for_my_writes_timeout, section, "wait_for_my_writes_timeout",
+      wait_for_my_writes_timeout, section, options::kWaitForMyWritesTimeout,
       mysql_harness::DurationOption<std::chrono::seconds>(0, 3600));
 
   if (access_mode == routing::AccessMode::kAuto) {
@@ -741,41 +749,49 @@ RoutingPluginConfig::RoutingPluginConfig(
 }
 
 std::string RoutingPluginConfig::get_default(std::string_view option) const {
+  namespace options = routing::options;
+
   static const std::map<std::string_view, std::string> defaults{
-      {"bind_address", std::string{routing::kDefaultBindAddress}},
-      {"max_connections", std::to_string(routing::kDefaultMaxConnections)},
-      {"connect_timeout",
+      {options::kBindAddress, std::string{routing::kDefaultBindAddress}},
+      {options::kMaxConnections,
+       std::to_string(routing::kDefaultMaxConnections)},
+      {options::kConnectTimeout,
        std::to_string(routing::kDefaultDestinationConnectionTimeout.count())},
-      {"max_connect_errors", std::to_string(routing::kDefaultMaxConnectErrors)},
-      {"client_connect_timeout",
+      {options::kMaxConnectErrors,
+       std::to_string(routing::kDefaultMaxConnectErrors)},
+      {options::kClientConnectTimeout,
        std::to_string(routing::kDefaultClientConnectTimeout.count())},
-      {"net_buffer_length", std::to_string(routing::kDefaultNetBufferLength)},
-      {"thread_stack_size",
+      {options::kNetBufferLength,
+       std::to_string(routing::kDefaultNetBufferLength)},
+      {options::kThreadStackSize,
        std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
-      {"client_ssl_mode", std::string{routing::kDefaultClientSslMode}},
-      {"server_ssl_mode", std::string{routing::kDefaultServerSslMode}},
-      {"server_ssl_verify", std::string{routing::kDefaultServerSslVerify}},
-      {"connection_sharing", routing::kDefaultConnectionSharing ? "1" : "0"},
-      {"connection_sharing_delay",
+      {options::kClientSslMode, std::string{routing::kDefaultClientSslMode}},
+      {options::kServerSslMode, std::string{routing::kDefaultServerSslMode}},
+      {options::kServerSslVerify,
+       std::string{routing::kDefaultServerSslVerify}},
+      {options::kConnectionSharing,
+       routing::kDefaultConnectionSharing ? "1" : "0"},
+      {options::kConnectionSharingDelay,
        std::to_string(routing::kDefaultConnectionSharingDelay.count() / 1000)},
-      {"client_ssl_session_cache_mode",
+      {options::kClientSslSessionCacheMode,
        routing::kDefaultSslSessionCacheMode ? "1" : "0"},
-      {"client_ssl_session_cache_size",
+      {options::kClientSslSessionCacheSize,
        std::to_string(routing::kDefaultSslSessionCacheSize)},
-      {"client_ssl_session_cache_timeout",
+      {options::kClientSslSessionCacheTimeout,
        std::to_string(routing::kDefaultSslSessionCacheTimeout.count())},
-      {"server_ssl_session_cache_mode",
+      {options::kServerSslSessionCacheMode,
        routing::kDefaultSslSessionCacheMode ? "1" : "0"},
-      {"server_ssl_session_cache_size",
+      {options::kServerSslSessionCacheSize,
        std::to_string(routing::kDefaultSslSessionCacheSize)},
-      {"server_ssl_session_cache_timeout",
+      {options::kServerSslSessionCacheTimeout,
        std::to_string(routing::kDefaultSslSessionCacheTimeout.count())},
-      {"connect_retry_timeout",
+      {options::kConnectRetryTimeout,
        std::to_string(routing::kDefaultConnectRetryTimeout.count())},
-      {"wait_for_my_writes", std::to_string(routing::kDefaultWaitForMyWrites)},
-      {"wait_for_my_writes_timeout",
+      {options::kWaitForMyWrites,
+       std::to_string(routing::kDefaultWaitForMyWrites)},
+      {options::kWaitForMyWritesTimeout,
        std::to_string(routing::kDefaultWaitForMyWritesTimeout.count())},
-      {"router_require_enforce", "0"},
+      {options::kRouterRequireEnforce, "0"},
   };
 
   const auto it = defaults.find(option);
@@ -785,7 +801,9 @@ std::string RoutingPluginConfig::get_default(std::string_view option) const {
 }
 
 bool RoutingPluginConfig::is_required(std::string_view option) const {
-  return option == "destinations";
+  namespace options = routing::options;
+
+  return option == options::kDestinations;
 }
 
 namespace {
@@ -802,89 +820,91 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
         endpoint_key_(endpoint_key) {}
 
   void expose() override {
+    namespace options = routing::options;
+
     const auto section_type =
         routing::get_section_type_from_routing_name(endpoint_key_);
 
     expose_option(
-        "protocol", Protocol::to_string(plugin_config_.protocol),
+        options::kProtocol, Protocol::to_string(plugin_config_.protocol),
         Protocol::to_string(routing::get_default_protocol(section_type)),
         false);
 
-    expose_option("destinations", plugin_config_.destinations,
+    expose_option(options::kDestinations, plugin_config_.destinations,
                   plugin_config_.destinations, false);
 
-    expose_option("bind_port", plugin_config_.bind_port,
+    expose_option(options::kBindPort, plugin_config_.bind_port,
                   routing::get_default_port(section_type), false);
-    expose_option("bind_address", plugin_config_.bind_address.address(),
+    expose_option(options::kBindAddress, plugin_config_.bind_address.address(),
                   std::string(routing::kDefaultBindAddressBootstrap), true);
     expose_option("socket", plugin_config_.named_socket.str(),
                   std::string(routing::kDefaultNamedSocket), true);
 
-    expose_option("connect_timeout", plugin_config_.connect_timeout,
+    expose_option(options::kConnectTimeout, plugin_config_.connect_timeout,
                   routing::kDefaultDestinationConnectionTimeout.count(), true);
-    expose_option("client_connect_timeout",
+    expose_option(options::kClientConnectTimeout,
                   plugin_config_.client_connect_timeout,
                   routing::kDefaultClientConnectTimeout.count(), true);
 
-    expose_option("routing_strategy",
+    expose_option(options::kRoutingStrategy,
                   get_routing_strategy_name(plugin_config_.routing_strategy),
                   get_routing_strategy_name(
                       routing::get_default_routing_strategy(section_type)),
                   false);
 
-    expose_option("max_connections", plugin_config_.max_connections,
+    expose_option(options::kMaxConnections, plugin_config_.max_connections,
                   routing::kDefaultMaxConnections, true);
-    expose_option("max_connect_errors",
+    expose_option(options::kMaxConnectErrors,
                   static_cast<int64_t>(plugin_config_.max_connect_errors),
                   static_cast<int64_t>(routing::kDefaultMaxConnectErrors),
                   true);
-    expose_option("net_buffer_length", plugin_config_.net_buffer_length,
+    expose_option(options::kNetBufferLength, plugin_config_.net_buffer_length,
                   routing::kDefaultNetBufferLength, true);
     expose_option(
-        "thread_stack_size", plugin_config_.thread_stack_size,
+        options::kThreadStackSize, plugin_config_.thread_stack_size,
         static_cast<int64_t>(mysql_harness::kDefaultStackSizeInKiloBytes),
         true);
 
-    expose_option("client_ssl_mode",
+    expose_option(options::kClientSslMode,
                   ssl_mode_to_string(plugin_config_.source_ssl_mode),
                   std::string{routing::kDefaultClientSslModeBootstrap}, true);
-    expose_option("client_ssl_cert", plugin_config_.source_ssl_cert,
+    expose_option(options::kClientSslCert, plugin_config_.source_ssl_cert,
                   std::monostate{}, true);
-    expose_option("client_ssl_key", plugin_config_.source_ssl_key,
+    expose_option(options::kClientSslKey, plugin_config_.source_ssl_key,
                   std::monostate{}, true);
-    expose_option("client_ssl_cipher", plugin_config_.source_ssl_cipher,
+    expose_option(options::kClientSslCipher, plugin_config_.source_ssl_cipher,
                   std::string{routing::kDefaultClientSslCipherBootstrap}, true);
-    expose_option("client_ssl_curves", plugin_config_.source_ssl_curves,
+    expose_option(options::kClientSslCurves, plugin_config_.source_ssl_curves,
                   std::string{routing::kDefaultClientSslCurvesBootstrap}, true);
-    expose_option("client_ssl_dh_params", plugin_config_.source_ssl_dh_params,
-                  std::string{routing::kDefaultClientSslDhParamsBootstrap},
-                  true);
+    expose_option(
+        options::kClientSslDhParams, plugin_config_.source_ssl_dh_params,
+        std::string{routing::kDefaultClientSslDhParamsBootstrap}, true);
 
-    expose_option("server_ssl_mode",
+    expose_option(options::kServerSslMode,
                   ssl_mode_to_string(plugin_config_.dest_ssl_mode),
                   std::string{routing::kDefaultServerSslModeBootstrap}, true);
-    expose_option("server_ssl_verify",
+    expose_option(options::kServerSslVerify,
                   ssl_verify_to_string(plugin_config_.dest_ssl_verify),
                   std::string{routing::kDefaultServerSslVerify}, true);
-    expose_option("server_ssl_cipher", plugin_config_.dest_ssl_cipher,
+    expose_option(options::kServerSslCipher, plugin_config_.dest_ssl_cipher,
                   std::string{routing::kDefaultServerSslCipherBootstrap}, true);
-    expose_option("server_ssl_ca", plugin_config_.dest_ssl_ca_file,
+    expose_option(options::kServerSslCa, plugin_config_.dest_ssl_ca_file,
                   std::string{routing::kDefaultServerSslCaBootstrap}, true);
-    expose_option("server_ssl_capath", plugin_config_.dest_ssl_ca_dir,
+    expose_option(options::kServerSslCaPath, plugin_config_.dest_ssl_ca_dir,
                   std::string{routing::kDefaultServerSslCaPathBootstrap}, true);
-    expose_option("server_ssl_crl", plugin_config_.dest_ssl_crl_file,
+    expose_option(options::kServerSslCrl, plugin_config_.dest_ssl_crl_file,
                   std::string{routing::kDefaultServerSslCrlFileBootstrap},
                   true);
-    expose_option("server_ssl_crlpath", plugin_config_.dest_ssl_crl_dir,
+    expose_option(options::kServerSslCrlPath, plugin_config_.dest_ssl_crl_dir,
                   std::string{routing::kDefaultServerSslCrlPathBootstrap},
                   true);
-    expose_option("server_ssl_curves", plugin_config_.dest_ssl_curves,
+    expose_option(options::kServerSslCurves, plugin_config_.dest_ssl_curves,
                   std::string{routing::kDefaultServerSslCurvesBootstrap}, true);
 
-    expose_option("connection_sharing",
+    expose_option(options::kConnectionSharing,
                   static_cast<bool>(plugin_config_.connection_sharing),
                   routing::get_default_connection_sharing(section_type), true);
-    expose_option("connection_sharing_delay",
+    expose_option(options::kConnectionSharingDelay,
                   std::chrono::duration_cast<std::chrono::duration<double>>(
                       plugin_config_.connection_sharing_delay)
                       .count(),
@@ -892,7 +912,7 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
                       routing::kDefaultConnectionSharingDelay)
                       .count(),
                   true);
-    expose_option("router_require_enforce",
+    expose_option(options::kRouterRequireEnforce,
                   plugin_config_.router_require_enforce,
                   get_default_router_require_enforce(section_type), false);
 
@@ -902,15 +922,16 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
     const auto default_access_mode = routing::get_access_mode_name(
         routing::get_default_access_mode(section_type));
     expose_option(
-        "access_mode",
+        options::kAccessMode,
         access_mode.empty() ? OptionValue(std::monostate{}) : access_mode,
         default_access_mode.empty() ? OptionValue(std::monostate{})
                                     : default_access_mode,
         false);
 
-    expose_option("wait_for_my_writes", plugin_config_.wait_for_my_writes,
+    expose_option(routing::options::kWaitForMyWrites,
+                  plugin_config_.wait_for_my_writes,
                   routing::kDefaultWaitForMyWrites, true);
-    expose_option("wait_for_my_writes_timeout",
+    expose_option(routing::options::kWaitForMyWritesTimeout,
                   plugin_config_.wait_for_my_writes_timeout.count(),
                   routing::kDefaultWaitForMyWritesTimeout.count(), true);
   }
