@@ -6269,27 +6269,18 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       const NDBEVENT::TableEvent event_type = pOp->getEventType();
       if (event_type == NDBEVENT::TE_INSERT ||
           event_type == NDBEVENT::TE_UPDATE) {
-        // Initialize "unused_bitmap" which is an output parameter from
-        // handle_data_unpack_record, afterwards it's not used which means it
-        // need not be initialized with anything useful
-        MY_BITMAP unused_bitmap;
-        Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> unused_bitbuf;
-        ndb_bitmap_init(&unused_bitmap, unused_bitbuf, table->s->fields);
+        const Uint32 orig_server_id = event_data->unpack_uint32(0);
+        const Uint64 orig_epoch = event_data->unpack_uint64(1);
 
-        // Unpack data event on mysql.ndb_apply_status to get orig_server_id
-        // and orig_epoch
-        handle_data_unpack_record(table, event_data->ndb_value[0].get(),
-                                  &unused_bitmap, table->record[0]);
+        DBUG_PRINT("info", ("ndb_apply_status from logging_server_id: %d",
+                            logging_server_id));
+        DBUG_PRINT("info", ("  orig_server_id: %u", orig_server_id));
+        DBUG_PRINT("info", ("  orig_epoch: %llu", orig_epoch));
+        DBUG_PRINT("info",
+                   ("  log_name: '%s'", event_data->unpack_string(2) + 1));
 
-        // Assume that mysql.ndb_apply_status table has two fields (which should
-        // thus have been unpacked)
-        ndbcluster::ndbrequire(table->field[0] != nullptr &&
-                               table->field[1] != nullptr);
-
-        const Uint32 orig_server_id =
-            (Uint32) static_cast<Field_long *>(table->field[0])->val_int();
-        const Uint64 orig_epoch =
-            static_cast<Field_longlong *>(table->field[1])->val_int();
+        DBUG_PRINT("info", ("  start_pos: %u", event_data->unpack_uint32(3)));
+        DBUG_PRINT("info", ("  end_pos: %u", event_data->unpack_uint32(4)));
 
         if (opt_ndb_log_apply_status) {
           /*
