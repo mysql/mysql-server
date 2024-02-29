@@ -6198,16 +6198,14 @@ class injector_transaction : public injector::transaction {
 /**
    @brief Handle one data event received from NDB
 
-   @param pOp           The NdbEventOperation that received data
-   @param trans         The injector transaction
-   @param[out] trans_row_count       Counter for rows in event
-   @param[out] replicated_row_count  Counter for replicated rows in event
+   @param pOp             The NdbEventOperation that received data
+   @param trans           The injector transaction
+   @param[out] epoch_ctx  Epoch context for accumulated counters
    @return 0 for success, other values (normally -1) for error
  */
 int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
                                          injector_transaction &trans,
-                                         unsigned &trans_row_count,
-                                         unsigned &replicated_row_count) {
+                                         EpochContext &epoch_ctx) {
   bool reflected_op = false;
   bool refresh_op = false;
   bool read_op = false;
@@ -6329,7 +6327,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
   else {
     assert(!reflected_op && !refresh_op);
     /* Track that we received a replicated row event */
-    if (likely(count_this_event)) replicated_row_count++;
+    if (likely(count_this_event)) epoch_ctx.replicated_row_count++;
 
     if (!log_this_slave_update) {
       /*
@@ -6419,7 +6417,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
     case NDBEVENT::TE_INSERT:
       if (likely(count_this_event)) {
         row.n_inserts++;
-        trans_row_count++;
+        epoch_ctx.trans_row_count++;
       }
       DBUG_PRINT("info", ("INSERT INTO %s.%s", table->s->db.str,
                           table->s->table_name.str));
@@ -6449,7 +6447,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
     case NDBEVENT::TE_DELETE:
       if (likely(count_this_event)) {
         row.n_deletes++;
-        trans_row_count++;
+        epoch_ctx.trans_row_count++;
       }
       DBUG_PRINT("info", ("DELETE FROM %s.%s", table->s->db.str,
                           table->s->table_name.str));
@@ -6494,7 +6492,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
     case NDBEVENT::TE_UPDATE:
       if (likely(count_this_event)) {
         row.n_updates++;
-        trans_row_count++;
+        epoch_ctx.trans_row_count++;
       }
       DBUG_PRINT("info",
                  ("UPDATE %s.%s", table->s->db.str, table->s->table_name.str));
@@ -6703,7 +6701,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
                           (uint)(ndb_latest_handled_binlog_epoch >> 32),
                           (uint)(ndb_latest_handled_binlog_epoch)));
 
-      commit_trans(trans, thd, current_epoch, 0, 0);
+      commit_trans(trans, thd, current_epoch, EpochContext{});
     }
 
     i_pOp = i_ndb->nextEvent2();
@@ -6743,15 +6741,13 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
     return false;  // Error, failed to inject ndb_apply_status
   }
 
-  unsigned trans_row_count = 0;
-  unsigned replicated_row_count = 0;
+  EpochContext epoch_ctx;
   do {
     assert(check_event_list_consistency(i_ndb, i_pOp));
 
     const NdbDictionary::Event::TableEvent event_type = i_pOp->getEventType();
     if (event_type < NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
-      if (handle_data_event(i_pOp, trans, trans_row_count,
-                            replicated_row_count) != 0) {
+      if (handle_data_event(i_pOp, trans, epoch_ctx) != 0) {
         log_error("Failed to handle data event");
         return false;  // Error, failed to handle data event
       }
@@ -6772,8 +6768,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
     or is == NULL
   */
 
-  commit_trans(trans, thd, current_epoch, trans_row_count,
-               replicated_row_count);
+  commit_trans(trans, thd, current_epoch, epoch_ctx);
 
   return true;  // OK
 }
@@ -7066,30 +7061,32 @@ static Uint64 find_epoch_to_handle(const NdbEventOperation *s_pOp,
   return ndb_latest_received_binlog_epoch;
 }
 
+bool Ndb_binlog_thread::EpochContext::is_empty_epoch() const {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("trans_row_count: %d", trans_row_count));
+  DBUG_PRINT("enter", ("replicated_row_count: %d", replicated_row_count));
+  if (trans_row_count) {
+    DBUG_PRINT("exit", ("binlog has recorded rows -> not empty"));
+    return false;
+  }
+  if (opt_ndb_log_apply_status && replicated_row_count) {
+    DBUG_PRINT("info", ("logging updates to ndb_apply_status"));
+    DBUG_PRINT("exit", ("received rows applied by a replica "
+                        "-> not empty"));
+    return false;
+  }
+  DBUG_PRINT("exit", ("empty epoch"));
+  return true;
+}
+
 void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
                                      Uint64 current_epoch,
-                                     unsigned trans_row_count,
-                                     unsigned replicated_row_count) {
-  if (!opt_ndb_log_empty_epochs) {
-    /*
-      If
-        - We did not add any 'real' rows to the Binlog
-      AND
-        - We did not apply any slave row updates, only
-          ndb_apply_status updates
-      THEN
-        Don't write the Binlog transaction which just
-        contains ndb_apply_status updates.
-        (For circular rep with log_apply_status, ndb_apply_status
-        updates will propagate while some related, real update
-        is propagating)
-    */
-    if ((trans_row_count == 0) &&
-        (!(opt_ndb_log_apply_status && replicated_row_count))) {
-      /* nothing to commit, rollback instead */
-      (void)trans.rollback();  // Rollback never fails (by design)
-      return;
-    }
+                                     EpochContext epoch_ctx) {
+  DBUG_TRACE;
+  if (!opt_ndb_log_empty_epochs && epoch_ctx.is_empty_epoch()) {
+    /* nothing to commit, rollback instead */
+    (void)trans.rollback();  // Rollback never fails (by design)
+    return;
   }
 
   thd->set_proc_info("Committing events to binlog");
