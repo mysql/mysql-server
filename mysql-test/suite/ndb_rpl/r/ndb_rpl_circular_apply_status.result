@@ -1,0 +1,93 @@
+include/rpl/init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/rpl/connect.inc [creating source]
+include/rpl/connect.inc [creating replica]
+# Validating servers setup
+[connection source]
+SELECT @@log_replica_updates;
+@@log_replica_updates
+0
+SELECT @@ndb_log_orig;
+@@ndb_log_orig
+1
+SELECT @@ndb_log_apply_status;
+@@ndb_log_apply_status
+1
+# Since server has log-replica-updates=OFF, it cannot set following variables
+SET GLOBAL ndb_log_orig=ON;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1231	Variable 'ndb_log_orig' can't be changed when 'log_replica_updates' is OFF
+Error	1231	Variable 'ndb_log_orig' can't be set to the value of 'ON'
+SET GLOBAL ndb_log_orig=OFF;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1231	Variable 'ndb_log_orig' can't be changed when 'log_replica_updates' is OFF
+Error	1231	Variable 'ndb_log_orig' can't be set to the value of 'OFF'
+SET GLOBAL ndb_log_apply_status=ON;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1231	Variable 'ndb_log_apply_status' can't be changed when 'log_replica_updates' is OFF
+Error	1231	Variable 'ndb_log_apply_status' can't be set to the value of 'ON'
+SET GLOBAL ndb_log_apply_status=OFF;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1231	Variable 'ndb_log_apply_status' can't be changed when 'log_replica_updates' is OFF
+Error	1231	Variable 'ndb_log_apply_status' can't be set to the value of 'OFF'
+[connection replica]
+SELECT @@log_replica_updates;
+@@log_replica_updates
+1
+SELECT @@ndb_log_orig;
+@@ndb_log_orig
+1
+SELECT @@ndb_log_apply_status;
+@@ndb_log_apply_status
+1
+# Since server has log-replica-updates=ON, it can toggle following variables
+SET GLOBAL ndb_log_orig=OFF;
+SET GLOBAL ndb_log_orig=ON;
+SET GLOBAL ndb_log_apply_status=OFF;
+SET GLOBAL ndb_log_apply_status=ON;
+# Now create table
+[connection source]
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE = NDB;
+include/rpl/stop_replica.inc
+INSERT INTO t1 VALUES (1,1);
+[connection replica]
+# Replica has only source's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+server_id	log_name
+1	master-bin.000001
+# Replica has following ndb_binlog_index entries
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
+inserts	updates	deletes	schemaops	orig_server_id
+0	0	0	0	2
+1	0	0	0	1
+[connection source]
+include/rpl/start_replica.inc
+# Source now has own serverid entry as well
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+server_id	log_name
+1	master-bin.000001
+2	slave-bin.000001
+[connection replica]
+# Replica still only has source's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+server_id	log_name
+1	master-bin.000001
+# Now create event originating at replica
+INSERT INTO t1 VALUES (2,2);
+# Replica now also has its own serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+server_id	log_name
+1	master-bin.000001
+2	slave-bin.000001
+# Cleanup
+DROP TABLE t1;
+include/rpl/deinit.inc

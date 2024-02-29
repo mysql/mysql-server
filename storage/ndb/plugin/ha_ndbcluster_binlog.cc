@@ -4709,6 +4709,21 @@ int ndbcluster_binlog_start() {
     return -1;
   }
 
+  if (!opt_log_replica_updates) {
+    // Check conditions to enable filtering of replica updates in NDB,
+    // otherwise print warning to notify user about the limitation.
+    if (opt_server_id_bits != 32) {
+      ndb_log_warning(
+          "Binlog: Replica updates are only filtered in NDB when using "
+          "--server-id-bits=32");
+    }
+    if (opt_ndb_log_apply_status || opt_ndb_log_orig) {
+      ndb_log_warning(
+          "Binlog: Replica updates are only filtered in NDB when "
+          "--ndb-log-apply_status and --ndb-log-orig are OFF");
+    }
+  }
+
   ndb_binlog_thread.init();
 
   /**
@@ -5332,12 +5347,12 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
 
     // Setup replica updates to be filtered in NDB
     if (!opt_log_replica_updates && !skip_setup_datanode_anyvalue_filter) {
-      if (opt_server_id_bits != 32) {
-        log_warning(ER_GET_ERRMSG,
-                    "Replica updates are only filtered in NDB when using "
-                    "--server-id-bits=32");
+      if (opt_server_id_bits != 32 || opt_ndb_log_apply_status ||
+          opt_ndb_log_orig) {
+        // Conditions for enabling filter of replica updates in NDB are not met
+        ndb_log_warning("Binlog: not filtering replica updates in NDB");
       } else {
-        ndb_log_verbose(1, "Binlog: filter replica updates in NDB");
+        ndb_log_info("Binlog: filter replica updates in NDB");
         op->setFilterAnyvalueMySQLNoReplicaUpdates();
       }
     }

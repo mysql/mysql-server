@@ -1,0 +1,102 @@
+# This test runs a 2 site circular replication topology, to observe
+# the ndb_apply_status table behavior when not logging replica updates
+# (skip-log-replica-updates) on the source server.
+
+--source include/have_ndb.inc
+
+--let $rpl_topology= 1->2->1
+--source include/rpl/init.inc
+
+--let $rpl_connection_name= source
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+--let $rpl_connection_name= replica
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+
+--echo # Validating servers setup
+
+--let $rpl_connection_name= source
+--source include/connection.inc
+
+# Source must have log_replica_updates=OFF
+SELECT @@log_replica_updates;
+SELECT @@ndb_log_orig;
+SELECT @@ndb_log_apply_status;
+
+# Although ndb-log-orig and ndb-log-apply-status are ON, we can try to toggle and should fail
+--echo # Since server has log-replica-updates=OFF, it cannot set following variables
+--disable_result_log ONCE
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL ndb_log_orig=ON;
+SHOW WARNINGS;
+--disable_result_log ONCE
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL ndb_log_orig=OFF;
+SHOW WARNINGS;
+--disable_result_log ONCE
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL ndb_log_apply_status=ON;
+SHOW WARNINGS;
+--disable_result_log ONCE
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL ndb_log_apply_status=OFF;
+SHOW WARNINGS;
+
+--let $rpl_connection_name= replica
+--source include/connection.inc
+
+# Replica must have log_replica_updates=ON
+SELECT @@log_replica_updates;
+SELECT @@ndb_log_orig;
+SELECT @@ndb_log_apply_status;
+--echo # Since server has log-replica-updates=ON, it can toggle following variables
+SET GLOBAL ndb_log_orig=OFF;
+SET GLOBAL ndb_log_orig=ON;
+SET GLOBAL ndb_log_apply_status=OFF;
+SET GLOBAL ndb_log_apply_status=ON;
+
+--echo # Now create table
+--let $rpl_connection_name= source
+--source include/connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE = NDB;
+
+--source include/rpl/stop_replica.inc
+INSERT INTO t1 VALUES (1,1);
+--sync_slave_with_master replica
+
+--let $rpl_connection_name= replica
+--source include/connection.inc
+--echo # Replica has only source's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+--disable_result_log
+--source include/rpl/wait_for_ndb_committed_to_binlog.inc
+--enable_result_log
+--echo # Replica has following ndb_binlog_index entries
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
+
+--let $rpl_connection_name= source
+--source include/connection.inc
+--source include/rpl/start_replica.inc
+--echo # Source now has own serverid entry as well
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+--let $rpl_connection_name= replica
+--source include/connection.inc
+--echo # Replica still only has source's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+--echo # Now create event originating at replica
+INSERT INTO t1 VALUES (2,2);
+--sync_slave_with_master source
+--sync_slave_with_master replica
+--echo # Replica now also has its own serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+--echo # Cleanup
+DROP TABLE t1;
+--sync_slave_with_master source
+
+--let $rpl_only_running_threads= 1
+--source include/rpl/deinit.inc

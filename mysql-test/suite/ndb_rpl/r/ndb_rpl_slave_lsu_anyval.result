@@ -19,8 +19,6 @@ CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
 DROP TABLE bug_45756_slave_logged_1;
 CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug_45756_slave_logged_2 VALUES (1);
 DROP TABLE bug_45756_slave_logged_2;
 CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB;
@@ -34,8 +32,6 @@ DROP TABLE bug_45756_slave_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug_45756_slave_not_logged_2 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug_45756_slave_not_logged_2 VALUES (1);
 DROP TABLE bug_45756_slave_not_logged_2;
 SET SQL_LOG_BIN= 1;
@@ -46,23 +42,17 @@ DROP TABLE bug_45756_slave_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Generating data to be replicated ***
 CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_logged_1 VALUES (1);
 DROP TABLE bug45756_master_logged_1;
 CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB;
 INSERT INTO bug45756_master_logged_2 VALUES (1);
 DROP TABLE bug45756_master_logged_2;
 CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_logged_3 VALUES (1);
 DROP TABLE bug45756_master_logged_3;
 *** Generating changes not to be replicated ***
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug45756_master_not_logged_1 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_not_logged_1 VALUES (1);
 DROP TABLE bug45756_master_not_logged_1;
 SET SQL_LOG_BIN= 1;
@@ -73,8 +63,6 @@ DROP TABLE bug45756_master_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug45756_master_not_logged_3 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_not_logged_3 VALUES (1);
 DROP TABLE bug45756_master_not_logged_3;
 SET SQL_LOG_BIN= 1;
@@ -430,8 +418,6 @@ CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
 DROP TABLE bug_45756_slave_logged_1;
 CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug_45756_slave_logged_2 VALUES (1);
 DROP TABLE bug_45756_slave_logged_2;
 CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB;
@@ -445,8 +431,6 @@ DROP TABLE bug_45756_slave_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug_45756_slave_not_logged_2 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug_45756_slave_not_logged_2 VALUES (1);
 DROP TABLE bug_45756_slave_not_logged_2;
 SET SQL_LOG_BIN= 1;
@@ -457,23 +441,17 @@ DROP TABLE bug_45756_slave_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Generating data to be replicated ***
 CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_logged_1 VALUES (1);
 DROP TABLE bug45756_master_logged_1;
 CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB;
 INSERT INTO bug45756_master_logged_2 VALUES (1);
 DROP TABLE bug45756_master_logged_2;
 CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_logged_3 VALUES (1);
 DROP TABLE bug45756_master_logged_3;
 *** Generating changes not to be replicated ***
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug45756_master_not_logged_1 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_not_logged_1 VALUES (1);
 DROP TABLE bug45756_master_not_logged_1;
 SET SQL_LOG_BIN= 1;
@@ -484,8 +462,6 @@ DROP TABLE bug45756_master_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug45756_master_not_logged_3 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_not_logged_3 VALUES (1);
 DROP TABLE bug45756_master_not_logged_3;
 SET SQL_LOG_BIN= 1;
@@ -841,8 +817,6 @@ CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
 DROP TABLE bug_45756_slave_logged_1;
 CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug_45756_slave_logged_2 VALUES (1);
 DROP TABLE bug_45756_slave_logged_2;
 CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB;
@@ -856,8 +830,6 @@ DROP TABLE bug_45756_slave_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug_45756_slave_not_logged_2 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug_45756_slave_not_logged_2 VALUES (1);
 DROP TABLE bug_45756_slave_not_logged_2;
 SET SQL_LOG_BIN= 1;
@@ -868,23 +840,17 @@ DROP TABLE bug_45756_slave_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Generating data to be replicated ***
 CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_logged_1 VALUES (1);
 DROP TABLE bug45756_master_logged_1;
 CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB;
 INSERT INTO bug45756_master_logged_2 VALUES (1);
 DROP TABLE bug45756_master_logged_2;
 CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_logged_3 VALUES (1);
 DROP TABLE bug45756_master_logged_3;
 *** Generating changes not to be replicated ***
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug45756_master_not_logged_1 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_not_logged_1 VALUES (1);
 DROP TABLE bug45756_master_not_logged_1;
 SET SQL_LOG_BIN= 1;
@@ -895,8 +861,6 @@ DROP TABLE bug45756_master_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
 CREATE TABLE bug45756_master_not_logged_3 (a int) engine = NDB;
-Warnings:
-Warning	1296	Replica updates are only filtered in NDB when using --server-id-bits=32
 INSERT INTO bug45756_master_not_logged_3 VALUES (1);
 DROP TABLE bug45756_master_not_logged_3;
 SET SQL_LOG_BIN= 1;

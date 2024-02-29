@@ -18015,6 +18015,21 @@ static MYSQL_SYSVAR_BOOL(log_empty_update,         /* name */
                          0        /* default */
 );
 
+static int ndb_log_orig_check(THD *thd, SYS_VAR *sys_var, void *save,
+                              st_mysql_value *value) {
+  int r = check_func_bool(thd, sys_var, save, value);
+  if (r == 0) {
+    if (!opt_log_replica_updates) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WRONG_VALUE_FOR_VAR,
+                          "Variable 'ndb_log_orig' can't be changed when "
+                          "'log_replica_updates' is OFF");
+      return 1;
+    }
+  }
+  return r;
+}
+
 bool opt_ndb_log_orig;
 static MYSQL_SYSVAR_BOOL(
     log_orig,         /* name */
@@ -18023,9 +18038,9 @@ static MYSQL_SYSVAR_BOOL(
     "Log originating server id and epoch in ndb_binlog_index. Each epoch "
     "may in this case have multiple rows in ndb_binlog_index, one for "
     "each originating epoch.",
-    nullptr, /* check func. */
-    nullptr, /* update func. */
-    0        /* default */
+    ndb_log_orig_check, /* check func. */
+    nullptr,            /* update func. */
+    0                   /* default */
 );
 
 bool opt_ndb_log_bin;
@@ -18060,15 +18075,30 @@ static MYSQL_SYSVAR_BOOL(log_empty_epochs,                 /* name */
                          0                                 /* default */
 );
 
+static int ndb_log_apply_status_check(THD *thd, SYS_VAR *sys_var, void *save,
+                                      st_mysql_value *value) {
+  int r = check_func_bool(thd, sys_var, save, value);
+  if (r == 0) {
+    if (!opt_log_replica_updates) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
+          "Variable 'ndb_log_apply_status' can't be changed when "
+          "'log_replica_updates' is OFF");
+      return 1;
+    }
+  }
+  return r;
+}
+
 bool opt_ndb_log_apply_status;
 static MYSQL_SYSVAR_BOOL(
     log_apply_status,         /* name */
     opt_ndb_log_apply_status, /* var */
     PLUGIN_VAR_OPCMDARG,
     "Log ndb_apply_status updates from Master in the Binlog",
-    nullptr, /* check func. */
-    nullptr, /* update func. */
-    0        /* default */
+    ndb_log_apply_status_check, /* check func. */
+    nullptr,                    /* update func. */
+    0                           /* default */
 );
 
 bool opt_ndb_log_transaction_id;
