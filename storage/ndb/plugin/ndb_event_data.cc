@@ -267,6 +267,10 @@ uint32 Ndb_event_data::unpack_uint32(unsigned attr_id) const {
   return ndb_value[0][attr_id].rec->u_32_value();
 }
 
+uint64 Ndb_event_data::unpack_uint64(unsigned attr_id) const {
+  return ndb_value[0][attr_id].rec->u_64_value();
+}
+
 const char *Ndb_event_data::unpack_string(unsigned attr_id) const {
   return ndb_value[0][attr_id].rec->aRef();
 }
