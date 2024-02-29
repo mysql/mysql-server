@@ -35,8 +35,13 @@ Code documentation: @ref GroupLibsMysqlUtils.
 
 This is a header-only library, containing various utility functions, such as:
 
-- macro deprecating a header
-- definition of Error - base class for (C++) error handling
-- enumeration utilities: to_underlying (-std=C++<23>), to_enumeration
-- template utilities: Is_specialization
-- bit operations
+- bounded_arithmetic.h: multiplication and addition, capped at a max value
+- concat.h: vararg function to concatenate many values to a string
+- deprecate_header.h: macro deprecating a header
+- enumeration_utils.h: to_underlying (backported from C++23), to_enumeration
+- error.h: definition of Error - base class for (C++) error handling
+- is_specialization.h: utility to determine if a template is a specialization
+  of another.
+- nodiscard.h: replacement for [[nodiscard]] that works around gcc bug
+  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84476
+- return_status.h: enum { ok, error }
