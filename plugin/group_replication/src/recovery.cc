@@ -283,6 +283,21 @@ int Recovery_module::recovery_thread_handle() {
   /* Step 1 */
 
   // wait for the appliers suspension
+
+  std::string gtid_set_to_apply;
+  channel_get_gtid_set_to_apply("group_replication_applier", gtid_set_to_apply);
+
+  if (!gtid_set_to_apply.empty()) {
+    const size_t max_length = 7000;
+    if (gtid_set_to_apply.size() > max_length) {
+      gtid_set_to_apply.resize(max_length);
+      gtid_set_to_apply.replace(max_length - 3, 3, "...");
+    }
+
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_RECOVERY_WAIT_APPLIER_BACKLOG_START,
+                 gtid_set_to_apply.c_str());
+  }
+
   error =
       applier_module->wait_for_applier_complete_suspension(&recovery_aborted);
 
@@ -301,6 +316,11 @@ int Recovery_module::recovery_thread_handle() {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_EVALUATE_APPLIER_STATUS);
     goto cleanup;
     /* purecov: end */
+  }
+
+  if (!gtid_set_to_apply.empty()) {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_RECOVERY_WAIT_APPLIER_BACKLOG_FINISH,
+                 gtid_set_to_apply.c_str());
   }
 
 #ifndef NDEBUG
