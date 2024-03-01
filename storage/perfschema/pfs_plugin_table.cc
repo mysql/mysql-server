@@ -309,7 +309,24 @@ static int initialize_table_share(PFS_engine_table_share *share,
                        proxy_share->m_table_definition,
                        "ENGINE = 'PERFORMANCE_SCHEMA'", nullptr);
 
-  share->m_perpetual = false;
+  /*
+    The innodb_redo_log_files table should be available when PFS is disabled.
+    But the PFS_engine_table_share_proxy structure does not provide m_perpetual
+    flag that is generally used for this purpose. So a check is added below to
+    see if the table name is innodb_redo_log_files and then set
+    share->m_perpetual to true to make innodb_redo_log_files available when PFS
+    is disabled. This needs to go away.
+
+    TODO : Add extra flag member in struct PFS_engine_table_share_proxy and
+    adjust pfs_plugin_table_v1 to pfs_plugin_table_v2. This addition of the flag
+    would allow any plugin/component that uses PFS_engine_table_share_proxy to
+    have an option of making the table available when PFS is disabled. Once that
+    is implemented, the below check can be removed. OR, this flag should be
+    removed in future, and each table can test its own logic to decide whether
+    to open a table or not, instead of using the perpetual=true/false property.
+  */
+  share->m_perpetual =
+      strcmp(proxy_share->m_table_name, "innodb_redo_log_files") == 0;
 
   /* List of call back function pointers pointing to the interface functions
    * implemented by plugin/component.
