@@ -1549,17 +1549,6 @@ ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
 ADD_DEFINITIONS(-DLZ4_DISABLE_DEPRECATE_WARNINGS) # C++14 deprecation warnings in LZ4.
 
-# Force the same macro definition MYSQL_PROJECT for all source files being
-# compiled as a part of the MySQL server, client tools, libraries etc.
-# The MYSQL_PROJECT macro helps to distinguish when e.g. some C++ header file
-# is included by the MySQL project source file or by the external project
-# source file.
-# For example, MYSQL_PROJECT helps to detect when include/mysql/strings/api.h
-# is used to a) build a static library, or b) build a Windows DLL, or
-# c) reference the server strings API from plugins (DLLs) loaded by the
-# MySQL server, or d) reference the libstrings DLL from external executables.
-ADD_DEFINITIONS(-DMYSQL_PROJECT)
-
 OPTION(ENABLE_EXPERIMENT_SYSVARS "Expose ussually hidden system variables to allow experiments" OFF)
 IF(ENABLE_EXPERIMENT_SYSVARS)
   ADD_DEFINITIONS(-DENABLE_EXPERIMENT_SYSVARS)

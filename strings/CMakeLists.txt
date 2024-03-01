@@ -117,12 +117,16 @@ IF(APPLE)
     )
 ELSEIF(WIN32)
   # We need to export the desired symbols, and generate the import library.
-  # Note the definition of MYSQL_LIBSTRINGS_DLL.
+  # Note the PUBLIC definition of MYSQL_LIBSTRINGS_DLL,
+  # and the PRIVATE definition of MYSQL_LIBSTRINGS_EXPORT.
   ADD_SHARED_LIBRARY(strings_shared
     ${STRINGS_SOURCES}
     SKIP_INSTALL
-    COMPILE_DEFINITIONS MYSQL_LIBSTRINGS_DLL
     DEPENDENCIES strings_ja_hans strings_zh_hans
+    )
+  TARGET_COMPILE_DEFINITIONS(strings_shared
+    PUBLIC MYSQL_LIBSTRINGS_DLL
+    PRIVATE MYSQL_LIBSTRINGS_EXPORT
     )
 ELSE()
   ADD_SHARED_LIBRARY(strings_shared

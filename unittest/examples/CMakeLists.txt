@@ -48,11 +48,10 @@ MYSQL_ADD_EXECUTABLE(libstrings_static-t
   SKIP_INSTALL
   )
 
-# Undefine MYSQL_PROJECT, simulating building outside the MySQL project tree.
 MYSQL_ADD_EXECUTABLE(libstrings_shared-t
   libstrings-t.cc
   LINK_LIBRARIES strings_shared
   ADD_TEST libstrings_shared
   SKIP_INSTALL
   )
-TARGET_COMPILE_OPTIONS(libstrings_shared-t PRIVATE -DUNDEFINE_MYSQL_PROJECT)
+
