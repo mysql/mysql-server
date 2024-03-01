@@ -761,8 +761,8 @@ bool start_slave_cmd(THD *thd) {
         channel_map.is_group_replication_channel_name(mi->get_channel()) &&
         ((!thd->lex->replica_thd_opt ||
           (thd->lex->replica_thd_opt & REPLICA_IO)) ||
-         (!(channel_map.is_group_replication_channel_name(mi->get_channel(),
-                                                          true)) &&
+         (!(channel_map.is_group_replication_applier_channel_name(
+              mi->get_channel())) &&
           (thd->lex->replica_thd_opt & REPLICA_SQL)))) {
       const char *command = "START REPLICA FOR CHANNEL";
       if (thd->lex->replica_thd_opt & REPLICA_IO)
@@ -780,8 +780,8 @@ bool start_slave_cmd(THD *thd) {
       Group Replication is running.
     */
     if (mi &&
-        channel_map.is_group_replication_channel_name(mi->get_channel(),
-                                                      true) &&
+        channel_map.is_group_replication_applier_channel_name(
+            mi->get_channel()) &&
         is_group_replication_running()) {
       const char *command =
           "START REPLICA FOR CHANNEL while Group Replication is running";
@@ -861,8 +861,8 @@ bool stop_slave_cmd(THD *thd) {
         channel_map.is_group_replication_channel_name(mi->get_channel()) &&
         ((!thd->lex->replica_thd_opt ||
           (thd->lex->replica_thd_opt & REPLICA_IO)) ||
-         (!(channel_map.is_group_replication_channel_name(mi->get_channel(),
-                                                          true)) &&
+         (!(channel_map.is_group_replication_applier_channel_name(
+              mi->get_channel())) &&
           (thd->lex->replica_thd_opt & REPLICA_SQL)))) {
       const char *command = "STOP REPLICA FOR CHANNEL";
       if (thd->lex->replica_thd_opt & REPLICA_IO)
@@ -881,8 +881,8 @@ bool stop_slave_cmd(THD *thd) {
       Group Replication is running.
     */
     if (mi &&
-        channel_map.is_group_replication_channel_name(mi->get_channel(),
-                                                      true) &&
+        channel_map.is_group_replication_applier_channel_name(
+            mi->get_channel()) &&
         is_group_replication_running()) {
       const char *command =
           "STOP REPLICA FOR CHANNEL while Group Replication is running";
@@ -3948,8 +3948,8 @@ bool show_slave_status_cmd(THD *thd) {
       need to disable the SHOW REPLICA STATUS command as its output is not
       compatible with this command.
     */
-    if (channel_map.is_group_replication_channel_name(mi->get_channel(),
-                                                      true)) {
+    if (channel_map.is_group_replication_applier_channel_name(
+            mi->get_channel())) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "SHOW REPLICA STATUS", mi->get_channel());
       channel_map.unlock();
@@ -6000,13 +6000,12 @@ static void *handle_slave_worker(void *arg) {
   thd->rli_slave = w;
   thd->init_query_mem_roots();
 
-  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
-    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
-                                                      true)) {
-      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
-    } else {
-      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
-    }
+  if (channel_map.is_group_replication_applier_channel_name(
+          rli->get_channel())) {
+    thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+  } else if (channel_map.is_group_replication_recovery_channel_name(
+                 rli->get_channel())) {
+    thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
   } else {
     thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
   }
@@ -7010,13 +7009,12 @@ extern "C" void *handle_slave_sql(void *arg) {
 
     rli->set_commit_order_manager(commit_order_mngr);
 
-    if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
-      if (channel_map.is_group_replication_channel_name(rli->get_channel(),
-                                                        true)) {
-        thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
-      } else {
-        thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
-      }
+    if (channel_map.is_group_replication_applier_channel_name(
+            rli->get_channel())) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else if (channel_map.is_group_replication_recovery_channel_name(
+                   rli->get_channel())) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
     } else {
       thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
     }
@@ -8648,13 +8646,14 @@ int flush_relay_logs(Master_info *mi, THD *thd) {
       if ((!is_group_replication_plugin_loaded() ||  // GR is disabled
            !mi->transaction_parser
                 .is_inside_transaction() ||  // not inside a transaction
-           !channel_map.is_group_replication_channel_name(
-               mi->get_channel(), true) ||  // channel isn't GR applier channel
-           !mi->slave_running) &&           // the I/O thread isn't running
-          DBUG_EVALUATE_IF("deferred_flush_relay_log",
-                           !channel_map.is_group_replication_channel_name(
-                               mi->get_channel(), true),
-                           true)) {
+           !channel_map.is_group_replication_applier_channel_name(
+               mi->get_channel()) ||  // channel isn't GR applier channel
+           !mi->slave_running) &&     // the I/O thread isn't running
+          DBUG_EVALUATE_IF(
+              "deferred_flush_relay_log",
+              !channel_map.is_group_replication_applier_channel_name(
+                  mi->get_channel()),
+              true)) {
         if (rotate_relay_log(mi)) error = 1;
       }
       // Postpone the rotate action, delegating it to the I/O thread
@@ -9330,8 +9329,8 @@ bool reset_slave_cmd(THD *thd) {
       command.
     */
     if (mi &&
-        channel_map.is_group_replication_channel_name(mi->get_channel(),
-                                                      true) &&
+        channel_map.is_group_replication_applier_channel_name(
+            mi->get_channel()) &&
         is_group_replication_running()) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "RESET REPLICA [ALL] FOR CHANNEL", mi->get_channel());
@@ -10991,7 +10990,7 @@ bool change_master_cmd(THD *thd) {
     goto err;
   }
 
-  if (channel_map.is_group_replication_channel_name(lex->mi.channel, true)) {
+  if (channel_map.is_group_replication_applier_channel_name(lex->mi.channel)) {
     /*
       If the chosen name is for group_replication_applier channel we allow the
       channel creation based on the check as to which field is being updated.
@@ -11021,8 +11020,7 @@ bool change_master_cmd(THD *thd) {
 
   // If the channel being used is group_replication_recovery we allow the
   // channel creation based on the check as to which field is being updated.
-  if (channel_map.is_group_replication_channel_name(lex->mi.channel) &&
-      !channel_map.is_group_replication_channel_name(lex->mi.channel, true)) {
+  if (channel_map.is_group_replication_recovery_channel_name(lex->mi.channel)) {
     LEX_SOURCE_INFO *lex_mi = &thd->lex->mi;
     if (is_invalid_change_master_for_group_replication_recovery(lex_mi)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
@@ -11119,7 +11117,7 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli) {
         (channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
          (channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
           !opt_replica_preserve_commit_order)) &&
-        channel_map.is_group_replication_channel_name(channel, true)) {
+        channel_map.is_group_replication_applier_channel_name(channel)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 "
                "and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK "

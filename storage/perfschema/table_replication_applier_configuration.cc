@@ -143,7 +143,7 @@ int table_replication_applier_configuration::rnd_next() {
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
-    if (mi && mi->host[0]) {
+    if (channel_map.is_channel_configured(mi)) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
       channel_map.unlock();
@@ -197,7 +197,7 @@ int table_replication_applier_configuration::index_next() {
        m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0]) {
+    if (channel_map.is_channel_configured(mi)) {
       if (m_opened_index->match(mi)) {
         res = make_row(mi);
         m_next_pos.set_after(&m_pos);

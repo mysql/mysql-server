@@ -374,8 +374,8 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            const char *log_name, ulong pos) {
   const char *handler_error = (ha_error ? HA_ERR(ha_error) : nullptr);
   bool is_group_replication_applier_channel =
-      channel_map.is_group_replication_channel_name(
-          (const_cast<Relay_log_info *>(rli))->get_channel(), true);
+      channel_map.is_group_replication_applier_channel_name(
+          (const_cast<Relay_log_info *>(rli))->get_channel());
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end = buff + sizeof(buff);
   size_t len;

@@ -1548,7 +1548,8 @@ void Slave_worker::do_report(loglevel level, int err_code,
       const_cast<Slave_worker *>(this)->get_master_log_name();
   ulonglong log_pos = const_cast<Slave_worker *>(this)->get_master_log_pos();
   bool is_group_replication_applier_channel =
-      channel_map.is_group_replication_channel_name(c_rli->get_channel(), true);
+      channel_map.is_group_replication_applier_channel_name(
+          c_rli->get_channel());
   THD *thd = info_thd;
 
   gtid_next->to_string(global_tsid_map, buff_gtid, true);

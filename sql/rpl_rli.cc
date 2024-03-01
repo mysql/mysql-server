@@ -257,7 +257,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       Group replication applier channel shall not use checksum on its relay
       log files.
     */
-    if (channel_map.is_group_replication_channel_name(param_channel, true)) {
+    if (channel_map.is_group_replication_applier_channel_name(param_channel)) {
       relay_log.relay_log_checksum_alg =
           mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
     }
