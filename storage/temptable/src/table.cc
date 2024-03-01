@@ -41,6 +41,7 @@ TempTable Table implementation. */
 #include "sql/key.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/block.h"
 #include "storage/temptable/include/temptable/column.h"
 #include "storage/temptable/include/temptable/cursor.h"
 #include "storage/temptable/include/temptable/index.h"
@@ -51,7 +52,6 @@ TempTable Table implementation. */
 #include "storage/temptable/include/temptable/table.h"
 
 namespace temptable {
-class Block;
 
 Table::Table(TABLE *mysql_table, Block *shared_block,
              bool all_columns_are_fixed_size, size_t tmp_table_size_limit)

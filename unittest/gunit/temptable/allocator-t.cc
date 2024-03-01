@@ -162,6 +162,8 @@ TEST(Allocator, BasicAlloc) {
       item_pointers[i] = nullptr;
     }
   }
+
+  shared_block.destroy();
 }
 
 TEST(Allocator, ZeroSize) {
@@ -210,6 +212,8 @@ TEST(Allocator, ConstructDestroy) {
   EXPECT_EQ(TestItem::get_default_constructor_call_count(), 1);
   EXPECT_EQ(TestItem::get_parametrized_constructor_call_count(), 1);
   EXPECT_EQ(TestItem::get_destructor_call_count(), 2);
+
+  shared_block.destroy();
 }
 
 TEST(Allocator, Casts) {
@@ -248,6 +252,8 @@ TEST(Allocator, Casts) {
   EXPECT_NO_THROW(allocator2.deallocate(items2[1], 1));
   EXPECT_NO_THROW(allocator1.deallocate(items1[0], 1));
   EXPECT_NO_THROW(allocator1.deallocate(items1[1], 1));
+
+  shared_block.destroy();
 }
 
 }  // namespace temptable_test
