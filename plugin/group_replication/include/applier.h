@@ -891,7 +891,9 @@ class Applier_module : public Applier_module_interface {
     mysql_cond_broadcast(&suspension_waiting_condition);
 
     while (suspended) {
-      mysql_cond_wait(&suspend_cond, &suspend_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&suspend_cond, &suspend_lock, &abstime);
     }
     stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
                             __LINE__, 0, 0);

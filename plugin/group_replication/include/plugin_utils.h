@@ -209,8 +209,11 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
   bool pop(T *out) override {
     *out = nullptr;
     mysql_mutex_lock(&lock);
-    while (queue.empty())
-      mysql_cond_wait(&cond, &lock); /* purecov: inspected */
+    while (queue.empty()) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&cond, &lock, &abstime);
+    }
     *out = queue.front();
     queue.pop();
     mysql_mutex_unlock(&lock);
@@ -220,8 +223,11 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
 
   bool pop() override {
     mysql_mutex_lock(&lock);
-    while (queue.empty())
-      mysql_cond_wait(&cond, &lock); /* purecov: inspected */
+    while (queue.empty()) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&cond, &lock, &abstime);
+    }
     queue.pop();
     mysql_mutex_unlock(&lock);
 
@@ -231,7 +237,11 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
   bool front(T *out) override {
     *out = nullptr;
     mysql_mutex_lock(&lock);
-    while (queue.empty()) mysql_cond_wait(&cond, &lock);
+    while (queue.empty()) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&cond, &lock, &abstime);
+    }
     *out = queue.front();
     mysql_mutex_unlock(&lock);
 
@@ -302,8 +312,11 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
   bool pop(T *out) override {
     *out = nullptr;
     mysql_mutex_lock(&this->lock);
-    while (this->queue.empty() && !m_abort)
-      mysql_cond_wait(&this->cond, &this->lock); /* purecov: inspected */
+    while (this->queue.empty() && !m_abort) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&this->cond, &this->lock, &abstime);
+    }
 
     if (!m_abort) {
       *out = this->queue.front();
@@ -324,8 +337,11 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
   */
   bool pop() override {
     mysql_mutex_lock(&this->lock);
-    while (this->queue.empty() && !m_abort)
-      mysql_cond_wait(&this->cond, &this->lock);
+    while (this->queue.empty() && !m_abort) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&this->cond, &this->lock, &abstime);
+    }
 
     if (!m_abort) {
       this->queue.pop();
@@ -348,8 +364,11 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
   bool front(T *out) override {
     *out = nullptr;
     mysql_mutex_lock(&this->lock);
-    while (this->queue.empty() && !m_abort)
-      mysql_cond_wait(&this->cond, &this->lock);
+    while (this->queue.empty() && !m_abort) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&this->cond, &this->lock, &abstime);
+    }
 
     if (!m_abort) {
       *out = this->queue.front();
@@ -437,7 +456,11 @@ class CountDownLatch {
         error = true;
       }
     } else {
-      while (count > 0) mysql_cond_wait(&cond, &lock);
+      while (count > 0) {
+        struct timespec abstime;
+        set_timespec(&abstime, 1);
+        mysql_cond_timedwait(&cond, &lock, &abstime);
+      }
     }
 
     mysql_mutex_unlock(&lock);
@@ -748,8 +771,11 @@ class Shared_writelock {
       const char act[] = "now SIGNAL signal.gr_applier_early_failure";
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
-    while (write_lock_in_use == true)
-      mysql_cond_wait(&write_lock_protection, &write_lock);
+    while (write_lock_in_use == true) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&write_lock_protection, &write_lock, &abstime);
+    }
 
     shared_write_lock->wrlock();
     write_lock_in_use = true;
@@ -849,7 +875,9 @@ class Plugin_waitlock {
     mysql_mutex_lock(wait_lock);
     while (wait_status) {
       DBUG_PRINT("sleep", ("Waiting in Plugin_waitlock::start_waitlock()"));
-      mysql_cond_wait(wait_cond, wait_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(wait_cond, wait_lock, &abstime);
     }
     mysql_mutex_unlock(wait_lock);
     return;

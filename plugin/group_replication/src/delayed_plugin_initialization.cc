@@ -70,7 +70,9 @@ void Delayed_initialization_thread::wait_for_thread_end() {
   while (delayed_thd_state.is_thread_alive()) {
     DBUG_PRINT("sleep",
                ("Waiting for the Delayed initialization thread to finish"));
-    mysql_cond_wait(&run_cond, &run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
   mysql_mutex_unlock(&run_lock);
 
@@ -90,7 +92,9 @@ void Delayed_initialization_thread::wait_for_read_mode() {
   while (!is_super_read_only_set) {
     DBUG_PRINT("sleep", ("Waiting for the Delayed initialization thread to set "
                          "super_read_only"));
-    mysql_cond_wait(&run_cond, &run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
   mysql_mutex_unlock(&run_lock);
 }
@@ -113,7 +117,9 @@ int Delayed_initialization_thread::launch_initialization_thread() {
   while (delayed_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep",
                ("Waiting for the Delayed initialization thread to start"));
-    mysql_cond_wait(&run_cond, &run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
   mysql_mutex_unlock(&run_lock);
 
@@ -139,7 +145,9 @@ int Delayed_initialization_thread::initialization_thread_handler() {
   mysql_mutex_lock(&server_ready_lock);
   while (!is_server_ready) {
     DBUG_PRINT("sleep", ("Waiting for server start signal"));
-    mysql_cond_wait(&server_ready_cond, &server_ready_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&server_ready_cond, &server_ready_lock, &abstime);
   }
   mysql_mutex_unlock(&server_ready_lock);
 

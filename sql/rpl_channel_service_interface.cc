@@ -508,7 +508,9 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
       wait for the thread to start
     */
     while (thread_start_id == mi->slave_run_id) {
-      mysql_cond_wait(&mi->start_cond, &mi->run_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&mi->start_cond, &mi->run_lock, &abstime);
     }
     mysql_mutex_unlock(&mi->run_lock);
 

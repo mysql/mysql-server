@@ -98,7 +98,9 @@ int Certifier_broadcast_thread::initialize() {
 
   while (broadcast_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep", ("Waiting for certifier broadcast thread to start"));
-    mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&broadcast_run_cond, &broadcast_run_lock, &abstime);
   }
   mysql_mutex_unlock(&broadcast_run_lock);
 
@@ -126,7 +128,10 @@ int Certifier_broadcast_thread::terminate() {
 
     broadcast_thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&broadcast_thd->LOCK_thd_data);
-    mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
+
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&broadcast_run_cond, &broadcast_run_lock, &abstime);
   }
   mysql_mutex_unlock(&broadcast_run_lock);
 

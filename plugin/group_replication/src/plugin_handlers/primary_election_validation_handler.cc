@@ -163,7 +163,9 @@ bool Primary_election_validation_handler::prepare_election() {
     DBUG_PRINT(
         "sleep",
         ("Waiting for the primary election validation info to be gathered."));
-    mysql_cond_wait(&notification_cond, &notification_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&notification_cond, &notification_lock, &abstime);
   }
 
   mysql_mutex_unlock(&notification_lock);

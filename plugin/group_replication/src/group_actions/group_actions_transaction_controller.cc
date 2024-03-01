@@ -204,7 +204,9 @@ int Transaction_monitor_thread::start() {
   while (m_transaction_monitor_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep",
                ("Waiting for the transaction monitor thread to start"));
-    mysql_cond_wait(&m_run_cond, &m_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
   }
 
 end:
@@ -287,7 +289,9 @@ end:
             execution of this thread.
     */
     if (clients_disconnected) {
-      mysql_cond_wait(&m_run_cond, &m_run_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
     } else {
       long int time_pending = std::chrono::duration_cast<std::chrono::seconds>(
                                   transaction_timeout_time - time_now)

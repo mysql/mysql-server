@@ -624,7 +624,9 @@ int Remote_clone_handler::clone_server(const std::string &group_name,
   */
   while (m_clone_process_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep", ("Waiting for the clone process thread to start"));
-    mysql_cond_wait(&m_run_cond, &m_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
   }
 
 end:

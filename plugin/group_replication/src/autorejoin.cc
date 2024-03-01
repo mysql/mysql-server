@@ -82,7 +82,7 @@ bool Autorejoin_thread::abort_rejoin() {
   m_being_terminated = true;
 
   /*
-    Unblock the call to mysql_cond_wait() on the auto-rejoin loop,
+    Unblock the call to mysql_cond_timedwait() on the auto-rejoin loop,
     effectively ending the auto-rejoin loop.
   */
   while (m_autorejoin_thd_state.is_thread_alive()) {
@@ -143,7 +143,9 @@ int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
   */
   while (m_autorejoin_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep", ("Waiting for the auto-rejoin thread to start"));
-    mysql_cond_wait(&m_run_cond, &m_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
   }
 
 end:

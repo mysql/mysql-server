@@ -117,7 +117,9 @@ int Recovery_module::start_recovery(const string &group_name,
 
   while (recovery_thd_state.is_alive_not_running() && !recovery_aborted) {
     DBUG_PRINT("sleep", ("Waiting for recovery thread to start"));
-    mysql_cond_wait(&run_cond, &run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
   mysql_mutex_unlock(&run_lock);
 

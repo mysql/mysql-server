@@ -330,7 +330,9 @@ Primary_election_action::execute_action(
   mysql_mutex_lock(&notification_lock);
   while (!is_primary_election_invoked && !single_election_action_aborted) {
     DBUG_PRINT("sleep", ("Waiting for the primary election to be invoked."));
-    mysql_cond_wait(&notification_cond, &notification_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&notification_cond, &notification_lock, &abstime);
   }
   mysql_mutex_unlock(&notification_lock);
 
@@ -343,7 +345,9 @@ Primary_election_action::execute_action(
   while (PRIMARY_ELECTION_INIT == m_execution_status &&
          !single_election_action_aborted) {
     DBUG_PRINT("sleep", ("Waiting for the primary to be elected."));
-    mysql_cond_wait(&notification_cond, &notification_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&notification_cond, &notification_lock, &abstime);
   }
   mysql_mutex_unlock(&notification_lock);
 
@@ -364,7 +368,9 @@ Primary_election_action::execute_action(
   while (!is_transaction_queue_applied && !single_election_action_aborted) {
     DBUG_PRINT("sleep",
                ("Waiting for transaction to be applied on the primary."));
-    mysql_cond_wait(&notification_cond, &notification_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&notification_cond, &notification_lock, &abstime);
   }
   mysql_mutex_unlock(&notification_lock);
 

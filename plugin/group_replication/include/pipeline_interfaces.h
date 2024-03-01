@@ -559,7 +559,9 @@ class Continuation {
   int wait() {
     mysql_mutex_lock(&lock);
     while (!ready && !error_code) {
-      mysql_cond_wait(&cond, &lock); /* purecov: inspected */
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&cond, &lock, &abstime);
     }
     ready = false;
     mysql_mutex_unlock(&lock);

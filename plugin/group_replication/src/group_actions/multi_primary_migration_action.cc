@@ -160,7 +160,9 @@ Multi_primary_migration_action::execute_action(
          !multi_primary_switch_aborted) {
     DBUG_PRINT("sleep",
                ("Waiting for transaction to be applied on the primary."));
-    mysql_cond_wait(&notification_cond, &notification_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&notification_cond, &notification_lock, &abstime);
   }
   mysql_mutex_unlock(&notification_lock);
 

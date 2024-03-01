@@ -213,7 +213,9 @@ bool Source_IO_monitor::launch_monitoring_process(PSI_thread_key thread_key) {
 
   while (m_monitor_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep", ("Waiting for the Monitoring process thread to start"));
-    mysql_cond_wait(&m_run_cond, &m_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
   }
   mysql_mutex_unlock(&m_run_lock);
 

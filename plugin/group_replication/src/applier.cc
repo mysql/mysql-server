@@ -714,7 +714,6 @@ int Applier_module::initialize_applier_thread() {
 
     struct timespec abstime;
     set_timespec(&abstime, 1);
-
     mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
 
@@ -867,7 +866,10 @@ int Applier_module::wait_for_applier_complete_suspension(
   */
   while (!suspended && !(*abort_flag) && !is_applier_thread_aborted() &&
          !applier_error) {
-    mysql_cond_wait(&suspension_waiting_condition, &suspend_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&suspension_waiting_condition, &suspend_lock,
+                         &abstime);
   }
 
   mysql_mutex_unlock(&suspend_lock);

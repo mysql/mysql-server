@@ -439,7 +439,9 @@ long Session_plugin_thread::wait_for_method_execution() {
   while (!m_method_execution_completed) {
     DBUG_PRINT("sleep",
                ("Waiting for the plugin session thread to execute a method"));
-    mysql_cond_wait(&m_method_cond, &m_method_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_method_cond, &m_method_lock, &abstime);
   }
   mysql_mutex_unlock(&m_method_lock);
   return m_method_execution_return_value;
@@ -474,7 +476,9 @@ int Session_plugin_thread::launch_session_thread(void *plugin_pointer_var,
   while (m_session_thread_state.is_alive_not_running() &&
          !m_session_thread_error) {
     DBUG_PRINT("sleep", ("Waiting for the plugin session thread to start"));
-    mysql_cond_wait(&m_run_cond, &m_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
   }
 
   mysql_mutex_unlock(&m_run_lock);
@@ -580,7 +584,9 @@ int Session_plugin_thread::session_thread_handler() {
   while (!m_session_thread_terminate) {
     DBUG_PRINT("sleep", ("Waiting for the plugin session thread"
                          " to be signaled termination"));
-    mysql_cond_wait(&m_run_cond, &m_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
   }
   mysql_mutex_unlock(&m_run_lock);
 

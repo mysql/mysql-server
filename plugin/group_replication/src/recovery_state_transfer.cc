@@ -897,7 +897,9 @@ State_transfer_status Recovery_state_transfer::state_transfer(
     mysql_mutex_lock(&recovery_lock);
     while (!donor_transfer_finished && !recovery_aborted && !on_failover &&
            !donor_channel_thread_error) {
-      mysql_cond_wait(&recovery_condition, &recovery_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&recovery_condition, &recovery_lock, &abstime);
     }
     mysql_mutex_unlock(&recovery_lock);
   }  // if the current connection was terminated, connect again

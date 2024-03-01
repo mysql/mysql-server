@@ -120,7 +120,9 @@ int Primary_election_primary_process::launch_primary_election_process(
   while (election_process_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep",
                ("Waiting for the Primary election process thread to start"));
-    mysql_cond_wait(&election_cond, &election_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&election_cond, &election_lock, &abstime);
   }
   mysql_mutex_unlock(&election_lock);
 
@@ -196,7 +198,9 @@ int Primary_election_primary_process::primary_election_process_handler() {
   mysql_mutex_lock(&election_lock);
   while (!primary_ready && !election_process_aborted) {
     DBUG_PRINT("sleep", ("Waiting for the primary member to be ready message"));
-    mysql_cond_wait(&election_cond, &election_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&election_cond, &election_lock, &abstime);
   }
   mysql_mutex_unlock(&election_lock);
 
@@ -290,7 +294,9 @@ int Primary_election_primary_process::primary_election_process_handler() {
   mysql_mutex_lock(&election_lock);
   while (!group_in_read_mode && !election_process_aborted) {
     DBUG_PRINT("sleep", ("Waiting for the group to be in read mode."));
-    mysql_cond_wait(&election_cond, &election_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&election_cond, &election_lock, &abstime);
   }
   mysql_mutex_unlock(&election_lock);
 
@@ -335,7 +341,9 @@ wait_for_queued_message:
   mysql_mutex_lock(&election_lock);
   while (!waiting_on_queue_applied_message && !election_process_aborted) {
     DBUG_PRINT("sleep", ("Waiting for own message about queued applied"));
-    mysql_cond_wait(&election_cond, &election_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&election_cond, &election_lock, &abstime);
   }
   mysql_mutex_unlock(&election_lock);
 
@@ -500,7 +508,9 @@ int Primary_election_primary_process::terminate_election_process(bool wait) {
     while (election_process_thd_state.is_thread_alive()) {
       DBUG_PRINT("sleep",
                  ("Waiting for the Primary election process thread to finish"));
-      mysql_cond_wait(&election_cond, &election_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&election_cond, &election_lock, &abstime);
     }
 
     assert(election_process_thd_state.is_thread_dead());
@@ -522,7 +532,9 @@ void Primary_election_primary_process::wait_on_election_process_termination() {
   while (election_process_thd_state.is_thread_alive()) {
     DBUG_PRINT("sleep",
                ("Waiting for the Primary election process thread to finish"));
-    mysql_cond_wait(&election_cond, &election_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&election_cond, &election_lock, &abstime);
   }
   assert(election_process_thd_state.is_thread_dead());
 

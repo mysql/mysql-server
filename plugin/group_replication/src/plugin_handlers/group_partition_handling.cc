@@ -126,7 +126,9 @@ int Group_partition_handling::launch_partition_handler_thread() {
 
   while (group_partition_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep", ("Waiting for the partition handler thread to start"));
-    mysql_cond_wait(&run_cond, &run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
   mysql_mutex_unlock(&run_lock);
 
