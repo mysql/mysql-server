@@ -1814,6 +1814,12 @@ bool Query_expression::execute(THD *thd) {
 
   assert(!unfinished_materialization());
 
+  // Collect information about the chosen query plan.
+  if (!is_executed()) {
+    CollectStatusVariables(thd, query_term()->query_block()->join,
+                           *root_access_path());
+  }
+
   /*
     Even if we return "true" the statement might continue
     (e.g. ER_SUBQUERY_1_ROW in stmt with IGNORE), so we want to restore

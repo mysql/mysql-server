@@ -1910,4 +1910,18 @@ const Mem_root_array<Item *> *GetExtraHashJoinConditions(
     const std::vector<HashJoinCondition> &equijoin_conditions,
     const Mem_root_array<Item *> &other_conditions);
 
+/**
+  Update status variables which count how many scans of various types are used
+  in a query plan.
+
+  The following status variables are updated: Select_scan, Select_full_join,
+  Select_range, Select_full_range_join, Select_range_check. They are also stored
+  as performance schema statement events with the same names.
+
+  In addition, the performance schema statement events NO_INDEX_USED and
+  NO_GOOD_INDEX_USED are updated, if appropriate.
+ */
+void CollectStatusVariables(THD *thd, const JOIN *top_join,
+                            const AccessPath &top_path);
+
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

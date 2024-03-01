@@ -3315,7 +3315,6 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab) {
 */
 
 bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
-  const bool statistics = !join->thd->lex->is_explain();
   const bool prep_for_pos = join->need_tmp_before_win ||
                             join->select_distinct ||
                             !join->group_list.empty() || !join->order.empty() ||
@@ -3366,7 +3365,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
                                    &trace_refine_table);
         break;
       case JT_ALL:
-        join->thd->set_status_no_index_used();
         qep_tab->using_dynamic_range = (tab->use_quick == QS_DYNAMIC_RANGE);
         [[fallthrough]];
       case JT_INDEX_SCAN:
@@ -3393,27 +3391,10 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
                   rows_w_const_cond / tab->position()->rows_fetched);
           }
         }
-        if (qep_tab->using_dynamic_range) {
-          join->thd->set_status_no_good_index_used();
-          if (statistics) join->thd->inc_status_select_range_check();
-        } else {
-          if (statistics) {
-            if (i == join->const_tables)
-              join->thd->inc_status_select_scan();
-            else
-              join->thd->inc_status_select_full_join();
-          }
-        }
         break;
       case JT_RANGE:
       case JT_INDEX_MERGE:
         qep_tab->using_dynamic_range = (tab->use_quick == QS_DYNAMIC_RANGE);
-        if (statistics) {
-          if (i == join->const_tables)
-            join->thd->inc_status_select_range();
-          else
-            join->thd->inc_status_select_full_range_join();
-        }
         if (!table->no_keyread && qep_tab->type() == JT_RANGE) {
           if (table->covering_keys.is_set(used_index(qep_tab->range_scan()))) {
             assert(used_index(qep_tab->range_scan()) != MAX_KEY);

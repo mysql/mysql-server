@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_hypergraph.inc  # Fails because of bug#34096590.
-
 CREATE USER user1@localhost;
 CREATE USER user2@localhost;
 CREATE USER user3@localhost;

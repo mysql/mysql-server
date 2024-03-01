@@ -125,9 +125,9 @@ void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
     case AccessPath::HASH_JOIN:
-      WalkAccessPaths(path->hash_join().outer, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
       WalkAccessPaths(path->hash_join().inner, join, cross_query_blocks,
+                      std::forward<Func &&>(func), post_order_traversal);
+      WalkAccessPaths(path->hash_join().outer, join, cross_query_blocks,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
     case AccessPath::FILTER:

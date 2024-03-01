@@ -3230,6 +3230,13 @@ bool ExecuteExistsQuery(THD *thd, Query_expression *qe, RowIterator *iterator,
     thd->lex->set_current_query_block(saved_query_block);
   });
 
+  // Collect information about the chosen plan for the subquery on the first
+  // execution.
+  if (!qe->is_executed()) {
+    const JOIN *const join = qe->first_query_block()->join;
+    CollectStatusVariables(thd, join, *join->root_access_path());
+  }
+
   Opt_trace_context *const trace = &thd->opt_trace;
   const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "join_execution");

@@ -2951,11 +2951,6 @@ bool CostingReceiver::ProposeTableScan(
   path.count_examined_rows = true;
   path.ordering_state = 0;
 
-  // Doing at least one table scan (this one), so mark the query as such.
-  // TODO(sgunders): Move out when we get more types and this access path could
-  // be replaced by something else.
-  m_thd->set_status_no_index_used();
-
   const double num_output_rows = table->file->stats.records;
   const double cost = table->file->table_scan_cost().total_cost();
 

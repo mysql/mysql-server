@@ -196,8 +196,8 @@ TEST(WalkAccessPathsTest, PostOrderTraversal) {
   // are cut off for post-order traversal, so we see all paths. (Because we've
   // already finished processing the subtree when the functor is called, its
   // returning true does not prevent us recursing into the subtree.)
-  EXPECT_THAT(paths, ElementsAre(&ts1, &ts2, &hj1, &ts3, &nlj2, &ts4, &ts5,
-                                 &ts6, &hj2, &nlj3, &nlj1));
+  EXPECT_THAT(paths, ElementsAre(&ts2, &ts1, &hj1, &ts3, &nlj2, &ts4, &ts6,
+                                 &ts5, &hj2, &nlj3, &nlj1));
 }
 
 TEST(WalkAccessPathsTest, ZeroRows) {

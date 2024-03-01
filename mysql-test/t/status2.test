@@ -87,7 +87,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
@@ -108,7 +107,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
@@ -117,7 +115,6 @@ TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 --eval $query
 --enable_result_log
 --enable_ps_protocol
---skip_if_hypergraph  # Bug#34096590.
 SELECT SUM_NO_INDEX_USED, SUM_NO_GOOD_INDEX_USED
 FROM performance_schema.events_statements_summary_by_digest
 WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
@@ -142,7 +139,6 @@ let $query = SELECT 1 FROM t WHERE x < 0 OR id > 100;
 --eval EXPLAIN FORMAT=TREE $query
 FLUSH STATUS;
 --eval $query
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Joins count table scans on left side as "select_scan" and table
@@ -155,7 +151,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Range scans on the left side of a join are counted as "select_range", and
@@ -169,7 +164,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Range scans on the right side of a join are counted as
@@ -183,7 +177,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # A join with a table scan on the left side and a primary index lookup
@@ -196,7 +189,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Dynamic range scans are counted as "select_range_check",
@@ -229,7 +221,6 @@ WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
 CREATE TABLE tt(x INT);
 FLUSH STATUS;
 INSERT INTO tt SELECT y FROM t;
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Multi-table UPDATE should count scans. Sees one "select_scan" for
@@ -237,7 +228,6 @@ SHOW STATUS LIKE 'select%';
 # the join.
 FLUSH STATUS;
 UPDATE tt, t SET tt.x = t.x WHERE tt.x = t.y;
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Similarly, multi-table DELETE counts scans. One "select_scan" for
@@ -245,7 +235,6 @@ SHOW STATUS LIKE 'select%';
 # the join.
 FLUSH STATUS;
 DELETE tt FROM tt, t WHERE tt.x = t.y;
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 DROP TABLE tt;
@@ -253,7 +242,6 @@ DROP TABLE tt;
 # SET statements should count the scans.
 FLUSH STATUS;
 SET @var = (SELECT SUM(y) FROM t);
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Scans in scalar subqueries in the SELECT list should be counted.
@@ -262,7 +250,6 @@ FLUSH STATUS;
 --disable_result_log
 SELECT (SELECT MAX(y) FROM t), y FROM t;
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Same with IN subqueries in the SELECT list.
@@ -271,7 +258,6 @@ FLUSH STATUS;
 --disable_result_log
 SELECT y IN (SELECT y + 1 FROM t) FROM t;
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # For a query with (non-merged) derived tables, the first table in
@@ -285,7 +271,6 @@ FROM t AS t1,
      (SELECT DISTINCT t3.y + t4.y FROM t t3, t t4 WHERE t3.y < t4.y) AS t2(y)
 WHERE t1.y <> t2.y;
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Counts three scans. Once for each operand of the UNION, and once for
@@ -297,7 +282,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 # Counts two scans. Once for each operand of the UNION. There is no
@@ -309,12 +293,10 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
-# Counts four scans, even though there are only three table scans. One
-# for each operand of the UNION, and the scan of the temporary table
-# is counted twice.
+# Counts three scans. One for each operand of the UNION, and one for
+# the scan of the temporary table.
 let $query =
 SELECT * FROM (SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t) AS dt;
 --replace_regex $elide_costs
@@ -323,7 +305,6 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Bug#34096590.
 SHOW STATUS LIKE 'select%';
 
 DROP TABLE t;

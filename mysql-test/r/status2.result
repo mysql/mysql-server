@@ -356,5 +356,5 @@ Select_full_join	0
 Select_full_range_join	0
 Select_range	0
 Select_range_check	0
-Select_scan	4
+Select_scan	3
 DROP TABLE t;
