@@ -320,17 +320,33 @@ class Multisource_info {
     return (is_valid);
   }
 
+  /// @brief Checks if a channel is the group replication applier channel
+  /// @param[in] channel Name of the channel to check
+  /// @returns true if it is the gr applier channel
+  bool is_group_replication_applier_channel_name(const char *channel);
+
+  /// @brief Checks if a channel is the group replication recovery channel
+  /// @param[in] channel Name of the channel to check
+  /// @returns true if it is the gr recovery channel
+  bool is_group_replication_recovery_channel_name(const char *channel);
+
   /**
     Returns if a channel name is one of the reserved group replication names
 
     @param channel    the channel name to test
-    @param is_applier compare only with applier name
 
     @retval      true   the name is a reserved name
     @retval      false  non reserved name
   */
-  bool is_group_replication_channel_name(const char *channel,
-                                         bool is_applier = false);
+  bool is_group_replication_channel_name(const char *channel);
+
+  /// @brief Check if the channel has an hostname or is a GR channel
+  /// @return true if the channel is configured or is a gr channel,
+  ///         false otherwise
+  bool is_channel_configured(Master_info *mi) {
+    return mi && (mi->host[0] ||
+                  is_group_replication_channel_name(mi->get_channel()));
+  }
 
   /**
      Forward iterators to initiate traversing of a map.
