@@ -2392,7 +2392,7 @@ extern "C" int ndb_mgm_connect_tls(NdbMgmHandle handle, int retries,
 
   // -5 is fatal (handshake failed); otherwise okay.
   if ((tls_level == CLIENT_TLS_RELAXED) && (r != -5)) {
-    SET_ERROR(handle, NDB_MGM_NO_ERROR, "Connected using cleartext");
+    SET_ERROR(handle, NDB_MGM_NO_ERROR, "No error");
     return 0;
   }
 
