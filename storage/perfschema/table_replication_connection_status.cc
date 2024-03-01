@@ -201,7 +201,7 @@ int table_replication_connection_status::rnd_next() {
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
-    if (mi && mi->host[0]) {
+    if (channel_map.is_channel_configured(mi)) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
       channel_map.unlock();
@@ -260,7 +260,7 @@ int table_replication_connection_status::index_next() {
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0]) {
+    if (channel_map.is_channel_configured(mi)) {
       if (m_opened_index->match(mi)) {
         if (!make_row(mi)) {
           m_next_pos.set_after(&m_pos);
@@ -297,7 +297,8 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
   if (is_group_replication_plugin_loaded() &&
-      channel_map.is_group_replication_channel_name(mi->get_channel(), true)) {
+      channel_map.is_group_replication_applier_channel_name(
+          mi->get_channel())) {
     /*
       Group Replication applier channel.
       Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.

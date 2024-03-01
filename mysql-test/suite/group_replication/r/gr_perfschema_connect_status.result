@@ -1,6 +1,6 @@
+include/assert.inc [There should be no row in the table]
+include/assert.inc [There should be no row in the table]
 SET GLOBAL group_replication_group_name= "8a94f356-aab3-11de-86aa-b80aa9429561";
-include/assert.inc [The value of group name should be 8a94f356-aab3-11de-86aa-b80aa9429561]
-include/assert.inc [The value of service state before Group Replication start should be OFF]
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [The value of group name should be 8a94f356-aab3-11de-86aa-b80aa9429561]
 include/assert.inc [The value of service state after Group Replication start should be ON]

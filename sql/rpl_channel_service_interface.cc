@@ -144,7 +144,8 @@ static void set_mi_settings(Master_info *mi,
     Group replication applier channel shall not use checksum on its relay log
     files.
   */
-  if (channel_map.is_group_replication_channel_name(mi->get_channel(), true)) {
+  if (channel_map.is_group_replication_applier_channel_name(
+          mi->get_channel())) {
     fde->footer()->checksum_alg = mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
     /*
       When the receiver thread connects to the master, it gets its current

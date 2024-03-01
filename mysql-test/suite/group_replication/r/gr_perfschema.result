@@ -1,11 +1,6 @@
-include/group_replication.inc
-Warnings:
-Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-[connection server1]
 
 ############################################################
-# 1. Before start Group Replication channels are not present
+# 1. Before configuration/start Group Replication channels are not present
 #    on common replication P_S tables.
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_configuration table']
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_status table']
@@ -13,11 +8,40 @@ include/assert.inc ['There is no Group Replication applier channel on performanc
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status table']
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+include/assert.inc ['There is no Group Replication recovery channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is no Group Replication recovery channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is no Group Replication recovery channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is no Group Replication recovery channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is no Group Replication recovery channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is no Group Replication recovery channel on performance_schema.replication_applier_status_by_worker table']
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
 
 ############################################################
-# 2. After start Group Replication channels are present
+# 2. If configured, Group Replication channels are now present
 #    on common replication P_S tables.
+[connection server1]
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There are no Group Replication channels on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There are no Group Replication channels on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 3. After start Group Replication channels are present
+#    on common replication P_S tables.
+[connection server2]
 include/start_and_bootstrap_group_replication.inc
+[connection server1]
 include/start_group_replication.inc
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_configuration table']
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_status table']
@@ -25,13 +49,19 @@ include/assert.inc ['There is a Group Replication applier channel on performance
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status table']
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_applier_status table']
 
 ############################################################
-# 3. Group Replication running channels sample output
+# 4. Group Replication running channels sample output
 #    on common replication P_S tables.
+[connection server2]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 include/rpl/sync.inc
+[connection server1]
 #group_replication_recovery channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery";
 CHANNEL_NAME	group_replication_recovery
@@ -116,7 +146,7 @@ QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	0000-00-00 00:00:00.000000
 SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
 DESIRED_DELAY	0
-PRIVILEGE_CHECKS_USER	NULL
+PRIVILEGE_CHECKS_USER	'root'@'localhost'
 REQUIRE_ROW_FORMAT	YES
 REQUIRE_TABLE_PRIMARY_KEY_CHECK	STREAM
 ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	OFF
@@ -172,14 +202,17 @@ APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE
 APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 
 ############################################################
-# 4. Clean up data.
+# 5. Clean up data.
+[connection server2]
 DROP TABLE t1;
 include/rpl/sync.inc
 
 ############################################################
-# 5. Stop Group Replication, channels must continue to be
+# 6. Stop Group Replication, channels must continue to be
 #    present on common replication P_S tables.
+[connection server2]
 include/stop_group_replication.inc
+[connection server1]
 include/stop_group_replication.inc
 include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_connection_configuration table']
 include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_connection_status table']
@@ -189,7 +222,7 @@ include/assert.inc ['There is still no Group Replication applier channel on perf
 include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
 
 ############################################################
-# 6. Group Replication stopped channels sample output
+# 7. Group Replication stopped channels sample output
 #    on common replication P_S tables.
 #group_replication_recovery channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery";
@@ -275,7 +308,7 @@ QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP	0000-00-00 00:00:00.000000
 SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
 DESIRED_DELAY	0
-PRIVILEGE_CHECKS_USER	NULL
+PRIVILEGE_CHECKS_USER	'root'@'localhost'
 REQUIRE_ROW_FORMAT	YES
 REQUIRE_TABLE_PRIMARY_KEY_CHECK	STREAM
 ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	OFF
@@ -331,7 +364,7 @@ APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE
 APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
 
 ############################################################
-# 7. Group Replication channel must not be present on common
+# 8. Group Replication channel must not be present on common
 #    replication P_S tables after a RESET ALL command.
 RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_configuration table']
@@ -342,5 +375,5 @@ include/assert.inc ['There is no Group Replication applier channel on performanc
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
 
 ############################################################
-# 8. Test end.
+# 9. Test end.
 include/group_replication_end.inc

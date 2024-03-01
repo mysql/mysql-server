@@ -31,6 +31,7 @@
 --echo ############################################################
 --echo # 1. Before start Group Replication channels are not present
 --echo #    on common replication P_S tables.
+# Cause it was configured, the recovery channel appears on some tables
 --let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_connection_configuration table'
 --let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
@@ -47,12 +48,12 @@
 --let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
---let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
+--let $assert_text= 'There are no Group Replication channels on performance_schema.replication_applier_status_by_coordinator table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_coordinator;
 --source include/assert.inc
 
---let $assert_text= 'There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table'
---let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
+--let $assert_text= 'There are no Group Replication channels on performance_schema.replication_applier_status_by_worker table'
+--let $assert_cond= COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_worker;
 --source include/assert.inc
 
 
@@ -63,6 +64,10 @@
 --let $rpl_connection_name= server2
 --source include/connection.inc
 --source include/start_and_bootstrap_group_replication.inc
+
+# Data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
 --let $rpl_connection_name= server1
 --source include/connection.inc
 --source include/start_group_replication.inc
@@ -91,6 +96,13 @@
 --let $assert_cond= COUNT(*) = 4 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
 --source include/assert.inc
 
+--let $assert_text= 'There is a Group Replication recovery channel on performance_schema.replication_applier_status_by_coordinator table'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_recovery"
+--source include/assert.inc
+
+--let $assert_text= 'There are four Group Replication recovery channel workers on performance_schema.replication_applier_status_by_worker table'
+--let $assert_cond= COUNT(*) = 4 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_recovery"
+--source include/assert.inc
 
 --echo
 --echo ############################################################
@@ -101,7 +113,6 @@
 # Execute some transactions on server2 to make server1
 # performance_schema.replication_connection_status.RECEIVED_TRANSACTION_SET
 # not empty.
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 --source include/rpl/sync.inc
 

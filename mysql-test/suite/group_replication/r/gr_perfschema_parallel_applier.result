@@ -11,14 +11,15 @@ include/assert.inc ['There is no Group Replication applier channel on performanc
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_status table']
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_configuration table']
 include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status table']
-include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
-include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+include/assert.inc ['There are no Group Replication channels on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There are no Group Replication channels on performance_schema.replication_applier_status_by_worker table']
 
 ############################################################
 # 2. After start Group Replication channels are present
 #    on common replication P_S tables.
 [connection server2]
 include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 [connection server1]
 include/start_group_replication.inc
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_configuration table']
@@ -27,12 +28,13 @@ include/assert.inc ['There is a Group Replication applier channel on performance
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status table']
 include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
 include/assert.inc ['There are four Group Replication applier channel workers on performance_schema.replication_applier_status_by_worker table']
+include/assert.inc ['There is a Group Replication recovery channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There are four Group Replication recovery channel workers on performance_schema.replication_applier_status_by_worker table']
 
 ############################################################
 # 3. Group Replication running channels sample output
 #    on common replication P_S tables.
 [connection server2]
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 include/rpl/sync.inc
 [connection server1]
@@ -74,7 +76,7 @@ THREAD_ID	NULL
 SERVICE_STATE	ON
 COUNT_RECEIVED_HEARTBEATS	0
 LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00.000000
-RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429445:1-2
+RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429445:2
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
 LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000
@@ -279,7 +281,7 @@ THREAD_ID	NULL
 SERVICE_STATE	OFF
 COUNT_RECEIVED_HEARTBEATS	0
 LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00.000000
-RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429445:1-3
+RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429445:2-3
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
 LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00.000000

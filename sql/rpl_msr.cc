@@ -180,13 +180,19 @@ bool Multisource_info::delete_mi(const char *channel_name) {
   return false;
 }
 
-bool Multisource_info::is_group_replication_channel_name(const char *channel,
-                                                         bool is_applier) {
-  if (is_applier)
-    return !strcmp(channel, group_replication_channel_names[0]);
-  else
-    return !strcmp(channel, group_replication_channel_names[0]) ||
-           !strcmp(channel, group_replication_channel_names[1]);
+bool Multisource_info::is_group_replication_applier_channel_name(
+    const char *channel) {
+  return !strcmp(channel, group_replication_channel_names[0]);
+}
+
+bool Multisource_info::is_group_replication_recovery_channel_name(
+    const char *channel) {
+  return !strcmp(channel, group_replication_channel_names[1]);
+}
+
+bool Multisource_info::is_group_replication_channel_name(const char *channel) {
+  return is_group_replication_applier_channel_name(channel) ||
+         is_group_replication_recovery_channel_name(channel);
 }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
