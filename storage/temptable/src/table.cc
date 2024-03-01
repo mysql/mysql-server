@@ -38,6 +38,7 @@ TempTable Table implementation. */
 #include "sql/key.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/block.h"
 #include "storage/temptable/include/temptable/cursor.h"
 #include "storage/temptable/include/temptable/index.h"
 #include "storage/temptable/include/temptable/indexed_cells.h"
