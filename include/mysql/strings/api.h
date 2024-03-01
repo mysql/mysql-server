@@ -29,20 +29,20 @@
 #if defined(_MSC_VER)  // for Visual Studio only
 
 #if defined(MYSQL_LIBSTRINGS_DLL)
-   // we are here when building strings_shared.DLL
-#  define MYSQL_STRINGS_EXPORT __declspec(dllexport)
-#elif defined(MYSQL_PROJECT) && !defined(MYSQL_DYNAMIC_PLUGIN)
-   //  we are here when building the MySQL server source tree excluding plugins
-#  define MYSQL_STRINGS_EXPORT
-#else
-   // we are here when building
-   //    a) external projects referencing this file
-   // or
-   //    b) MySQL server plugins in the MySQL server tree
+#  if defined(MYSQL_LIBSTRINGS_EXPORT)
+#    define MYSQL_STRINGS_EXPORT __declspec(dllexport)
+#  else
+#    define MYSQL_STRINGS_EXPORT __declspec(dllimport)
+#  endif
+#elif defined(MYSQL_DYNAMIC_PLUGIN)
+   // Plugins will get these symbols from mysqld. All variables
+   // used by loadable plugins must be explicitly declared for import.
 #  define MYSQL_STRINGS_EXPORT __declspec(dllimport)
+#else
+#  define MYSQL_STRINGS_EXPORT
 #endif
 
-#else  // for platforms other than Visual Studio
+#else  // For platforms other than Windows
 
 #define MYSQL_STRINGS_EXPORT __attribute__((visibility("default")))
 

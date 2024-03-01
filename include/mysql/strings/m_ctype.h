@@ -468,7 +468,7 @@ struct CHARSET_INFO {
 /*
   NOTE: You cannot use a CHARSET_INFO without it having been initialized first.
   In particular, they are not initialized when a unit test starts; do not use
-  these globals indiscriminately from there, and do not add more. Instead,
+  these globals indiscriminately from here, and do not add more. Instead,
   initialize them using my_collation_get_by_name().
 */
 
