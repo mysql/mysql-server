@@ -278,12 +278,13 @@ int Group_action_coordinator::stop_coordinator_process(bool coordinator_stop,
 
   if (wait) {
     mysql_mutex_lock(&group_thread_run_lock);
-    // Signal in case the thread is waiting for other members to finish
-    mysql_cond_broadcast(&group_thread_end_cond);
     while (action_handler_thd_state.is_thread_alive()) {
       DBUG_PRINT("sleep",
                  ("Waiting for the group action execution thread to end"));
-      mysql_cond_wait(&group_thread_run_cond, &group_thread_run_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&group_thread_run_cond, &group_thread_run_lock,
+                           &abstime);
     }
     mysql_mutex_unlock(&group_thread_run_lock);
   }
@@ -743,7 +744,10 @@ void Group_action_coordinator::signal_and_wait_action_termination(bool wait) {
     while (action_handler_thd_state.is_thread_alive()) {
       DBUG_PRINT("sleep",
                  ("Waiting for the group action execution thread to end"));
-      mysql_cond_wait(&group_thread_run_cond, &group_thread_run_lock);
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&group_thread_run_cond, &group_thread_run_lock,
+                           &abstime);
     }
   }
   mysql_mutex_unlock(&group_thread_run_lock);
@@ -853,7 +857,10 @@ int Group_action_coordinator::launch_group_action_handler_thread() {
   while (action_handler_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep",
                ("Waiting for the group action execution thread to start"));
-    mysql_cond_wait(&group_thread_run_cond, &group_thread_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&group_thread_run_cond, &group_thread_run_lock,
+                         &abstime);
   }
   mysql_mutex_unlock(&group_thread_run_lock);
 
@@ -957,7 +964,10 @@ int Group_action_coordinator::execute_group_action_handler() {
   while (action_running && !coordinator_terminating) {
     DBUG_PRINT("sleep",
                ("Waiting for the group action execution process to terminate"));
-    mysql_cond_wait(&group_thread_end_cond, &group_thread_end_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&group_thread_end_cond, &group_thread_end_lock,
+                         &abstime);
   }
   mysql_mutex_unlock(&group_thread_end_lock);
 
