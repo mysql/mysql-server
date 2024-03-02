@@ -757,10 +757,12 @@ class Item_func_char final : public Item_str_func {
   Item_func_char(const POS &pos, PT_item_list *list)
       : Item_str_func(pos, list) {
     collation.set(&my_charset_bin);
+    null_on_null = false;
   }
   Item_func_char(const POS &pos, PT_item_list *list, const CHARSET_INFO *cs)
       : Item_str_func(pos, list) {
     collation.set(cs);
+    null_on_null = false;
   }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {

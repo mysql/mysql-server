@@ -2687,3 +2687,19 @@ SELECT a, CONVERT(a USING latin1) FROM t1 ORDER BY CONVERT(a USING utf8mb4);
 SELECT a FROM t1 ORDER BY CONVERT(a USING utf8mb4);
 
 DROP TABLE t1;
+
+--echo # Bug#36118590: Inconsistent results caused by JOIN tables and CHAR func
+
+CREATE TABLE t0 (vkey INTEGER);
+CREATE TABLE t1 (vkey INTEGER);
+INSERT INTO t0 (vkey) VALUES (6);
+
+SELECT 1 AS c_0
+FROM t0 LEFT JOIN t1 ON t0.vkey = t1.vkey
+WHERE CHAR(CASE WHEN FALSE THEN t1.vkey ELSE t1.vkey END) NOT LIKE 'YVR';
+
+SELECT 1 AS c_0
+FROM t0 LEFT JOIN t1 ON t0.vkey = t1.vkey
+WHERE CHAR(t1.vkey) NOT LIKE 'YVR';
+
+DROP TABLE t0, t1;
