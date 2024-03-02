@@ -10404,7 +10404,10 @@ ER_LH_INVALID_JSON_FILE_FORMAT_SCHEMA
   eng "Invalid json file format schema: %s"
 
 ER_LH_INFER_JSON_INVALID_SCHEMA
-  eng "File %s: Inferred invalid schema. A single column with JSON type is the only valid schema for JSON file format."
+  eng "Inferred invalid schema. A single column with JSON type is the only valid schema for JSON file format."
+
+ER_LH_JSON_FILE_FORMAT_WARN_INFER_SCHEMA
+  eng "Altered the inferred schema to a single JSON column."
 
 ER_NON_SCALAR_USED_AS_KEY
   eng "Non-scalar (e.g., vector) column '%.64s' cannot be used as key."
