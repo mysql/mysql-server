@@ -3861,6 +3861,11 @@ int runBug30780(NDBT_Context *ctx, NDBT_Step *step) {
         res.insertErrorInNode(master, 7007);
         break;
     }
+
+    // Error is consumed only in one DBTC block.
+    // Force error to be cleared in all DBTC instances.
+    res.insertErrorInNode(next, 0);
+
     ndbout_c("waiting for %u", master);
     res.waitNodesNoStart(&master, 1);
     ndbout_c("starting %u", master);

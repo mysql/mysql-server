@@ -3786,10 +3786,6 @@ void Dblqh::dropTab_wait_usage(Signal *signal) {
         }
       }
     }
-    if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089)) {
-      jam();
-      CLEAR_ERROR_INSERT_VALUE;
-    }
   }
 
   if (!lcpDone) {

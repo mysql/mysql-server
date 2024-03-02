@@ -64,7 +64,6 @@ class Cmvmi : public SimulatedBlock {
   void execCANCEL_SUBSCRIPTION_REQ(Signal *);
 
   void execTESTSIG(Signal *signal);
-  void execNODE_START_REP(Signal *signal);
 
   void execCONTINUEB(Signal *signal);
 

@@ -40,6 +40,7 @@
 #include <Vector.hpp>
 #include "../../src/ndbapi/ndb_cluster_connection_impl.hpp"
 #include "NDBT_ReturnCodes.h"
+#include "NdbRestarter.hpp"
 
 class NDBT_Step;
 class NDBT_TestCase;
@@ -258,6 +259,7 @@ class NDBT_TestCase {
   virtual int runSteps(NDBT_Context *ctx) = 0;
   virtual int runVerifier(NDBT_Context *ctx) = 0;
   virtual int runFinal(NDBT_Context *ctx) = 0;
+  virtual int runCheckNoErrorInserted(NDBT_Context *ctx) = 0;
   virtual void addTable(const char *aTableName, bool isVerify = true) = 0;
 
   void startTimer(NDBT_Context *);
@@ -271,6 +273,7 @@ class NDBT_TestCase {
   NdbTimer timer;
   bool isVerifyTables;
   NDBT_DriverType m_driverType;
+  NdbRestarter _restarter;
 };
 
 static const int FAILED_TO_CREATE = 1000;
@@ -318,6 +321,7 @@ class NDBT_TestCaseImpl1 : public NDBT_TestCase {
   int runSteps(NDBT_Context *ctx) override;
   int runVerifier(NDBT_Context *ctx) override;
   int runFinal(NDBT_Context *ctx) override;
+  int runCheckNoErrorInserted(NDBT_Context *ctx) override;
   void print() override;
   void printHTML() override;
 

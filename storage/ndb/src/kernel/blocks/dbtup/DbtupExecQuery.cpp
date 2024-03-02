@@ -333,6 +333,7 @@ int Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct,
     g_eventLogger->info(" Exiting.");
     ndbabort();
   }
+  // Clear error 4036 caught in handleDeleteReq
   (void)ERROR_INSERTED_CLEAR(4036);
   terrorCode = ZTUPLE_CORRUPTED_ERROR;
   tupkeyErrorLab(req_struct);
