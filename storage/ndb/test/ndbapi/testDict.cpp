@@ -312,6 +312,13 @@ int runSetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int runClearErrorInsert(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+  CHECK3(restarter.insertErrorInAllNodes(0) == 0,
+         "failed to clear error insert value");
+  return NDBT_OK;
+}
+
 int runResetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   int result;
@@ -671,6 +678,8 @@ int runCreateAndDropAtRandom(NDBT_Context *ctx, NDBT_Step *step) {
       numExists--;
       if (numExists == 0) bias = 1;
     }
+    g_info << "Clear error insert 4013" << endl;
+    CHECK(restarter.insertErrorInAllNodes(0) == 0);
     i++;
   }
 
@@ -1084,6 +1093,11 @@ static int runDropTakeoverTest(NDBT_Context *ctx, NDBT_Step *step) {
     return NDBT_FAILED;
   }
 
+  g_info << "Clear error insert" << endl;
+  if (restarter.insertErrorInAllNodes(0) != 0) {
+    g_info << "Failed to clear error 5076/5077" << endl;
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
@@ -2490,6 +2504,7 @@ int runTableAddAttrsDuring(NDBT_Context *ctx, NDBT_Step *step) {
     ndbout << "Altering table" << endl;
 
     const NdbDictionary::Table *oldTable = dict->getTable(myTab.getName());
+    int nodeId = 0;
     if (oldTable) {
       NdbDictionary::Table newTable = *oldTable;
 
@@ -2500,12 +2515,11 @@ int runTableAddAttrsDuring(NDBT_Context *ctx, NDBT_Step *step) {
                              true);
       newTable.addColumn(newcol1);
       // ToDo: check #loops, how many columns l
-
       if (abortAlter == 0) {
         CHECK2(dict->alterTable(*oldTable, newTable) == 0,
                "TableAddAttrsDuring failed");
       } else {
-        int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+        nodeId = res.getNode(NdbRestarter::NS_RANDOM);
         res.insertErrorInNode(nodeId, 4029);
         CHECK2(dict->alterTable(*oldTable, newTable) != 0,
                "TableAddAttrsDuring failed");
@@ -2519,6 +2533,10 @@ int runTableAddAttrsDuring(NDBT_Context *ctx, NDBT_Step *step) {
     } else {
       result = NDBT_FAILED;
       break;
+    }
+    if (nodeId) {
+      CHECK2(res.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clear error insert");
     }
   }
 end:
@@ -10949,6 +10967,7 @@ TESTCASE("DropTableConcurrentLCP", "Drop a table while LCP is ongoing\n") {
   INITIALIZER(runSetMinTimeBetweenLCP);
   INITIALIZER(runSetDropTableConcurrentLCP);
   INITIALIZER(runDropTheTable);
+  FINALIZER(runClearErrorInsert);
   FINALIZER(runResetMinTimeBetweenLCP);
 }
 TESTCASE("DropTableConcurrentLCP2", "Drop a table while LCP is ongoing\n") {
@@ -10957,6 +10976,7 @@ TESTCASE("DropTableConcurrentLCP2", "Drop a table while LCP is ongoing\n") {
   INITIALIZER(runSetMinTimeBetweenLCP);
   INITIALIZER(runSetDropTableConcurrentLCP2);
   INITIALIZER(runDropTheTable);
+  FINALIZER(runClearErrorInsert);
   FINALIZER(runResetMinTimeBetweenLCP);
 }
 TESTCASE("CreateTableWhenDbIsFull",

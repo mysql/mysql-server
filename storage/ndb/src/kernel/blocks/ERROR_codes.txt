@@ -30,8 +30,8 @@ Next DBLQH 5112
 Next DBDICT 6223
 Next DBDIH 7251
 Next DBTC 8124
-Next CMVMI 9000
-Next TRPMAN 9501
+Next TRPMAN 9007
+Next CMVMI 9993              Note: CMVMI grows downwards
 Next BACKUP 10057
 Next PGMAN 11010
 Next DBTUX 12010
@@ -512,11 +512,16 @@ DBTC Api failure testing
 8122: Api disconnect later during SCAN ZSEND_FRAG_SCANS CONTINUEB
 
 
+TRPMAN
+-----
+9000: Set RestartOnErrorInsert to restart -n
+
+9500: Delaying ENABLE_COMREQ signal for 5s
+
 CMVMI
 -----
-9000 Set RestartOnErrorInsert to restart -n
-9998 Enter endless loop (trigger watchdog)
-9999 Crash system immediatly
+9998: Enter endless loop (trigger watchdog)
+9999: Crash system immediately
 
 Test Crashes in handling node restarts
 --------------------------------------

@@ -515,9 +515,6 @@ int NdbBackup::NF(NdbRestarter &_restarter, int *NFDuringBackup_codes,
     CHECK(_restarter.dumpStateAllNodes(val2, 2) == 0,
           "failed to check backup resources RestartOnErrorInsert");
 
-    CHECK(_restarter.insertErrorInNode(nodeId, 10099) == 0,
-          "failed to set error insert");
-
     NdbSleep_SecSleep(1);
   }
 
@@ -552,13 +549,13 @@ int NdbBackup::Fail(NdbRestarter &_restarter, int *Fail_codes, const int sz,
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
 
+  int nodeId;
   for (int i = 0; i < sz; i++) {
     int error = Fail_codes[i];
     unsigned int backupId;
 
     const int masterNodeId = _restarter.getMasterNodeId();
     CHECK(masterNodeId > 0, "getMasterNodeId failed");
-    int nodeId;
 
     nodeId = masterNodeId;
     if (!onMaster) {
@@ -590,7 +587,8 @@ int NdbBackup::Fail(NdbRestarter &_restarter, int *Fail_codes, const int sz,
 
     CHECK(_restarter.waitClusterStarted() == 0, "waitClusterStarted failed");
 
-    CHECK(_restarter.insertErrorInNode(nodeId, 10099) == 0,
+    // Clear current error inserted (Fail_codes[i])
+    CHECK(_restarter.insertErrorInNode(nodeId, 0) == 0,
           "failed to set error insert");
 
     NdbSleep_SecSleep(5);

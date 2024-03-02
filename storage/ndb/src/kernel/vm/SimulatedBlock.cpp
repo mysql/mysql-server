@@ -2256,11 +2256,29 @@ void SimulatedBlock::execCHANGE_NODE_STATE_REQ(Signal *signal) {
 }
 
 void SimulatedBlock::execNDB_TAMPER(Signal *signal) {
+#ifdef ERROR_INSERT
+  g_eventLogger->info("NDB_TAMPER : block %s/%u error %u %u -> %u %u",
+                      getBlockName(refToMain(reference()), "Unknown"),
+                      instance(), ERROR_INSERT_VALUE, ERROR_INSERT_EXTRA,
+                      signal->theData[0],
+                      signal->getLength() > 1 ? signal->theData[1] : 0);
+  if (signal->theData[0] == 1) {
+    /* Check that error insert cleared everywhere */
+    if (ERROR_INSERT_VALUE != 0 || ERROR_INSERT_EXTRA != 0) {
+      g_eventLogger->info("NDB_TAMPER : ERROR_INSERT not cleared %u %u\n",
+                          ERROR_INSERT_VALUE, ERROR_INSERT_EXTRA);
+      jam();
+      ndbabort();
+    }
+    return;
+  }
+
   if (signal->getLength() == 1) {
     SET_ERROR_INSERT_VALUE(signal->theData[0]);
   } else {
     SET_ERROR_INSERT_VALUE2(signal->theData[0], signal->theData[1]);
   }
+#endif
 }
 
 void SimulatedBlock::execSIGNAL_DROPPED_REP(Signal *signal) {
