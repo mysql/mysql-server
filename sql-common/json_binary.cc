@@ -58,26 +58,6 @@
 #endif  // MYSQL_SERVER
 
 namespace {
-
-constexpr char JSONB_TYPE_SMALL_OBJECT = 0x0;
-constexpr char JSONB_TYPE_LARGE_OBJECT = 0x1;
-constexpr char JSONB_TYPE_SMALL_ARRAY = 0x2;
-constexpr char JSONB_TYPE_LARGE_ARRAY = 0x3;
-constexpr char JSONB_TYPE_LITERAL = 0x4;
-constexpr char JSONB_TYPE_INT16 = 0x5;
-constexpr char JSONB_TYPE_UINT16 = 0x6;
-constexpr char JSONB_TYPE_INT32 = 0x7;
-constexpr char JSONB_TYPE_UINT32 = 0x8;
-constexpr char JSONB_TYPE_INT64 = 0x9;
-constexpr char JSONB_TYPE_UINT64 = 0xA;
-constexpr char JSONB_TYPE_DOUBLE = 0xB;
-constexpr char JSONB_TYPE_STRING = 0xC;
-constexpr char JSONB_TYPE_OPAQUE = 0xF;
-
-constexpr char JSONB_NULL_LITERAL = 0x0;
-constexpr char JSONB_TRUE_LITERAL = 0x1;
-constexpr char JSONB_FALSE_LITERAL = 0x2;
-
 /*
   The size of offset or size fields in the small and the large storage
   format for JSON objects and JSON arrays.

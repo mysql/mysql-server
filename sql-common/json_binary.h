@@ -171,6 +171,25 @@ class String;
 
 namespace json_binary {
 
+inline constexpr char JSONB_TYPE_SMALL_OBJECT = 0x0;
+inline constexpr char JSONB_TYPE_LARGE_OBJECT = 0x1;
+inline constexpr char JSONB_TYPE_SMALL_ARRAY = 0x2;
+inline constexpr char JSONB_TYPE_LARGE_ARRAY = 0x3;
+inline constexpr char JSONB_TYPE_LITERAL = 0x4;
+inline constexpr char JSONB_TYPE_INT16 = 0x5;
+inline constexpr char JSONB_TYPE_UINT16 = 0x6;
+inline constexpr char JSONB_TYPE_INT32 = 0x7;
+inline constexpr char JSONB_TYPE_UINT32 = 0x8;
+inline constexpr char JSONB_TYPE_INT64 = 0x9;
+inline constexpr char JSONB_TYPE_UINT64 = 0xA;
+inline constexpr char JSONB_TYPE_DOUBLE = 0xB;
+inline constexpr char JSONB_TYPE_STRING = 0xC;
+inline constexpr char JSONB_TYPE_OPAQUE = 0xF;
+
+inline constexpr char JSONB_NULL_LITERAL = 0x0;
+inline constexpr char JSONB_TRUE_LITERAL = 0x1;
+inline constexpr char JSONB_FALSE_LITERAL = 0x2;
+
 void write_offset_or_size(char *dest, size_t offset_or_size, bool large);
 
 bool append_offset_or_size(String *dest, size_t offset_or_size, bool large);
