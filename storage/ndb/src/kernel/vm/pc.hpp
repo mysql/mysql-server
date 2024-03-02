@@ -205,15 +205,24 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define ERROR_INSERT_VARIABLE \
   mutable UintR cerrorInsert{0}, c_error_insert_extra { 0 }
 #define ERROR_INSERTED(x) (unlikely(cerrorInsert == (x)))
-#define ERROR_INSERTED_CLEAR(x) \
-  (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
+#define ERROR_INSERTED_CLEAR(x)                                             \
+  (cerrorInsert == (x) ? (cerrorInsert = 0, c_error_insert_extra = 0, true) \
+                       : false)
 #define ERROR_INSERT_VALUE cerrorInsert
 #define ERROR_INSERT_EXTRA c_error_insert_extra
-#define SET_ERROR_INSERT_VALUE(x) cerrorInsert = x
+#define SET_ERROR_INSERT_VALUE(x) \
+  do {                            \
+    cerrorInsert = x;             \
+    c_error_insert_extra = 0;     \
+  } while (0)
 #define SET_ERROR_INSERT_VALUE2(x, y) \
   cerrorInsert = x;                   \
   c_error_insert_extra = y
-#define CLEAR_ERROR_INSERT_VALUE cerrorInsert = 0
+#define CLEAR_ERROR_INSERT_VALUE \
+  do {                           \
+    cerrorInsert = 0;            \
+    c_error_insert_extra = 0;    \
+  } while (0)
 #define CLEAR_ERROR_INSERT_EXTRA c_error_insert_extra = 0
 #else
 #define ERROR_INSERT_VARIABLE \

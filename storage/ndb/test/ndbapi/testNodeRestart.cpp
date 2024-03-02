@@ -768,6 +768,7 @@ int runDirtyRead(NDBT_Context *ctx, NDBT_Step *step) {
     restarter.waitClusterStarted(60);
     CHK_NDB_READY(pNdb);
   }
+  CHECK(restarter.insertErrorInAllNodes(0) == 0, "Failed to clear insertError");
   return result;
 err:
   hugoOps.closeTransaction(pNdb);
@@ -2338,6 +2339,9 @@ int runBug27466(NDBT_Context *ctx, NDBT_Step *step) {
 
     res.startNodes(&node1, 1);
     if (res.waitClusterStarted()) return NDBT_FAILED;
+    // Error is consumed only in one DBTC block.
+    // Force error to be cleared in all DBTC instances.
+    CHECK(res.insertErrorInNode(node2, 0) == 0, "Failed to clear insertError");
   }
 
   return NDBT_OK;
@@ -7986,6 +7990,8 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step) {
     HugoTransactions trans(*pDict->getTable(tab.getName()));
     trans.loadTable(pNdb, ctx->getNumRecords());
     trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+    CHECK(restarter.insertErrorInNode(node_1, 0) == 0,
+          "Failed to clear insertError");
     return NDBT_OK;
   }
   /**

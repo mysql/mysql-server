@@ -1526,17 +1526,9 @@ int runBug54945(NDBT_Context *ctx, NDBT_Step *step) {
 
   while (loops--) {
     int node = res.getNode(NdbRestarter::NS_RANDOM);
-    int err = 0;
     printf("node: %u ", node);
-    switch (loops % 2) {
-      case 0:
-        [[fallthrough]];
-      case 1:
-        err = 5057;
-        res.insertErrorInNode(node, 5057);
-        ndbout_c("error 5057");
-        break;
-    }
+    res.insertErrorInNode(node, 5057);
+    ndbout_c("error 5057");
 
     for (int i = 0; i < 25; i++) {
       NdbTransaction *pCon = pNdb->startTransaction();
@@ -1564,6 +1556,8 @@ int runBug54945(NDBT_Context *ctx, NDBT_Step *step) {
       pCon->execute(NoCommit);
       pCon->close();
     }
+    // Clear error 5057
+    res.insertErrorInNode(node, 0);
   }
 
   return NDBT_OK;
@@ -1859,7 +1853,8 @@ static int doCheckSumQuery(NDBT_Context *ctx, NDBT_Step *step) {
       require(false);
   }
   ndb->closeTransaction(trans);
-
+  // Clear error insert 4036
+  require(restarter.insertErrorInNode(nodeId, 0) == 0);
   return res;
 }
 
