@@ -2851,7 +2851,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
       dynstr_set_checked(&insert_pat, "");
   }
 
-  insert_option = ((opt_ignore || skip_ddl) ? " IGNORE " : "");
+  insert_option = ((opt_ignore || skip_ddl) ? "IGNORE " : "");
 
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
