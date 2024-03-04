@@ -683,7 +683,7 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
     /* This means there was no reset for this file and hence the
     reset block was not flushed. */
 
-    ut_ad(Arch_Block::is_zeroes(buf));
+    ut_ad(ut::is_zeros(buf, ARCH_PAGE_BLK_SIZE));
     info.m_reset_pos.init();
     info.m_reset_pos.m_block_num = file_index;
     return err;

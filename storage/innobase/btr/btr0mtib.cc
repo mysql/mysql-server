@@ -271,7 +271,7 @@ static void check_page(dict_index_t *index, const page_no_t page_no) {
   ut_ad(block->get_page_zip() == nullptr);
   auto buf = buf_block_get_frame(block);
 
-  ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(buf), page_size.physical()));
+  ut_ad(!ut::is_zeros(buf, page_size.physical()));
 
   auto reporter = BlockReporter(check_lsn, buf, page_size, skip_checksum);
   const bool is_corrupted = reporter.is_corrupted();
@@ -354,8 +354,7 @@ dberr_t Page_extent::bulk_flush_linux(fil_node_t *node, struct iovec *iov,
     ut_ad(iov[i].iov_base != nullptr);
     iov[i].iov_len = page_size; /* Physical page size */
 
-    ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(iov[i].iov_base),
-                                 iov[i].iov_len));
+    ut_ad(!ut::is_zeros(iov[i].iov_base, iov[i].iov_len));
 #ifdef UNIV_DEBUG
     const page_no_t disk_page_no = mach_read_from_4(buf + FIL_PAGE_OFFSET);
     ut_ad(disk_page_no == page_load->get_page_no());
@@ -414,7 +413,7 @@ dberr_t Page_extent::flush_one_by_one(fil_node_t *node) {
     void *buf = page_load->get_page();
     ut_ad(buf != nullptr);
 
-    ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(buf), physical_page_size));
+    ut_ad(!ut::is_zeros(buf, physical_page_size));
     {
       ulint buflen = physical_page_size;
       /* Transparent page compression (TPC) is disabled if punch hole is not
@@ -440,7 +439,7 @@ dberr_t Page_extent::flush_one_by_one(fil_node_t *node) {
       }
     }
 
-    ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(buf), page_size));
+    ut_ad(!ut::is_zeros(buf, page_size));
     ut_a(node->is_open);
     ut_a(node->size >= page_no);
 
@@ -1734,7 +1733,7 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
 #ifdef UNIV_DEBUG
   {
     auto buf = static_cast<byte *>(buf_block_get_frame(last_block));
-    const bool is_zero = buf_page_t::is_zeroes(buf, page_size.physical());
+    const bool is_zero = ut::is_zeros(buf, page_size.physical());
     ut_ad(!is_zero);
   }
 #endif /* UNIV_DEBUG */
