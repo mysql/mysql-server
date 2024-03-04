@@ -14,7 +14,6 @@
         "max_idle_server_connections": 64,
         "max_total_connections": 512,
         "name": "system",
-        "named_socket": "",
         "net_buffer_length": 16384,
         "read_timeout": 30,
         "router_require_enforce": true,
@@ -26,6 +25,7 @@
         "server_ssl_curves": "",
         "server_ssl_mode": "PREFERRED",
         "server_ssl_verify": "DISABLED",
+        "socket": "",
         "thread_stack_size": 1024,
         "unknown_config_option": "error"
     },
@@ -52,7 +52,6 @@
             "destinations": "metadata-cache://mycluster/?role=SECONDARY",
             "max_connect_errors": 100,
             "max_connections": 0,
-            "named_socket": "",
             "net_buffer_length": 16384,
             "protocol": "classic",
             "router_require_enforce": true,
@@ -65,6 +64,7 @@
             "server_ssl_curves": "",
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
+            "socket": "",
             "thread_stack_size": 1024
         },
         "bootstrap_rw": {
@@ -81,7 +81,6 @@
             "destinations": "metadata-cache://mycluster/?role=PRIMARY",
             "max_connect_errors": 100,
             "max_connections": 0,
-            "named_socket": "",
             "net_buffer_length": 16384,
             "protocol": "classic",
             "router_require_enforce": true,
@@ -94,6 +93,7 @@
             "server_ssl_curves": "",
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
+            "socket": "",
             "thread_stack_size": 1024
         },
         "bootstrap_rw_split": {
@@ -111,7 +111,6 @@
             "destinations": "metadata-cache://mycluster/?role=PRIMARY_AND_SECONDARY",
             "max_connect_errors": 100,
             "max_connections": 0,
-            "named_socket": "",
             "net_buffer_length": 16384,
             "protocol": "classic",
             "router_require_enforce": true,
@@ -124,6 +123,7 @@
             "server_ssl_curves": "",
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
+            "socket": "",
             "thread_stack_size": 1024
         },
         "bootstrap_x_ro": {
@@ -140,7 +140,6 @@
             "destinations": "metadata-cache://mycluster/?role=SECONDARY",
             "max_connect_errors": 100,
             "max_connections": 0,
-            "named_socket": "",
             "net_buffer_length": 16384,
             "protocol": "x",
             "router_require_enforce": true,
@@ -153,6 +152,7 @@
             "server_ssl_curves": "",
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
+            "socket": "",
             "thread_stack_size": 1024
         },
         "bootstrap_x_rw": {
@@ -169,7 +169,6 @@
             "destinations": "metadata-cache://mycluster/?role=PRIMARY",
             "max_connect_errors": 100,
             "max_connections": 0,
-            "named_socket": "",
             "net_buffer_length": 16384,
             "protocol": "x",
             "router_require_enforce": true,
@@ -182,6 +181,7 @@
             "server_ssl_curves": "",
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
+            "socket": "",
             "thread_stack_size": 1024
         }
     },
