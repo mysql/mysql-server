@@ -817,7 +817,7 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
                   routing::get_default_port(section_type), false);
     expose_option("bind_address", plugin_config_.bind_address.address(),
                   std::string(routing::kDefaultBindAddressBootstrap), true);
-    expose_option("named_socket", plugin_config_.named_socket.str(),
+    expose_option("socket", plugin_config_.named_socket.str(),
                   std::string(routing::kDefaultNamedSocket), true);
 
     expose_option("connect_timeout", plugin_config_.connect_timeout,

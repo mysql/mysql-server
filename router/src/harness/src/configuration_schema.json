@@ -47,7 +47,7 @@
                         "destinations": { "type": "string" },
                         "bind_port": { "type": "number" },
                         "bind_address": { "type": "string" },
-                        "named_socket": { "type": "string" },
+                        "socket": { "type": "string" },
                         "connect_timeout": { "type": "number" },
                         "mode": {
                             "type": "string",
