@@ -7002,18 +7002,6 @@ bool is_buffer_pool_resize_in_progress() {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-[[nodiscard]] bool buf_page_t::is_zeroes(const page_t *const ptr,
-                                         const size_t len) noexcept {
-  bool is_zero = true;
-  for (size_t i = 0; i < len; i++) {
-    if (*(ptr + i) != 0) {
-      is_zero = false;
-      break;
-    }
-  }
-  return is_zero;
-}
-
 [[nodiscard]] bool buf_page_t::is_memory(const page_t *const ptr) noexcept {
   const page_t *const frame = page_align(ptr);
   return mach_read_from_8(frame + FIL_PAGE_LSN) == 0;

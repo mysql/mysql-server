@@ -135,8 +135,19 @@ bool is_aligned_as(void const *const ptr) {
   aligned. In other words, compiler could optimize out the whole function. */
   return reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0;
 }
-}  // namespace ut
+/** Checks if memory range is all zeros.
+@param[in]  start            The pointer to first byte of a buffer
+@param[in]  number_of_bytes  The number of bytes in the buffer
+@return true if and only if `number_of_bytes` bytes pointed by `start` are all
+zeros. */
+[[nodiscard]] inline bool is_zeros(const void *start, size_t number_of_bytes) {
+  auto *first_byte = reinterpret_cast<const char *>(start);
+  return number_of_bytes == 0 ||
+         (*first_byte == 0 &&
+          std::memcmp(first_byte, first_byte + 1, number_of_bytes - 1) == 0);
+}
 
+}  // namespace ut
 #include "ut0mem.ic"
 
 #endif

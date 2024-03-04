@@ -1202,10 +1202,6 @@ class buf_page_t {
   @return true if the FIL_PAGE_LSN is zero, false otherwise. */
   [[nodiscard]] static bool is_memory(const page_t *const ptr) noexcept;
 
-  /** Check if the given buffer is full of zeroes. */
-  [[nodiscard]] static bool is_zeroes(const page_t *const ptr,
-                                      const size_t len) noexcept;
-
   /** Check if the state of this page is BUF_BLOCK_MEMORY.
   @return true if the state is BUF_BLOCK_MEMORY, or false. */
   [[nodiscard]] bool is_memory() const noexcept {
