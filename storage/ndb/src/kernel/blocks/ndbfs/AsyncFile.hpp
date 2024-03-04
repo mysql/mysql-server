@@ -36,6 +36,24 @@
 
 #define JAM_FILE_ID 391
 
+/*
+ * This define is used to mark up code that is added to workaround issues seen
+ * with some distributed filesystem.
+ *
+ * For example that unlink(file) may succeed removing file but still return
+ * error ENOENT.
+ */
+#define UNRELIABLE_DISTRIBUTED_FILESYSTEM 1
+
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+#define TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM 1
+#endif
+#endif
+#ifndef TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+#define TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM 0
+#endif
+
 #ifndef _WIN32
 static inline int get_last_os_error() { return errno; }
 
@@ -78,6 +96,10 @@ class AsyncFile {
   void appendReq(Request *request);
   void readReq(Request *request);
   void writeReq(Request *request);
+
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  bool check_and_log_if_remove_failure_ok(const char *pathname);
+#endif
 
   /**
    * Implementers of AsyncFile interface
