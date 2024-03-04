@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -11652,9 +11653,12 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   thd->tx_isolation = ISO_READ_COMMITTED;
 
   // Open base table.
+
+  auto before_lock_acquire = std::chrono::steady_clock::now();
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
     return true;
+  auto after_lock_acquire = std::chrono::steady_clock::now();
 
   // Omit hidden generated columns and columns marked as NOT SECONDARY from
   // read_set. It is the responsibility of the secondary engine handler to load
@@ -11689,12 +11693,11 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
          hton->post_ddl != nullptr);
 
   // cache table name locally for future use
-  const size_t name_len = table_list->db_length +
-                          table_list->table_name_length +
-                          5;  // for backticks, dot `db`.`tab`
+  const size_t name_len =
+      table_list->db_length + table_list->table_name_length + 1;  // for the dot
   // allocated on thread, freed-up on thread exit
   char *full_tab_name = (char *)sql_calloc(name_len + 1);  // for \0 at the end
-  sprintf(full_tab_name, "`%s`.`%s`", table_list->db, table_list->table_name);
+  sprintf(full_tab_name, "%s.%s", table_list->db, table_list->table_name);
   full_tab_name[name_len] = '\0';  // may not needed, since inited with 0
 
   const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -11756,33 +11759,36 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     }
   }
 
+  std::chrono::steady_clock::time_point se_operation_start;
+  std::chrono::steady_clock::time_point se_operation_end;
   // Initiate loading into or unloading from secondary engine.
   if (is_load) {
     DEBUG_SYNC(thd, "before_secondary_engine_load_table");
-    if (DBUG_EVALUATE_IF("sim_secload_fail",
-                         (my_error(ER_SECONDARY_ENGINE, MYF(0),
-                                   "Simulated failure of secondary_load()"),
-                          true),
-                         false) ||
-        secondary_engine_load_table(thd, *table_list->table,
-                                    &skip_metadata_update))
+    if (DBUG_EVALUATE_IF("sim_secload_fail", true, false)) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Simulated failure of secondary_load()");
       return true;
+    }
+    se_operation_start = std::chrono::steady_clock::now();
+    auto retval = secondary_engine_load_table(thd, *table_list->table,
+                                              &skip_metadata_update);
+    se_operation_end = std::chrono::steady_clock::now();
+    if (retval) return true;
   } else {
     if (table_list->partition_names != nullptr) {
       skip_metadata_update = true;
     }
-    if (DBUG_EVALUATE_IF("sim_secunload_fail",
-                         (my_error(ER_SECONDARY_ENGINE, MYF(0),
-                                   "Simulated failure of secondary_unload()"),
-                          true),
-                         false) ||
-        secondary_engine_unload_table(thd, table_list->db,
-                                      table_list->table_name, *table_def, true))
+    if (DBUG_EVALUATE_IF("sim_secunload_fail", true, false)) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Simulated failure of secondary_unload()");
       return true;
+    }
+    se_operation_start = std::chrono::steady_clock::now();
+    auto retval = secondary_engine_unload_table(
+        thd, table_list->db, table_list->table_name, *table_def, true);
+    se_operation_end = std::chrono::steady_clock::now();
+    if (retval) return true;
   }
-  DBUG_PRINT("sec_load_unload", ("secondary engine %s succeeded for table %s",
-                                 (is_load ? "load" : "unload"), full_tab_name));
-
   DBUG_EXECUTE_IF("sim_fail_before_metadata_update", {
     DBUG_PRINT("sec_load_unload", ("Force exit before metadata update"));
     my_error(
@@ -11791,6 +11797,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     return true;
   });
 
+  auto before_metadata_update = std::chrono::steady_clock::now();
   if (skip_metadata_update) {
     DBUG_PRINT(
         "sec_load_unload",
@@ -11870,9 +11877,29 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     return true;
   }
 
-  DBUG_PRINT("sec_load_unload",
-             ("commit succeeded for alter table %s secondary_%s", full_tab_name,
-              (is_load ? "load" : "unload")));
+  auto after_commit = std::chrono::steady_clock::now();
+  std::stringstream progress_msg;
+  progress_msg << "Execution of ALTER TABLE " << full_tab_name << " ";
+  if (is_load) {
+    progress_msg << "SECONDARY_LOAD";
+  } else {
+    progress_msg << "SECONDARY_UNLOAD";
+  }
+  progress_msg << " finished. Spent "
+               << std::chrono::duration_cast<std::chrono::milliseconds>(
+                      after_lock_acquire - before_lock_acquire)
+                      .count()
+               << " msec for exclusive lock acquire; "
+               << std::chrono::duration_cast<std::chrono::milliseconds>(
+                      se_operation_end - se_operation_start)
+                      .count()
+               << " msec for secondary engine operation; "
+               << std::chrono::duration_cast<std::chrono::milliseconds>(
+                      after_commit - before_metadata_update)
+                      .count()
+               << " msec for metadata update and commit.";
+  LogErr(SYSTEM_LEVEL, ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS,
+         progress_msg.str().c_str());
   // Transaction committed successfully, no rollback will be necessary.
   rollback_guard.commit();
 
