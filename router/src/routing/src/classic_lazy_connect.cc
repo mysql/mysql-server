@@ -47,6 +47,7 @@
 #include "mysql_com.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/utils.h"  // to_string
 #include "router_require.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -293,48 +294,49 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::from_stash() {
   trace_event_connect_ =
       trace_span(parent_event_, "mysql/prepare_server_connection");
 
-  if (!connection()->server_conn().is_open() &&
-      !connection()->get_destination_id().empty()) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::from_stash"));
-    }
-
-    auto &pool_comp = ConnectionPoolComponent::get_instance();
-
-    if (auto pool =
-            pool_comp.get(ConnectionPoolComponent::default_pool_name())) {
-      TraceEvent *trace_event_from_stash = nullptr;
-
-      if (auto *ev = trace_event_connect_) {
-        trace_event_from_stash = trace_span(ev, "mysql/from_stash");
+  if (!connection()->server_conn().is_open()) {
+    if (auto ep = connection()->destination_endpoint()) {
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("connect::from_stash"));
       }
 
-      if (auto pop_res = pool->unstash_mine(connection()->get_destination_id(),
-                                            connection())) {
-        connection()->server_conn() = std::move(*pop_res);
+      auto &pool_comp = ConnectionPoolComponent::get_instance();
 
-        // reset the seq-id of the server side as this is a new command.
-        connection()->server_protocol().seq_id(0xff);
+      if (auto pool =
+              pool_comp.get(ConnectionPoolComponent::default_pool_name())) {
+        TraceEvent *trace_event_from_stash = nullptr;
 
-        if (auto &tr = tracer()) {
-          tr.trace(Tracer::Event().stage(
-              "connect::from_stash::unstashed::mine: fd=" +
-              std::to_string(connection()->server_conn().native_handle()) +
-              ", " + connection()->server_conn().endpoint()));
+        if (auto *ev = trace_event_connect_) {
+          trace_event_from_stash = trace_span(ev, "mysql/from_stash");
+        }
+
+        if (auto pop_res =
+                pool->unstash_mine(mysqlrouter::to_string(*ep), connection())) {
+          connection()->server_conn() = std::move(*pop_res);
+
+          // reset the seq-id of the server side as this is a new command.
+          connection()->server_protocol().seq_id(0xff);
+
+          if (auto &tr = tracer()) {
+            tr.trace(Tracer::Event().stage(
+                "connect::from_stash::unstashed::mine: fd=" +
+                std::to_string(connection()->server_conn().native_handle()) +
+                ", " + connection()->server_conn().endpoint()));
+          }
+
+          if (auto *ev = trace_event_from_stash) {
+            trace_set_connection_attributes(ev);
+            trace_span_end(ev);
+          }
+
+          stage(Stage::WaitGtidExecuted);
+          return Result::Again;
         }
 
         if (auto *ev = trace_event_from_stash) {
-          trace_set_connection_attributes(ev);
-          trace_span_end(ev);
+          ev->attrs.emplace_back("mysql.error_message", "no match");
+          trace_span_end(ev, TraceEvent::StatusCode::kError);
         }
-
-        stage(Stage::WaitGtidExecuted);
-        return Result::Again;
-      }
-
-      if (auto *ev = trace_event_from_stash) {
-        ev->attrs.emplace_back("mysql.error_message", "no match");
-        trace_span_end(ev, TraceEvent::StatusCode::kError);
       }
     }
   }

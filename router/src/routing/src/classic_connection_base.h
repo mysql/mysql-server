@@ -290,6 +290,7 @@ class MysqlRoutingClassicConnectionBase
   std::string read_only_destination_id() const override {
     return ro_destination_id_;
   }
+
   void read_only_destination_id(const std::string &destination_id) {
     ro_destination_id_ = destination_id;
   }
@@ -299,6 +300,37 @@ class MysqlRoutingClassicConnectionBase
   }
   void read_write_destination_id(const std::string &destination_id) {
     rw_destination_id_ = destination_id;
+  }
+
+  std::optional<net::ip::tcp::endpoint> destination_endpoint() const override {
+    return expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
+               ? read_only_destination_endpoint()
+               : read_write_destination_endpoint();
+  }
+
+  void destination_endpoint(const std::optional<net::ip::tcp::endpoint> &ep) {
+    expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
+        ? read_only_destination_endpoint(ep)
+        : read_write_destination_endpoint(ep);
+  }
+
+  std::optional<net::ip::tcp::endpoint> read_only_destination_endpoint()
+      const override {
+    return ro_destination_endpoint_;
+  }
+  void read_only_destination_endpoint(
+      const std::optional<net::ip::tcp::endpoint> &ep) {
+    ro_destination_endpoint_ = ep;
+  }
+
+  std::optional<net::ip::tcp::endpoint> read_write_destination_endpoint()
+      const override {
+    return rw_destination_endpoint_;
+  }
+
+  void read_write_destination_endpoint(
+      const std::optional<net::ip::tcp::endpoint> &ep) {
+    rw_destination_endpoint_ = ep;
   }
 
   /**
@@ -433,6 +465,9 @@ class MysqlRoutingClassicConnectionBase
 
   std::string rw_destination_id_;  // read-write destination-id
   std::string ro_destination_id_;  // read-only destination-id
+
+  std::optional<net::ip::tcp::endpoint> rw_destination_endpoint_;
+  std::optional<net::ip::tcp::endpoint> ro_destination_endpoint_;
 
   /**
    * client side handshake isn't finished yet.
