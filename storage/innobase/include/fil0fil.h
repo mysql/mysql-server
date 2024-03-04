@@ -223,9 +223,6 @@ struct fil_node_t {
   /** block size to use for punching holes */
   size_t block_size;
 
-  /** whether atomic write is enabled for this file */
-  bool atomic_write;
-
   /** FIL_NODE_MAGIC_N */
   size_t magic_n;
 };
@@ -1383,13 +1380,11 @@ void fil_space_set_imported(space_id_t space_id);
                                 downwards to an integer
 @param[in,out]  space           space where to append
 @param[in]      is_raw          true if a raw device or a raw disk partition
-@param[in]      atomic_write    true if the file has atomic write enabled
 @param[in]      max_pages       maximum number of pages in file
 @return pointer to the file name
 @retval nullptr if error */
 [[nodiscard]] char *fil_node_create(const char *name, page_no_t size,
                                     fil_space_t *space, bool is_raw,
-                                    bool atomic_write,
                                     page_no_t max_pages = PAGE_NO_MAX);
 
 /** Create a space memory object and put it to the fil_system hash table.
@@ -2049,14 +2044,6 @@ inline void fil_space_open_if_needed(fil_space_t *space) {
   }
 }
 
-#ifdef UNIV_LINUX
-/**
-Try and enable FusionIO atomic writes.
-@param[in] file         OS file handle
-@return true if successful */
-[[nodiscard]] bool fil_fusionio_enable_atomic_write(pfs_os_file_t file);
-#endif /* UNIV_LINUX */
-
 /** Note that the file system where the file resides doesn't support PUNCH HOLE.
 Called from AIO handlers when IO returns DB_IO_NO_PUNCH_HOLE
 @param[in,out]  file            file to set */
@@ -2254,13 +2241,12 @@ one of the four path settings scanned at startup for file discovery.
 @param[in]      encrypt_info    encryption key information
 @param[in]      space_id        tablespace ID
 @param[in,out]  space_flags     tablespace flags
-@param[out]     atomic_write    if atomic write is used
 @param[out]     punch_hole      if punch hole is used
 @return DB_SUCCESS on success */
 [[nodiscard]] dberr_t fil_write_initial_pages(
     pfs_os_file_t file, const char *path, fil_type_t type, page_no_t size,
     const byte *encrypt_info, space_id_t space_id, uint32_t &space_flags,
-    bool &atomic_write, bool &punch_hole);
+    bool &punch_hole);
 
 /** Free the data structures required for recovery. */
 void fil_free_scanned_files();

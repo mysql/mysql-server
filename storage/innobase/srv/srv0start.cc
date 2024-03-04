@@ -536,7 +536,6 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
   pfs_os_file_t fh;
   bool success;
   uint32_t flags;
-  bool atomic_write;
   dberr_t err = DB_ERROR;
   space_id_t space_id = undo_space.id();
   char *undo_name = undo_space.space_name();
@@ -568,17 +567,6 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     return (DB_CANNOT_OPEN_FILE);
   }
 
-  /* Check if this file supports atomic write. */
-#ifdef UNIV_LINUX
-  if (!dblwr::is_enabled()) {
-    atomic_write = fil_fusionio_enable_atomic_write(fh);
-  } else {
-    atomic_write = false;
-  }
-#else
-  atomic_write = false;
-#endif /* UNIV_LINUX */
-
   if (space == nullptr) {
     /* Load the tablespace into InnoDB's internal data structures.
     Set the compressed page size to 0 (non-compressed) */
@@ -591,19 +579,13 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     ut_a(size != (os_offset_t)-1);
     page_no_t n_pages = static_cast<page_no_t>(size / UNIV_PAGE_SIZE);
 
-    if (fil_node_create(file_name, n_pages, space, false, atomic_write) ==
-        nullptr) {
+    if (fil_node_create(file_name, n_pages, space, false) == nullptr) {
       os_file_close(fh);
 
       ib::error(ER_IB_MSG_1082, undo_name);
 
       return (DB_ERROR);
     }
-
-  } else {
-    auto &file = space->files.front();
-
-    file.atomic_write = atomic_write;
   }
 
   /* Read the encryption metadata in this undo tablespace.

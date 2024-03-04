@@ -1114,13 +1114,12 @@ class Fil_shard {
   @param[in,out]        space           tablespace from fil_space_create()
   @param[in]    is_raw          whether this is a raw device or partition
   @param[in]    punch_hole      true if supported for this file
-  @param[in]    atomic_write    true if the file has atomic write enabled
   @param[in]    max_pages       maximum number of pages in file
   @return pointer to the file name
   @retval nullptr if error */
   [[nodiscard]] fil_node_t *create_node(const char *name, page_no_t size,
                                         fil_space_t *space, bool is_raw,
-                                        bool punch_hole, bool atomic_write,
+                                        bool punch_hole,
                                         page_no_t max_pages = PAGE_NO_MAX);
 
 #ifdef UNIV_DEBUG
@@ -2293,45 +2292,18 @@ bool Fil_shard::space_is_flushed(const fil_space_t *space) {
   return true;
 }
 
-#ifdef UNIV_LINUX
-
-#include <sys/ioctl.h>
-
-/** FusionIO atomic write control info */
-#define DFS_IOCTL_ATOMIC_WRITE_SET _IOW(0x95, 2, uint)
-
-/** Try and enable FusionIO atomic writes.
-@param[in] file         OS file handle
-@return true if successful */
-bool fil_fusionio_enable_atomic_write(pfs_os_file_t file) {
-  if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
-    uint atomic = 1;
-
-    ut_a(file.m_file != -1);
-
-    if (ioctl(file.m_file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
-      return true;
-    }
-  }
-
-  return false;
-}
-#endif /* UNIV_LINUX */
-
 /** Attach a file to a tablespace
 @param[in]      name            file name of a file that is not open
 @param[in]      size            file size in entire database blocks
 @param[in,out]  space           tablespace from fil_space_create()
 @param[in]      is_raw          whether this is a raw device or partition
 @param[in]      punch_hole      true if supported for this file
-@param[in]      atomic_write    true if the file has atomic write enabled
 @param[in]      max_pages       maximum number of pages in file
 @return pointer to the file name
 @retval nullptr if error */
 fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
                                    fil_space_t *space, bool is_raw,
-                                   bool punch_hole, bool atomic_write,
-                                   page_no_t max_pages) {
+                                   bool punch_hole, page_no_t max_pages) {
   ut_ad(name != nullptr);
   ut_ad(fil_system != nullptr);
 
@@ -2393,8 +2365,6 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
     file.punch_hole = punch_hole;
   }
 
-  file.atomic_write = atomic_write;
-
   mutex_acquire();
 
   space->size += size;
@@ -2415,19 +2385,17 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
                                 downwards to an integer
 @param[in,out]  space           space where to append
 @param[in]      is_raw          true if a raw device or a raw disk partition
-@param[in]      atomic_write    true if the file has atomic write enabled
 @param[in]      max_pages       maximum number of pages in file
 @return pointer to the file name
 @retval nullptr if error */
 char *fil_node_create(const char *name, page_no_t size, fil_space_t *space,
-                      bool is_raw, bool atomic_write, page_no_t max_pages) {
+                      bool is_raw, page_no_t max_pages) {
   auto shard = fil_system->shard_by_id(space->id);
 
   fil_node_t *file;
 
   file = shard->create_node(name, size, space, is_raw,
-                            IORequest::is_punch_hole_supported(), atomic_write,
-                            max_pages);
+                            IORequest::is_punch_hole_supported(), max_pages);
 
   return file == nullptr ? nullptr : file->name;
 }
@@ -5457,13 +5425,12 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
                                 fil_type_t type [[maybe_unused]],
                                 page_no_t size, const byte *encrypt_info,
                                 space_id_t space_id, uint32_t &space_flags,
-                                bool &atomic_write, bool &punch_hole) {
+                                bool &punch_hole) {
   bool success = false;
-  atomic_write = false;
   punch_hole = false;
 
   const page_size_t page_size(space_flags);
-  const auto sz = ulonglong{size * page_size.physical()};
+  const uint64_t size_in_bytes = uint64_t{size} * page_size.physical();
 
 #ifdef UNIV_LINUX
   {
@@ -5473,36 +5440,22 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
     if (ret == 0)
 #endif /* UNIV_DEBUG */
     {
-      ret = posix_fallocate(file.m_file, 0, sz);
+      ret = posix_fallocate(file.m_file, 0, size_in_bytes);
     }
 
     if (ret == 0) {
       success = true;
-      if (type == FIL_TYPE_TEMPORARY ||
-          fil_fusionio_enable_atomic_write(file)) {
-        atomic_write = true;
-      }
     } else {
       /* If posix_fallocate() fails for any reason, issue only a warning
       and then fall back to os_file_set_size() */
-      ib::warn(ER_IB_MSG_303, path, sz, ret, strerror(errno));
+      ib::warn(ER_IB_MSG_303, path, ulonglong{size_in_bytes}, ret,
+               strerror(errno));
     }
   }
 #endif /* UNIV_LINUX */
 
-  if (!success || (tbsp_extend_and_initialize && !atomic_write)) {
-    success = os_file_set_size(path, file, 0, sz, true);
-
-    if (success) {
-      /* explicit initialization is needed as same as fil_space_extend(),
-      instead of punch_hole. */
-      dberr_t err =
-          os_file_write_zeros(file, path, page_size.physical(), 0, sz);
-      if (err != DB_SUCCESS) {
-        ib::warn(ER_IB_MSG_320) << "Error while writing " << sz << " zeroes to "
-                                << path << " starting at offset " << 0;
-      }
-    }
+  if (!success || tbsp_extend_and_initialize) {
+    success = os_file_set_size(path, file, 0, size_in_bytes, true);
   }
 
   if (!success) {
@@ -5651,11 +5604,10 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     /* purecov: end */
   }
 
-  bool atomic_write = false;
   bool punch_hole = false;
 
   auto err = fil_write_initial_pages(file, path, type, size, nullptr, space_id,
-                                     flags, atomic_write, punch_hole);
+                                     flags, punch_hole);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_304, path);
 
@@ -5698,7 +5650,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   auto shard = fil_system->shard_by_id(space_id);
 
   fil_node_t *file_node =
-      shard->create_node(path, size, space, false, punch_hole, atomic_write);
+      shard->create_node(path, size, space, false, punch_hole);
 
   err = (file_node == nullptr) ? DB_ERROR : DB_SUCCESS;
 
@@ -5796,13 +5748,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     return DB_CANNOT_OPEN_FILE;
   }
 
-#ifdef UNIV_LINUX
-  const bool atomic_write =
-      !dblwr::is_enabled() && fil_fusionio_enable_atomic_write(df.handle());
-#else
-  const bool atomic_write = false;
-#endif /* UNIV_LINUX */
-
   dberr_t err;
 
   if ((validate || is_encrypted) &&
@@ -5861,9 +5806,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   /* We do not measure the size of the file, that is why
   we pass the 0 below */
 
-  const fil_node_t *file =
-      shard->create_node(df.filepath(), 0, space, false,
-                         IORequest::is_punch_hole_supported(), atomic_write);
+  const fil_node_t *file = shard->create_node(
+      df.filepath(), 0, space, false, IORequest::is_punch_hole_supported());
 
   if (file == nullptr) {
     return DB_ERROR;
@@ -6218,7 +6162,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
   const fil_node_t *file;
 
-  file = create_node(df.filepath(), 0, space, false, true, false);
+  file = create_node(df.filepath(), 0, space, false, true);
 
   ut_a(file != nullptr);
 
@@ -6660,8 +6604,6 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 #endif /* !UNIV_HOTBACKUP && UNIV_LINUX */
 
 #ifdef UNIV_LINUX
-    /* This is required by FusionIO HW/Firmware */
-
     int ret = posix_fallocate(file->handle.m_file, node_start, len);
 
     DBUG_EXECUTE_IF("ib_posix_fallocate_fail_eintr", ret = EINTR;);
@@ -6698,8 +6640,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     }
 #endif /* UNIV_LINUX */
 
-    if ((space->initialize_while_extending() && !file->atomic_write) ||
-        err == DB_IO_ERROR) {
+    if (space->initialize_while_extending() || err == DB_IO_ERROR) {
       err = fil_write_zeros(file, phy_page_size, node_start, len);
 
       if (err != DB_SUCCESS) {

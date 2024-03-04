@@ -826,28 +826,6 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     if (err != DB_SUCCESS) {
       return (err);
     }
-
-#ifdef UNIV_LINUX
-    /* Note: This should really be per node and not per
-    tablespace because a tablespace can contain multiple
-    files (nodes). The implication is that all files of
-    the tablespace should be on the same medium. */
-
-    if (fil_fusionio_enable_atomic_write(it->m_handle)) {
-      if (dblwr::is_enabled()) {
-        ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
-                                   " disabling the double write buffer";
-
-        dblwr::g_mode = dblwr::Mode::OFF;
-      }
-
-      it->m_atomic_write = true;
-    } else {
-      it->m_atomic_write = false;
-    }
-#else
-    it->m_atomic_write = false;
-#endif /* UNIV_LINUX */
   }
 
   if (flush_lsn != nullptr) {
@@ -893,8 +871,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 
     /* Add the datafile to the fil_system cache. */
     if (!fil_node_create(it->m_filepath, it->m_size, space,
-                         it->m_type != SRV_NOT_RAW, it->m_atomic_write,
-                         max_size)) {
+                         it->m_type != SRV_NOT_RAW, max_size)) {
       err = DB_ERROR;
       break;
     }

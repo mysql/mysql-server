@@ -1063,7 +1063,6 @@ int Clone_Handle::file_create_init(const Clone_file_ctx *file_ctx,
       return DB_SUCCESS;
     }
 
-    bool atomic = false;
     bool punch_hole = false;
 
     std::string file_name;
@@ -1098,7 +1097,7 @@ int Clone_Handle::file_create_init(const Clone_file_ctx *file_ctx,
     if (db_err == DB_SUCCESS) {
       db_err = fil_write_initial_pages(
           file, file_name.c_str(), FIL_TYPE_TABLESPACE, size_in_pages,
-          encryption_ptr, file_meta->m_space_id, flags, atomic, punch_hole);
+          encryption_ptr, file_meta->m_space_id, flags, punch_hole);
     }
 
     mesg.append(file_name);

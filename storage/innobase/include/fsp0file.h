@@ -86,7 +86,6 @@ class Datafile {
         m_exists(),
         m_is_valid(),
         m_first_page(),
-        m_atomic_write(),
         m_filepath(),
         m_last_os_error(),
         m_file_info(),
@@ -109,7 +108,6 @@ class Datafile {
         m_exists(),
         m_is_valid(),
         m_first_page(),
-        m_atomic_write(),
         m_filepath(),
         m_last_os_error(),
         m_file_info(),
@@ -133,7 +131,6 @@ class Datafile {
         m_exists(file.m_exists),
         m_is_valid(file.m_is_valid),
         m_first_page(),
-        m_atomic_write(file.m_atomic_write),
         m_last_os_error(),
         m_file_info(),
         m_encryption_key(),
@@ -195,8 +192,6 @@ class Datafile {
     m_encryption_iv = nullptr;
     m_encryption_op_in_progress = Encryption::Progress::NONE;
     m_encryption_master_key_id = 0;
-
-    m_atomic_write = file.m_atomic_write;
 
     return (*this);
   }
@@ -476,9 +471,6 @@ class Datafile {
 
   /** Buffer to hold first page */
   byte *m_first_page;
-
-  /** true if atomic writes enabled for this file */
-  bool m_atomic_write;
 
  protected:
   /** Physical file path with base name and extension */
