@@ -41,6 +41,7 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
+#include "util/ndb_rand.h"
 
 #include <NdbTick.h>
 
@@ -53,7 +54,14 @@
 PosixAsyncFile::PosixAsyncFile(Ndbfs &fs) : AsyncFile(fs) {}
 
 void PosixAsyncFile::removeReq(Request *request) {
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  // Sometimes inject double file delete
+  if (ndb_rand() % 100 == 0) ::remove(theFileName.c_str());
+#endif
   if (-1 == ::remove(theFileName.c_str())) {
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+    if (check_and_log_if_remove_failure_ok(theFileName.c_str())) return;
+#endif
     NDBFS_SET_REQUEST_ERROR(request, errno);
   }
 }
@@ -84,7 +92,19 @@ loop:
     if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
       int len = strlen(path);
       strcat(path, dp->d_name);
-      if (remove(path) == 0) {
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+      // Sometimes inject double file delete
+      if (ndb_rand() % 100 == 0) remove(path);
+#endif
+      bool removed = (remove(path) == 0);
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+      if (!removed) {
+        if (check_and_log_if_remove_failure_ok(path)) {
+          removed = true;
+        }
+      }
+#endif
+      if (removed) {
         path[len] = 0;
         continue;
       }
