@@ -3696,7 +3696,7 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
 @return the number of bytes read/written or negative value on error */
 ssize_t SyncFileIO::execute(const IORequest &request) {
   OVERLAPPED overlapped{};
-  ut_ad(buf_page_t::is_zeroes((page_t *)&overlapped, sizeof(overlapped)));
+  ut_ad(ut::is_zeros(&overlapped, sizeof(overlapped)));
 
   /* We need a fresh, not shared instance of Event for the OVERLAPPED structure.
   Both are stopped being used at most at the end of this method, as we wait for

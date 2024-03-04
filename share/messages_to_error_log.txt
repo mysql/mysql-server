@@ -8070,8 +8070,8 @@ ER_IB_MSG_844
 ER_IB_MSG_845
   eng "%s"
 
-ER_IB_MSG_846
-  eng "%s"
+ER_IB_MSG_CANT_DECRYPT_REDO_LOG
+  eng "Decryption of redo log block at offset %llu in file %s failed because there's no keyring configured"
 
 ER_IB_MSG_847
   eng "%s"
