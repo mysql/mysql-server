@@ -71,3 +71,290 @@ DROP FUNCTION testQuestion;
 DROP EVENT ev1;
 DROP TABLE t1,t2;
 End of 6.0 tests
+#
+# Bug#34096590: Hypergraph optimizer doesn't update select_*
+#               status variables
+#
+CREATE TABLE t(
+id INT PRIMARY KEY,
+x INT NOT NULL DEFAULT (id % 5),
+y INT NOT NULL DEFAULT (id % 2),
+KEY (x));
+INSERT INTO t(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t;
+EXPLAIN
+-> Table scan on t  (rows=10)
+
+FLUSH STATUS;
+SELECT * FROM t;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t;
+SELECT SUM_NO_INDEX_USED, SUM_NO_GOOD_INDEX_USED
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED
+1	0
+EXPLAIN FORMAT=TREE SELECT 1 FROM t ORDER BY x;
+EXPLAIN
+-> Covering index scan on t using x  (rows=10)
+
+FLUSH STATUS;
+SELECT 1 FROM t ORDER BY x;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT 1 FROM t ORDER BY x;
+SELECT SUM_NO_INDEX_USED, SUM_NO_GOOD_INDEX_USED
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED
+0	0
+EXPLAIN FORMAT=TREE SELECT x FROM t WHERE x = 1;
+EXPLAIN
+-> Covering index lookup on t using x (x=1)  (rows=2)
+
+FLUSH STATUS;
+SELECT x FROM t WHERE x = 1;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	0
+EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x < 0 OR id > 100;
+EXPLAIN
+-> Sort-deduplicate by row ID
+-> Covering index range scan on t using x over (x < 0)
+-> Clustered primary key (scanned separately)
+-> Index range scan on t using PRIMARY over (100 < id)
+
+FLUSH STATUS;
+SELECT 1 FROM t WHERE x < 0 OR id > 100;
+1
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	1
+Select_range_check	0
+Select_scan	0
+EXPLAIN FORMAT=TREE SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y;
+EXPLAIN
+-> Inner hash join (t1.y = t2.y)  (rows=10)
+    -> Table scan on t2  (rows=10)
+    -> Hash
+        -> Table scan on t1  (rows=10)
+
+FLUSH STATUS;
+SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	1
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+EXPLAIN FORMAT=TREE SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t1.x < 1;
+EXPLAIN
+-> Inner hash join (t1.y = t2.y)  (rows=2)
+    -> Table scan on t2  (rows=10)
+    -> Hash
+        -> Index range scan on t1 using x over (x < 1)  (rows=2)
+
+FLUSH STATUS;
+SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t1.x < 1;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	1
+Select_full_range_join	0
+Select_range	1
+Select_range_check	0
+Select_scan	0
+EXPLAIN FORMAT=TREE SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t2.x < 1;
+EXPLAIN
+-> Inner hash join (t1.y = t2.y)  (rows=2)
+    -> Index range scan on t2 using x over (x < 1)  (rows=2)
+    -> Hash
+        -> Table scan on t1  (rows=10)
+
+FLUSH STATUS;
+SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t2.x < 1;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	1
+Select_range	0
+Select_range_check	0
+Select_scan	1
+EXPLAIN FORMAT=TREE SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id;
+EXPLAIN
+-> Nested loop inner join  (rows=10)
+    -> Table scan on t1  (rows=10)
+    -> Single-row index lookup on t2 using PRIMARY (id=t1.y)  (rows=1)
+
+FLUSH STATUS;
+SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+EXPLAIN FORMAT=TREE SELECT 1 FROM t AS t1, t AS t2 WHERE t1.x < t2.x;
+EXPLAIN
+-> Nested loop inner join  (rows=33.3)
+    -> Covering index scan on t1 using x  (rows=10)
+    -> Filter: (t1.x < t2.x)  (rows=3.33)
+        -> Index range scan on t2 (re-planned for each iteration)  (rows=10)
+
+FLUSH STATUS;
+SELECT 1 FROM t AS t1, t AS t2 WHERE t1.x < t2.x;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	1
+Select_scan	1
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT 1 FROM t AS t1, t AS t2 WHERE t1.x < t2.x;
+SELECT SUM_NO_INDEX_USED, SUM_NO_GOOD_INDEX_USED
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED
+1	1
+CREATE TABLE tt(x INT);
+FLUSH STATUS;
+INSERT INTO tt SELECT y FROM t;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+FLUSH STATUS;
+UPDATE tt, t SET tt.x = t.x WHERE tt.x = t.y;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	1
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+FLUSH STATUS;
+DELETE tt FROM tt, t WHERE tt.x = t.y;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	1
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+DROP TABLE tt;
+FLUSH STATUS;
+SET @var = (SELECT SUM(y) FROM t);
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	1
+FLUSH STATUS;
+SELECT (SELECT MAX(y) FROM t), y FROM t;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	2
+FLUSH STATUS;
+SELECT y IN (SELECT y + 1 FROM t) FROM t;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	2
+FLUSH STATUS;
+SELECT *
+FROM t AS t1,
+(SELECT DISTINCT t3.y + t4.y FROM t t3, t t4 WHERE t3.y < t4.y) AS t2(y)
+WHERE t1.y <> t2.y;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	2
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	2
+EXPLAIN FORMAT=TREE SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=20)
+    -> Union materialize with deduplication  (rows=20)
+        -> Table scan on t  (rows=10)
+        -> Table scan on t  (rows=10)
+
+FLUSH STATUS;
+SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	3
+EXPLAIN FORMAT=TREE SELECT y FROM t UNION ALL SELECT y + 1 FROM t;
+EXPLAIN
+-> Append  (rows=20)
+    -> Stream results  (rows=10)
+        -> Table scan on t  (rows=10)
+    -> Stream results  (rows=10)
+        -> Table scan on t  (rows=10)
+
+FLUSH STATUS;
+SELECT y FROM t UNION ALL SELECT y + 1 FROM t;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	2
+EXPLAIN FORMAT=TREE SELECT * FROM (SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t) AS dt;
+EXPLAIN
+-> Table scan on dt  (rows=20)
+    -> Union materialize with deduplication  (rows=20)
+        -> Table scan on t  (rows=10)
+        -> Table scan on t  (rows=10)
+
+FLUSH STATUS;
+SELECT * FROM (SELECT y FROM t UNION DISTINCT SELECT y + 1 FROM t) AS dt;
+SHOW STATUS LIKE 'select%';
+Variable_name	Value
+Select_full_join	0
+Select_full_range_join	0
+Select_range	0
+Select_range_check	0
+Select_scan	4
+DROP TABLE t;
