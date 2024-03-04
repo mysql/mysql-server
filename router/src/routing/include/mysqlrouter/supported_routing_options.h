@@ -56,7 +56,6 @@ static constexpr std::array<const char *, 48> routing_supported_options{
     "server_ssl_cert",
     "server_ssl_key",
     "server_ssl_verify",
-    "disabled",
     "server_ssl_cipher",
     "server_ssl_ca",
     "server_ssl_capath",
