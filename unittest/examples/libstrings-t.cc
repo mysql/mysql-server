@@ -47,6 +47,8 @@ int main() {
       mysql::collation::find_by_name("utf8mb4_zh_0900_as_cs");
   std::cout << "Ok: " << zh_cs->csname << " " << zh_cs->m_coll_name
             << std::endl;
+  const CHARSET_INFO *cs_id = mysql::collation::find_by_id(cs->number);
+  std::cout << "OK: " << cs_id->csname << " " << cs_id->number << std::endl;
   mysql::collation::shutdown();
   return 0;
 }
