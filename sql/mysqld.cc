@@ -9636,9 +9636,6 @@ int mysqld_main(int argc, char **argv)
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
   }
 
-  register_server_metric_sources();
-  register_pfs_metric_sources();
-
   if (init_ssl_communication()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init()) unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -9862,6 +9859,14 @@ int mysqld_main(int argc, char **argv)
   */
   set_super_read_only_post_init();
 
+  /*
+    Expose MySQL metrics.
+    This is done only when the server bootstrap is complete,
+    to avoid observing states that are not fully initialized.
+  */
+  register_server_metric_sources();
+  register_pfs_metric_sources();
+
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
   (void)MYSQL_SET_STAGE(0, __FILE__, __LINE__);
@@ -9900,6 +9905,14 @@ int mysqld_main(int argc, char **argv)
   sysd::notify("STOPPING=1\nSTATUS=Server shutdown in progress\n");
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
+
+  /*
+    No longer expose MySQL metrics.
+    This is done before performing the cleanup to shutdown,
+    to avoid observing states that are being destroyed.
+  */
+  unregister_pfs_metric_sources();
+  unregister_server_metric_sources();
 
   mysql_event_tracking_shutdown_notify(
       AUDIT_EVENT(EVENT_TRACKING_SHUTDOWN_SHUTDOWN),
