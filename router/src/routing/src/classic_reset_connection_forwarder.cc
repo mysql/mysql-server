@@ -37,6 +37,7 @@
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/utils.h"  // to_string
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -284,19 +285,21 @@ ResetConnectionForwarder::start_loop() {
 
     if (auto pool =
             pool_comp.get(ConnectionPoolComponent::default_pool_name())) {
-      if (auto conn_res = pool->unstash_mine(connection()->get_destination_id(),
-                                             connection())) {
-        if (socket_is_alive(*conn_res)) {
-          connection()->server_conn() = std::move(*conn_res);
+      if (auto ep = connection()->destination_endpoint()) {
+        if (auto conn_res =
+                pool->unstash_mine(mysqlrouter::to_string(*ep), connection())) {
+          if (socket_is_alive(*conn_res)) {
+            connection()->server_conn() = std::move(*conn_res);
 
-          // reset the seq-id of the server side as this is a new command.
-          connection()->server_protocol().seq_id(0xff);
+            // reset the seq-id of the server side as this is a new command.
+            connection()->server_protocol().seq_id(0xff);
 
-          if (auto &tr = tracer()) {
-            tr.trace(Tracer::Event().stage(
-                "reset_connection::from_stash::unstashed::mine: fd=" +
-                std::to_string(connection()->server_conn().native_handle()) +
-                ", " + connection()->server_conn().endpoint()));
+            if (auto &tr = tracer()) {
+              tr.trace(Tracer::Event().stage(
+                  "reset_connection::from_stash::unstashed::mine: fd=" +
+                  std::to_string(connection()->server_conn().native_handle()) +
+                  ", " + connection()->server_conn().endpoint()));
+            }
           }
         }
       }

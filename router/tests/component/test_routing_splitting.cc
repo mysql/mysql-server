@@ -228,7 +228,7 @@ class RoutingSplittingTestBase : public RouterComponentTest {
                         cluster_nodes,  // cluster-nodes
                         0,              // view-id
                         false,          // error-on-md-query
-                        "127.0.0.1"     // gr-node-host
+                        "localhost"     // gr-node-host
       );
     }
   }

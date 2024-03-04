@@ -378,6 +378,7 @@ void ConnectProcessor::assign_server_side_connection_after_pool(
   // set destination-id to get the "trace_set_connection_attributes"
   // right.
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
+  connection()->destination_endpoint(endpoints_it_->endpoint());
 
   // update the msg-tracer callback to the new connection.
   if (auto *ssl = connection()->server_conn().channel().ssl()) {
@@ -421,9 +422,9 @@ ConnectProcessor::from_pool() {
       assign_server_side_connection_after_pool(std::move(*pop_res));
 
       if (auto &tr = tracer()) {
-        tr.trace(Tracer::Event().stage(
-            "connect::from_stash_mine: " +
-            destination_id_from_endpoint(*endpoints_it_)));
+        tr.trace(
+            Tracer::Event().stage("connect::from_stash_mine: " +
+                                  mysqlrouter::to_string(server_endpoint_)));
       }
 
       if (auto *ev = trace_event_socket_from_pool_) {
@@ -980,6 +981,7 @@ ConnectProcessor::connected() {
   }
 
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
+  connection()->destination_endpoint(endpoints_it_->endpoint());
 
   // mark destination as reachable.
   connection()->context().shared_quarantine().update(

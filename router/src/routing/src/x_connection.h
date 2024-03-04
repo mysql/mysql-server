@@ -748,6 +748,10 @@ class MysqlRoutingXConnection
     return connector().destination_id();
   }
 
+  std::optional<net::ip::tcp::endpoint> destination_endpoint() const override {
+    return std::nullopt;
+  }
+
  private:
   int active_work_{0};
 
