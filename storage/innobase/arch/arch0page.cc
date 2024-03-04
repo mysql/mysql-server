@@ -1228,15 +1228,6 @@ uint64_t Arch_Block::get_file_offset(uint64_t block_num, Arch_Blk_Type type) {
   return offset;
 }
 
-bool Arch_Block::is_zeroes(const byte *block) {
-  for (ulint i = 0; i < ARCH_PAGE_BLK_SIZE; i++) {
-    if (block[i] != 0) {
-      return (false);
-    }
-  }
-  return (true);
-}
-
 bool Arch_Block::validate(byte *block) {
   auto data_length = Arch_Block::get_data_len(block);
   auto block_checksum = Arch_Block::get_checksum(block);
@@ -1247,7 +1238,7 @@ bool Arch_Block::validate(byte *block) {
         << Arch_Block::get_block_number(block);
     ut_d(ut_error);
     ut_o(return (false));
-  } else if (Arch_Block::is_zeroes(block)) {
+  } else if (ut::is_zeros(block, ARCH_PAGE_BLK_SIZE)) {
     return (false);
   }
 

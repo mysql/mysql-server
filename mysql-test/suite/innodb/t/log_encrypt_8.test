@@ -1,0 +1,58 @@
+--echo #
+--echo # 35289234 - Can't disable encryption once redo log encryption is enabled
+--echo #
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb_max_16k.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[Error\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log files to be encrypted.");
+--enable_query_log
+
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+
+SET GLOBAL innodb_redo_log_encrypt=OFF;
+--source include/shutdown_innodb_clean.inc
+
+#Remove the key ring file
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring1
+
+
+# Restart with no encryption
+let $restart_parameters = restart:--innodb_redo_log_encrypt=OFF;
+--source include/start_mysqld.inc
+
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+DROP TABLE t1;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+

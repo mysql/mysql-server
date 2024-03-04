@@ -2022,7 +2022,7 @@ class Reduced_batch_deserializer {
   dberr_t deserialize(F &f) {
     auto page = m_buf->begin();
     for (uint32_t i = 0; i < m_n_pages; ++i) {
-      if (is_zeroes(page)) {
+      if (ut::is_zeros(page, REDUCED_BATCH_PAGE_SIZE)) {
         page += REDUCED_BATCH_PAGE_SIZE;
         continue;
       }
@@ -2103,17 +2103,6 @@ class Reduced_batch_deserializer {
 
     ut_ad(static_cast<uint32_t>(page_data - page_start) ==
           (expected_entries * REDUCED_ENTRY_SIZE));
-  }
-
-  /** @return true if dblwr page is an all-zero page
-  @param[in]   page    dblwr page in batch file (.bdblwr) */
-  bool is_zeroes(const byte *page) {
-    for (ulint i = 0; i < REDUCED_BATCH_PAGE_SIZE; i++) {
-      if (page[i] != 0) {
-        return (false);
-      }
-    }
-    return (true);
   }
 
  private:

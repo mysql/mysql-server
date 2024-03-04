@@ -220,7 +220,8 @@ static bool recv_writer_is_active() {
 @param[in,out]  buf             buffer where to read
 @param[in]      start_lsn       read area start
 @param[in]      end_lsn         read area end
-@return lsn up to which data was available on disk (ideally end_lsn) */
+@return lsn up to which data was available on disk (ideally end_lsn)
+or zero in case of error */
 static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
                                lsn_t end_lsn);
 
@@ -3619,9 +3620,30 @@ static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
 
     ++log.n_log_ios;
 
-    const dberr_t err =
-        log_data_blocks_read(file_handle, source_offset, len, buf);
-    ut_a(err == DB_SUCCESS);
+    dberr_t err = log_data_blocks_read(file_handle, source_offset, len, buf);
+
+    if (err == DB_UNSUPPORTED) {
+      /* The log block may be encrypted, read and update the log_sys */
+      err = log_encryption_read(log);
+      if (err != DB_SUCCESS) {
+        return 0;
+      }
+
+      /* Try again */
+      err = log_data_blocks_read(file_handle, source_offset, len, buf);
+      switch (err) {
+        case DB_SUCCESS:
+          break;
+
+        case DB_UNSUPPORTED:
+          ib::error(ER_IB_MSG_CANT_DECRYPT_REDO_LOG, ulonglong{source_offset},
+                    file_handle.file_path().c_str());
+          return 0;
+
+        default:
+          return 0;
+      }
+    }
 
     start_lsn += len;
     buf += len;
@@ -3658,10 +3680,10 @@ Parses and hashes the log records if new data found.
                                         an mtr which we can ignore, as it is
                                         already applied to tablespace files)
                                         until which all redo log has been
-                                        scanned */
-static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
+                                        scanned
+@return DB_SUCCESS if successfull */
+static dberr_t recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   mutex_enter(&recv_sys->mutex);
-
   recv_sys->len = 0;
   recv_sys->recovered_offset = 0;
   recv_sys->n_addrs = 0;
@@ -3706,6 +3728,10 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
     const lsn_t end_lsn =
         recv_read_log_seg(log, log.buf, start_lsn, start_lsn + RECV_SCAN_SIZE);
 
+    if (end_lsn == 0) {
+      return DB_ERROR;
+    }
+
     if (end_lsn == start_lsn) {
       /* This could happen if we crashed just after completing file,
       and before next file has been successfully created. */
@@ -3719,6 +3745,7 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   }
 
   DBUG_PRINT("ib_log", ("scan " LSN_PF " completed", log.m_scanned_lsn));
+  return DB_SUCCESS;
 }
 
 /** Initialize crash recovery environment. Can be called iff
@@ -3815,12 +3842,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   ut_a(checkpoint_lsn == checkpoint_header.m_checkpoint_lsn);
 
-  /* Read the encryption header to get the encryption information. */
-  err = log_encryption_read(log);
-  if (err != DB_SUCCESS) {
-    return DB_ERROR;
-  }
-
   /* Start reading the log from the checkpoint LSN up. */
 
   ut_ad(RECV_SCAN_SIZE <= log.buf_size);
@@ -3851,7 +3872,10 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     }
   }
 
-  recv_recovery_begin(log, checkpoint_lsn);
+  err = recv_recovery_begin(log, checkpoint_lsn);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   if (srv_read_only_mode && log.m_scanned_lsn > checkpoint_lsn) {
     ib::error(ER_IB_MSG_RECOVERY_IN_READ_ONLY);

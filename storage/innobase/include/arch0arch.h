@@ -34,10 +34,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ARCH_ARCH_INCLUDE
 
 #include <mysql/components/services/page_track_service.h>
-#include "buf0buf.h" /* buf_page_t */
-#include "ut0mutex.h"
-
 #include <list>
+#include "buf0buf.h" /* buf_page_t */
+#include "ut0mem.h"
+#include "ut0mutex.h"
 
 /** @name Archive file name prefix and constant length parameters. */
 /** @{ */
@@ -446,11 +446,6 @@ class Arch_Block {
   /** Get current state of the block
   @return block state */
   Arch_Blk_State get_state() const { return (m_state); }
-
-  /** Check if the block contains only zeroes.
-  @param[in]  block   block data
-  @return true if block is filled with zeroes. */
-  static bool is_zeroes(const byte *block);
 
   /** Check if the block data is valid.
   @param[in]  block   block to be validated
