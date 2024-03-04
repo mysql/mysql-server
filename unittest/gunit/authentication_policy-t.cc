@@ -64,7 +64,7 @@ using factor_test = bool (*)(const Factor &);
 /**
   Check if the factor is optional.
 
-   @param factor: the factor
+   @param factor the factor
    @return result of the check
 */
 bool is_optional(const Factor &factor) { return factor.is_optional(); }
@@ -72,7 +72,7 @@ bool is_optional(const Factor &factor) { return factor.is_optional(); }
 /**
   Check if the factor may be any plugin and has no default.
 
-   @param factor: the factor
+   @param factor the factor
    @return result of the check
 */
 bool is_whichever_no_default(const Factor &factor) {
@@ -82,7 +82,7 @@ bool is_whichever_no_default(const Factor &factor) {
 /**
   Check if the factor may be any plugin and has default.
 
-   @param factor: the factor
+   @param factor the factor
    @return result of the check
 */
 bool is_whichever_has_default(const Factor &factor) {
@@ -92,7 +92,7 @@ bool is_whichever_has_default(const Factor &factor) {
 /**
   Check if the factor is a mandatory plugin.
 
-   @param factor: the factor
+   @param factor the factor
    @return result of the check
 */
 bool is_mandatory(const Factor &factor) {
