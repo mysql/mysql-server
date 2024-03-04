@@ -907,6 +907,12 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
         default_access_mode.empty() ? OptionValue(std::monostate{})
                                     : default_access_mode,
         false);
+
+    expose_option("wait_for_my_writes", plugin_config_.wait_for_my_writes,
+                  routing::kDefaultWaitForMyWrites, true);
+    expose_option("wait_for_my_writes_timeout",
+                  plugin_config_.wait_for_my_writes_timeout.count(),
+                  routing::kDefaultWaitForMyWritesTimeout.count(), true);
   }
 
  private:

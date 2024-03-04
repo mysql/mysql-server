@@ -27,7 +27,9 @@
         "server_ssl_verify": "DISABLED",
         "socket": "",
         "thread_stack_size": 1024,
-        "unknown_config_option": "error"
+        "unknown_config_option": "error",
+        "wait_for_my_writes": true,
+        "wait_for_my_writes_timeout": 2
     },
     "connection_pool": {
         "idle_timeout": 5,
@@ -65,7 +67,9 @@
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
             "socket": "",
-            "thread_stack_size": 1024
+            "thread_stack_size": 1024,
+            "wait_for_my_writes": true,
+            "wait_for_my_writes_timeout": 2
         },
         "bootstrap_rw": {
             "bind_address": "0.0.0.0",
@@ -94,7 +98,9 @@
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
             "socket": "",
-            "thread_stack_size": 1024
+            "thread_stack_size": 1024,
+            "wait_for_my_writes": true,
+            "wait_for_my_writes_timeout": 2
         },
         "bootstrap_rw_split": {
             "access_mode": "auto",
@@ -124,7 +130,9 @@
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
             "socket": "",
-            "thread_stack_size": 1024
+            "thread_stack_size": 1024,
+            "wait_for_my_writes": true,
+            "wait_for_my_writes_timeout": 2
         },
         "bootstrap_x_ro": {
             "bind_address": "0.0.0.0",
@@ -153,7 +161,9 @@
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
             "socket": "",
-            "thread_stack_size": 1024
+            "thread_stack_size": 1024,
+            "wait_for_my_writes": true,
+            "wait_for_my_writes_timeout": 2
         },
         "bootstrap_x_rw": {
             "bind_address": "0.0.0.0",
@@ -182,7 +192,9 @@
             "server_ssl_mode": "PREFERRED",
             "server_ssl_verify": "DISABLED",
             "socket": "",
-            "thread_stack_size": 1024
+            "thread_stack_size": 1024,
+            "wait_for_my_writes": true,
+            "wait_for_my_writes_timeout": 2
         }
     },
     "http_authentication_backends": {

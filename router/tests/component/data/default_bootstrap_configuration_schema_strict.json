@@ -15,7 +15,9 @@
                 "server_ssl_mode": {  "enum": [ "PREFERRED" ] },
                 "server_ssl_verify": {  "enum": [ "DISABLED" ] },
                 "unknown_config_option": {  "enum": [ "error" ] },
-                "router_require_enforce": {  "enum": [ true ] }
+                "router_require_enforce": {  "enum": [ true ] },
+                "wait_for_my_writes": {  "enum": [ true ] },
+                "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
             },
             "required": ["name", "bind_address",
                 "socket", "read_timeout", "server_ssl_ca",
@@ -27,7 +29,8 @@
                 "server_ssl_crlpath", "client_ssl_dh_params",
                 "max_total_connections", "unknown_config_option",
                 "client_connect_timeout", "router_require_enforce",
-                "connection_sharing_delay", "max_idle_server_connections"
+                "connection_sharing_delay", "max_idle_server_connections",
+                "wait_for_my_writes", "wait_for_my_writes_timeout"
             ]
         },
         "metadata_cache" : {
@@ -90,7 +93,9 @@
                         "server_ssl_crl": { "enum": [ "" ] },
                         "server_ssl_crlpath": { "enum": [ "" ] },
                         "connection_sharing": { "enum": [ false ] },
-                        "connection_sharing_delay": { "enum": [ 1.0 ] }
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "wait_for_my_writes": {  "enum": [ true ] },
+                        "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
                                  "socket", "connect_timeout", "routing_strategy",
@@ -99,7 +104,8 @@
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
                                  "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
                                  "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
-                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay"]
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay",
+                                 "wait_for_my_writes", "wait_for_my_writes_timeout"]
                 },
                 "bootstrap_rw":  {
                     "type": "object",
@@ -130,7 +136,9 @@
                         "server_ssl_crl": { "enum": [ "" ] },
                         "server_ssl_crlpath": { "enum": [ "" ] },
                         "connection_sharing": { "enum": [ false ] },
-                        "connection_sharing_delay": { "enum": [ 1.0 ] }
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "wait_for_my_writes": {  "enum": [ true ] },
+                        "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
                                  "socket", "connect_timeout", "routing_strategy",
@@ -139,7 +147,8 @@
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
                                  "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
                                  "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
-                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay"]
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay",
+                                 "wait_for_my_writes", "wait_for_my_writes_timeout"]
                 },
                 "bootstrap_rw_split": {
                     "type": "object",
@@ -171,7 +180,9 @@
                         "server_ssl_crlpath": { "enum": [ "" ] },
                         "connection_sharing": { "enum": [ true ] },
                         "connection_sharing_delay": { "enum": [ 1.0 ] },
-                        "access_mode": { "enum": [ "auto" ] }
+                        "access_mode": { "enum": [ "auto" ] },
+                        "wait_for_my_writes": {  "enum": [ true ] },
+                        "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
                                  "socket", "connect_timeout", "routing_strategy",
@@ -180,7 +191,8 @@
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
                                  "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
                                  "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
-                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode"]
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay", "access_mode",
+                                 "wait_for_my_writes", "wait_for_my_writes_timeout"]
                 },
                 "bootstrap_x_ro": {
                     "type": "object",
@@ -211,7 +223,9 @@
                         "server_ssl_crl": { "enum": [ "" ] },
                         "server_ssl_crlpath": { "enum": [ "" ] },
                         "connection_sharing": { "enum": [ false ] },
-                        "connection_sharing_delay": { "enum": [ 1.0 ] }
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "wait_for_my_writes": {  "enum": [ true ] },
+                        "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
                                  "socket", "connect_timeout", "routing_strategy",
@@ -220,7 +234,8 @@
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
                                  "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
                                  "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
-                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay"]
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay",
+                                 "wait_for_my_writes", "wait_for_my_writes_timeout"]
                 },
                 "bootstrap_x_rw": {
                     "type": "object",
@@ -251,7 +266,9 @@
                         "server_ssl_crl": { "enum": [ "" ] },
                         "server_ssl_crlpath": { "enum": [ "" ] },
                         "connection_sharing": { "enum": [ false ] },
-                        "connection_sharing_delay": { "enum": [ 1.0 ] }
+                        "connection_sharing_delay": { "enum": [ 1.0 ] },
+                        "wait_for_my_writes": {  "enum": [ true ] },
+                        "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
                                  "socket", "connect_timeout", "routing_strategy",
@@ -260,7 +277,8 @@
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
                                  "client_ssl_dh_params", "server_ssl_mode", "server_ssl_verify", "server_ssl_cipher",
                                  "server_ssl_ca", "server_ssl_capath", "server_ssl_crl", "server_ssl_crlpath",
-                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay"]
+                                 "server_ssl_curves", "connection_sharing", "connection_sharing_delay",
+                                 "wait_for_my_writes", "wait_for_my_writes_timeout"]
                 }
             },
             "required": ["bootstrap_rw", "bootstrap_ro", "bootstrap_x_rw", "bootstrap_x_ro", "bootstrap_rw",
