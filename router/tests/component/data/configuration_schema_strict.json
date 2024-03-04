@@ -23,7 +23,7 @@
                         "destinations": { "enum": [ "metadata-cache://test/default?role=PRIMARY" ] },
                         "bind_port": { "type": "number", "minimum": 1, "maximum": 65536 },
                         "bind_address": { "type": "string" },
-                        "named_socket": { "enum": [ "" ] },
+                        "socket": { "enum": [ "" ] },
                         "connect_timeout": { "enum": [ 5 ] },
                         "mode":  { "enum": [ "" ] },
                         "routing_strategy": { "enum": [ "first-available" ] },
@@ -49,7 +49,7 @@
                         "connection_sharing_delay": { "enum": [ 1.0 ] }
                     },
                     "required": ["protocol", "destinations", "bind_port", "bind_address",
-                                 "named_socket", "connect_timeout", "routing_strategy",
+                                 "socket", "connect_timeout", "routing_strategy",
                                  "max_connections", "max_connect_errors", "client_connect_timeout",
                                  "net_buffer_length", "thread_stack_size", "client_ssl_mode",
                                  "client_ssl_cert", "client_ssl_key", "client_ssl_cipher", "client_ssl_curves",
