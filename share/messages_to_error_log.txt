@@ -12719,6 +12719,9 @@ ER_GRP_RPL_RECOVERY_WAIT_APPLIER_BACKLOG_FINISH
 ER_BULK_READER_ZSTD_ERROR_LOG
   eng "ZSTD decompression failed: %s"
 
+ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
