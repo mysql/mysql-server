@@ -1183,6 +1183,7 @@ class Query_block : public Query_term {
   Query_block *query_block() const override {
     return const_cast<Query_block *>(this);
   }
+  void label_children() override {}
   void destroy_tree() override { m_parent = nullptr; }
 
   bool open_result_tables(THD *, int) override;
