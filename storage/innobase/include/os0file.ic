@@ -85,13 +85,20 @@ monitor file creation/open.
                                 OS_FILE_READ_ALLOW_DELETE; the last option is
                                 used by a backup program reading the file
 @param[in]      read_only       if true read only mode checks are enforced
+@param[in]      umask           UNIX access permission to be set when creating a
+                                file. Use os_umask_default to use global default
+                                umask.
 @param[out]     success         true if succeeded
 @param[in]      src_location    location where func invoked
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only, bool *success, ut::Location src_location) {
+    bool read_only,
+#ifndef _WIN32
+    mode_t umask,
+#endif
+    bool *success, ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
   pfs_os_file_t file;
@@ -102,8 +109,12 @@ static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
       create_mode == OS_FILE_CREATE ? PSI_FILE_CREATE : PSI_FILE_OPEN, name,
       src_location);
 
-  file = os_file_create_simple_no_error_handling_func(
-      name, create_mode, access_type, read_only, success);
+  file = os_file_create_simple_no_error_handling_func(name, create_mode,
+                                                      access_type, read_only,
+#ifndef _WIN32
+                                                      umask,
+#endif
+                                                      success);
 
   file.m_psi = nullptr;
   register_pfs_file_open_end(locker, file,
