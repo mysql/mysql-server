@@ -1122,8 +1122,8 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // std::fstream f;
     // f.open("/usr/local/mysql/mylog.log", std::ios::out|std::ios::app);
-    // TODO: 真的需要加锁吗？原有的写log逻辑都是无锁的，加锁会显著降低速度
 
+    // 不需要加锁
     // 加锁，并发控制
     //  char *redo_log_remote_buf_latch =
     //      thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));

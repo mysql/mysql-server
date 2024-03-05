@@ -6,86 +6,94 @@
 
 #include "state/state_store/redo_log.h"
 
-#include "sql_class.h"
+// #include "sql_class.h"
 
-#include "sql/sql_thd_internal_api.h"
+// #include "sql/sql_thd_internal_api.h"
+
+// 包括了QP，MetaManager等
+#include "storage/innobase/include/log0sys.h"
 
 /**
  * @StateReplicate: 定义了 redo log 的状态取回
  */
-// class RedoLogFetch {
-//  public:
-//   RedoLogFetch() {}
+class RedoLogFetch {
+ public:
+  RedoLogFetch() = default;
 
-//   ~RedoLogFetch() { destroy_internal_thd(thd); }
+  ~RedoLogFetch() = default;
 
-//   RedoLogFetch(bool status) : failStatus(status) {}
+  RedoLogFetch(bool status) : failStatus(status) {}
 
-//   void setFailStatus(bool status) { failStatus = status; }
+  void setFailStatus(bool status) { failStatus = status; }
 
-//   bool getFailStatus() const { return failStatus; }
+  bool getFailStatus() const { return failStatus; }
 
-//   void setRedoLogItem(RedoLogItem *item) { redoLogItem = item; }
+  void setRedoLogItem(RedoLogItem *item) { redoLogItem = item; }
 
-//   RedoLogItem *getRedoLogItem() const { return redoLogItem; }
+  RedoLogItem *getRedoLogItem() const { return redoLogItem; }
 
-//   void setRedoLogBufferBuf(unsigned char *buffer) {
-//     redo_log_buffer_buf = buffer;
-//   }
-//   unsigned char *getRedoLogBufferBuf() const { return redo_log_buffer_buf; }
+  void setRedoLogBufferBuf(unsigned char *buffer) { log_buf_data = buffer; }
+  unsigned char *getRedoLogBufferBuf() const { return log_buf_data; }
 
-//   /**
-//    * @StateReplicate: 把 redo log buffer 从状态层读回来
-//    * @return
-//    */
-//   bool redo_log_fetch() {
-//     if (this->getFailStatus()) {
-//       // 取回 redo log buffer 的元数据
-//       size_t redo_log_buf_size = sizeof(RedoLogItem);
-//       redoLogItem =
-//           (RedoLogItem *)thd->rdma_buffer_allocator->Alloc(redo_log_buf_size);
-//       if (!thd->coro_sched->RDMAReadSync(0, qp, (char *)redoLogItem,
-//                                          meta_mgr->GetRedoLogCurrAddr(),
-//                                          redo_log_buf_size)) {
-//         return false;
-//       }
-//       // this->setRedoLogItem(redoLogItem);
+  /**
+   * @StateReplicate: 把 redo log buffer 从状态层读回来
+   * @return
+   */
+  bool redo_log_fetch(log_t &log) {
+    // this->log = log;
+    primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+    qp = log.qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
+    meta_mgr = MetaManager::get_instance();
+    
+    // 取回 redo log buffer 的元数据
+    size_t redo_log_buf_size = sizeof(RedoLogItem);
+    redoLogItem =
+        (RedoLogItem *)log.rdma_buffer_allocator->Alloc(redo_log_buf_size);
+    if (!log.coro_sched->RDMAReadSync(0, qp, (char *)redoLogItem,
+                                      meta_mgr->GetRedoLogCurrAddr(),
+                                      redo_log_buf_size)) {
+      // Fail
+      std::cout << "failed to read redo_log_remote_buf\n";
+      assert(0);
+      return false;
+    }
 
-//       // 取回 redo log buffer 的实际数据
-//       size_t redo_log_buffer_buf_size = sizeof(redoLogItem->buf_size);
-//       redo_log_buffer_buf = (unsigned char *)thd->rdma_buffer_allocator->Alloc(
-//           redo_log_buffer_buf_size);
-//       if (!thd->coro_sched->RDMAReadSync(
-//               0, qp, (char *)redo_log_buffer_buf,
-//               meta_mgr->GetRedoLogCurrAddr() + sizeof(*redoLogItem),
-//               redo_log_buffer_buf_size)) {
-//         return false;
-//       }
-//       // this->setRedoLogBufferBuf(nullptr);
-//     }
-//     return true;
-//   }
+    // 取回 redo log buffer 的实际数据
+    // TODO:这里的size还不确定，需要与storage/innobase/log/log0buf.cc:1188保持一致
+    size_t log_buf_data_size = ut::INNODB_CACHE_LINE_SIZE;
+    log_buf_data = (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
+    if (!log.coro_sched->RDMAReadSync(
+            0, qp, (char *)log_buf_data,
+            meta_mgr->GetRedoLogCurrAddr() + sizeof(*redoLogItem),
+            log_buf_data_size)) {
+      // Fail
+      std::cout << "failed to read log_buf_data\n";
+      assert(0);
+      return false;
+    }
 
-//   /**
-//    * @StateReplicate: TODO: 回放 buffer 中存储的 log，实现状态恢复
-//    * @return
-//    */
-//   bool redo_log_replay() { return true; }
+    return true;
+  }
 
-//  private:
-//   // failStatus 为真，则说明需要进行故障恢复，继续之后的逻辑
-//   bool failStatus = false;
+  /**
+   * @StateReplicate: TODO: 回放 buffer 中存储的 log，实现状态恢复
+   * @return
+   */
+  bool redo_log_replay() { return true; }
 
-//   // redo log buffer 的元信息，即原来的 log
-//   RedoLogItem *redoLogItem = nullptr;
+ private:
+  // failStatus 为真，则说明需要进行故障恢复，继续之后的逻辑
+  bool failStatus = false;
 
-//   // redo log buffer 的实际数据，即原来的 log.buf
-//   unsigned char *redo_log_buffer_buf = nullptr;
+  // redo log buffer 的元信息，即原来的 log
+  RedoLogItem *redoLogItem = nullptr;
 
-//   // 处理读回操作的线程
-//   THD *thd = create_internal_thd();
+  // redo log buffer 的实际数据，即原来的 log.buf
+  unsigned char *log_buf_data = nullptr;
 
-//   node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
-//   RCQP *qp = thd->qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
-//   MetaManager *meta_mgr = MetaManager::get_instance();
-// };
+  node_id_t primary_node_id =
+      0;  // MetaManager::get_instance()->GetPrimaryNodeID();
+  RCQP *qp =
+      nullptr;  // thd->qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
+  MetaManager *meta_mgr = nullptr;  // MetaManager::get_instance();
+};
