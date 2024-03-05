@@ -353,10 +353,9 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       if (mysqld_server_started) {
         Persisted_variables_cache *pv =
             Persisted_variables_cache::get_instance();
-        argc_copy = orig_argc;
+        argc_copy = argc_cached;
         argv_copy = new (&local_root) char *[argc_copy + 1];
-        memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
-        argv_copy[argc_copy] = nullptr;
+        memcpy(argv_copy, argv_cached, (argc_copy + 1) * sizeof(char *));
         argc = &argc_copy;
         argv = &argv_copy;
         if (pv && pv->append_read_only_variables(argc, argv, true, true,
