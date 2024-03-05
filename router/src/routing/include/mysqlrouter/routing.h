@@ -347,6 +347,9 @@ AccessMode get_default_access_mode(RoutingBootstrapSectionType section_type);
 
 bool get_default_connection_sharing(RoutingBootstrapSectionType section_type);
 
+bool get_default_router_require_enforce(
+    RoutingBootstrapSectionType section_type);
+
 }  // namespace routing
 
 #endif  // MYSQLROUTER_ROUTING_INCLUDED

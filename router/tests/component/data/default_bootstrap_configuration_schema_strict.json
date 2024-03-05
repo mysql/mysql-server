@@ -15,7 +15,6 @@
                 "server_ssl_mode": {  "enum": [ "PREFERRED" ] },
                 "server_ssl_verify": {  "enum": [ "DISABLED" ] },
                 "unknown_config_option": {  "enum": [ "error" ] },
-                "router_require_enforce": {  "enum": [ true ] },
                 "wait_for_my_writes": {  "enum": [ true ] },
                 "wait_for_my_writes_timeout": {  "enum": [ 2 ] }
             },
@@ -28,9 +27,9 @@
                 "thread_stack_size", "connection_sharing", "max_connect_errors",
                 "server_ssl_crlpath", "client_ssl_dh_params",
                 "max_total_connections", "unknown_config_option",
-                "client_connect_timeout", "router_require_enforce",
-                "connection_sharing_delay", "max_idle_server_connections",
-                "wait_for_my_writes", "wait_for_my_writes_timeout"
+                "client_connect_timeout",  "connection_sharing_delay", 
+                "max_idle_server_connections", "wait_for_my_writes", 
+                "wait_for_my_writes_timeout"
             ]
         },
         "metadata_cache" : {
