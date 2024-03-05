@@ -12716,6 +12716,9 @@ ER_GRP_RPL_RECOVERY_WAIT_APPLIER_BACKLOG_START
 ER_GRP_RPL_RECOVERY_WAIT_APPLIER_BACKLOG_FINISH
   eng "Distributed recovery finished applying the transactions '%s' contained on the 'group_replication_applier' channel."
 
+ER_BULK_READER_ZSTD_ERROR_LOG
+  eng "ZSTD decompression failed: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

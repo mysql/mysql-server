@@ -1545,6 +1545,7 @@ void warn_on_deprecated_user_defined_collation(
         json_attribute
         opt_channel
         opt_explain_for_schema
+        opt_compression_algorithm
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -14383,15 +14384,16 @@ load_stmt:
           table_ident                   /* 13 */
           opt_use_partition             /* 14 */
           opt_load_data_charset         /* 15 */
-          opt_xml_rows_identified_by    /* 16 */
-          opt_field_term                /* 17 */
-          opt_line_term                 /* 18 */
-          opt_ignore_lines              /* 19 */
-          opt_field_or_var_spec         /* 20 */
-          opt_load_data_set_spec        /* 21 */
-          opt_load_parallel             /* 22 */
-          opt_load_memory               /* 23 */
-          opt_load_algorithm            /* 24 */
+          opt_compression_algorithm     /* 16 */
+          opt_xml_rows_identified_by    /* 17 */
+          opt_field_term                /* 18 */
+          opt_line_term                 /* 19 */
+          opt_ignore_lines              /* 20 */
+          opt_field_or_var_spec         /* 21 */
+          opt_load_data_set_spec        /* 22 */
+          opt_load_parallel             /* 23 */
+          opt_load_memory               /* 24 */
+          opt_load_algorithm            /* 25 */
           {
             $$= NEW_PTN PT_load_table(@$, $2,  // data_or_xml
                                       $3,  // load_data_lock
@@ -14404,17 +14406,18 @@ load_stmt:
                                       $13, // table_ident
                                       $14, // opt_use_partition
                                       $15, // opt_load_data_charset
-                                      $16, // opt_xml_rows_identified_by
-                                      $17, // opt_field_term
-                                      $18, // opt_line_term
-                                      $19, // opt_ignore_lines
-                                      $20, // opt_field_or_var_spec
-                                      $21.set_var_list,// opt_load_data_set_spec
-                                      $21.set_expr_list,
-                                      $21.set_expr_str_list,
-                                      $22,  // opt_load_parallel
-                                      $23,  // opt_load_memory
-                                      $24); // opt_load_algorithm
+                                      $16, // opt_compression_algorithm
+                                      $17, // opt_xml_rows_identified_by
+                                      $18, // opt_field_term
+                                      $19, // opt_line_term
+                                      $20, // opt_ignore_lines
+                                      $21, // opt_field_or_var_spec
+                                      $22.set_var_list,// opt_load_data_set_spec
+                                      $22.set_expr_list,
+                                      $22.set_expr_str_list,
+                                      $23,  // opt_load_parallel
+                                      $24,  // opt_load_memory
+                                      $25); // opt_load_algorithm
           }
         ;
 
@@ -14447,15 +14450,19 @@ load_source_type:
 
 opt_source_count:
           %empty { $$= 0; }
-        | COUNT_SYM NUM { $$= atol($2.str); }
         | IDENT_sys NUM
           {
+            const long n_files= atol($2.str);
             // COUNT can be key word or identifier based on SQL mode
             if (my_strcasecmp(system_charset_info, $1.str, "count") != 0) {
               YYTHD->syntax_error_at(@1, "COUNT expected");
               YYABORT;
             }
-            $$= atol($2.str);
+            if (n_files == 0) {
+              YYTHD->syntax_error_at(@2, "The number of files cannot be zero");
+              MYSQL_YYABORT;
+            }
+            $$= n_files;
           }
         ;
 
@@ -14640,6 +14647,12 @@ opt_load_algorithm:
           %empty                    { $$ = false; }
         | ALGORITHM_SYM EQ BULK_SYM { $$ = true; }
         ;
+
+opt_compression_algorithm:
+          %empty                    { $$ = {}; }
+        | COMPRESSION_SYM EQ TEXT_STRING_sys { $$ = to_lex_cstring($3); }
+        ;
+
 
 opt_load_parallel:
           %empty              { $$ = 0; }
