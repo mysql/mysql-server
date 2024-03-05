@@ -36,27 +36,30 @@ TEST(StorageTest, Iterate) {
     temptable::Block shared_block;
     temptable::Allocator<uint8_t> allocator(&shared_block,
                                             table_resource_monitor);
-    temptable::Storage storage(&allocator);
+    {
+      temptable::Storage storage(&allocator);
 
-    storage.element_size(sizeof(uint64_t));
+      storage.element_size(sizeof(uint64_t));
 
-    for (uint64_t i = 0; i < 10000; ++i) {
-      *static_cast<uint64_t *>(storage.allocate_back()) = i;
+      for (uint64_t i = 0; i < 10000; ++i) {
+        *static_cast<uint64_t *>(storage.allocate_back()) = i;
+      }
+
+      uint64_t i = 0;
+      for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
+        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
+      }
+
+      i = storage.size();
+      auto it = storage.end();
+      for (; it != storage.begin();) {
+        --it;
+        --i;
+        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
+      }
+      EXPECT_EQ(0u, i);
     }
-
-    uint64_t i = 0;
-    for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-
-    i = storage.size();
-    auto it = storage.end();
-    for (; it != storage.begin();) {
-      --it;
-      --i;
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-    EXPECT_EQ(0u, i);
+    shared_block.destroy();
   });
   t.join();
 }
@@ -80,6 +83,8 @@ TEST(StorageTest, AllocatorRebind) {
     rebound_alloc.deallocate(ptr2, 50);
 
     alloc.deallocate(shared_eater, 1048576);
+
+    shared_block.destroy();
   };
   std::thread t(thread_function);
   t.join();
