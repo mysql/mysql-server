@@ -30,6 +30,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysqlrouter/utils.h"  // to_string
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -186,8 +187,10 @@ void Processor::trace_set_connection_attributes(TraceEvent *ev) {
   ev->attrs.emplace_back("mysql.remote.is_connected", server_conn.is_open());
 
   if (server_conn.is_open()) {
-    ev->attrs.emplace_back("mysql.remote.endpoint",
-                           connection()->get_destination_id());
+    if (auto ep = connection()->destination_endpoint()) {
+      ev->attrs.emplace_back("mysql.remote.endpoint",
+                             mysqlrouter::to_string(*ep));
+    }
     ev->attrs.emplace_back(
         "mysql.remote.connection_id",
         static_cast<int64_t>(
