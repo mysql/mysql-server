@@ -52,18 +52,18 @@ SELECT @session_start_value;
 --error ER_BAD_FIELD_ERROR
 SELECT collation_database;
 # assign value without @@
-SET collation_database=utf8_unicode_ci;
+SET collation_database=utf8mb3_unicode_ci;
 SELECT @@session.collation_database;
 # assign global variable without @@
 --Error ER_PARSE_ERROR
-SET global.collation_database=utf8_unicode_ci;
+SET global.collation_database=utf8mb3_unicode_ci;
 # using another syntax for accessing session variable
-SET session collation_database=utf8_unicode_ci;
+SET session collation_database=utf8mb3_unicode_ci;
 # accessing variable with scope the wrong way
 --Error ER_BAD_FIELD_ERROR
 SELECT session collation_database;
 # using another syntax for accessing dynamic variable
-SET global collation_database=utf8_unicode_ci;
+SET global collation_database=utf8mb3_unicode_ci;
 --Error ER_BAD_FIELD_ERROR
 SELECT global collation_database;
 
@@ -84,11 +84,11 @@ SELECT @@global.collation_database;
 ##############################################################################
 #     see if setting global value changes session value and vice versa       #
 ##############################################################################
-SET @@session.collation_database = utf8_polish_ci;
+SET @@session.collation_database = utf8mb3_polish_ci;
 SELECT @@session.collation_database;
 SET @@global.collation_database = latin7_general_ci;
 SELECT @@global.collation_database;
-SELECT @@session.collation_database AS res_is_utf8_polish_ci;
+SELECT @@session.collation_database AS res_is_utf8mb3_polish_ci;
 
 SET @@session.collation_database = latin7_bin;
 SELECT @@session.collation_database;

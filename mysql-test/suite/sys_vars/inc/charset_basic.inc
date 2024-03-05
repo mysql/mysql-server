@@ -49,7 +49,7 @@ eval SET $charset_variable = latin5;
 eval SELECT $charset_variable;
 eval SET $charset_variable = armscii8;
 eval SELECT $charset_variable;
-eval SET $charset_variable = utf8;
+eval SET $charset_variable = utf8mb3;
 eval SELECT $charset_variable;
 eval SET $charset_variable = utf8mb4;
 eval SELECT $charset_variable;

@@ -17,22 +17,22 @@ utf8mb4
 '#--------------------FN_DYNVARS_011_01------------------#'
 SELECT character_set_connection;
 ERROR 42S22: Unknown column 'character_set_connection' in 'field list'
-SET character_set_connection=utf8;
+SET character_set_connection=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 utf8mb3
-SET global.character_set_connection=utf8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_connection=utf8' at line 1
-SET session character_set_connection=utf8;
+SET global.character_set_connection=utf8mb3;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_connection=utf8mb3' at line 1
+SET session character_set_connection=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT session character_set_connection;
 ERROR 42S22: Unknown column 'session' in 'field list'
-SET global character_set_connection=utf8;
+SET global character_set_connection=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT global character_set_connection;
 ERROR 42S22: Unknown column 'global' in 'field list'
 '#--------------------FN_DYNVARS_011_02-------------------------#'
@@ -47,9 +47,9 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 utf8mb4
 '#--------------------FN_DYNVARS_011_03-------------------------#'
-SET @@session.character_set_connection = utf8;
+SET @@session.character_set_connection = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 utf8mb3
@@ -79,8 +79,8 @@ SELECT @@character_set_connection = @@local.character_set_connection AS res;
 res
 1
 '#--------------------FN_DYNVARS_011_05-------------------------#'
-SET @@character_set_connection = utf8 + latin2;
-ERROR 42S22: Unknown column 'utf8' in 'field list'
+SET @@character_set_connection = utf8mb3 + latin2;
+ERROR 42S22: Unknown column 'utf8mb3' in 'field list'
 '#--------------------FN_DYNVARS_011_06-------------------------#'
 SET @@session.character_set_connection = big5;
 SELECT @@session.character_set_connection;
@@ -174,9 +174,9 @@ SET @@session.character_set_connection = armscii8;
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 armscii8
-SET @@session.character_set_connection = utf8;
+SET @@session.character_set_connection = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 utf8mb3
@@ -339,9 +339,9 @@ SET @@global.character_set_connection = armscii8;
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 armscii8
-SET @@global.character_set_connection = utf8;
+SET @@global.character_set_connection = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 utf8mb3
@@ -412,21 +412,21 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 eucjpms
 '#--------------------FN_DYNVARS_011_08-------------------------#'
-SET @@character_set_connection = UTF8;
+SET @@character_set_connection = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_connection;
 @@character_set_connection
 utf8mb3
-SET @@character_set_connection = utf8;
+SET @@character_set_connection = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_connection;
 @@character_set_connection
 utf8mb3
-SET @@global.character_set_connection = uTf8;
+SET @@global.character_set_connection = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 utf8mb3
@@ -494,8 +494,8 @@ SET @@character_set_connection = 1.1;
 ERROR 42000: Incorrect argument type to variable 'character_set_connection'
 SET @@character_set_connection = -1;
 ERROR 42000: Unknown character set: '-1'
-SET @@character_set_connection = 'utf8 ';
-ERROR 42000: Unknown character set: 'utf8 '
+SET @@character_set_connection = 'utf8mb3 ';
+ERROR 42000: Unknown character set: 'utf8mb3 '
 SET @@character_set_connection = 'lätin2';
 ERROR 42000: Unknown character set: 'l?tin2'
 SET @@character_set_connection = true;

@@ -20,7 +20,7 @@ SELECT @@character_set_server,@@collation_server;
 @@character_set_server	@@collation_server
 utf8mb4	utf8mb4_0900_ai_ci
 '--check if setting collation_database update character_set_database--'
-SET @@session.collation_database = utf8_spanish_ci;
+SET @@session.collation_database = utf8mb3_spanish_ci;
 Warnings:
 Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
@@ -28,7 +28,7 @@ SELECT @@collation_database, @@character_set_database;
 @@collation_database	@@character_set_database
 utf8mb3_spanish_ci	utf8mb3
 '--check if collation_database effects database/tables charset/collation'
-SET @@session.collation_server = utf8_roman_ci;
+SET @@session.collation_server = utf8mb3_roman_ci;
 Warnings:
 Warning	3778	'utf8mb3_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SET @@session.collation_database = latin2_croatian_ci;

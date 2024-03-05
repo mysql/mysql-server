@@ -1,9 +1,9 @@
 '#--------------------FN_DYNVARS_012_01-------------------------#'
 SET @global_character_set_results = @@global.character_set_results;
 SET @session_character_set_results = @@session.character_set_results;
-SET @@global.character_set_results = utf8;
+SET @@global.character_set_results = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 'connect (con1,localhost,root,,,,)'
 'connection con1'
 SELECT @@global.character_set_results;
@@ -15,12 +15,12 @@ utf8mb3
 '#--------------------FN_DYNVARS_012_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(b CHAR(40) character set utf8);
+CREATE TABLE t1(b CHAR(40) character set utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SET NAMES utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 '----check string literals against different character_set_results---'
 check if results are converted to character_set_results 
 SET @@session.character_set_results = greek;
@@ -42,18 +42,18 @@ SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
 ЁЂЃЄ
 '---check results from table against different character_set_results--'
-INSERT INTO t1 VALUES(_utf8'ЁЂЃЄ');
+INSERT INTO t1 VALUES(_utf8mb3'ЁЂЃЄ');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES('ФХЦЧШ');
 SET @@session.character_set_results = NULL;
 SELECT b, CHAR_LENGTH(b) FROM t1;
 b	CHAR_LENGTH(b)
 ЁЂЃЄ	4
 ФХЦЧШ	5
-SET @@session.character_set_results = utf8;
+SET @@session.character_set_results = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT b, CHAR_LENGTH(b) FROM t1;
 b	CHAR_LENGTH(b)
 ЁЂЃЄ	4

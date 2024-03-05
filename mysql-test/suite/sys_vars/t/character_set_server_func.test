@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: string                                                           #
-# Default Value: utf8 (session), latin1 (global)                              #
+# Default Value: utf8mb3 (session), latin1 (global)                              #
 # Range: NA                                                                   #
 #                                                                             #
 #                                                                             #
@@ -28,7 +28,7 @@ SET @global_character_set_server = @@global.character_set_server;
 SET @session_character_set_server = @@session.character_set_server;
 
 
-SET @@global.character_set_server = utf8;
+SET @@global.character_set_server = utf8mb3;
 --echo 'connect (con1,localhost,root,,,,)'
 connect (con1,localhost,root,,,,);
 --echo 'connection con1'
@@ -51,7 +51,7 @@ connection default;
 --echo '---global character_set_server should not effects current connection---'
 #==============================================================================
 
-SET @@global.character_set_server = utf8;
+SET @@global.character_set_server = utf8mb3;
 CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
@@ -61,7 +61,7 @@ select @@character_set_database;
 #==============================================================================
 --echo '---session character_set_server should effects current connection---'
 #==============================================================================
-SET @@session.character_set_server = utf8;
+SET @@session.character_set_server = utf8mb3;
 CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;

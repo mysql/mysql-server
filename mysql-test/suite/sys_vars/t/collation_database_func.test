@@ -55,13 +55,13 @@ SELECT @@character_set_server,@@collation_server;
 --echo '--check if setting collation_database update character_set_database--'
 #==============================================================================
 
-SET @@session.collation_database = utf8_spanish_ci;
+SET @@session.collation_database = utf8mb3_spanish_ci;
 SELECT @@collation_database, @@character_set_database;
 
 #==============================================================================
 --echo '--check if collation_database effects database/tables charset/collation'
 #==============================================================================
-SET @@session.collation_server = utf8_roman_ci;
+SET @@session.collation_server = utf8mb3_roman_ci;
 SET @@session.collation_database = latin2_croatian_ci;
 CREATE DATABASE db1;
 USE db1;

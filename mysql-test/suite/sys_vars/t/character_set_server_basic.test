@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: string                                                           #
-# Default Value: utf8 (session), latin1 (global)                              #
+# Default Value: utf8mb3 (session), latin1 (global)                              #
 # Range: NA                                                                   #
 #                                                                             #
 #                                                                             #
@@ -51,18 +51,18 @@ SELECT @session_start_value;
 --error ER_BAD_FIELD_ERROR
 SELECT character_set_server;
 # assign value without @@
-SET character_set_server=utf8;
+SET character_set_server=utf8mb3;
 SELECT @@session.character_set_server;
 # assign global variable without @@
 --Error ER_PARSE_ERROR
-SET global.character_set_server=utf8;
+SET global.character_set_server=utf8mb3;
 # using another syntax for accessing session variable
-SET session character_set_server=utf8;
+SET session character_set_server=utf8mb3;
 # accessing variable with scope the wrong way
 --Error ER_BAD_FIELD_ERROR
 SELECT session character_set_server;
 # using another syntax for accessing dynamic variable
-SET global character_set_server=utf8;
+SET global character_set_server=utf8mb3;
 --Error ER_BAD_FIELD_ERROR
 SELECT global character_set_server;
 
@@ -85,7 +85,7 @@ SELECT @@global.character_set_server;
 ###############################################################################
 #     see if setting global value changes session value and vice versa        #
 ###############################################################################
-SET @@session.character_set_server = utf8;
+SET @@session.character_set_server = utf8mb3;
 SELECT @@session.character_set_server;
 SET @@global.character_set_server = latin2;
 SELECT @@global.character_set_server;
@@ -111,7 +111,7 @@ SELECT @@character_set_server = @@local.character_set_server AS res;
 #     Check if combining character set works                              #
 ###########################################################################
 --Error ER_BAD_FIELD_ERROR
-SET @@character_set_server = utf8 + latin2;
+SET @@character_set_server = utf8mb3 + latin2;
 
 --echo '#--------------------FN_DYNVARS_009_06-------------------------#'
 ###############################################################################
@@ -137,12 +137,12 @@ let charset_variable = @@global.character_set_server;
 #   Change the value of character_set_server to a valid value with uppercase, #
 # lowercase and mixedcase                                                     #
 ###############################################################################
-SET @@character_set_server = UTF8;
+SET @@character_set_server = utf8mb3;
 SELECT @@character_set_server;
-SET @@character_set_server = utf8;
+SET @@character_set_server = utf8mb3;
 SELECT @@character_set_server;
 
-SET @@global.character_set_server = uTf8;
+SET @@global.character_set_server = utf8mb3;
 SELECT @@global.character_set_server;
 
 --echo '#--------------------FN_DYNVARS_009_09-------------------------#'

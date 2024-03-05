@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: string                                                           #
-# Default Value: utf8 (session), latin1 (global)                              #
+# Default Value: utf8mb3 (session), latin1 (global)                              #
 # Range: NA                                                                   #
 #                                                                             #
 #                                                                             #
@@ -31,7 +31,7 @@ SET @session_character_set_client = @@session.character_set_client;
 SET @session_character_set_results = @@session.character_set_results;
 
 
-SET @@global.character_set_connection = utf8;
+SET @@global.character_set_connection = utf8mb3;
 --echo 'connect (con1,localhost,root,,,,)'
 connect (con1,localhost,root,,,,);
 --echo 'connection con1'
@@ -51,21 +51,21 @@ connection default;
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-CREATE TABLE t1(b CHAR(40) CHARACTER SET utf8);
+CREATE TABLE t1(b CHAR(40) CHARACTER SET utf8mb3);
 #==============================================================================
 --echo '--verify that character_set_connection converts character_set_client--'
 #==============================================================================
 
-SET @@session.character_set_client = utf8;
-SET @@session.character_set_results = utf8;
+SET @@session.character_set_client = utf8mb3;
+SET @@session.character_set_results = utf8mb3;
 
 SET @@session.character_set_connection = latin1;
 SELECT 'ЁЂЃЄ' AS utf_text;
 
-SET @@session.character_set_connection = utf8;
+SET @@session.character_set_connection = utf8mb3;
 SELECT 'ЁЂЃЄ' AS utf_text;
 #==============================================================================
---echo '---now inserting utf8 string with different character_set_connection--'
+--echo '---now inserting utf8mb3 string with different character_set_connection--'
 #==============================================================================
 SET @@session.character_set_connection = ascii;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
@@ -85,7 +85,7 @@ TRUNCATE TABLE t1;
 #==============================================================================
 # set names should set character sets [client,connection,results]
 #==============================================================================
-SET NAMES utf8;
+SET NAMES utf8mb3;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
 SELECT * FROM t1;
 TRUNCATE TABLE t1;

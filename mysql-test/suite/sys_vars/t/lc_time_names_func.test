@@ -50,7 +50,7 @@ disconnect con1;
 --echo 'connection default'
 connection default;
 
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 
 SET @@session.lc_time_names = 'en_US';
 SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');

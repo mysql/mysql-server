@@ -14,7 +14,7 @@ latin1_danish_ci
 'connection default'
 DROP TABLE IF EXISTS t1,t2;
 '---check if setting collation_server update character_set_server---'
-SET @@session.collation_server = utf8_spanish_ci;
+SET @@session.collation_server = utf8mb3_spanish_ci;
 Warnings:
 Warning	3778	'utf8mb3_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@collation_server, @@character_set_server;

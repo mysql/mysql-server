@@ -42,7 +42,7 @@ SET @start_init_replica= @@global.init_replica;
 
 # setting of a global value with an effect on the next start of the slave server
 # check that @@global.init_replica could be set
-SET NAMES utf8;
+SET NAMES utf8mb3;
 let $my_init_replica=
    'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий';
 eval SET @@global.init_replica = $my_init_replica;

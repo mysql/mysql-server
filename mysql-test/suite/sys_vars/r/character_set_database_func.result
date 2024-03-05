@@ -3,9 +3,9 @@ SET @global_character_set_database = @@global.character_set_database;
 SET @session_character_set_database = @@session.character_set_database;
 SET @session_character_set_server = @@session.character_set_server;
 SET @global_character_set_server = @@global.character_set_server;
-SET @@global.character_set_database = utf8;
+SET @@global.character_set_database = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 'connect (con1,localhost,root,,,,)'
 'connection con1'
@@ -19,9 +19,9 @@ utf8mb4
 'connection default'
 DROP TABLE IF EXISTS t1;
 '--check if setting session character_set_database effects new databases'
-SET @@session.character_set_server = utf8;
+SET @@session.character_set_server = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_database;
 @@session.character_set_database
 utf8mb4
@@ -61,9 +61,9 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 DROP DATABASE db1;
 SET GLOBAL character_set_server=latin5;
-CREATE DATABASE csdb CHARACTER SET = utf8;
+CREATE DATABASE csdb CHARACTER SET = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE csdb;
 DROP DATABASE csdb;
 SELECT @@character_set_database;

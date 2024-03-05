@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: string                                                           #
-# Default Value: utf8 (session), latin1 (global)                              #
+# Default Value: utf8mb3 (session), latin1 (global)                              #
 # Range: NA                                                                   #
 #                                                                             #
 #                                                                             #
@@ -29,7 +29,7 @@ SET @global_character_set_client = @@global.character_set_client;
 SET @session_character_set_client = @@session.character_set_client;
 
 
-SET @@global.character_set_client = utf8;
+SET @@global.character_set_client = utf8mb3;
 --echo 'connect (con1,localhost,root,,,,)'
 connect (con1,localhost,root,,,,);
 --echo 'connection con1'
@@ -52,10 +52,10 @@ SHOW VARIABLES like 'character_set_client';
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-CREATE TABLE t1(a CHAR(3) character set utf8);
+CREATE TABLE t1(a CHAR(3) character set utf8mb3);
 
 #==============================================================================
---echo '---verifying character_set_client with a utf8 character----'
+--echo '---verifying character_set_client with a utf8mb3 character----'
 #==============================================================================
 --echo 'For latin1 characterset';
 SET @@session.character_set_client = latin1;
@@ -63,8 +63,8 @@ INSERT INTO t1 values('è');
 SELECT hex(a),CHAR_LENGTH(a) FROM t1;
 DELETE FROM t1;
 
---echo 'For utf8 characterset';
-SET @@session.character_set_client = utf8;
+--echo 'For utf8mb3 characterset';
+SET @@session.character_set_client = utf8mb3;
 INSERT INTO t1 values('è');
 SELECT hex(a),CHAR_LENGTH(a) FROM t1;
 DELETE FROM t1;

@@ -17,22 +17,22 @@ binary
 '#--------------------FN_DYNVARS_008_01------------------#'
 SELECT character_set_filesystem;
 ERROR 42S22: Unknown column 'character_set_filesystem' in 'field list'
-SET character_set_filesystem=utf8;
+SET character_set_filesystem=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 utf8mb3
-SET global.character_set_filesystem=utf8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_filesystem=utf8' at line 1
-SET session character_set_filesystem=utf8;
+SET global.character_set_filesystem=utf8mb3;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_filesystem=utf8mb3' at line 1
+SET session character_set_filesystem=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT session character_set_filesystem;
 ERROR 42S22: Unknown column 'session' in 'field list'
-SET global character_set_filesystem=utf8;
+SET global character_set_filesystem=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT global character_set_filesystem;
 ERROR 42S22: Unknown column 'global' in 'field list'
 '#--------------------FN_DYNVARS_008_02-------------------------#'
@@ -47,9 +47,9 @@ SELECT @@global.character_set_filesystem AS DEFAULT_VALUE;
 DEFAULT_VALUE
 binary
 '#--------------------FN_DYNVARS_008_03-------------------------#'
-SET @@session.character_set_filesystem = utf8;
+SET @@session.character_set_filesystem = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 utf8mb3
@@ -79,8 +79,8 @@ SELECT @@character_set_filesystem = @@local.character_set_filesystem AS res;
 res
 1
 '#--------------------FN_DYNVARS_008_05-------------------------#'
-SET @@character_set_filesystem = utf8 + latin2;
-ERROR 42S22: Unknown column 'utf8' in 'field list'
+SET @@character_set_filesystem = utf8mb3 + latin2;
+ERROR 42S22: Unknown column 'utf8mb3' in 'field list'
 '#--------------------FN_DYNVARS_008_06-------------------------#'
 SET @@session.character_set_filesystem = big5;
 SELECT @@session.character_set_filesystem;
@@ -174,9 +174,9 @@ SET @@session.character_set_filesystem = armscii8;
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 armscii8
-SET @@session.character_set_filesystem = utf8;
+SET @@session.character_set_filesystem = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 utf8mb3
@@ -339,9 +339,9 @@ SET @@global.character_set_filesystem = armscii8;
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 armscii8
-SET @@global.character_set_filesystem = utf8;
+SET @@global.character_set_filesystem = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 utf8mb3
@@ -412,21 +412,21 @@ SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 eucjpms
 '#--------------------FN_DYNVARS_008_08-------------------------#'
-SET @@character_set_filesystem = UTF8;
+SET @@character_set_filesystem = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_filesystem;
 @@character_set_filesystem
 utf8mb3
-SET @@character_set_filesystem = utf8;
+SET @@character_set_filesystem = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_filesystem;
 @@character_set_filesystem
 utf8mb3
-SET @@character_set_filesystem = uTf8;
+SET @@character_set_filesystem = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_filesystem;
 @@character_set_filesystem
 utf8mb3

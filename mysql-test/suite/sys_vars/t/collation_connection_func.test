@@ -54,7 +54,7 @@ DROP TABLE IF EXISTS t1;
 --echo '----check if collation_connection update character_set_connection---'
 #==============================================================================
 
-SET @@session.collation_connection = utf8_spanish_ci;
+SET @@session.collation_connection = utf8mb3_spanish_ci;
 SELECT @@collation_connection, @@character_set_database;
 
 #==============================================================================
@@ -63,13 +63,13 @@ SELECT @@collation_connection, @@character_set_database;
 SET @@session.collation_connection = latin1_swedish_ci;
 SELECT 'mysql'='MySql';
 SELECT _latin2'mysql' COLLATE latin2_general_ci='MySql';
-SELECT _utf8'mysql'=_utf8'MySql' COLLATE utf8_unicode_ci;
+SELECT _utf8mb3'mysql'=_utf8mb3'MySql' COLLATE utf8mb3_unicode_ci;
 
 SET @@session.collation_connection = latin1_general_cs;
 SELECT 'mysql'='MySql';
 SELECT _latin2'mysql'COLLATE latin2_general_ci='MySql';
 --Error ER_CANT_AGGREGATE_2COLLATIONS
-SELECT _utf8'mysql'COLLATE utf8_danish_ci=_utf8'MySql'COLLATE utf8_unicode_ci;
+SELECT _utf8mb3'mysql'COLLATE utf8mb3_danish_ci=_utf8mb3'MySql'COLLATE utf8mb3_unicode_ci;
 
 #==============================================================================
 --echo '---collation_connection does not effect comparision with column---'

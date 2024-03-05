@@ -29,7 +29,7 @@ SET @session_character_set_database = @@session.character_set_database;
 SET @session_character_set_server = @@session.character_set_server;
 SET @global_character_set_server = @@global.character_set_server;
 
-SET @@global.character_set_database = utf8;
+SET @@global.character_set_database = utf8mb3;
 --echo 'connect (con1,localhost,root,,,,)'
 connect (con1,localhost,root,,,,);
 --echo 'connection con1'
@@ -54,7 +54,7 @@ DROP TABLE IF EXISTS t1;
 --echo '--check if setting session character_set_database effects new databases'
 #==============================================================================
 
-SET @@session.character_set_server = utf8;
+SET @@session.character_set_server = utf8mb3;
 SELECT @@session.character_set_database;
 SET @@session.character_set_database = latin5;
 SELECT @@session.character_set_database;
@@ -84,7 +84,7 @@ SET GLOBAL character_set_server=latin5;
 connect (con2, localhost, root,,);
 connection con2;
 
-CREATE DATABASE csdb CHARACTER SET = utf8;
+CREATE DATABASE csdb CHARACTER SET = utf8mb3;
 USE csdb;
 DROP DATABASE csdb;
 SELECT @@character_set_database;
