@@ -826,4 +826,22 @@ extern Deployed_components *g_deployed_components;
 extern bool opt_persist_sensitive_variables_in_plaintext;
 
 void persisted_variables_refresh_keyring_support();
+
+/**
+  Stores the value of argc during server start up that contains
+  the count of arguments specified by the user in the
+  configuration files and command line.
+  The server refers the cached argument count during
+  plugin and component installation.
+*/
+extern int argc_cached;
+/**
+  Stores the value of argv during server start up that contains
+  the vector of arguments specified by the user in the
+  configuration files and command line.
+  The server refers the cached argument vector during
+  plugin and component installation.
+*/
+extern char **argv_cached;
+
 #endif /* MYSQLD_INCLUDED */
