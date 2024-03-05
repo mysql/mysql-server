@@ -321,6 +321,6 @@ inline const char *trx_state_string(trx_state_t state) {
       return "COMMITTED IN MEMORY";
     default:
       ut_d(ut_error);
-      return nullptr;
+      ut_o(return nullptr);
   }
 }
