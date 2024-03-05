@@ -224,4 +224,11 @@ bool get_default_connection_sharing(RoutingBootstrapSectionType section_type) {
   return section_type == RoutingBootstrapSectionType::kRwSplit;
 }
 
+bool get_default_router_require_enforce(
+    RoutingBootstrapSectionType section_type) {
+  // default is true for classic, false for x protocol
+  return (section_type != RoutingBootstrapSectionType::kXRw) &&
+         (section_type != RoutingBootstrapSectionType::kXRo);
+}
+
 }  // namespace routing

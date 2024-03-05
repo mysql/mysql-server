@@ -894,7 +894,7 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
                   true);
     expose_option("router_require_enforce",
                   plugin_config_.router_require_enforce,
-                  routing::kDefaultRequireEnforce, true);
+                  get_default_router_require_enforce(section_type), false);
 
     // expose access_mode only if it is not empty
     const auto access_mode =
