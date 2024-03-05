@@ -711,19 +711,19 @@ SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
 CREATE TABLE d (
   col_int int(11) DEFAULT NULL,
-  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8mb3 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   pk int(11) NOT NULL AUTO_INCREMENT,
   col_int_key int(11) GENERATED ALWAYS AS (col_int+col_int) VIRTUAL,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 GENERATED ALWAYS AS (REPEAT(SUBSTRING(col_varchar_10_utf8, -1), 5)) VIRTUAL,
+  col_varchar_10_utf8mb3_key varchar(10) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (REPEAT(SUBSTRING(col_varchar_10_utf8mb3, -1), 5)) VIRTUAL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
-  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
-  KEY cover_key1 (col_int_key, col_varchar_10_utf8_key)
+  KEY col_varchar_10_utf8mb3_key (col_varchar_10_utf8mb3_key),
+  KEY cover_key1 (col_int_key, col_varchar_10_utf8mb3_key)
 );
 
-INSERT INTO d (col_int, col_varchar_10_utf8) VALUES  ('qhlhtrovam',1),('how',2),('htrovamzqr',3),('rovamzqrdc',4),('well',5),('g',6),('rdcenchyhu',7),('want',8);
+INSERT INTO d (col_int, col_varchar_10_utf8mb3) VALUES  ('qhlhtrovam',1),('how',2),('htrovamzqr',3),('rovamzqrdc',4),('well',5),('g',6),('rdcenchyhu',7),('want',8);
 
-SELECT table1.pk AS field1 FROM d AS table1 LEFT JOIN d AS table2 ON table1.col_varchar_10_utf8_key = table2.col_varchar_10_utf8_key WHERE table1.col_int_key IS NULL GROUP BY table1.pk ;
+SELECT table1.pk AS field1 FROM d AS table1 LEFT JOIN d AS table2 ON table1.col_varchar_10_utf8mb3_key = table2.col_varchar_10_utf8mb3_key WHERE table1.col_int_key IS NULL GROUP BY table1.pk ;
 
 DROP TABLE d;
 
@@ -734,13 +734,13 @@ DROP TABLE d;
 CREATE TABLE j (
 col_int int(11),
 pk int(11) NOT NULL,
-col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
-col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 GENERATED ALWAYS AS 
-(col_varchar_10_utf8) VIRTUAL,
+col_varchar_10_utf8mb3 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
+col_varchar_255_utf8mb3_key varchar(255) CHARACTER SET utf8mb3 GENERATED ALWAYS AS 
+(col_varchar_10_utf8mb3) VIRTUAL,
 PRIMARY KEY (pk),
-KEY cover_key1 (col_int, col_varchar_255_utf8_key));
+KEY cover_key1 (col_int, col_varchar_255_utf8mb3_key));
 
-INSERT INTO j(col_int, pk, col_varchar_10_utf8) VALUES(9, 1, '951910400'),
+INSERT INTO j(col_int, pk, col_varchar_10_utf8mb3) VALUES(9, 1, '951910400'),
 (-1934295040, 2, '1235025920'),(-584581120, 3, '-1176633344'),(3, 4, '1074462720');
 --disable_query_log
 --disable_result_log
@@ -749,8 +749,8 @@ ANALYZE TABLE j;
 --enable_result_log
 
 --replace_column 10 #
-EXPLAIN SELECT col_varchar_255_utf8_key FROM j ORDER BY 1;
-SELECT col_varchar_255_utf8_key FROM j ORDER BY col_varchar_255_utf8_key;
+EXPLAIN SELECT col_varchar_255_utf8mb3_key FROM j ORDER BY 1;
+SELECT col_varchar_255_utf8mb3_key FROM j ORDER BY col_varchar_255_utf8mb3_key;
 
 DROP TABLE j;
 

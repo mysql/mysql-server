@@ -382,23 +382,23 @@ if(! $testing_ndb) {
 
 --echo # Check for a valid syntax:
 
-CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar"));
+CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin GENERATED ALWAYS AS ("foo bar"));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 CREATE TABLE t1 (i INT);
-ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
+ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin GENERATED ALWAYS AS ("foo bar");
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
+CREATE TABLE t1 (i INT COLLATE utf8mb3_bin, c INT COLLATE utf8mb3_bin GENERATED ALWAYS AS (10));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo # Check for a charset mismatch processing:
 
 --error ER_COLLATION_CHARSET_MISMATCH
-CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));
+CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8mb3 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));
 
 
 --echo # Check for a sorting order support:
