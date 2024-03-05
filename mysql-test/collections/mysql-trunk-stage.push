@@ -30,6 +30,8 @@ perl mysql-test-run.pl --force --timer     --comment=stress --vardir=var-stress 
 perl mysql-test-run.pl --force --timer     --comment=jp --vardir=var-jp --suite=jp --no-skip --max-test-fail=30
 perl mysql-test-run.pl --force --timer     --comment=nist  --vardir=var-nist --suite=nist --no-skip
 
+# Run the bulk_load test suite that is not part of the default
+perl mysql-test-run.pl --force --timer --comment=bulk --vardir=var-bulk --suite=bulk_load --no-skip
 
 # Engine independent tests
 

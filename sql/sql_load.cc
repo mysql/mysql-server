@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <atomic>
 #include <limits>
+#include <sstream>
 
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -238,13 +239,15 @@ bool Sql_cmd_load_table::truncate_table_for_bulk_load(
 */
 bool Sql_cmd_load_table::check_bulk_load_parameters(THD *thd) {
   DBUG_TRACE;
+  /* On error, this function needs to return true. */
+  const bool error = true;
 
   /* First check if bulk loader component is available. */
   my_h_service svc = nullptr;
 
   if (srv_registry->acquire("bulk_load_driver", &svc)) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Bulk Load");
-    return false;
+    return error;
   }
   srv_registry->release(svc);
 
@@ -494,7 +497,38 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
       break;
   }
 
-  std::string file_prefix(m_exchange.file_name);
+  std::string lowercase(m_compression_algorithm_string.str,
+                        m_compression_algorithm_string.length);
+
+  std::transform(lowercase.begin(), lowercase.end(), lowercase.begin(),
+                 ::tolower);
+  Bulk_compression_algorithm compression_algorithm =
+      Bulk_compression_algorithm::NONE;
+  if (m_compression_algorithm_string.length == 0) {
+    compression_algorithm = Bulk_compression_algorithm::NONE;
+  } else if (lowercase == "zstd") {
+    compression_algorithm = Bulk_compression_algorithm::ZSTD;
+  } else {
+    std::stringstream ss;
+    ss << "Invalid compression algorithm: "
+       << std::string(m_compression_algorithm_string.str,
+                      m_compression_algorithm_string.length);
+    my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK Algorithm",
+             ss.str().c_str());
+    return false;
+  }
+
+  std::string file_name_arg(m_exchange.file_name);
+
+  Bulk_load_file_info info(src, file_name_arg, m_file_count);
+
+  {
+    std::string error;
+    if (!info.parse(error)) {
+      my_error(ER_BULK_PARSER_ERROR, MYF(0), error.c_str());
+      return false;
+    }
+  }
 
   if (src == Bulk_source::LOCAL) {
     char name[FN_REFLEN];
@@ -503,13 +537,13 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
     const char *db = table_list->db;
     const char *tdb = thd->db().str ? thd->db().str : db;
 
-    if (!dirname_length(m_exchange.file_name)) {
+    if (!dirname_length(info.m_file_prefix.c_str())) {
       strxnmov(name, FN_REFLEN - 1, mysql_real_data_home, tdb, NullS);
-      (void)fn_format(name, m_exchange.file_name, name, "",
+      (void)fn_format(name, info.m_file_prefix.c_str(), name, "",
                       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
     } else {
       (void)fn_format(
-          name, m_exchange.file_name, mysql_real_data_home, "",
+          name, info.m_file_prefix.c_str(), mysql_real_data_home, "",
           MY_RELATIVE_PATH | MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH);
     }
 
@@ -519,8 +553,8 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
       return false;
     }
     /* Replace relative path. */
-    if (!test_if_hard_path(m_exchange.file_name)) {
-      file_prefix.assign(name);
+    if (!test_if_hard_path(info.m_file_prefix.c_str())) {
+      info.m_file_prefix.assign(name);
     }
   }
 
@@ -534,7 +568,7 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
   auto load_driver = reinterpret_cast<SERVICE_TYPE(bulk_load_driver) *>(svc);
 
   auto load_handle = load_driver->create_bulk_loader(
-      thd, table, src,
+      thd, thd->thread_id(), table, src,
       m_exchange.cs ? m_exchange.cs : thd->variables.collation_database);
 
   /* Set schema, table, file name string options. */
@@ -544,7 +578,18 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
   std::string table_name(table->s->table_name.str, table->s->table_name.length);
   load_driver->set_string(load_handle, Bulk_string::TABLE_NAME, table_name);
 
-  load_driver->set_string(load_handle, Bulk_string::FILE_PREFIX, file_prefix);
+  load_driver->set_string(load_handle, Bulk_string::FILE_PREFIX,
+                          info.m_file_prefix);
+
+  if (info.m_file_suffix.has_value()) {
+    load_driver->set_string(load_handle, Bulk_string::FILE_SUFFIX,
+                            info.m_file_suffix.value());
+  }
+
+  if (!info.m_appendtolastprefix.empty()) {
+    load_driver->set_string(load_handle, Bulk_string::APPENDTOLASTPREFIX,
+                            info.m_appendtolastprefix);
+  }
 
   /* If not set by user, default is assigned from default_field_term. */
   const String *field_term = m_exchange.field.field_term;
@@ -562,10 +607,14 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
                              m_ordered_data);
   load_driver->set_condition(load_handle, Bulk_condition::OPTIONAL_ENCLOSE,
                              m_exchange.field.opt_enclosed);
+  load_driver->set_condition(load_handle, Bulk_condition::DRYRUN,
+                             info.m_is_dryrun);
 
   /* Set size options. */
   load_driver->set_size(load_handle, Bulk_size::CONCURRENCY, m_concurrency);
   load_driver->set_size(load_handle, Bulk_size::COUNT_FILES, m_file_count);
+  load_driver->set_size(load_handle, Bulk_size::START_INDEX,
+                        info.m_start_index);
   load_driver->set_size(load_handle, Bulk_size::COUNT_ROW_SKIP,
                         m_exchange.skip_lines);
   load_driver->set_size(load_handle, Bulk_size::COUNT_COLUMNS,
@@ -581,6 +630,8 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
   if (!enclosed->is_empty()) {
     load_driver->set_char(load_handle, Bulk_char::ENCLOSE_CHAR, (*enclosed)[0]);
   }
+
+  load_driver->set_compression_algorithm(load_handle, compression_algorithm);
 
   bool success = load_driver->load(load_handle, affected_rows);
 
@@ -2558,15 +2609,17 @@ bool Sql_cmd_load_table::execute(THD *thd) {
     if (m_exchange.field.field_term->length() > 1) {
       my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK Algorithm",
                "multi-byte column separator");
-      return false;
+      return true;
     }
+
     if (thd->lex->is_ignore()) {
       my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK Algorithm",
                "IGNORE clause");
-      return false;
+      return true;
     }
     /* We need FILE_ACL only if the data source files are in server. */
     need_file_acl = (m_bulk_source == LOAD_SOURCE_FILE);
+
   } else {
     if (m_file_count > 0) {
       my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA without BULK Algorithm",
@@ -2578,6 +2631,18 @@ bool Sql_cmd_load_table::execute(THD *thd) {
                "URL source");
       return true;
     }
+    if (m_compression_algorithm_string.length != 0) {
+      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA without BULK Algorithm",
+               "COMPRESSION specified!");
+      return true;
+    }
+
+    if (is_json_object(m_exchange.file_name)) {
+      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA without BULK Algorithm",
+               "JSON object specified as filename!");
+      return true;
+    }
+
     /* We need FILE_ACL if data is not streamed by client from client local
      * file. */
     need_file_acl = !m_is_local_file;
