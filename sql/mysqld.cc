@@ -1208,6 +1208,8 @@ uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
 bool opt_persist_sensitive_variables_in_plaintext{true};
+int argc_cached;
+char **argv_cached;
 
 #if defined(_WIN32)
 /*
@@ -7307,6 +7309,11 @@ int mysqld_main(int argc, char **argv)
     flush_error_log_messages();
     return 1;
   }
+
+  argc_cached = argc;
+  argv_cached = new (&argv_alloc) char *[argc_cached + 1];
+  memcpy(argv_cached, argv, argc_cached * sizeof(char *));
+  argv_cached[argc_cached] = nullptr;
 
   /* Set data dir directory paths */
   strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),

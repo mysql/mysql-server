@@ -38,7 +38,6 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_default.h"  // free_defaults
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_list.h"
@@ -2254,8 +2253,9 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
                                  const LEX_STRING *dl) {
   TABLE *table;
   bool error = true;
-  int argc = orig_argc;
-  char **argv = orig_argv;
+  int argc;
+  char **argv;
+  char **argv_copy;
   st_plugin_int *tmp = nullptr;
   bool store_infoschema_metadata = false;
   dd::Schema_MDL_locker mdl_handler(thd);
@@ -2327,16 +2327,18 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
   mysql_mutex_lock(&LOCK_plugin);
 
   {
-    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-    my_getopt_use_args_separator = true;
-    if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv,
-                         &alloc, nullptr)) {
+    argc = argc_cached;
+    if (!(argv_copy =
+              (char **)my_memdup(PSI_NOT_INSTRUMENTED, argv_cached,
+                                 (argc + 1) * sizeof(char *), MYF(0)))) {
       mysql_mutex_unlock(&LOCK_plugin);
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
-      report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name.str);
+      report_error(REPORT_TO_USER, ER_OUTOFMEMORY,
+                   static_cast<int>((argc + 1) * sizeof(char *)));
       goto err;
     }
-    my_getopt_use_args_separator = false;
+    argv = argv_copy;
+
     /*
      Append parse early and static variables present in mysqld-auto.cnf file
      for the newly installed plugin to process those options which are specific
@@ -2472,6 +2474,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
   }
 
 err:
+  my_free(argv_copy);
   mysql_mutex_unlock(&LOCK_plugin_install);
   return end_transaction(thd, error);
 }
