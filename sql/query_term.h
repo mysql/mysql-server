@@ -260,16 +260,28 @@ class Query_term {
   */
   virtual size_t child_count() const { return 0; }
 
+  /// Set the correct value of \c Query_term::m_sibling_idx recursively for
+  /// set operations. For \c Query_term_unary, this is done in its constructor.
+  /// A no-op for \c Query_block. See also \c set_sibling_idx.
+  virtual void label_children() = 0;
+
  protected:
   /**
     Back pointer to the node whose child we are, or nullptr (root term).
   */
   Query_term_set_op *m_parent{nullptr};
 
+  /// If parent is non-null, this holds the index of the current sibling.
+  /// Used for efficient iterator traversal up and down the tree.
+  uint m_sibling_idx{0};
+
  public:
   /// Getter for m_parent, q.v.
   Query_term_set_op *parent() const { return m_parent; }
-
+  /// Setter for \c m_sibling_idx, q.v.
+  void set_sibling_idx(uint idx) { m_sibling_idx = idx; }
+  /// Getter for \c m_sibling_idx, q.v.
+  uint sibling_idx() { return m_sibling_idx; }
   /**
     Reset resources used.
     @param full do full cleanup. Same semantics as for Query_expression's
@@ -384,13 +396,6 @@ class Query_term {
   void set_fields(mem_root_deque<Item *> *fields) { m_fields = fields; }
   // Getter for m_fields, q.v.
   mem_root_deque<Item *> *fields() { return m_fields; }
-
- private:
-  /// class Query_terms iterator traversal state variable, hence friend
-  /// declaration immediately below
-  uint m_curr_id;
-  template <Visit_order order, Visit_leaves visit_leaves>
-  friend class Query_terms;
 };
 
 /// Common base class for n-ary set operations, including unary.
@@ -439,6 +444,14 @@ class Query_term_set_op : public Query_term {
 
     m_block = b;
     return false;
+  }
+
+  void label_children() override {
+    uint idx = 0;
+    for (auto child : m_children) {
+      child->set_sibling_idx(idx++);
+      child->label_children();
+    }
   }
 
   size_t child_count() const override { return m_children.size(); }
@@ -549,6 +562,7 @@ class Query_term_unary : public Query_term_set_op {
       : Query_term_set_op(mem_root) {
     m_last_distinct = 0;
     m_children.push_back(t);
+    t->set_sibling_idx(0);
   }
   Query_term_type term_type() const override { return QT_UNARY; }
   const char *operator_string() const override { return "result"; }
@@ -559,7 +573,7 @@ class Query_term_unary : public Query_term_set_op {
   Containing class for iterator over the query term tree. The structure is
   in part dictated by C++ conventions for iterators.
   @tparam visit_order indicates whether pre or post order visiting is requested
-  @tparam visit_leaves indicated whether to visit the leaf nodes (query blocks)
+  @tparam visit_leaves indicates whether to visit the leaf nodes (query blocks)
 */
 template <Visit_order visit_order, Visit_leaves visit_leaves>
 class Query_terms {
@@ -578,17 +592,12 @@ class Query_terms {
       Query_block::next_query_block chain
       @param root the node to start iteration from
      */
-    Query_term_iterator(Query_term *root) {
-      m_current = root;
-      if (m_current != nullptr) m_current->m_curr_id = 0;
+    explicit Query_term_iterator(Query_term *root)
+        : m_current(root), m_child_idx(0) {
+      if (root == nullptr) return;
       if constexpr (visit_order == QTC_POST_ORDER) {
         // start at left-most leaf node
-        while (m_current != nullptr &&
-               m_current->term_type() != QT_QUERY_BLOCK) {
-          m_current = down_cast<Query_term_set_op *>(m_current)
-                          ->m_children[m_current->m_curr_id];
-          m_current->m_curr_id = 0;
-        }
+        dive_to_leftmost_leaf_of_child();
         if constexpr (visit_leaves == VL_SKIP_LEAVES) operator++();
       }
     }
@@ -596,15 +605,13 @@ class Query_terms {
     Query_term_iterator() = default;
 
     Query_term_iterator &operator++() {
-      if (m_current == nullptr) {
-        return *this;
-      }
+      assert(m_current != nullptr);
       while (m_current != nullptr) {
         uint children = m_current->child_count();
         if constexpr (visit_order == QTC_PRE_ORDER) {
-          while (m_current != nullptr && (m_current->m_curr_id >= children)) {
+          while (m_current != nullptr && m_child_idx >= children) {
             // no more at this level, go back up
-            m_current = m_current->m_parent;
+            prepare_for_next_sibling();
             if (m_current != nullptr) {
               children = m_current->child_count();
             }
@@ -612,18 +619,13 @@ class Query_terms {
 
           if (m_current == nullptr) return *this;
           m_current = down_cast<Query_term_set_op *>(m_current)
-                          ->m_children[m_current->m_curr_id++];
-          m_current->m_curr_id = 0;
+                          ->m_children[m_child_idx];
+          m_child_idx = 0;
         } else {
-          m_current = m_current->m_parent;
+          prepare_for_next_sibling();
           if (m_current == nullptr) return *this;
-          if (++m_current->m_curr_id < m_current->child_count()) {
-            while (m_current != nullptr &&
-                   m_current->term_type() != QT_QUERY_BLOCK) {
-              m_current = down_cast<Query_term_set_op *>(m_current)
-                              ->m_children[m_current->m_curr_id];
-              m_current->m_curr_id = 0;
-            }
+          if (m_child_idx < m_current->child_count()) {
+            dive_to_leftmost_leaf_of_child();
           } else {
             // return non-leaf
           }
@@ -645,8 +647,43 @@ class Query_terms {
     bool operator!=(const Query_term_iterator &other) const {
       return !((*this) == other);
     }
-    /// Iterator state consists of this and Query_term::m_curr_id
+
+   private:
+    /// Iterator state consists of the next two member variables
     Query_term *m_current{nullptr};
+
+    /// Used to find next child node to dive into, see \c set_next_child_idx
+    uint m_child_idx{0};
+
+    /// Starting at \c m_current->m_children[m_child_index], dive down through
+    /// any left-most (index == 0) further children till we find left-most leaf
+    /// term (a \c Query_block) under the child pointed to by
+    /// \c m_child_index. After the dive, \c m_child_index will be zero, and
+    /// \c m_current will be set to the leaf term.
+    void dive_to_leftmost_leaf_of_child() {
+      while (m_current != nullptr && m_current->term_type() != QT_QUERY_BLOCK) {
+        m_current =
+            down_cast<Query_term_set_op *>(m_current)->m_children[m_child_idx];
+        m_child_idx = 0;
+      }
+    }
+
+    /// Find the index of the next sibling, if any, of \c m_current qua child
+    /// of its parent, so we can visit it: assign it to \c m_child_idx.
+    /// Setting \c m_child_idx to a value of \c Query_term::child_count means we
+    /// signal that we are done.  Also, \c m_current is set to its parent.
+    void prepare_for_next_sibling() {
+      assert(m_current != nullptr);
+      if (m_current->parent() == nullptr) {
+        m_current = m_current->parent();
+        return;
+      }
+      assert(m_current->parent()->m_children[m_current->sibling_idx()] ==
+             m_current);
+      m_child_idx = m_current->sibling_idx() + 1;
+
+      m_current = m_current->parent();
+    }
   };
 
  public:

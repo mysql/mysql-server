@@ -79,8 +79,11 @@ Query_term *Query_term::pushdown_limit_order_by(Query_term_set_op *parent) {
     case QT_EXCEPT: {
       auto setop = down_cast<Query_term_set_op *>(this);
       for (Query_term *&child : setop->m_children) {
+        const uint sibling_idx = child->sibling_idx();
         child = child->pushdown_limit_order_by(
             down_cast<Query_term_set_op *>(this));
+        // Make sure the new child inherits the old child's sibling index
+        child->set_sibling_idx(sibling_idx);
       }
     } break;
     case QT_UNARY: {

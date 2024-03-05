@@ -1675,6 +1675,7 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
   if (setop == nullptr) return true;
 
   merge_descendants(pc, setop, ql);
+  setop->label_children();
 
   Query_expression *qe = pc->select->master_query_expression();
   if (setop->set_block(qe->create_post_processing_block(setop))) return true;

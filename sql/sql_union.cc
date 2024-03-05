@@ -675,9 +675,9 @@ bool Query_expression::can_materialize_directly_into_result() const {
 }
 
 /**
-  Prepares all query blocks of a query expression, including
-  fake_query_block. If a recursive query expression, this also creates the
-  materialized temporary table.
+  Prepares all query blocks of a query expression.
+  If a recursive query expression, this also creates the materialized temporary
+  table.
 
   @param thd           Thread handler
   @param sel_result    Result object where the unit's output should go.
