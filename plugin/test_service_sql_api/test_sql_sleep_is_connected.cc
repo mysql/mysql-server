@@ -67,6 +67,8 @@ static void ensure_api_ok(const char *function, MYSQL_SESSION result) {
 struct Callback_data {
   bool limit_is_connected{false};
   int is_connected_calls{0};
+  int is_disconnected_calls{2};  // Calls after disconnect.
+  int is_preamble_calls{4};      // Calls before starting query.
   int handle_ok_calls{0};
 };
 
@@ -213,6 +215,14 @@ static bool sql_connection_alive(void *ctx) {
   Callback_data *cbd = static_cast<Callback_data *>(ctx);
 
   if (cbd->limit_is_connected) {
+    // Patch for bug#34930219 changes the way connection_alive() is called.
+    // Hence, we must adjust the expected number of calls.
+    if (cbd->is_preamble_calls-- > 0) return true;
+    if (cbd->is_connected_calls == 0 && cbd->is_disconnected_calls > 0) {
+      cbd->is_disconnected_calls--;
+      return false;
+    }
+
     // Connection is disconnected
     // after concrete number of calls
     cbd->is_connected_calls--;

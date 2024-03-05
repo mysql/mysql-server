@@ -1182,6 +1182,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   }
   int ret = dispatch_command(m_thd, data, command);
 
+  DEBUG_SYNC(m_thd, "wait_before_popping_protocol");
   m_thd->pop_protocol();
   assert(m_thd->get_protocol() == &m_protocol_error);
   return ret;

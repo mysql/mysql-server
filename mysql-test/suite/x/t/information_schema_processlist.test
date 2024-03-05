@@ -1,0 +1,67 @@
+# This test is created to reproduce a race condition where the session is popping
+# the protocol while I_S processlist is accessing the protocol pointer.
+
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--echo # I. Reproduce race condition between popping the protocol and selecting
+--echo #    from I_S processlist (Bug#34930219):
+--echo # 1. Create X Protocol session (X1) using "x_root" account and hang it
+--echo #    before popping the protocol (sync point: wait_before_popping_protocol)
+--echo # 2. Create classic protocol session(C1) and list all sessions,
+--echo #    hang it at sync point 'wait_before_returning_protocol'.
+--echo # 3. Wait until C1 is at the expected sync point, then wakeup X1.
+--echo
+
+## Test setup.
+--let $xtest_file= $MYSQL_TMP_DIR/is_processlist_mysqlx.xpl
+--write_file $xtest_file
+
+SET DEBUG_SYNC= 'wait_before_popping_protocol SIGNAL waiting_popping WAIT_FOR continue_popping';
+SELECT 1;
+EOF
+
+## Start the X client.
+--echo
+--echo #
+--echo # Connect X1, send signal.
+--exec_in_background $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Connect C1
+--echo
+--echo #
+--echo # Connect Cl, wait for signal.
+--connect(con1,localhost,root,,)
+SET DEBUG_SYNC= 'now WAIT_FOR waiting_popping';
+
+## Let C1 wait while returning the protocol.
+--echo
+--echo #
+--echo # Use C1 and list all sessions, wait before returning the protocol.
+SET DEBUG_SYNC= 'wait_before_checking_alive SIGNAL waiting_checking WAIT_FOR continue_checking';
+send SELECT COUNT(*) > 0 from information_schema.processlist;
+
+## Both C1 and X1 are now halted. First let X1 continue, then C1.
+--echo
+--echo #
+--echo # From the default connection, wait for threads being halted, then
+--echo # let both clients continue.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR waiting_checking';
+SET DEBUG_SYNC= 'now SIGNAL continue_popping';
+--sleep 1
+SET DEBUG_SYNC= 'now SIGNAL continue_checking';
+
+--echo
+--echo #
+--echo # Go back to C1 and reap.
+--connection con1
+reap;
+
+## Cleanup
+--connection default
+--disconnect con1
+--source ../include/xplugin_cleanup.inc
