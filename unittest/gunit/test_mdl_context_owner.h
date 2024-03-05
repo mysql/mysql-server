@@ -36,7 +36,7 @@ class Test_MDL_context_owner : public MDL_context_owner {
                  int) override {}
 
   int is_killed() const final { return 0; }
-  bool is_connected() override { return true; }
+  bool is_connected(bool = false) override { return true; }
   bool might_have_commit_order_waiters() const override { return false; }
 
   THD *get_thd() override {

@@ -126,7 +126,7 @@ class MDL_context_owner {
   /**
     Does the owner still have connection to the client?
   */
-  virtual bool is_connected() = 0;
+  virtual bool is_connected(bool = false) = 0;
 
   /**
     Indicates that owner thread might have some commit order (non-MDL) waits
