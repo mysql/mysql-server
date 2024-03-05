@@ -95,6 +95,8 @@ class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
   mysqlrouter::ClusterType cluster_type;
   /** @brief  Id of the router in the metadata. */
   unsigned int router_id;
+  /** @brief  SSL settings for metadata cache connection. */
+  mysqlrouter::SSLOptions ssl_options;
 
   // options configured in the metadata
   std::string target_cluster;

@@ -49,6 +49,16 @@ using mysql_harness::utility::string_format;
 using mysqlrouter::ms_to_seconds_string;
 using mysqlrouter::to_string;
 
+namespace {
+constexpr std::string_view kDefaultSslMode{"PREFERRED"};
+constexpr std::string_view kDefaultSslCipher{""};
+constexpr std::string_view kDefaultTlsVersion{""};
+constexpr std::string_view kDefaultSslCa{""};
+constexpr std::string_view kDefaultSslCaPath{""};
+constexpr std::string_view kDefaultSslCrl{""};
+constexpr std::string_view kDefaultSslCrlPath{""};
+}  // namespace
+
 using MilliSecondsOption = mysql_harness::MilliSecondsOption;
 using StringOption = mysql_harness::StringOption;
 
@@ -189,6 +199,37 @@ MetadataCachePluginConfig::get_dynamic_state(
                                                        cluster_type);
 }
 
+static std::string get_ssl_option(const mysql_harness::ConfigSection *section,
+                                  const std::string &key,
+                                  const std::string_view def_value) {
+  if (section->has(key)) return section->get(key);
+  return std::string(def_value);
+}
+
+#define GET_SSL_OPTION_CHECKED(option, section, name, def_value) \
+  static_assert(mysql_harness::str_in_collection(                \
+      metadata_cache_supported_options, name));                  \
+  option = get_ssl_option(section, name, def_value);
+
+static mysqlrouter::SSLOptions make_ssl_options(
+    const mysql_harness::ConfigSection *section) {
+  mysqlrouter::SSLOptions options;
+
+  GET_SSL_OPTION_CHECKED(options.mode, section, "ssl_mode", kDefaultSslMode);
+  GET_SSL_OPTION_CHECKED(options.cipher, section, "ssl_cipher",
+                         kDefaultSslCipher);
+  GET_SSL_OPTION_CHECKED(options.tls_version, section, "tls_version",
+                         kDefaultTlsVersion);
+  GET_SSL_OPTION_CHECKED(options.ca, section, "ssl_ca", kDefaultSslCa);
+  GET_SSL_OPTION_CHECKED(options.capath, section, "ssl_capath",
+                         kDefaultSslCaPath);
+  GET_SSL_OPTION_CHECKED(options.crl, section, "ssl_crl", kDefaultSslCrl);
+  GET_SSL_OPTION_CHECKED(options.crlpath, section, "ssl_crlpath",
+                         kDefaultSslCrlPath);
+
+  return options;
+}
+
 MetadataCachePluginConfig::MetadataCachePluginConfig(
     const mysql_harness::ConfigSection *section)
     : BasePluginConfig(section),
@@ -218,6 +259,8 @@ MetadataCachePluginConfig::MetadataCachePluginConfig(
   GET_OPTION_CHECKED(cluster_type, section, "cluster_type",
                      ClusterTypeOption{});
   GET_OPTION_CHECKED(router_id, section, "router_id", IntOption<uint32_t>{});
+
+  ssl_options = make_ssl_options(section);
 
   if (cluster_type == mysqlrouter::ClusterType::RS_V2 &&
       section->has("use_gr_notifications")) {
@@ -276,6 +319,25 @@ class MetadataCacheConfigExposer : public mysql_harness::SectionConfigExposer {
     expose_option("use_gr_notifications", plugin_config_.use_gr_notifications,
                   mysqlrouter::kDefaultUseGRNotificationsCluster,
                   mysqlrouter::kDefaultUseGRNotificationsClusterSet, false);
+
+    expose_option(
+        "thread_stack_size", plugin_config_.thread_stack_size,
+        static_cast<int64_t>(mysql_harness::kDefaultStackSizeInKiloBytes));
+
+    expose_option("ssl_mode", plugin_config_.ssl_options.mode,
+                  std::string(kDefaultSslMode));
+    expose_option("ssl_cipher", plugin_config_.ssl_options.cipher,
+                  std::string(kDefaultSslCipher));
+    expose_option("tls_version", plugin_config_.ssl_options.tls_version,
+                  std::string(kDefaultTlsVersion));
+    expose_option("ssl_ca", plugin_config_.ssl_options.ca,
+                  std::string(kDefaultSslCa));
+    expose_option("ssl_capath", plugin_config_.ssl_options.capath,
+                  std::string(kDefaultSslCaPath));
+    expose_option("ssl_crl", plugin_config_.ssl_options.crl,
+                  std::string(kDefaultSslCrl));
+    expose_option("ssl_crlpath", plugin_config_.ssl_options.crlpath,
+                  std::string(kDefaultSslCrlPath));
   }
 
  private:

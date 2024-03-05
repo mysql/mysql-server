@@ -13,7 +13,15 @@
                 "auth_cache_ttl": { "$ref": "#/definitions/number_option" },
                 "auth_cache_refresh_interval": { "$ref": "#/definitions/number_option" },
                 "connect_timeout": { "$ref": "#/definitions/number_option" },
-                "read_timeout": { "$ref": "#/definitions/number_option" }
+                "read_timeout": { "$ref": "#/definitions/number_option" },
+                "thread_stack_size": { "type": "number" },
+                "ssl_mode": { "type": "string" },
+                "tls_version": { "type": "string" },
+                "ssl_cipher": { "type": "string" },
+                "ssl_ca": { "type": "string" },
+                "ssl_capath": { "type": "string" },
+                "ssl_crl": { "type": "string" },
+                "ssl_crlpath": { "type": "string" }
             },
             "required": ["user"]
         },
@@ -74,9 +82,13 @@
                         "server_ssl_ca": { "type": "string" },
                         "server_ssl_capath": { "type": "string" },
                         "server_ssl_crl": { "type": "string" },
-                        "server_ssl_crlpath":{ "type": "string" },
+                        "server_ssl_crlpath": { "type": "string" },
                         "connection_sharing": { "type": "boolean" },
-                        "connection_sharing_delay":{ "type": "number" }
+                        "connection_sharing_delay": { "type": "number" },
+                        "router_require_enforce": { "type": "boolean" },
+                        "access_mode": { "type": "string" },
+                        "wait_for_my_writes": { "type": "boolean" },
+                        "wait_for_my_writes_timeout": { "type": "number" }
                     },
                     "required": ["destinations", "routing_strategy"]
                 }

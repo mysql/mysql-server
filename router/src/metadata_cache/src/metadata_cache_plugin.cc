@@ -109,34 +109,6 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-static std::string get_option(const mysql_harness::ConfigSection *section,
-                              const std::string &key,
-                              const std::string &def_value) {
-  if (section->has(key)) return section->get(key);
-  return def_value;
-}
-
-#define GET_OPTION_CHECKED(option, section, name, def_value) \
-  static_assert(mysql_harness::str_in_collection(            \
-      metadata_cache_supported_options, name));              \
-  option = get_option(section, name, def_value);
-
-static mysqlrouter::SSLOptions make_ssl_options(
-    const mysql_harness::ConfigSection *section) {
-  mysqlrouter::SSLOptions options;
-
-  GET_OPTION_CHECKED(options.mode, section, "ssl_mode",
-                     mysqlrouter::MySQLSession::kSslModePreferred);
-  GET_OPTION_CHECKED(options.cipher, section, "ssl_cipher", "");
-  GET_OPTION_CHECKED(options.tls_version, section, "tls_version", "");
-  GET_OPTION_CHECKED(options.ca, section, "ssl_ca", "");
-  GET_OPTION_CHECKED(options.capath, section, "ssl_capath", "");
-  GET_OPTION_CHECKED(options.crl, section, "ssl_crl", "");
-  GET_OPTION_CHECKED(options.crlpath, section, "ssl_crlpath", "");
-
-  return options;
-}
-
 class MetadataServersStateListener
     : public metadata_cache::ClusterStateListenerInterface {
  public:
@@ -263,10 +235,9 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     md_cache->cache_init(config.cluster_type, config.router_id, clusterset_id,
                          config.metadata_servers_addresses, ttl_config,
-                         make_ssl_options(section), target_cluster,
-                         session_config, g_router_attributes,
-                         config.thread_stack_size, config.use_gr_notifications,
-                         config.get_view_id());
+                         config.ssl_options, target_cluster, session_config,
+                         g_router_attributes, config.thread_stack_size,
+                         config.use_gr_notifications, config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);
