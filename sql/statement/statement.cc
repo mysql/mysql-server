@@ -473,6 +473,13 @@ bool Prepared_statement_handle::enable_cursor() {
          m_thd->server_status & SERVER_MORE_RESULTS_EXISTS);
 
   Sql_cmd *sql_cmd = m_stmt->m_lex->m_sql_cmd;
+
+  /*
+    Note: Temporary fix to disable cursor for EXPLAIN in prepared statement
+    till Bug#36332426 is resolved.
+  */
+  if (m_stmt->m_lex->is_explain()) return false;
+
   /*
     Enable cursors only when results are not directly relayed to the client and
     only command is suitable for cursors.
