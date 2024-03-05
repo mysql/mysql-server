@@ -1284,6 +1284,14 @@ class THD : public MDL_context_owner,
  private:
   mysql_mutex_t LOCK_query_plan;
 
+  /**
+    Keep a cached value saying whether the connection is alive. Update when
+    pushing, popping or getting the protocol. Used by
+    information_schema.processlist to avoid locking mutexes that might
+    affect performance.
+  */
+  std::atomic<bool> m_cached_is_connection_alive;
+
  public:
   /// Locks the query plan of this THD
   void lock_query_plan() { mysql_mutex_lock(&LOCK_query_plan); }
@@ -1335,7 +1343,7 @@ class THD : public MDL_context_owner,
 
   const Protocol *get_protocol() const { return m_protocol; }
 
-  Protocol *get_protocol() { return m_protocol; }
+  Protocol *get_protocol();
 
   SSL_handle get_ssl() const {
 #ifndef NDEBUG
@@ -1361,10 +1369,7 @@ class THD : public MDL_context_owner,
     return pointer_cast<const Protocol_classic *>(m_protocol);
   }
 
-  Protocol_classic *get_protocol_classic() {
-    assert(is_classic_protocol());
-    return pointer_cast<Protocol_classic *>(m_protocol);
-  }
+  Protocol_classic *get_protocol_classic();
 
  private:
   Protocol *m_protocol;  // Current protocol
@@ -3240,7 +3245,7 @@ class THD : public MDL_context_owner,
   bool is_classic_protocol() const;
 
   /** Return false if connection to client is broken. */
-  bool is_connected() final;
+  bool is_connected(bool use_cached_connection_alive = false) final;
 
   /**
     Mark the current error as fatal. Warning: this does not

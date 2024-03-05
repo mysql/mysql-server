@@ -82,7 +82,7 @@ class MDL_context_backup_manager::MDL_context_backup
 
   uint get_rand_seed() const override { return 1; }
 
-  bool is_connected() override { return true; }
+  bool is_connected(bool = false) override { return true; }
   // End implementation of MDL_context_owner interface.
 
  private:

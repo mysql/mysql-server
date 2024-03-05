@@ -31,6 +31,7 @@
 #include "mysql_com.h"
 #include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
@@ -277,8 +278,10 @@ int Protocol_callback::shutdown(bool server_shutdown) {
     false  disconnected
 */
 bool Protocol_callback::connection_alive() const {
-  if (callbacks.connection_alive)
+  if (callbacks.connection_alive) {
+    DEBUG_SYNC(current_thd, "wait_before_checking_alive");
     return callbacks.connection_alive(callbacks_ctx);
+  }
 
   return true;
 }
