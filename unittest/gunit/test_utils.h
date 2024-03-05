@@ -116,7 +116,10 @@ class DD_initializer {
 /// Enable unstructured trace for the lifetime of this object.
 class TraceGuard final {
  public:
-  explicit TraceGuard(THD *thd) : m_context{&thd->opt_trace} {
+  explicit TraceGuard(THD *thd)
+      : m_context{&thd->opt_trace},
+        m_trace{
+            static_cast<int64_t>(thd->variables.optimizer_trace_max_mem_size)} {
     // Start trace.
     m_context->start(false, true, false, false, 0, 0, 0, 0);
     m_context->set_unstructured_trace(&m_trace);
@@ -149,7 +152,7 @@ class TraceGuard final {
 /// "ostream << trace_buffer" to work.
 inline std::ostream &operator<<(std::ostream &stream,
                                 const TraceBuffer &buffer) {
-  buffer.ForEach([&](char ch) { stream << ch; });
+  stream << buffer.ToString();
   return stream;
 }
 

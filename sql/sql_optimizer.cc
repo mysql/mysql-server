@@ -304,27 +304,6 @@ bool JOIN::check_access_path_with_fts() const {
   return false;
 }
 
-/// Move unstructured trace text (as used by Hypergraph) into the JSON tree.
-static void MoveUnstructuredToStructuredTrace(THD *thd) {
-  assert(thd->opt_trace.is_started());
-  const Opt_trace_object trace_wrapper{&thd->opt_trace};
-  Opt_trace_array join_optimizer{&thd->opt_trace, "join_optimizer"};
-  Mem_root_array<char> line{thd->mem_root};
-
-  thd->opt_trace.unstructured_trace()->contents().ForEachRemove([&](char ch) {
-    if (ch == '\n') {
-      join_optimizer.add_utf8(line.data(), line.size());
-      line.clear();
-    } else {
-      line.push_back(ch);
-    }
-  });
-
-  // The last line should also be terminated by '\n'.
-  assert(line.empty());
-  thd->opt_trace.set_unstructured_trace(nullptr);
-}
-
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -645,7 +624,13 @@ bool JOIN::optimize(bool finalize_access_paths) {
     Item *where_cond_no_in2exists = remove_in2exists_conds(where_cond);
     Item *having_cond_no_in2exists = remove_in2exists_conds(having_cond);
 
-    UnstructuredTrace unstructured_trace;
+    // Cap the trace size at 2^63-1 bytes, since UnstructuredTrace uses
+    // int64_t.
+    const int64_t max_trace_bytes{static_cast<int64_t>(
+        std::min<uintmax_t>(std::numeric_limits<int64_t>::max(),
+                            thd->variables.optimizer_trace_max_mem_size))};
+
+    UnstructuredTrace unstructured_trace{max_trace_bytes};
     if (thd->opt_trace.is_started()) {
       thd->opt_trace.set_unstructured_trace(&unstructured_trace);
     }
@@ -654,7 +639,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
     // this scope.
     const auto copy_trace = create_scope_guard([&]() {
       if (thd->opt_trace.is_started()) {
-        MoveUnstructuredToStructuredTrace(thd);
+        thd->opt_trace.ConsumeUnstructuredTrace(thd);
+        thd->opt_trace.set_unstructured_trace(nullptr);
       }
     });
 

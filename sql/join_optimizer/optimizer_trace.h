@@ -22,11 +22,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_JOIN_OPTIMIZER_OPTIMIZER_TRACE_H_
-#define SQL_JOIN_OPTIMIZER_OPTIMIZER_TRACE_ 1
+#define SQL_JOIN_OPTIMIZER_OPTIMIZER_TRACE_H_ 1
 
 #include <array>
 #include <cassert>
 #include <deque>
+#include <memory>
 #include <ostream>
 
 #include "sql/opt_trace_context.h"
@@ -45,76 +46,91 @@
 class TraceBuffer final : public std::streambuf {
  public:
   /// The size of each consecutive buffer.
-  static constexpr size_t kSegmentSize = 4096;
+  static constexpr int64_t kSegmentSize{4096};
 
  private:
   /// A consecutive buffer.
   using Segment = std::array<char, kSegmentSize>;
-  /// The sequence of consecutive buffers.
-  using DequeType = std::deque<Segment>;
 
  public:
-  /**
-     Called by std::ostream if the current segment is full.
-     Allocate a new segment and put 'ch' at the beginning of it.
-   */
-  int_type overflow(int_type ch) override {
-    Segment &segment = m_segments.emplace_back();
-    segment[0] = ch;
-
-    setp(std::to_address(segment.begin()) + 1, std::to_address(segment.end()));
-
-    // Anything but EOF means 'ok'.
-    return traits_type::not_eof(ch);
+  /// @param max_bytes The maximal number of trace bytes, as given by the
+  /// optimizer_trace_max_mem_size system variable.
+  explicit TraceBuffer(int64_t max_bytes)
+      :  // We round upwards so that we can hold at least 'max_bytes' bytes.
+        m_max_segments{max_bytes / kSegmentSize +
+                       (max_bytes % kSegmentSize == 0 ? 0 : 1)} {
+    assert(max_bytes >= 0);
+    assert(m_max_segments >= 0);
   }
+  /**
+     Called by std::ostream if the current segment is full. Allocate
+     a new segment (or use m_excess_segment if we have reached
+     m_max_segments) and put 'ch' at the beginning of it.
+   */
+  int_type overflow(int_type ch) override;
 
-  /// Apply 'sink' to each character in the trace text.
+  /**
+     Apply 'sink' to each character in the trace text. Free each segment
+     when its contents have been consumed. (That way, we avoid storing two
+     copies of a potentially huge trace at the same time.)
+  */
   template <typename Sink>
-  void ForEach(Sink sink) const {
-    for (const Segment &segment : m_segments) {
-      for (const char &ch : segment) {
+  void Consume(Sink sink) {
+    assert(!m_segments.empty() || m_excess_segment != nullptr ||
+           (pptr() == nullptr && pbase() == nullptr && epptr() == nullptr));
+
+    while (!m_segments.empty()) {
+      for (char &ch : m_segments.front()) {
         if (&ch == pptr()) {
+          setp(nullptr, nullptr);
+          assert(m_segments.size() == 1);
           break;
         }
         sink(ch);
       }
+      m_segments.pop_front();
     }
   }
 
-  /**
-     Apply 'sink' to each character in the trace text. Free each segment
-     when its contents have been consumed.
-  */
-  template <typename Sink>
-  void ForEachRemove(Sink sink) {
-    if (m_segments.empty()) {
-      assert(pptr() == nullptr && pbase() == nullptr && epptr() == nullptr);
-    } else {
-      while (!m_segments.empty()) {
-        for (char &ch : m_segments.front()) {
-          if (&ch == pptr()) {
-            setp(nullptr, nullptr);
-            assert(m_segments.size() == 1);
-            break;
-          }
-          sink(ch);
-        }
-        m_segments.pop_front();
-      }
-    }
+  /// Get the number of bytes that did not fit in m_segments.
+  int64_t excess_bytes() const {
+    return m_excess_segment == nullptr
+               ? 0
+               : kSegmentSize * m_full_excess_segments +
+                     (pptr() - std::to_address(m_excess_segment->cbegin()));
   }
 
   /// Return a copy of the contents as a string. This may be expensive for
   /// large traces, and is only intended for unit tests.
   std::string ToString() const {
     std::string result;
-    ForEach([&](char ch) { result += ch; });
+
+    for (const Segment &segment : m_segments) {
+      for (const char &ch : segment) {
+        if (&ch == pptr()) {
+          break;
+        }
+        result += ch;
+      }
+    }
     return result;
   }
 
  private:
+  /// Max number of segments (as given by the optimizer_trace_max_mem_size
+  /// system variable).
+  int64_t m_max_segments;
+
   /// The sequence of segments.
-  DequeType m_segments;
+  std::deque<Segment> m_segments;
+
+  /// If we fill m_max_segments, allocate a single extra segment that is
+  /// repeatedly overwritten with any additional data. This field will point
+  /// to that segment.
+  std::unique_ptr<Segment> m_excess_segment;
+
+  /// The number of full segments that did not fit in m_segments.
+  int64_t m_full_excess_segments{0};
 };
 
 /**
@@ -123,7 +139,10 @@ class TraceBuffer final : public std::streambuf {
 */
 class UnstructuredTrace final {
  public:
-  UnstructuredTrace() : m_stream{&m_buffer} {}
+  /// @param max_bytes The maximal number of trace bytes, as given by the
+  /// optimizer_trace_max_mem_size system variable.
+  explicit UnstructuredTrace(int64_t max_bytes)
+      : m_buffer{max_bytes}, m_stream{&m_buffer} {}
 
   /// Get the stream in which to put the trace text.
   std::ostream &stream() { return m_stream; }

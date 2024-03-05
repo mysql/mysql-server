@@ -6656,14 +6656,35 @@ TEST_F(MakeHypergraphTest, TraceBuffer) {
     if (i % TraceBuffer::kSegmentSize == 0 ||
         i % TraceBuffer::kSegmentSize == 1 ||
         i % TraceBuffer::kSegmentSize == TraceBuffer::kSegmentSize - 1) {
-      int count{0};
-      trace.contents().ForEach([&](char ch) {
-        EXPECT_EQ(ch, 'X');
-        ++count;
-      });
-      EXPECT_EQ(i + 1, count);
+      const string trace_str{trace.contents().ToString()};
+      EXPECT_THAT(trace_str, testing::SizeIs(i + 1));
+      EXPECT_THAT(trace_str, testing::Each('X'));
     }
   }
+}
+
+/// Test that we count the right amount of truncated optimizer trace.
+TEST_F(MakeHypergraphTest, TraceLimit) {
+  TraceGuard trace(m_thd);
+  const int64_t limit = m_thd->variables.optimizer_trace_max_mem_size;
+  constexpr int message_size{227};
+  std::array<char, message_size + 1> message;
+  std::fill(message.begin(), message.end() - 2, 'x');
+  message[message_size - 1] = '\n';
+  message[message_size] = '\0';
+  // Ensure that we exceed the maximal size of TraceBuffer::m_segments.
+  const int64_t message_count{limit / message_size + 1234};
+
+  // Add the messages.
+  for (int64_t i = 0; i < message_count; i++) {
+    Trace(m_thd) << std::to_address(message.cbegin());
+  }
+
+  TraceBuffer &buffer{m_thd->opt_trace.unstructured_trace()->contents()};
+  EXPECT_EQ(buffer.excess_bytes() + limit, message_size * message_count);
+
+  // Check that there is no overflow in size calculations.
+  TraceBuffer{std::numeric_limits<int64_t>::max()};
 }
 
 // An alias for better naming.

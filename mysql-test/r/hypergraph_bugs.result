@@ -1413,6 +1413,35 @@ REGEXP_SUBSTR(trace, " - \\{FILTER[^\n]*keeping",1,1,'n')
  - {FILTER, cost=0.35, init_cost=0, rows=0.0099} is first alternative, keeping
 SET SESSION OPTIMIZER_TRACE="enabled=off";
 DROP TABLE t1;
+#
+# Bug#33502694 Hypergraph optimizer trace does not respect memory limits
+#
+CREATE TABLE t1(
+pk INT PRIMARY KEY,
+a INT,
+KEY ka(a),
+b INT,
+KEY kb(b)
+);
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<100)
+SELECT n, n%11, n%11 FROM qn;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET @old_optimizer_trace_max_mem_size=@@optimizer_trace_max_mem_size;
+SET SESSION optimizer_trace_max_mem_size=16384;
+SET SESSION OPTIMIZER_TRACE='enabled=on';
+EXPLAIN FORMAT=JSON INTO @explain_output
+SELECT a FROM t1 x2 WHERE x2.b IN
+(SELECT a FROM t1 x1 WHERE x1.b IN (SELECT a FROM t1 x0));
+SELECT LENGTH(TRACE), MISSING_BYTES_BEYOND_MAX_MEM_SIZE
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+LENGTH(TRACE)	MISSING_BYTES_BEYOND_MAX_MEM_SIZE
+15638	15728
+SET SESSION optimizer_trace_max_mem_size=@old_optimizer_trace_max_mem_size;
+SET SESSION OPTIMIZER_TRACE='enabled=off';
+DROP TABLE t1;
 # Bug#5889990: Setting secondary_engine to OFF causes offload issues
 CREATE TABLE t(x INT, y INT);
 INSERT INTO t VALUES (1, 2), (2, 3);

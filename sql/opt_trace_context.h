@@ -40,6 +40,7 @@ struct CHARSET_INFO;
 */
 
 class Opt_trace_stmt;  // implementation detail local to opt_trace.cc
+class THD;
 class UnstructuredTrace;
 
 typedef Prealloced_array<Opt_trace_stmt *, 16> Opt_trace_stmt_array;
@@ -279,6 +280,10 @@ class Opt_trace_context {
   void set_unstructured_trace(UnstructuredTrace *trace) {
     pimpl->m_unstructured_trace = trace;
   }
+
+  /// Move unstructured trace text (as produced by Hypergraph) into the JSON
+  /// tree.
+  void ConsumeUnstructuredTrace(THD *thd);
 
  private:
   /**
