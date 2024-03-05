@@ -25,7 +25,7 @@ eval SELECT $digest_fn( repeat( 'a', character_maximum_length ) ) IS NULL
 FROM information_schema.columns
 WHERE table_name = 'events_statements_history' AND column_name = 'digest';
 
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+--error ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
 eval SELECT $digest_fn( point(1, 2) ) IS NULL;
 --echo # Make sure that UTF-8 content is not printed in the error message
 --echo # without being converted.
@@ -47,8 +47,6 @@ eval SELECT $digest_fn( $digest_fn( NULL ) );
 eval SELECT $digest_fn( $digest_fn( '' ) );
 --error ER_PARSE_ERROR_IN_DIGEST_FN
 eval SELECT $digest_fn( $digest_fn( '\0' ) );
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-eval SELECT $digest_fn( $digest_fn( 'SELECT 1, 2, 3' ) );
 --echo # Prepared statement syntax is not supported...
 --error ER_PARSE_ERROR_IN_DIGEST_FN
 eval SELECT $digest_fn( 'SELECT ?' );
@@ -60,7 +58,7 @@ eval SELECT $digest_fn( $digest_fn( 'SELECT ?' ) );
 SET sql_mode = ''; # Un-strict
 CREATE TABLE t1 ( g GEOMETRY NOT NULL );
 INSERT INTO t1 VALUES ( POINT(1,2) );
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+--error ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
 eval SELECT concat( $digest_fn(g), 'x' ) FROM t1;
 SET sql_mode = DEFAULT;
 DROP TABLE t1;

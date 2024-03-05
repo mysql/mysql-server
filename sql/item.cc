@@ -2788,9 +2788,17 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
     if (only_consts && !(*arg)->const_item()) continue;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation, &dummy_offset)) {
-      if (my_charset_same(coll.collation, (*arg)->collation.collation) &&
-          coll.collation != (*arg)->collation.collation) {
-        (*arg)->collation.set(coll.collation);
+      /*
+        Update the collation for the underlying item, but notice that this is
+        only required, and safe, for a literal string value.
+      */
+      if ((*arg)->type() == Item::STRING_ITEM &&
+          coll.collation != (*arg)->collation.collation &&
+          (my_charset_same(coll.collation, (*arg)->collation.collation) ||
+           coll.collation == &my_charset_bin)) {
+        Item_string *string = down_cast<Item_string *>(*arg);
+        string->collation.set(coll.collation);
+        string->set_value_collation();
       }
       continue;
     }
