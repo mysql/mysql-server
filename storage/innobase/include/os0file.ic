@@ -72,6 +72,11 @@ static inline pfs_os_file_t pfs_os_file_create_simple_func(
   return (file);
 }
 
+/** Clang on Windows warns about umask not found. */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+#ifdef _WIN32
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
+#endif
 /** NOTE! Please use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
 A performance schema instrumented wrapper function for
@@ -122,6 +127,7 @@ static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
 
   return (file);
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
 this function!
