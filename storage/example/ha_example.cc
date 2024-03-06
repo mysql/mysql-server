@@ -125,6 +125,14 @@ static int example_init_func(void *p) {
   return 0;
 }
 
+static int example_deinit_func(void *p [[maybe_unused]]) {
+  DBUG_TRACE;
+
+  assert(p);
+
+  return 0;
+}
+
 /**
   @brief
   Example of simple lock controls. The "share" it creates is a
@@ -892,9 +900,9 @@ mysql_declare_plugin(example){
     PLUGIN_AUTHOR_ORACLE,
     "Example storage engine",
     PLUGIN_LICENSE_GPL,
-    example_init_func, /* Plugin Init */
-    nullptr,           /* Plugin check uninstall */
-    nullptr,           /* Plugin Deinit */
+    example_init_func,   /* Plugin Init */
+    nullptr,             /* Plugin check uninstall */
+    example_deinit_func, /* Plugin Deinit */
     0x0001 /* 0.1 */,
     func_status,              /* status variables */
     example_system_variables, /* system variables */
