@@ -251,6 +251,7 @@ static int audit_null_plugin_init(void *arg [[maybe_unused]]) {
 */
 
 static int audit_null_plugin_deinit(void *arg [[maybe_unused]]) {
+  assert(arg);
   if (g_plugin_installed == true) {
     my_free((void *)(g_record_buffer));
 
