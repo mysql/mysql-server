@@ -1720,16 +1720,37 @@ TEST_F(RoutingSplittingTest, insert_is_sticky) {
                          rapidjson::Value("mysql/from_pool_or_connect")},
                std::pair{"/events/1/events/0/events/0/events/0/name",
                          rapidjson::Value("mysql/from_pool")},
-               std::pair{
-                   "/events/1/events/0/events/0/events/0/attributes/"
-                   "mysql.remote.endpoint",
-                   rapidjson::Value(
-                       "127.0.0.1:" + std::to_string(nodes_[0].classic_port),
-                       doc.GetAllocator())},
            }) {
         ASSERT_TRUE(json_pointer_eq(doc, rapidjson::Pointer(pntr), val))
             << json_trace;
       }
+
+      auto endpoint_val = rapidjson::Value(
+          "127.0.0.1:" + std::to_string(nodes_[0].classic_port),
+          doc.GetAllocator());
+
+      // if localhost resolves to 127.0.0.1 the connect to 127.0.0.1 succeeds:
+      // then the trace will have:
+      //
+      // - from_pool: success. -> /0/
+      //
+      // if localhost resolves to ::1 and 127.0.0.1 and the connect to ::1
+      // fails, then the trace will have:
+      //
+      // - from_pool: fails    -> /0/
+      // - connect: fails      -> /1/
+      // - from_pool: success. -> /2/
+      ASSERT_TRUE(
+          json_pointer_eq(doc,
+                          rapidjson::Pointer(
+                              "/events/1/events/0/events/0/events/0/attributes/"
+                              "mysql.remote.endpoint"),
+                          endpoint_val) ||
+          json_pointer_eq(doc,
+                          rapidjson::Pointer(
+                              "/events/1/events/0/events/0/events/2/attributes/"
+                              "mysql.remote.endpoint"),
+                          endpoint_val));
     }
 
     SCOPED_TRACE("check a 2nd INSERT goes to the same backend");
