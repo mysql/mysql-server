@@ -844,7 +844,7 @@ Select	Tables	To retrieve rows from table
 Show databases	Server Admin	To see all databases with SHOW DATABASES
 Show view	Tables	To see views with SHOW CREATE VIEW
 Shutdown	Server Admin	To shut down the server
-Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE REPLICATION SOURCE, etc.
 TABLE_ENCRYPTION_ADMIN	Server Admin	
 TELEMETRY_LOG_ADMIN	Server Admin	
 TRANSACTION_GTID_TAG	Server Admin	

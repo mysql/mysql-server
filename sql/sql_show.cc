@@ -946,7 +946,7 @@ static struct show_privileges_st sys_privileges[] = {
     {"Show view", "Tables", "To see views with SHOW CREATE VIEW"},
     {"Shutdown", "Server Admin", "To shut down the server"},
     {"Super", "Server Admin",
-     "To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
+     "To use KILL thread, SET GLOBAL, CHANGE REPLICATION SOURCE, etc."},
     {"Trigger", "Tables", "To use triggers"},
     {"Create tablespace", "Server Admin", "To create/alter/drop tablespaces"},
     {"Update", "Tables", "To update existing rows"},
