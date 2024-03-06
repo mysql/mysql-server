@@ -747,7 +747,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin) {
       engine plugins.
     */
     DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(nullptr)) {
+    if (plugin->plugin->deinit(plugin)) {
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
     }
@@ -889,7 +889,7 @@ err_deinit:
     Let plugin do its inner deinitialization as plugin->init()
     was successfully called before.
   */
-  if (plugin->plugin->deinit) (void)plugin->plugin->deinit(nullptr);
+  if (plugin->plugin->deinit) (void)plugin->plugin->deinit(plugin);
 
 err:
   my_free(hton);
