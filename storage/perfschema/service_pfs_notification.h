@@ -29,10 +29,11 @@ struct PSI_notification_v3;
 int pfs_register_notification(const struct PSI_notification_v3 *callbacks,
                               bool with_ref_count);
 int pfs_unregister_notification(int handle);
-void pfs_notify_thread_create(PSI_thread *thread);
-void pfs_notify_thread_destroy(PSI_thread *thread);
-void pfs_notify_session_connect(PSI_thread *thread);
-void pfs_notify_session_disconnect(PSI_thread *thread);
-void pfs_notify_session_change_user(PSI_thread *thread);
+
+void pfs_notify_thread_create(PFS_thread *thread);
+void pfs_notify_thread_destroy(PFS_thread *thread);
+void pfs_notify_session_connect(PFS_thread *thread);
+void pfs_notify_session_disconnect(PFS_thread *thread);
+void pfs_notify_session_change_user(PFS_thread *thread);
 
 #endif

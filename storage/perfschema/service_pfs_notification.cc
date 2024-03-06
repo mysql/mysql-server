@@ -34,14 +34,14 @@
 
 #include "my_systime.h"  // my_sleep()
 #include "pfs_thread_provider.h"
+#include "sql/log.h" /* log_errlog */
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/pfs_services.h"
 #include "template_utils.h"
 
-int pfs_get_thread_system_attrs_by_id_vc(PSI_thread *thread,
-                                         ulonglong thread_id,
-                                         PSI_thread_attrs *thread_attrs);
+void pfs_get_thread_system_attrs(PFS_thread *thread,
+                                 PSI_thread_attrs *thread_attrs);
 
 /**
   Bitmap identifiers for PSI_notification callbacks.
@@ -202,6 +202,15 @@ struct PFS_notification_registry {
         int attempts = 0;
         while ((refs & REFS_MASK)) {
           if (++attempts > max_attempts) {
+            char buffer[128];
+            int refcount = refs & REFS_MASK;
+
+            snprintf(buffer, sizeof(buffer),
+                     "pfs_unregister_notification() failed to unregister "
+                     "handle %d, refcount %d",
+                     handle, refcount);
+
+            log_errlog(ER_LOG_PRINTF_MSG, buffer);
             return 1;
           }
           my_sleep(timeout);
@@ -213,7 +222,12 @@ struct PFS_notification_registry {
       }
       node = node->m_next.load();
     }
-    return 1;
+
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer),
+             "pfs_unregister_notification() unknown handle %d", handle);
+    log_errlog(ER_LOG_PRINTF_MSG, buffer);
+    return 2;
   }
 
   /**
@@ -337,7 +351,9 @@ int pfs_unregister_notification(int handle) {
   @param thread  instrumented thread
   @sa pfs_notify_thread_create
 */
-void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
+void pfs_notify_thread_create(PFS_thread *thread) {
+  assert(thread != nullptr);
+
   auto *node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
   if (node == nullptr) {
     return;
@@ -345,9 +361,7 @@ void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
-    return;
-  }
+  pfs_get_thread_system_attrs(thread, &thread_attrs);
 
   while (node != nullptr) {
     auto callback = *node->m_cb.thread_create;
@@ -364,7 +378,9 @@ void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
   @param thread  instrumented thread
   @sa pfs_notify_thread_destroy
 */
-void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
+void pfs_notify_thread_destroy(PFS_thread *thread) {
+  assert(thread != nullptr);
+
   auto *node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
   if (node == nullptr) {
     return;
@@ -372,9 +388,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
-    return;
-  }
+  pfs_get_thread_system_attrs(thread, &thread_attrs);
 
   while (node != nullptr) {
     auto callback = *node->m_cb.thread_destroy;
@@ -390,15 +404,13 @@ void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_connect
 */
-void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
+void pfs_notify_session_connect(PFS_thread *thread) {
+  assert(thread != nullptr);
+
 #ifndef NDEBUG
   {
-    auto *pfs = reinterpret_cast<PFS_thread *>(thread);
-
-    if (pfs != nullptr) {
-      assert(!pfs->m_debug_session_notified);
-      pfs->m_debug_session_notified = true;
-    }
+    assert(!thread->m_debug_session_notified);
+    thread->m_debug_session_notified = true;
   }
 #endif
 
@@ -409,9 +421,7 @@ void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
-    return;
-  }
+  pfs_get_thread_system_attrs(thread, &thread_attrs);
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_connect;
@@ -427,16 +437,14 @@ void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_disconnect
 */
-void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
+void pfs_notify_session_disconnect(PFS_thread *thread) {
+  assert(thread != nullptr);
+
 #ifndef NDEBUG
   {
-    auto *pfs = reinterpret_cast<PFS_thread *>(thread);
-
-    if (pfs != nullptr) {
-      // TODO: clean all callers, and enforce
-      // assert(pfs->m_debug_session_notified);
-      pfs->m_debug_session_notified = false;
-    }
+    // TODO: clean all callers, and enforce
+    // assert(thread->m_debug_session_notified);
+    thread->m_debug_session_notified = false;
   }
 #endif
 
@@ -447,9 +455,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
-    return;
-  }
+  pfs_get_thread_system_attrs(thread, &thread_attrs);
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_disconnect;
@@ -465,7 +471,9 @@ void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_change_user
 */
-void pfs_notify_session_change_user(PSI_thread *thread [[maybe_unused]]) {
+void pfs_notify_session_change_user(PFS_thread *thread) {
+  assert(thread != nullptr);
+
   auto *node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
   if (node == nullptr) {
     return;
@@ -473,9 +481,7 @@ void pfs_notify_session_change_user(PSI_thread *thread [[maybe_unused]]) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
-    return;
-  }
+  pfs_get_thread_system_attrs(thread, &thread_attrs);
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_change_user;
