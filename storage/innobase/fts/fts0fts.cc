@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+Copyright (c) 2011, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -2778,7 +2778,7 @@ fts_get_next_doc_id(
 This function fetch the Doc ID from CONFIG table, and compare with
 the Doc ID supplied. And store the larger one to the CONFIG table.
 @return DB_SUCCESS if OK */
-static MY_ATTRIBUTE((nonnull))
+static
 dberr_t
 fts_cmp_set_sync_doc_id(
 /*====================*/
@@ -2786,18 +2786,20 @@ fts_cmp_set_sync_doc_id(
 	doc_id_t		doc_id_cmp,	/*!< in: Doc ID to compare */
 	ibool			read_only,	/*!< in: TRUE if read the
 						synced_doc_id only */
-	doc_id_t*		doc_id)		/*!< out: larger document id
+	doc_id_t*		doc_id,		/*!< out: larger document id
 						after comparing "doc_id_cmp"
 						to the one stored in CONFIG
 						table */
+        trx_t*                  trx = NULL)
 {
-	trx_t*		trx;
 	pars_info_t*	info;
 	dberr_t		error;
 	fts_table_t	fts_table;
 	que_t*		graph = NULL;
 	fts_cache_t*	cache = table->fts->cache;
 	char		table_name[MAX_FULL_NAME_LEN];
+        bool           trx_allocated;
+        trx_savept_t    savept;
 retry:
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
@@ -2808,7 +2810,13 @@ retry:
 
 	fts_table.parent = table->name.m_name;
 
-	trx = trx_allocate_for_background();
+        trx_allocated = false;
+        if (trx == NULL) {
+                trx = trx_allocate_for_background();
+                trx_allocated = true;
+        } else {
+                savept = trx_savept_take(trx);
+        }
 
 	trx->op_info = "update the next FTS document id";
 
@@ -2875,21 +2883,34 @@ retry:
 func_exit:
 
 	if (error == DB_SUCCESS) {
-		fts_sql_commit(trx);
+                if (trx_allocated) {
+        		fts_sql_commit(trx);
+                }
 	} else {
 		*doc_id = 0;
 
 		ib::error() << "(" << ut_strerr(error) << ") while getting"
 			" next doc id.";
-		fts_sql_rollback(trx);
+                if (trx_allocated) {
+		        fts_sql_rollback(trx);
+                } else {
+                        trx_rollback_to_savepoint(trx, &savept);
+                }
 
 		if (error == DB_DEADLOCK) {
 			os_thread_sleep(FTS_DEADLOCK_RETRY_WAIT);
+                        if (trx_allocated) {
+                                /* free trx before retry */
+                                trx_free_for_background(trx);
+                                trx = NULL;
+                        }
 			goto retry;
 		}
 	}
 
-	trx_free_for_background(trx);
+        if (trx_allocated) {
+	        trx_free_for_background(trx);
+        }
 
 	return(error);
 }
@@ -4618,7 +4639,7 @@ fts_sync_commit(
 	/* After each Sync, update the CONFIG table about the max doc id
 	we just sync-ed to index table */
 	error = fts_cmp_set_sync_doc_id(sync->table, sync->max_doc_id, FALSE,
-					&last_doc_id);
+					&last_doc_id, trx);
 
 	/* Get the list of deleted documents that are either in the
 	cache or were headed there but were deleted before the add
@@ -4638,6 +4659,8 @@ fts_sync_commit(
 	rw_lock_x_unlock(&cache->lock);
 
 	if (error == DB_SUCCESS) {
+
+                DBUG_EXECUTE_IF("fts_crash_before_commit_sync", { DBUG_SUICIDE(); });
 
 		fts_sql_commit(trx);
 
