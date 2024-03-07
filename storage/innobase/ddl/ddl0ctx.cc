@@ -206,7 +206,10 @@ size_t Context::merge_io_buffer_size(size_t n_buffers) const noexcept {
   /* We aim to do IO_BLOCK_SIZE writes all the time. */
   ut_a(!(io_size % IO_BLOCK_SIZE));
 
-  return std::max(std::max((ulong)srv_page_size, (ulong)IO_BLOCK_SIZE),
+  /* The buffer must be at least large enough to fit one IO block plus one row.
+     2 * IO_BLOCK_SIZE meets this criterion given limits on key length -
+     see ha_innobase::max_supported_key_length() */
+  return std::max(std::max((ulong)srv_page_size, (ulong)IO_BLOCK_SIZE * 2LU),
                   (ulong)io_size);
 }
 
