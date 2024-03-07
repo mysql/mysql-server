@@ -183,6 +183,7 @@
 
    - @subpage page_protocol_com_quit
    - @subpage page_protocol_com_init_db
+   - @subpage page_protocol_com_field_list
    - @subpage page_protocol_com_statistics
    - @subpage page_protocol_com_debug
    - @subpage page_protocol_com_ping
@@ -1757,6 +1758,48 @@ int Protocol_classic::read_packet() {
 */
 
 /**
+  @page page_protocol_com_field_list COM_FIELD_LIST
+  @note As of MySQL 5.7.11, COM_FIELD_LIST is deprecated and will be removed in
+  a future version of MySQL. Instead, use COM_QUERY to execute a SHOW COLUMNS
+  statement.
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x04: COM_FIELD_LIST</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>table</td>
+      <td>the name of the table to return column information for
+      (in the current database for the connection)</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>wildcard</td>
+      <td>field wildcard</td></tr>
+  </table>
+  @return @ref sect_protocol_com_field_list_response
+  @sa mysql_list_fields, mysqld_list_fields
+  @section sect_protocol_com_field_list_response COM_FIELD_LIST Response
+  The response to @ref page_protocol_com_field_list can be one of:
+   - @ref page_protocol_basic_err_packet
+   - zero or more
+     @ref page_protocol_com_query_response_text_resultset_column_definition
+   - a closing @ref page_protocol_basic_eof_packet
+  @warning if ::CLIENT_OPTIONAL_RESULTSET_METADATA is on and the server side
+  variable ::Sys_resultset_metadata is not set to ::RESULTSET_METADATA_FULL
+  no rows will be sent, just an empty resultset.
+
+  ~~~~~~~~
+  31 00 00 01 03 64 65 66    04 74 65 73 74 09 66 69    1....def.test.fi
+  65 6c 64 6c 69 73 74 09    66 69 65 6c 64 6c 69 73    eldlist.fieldlis
+  74 02 69 64 02 69 64 0c    3f 00 0b 00 00 00 03 00    t.id.id.?.......
+  00 00 00 00 fb 05 00 00    02 fe 00 00 02 00          ..............
+  ~~~~~~~~
+
+  @sa mysql_list_fields, mysqld_list_fields, THD::send_result_metadata,
+  dispatch_command, cli_list_fields
+*/
+
+/**
   @page page_protocol_com_statistics COM_STATISTICS
 
   Get a human readable string of some internal status vars.
@@ -2805,6 +2848,19 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
 
       data->com_query.query = reinterpret_cast<const char *>(read_pos);
       data->com_query.length = packet_left;
+      break;
+    }
+    case COM_FIELD_LIST: {
+      /*
+        We have name + wildcard in packet, separated by endzero
+      */
+      const ulong len =
+          strend((char *)input_raw_packet) - (char *)input_raw_packet;
+      if (len >= input_packet_length || len > NAME_LEN) goto malformed;
+      data->com_field_list.table_name = input_raw_packet;
+      data->com_field_list.table_name_length = len;
+      data->com_field_list.query = input_raw_packet + len + 1;
+      data->com_field_list.query_length = input_packet_length - len;
       break;
     }
     default:

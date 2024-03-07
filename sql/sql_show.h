@@ -70,6 +70,7 @@ void append_identifier(const THD *thd, String *packet, const char *name,
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length);
 
+void mysqld_list_fields(THD *thd, Table_ref *table, const char *wild);
 bool mysqld_show_create(THD *thd, Table_ref *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 

@@ -51,10 +51,10 @@ enum enum_server_command {
     Also used internally to mark the start of a session.
   */
   COM_SLEEP,
-  COM_QUIT,      /**< See @ref page_protocol_com_quit */
-  COM_INIT_DB,   /**< See @ref page_protocol_com_init_db */
-  COM_QUERY,     /**< See @ref page_protocol_com_query */
-  COM_UNUSED_3,  /**< Removed, used to be COM_FIELD_LIST */
+  COM_QUIT,       /**< See @ref page_protocol_com_quit */
+  COM_INIT_DB,    /**< See @ref page_protocol_com_init_db */
+  COM_QUERY,      /**< See @ref page_protocol_com_query */
+  COM_FIELD_LIST, /**< Deprecated. See @ref page_protocol_com_field_list */
   COM_CREATE_DB, /**< Currently refused by the server. See ::dispatch_command */
   COM_DROP_DB,   /**< Currently refused by the server. See ::dispatch_command */
   COM_UNUSED_2,  /**< Removed, used to be COM_REFRESH. */
