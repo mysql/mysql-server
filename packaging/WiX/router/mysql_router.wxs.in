@@ -41,7 +41,7 @@
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
-    <Upgrade Id="@UPGRADE_ID@">
+    <Upgrade Id="@UPGRADE_CODE@">
       <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
