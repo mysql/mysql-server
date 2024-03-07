@@ -1,0 +1,20 @@
+# Test creation of FTS index with disable_sort_file_cache=ON
+
+CREATE TABLE test (
+  num INTEGER,
+  content varchar(255)
+) ENGINE = InnoDB;
+
+
+INSERT INTO test (num, content) VALUES
+ (1, 'What would I do without your snarky comments?');
+
+SELECT * FROM test;
+
+ALTER TABLE test ADD INDEX idx_num(num);
+ALTER TABLE test ADD FULLTEXT INDEX idx_content(content);
+
+SELECT * FROM test WHERE num = 1;
+SELECT * FROM test WHERE MATCH(content) AGAINST('without');
+
+DROP TABLE test;
