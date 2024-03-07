@@ -28,13 +28,11 @@ ndbcluster
 ndb-wait-connected=30
 ndb-wait-setup=60
 replica-allow-batching
-ndb-log-orig
 # Turn on bin logging
 ndb-log-bin=1
 # for performance reasons
 ndb-table-temporary=1
 ndb-extra-logging=99
-ndb-log-apply-status=ON
 # Set error log verbosity to max, otherwise info messages
 # are filtered away
 log-error-verbosity=3

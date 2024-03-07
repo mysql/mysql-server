@@ -1732,7 +1732,7 @@ NdbEventOperationImpl *NdbEventBuffer::getEpochEventOperations(
       event_types = gci_op.event_types;
       cumulative_any_value = gci_op.cumulative_any_value;
       filtered_any_value = gci_op.filtered_any_value;
-      DBUG_PRINT("info", ("gci: %u  op: %p  event_types: 0x%lx"
+      DBUG_PRINT("info", ("gci: %u  op: %p  event_types: 0x%lx "
                           "cumulative_any_value: 0x%lx "
                           "reference: '0x%x %s'",
                           (unsigned)epoch->m_gci.getGCI(), gci_op.op,

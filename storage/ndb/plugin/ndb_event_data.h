@@ -121,6 +121,8 @@ class Ndb_event_data {
 
   // Read uint32 value directly from NdbRecAttr in received event
   uint32 unpack_uint32(unsigned attr_id) const;
+  // Read uint64 value directly from NdbRecAttr in received event
+  uint64 unpack_uint64(unsigned attr_id) const;
   // Read string value directly from NdbRecAttr in received event
   const char *unpack_string(unsigned attr_id) const;
 
