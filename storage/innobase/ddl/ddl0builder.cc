@@ -1528,18 +1528,14 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
     IF_ENABLED("ddl_write_failure", set_error(DB_TEMP_FILE_WRITE_FAIL);
                return get_error();)
 
-    auto persistor = [&](IO_buffer io_buffer, os_offset_t &n) -> dberr_t {
+    auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
       auto &file = thread_ctx->m_file;
 
       ut_a(!(file.m_size % IO_BLOCK_SIZE));
 
-      if (n == 0) {
-        n = ut_uint64_align_down(io_buffer.second, IO_BLOCK_SIZE);
-      } else {
-        ut_a(n == io_buffer.second);
-        n = ut_uint64_align_up(io_buffer.second, IO_BLOCK_SIZE);
-      }
-      ut_a(n >= IO_BLOCK_SIZE);
+      os_offset_t n = io_buffer.second;
+      ut_a(n != 0);
+      ut_a(n % IO_BLOCK_SIZE == 0);
 
       auto err =
           ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size);
