@@ -53,13 +53,8 @@
 #include "mysqlrouter/channel.h"
 #include "mysqlrouter/ssl_mode.h"
 #include "openssl_version.h"
+#include "stdx_expected_no_error.h"
 #include "test/helpers.h"  // init_test_logger
-
-#define ASSERT_NO_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return (bool)v; }))
-
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return (bool)v; }))
 
 using namespace std::chrono_literals;
 #if 0
