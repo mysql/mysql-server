@@ -1,3 +1,4 @@
+--source include/have_component_keyring_file.inc
 --echo #
 --echo # 35289234 - Can't disable encryption once redo log encryption is enabled
 --echo #
