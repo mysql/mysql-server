@@ -56,7 +56,10 @@ SET(CLIENT_API_FUNCTIONS
   mysql_info
   mysql_init
   mysql_insert_id
+  mysql_kill
   mysql_list_dbs
+  mysql_list_fields
+  mysql_list_processes
   mysql_list_tables
   mysql_more_results
   mysql_next_result
@@ -66,6 +69,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_ping
   mysql_query
   mysql_set_server_option
+  mysql_stmt_bind_param
   mysql_stmt_bind_named_param
   mysql_stmt_bind_result
   mysql_stmt_execute
@@ -82,6 +86,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_real_escape_string
   mysql_real_escape_string_quote
   mysql_real_query
+  mysql_refresh
   mysql_rollback
   mysql_row_seek
   mysql_row_tell
@@ -108,7 +113,9 @@ SET(CLIENT_API_FUNCTIONS
   mysql_set_character_set
   mysql_set_local_infile_default
   mysql_set_local_infile_handler
+  mysql_shutdown
   mysql_sqlstate
+  mysql_ssl_set
   mysql_stat
   mysql_stmt_affected_rows
   mysql_stmt_attr_get

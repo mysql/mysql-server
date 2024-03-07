@@ -1329,14 +1329,20 @@ void free_rows(MYSQL_DATA *cur) {
 bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
                           const uchar *header, size_t header_length,
                           const uchar *arg, size_t arg_length, bool skip_check,
-                          MYSQL_STMT * /*stmt */) {
+                          MYSQL_STMT *stmt) {
   NET *net = &mysql->net;
   bool result = true;
+  const bool stmt_skip = stmt ? stmt->state != MYSQL_STMT_INIT_DONE : false;
   DBUG_TRACE;
 
   if (mysql->net.vio == nullptr || net->error == NET_ERROR_SOCKET_UNUSABLE) {
-    set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
-    return true;
+    /* Do reconnect is possible */
+    if (!mysql->reconnect || mysql_reconnect(mysql) || stmt_skip) {
+      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+      return true;
+    }
+    /* reconnect succeeded */
+    assert(mysql->net.vio != nullptr);
   }
 
   /* turn off non blocking operations */
@@ -1366,6 +1372,18 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   MYSQL_TRACE(SEND_COMMAND, mysql,
               (command, header_length, arg_length, header, arg));
 
+  /*
+    If auto-reconnect mode is enabled check if connection is still alive before
+    sending new command. Otherwise, send() might not notice that connection was
+    closed by the server (for example, due to KILL statement), and the fact that
+    connection is gone will be noticed only on attempt to read command's result,
+    when it is too late to reconnect. Note that such scenario can still occur if
+    connection gets killed after this check but before command is sent to
+    server. But this should be rare.
+  */
+  if ((command != COM_QUIT) && mysql->reconnect && !vio_is_connected(net->vio))
+    net->error = NET_ERROR_SOCKET_UNUSABLE;
+
   if (net_write_command(net, (uchar)command, header, header_length, arg,
                         arg_length)) {
     DBUG_PRINT("error",
@@ -1386,13 +1404,21 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
           and we are already in error state.
         */
         if (cli_safe_read(mysql, nullptr) == packet_error) {
-          goto end;
+          if (!mysql->reconnect) goto end;
         }
         /* Can this happen in any other case than COM_QUIT? */
-        assert(command == COM_QUIT);
+        if (!mysql->reconnect) assert(command == COM_QUIT);
       }
     }
-    goto end;
+    end_server(mysql);
+    if (mysql_reconnect(mysql) || stmt_skip) goto end;
+    MYSQL_TRACE(SEND_COMMAND, mysql,
+                (command, header_length, arg_length, header, arg));
+    if (net_write_command(net, (uchar)command, header, header_length, arg,
+                          arg_length)) {
+      set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
+      goto end;
+    }
   }
 
   MYSQL_TRACE(PACKET_SENT, mysql, (header_length + arg_length));
@@ -2345,6 +2371,8 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
 
   @param mysql          connection handle
   @param alloc          memory allocator root
+  @param default_value  flag telling if default values should be read from
+                        descriptor
   @param server_capabilities  protocol capability flags which determine format
   of the descriptor
   @param row            field descriptor
@@ -2353,8 +2381,9 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
   @returns 0 on success.
 */
 
-static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, uint server_capabilities,
-                        MYSQL_ROWS *row, MYSQL_FIELD *field) {
+static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
+                        uint server_capabilities, MYSQL_ROWS *row,
+                        MYSQL_FIELD *field) {
   ulong lengths[9]; /* Max length of each field */
   DBUG_TRACE;
 
@@ -2368,7 +2397,7 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, uint server_capabilities,
   if (server_capabilities & CLIENT_PROTOCOL_41) {
     uchar *pos;
     /* fields count may be wrong */
-    cli_fetch_lengths(&lengths[0], row->data, 7);
+    cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
     field->catalog = strmake_root(alloc, (char *)row->data[0], lengths[0]);
     field->db = strmake_root(alloc, (char *)row->data[1], lengths[1]);
     field->table = strmake_root(alloc, (char *)row->data[2], lengths[2]);
@@ -2398,6 +2427,11 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, uint server_capabilities,
     field->decimals = (uint)pos[9];
 
     if (IS_NUM(field->type)) field->flags |= NUM_FLAG;
+    if (default_value && row->data[7]) {
+      field->def = strmake_root(alloc, (char *)row->data[7], lengths[7]);
+      field->def_length = lengths[7];
+    } else
+      field->def = nullptr;
     field->max_length = 0;
   }
 #ifndef DELETE_SUPPORT_OF_4_0_PROTOCOL
@@ -2413,7 +2447,7 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, uint server_capabilities,
       return 1;
     }
 
-    cli_fetch_lengths(&lengths[0], row->data, 5);
+    cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
     field->org_table = field->table =
         strmake_root(alloc, (char *)row->data[0], lengths[0]);
     field->name = strmake_root(alloc, (char *)row->data[1], lengths[1]);
@@ -2445,10 +2479,43 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, uint server_capabilities,
       field->decimals = (uint)(uchar)row->data[4][1];
     }
     if (IS_NUM(field->type)) field->flags |= NUM_FLAG;
+    if (default_value && row->data[5]) {
+      field->def = strmake_root(alloc, (char *)row->data[5], lengths[5]);
+      field->def_length = lengths[5];
+    } else
+      field->def = nullptr;
     field->max_length = 0;
   }
 #endif /* DELETE_SUPPORT_OF_4_0_PROTOCOL */
   return 0;
+}
+
+/***************************************************************************
+  Change field rows to field structs
+***************************************************************************/
+MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data, MEM_ROOT *alloc,
+                           uint fields, bool default_value,
+                           uint server_capabilities) {
+  MYSQL_ROWS *row;
+  MYSQL_FIELD *field, *result;
+  DBUG_TRACE;
+  field = result = (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(*field) * fields);
+  if (!result) {
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    return nullptr;
+  }
+  memset(field, 0, sizeof(MYSQL_FIELD) * fields);
+  for (row = data; row; row = row->next, field++) {
+    /* fields count may be wrong */
+    if (field < result || static_cast<uint>(field - result) >= fields) {
+      return nullptr;
+    }
+    if (unpack_field(mysql, alloc, default_value, server_capabilities, row,
+                     field)) {
+      return nullptr;
+    }
+  }
+  return result;
 }
 
 /**
@@ -2515,7 +2582,7 @@ net_async_status cli_read_metadata_ex_nonblocking(MYSQL *mysql, MEM_ROOT *alloc,
       goto end;
     }
 
-    if (unpack_field(mysql, alloc, mysql->server_capabilities,
+    if (unpack_field(mysql, alloc, false, mysql->server_capabilities,
                      &async_data->async_read_metadata_data,
                      async_data->async_read_metadata_fields +
                          async_data->async_read_metadata_cur_field)) {
@@ -2607,7 +2674,8 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
   */
   for (f = 0; f < field_count; ++f) {
     if (read_one_row(mysql, field, data.data, len) == -1) return nullptr;
-    if (unpack_field(mysql, alloc, mysql->server_capabilities, &data, fields++))
+    if (unpack_field(mysql, alloc, false, mysql->server_capabilities, &data,
+                     fields++))
       return nullptr;
   }
   /* Read EOF packet in case of old client */
@@ -3170,6 +3238,7 @@ static MYSQL_METHODS client_methods = {
     cli_read_change_user_result /* read_change_user_result */
 #ifndef MYSQL_SERVER
     ,
+    cli_list_fields,         /* list_fields */
     cli_read_prepare_result, /* read_prepare_result */
     cli_stmt_execute,        /* stmt_execute */
     cli_read_binary_rows,    /* read_binary_rows */
@@ -3234,7 +3303,22 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
     set_mysql_error(nullptr, CR_OUT_OF_MEMORY, unknown_sqlstate);
     return nullptr;
   }
-
+  /*
+    By default we don't reconnect because it could silently corrupt data (after
+    reconnection you potentially lose table locks, user variables, session
+    variables (transactions but they are specifically dealt with in
+    mysql_reconnect()).
+    This is a change: < 5.0.3 mysql->reconnect was set to 1 by default.
+    How this change impacts existing apps:
+    - existing apps which relied on the default will see a behaviour change;
+    they will have to set reconnect=1 after mysql_real_connect().
+    - existing apps which explicitly asked for reconnection (the only way they
+    could do it was by setting mysql.reconnect to 1 after mysql_real_connect())
+    will not see a behaviour change.
+    - existing apps which explicitly asked for no reconnection
+    (mysql.reconnect=0) will not see a behaviour change.
+  */
+  mysql->reconnect = false;
 #if !defined(MYSQL_SERVER)
   ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   mysql->options.extension->ssl_mode = SSL_MODE_PREFERRED;
@@ -3322,6 +3406,28 @@ void mysql_extension_free(MYSQL_EXTENSION *ext) {
   free_state_change_info(ext);
   mysql_extension_bind_free(ext);
   my_free(ext);
+}
+
+/*
+  Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
+  NB! Errors are not reported until you do mysql_real_connect.
+*/
+bool STDCALL mysql_ssl_set(MYSQL *mysql [[maybe_unused]],
+                           const char *key [[maybe_unused]],
+                           const char *cert [[maybe_unused]],
+                           const char *ca [[maybe_unused]],
+                           const char *capath [[maybe_unused]],
+                           const char *cipher [[maybe_unused]]) {
+  bool result = false;
+  DBUG_TRACE;
+  result = mysql_options(mysql, MYSQL_OPT_SSL_KEY, key) +
+                   mysql_options(mysql, MYSQL_OPT_SSL_CERT, cert) +
+                   mysql_options(mysql, MYSQL_OPT_SSL_CA, ca) +
+                   mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, capath) +
+                   mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, cipher)
+               ? true
+               : false;
+  return result;
 }
 
 /*
@@ -7056,6 +7162,8 @@ static mysql_state_machine_status csm_prep_init_commands(
     return STATE_MACHINE_DONE;
   }
 
+  ctx->saved_reconnect = mysql->reconnect;
+  mysql->reconnect = false;
   ctx->current_init_command = mysql->options.init_commands->begin();
 
   ctx->state_function = csm_send_one_init_command;
@@ -7088,6 +7196,7 @@ static mysql_state_machine_status csm_send_one_init_command(
   if (ctx->current_init_command < mysql->options.init_commands->end()) {
     return STATE_MACHINE_CONTINUE;
   }
+  mysql->reconnect = ctx->saved_reconnect;
   DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
   return STATE_MACHINE_DONE;
 }
@@ -7097,6 +7206,7 @@ bool mysql_reconnect(MYSQL *mysql) {
   MYSQL tmp_mysql;
   DBUG_TRACE;
   assert(mysql);
+  DBUG_PRINT("enter", ("mysql->reconnect: %d", mysql->reconnect));
 
   if ((mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info) {
     /* Allow reconnect next time */
@@ -7140,13 +7250,12 @@ bool mysql_reconnect(MYSQL *mysql) {
   }
 
   DBUG_PRINT("info", ("reconnect succeded"));
+  tmp_mysql.reconnect = true;
   tmp_mysql.free_me = mysql->free_me;
 
-#if 0
   /* Move prepared statements (if any) over to the new mysql object */
   tmp_mysql.stmts = mysql->stmts;
   mysql->stmts = nullptr;
-#endif
 
   /* Don't free options as these are now used in tmp_mysql */
   memset(&mysql->options, 0, sizeof(mysql->options));
@@ -7535,6 +7644,8 @@ void STDCALL mysql_close(MYSQL *mysql) {
         mysql->net.last_errno != NET_ERROR_SOCKET_NOT_WRITABLE) {
       free_old_query(mysql);
       mysql->status = MYSQL_STATUS_READY; /* Force command */
+      const bool old_reconnect = mysql->reconnect;
+      mysql->reconnect = false;  // avoid recursion
       if (vio_is_blocking(mysql->net.vio)) {
         simple_command(mysql, COM_QUIT, (uchar *)nullptr, 0, 1);
       } else {
@@ -7546,6 +7657,7 @@ void STDCALL mysql_close(MYSQL *mysql) {
         simple_command_nonblocking(mysql, COM_QUIT, (uchar *)nullptr, 0, 1,
                                    &err);
       }
+      mysql->reconnect = old_reconnect;
       end_server(mysql); /* Sets mysql->net.vio= 0 */
     }
     mysql_close_free(mysql);
@@ -7770,9 +7882,15 @@ static int mysql_prepare_com_query_parameters(MYSQL *mysql,
       return 1;
     }
 
-    if (mysql->net.vio == nullptr) {
-      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
-      return 1;
+    if (mysql->net.vio == nullptr) { /* Do reconnect if possible */
+      if (!mysql->reconnect) {
+        set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
+        return 1;
+      }
+      if (mysql_reconnect(mysql)) return 1;
+      /* mysql has a new ext at this point, take it again */
+      ext = MYSQL_EXTENSION_PTR(mysql);
+      assert(ext);
     }
 
     if (mysql_int_serialize_param_data(
@@ -8481,6 +8599,12 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     case MYSQL_REPORT_DATA_TRUNCATION:
       mysql->options.report_data_truncation = *static_cast<const bool *>(arg);
       break;
+    case MYSQL_OPT_RECONNECT:
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_RECONNECT is deprecated and will be "
+              "removed in a future version.\n");
+      mysql->reconnect = *static_cast<const bool *>(arg);
+      break;
     case MYSQL_OPT_BIND:
       my_free(mysql->options.bind_address);
       mysql->options.bind_address =
@@ -8720,7 +8844,7 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
 
   bool
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE,
-    MYSQL_REPORT_DATA_TRUNCATION,
+    MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
     MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
 
@@ -8804,6 +8928,12 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
     case MYSQL_REPORT_DATA_TRUNCATION:
       *(const_cast<bool *>(static_cast<const bool *>(arg))) =
           mysql->options.report_data_truncation;
+      break;
+    case MYSQL_OPT_RECONNECT:
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_RECONNECT is deprecated and will be "
+              "removed in a future version.\n");
+      *(const_cast<bool *>(static_cast<const bool *>(arg))) = mysql->reconnect;
       break;
     case MYSQL_OPT_BIND:
       *(static_cast<char **>(const_cast<void *>(arg))) =
