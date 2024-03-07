@@ -32,13 +32,21 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
+#include "util/ndb_rand.h"
 
 #define JAM_FILE_ID 399
 
 Win32AsyncFile::Win32AsyncFile(Ndbfs &fs) : AsyncFile(fs) {}
 
 void Win32AsyncFile::removeReq(Request *request) {
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  // Sometimes inject double file delete
+  if (ndb_rand() % 100 == 0) DeleteFile(theFileName.c_str());
+#endif
   if (!DeleteFile(theFileName.c_str())) {
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+    if (check_and_log_if_remove_failure_ok(theFileName.c_str())) return;
+#endif
     NDBFS_SET_REQUEST_ERROR(request, GetLastError());
   }
 }
@@ -75,7 +83,18 @@ loop:
     if (0 != strcmp(".", ffd.cFileName) && 0 != strcmp("..", ffd.cFileName)) {
       int len = (int)strlen(path);
       strcat(path, ffd.cFileName);
-      if (DeleteFile(path) || RemoveDirectory(path)) {
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+      // Sometimes inject double file delete
+      if (ndb_rand() % 100 == 0)
+        if (!DeleteFile(theFileName.c_str())) RemoveDirectory(path);
+#endif
+      bool deleted = DeleteFile(path) || RemoveDirectory(path);
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+      if (!deleted && check_and_log_if_remove_failure_ok(path)) {
+        deleted = true;
+      }
+#endif
+      if (deleted) {
         path[len] = 0;
         continue;
       }  // if
@@ -95,8 +114,16 @@ loop:
     goto loop;
   }
 
-  if (removePath && !RemoveDirectory(src))
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  // Sometimes inject double file delete
+  if (removePath && ndb_rand() % 100 == 0) RemoveDirectory(src);
+#endif
+  if (removePath && !RemoveDirectory(src)) {
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+    if (check_and_log_if_remove_failure_ok(src)) return;
+#endif
     NDBFS_SET_REQUEST_ERROR(request, GetLastError());
+  }
 }
 
 void Win32AsyncFile::createDirectories() {

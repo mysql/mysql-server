@@ -34,6 +34,7 @@
 #include "util/ndb_math.h"
 #include "util/ndb_ndbxfrm1.h"
 #include "util/ndb_openssl_evp.h"
+#include "util/ndb_rand.h"
 #include "util/ndb_zlib.h"
 
 #include "AsyncFile.hpp"
@@ -576,7 +577,14 @@ void AsyncFile::openReq(Request *request) {
 
 remove_if_created:
   //  require(!created);
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  // Sometimes inject double file delete
+  if (created && ndb_rand() % 100 == 0) m_file.remove(theFileName.c_str());
+#endif
   if (created && m_file.remove(theFileName.c_str()) == -1) {
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+    if (check_and_log_if_remove_failure_ok(theFileName.c_str())) return;
+#endif
     g_eventLogger->info(
         "Could not remove '%s' (err %u) after open failure (err %u).",
         theFileName.c_str(), get_last_os_error(), request->error.code);
@@ -1033,6 +1041,20 @@ void printErrorAndFlags(Uint32 used_flags) {
   if ((used_flags & O_SYNC) == O_SYNC) strcat(buf, "O_SYNC, ");
 #endif
   DEBUG(g_eventLogger->info(buf));
+}
+#endif
+
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+bool AsyncFile::check_and_log_if_remove_failure_ok(const char *pathname) {
+  int error = get_last_os_error();
+  int ndbfs_error = Ndbfs::translateErrno(error);
+  if (ndbfs_error != FsRef::fsErrFileDoesNotExist) return false;
+  g_eventLogger->info(
+      "Ignoring unexpected error: Path %s did not exist when removing. "
+      "Unreliable filesystem?",
+      pathname);
+  set_last_os_error(0);
+  return true;
 }
 #endif
 
