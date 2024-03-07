@@ -902,11 +902,12 @@ read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
 
       // if socket was non-blocking and some bytes where already read, return
       // the success
-      const auto ec = res.error();
-      if ((ec == make_error_condition(
-                     std::errc::resource_unavailable_try_again) ||
-           ec == make_error_condition(std::errc::operation_would_block) ||
-           ec == net::stream_errc::eof) &&
+      const auto error_code = res.error();
+      if ((error_code == make_error_condition(
+                             std::errc::resource_unavailable_try_again) ||
+           error_code ==
+               make_error_condition(std::errc::operation_would_block) ||
+           error_code == net::stream_errc::eof) &&
           transferred != 0) {
         return transferred;
       }

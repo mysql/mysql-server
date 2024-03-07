@@ -51,7 +51,7 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(xplugin_unit_tests
   ../test_main.cc
   ${XPL_TEST_SRC}
-  LINK_LIBRARIES ext::zlib ext::lz4 ext::zstd extra::rapidjson ext::icu
+  LINK_LIBRARIES harness_net_ts ext::zlib ext::lz4 ext::zstd extra::rapidjson ext::icu
   DEPENDENCIES mysqlx
   ADD_TEST xplugin
 )
@@ -61,7 +61,6 @@ DOWNGRADE_STRINGOP_WARNINGS(xplugin_unit_tests)
 ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
-
 IF(WITH_PROTOBUF STREQUAL "bundled")
   TARGET_INCLUDE_DIRECTORIES(xplugin_unit_tests SYSTEM BEFORE PUBLIC
     "${BUNDLED_ABSEIL_SRCDIR}")
