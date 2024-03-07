@@ -1175,3 +1175,31 @@ let $query = SELECT 1 FROM t0 WHERE t0.c0 <= 05687.3E-84;
 eval $query;
 eval EXPLAIN $query;
 DROP TABLE t0;
+
+--echo #
+--echo # Bug#36361165 Incorrect query result caused by comparing decimal and float type value
+--echo #
+CREATE TABLE t0(c0 DECIMAL);
+INSERT INTO t0 VALUES (0);
+
+let $query=
+SELECT t0.c0 FROM t0 WHERE t0.c0 <= -0.8;
+eval $query;
+eval EXPLAIN $query;
+
+let $query=
+SELECT (t0.c0 <= -0.8) AS flag FROM t0;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t0;
+
+--echo # This patch also closes Bug#36492878. Its repro:
+CREATE TABLE decimal_test (id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+                           decval DECIMAL (12, 2) NOT NULL);
+INSERT INTO decimal_test (decval) VALUES (0), (-0.01), (-0.02), (-0.03);
+SELECT * FROM decimal_test WHERE decval < -0.001;
+DROP TABLE decimal_test;
+
+

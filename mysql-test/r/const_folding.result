@@ -52787,3 +52787,34 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t0` where (`test`.`t0`.`c0` < 1)
 DROP TABLE t0;
+#
+# Bug#36361165 Incorrect query result caused by comparing decimal and float type value
+#
+CREATE TABLE t0(c0 DECIMAL);
+INSERT INTO t0 VALUES (0);
+SELECT t0.c0 FROM t0 WHERE t0.c0 <= -0.8;
+c0
+EXPLAIN SELECT t0.c0 FROM t0 WHERE t0.c0 <= -0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t0`.`c0` AS `c0` from `test`.`t0` where (`test`.`t0`.`c0` < 0)
+SELECT (t0.c0 <= -0.8) AS flag FROM t0;
+flag
+0
+EXPLAIN SELECT (t0.c0 <= -0.8) AS flag FROM t0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t0`.`c0` <= -(0.8)) AS `flag` from `test`.`t0`
+DROP TABLE t0;
+# This patch also closes Bug#36492878. Its repro:
+CREATE TABLE decimal_test (id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+decval DECIMAL (12, 2) NOT NULL);
+INSERT INTO decimal_test (decval) VALUES (0), (-0.01), (-0.02), (-0.03);
+SELECT * FROM decimal_test WHERE decval < -0.001;
+id	decval
+2	-0.01
+3	-0.02
+4	-0.03
+DROP TABLE decimal_test;

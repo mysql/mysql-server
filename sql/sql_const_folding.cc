@@ -437,7 +437,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
 /**
   Minion of analyze_field_constant for decimal type fields
 
-  Analyze a constant's placement within (or without) the type range of the
+  Analyze a constant's placement inside (or outside) the type range of the
   field f. Also normalize the given constant to the type of the field if
   applicable.
 
@@ -449,7 +449,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
   @param      ft        the function type of the comparison
   @param[out] place     the placement of the const_val relative to
                         the range of f
-  @param[out] negative  true if the constant is has a (minus) sign
+  @param[out] negative  true if the constant has a (minus) sign
   @returns   true on error
 */
 static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
@@ -560,9 +560,9 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
         if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC ||
             ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC) {
           // adjust precision to same as field
+          *negative = cpy.sign();
           if (decimal_round(&cpy, &cpy, f_frac, cpy.sign() ? CEILING : FLOOR))
             return true;
-          *negative = cpy.sign();
           const auto new_dec = new (thd->mem_root) Item_decimal(&cpy);
           if (new_dec == nullptr) return true;
           thd->change_item_tree(const_val, new_dec);
