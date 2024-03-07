@@ -1,0 +1,46 @@
+# Test database resiliency against scenario where the server crashes
+# right before fts_sync_commit commits its transaction
+
+source include/have_debug.inc;
+source include/not_valgrind.inc;
+
+CREATE TABLE opening_lines (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       opening_line TEXT(500),
+       author VARCHAR(200),
+       title VARCHAR(200)
+       ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx ON opening_lines(opening_line);
+CREATE FULLTEXT INDEX ft_idx1 ON opening_lines(title);
+
+INSERT INTO opening_lines(opening_line,author,title) VALUES
+       ('Call me Ishmael.','Herman Melville','Moby Dick'),
+       ('A screaming comes across the sky.','Thomas Pynchon','Gravity\'s Rainbow'),
+       ('I am an invisible man.','Ralph Ellison','Invisible Man'),
+       ('Where now? Who now? When now?','Samuel Beckett','The Unnamable'),
+       ('It was love at first sight.','Joseph Heller','Catch-22'),
+       ('All this happened, more or less.','Kurt Vonnegut','Slaughterhouse-Five'),
+       ('Mrs. Dalloway said she would buy the flowers herself.','Virginia Woolf','Mrs. Dalloway'),
+       ('It was a pleasure to burn.','Ray Bradbury','Fahrenheit 451');
+
+SET GLOBAL innodb_ft_aux_table='test/opening_lines';
+SELECT * FROM information_schema.innodb_ft_config;
+
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('Ishmael');
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('invisible');
+SELECT * FROM opening_lines;
+
+SET GLOBAL innodb_optimize_fulltext_only=ON;
+SET GLOBAL debug='+d,fts_crash_before_commit_sync';
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error CR_SERVER_LOST
+OPTIMIZE TABLE opening_lines;
+
+--source include/wait_until_connected_again.inc
+
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('Ishmael');
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('invisible');
+SELECT * FROM opening_lines;
+
+DROP TABLE opening_lines;
