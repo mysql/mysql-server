@@ -623,7 +623,6 @@ HAVE_PTHREAD_SETNAME_NP_MACOS)
 # Check for IPv6 support
 #--------------------------------------------------------------------
 CHECK_INCLUDE_FILE(netinet/in6.h HAVE_NETINET_IN6_H) # Used by libevent (never true)
-MY_CHECK_STRUCT_SIZE("in6_addr" IN6_ADDR) # Used by libevent
 
 IF(UNIX)
   SET(CMAKE_EXTRA_INCLUDE_FILES sys/types.h netinet/in.h sys/socket.h)

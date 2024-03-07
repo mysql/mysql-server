@@ -749,7 +749,6 @@ INCLUDE(zstd)
 INCLUDE(lz4)
 INCLUDE(icu)
 INCLUDE(libbacktrace)
-INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
 INCLUDE(ldap)
@@ -1675,7 +1674,6 @@ SET(SYSTEM_LIBRARIES
   CURL      # Xcode
   EDITLINE  # Xcode
   ICU       # Homebrew  icu4c
-  LIBEVENT  # Homebrew  libevent
   LZ4       # Homebrew  lz4
   PROTOBUF  # Homebrew  protobuf
   SSL       # Homebrew  openssl@1.1 or openssl@3
@@ -1900,17 +1898,6 @@ IF(EDITLINE_WARN_GIVEN)
     )
 ENDIF()
 
-# Add libevent
-MYSQL_CHECK_LIBEVENT()
-UNSET(LIBEVENT_WARN_GIVEN)
-WARN_MISSING_SYSTEM_LIBEVENT(LIBEVENT_WARN_GIVEN)
-IF(LIBEVENT_WARN_GIVEN)
-  MESSAGE(FATAL_ERROR
-    "-DWITH_LIBEVENT=system, but missing system libraries.\n"
-    "You can use -DWITH_LIBEVENT=bundled instead."
-    )
-ENDIF()
-
 # Add lz4 library
 MYSQL_CHECK_LZ4()
 # Add icu library
@@ -1951,7 +1938,7 @@ MYSQL_CHECK_FIDO_DLLS()
 IF(APPLE)
   GET_FILENAME_COMPONENT(HOMEBREW_BASE ${HOMEBREW_HOME} DIRECTORY)
   IF(EXISTS ${HOMEBREW_BASE}/include/boost)
-    FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
+    FOREACH(SYSTEM_LIB ICU LZ4 PROTOBUF ZSTD FIDO)
       IF(WITH_${SYSTEM_LIB} STREQUAL "system")
         MESSAGE(FATAL_ERROR
           "WITH_${SYSTEM_LIB}=system is not compatible with Homebrew boost\n"
@@ -1965,7 +1952,7 @@ IF(APPLE)
     ENDFOREACH()
   ENDIF()
   # Ensure that we look in /usr/local/include or /opt/homebrew/include
-  FOREACH(SYSTEM_LIB ICU LIBEVENT LZ4 PROTOBUF ZSTD FIDO)
+  FOREACH(SYSTEM_LIB ICU LZ4 PROTOBUF ZSTD FIDO)
     IF(WITH_${SYSTEM_LIB} STREQUAL "system")
       INCLUDE_DIRECTORIES(SYSTEM ${HOMEBREW_BASE}/include)
       BREAK()
