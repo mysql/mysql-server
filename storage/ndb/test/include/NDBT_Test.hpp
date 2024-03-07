@@ -326,7 +326,7 @@ public:
   int runSteps(NDBT_Context* ctx);
   int runVerifier(NDBT_Context* ctx);
   int runFinal(NDBT_Context* ctx);
-  int runCheckNoErrorInserted(NDBT_Context *ctx) override;
+  virtual int runCheckNoErrorInserted(NDBT_Context *ctx);
   void print();
   void printHTML();
 
