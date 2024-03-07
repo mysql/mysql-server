@@ -1963,14 +1963,18 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys) {
       if (nr == usable_clustered_pk) continue;
       if (usable_keys->is_set(nr)) {
         /*
-          Can not do full index scan on rtree index because it is not
-          supported by Innodb, probably not supported by others either.
+          Cannot do full index scan on rtree index. It is not supported by
+          Innodb as it's rtree index does not store data, but only the
+          minimum bouding box (maybe makes sense only for geometries of
+          type POINT). Index scans on rtrees are probabaly not supported
+          by other storage engines either.
           A multi-valued key requires unique filter, and won't be the most
           fast option even if it will be the shortest one.
          */
         const KEY &key_ref = table->key_info[nr];
-        assert(!(key_ref.flags & HA_MULTI_VALUED_KEY));
-        if (key_ref.key_length < min_length && !(key_ref.flags & HA_SPATIAL)) {
+        assert(!(key_ref.flags & HA_MULTI_VALUED_KEY) &&
+               !(key_ref.flags & HA_SPATIAL));
+        if (key_ref.key_length < min_length) {
           min_length = key_ref.key_length;
           best = nr;
         }
