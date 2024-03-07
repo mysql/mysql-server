@@ -9009,8 +9009,11 @@ static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
     if (ref_item != nullptr && ref_item->eq(right_item, true)) {
-      if (ref_lookup_subsumes_comparison(thd, field, right_item,
-                                         right_item->const_for_execution(),
+      const bool can_evaluate =
+          right_item->const_for_execution() &&
+          evaluate_during_optimization(right_item,
+                                       thd->lex->current_query_block());
+      if (ref_lookup_subsumes_comparison(thd, field, right_item, can_evaluate,
                                          redundant)) {
         return true;
       }
