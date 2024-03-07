@@ -2429,6 +2429,16 @@ SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
 WHERE field1 IN ('A');
 field1
 A
+EXPLAIN FORMAT=tree SELECT * FROM v1
+WHERE field1 IN ('C') OR
+COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT * FROM v1
+WHERE field1 IN ('C') OR
+COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
+field1
 DROP VIEW v1;
 SET character_set_client = latin1;
 SET character_set_connection = latin1;

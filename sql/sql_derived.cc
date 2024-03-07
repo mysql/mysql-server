@@ -606,6 +606,9 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
   @param item           Item to be reparsed to get a clone.
   @param query_block    query block where expression is being parsed
   @param derived_table  derived table to which the item belongs to.
+                        "nullptr" when cloning to make a copy of the
+                        original condition to be pushed down
+                        to a derived table that has SET operations.
 
   @returns A copy of the original item (unresolved) on success else nullptr.
 */
@@ -678,8 +681,9 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
 
   // Get a newly created item from parser. Use the view creation
   // context if the item being parsed is part of a view.
-  const bool result =
-      parse_sql(thd, &parser_state, derived_table->view_creation_ctx);
+  View_creation_ctx *view_creation_ctx =
+      derived_table != nullptr ? derived_table->view_creation_ctx : nullptr;
+  const bool result = parse_sql(thd, &parser_state, view_creation_ctx);
 
   // If a statement is being re-prepared, then all the parameters
   // that are cloned above need to be synced with the original
@@ -1122,7 +1126,7 @@ bool Condition_pushdown::make_cond_for_derived() {
     if (derived_query_expression->is_set_operation()) {
       m_cond_to_push =
           derived_query_expression->outer_query_block()->clone_expression(
-              thd, orig_cond_to_push, m_derived_table);
+              thd, orig_cond_to_push, /*derived_table=*/nullptr);
       if (m_cond_to_push == nullptr) return true;
       m_cond_to_push->apply_is_true();
     }
