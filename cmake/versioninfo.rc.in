@@ -35,8 +35,12 @@ BEGIN
     BEGIN
         BLOCK "040904E4"
         BEGIN
+            VALUE "CompanyName",      "Oracle Corporation\0"
+            VALUE "ProductName",      "@VINFO_PRODUCT_NAME@\0"
             VALUE "FileVersion",      "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.0\0"
             VALUE "ProductVersion",   "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.0\0"
+            VALUE "LegalCopyright",   "@VINFO_COPYRIGHT_LINE@\0"
+            VALUE "LegalTrademarks",  "Oracle(R), Java, MySQL, and NetSuite are registered trademarks of Oracle and/or its affiliates.\0"
         END
     END
     BLOCK "VarFileInfo"
