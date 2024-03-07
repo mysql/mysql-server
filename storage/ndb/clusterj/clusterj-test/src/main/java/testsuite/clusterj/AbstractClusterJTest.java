@@ -573,7 +573,7 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     @Override
     protected final void setUp() throws Exception {
-System.out.println(this.getClass().getName());
+        System.out.println(this.getClass().getName());
         localSetUp();
     }
 

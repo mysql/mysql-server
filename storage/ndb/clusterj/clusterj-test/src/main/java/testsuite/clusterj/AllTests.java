@@ -79,6 +79,7 @@ public class AllTests {
     private static boolean isTestClass(Class<?> klass) {
         return klass.getName().endsWith("Test")
             && !klass.getName().contains("Abstract")
+            && !klass.getName().contains("ClearSmokeTest")
             && Test.class.isAssignableFrom(klass)
             && ! Test.class.equals(klass);
     }
@@ -140,6 +141,13 @@ public class AllTests {
                 }
             }
         }
+
+        /* The ClearSmokeTest closes the SessionFactory and can perform any
+           other final cleanup for the test suite.
+        */
+        if(suite.testCount() > 0)
+            suite.addTestSuite(ClearSmokeTest.class);
+
         return suite;
     }
 
