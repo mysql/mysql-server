@@ -32,6 +32,7 @@
 
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/supported_config_options.h"
 #include "utilities.h"  // find_range_first
 
 using mysql_harness::utility::find_range_first;
@@ -78,8 +79,9 @@ void LoaderConfig::fill_and_check() {
   }
 
   std::string unknown_config_option_str = "warning";
-  if (has_default("unknown_config_option")) {
-    unknown_config_option_str = get_default("unknown_config_option");
+  if (has_default(mysql_harness::loader::options::kUnknownConfigOption)) {
+    unknown_config_option_str =
+        get_default(mysql_harness::loader::options::kUnknownConfigOption);
     std::transform(unknown_config_option_str.begin(),
                    unknown_config_option_str.end(),
                    unknown_config_option_str.begin(), ::tolower);
@@ -115,23 +117,25 @@ void LoaderConfig::read(std::istream &input) {
 }
 
 bool LoaderConfig::logging_to_file() const {
-  constexpr const char *kFolderOption = "logging_folder";
+  constexpr auto kFolderOption = mysql_harness::loader::options::kLoggingFolder;
   return has_default(kFolderOption) && !get_default(kFolderOption).empty();
 }
 
 Path LoaderConfig::get_log_file() const {
   constexpr const char *kLogger = logging::kConfigSectionLogger;
   constexpr const char *kNone = logging::kNone;
-  constexpr const char *kLogFilename = logging::kConfigOptionLogFilename;
-  auto logging_folder = get_default("logging_folder");
+  constexpr const char *kLogFilename = logging::options::kFilename;
+  auto logging_folder =
+      get_default(mysql_harness::loader::options::kLoggingFolder);
   std::string log_filename;
 
   if (has(kLogger) && get(kLogger, kNone).has(kLogFilename) &&
-      !get(kLogger, kNone).get(kLogFilename).empty())
+      !get(kLogger, kNone).get(kLogFilename).empty()) {
     log_filename = get(kLogger, kNone).get(kLogFilename);
-  // otherwise, set it to default
-  else
+  } else {
+    // otherwise, set it to default
     log_filename = logging::kDefaultLogFilename;
+  }
 
   return Path(logging_folder).join(log_filename);
 }

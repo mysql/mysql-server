@@ -52,7 +52,7 @@ class HARNESS_EXPORT DynamicConfig {
   using OptionValue =
       std::variant<std::monostate, int64_t, bool, double, std::string>;
 
-  // The first srting is the plugin name. The second string is the plugin
+  // The first string is the plugin name. The second string is the plugin
   // section key if there are multiple plugin instances.
   // Examples:
   // for metadata_cache <"metadata_cache", "">
@@ -74,7 +74,7 @@ class HARNESS_EXPORT DynamicConfig {
    * @param value       value to be set
    */
   void set_option_configured(const SectionId &section_id,
-                             const OptionName &option_name,
+                             std::string_view option_name,
                              const OptionValue &value);
 
   /**
@@ -88,7 +88,7 @@ class HARNESS_EXPORT DynamicConfig {
    *                                  be set
    */
   void set_option_default(const SectionId &section_id,
-                          const OptionName &option_name,
+                          std::string_view option_name,
                           const OptionValue &default_value_cluster,
                           const OptionValue &default_value_clusterset);
 
@@ -103,7 +103,7 @@ class HARNESS_EXPORT DynamicConfig {
    *                      clusterset setup to be set
    */
   void set_option_default(const SectionId &section_id,
-                          const OptionName &option_name,
+                          std::string_view option_name,
                           const OptionValue &default_value);
 
   /**
@@ -152,7 +152,7 @@ class HARNESS_EXPORT DynamicConfig {
   DynamicConfig &operator=(const DynamicConfig &) = delete;
 
   void set_option(const ValueType value_type, const SectionId &section_id,
-                  const OptionName &option_name, const OptionValue &value);
+                  std::string_view option_name, const OptionValue &value);
 
   struct SectionConfig {
     SectionOptions options;

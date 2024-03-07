@@ -33,6 +33,7 @@
 #include "mysqlrouter/destination_status_component.h"
 #include "mysqlrouter/destination_status_types.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/supported_router_options.h"
 
 using namespace std::string_literals;
 
@@ -241,7 +242,7 @@ MySQLRoutingAPI MySQLRoutingComponent::api(const std::string &name) {
 }
 
 static uint64_t get_uint64_config(const mysql_harness::Config &config,
-                                  const std::string &option, uint64_t min_value,
+                                  std::string_view option, uint64_t min_value,
                                   uint64_t max_value, uint64_t default_val) {
   std::string conf_str;
   try {
@@ -251,16 +252,17 @@ static uint64_t get_uint64_config(const mysql_harness::Config &config,
 
   if (!conf_str.empty()) {
     return mysql_harness::option_as_uint<uint64_t>(
-        conf_str, "[DEFAULT]."s + option, min_value, max_value);
+        conf_str, "[DEFAULT]." + std::string(option), min_value, max_value);
   }
 
   return default_val;
 }
 
 void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
-  max_total_connections_ = get_uint64_config(
-      config, "max_total_connections", 1, std::numeric_limits<int64_t>::max(),
-      routing::kDefaultMaxTotalConnections);
+  max_total_connections_ =
+      get_uint64_config(config, router::options::kMaxTotalConnections, 1,
+                        std::numeric_limits<int64_t>::max(),
+                        routing::kDefaultMaxTotalConnections);
 
   QuarantineRoutingCallbacks quarantine_callbacks;
   quarantine_callbacks.on_get_destinations = [&](

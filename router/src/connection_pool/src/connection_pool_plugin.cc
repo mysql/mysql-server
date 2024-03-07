@@ -44,10 +44,10 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
 #include "mysql/harness/section_config_exposer.h"
-
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/connection_pool_plugin_export.h"
+#include "mysqlrouter/supported_connection_pool_options.h"
 #include "scope_guard.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -60,15 +60,6 @@ static constexpr uint32_t kDefaultMaxIdleServerConnections{
     0};                                            // disabled by default
 static constexpr uint32_t kDefaultIdleTimeout{5};  // in seconds
 
-static constexpr char kMaxIdleServerConnections[]{
-    "max_idle_server_connections"};
-static constexpr char kIdleTimeout[]{"idle_timeout"};
-
-static constexpr std::array supported_options{
-    kMaxIdleServerConnections,
-    kIdleTimeout,
-};
-
 class ConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   uint32_t max_idle_server_connections;
@@ -78,15 +69,17 @@ class ConnectionPoolPluginConfig : public mysql_harness::BasePluginConfig {
       const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
         max_idle_server_connections(get_option(
-            section, kMaxIdleServerConnections, IntOption<uint32_t>{})),
-        idle_timeout(get_option(section, kIdleTimeout, IntOption<uint32_t>{})) {
-  }
+            section, connection_pool::options::kMaxIdleServerConnections,
+            IntOption<uint32_t>{})),
+        idle_timeout(get_option(section, connection_pool::options::kIdleTimeout,
+                                IntOption<uint32_t>{})) {}
 
   std::string get_default(std::string_view option) const override {
     const std::map<std::string_view, std::string> defaults{
-        {kMaxIdleServerConnections,
+        {connection_pool::options::kMaxIdleServerConnections,
          std::to_string(kDefaultMaxIdleServerConnections)},
-        {kIdleTimeout, std::to_string(kDefaultIdleTimeout)},
+        {connection_pool::options::kIdleTimeout,
+         std::to_string(kDefaultIdleTimeout)},
     };
 
     auto it = defaults.find(option);
@@ -168,11 +161,11 @@ class ConnectionPoolConfigExposer : public mysql_harness::SectionConfigExposer {
         plugin_config_(plugin_config) {}
 
   void expose() override {
-    expose_option(kMaxIdleServerConnections,
+    expose_option(connection_pool::options::kMaxIdleServerConnections,
                   plugin_config_.max_idle_server_connections,
                   kDefaultMaxIdleServerConnectionsBootstrap, true);
-    expose_option(kIdleTimeout, plugin_config_.idle_timeout,
-                  kDefaultIdleTimeout);
+    expose_option(connection_pool::options::kIdleTimeout,
+                  plugin_config_.idle_timeout, kDefaultIdleTimeout);
   }
 
  private:
@@ -215,8 +208,8 @@ mysql_harness::Plugin CONNECTION_POOL_PLUGIN_EXPORT
         nullptr,  // start
         nullptr,  // stop
         false,    // declares_readiness
-        supported_options.size(),
-        supported_options.data(),
+        connection_pool_supported_options.size(),
+        connection_pool_supported_options.data(),
         expose_configuration,
 };
 }

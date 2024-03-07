@@ -78,7 +78,7 @@ void init_test_logger(
       new mysql_harness::LoaderConfig(mysql_harness::Config::allow_keys));
   config->add(mysql_harness::logging::kConfigSectionLogger);
   config->get(mysql_harness::logging::kConfigSectionLogger, "")
-      .add(mysql_harness::logging::kConfigOptionLogLevel, "debug");
+      .add(mysql_harness::logging::options::kLevel, "debug");
 
   mysql_harness::DIM::instance().set_Config(
       [&]() { return config.release(); },

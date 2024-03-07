@@ -29,25 +29,36 @@
 #include <array>
 #include <string_view>
 
+namespace router {
+namespace options {
+static constexpr std::string_view kUser{"user"};
+static constexpr std::string_view kName{"name"};
+static constexpr std::string_view kKeyringPath{"keyring_path"};
+static constexpr std::string_view kMasterKeyPath{"master_key_path"};
+static constexpr std::string_view kMasterKeyReader{"master_key_reader"};
+static constexpr std::string_view kMasterKeyWriter{"master_key_writer"};
+static constexpr std::string_view kDynamicState{"dynamic_state"};
+static constexpr std::string_view kMaxTotalConnections{"max_total_connections"};
+static constexpr std::string_view kPidFile{"pid_file"};
 #ifdef _WIN32
-static constexpr size_t router_supported_options_size = 10;
-#else
-static constexpr size_t router_supported_options_size = 9;
+static constexpr std::string_view kEventSourceName{"event_source_name"};
 #endif
+}  // namespace options
+}  // namespace router
 
-static constexpr std::array<std::string_view, router_supported_options_size>
-    router_supported_options{"user",
-                             "name",
-                             "keyring_path",
-                             "master_key_path",
-                             "master_key_reader",
-                             "master_key_writer",
-                             "dynamic_state",
-                             "max_total_connections",
-                             "pid_file",
+static constexpr std::array router_supported_options [[maybe_unused]]{
+    router::options::kUser,
+    router::options::kName,
+    router::options::kKeyringPath,
+    router::options::kMasterKeyPath,
+    router::options::kMasterKeyReader,
+    router::options::kMasterKeyWriter,
+    router::options::kDynamicState,
+    router::options::kMaxTotalConnections,
+    router::options::kPidFile,
 #ifdef _WIN32
-                             "event_source_name"
+    router::options::kEventSourceName,
 #endif
-    };
+};
 
 #endif /* ROUTER_SUPPORTED_ROUTER_OPTIONS_INCLUDED */

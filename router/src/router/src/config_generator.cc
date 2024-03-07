@@ -2195,10 +2195,10 @@ class ConfigSectionPrinter {
     used_sections_.insert(section_name_lc);
   }
 
-  ConfigSectionPrinter &add_line(const std::string &key,
-                                 const std::string &value,
+  ConfigSectionPrinter &add_line(std::string_view key, const std::string &value,
                                  bool force_empty = false) {
-    std::string cmdln_option_key = section_name_ + "." + key;
+    std::string key_s(key);
+    std::string cmdln_option_key = section_name_ + "." + key_s;
     std::transform(cmdln_option_key.begin(), cmdln_option_key.end(),
                    cmdln_option_key.begin(), ::tolower);
 
@@ -2207,7 +2207,7 @@ class ConfigSectionPrinter {
       section_options_.emplace_back(key,
                                     config_cmdln_options_.at(cmdln_option_key));
 
-      used_cmdln_options_.insert(key);
+      used_cmdln_options_.insert(key_s);
     } else if (!value.empty() || force_empty) {
       section_options_.emplace_back(key, value);
     }
@@ -2308,15 +2308,15 @@ void add_endpoint_option(ConfigSectionPrinter &routing_section,
     const auto bind_address =
         (!options.bind_address.empty()) ? options.bind_address : "0.0.0.0";
 
-    ADD_CONFIG_LINE_CHECKED(routing_section, "bind_address", bind_address,
-                            routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(routing_section, "bind_port",
+    ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kBindAddress,
+                            bind_address, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kBindPort,
                             std::to_string(ep.port), routing_supported_options);
   }
 
   if (!ep.socket.empty()) {
     const auto socket = options.socketsdir + "/" + ep.socket;
-    ADD_CONFIG_LINE_CHECKED(routing_section, "socket", socket,
+    ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kSocket, socket,
                             routing_supported_options);
   }
 }
@@ -2346,38 +2346,42 @@ void add_metadata_cache_routing_section(
   add_endpoint_option(routing_section, options, endpoint);
   const auto destinations = "metadata-cache://" + cluster_name + "/" +
                             metadata_replicaset + "?role=" + role;
-  ADD_CONFIG_LINE_CHECKED(routing_section, "destinations", destinations,
-                          routing_supported_options);
-  ADD_CONFIG_LINE_CHECKED(routing_section, "routing_strategy", strategy,
-                          routing_supported_options);
-  ADD_CONFIG_LINE_CHECKED(routing_section, "protocol", protocol,
-                          routing_supported_options);
+  ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kDestinations,
+                          destinations, routing_supported_options);
+  ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kRoutingStrategy,
+                          strategy, routing_supported_options);
+  ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kProtocol,
+                          protocol, routing_supported_options);
 
   if (options.client_ssl_mode == "PASSTHROUGH" ||
       !(get_default_protocol(section_type) ==
         BaseProtocol::Type::kClassicProtocol)) {
-    ADD_CONFIG_LINE_CHECKED(routing_section, "router_require_enforce", "0",
+    ADD_CONFIG_LINE_CHECKED(routing_section,
+                            routing::options::kRouterRequireEnforce, "0",
                             routing_supported_options);
     // write empty ssl-options to force them to empty.
-    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section, "client_ssl_ca", "",
+    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section,
+                                       routing::options::kClientSslCa, "",
                                        routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section, "server_ssl_key", "",
+    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section,
+                                       routing::options::kServerSslKey, "",
                                        routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section, "server_ssl_cert", "",
+    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section,
+                                       routing::options::kServerSslCert, "",
                                        routing_supported_options);
   }
 
   if (!options.disable_rw_split_endpoint &&
       section_type == routing::RoutingBootstrapSectionType::kRwSplit) {
     ADD_CONFIG_LINE_CHECKED(
-        routing_section, "connection_sharing",
+        routing_section, routing::options::kConnectionSharing,
         routing::get_default_connection_sharing(section_type) ? "1" : "0",
         routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(routing_section, "client_ssl_mode", "PREFERRED",
-                            routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(routing_section, "server_ssl_mode", "PREFERRED",
-                            routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(routing_section, "access_mode",
+    ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kClientSslMode,
+                            "PREFERRED", routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kServerSslMode,
+                            "PREFERRED", routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, routing::options::kAccessMode,
                             routing::get_access_mode_name(
                                 routing::get_default_access_mode(section_type)),
                             routing_supported_options);
@@ -2546,26 +2550,29 @@ void ConfigGenerator::create_config(
     // has them registered as allowed options.
     ConfigSectionPrinter default_section(config_file, config_cmdln_options,
                                          "DEFAULT");
-    ADD_CONFIG_LINE_CHECKED(default_section, "name", router_name,
-                            router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "user", system_username,
-                            router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "logging_folder",
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kName,
+                            router_name, router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kUser,
+                            system_username, router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section,
+                            mysql_harness::loader::options::kLoggingFolder,
                             options.override_logdir, loader_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "runtime_folder",
+    ADD_CONFIG_LINE_CHECKED(default_section,
+                            mysql_harness::loader::options::kRuntimeFolder,
                             options.override_rundir, loader_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "data_folder",
+    ADD_CONFIG_LINE_CHECKED(default_section,
+                            mysql_harness::loader::options::kDataFolder,
                             options.override_datadir, loader_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "keyring_path",
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kKeyringPath,
                             options.keyring_file_path,
                             router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "master_key_path",
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kMasterKeyPath,
                             options.keyring_master_key_file_path,
                             router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "master_key_reader",
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kMasterKeyReader,
                             keyring_info_.get_master_key_reader(),
                             router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "master_key_writer",
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kMasterKeyWriter,
                             keyring_info_.get_master_key_writer(),
                             router_supported_options);
     ADD_CONFIG_LINE_CHECKED(default_section, "connect_timeout",
@@ -2574,53 +2581,54 @@ void ConfigGenerator::create_config(
     ADD_CONFIG_LINE_CHECKED(default_section, "read_timeout",
                             std::to_string(read_timeout_),
                             metadata_cache_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "dynamic_state", state_file_name,
-                            router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_cert",
+    ADD_CONFIG_LINE_CHECKED(default_section, router::options::kDynamicState,
+                            state_file_name, router_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kClientSslCert,
                             options.client_ssl_cert, routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_key",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kClientSslKey,
                             options.client_ssl_key, routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_cipher",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kClientSslCipher,
                             options.client_ssl_cipher,
                             routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_curves",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kClientSslCurves,
                             options.client_ssl_curves,
                             routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_mode",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kClientSslMode,
                             options.client_ssl_mode, routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_dh_params",
-                            options.client_ssl_dh_params,
-                            routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_ca",
+    ADD_CONFIG_LINE_CHECKED(
+        default_section, routing::options::kClientSslDhParams,
+        options.client_ssl_dh_params, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslCa,
                             options.server_ssl_ca, routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_capath",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslCaPath,
                             options.server_ssl_capath,
                             routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_crl",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslCrl,
                             options.server_ssl_crl, routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_crlpath",
-                            options.server_ssl_crlpath,
-                            routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_cipher",
+    ADD_CONFIG_LINE_CHECKED(
+        default_section, routing::options::kServerSslCrlPath,
+        options.server_ssl_crlpath, routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslCipher,
                             options.server_ssl_cipher,
                             routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_curves",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslCurves,
                             options.server_ssl_curves,
                             routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_mode",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslMode,
                             options.server_ssl_mode, routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "server_ssl_verify",
+    ADD_CONFIG_LINE_CHECKED(default_section, routing::options::kServerSslVerify,
                             options.server_ssl_verify,
                             routing_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "unknown_config_option", "error",
-                            loader_supported_options);
     ADD_CONFIG_LINE_CHECKED(
-        default_section, "max_idle_server_connections",
+        default_section, mysql_harness::loader::options::kUnknownConfigOption,
+        "error", loader_supported_options);
+    ADD_CONFIG_LINE_CHECKED(
+        default_section, connection_pool::options::kMaxIdleServerConnections,
         std::to_string(kDefaultMaxIdleServerConnectionsBootstrap),
         connection_pool_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "router_require_enforce",
-                            routing::kDefaultRequireEnforce ? "1" : "0",
-                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(
+        default_section, routing::options::kRouterRequireEnforce,
+        routing::kDefaultRequireEnforce ? "1" : "0", routing_supported_options);
   }
 
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
@@ -2631,13 +2639,13 @@ void ConfigGenerator::create_config(
         config_file, config_cmdln_options,
         mysql_harness::logging::kConfigSectionLogger);
     ADD_CONFIG_LINE_CHECKED(
-        logger_section, "level",
+        logger_section, mysql_harness::logging::options::kLevel,
         mysql_harness::logging::log_level_to_string(
             mysql_harness::logging::kDefaultLogLevelBootstrap),
         logger_supported_options);
-    ADD_CONFIG_LINE_CHECKED(logger_section, "filename",
-                            options.override_logfilename,
-                            logger_supported_options);
+    ADD_CONFIG_LINE_CHECKED(
+        logger_section, mysql_harness::logging::options::kFilename,
+        options.override_logfilename, logger_supported_options);
   }
 
   {
@@ -3436,10 +3444,11 @@ namespace {
 
 std::string get_cluster_type_specific_uuid(
     const mysql_harness::Config &conf, mysqlrouter::ClusterType cluster_type) {
-  if (!conf.has_default("dynamic_state")) {
+  if (!conf.has_default(router::options::kDynamicState)) {
     return "";
   }
-  const std::string dynamic_state_file = conf.get_default("dynamic_state");
+  const std::string dynamic_state_file =
+      conf.get_default(router::options::kDynamicState);
 
   mysql_harness::DynamicState dynamic_state{dynamic_state_file};
   ClusterMetadataDynamicState mdc_dynamic_state(&dynamic_state, cluster_type);

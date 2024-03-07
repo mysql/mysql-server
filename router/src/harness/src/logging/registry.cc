@@ -386,8 +386,7 @@ LogLevel get_default_log_level(const Config &config, bool raw_mode) {
   constexpr const char kNone[] = "";
 
   // aliases with shorter names
-  constexpr const char *kLogLevel =
-      mysql_harness::logging::kConfigOptionLogLevel;
+  constexpr const char *kLogLevel = mysql_harness::logging::options::kLevel;
   constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
 
   std::string level_name;
@@ -407,7 +406,7 @@ std::string get_default_log_filename(const Config &config) {
 
   // aliases with shorter names
   constexpr const char *kLogFilename =
-      mysql_harness::logging::kConfigOptionLogFilename;
+      mysql_harness::logging::options::kFilename;
   constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
 
   std::string log_filename;
@@ -459,7 +458,7 @@ LogTimestampPrecision get_default_timestamp_precision(const Config &config) {
 
   // aliases with shorter names
   constexpr const char *kLogTimestampPrecision =
-      mysql_harness::logging::kConfigOptionLogTimestampPrecision;
+      mysql_harness::logging::options::kTimestampPrecision;
   constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
 
   std::string precision;

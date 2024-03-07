@@ -30,10 +30,28 @@
 #include <string_view>
 
 namespace mysql_harness {
+namespace loader {
+namespace options {
+constexpr std::string_view kOrigin{"origin"};
+constexpr std::string_view kProgram{"program"};
+constexpr std::string_view kLoggingFolder{"logging_folder"};
+constexpr std::string_view kRuntimeFolder{"runtime_folder"};
+constexpr std::string_view kDataFolder{"data_folder"};
+constexpr std::string_view kPluginFolder{"plugin_folder"};
+constexpr std::string_view kConfigFolder{"config_folder"};
+constexpr std::string_view kUnknownConfigOption{"unknown_config_option"};
+}  // namespace options
+}  // namespace loader
 
-static constexpr std::array<std::string_view, 8> loader_supported_options{
-    "origin",      "program",       "logging_folder", "runtime_folder",
-    "data_folder", "plugin_folder", "config_folder",  "unknown_config_option",
+static constexpr std::array loader_supported_options [[maybe_unused]]{
+    loader::options::kOrigin,  //
+    loader::options::kProgram,
+    loader::options::kLoggingFolder,
+    loader::options::kRuntimeFolder,
+    loader::options::kDataFolder,
+    loader::options::kPluginFolder,
+    loader::options::kConfigFolder,
+    loader::options::kUnknownConfigOption,
 };
 
 }  // namespace mysql_harness
