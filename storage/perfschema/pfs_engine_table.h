@@ -277,7 +277,7 @@ class PFS_engine_key {
   const char *m_name;
 
  protected:
-  enum ha_rkey_function m_find_flag { HA_READ_INVALID };
+  enum ha_rkey_function m_find_flag;
   bool m_is_null;
 };
 
