@@ -477,8 +477,8 @@ EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
 LEFT JOIN t2 x2 ON x1.b=x2.a
 LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
 EXPLAIN
--> Group aggregate: count(x1.b)  (rows=4.47)
-    -> Sort: k  (rows=20)
+-> Table scan on <temporary>  (rows=4.47)
+    -> Aggregate using temporary table  (rows=4.47)
         -> Left hash join (x1.b = x2.a)  (rows=20)
             -> Table scan on x1  (rows=20)
             -> Hash

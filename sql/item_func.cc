@@ -8018,6 +8018,7 @@ bool NonAggregatedFullTextSearchVisitor::operator()(Item *item) {
         case Item_ref::REF:
         case Item_ref::OUTER_REF:
         case Item_ref::AGGREGATE_REF:
+        case Item_ref::NULL_HELPER_REF:
           // Skip all these. REF means the expression is already handled
           // elsewhere in the SELECT list. OUTER_REF is already handled in an
           // outer query block. AGGREGATE_REF means it's aggregated, and we're

@@ -4210,8 +4210,8 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
 
 /// Compute the position mapping from fields to ref_item_array, cf.
 /// detailed explanation in change_to_use_tmp_fields_except_sums
-static size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
-                              size_t added_non_hidden_fields, size_t border) {
+size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
+                       size_t added_non_hidden_fields, size_t border) {
   const size_t num_select_elements = fields.size() - border;
   const size_t orig_num_select_elements =
       num_select_elements - added_non_hidden_fields;

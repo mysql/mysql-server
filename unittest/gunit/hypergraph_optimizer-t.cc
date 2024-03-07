@@ -7082,7 +7082,9 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
   Query_block *query_block = ParseAndResolve(param.query.data(),
                                              /*nullable=*/true);
 
-  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  // aggregation_is_unordered=true is to make sure temp-table aggregate
+  // plan is not chosen. We don't have temp-table infrastructure yet.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *thd, const JoinHypergraph &, AccessPath *path) {
         EXPECT_FALSE(thd->is_error());
@@ -7105,7 +7107,8 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
   Query_block *query_block = ParseAndResolve(param.query.data(),
                                              /*nullable=*/true);
 
-  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  // See above comment for aggregation_is_unordered.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *thd, const JoinHypergraph &, AccessPath *path) {
         EXPECT_FALSE(thd->is_error());

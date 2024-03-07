@@ -355,3 +355,149 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT * FROM t GROUP BY col1 + col2;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t;
+
+
+##########
+# temp table aggregation in hypergraph optimizer.
+##########
+
+--source include/turn_off_only_full_group_by.inc
+
+create table tb1(id int , id2 int, primary key (id));
+insert into tb1 values (1, 10), (2, 11), (3, 12), (4, 10), (5, 11), (6, 12), (7, 10), (8, 11), (9, 12), (10, 10), (11, 11), (12, 12);
+analyze table tb1;
+select sql_small_result avg(id) , id2 from tb1 where id2 != 5 group by id2;
+select sql_small_result avg(id) , id2 + 2 from tb1 group by id2;
+select sql_small_result avg(id), any_value(id) from tb1 group by id2;
+select sql_small_result 2000 + avg(id) * 100 , avg(id*2) a , id2 * 4 i from tb1 group by id2 * 4 order by a desc;
+let $query=
+  select sql_small_result 2000 + avg(id) * 100 , avg(id*2) a , id2 * 4 i from tb1 group by id2 * 4 having i  < 48 order by a desc;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+
+# eq_ref subquery having outer references
+create table tb2(id int , id3 int, primary key (id));
+insert into tb2 select * from tb1;
+analyze table tb2;
+select sql_small_result id2, (select avg(tb1.id) + id3 from tb2 where tb2.id = tb1.id2) from tb1 group by id2;
+# table joins
+select sql_small_result tb2.id, tb2.id3, id2, avg(tb1.id) from tb1, tb2 group by id2;
+
+drop table tb2;
+
+# This tests tmp slice usage during temp-table initialization.
+select sql_small_result ROUND(RAND(100)*10) r2, sum(1) r1 from tb1 group by id2  HAVING r1 = 4 and r2=2 ;
+select sql_small_result ROUND(RAND(100)*10) r2, sum(1) r1 from tb1 group by id2  HAVING r1 = 4 and (select r2=2);
+select sql_small_result ROUND(RAND(100)*any_value(id)) r2, sum(1) r1 from tb1 group by id2  HAVING r1 = 4 and r2=2 ;
+select sql_small_result id, ROUND(RAND(100)*10) r2, sum(1) r1 from tb1 group by id2  HAVING r1 = 4 and any_value(id)=2;
+select sql_small_result ROUND(RAND(100)*10) r2, sum(1) r1 , id from tb1 group by id2  HAVING r1 = 4 and (select any_value(id)=2) ;
+
+# Aggregate, group column and non-group column together in a single select item.
+select sql_small_result id2, avg(id) + id, (select avg(id) + id), avg(id) + id2, (select avg(id) + id2) from tb1 group by id2;
+# Distinct with aggregate.
+select sql_small_result distinct round(avg(id)/10-.2) from tb1 group by id2 order by id;
+# Aggregate in derived tables.
+select * from (select * from tb1 where id %3 = 0) even,
+  lateral (select sql_small_result avg(id2) a from tb1 where id > even.id group by id2 ) l
+  where even.id != l.a;
+
+# Combination of multiple aggs and group ids in subquery.
+create table tb2(a int , b int);
+insert into tb2 values (1, 10), (2, 11), (1, 13);
+select sql_small_result (select count(*) from tb2 where b + 5 > avg(tb1.id) + tb1.id2) e from tb1 group by id2 ;
+drop table tb2;
+
+# Two temp tables
+let $query=
+  select sql_small_result SQL_BUFFER_RESULT 2000 + avg(id) * 100 , avg(id*2) a , id2 * 4 i from tb1 group by id2 * 4 having i  < 48 order by a desc;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+
+# Aggs and window functions in the same stmt, with multiple temp tables under sort.
+CREATE TABLE t(txt TEXT, i INT);
+INSERT INTO t VALUES ('z', 12), ('m', 81), ('q', 9), ('e', 7),
+                     ('z', 2), ('m', 8), ('q', 19), ('e', 17),
+                     ('a', 92), ('b', 8), ('b', 0), ('c', 2);
+select sql_small_result txt, AVG(i) a, row_number() over() r FROM t GROUP BY txt order by a, txt;
+select sql_small_result txt, AVG(i), row_number() over() FROM t GROUP BY txt order by AVG(i);
+select sql_small_result txt, AVG(i)+2 a , row_number() over() FROM t GROUP BY txt order by -a;
+select sql_small_result txt, AVG(i)+2 a, (SELECT AVG(i) + 2) b, row_number() over() FROM t GROUP BY txt order by -b;
+select sql_small_result txt, AVG(i)+2 a, (SELECT AVG(i) + 2) b, row_number() over() FROM t GROUP BY txt order by b;
+select sql_small_result txt, AVG(i)+2 a, row_number() over()  FROM t GROUP BY txt order by a;
+select sql_small_result txt, AVG(i) a, row_number() over()  FROM t GROUP BY txt order by a;
+select sql_small_result txt, AVG(i) * 2 a, row_number() over()  FROM t GROUP BY txt order by txt;
+select sql_small_result txt, AVG(i) a, row_number() over()  FROM t GROUP BY txt order by txt;
+select sql_small_result txt, AVG(i) a , row_number() over() r FROM t GROUP BY txt order by 0-a;
+select sql_small_result txt, AVG(i) a , row_number() over() r FROM t GROUP BY txt order by a;
+select sql_small_result txt, AVG(i) a , row_number() over() r FROM t GROUP BY txt order by txt;
+drop table t;
+
+# Expressions and subqueries in group-by clause.
+select sql_small_result round(stddev(id2),5) from tb1 t1 group by (id + id2)%5;
+select sql_small_result round(stddev(id2),5) from tb1 t1 group by (select (id + id2)%5);
+select sql_small_result round(stddev(id2),5) from tb1 t1 group by (select (t2.id + t2.id2)%5 from tb1 t2 where t2.id = t1.id);
+
+# Item_ref_null_helper should not lose the null info.
+create table t1 (oref int, grp int, ie int) ;
+insert into t1 (oref, grp, ie) values (1, 1, 1), (1, 1, 1), (1, 2, NULL), (2, 1, 3), (3, 1, 4), (3, 2, NULL);
+create table t2 (oref int, a int);
+insert into t2 values (1, 1), (2, 2), (3, 3), (4, NULL), (2, NULL);
+ANALYZE TABLE t1, t2;
+# Item_ref_null_helper containing aggregate
+select a, oref, a in (select sql_small_result max(ie)  from t1
+  where oref=t2.oref group by grp) Z from t2;
+# Item_ref_null_helper containing non-aggregate
+select a, oref, a in (select sql_small_result any_value(ie) from t1 where oref=t2.oref
+  group by grp having max(ie) is null or max(ie) is not null) Z from t2;
+drop table t1, t2;
+
+# Bug#36313478: WL#15809: Wrong result (NULL) when using GROUP BY on empty set
+# Verify that the result remains empty even when group-by is pruned away.
+# (The "alias1.pk IS NULL" below causes the pruning)
+create table tb2(pk int, col_int int, col_varchar varchar(1), PRIMARY KEY (pk));
+select count(alias2.col_int) as field1, alias1.pk as field2 from tb2 as alias1
+  right join tb2 as alias2 on alias1.col_varchar = alias2.col_varchar
+  where (alias2.col_int = alias1.col_int and alias1.pk IS NULL) group by field2;
+drop table tb2;
+
+# Temptable aggregates should not be used with ROLLUP.
+let $query=
+  select avg(id) , id2 from tb1 where id2 != 5 group by id2 with rollup;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+
+# Temptable aggregates should not be used when the usual aggregate functions
+# are used as Window functions.
+let $query=
+  select avg(id2*2)  over(), id2 from tb1 group by id2;
+eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
+
+# If temptable aggregate is not supported (e.g. json aggs), it should not be
+# used, even if forced.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE select sql_small_result avg(id), JSON_ARRAYAGG(id) from tb1 t1 group by id2 ;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE select sql_small_result avg(id) from tb1 group by 'abcd';
+
+# Force the streaming agg plan.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE select sql_big_result avg(id) from tb1 t1 group by id2;
+
+# Force temp table agg plan.
+# Forcing should work even when streaming agg would not need a Sort plan.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE select sql_small_result avg(id2) from tb1 t1 group by id;
+# Forcing should work when both plans are possible.
+truncate tb1; # This will make temp-table agg costlier.
+analyze table tb1;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE select sql_small_result avg(id) from tb1 t1 group by id2;
+
+#cleanup
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+drop table tb1;

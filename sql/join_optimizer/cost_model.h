@@ -54,6 +54,7 @@ constexpr double kHashBuildOneRowCost = 0.1;
 constexpr double kHashProbeOneRowCost = 0.1;
 constexpr double kHashReturnOneRowCost = 0.07;
 constexpr double kMaterializeOneRowCost = 0.1;
+constexpr double kTempTableAggLookupCost = 0.1;
 constexpr double kWindowOneRowCost = 0.1;
 
 /// A fallback cardinality estimate that is used in case the storage engine
@@ -161,6 +162,10 @@ void EstimateStreamCost(AccessPath *path);
    init_cost + (k/N) * (cost - init_cost).
 */
 void EstimateLimitOffsetCost(AccessPath *path);
+
+/// Estimate the costs and row count for a Temp table Aggregate AccessPath.
+void EstimateTemptableAggregateCost(THD *thd, AccessPath *path,
+                                    const Query_block *query_block);
 
 /// Estimate the costs and row count for a WINDOW AccessPath.
 void EstimateWindowCost(AccessPath *path);

@@ -5128,6 +5128,20 @@ PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
 
 namespace {
 
+bool IsMaterializationPath(const AccessPath *path) {
+  switch (path->type) {
+    case AccessPath::MATERIALIZE:
+    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
+    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
+    case AccessPath::TEMPTABLE_AGGREGATE:
+      return true;
+    case AccessPath::FILTER:
+      return IsMaterializationPath(path->filter().child);
+    default:
+      return false;
+  }
+}
+
 string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
                        const char *description_for_trace) {
   string str = "{";
@@ -5772,10 +5786,11 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
                                                  AccessPath *path,
                                                  bool need_rowid,
                                                  bool copy_items) {
-  if (!IteratorsAreNeeded(thd, path)) {
-    // Let external executors decide for themselves whether they need an
-    // intermediate materialization or streaming step. Don't add it to the plan
-    // for them.
+  // If the path is already a materialization path, we are already ready.
+  // Let external executors decide for themselves whether they need an
+  // intermediate materialization or streaming step. Don't add it to the plan
+  // for them.
+  if (!IteratorsAreNeeded(thd, path) || IsMaterializationPath(path)) {
     return path;
   }
 
@@ -5840,17 +5855,6 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
   materialize_path->delayed_predicates = path->delayed_predicates;
   materialize_path->has_group_skip_scan = path->has_group_skip_scan;
   return materialize_path;
-}
-
-bool IsMaterializationPath(const AccessPath *path) {
-  switch (path->type) {
-    case AccessPath::MATERIALIZE:
-    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
-    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
-      return true;
-    default:
-      return false;
-  }
 }
 
 /**
@@ -6380,6 +6384,26 @@ void ApplyFinalPredicatesAndExpandFilters(THD *thd,
     }
   }
   *root_candidates = std::move(new_root_candidates);
+}
+
+static AccessPath *CreateTemptableAggregationPath(THD *thd,
+                                                  Query_block *query_block,
+                                                  AccessPath *child_path,
+                                                  double *aggregate_rows) {
+  AccessPath *table_path =
+      NewTableScanAccessPath(thd, /*temp_table=*/nullptr,
+                             /*count_examined_rows=*/false);
+  AccessPath *aggregate_path = NewTemptableAggregateAccessPath(
+      thd, child_path, /*temp_table_param=*/nullptr, /*table=*/nullptr,
+      table_path, REF_SLICE_TMP1);
+
+  // Use a possibly cached row count.
+  aggregate_path->set_num_output_rows(*aggregate_rows);
+  EstimateTemptableAggregateCost(thd, aggregate_path, query_block);
+  // Cache the row count.
+  *aggregate_rows = aggregate_path->num_output_rows();
+
+  return aggregate_path;
 }
 
 // If we are planned using in2exists, and our SELECT list has a window
@@ -7547,8 +7571,9 @@ bool ApplyAggregation(
     FunctionalDependencySet fd_set, Query_block *query_block,
     AccessPathArray &root_candidates) {
   JOIN *join = query_block->join;
-  // Apply GROUP BY, if applicable. We currently always do this by sorting
-  // first and then using streaming aggregation.
+  // Apply GROUP BY, if applicable. We do this either by temp table aggregation
+  // or by sorting first and then using streaming aggregation.
+
   if (!query_block->is_grouped()) return false;
 
   if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
@@ -7572,19 +7597,55 @@ bool ApplyAggregation(
   AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   double aggregate_rows = kUnknownRowCount;
 
+  // We don't use Temp table aggregation with ROLLUP or JSON aggregate functions
+  // (1) Also avoid it when using a secondary engine that can do streaming
+  // aggregation without sorting.
+  // (2) Continue using SQL_BIG_RESULT in hypergraph as well. At least in the
+  // initial phase, there should be a means to force streaming aggregate.
+  const bool propose_temptable_aggregation =
+      (!join->with_json_agg &&
+       join->tmp_table_param.allow_group_via_temp_table &&
+       join->tmp_table_param.sum_func_count &&
+       !join->tmp_table_param.precomputed_group_by &&
+       !join->group_list.empty() && !aggregation_is_unordered &&  // (1)
+       !(query_block->active_options() & SELECT_BIG_RESULT));     // (2)
+
+  // Force a temp-table aggregate plan if requested and possible.
+  const bool force_temptable_aggregation =
+      propose_temptable_aggregation &&
+      (query_block->active_options() & SELECT_SMALL_RESULT);
+
   for (AccessPath *root_path : root_candidates) {
     const bool group_needs_sort =
-        query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
+        !join->group_list.empty() && !aggregation_is_unordered &&
+        group_by_ordering_idx != -1 &&
         !orderings.DoesFollowOrder(root_path->ordering_state,
                                    group_by_ordering_idx);
 
-    if (!group_needs_sort) {
+    // If temp table aggregation is forced, avoid streaming aggregation even if
+    // it does not need sorting, so that we get *only* temp table aggregation
+    // plans to choose from.
+    if (!group_needs_sort && !force_temptable_aggregation) {
       AccessPath aggregate_path = CreateStreamingAggregationPath(
           thd, root_path, join, query_block->olap, aggregate_rows);
       aggregate_rows = aggregate_path.num_output_rows();
       receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "sort elided");
+
+      // With no sorting required, streaming aggregation will always be cheaper,
+      // so no point in creating temp table aggregation.
       continue;
+    }
+
+    if (propose_temptable_aggregation) {
+      receiver.ProposeAccessPath(
+          CreateTemptableAggregationPath(thd, query_block, root_path,
+                                         &aggregate_rows),
+          &new_root_candidates, /*obsolete_orderings=*/0,
+          "temp table aggregate");
+
+      // Skip sort plans if we want to force temp table aggregation.
+      if (force_temptable_aggregation) continue;
     }
 
     root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
@@ -7967,8 +8028,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
                                          &fd_set, &root_candidates);
   }
 
-  // Apply GROUP BY, if applicable. We currently always do this by sorting
-  // first and then using streaming aggregation.
+  // Apply GROUP BY, if applicable.
   const bool aggregation_is_unordered = Overlaps(
       EngineFlags(thd),
       MakeSecondaryEngineFlags(SecondaryEngineFlag::AGGREGATION_IS_UNORDERED));

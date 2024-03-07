@@ -47,12 +47,12 @@ enum Copy_func_type : int;
 */
 class Func_ptr {
  public:
-  Func_ptr(Item *item, Field *result_field);
+  Func_ptr(Item *item, Field *result_field, Item *result_item = nullptr);
 
   Item *func() const { return m_func; }
   void set_func(Item *func);
   Field *result_field() const { return m_result_field; }
-  Item_field *result_item() const;
+  Item *result_item() const;
   bool should_copy(Copy_func_type type) const {
     return m_func_bits & (1 << type);
   }
@@ -61,8 +61,8 @@ class Func_ptr {
   Item *m_func;
   Field *m_result_field;
 
-  // A premade Item_field for m_result_field (may be nullptr if allocation
-  // failed). This has two purposes:
+  // A premade Item for m_result_field (may be nullptr if allocation failed).
+  // This has two purposes:
   //
   //  - It avoids repeated constructions if the field is used multiple times
   //    (e.g., first in a SELECT list, then in a sort order).
@@ -73,7 +73,9 @@ class Func_ptr {
   //
   // It is created on-demand to avoid getting into the thd->stmt_arena field
   // list for a temporary table that is freed later anyway.
-  mutable Item_field *m_result_item = nullptr;
+  // It is usually an Item_field, but if supplied from constructor, can be of
+  // any type.
+  mutable Item *m_result_item = nullptr;
 
   // A bitmap where all CFT_* enums are bit indexes, and we have a 1 if m_func
   // is of the type given by that enum. E.g., if m_func is an Item_field,

@@ -4527,18 +4527,18 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 JOIN
 (SELECT SUM(x1.b) s FROM t1 x1, t1 x2 WHERE x1.b<x2.b GROUP BY x1.c) d1
 ON c=d1.s AND c*2<0;
 EXPLAIN
--> Inner hash join (t1.c = d1.s)  (cost=73.1..78.4 rows=20) (actual rows=0 loops=1)
+-> Inner hash join (t1.c = d1.s)  (cost=72.6..77.9 rows=20) (actual rows=0 loops=1)
     -> Filter: ((t1.c * 2) < 0)  (cost=0.113..2.25 rows=20) (actual rows=0 loops=1)
         -> Table scan on t1  (cost=0.0125..0.25 rows=20) (actual rows=20 loops=1)
     -> Hash
-        -> Table scan on d1  (cost=70.2..72.3 rows=5) (never executed)
-            -> Materialize  (cost=69.7..69.7 rows=5) (never executed)
-                -> Group aggregate: sum(x1.b)  (cost=22.6..69.2 rows=5) (never executed)
-                    -> Nested loop inner join  (cost=11.2..55.9 rows=133) (never executed)
-                        -> Sort: x1.c  (cost=10.9..10.9 rows=20) (never executed)
+        -> Table scan on d1  (cost=69.7..71.8 rows=5) (never executed)
+            -> Materialize  (cost=69.2..69.2 rows=5) (never executed)
+                -> Table scan on <temporary>  (cost=68.3..68.7 rows=5) (never executed)
+                    -> Aggregate using temporary table  (cost=68.3..68.7 rows=5) (never executed)
+                        -> Inner hash join (no condition), extra conditions: (x1.b < x2.b)  (cost=2.44..27.2 rows=133) (never executed)
                             -> Table scan on x1  (cost=0.0125..0.25 rows=20) (never executed)
-                        -> Filter: (x1.b < x2.b)  (cost=0.338..2.25 rows=6.67) (never executed)
-                            -> Table scan on x2  (cost=0.0125..0.25 rows=20) (never executed)
+                            -> Hash
+                                -> Table scan on x2  (cost=0.0125..0.25 rows=20) (never executed)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE b IN
 (SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;

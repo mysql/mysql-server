@@ -4948,26 +4948,26 @@ bool JOIN::make_tmp_tables_info() {
 
 void JOIN::refresh_base_slice() {
   const unsigned num_hidden_fields = CountHiddenFields(*fields);
-  const size_t num_select_elements = fields->size() - num_hidden_fields;
-  const size_t orig_num_select_elements =
-      num_select_elements - query_block->m_added_non_hidden_fields;
 
   for (unsigned i = 0; i < fields->size(); ++i) {
     Item *item = (*fields)[i];
-    size_t pos;
-    // See change_to_use_tmp_fields_except_sums for an explanation of how
-    // the visible fields, hidden fields and additional fields added by
-    // transformations are organized in fields and ref_item_array.
-    if (i < num_hidden_fields) {
-      pos = fields->size() - i - 1 - query_block->m_added_non_hidden_fields;
-    } else {
-      pos = i - num_hidden_fields;
-      if (pos >= orig_num_select_elements) pos += num_hidden_fields;
-    }
+    const size_t pos = compute_ria_idx(
+        *fields, i, query_block->m_added_non_hidden_fields, num_hidden_fields);
     query_block->base_ref_items[pos] = item;
-    if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
+    if (!ref_items[REF_SLICE_SAVED_BASE].is_null())
       ref_items[REF_SLICE_SAVED_BASE][pos] = item;
-    }
+  }
+}
+
+void JOIN::assign_fields_to_slice(int sliceno) {
+  const unsigned num_hidden_fields = CountHiddenFields(*fields);
+
+  for (unsigned i = 0; i < fields->size(); ++i) {
+    Item *item = (*fields)[i];
+    const size_t pos = compute_ria_idx(
+        *fields, i, query_block->m_added_non_hidden_fields, num_hidden_fields);
+    assert(!ref_items[sliceno].is_null());
+    ref_items[sliceno][pos] = item;
   }
 }
 

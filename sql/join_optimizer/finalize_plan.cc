@@ -145,10 +145,12 @@ static void CollectItemsWithoutRollup(Item *root,
   again later with after_aggregation = false, as count_field_types() will
   remove item->has_aggregation() once called. Thus, we need to set up all
   these temporary tables in FinalizePlanForQueryBlock(), in the right order.
+  'group', if not null, contains the group-by items for temp-table aggregation.
  */
 static TABLE *CreateTemporaryTableFromSelectList(
     THD *thd, Query_block *query_block, Window *window,
-    Temp_table_param **temp_table_param_arg, bool after_aggregation) {
+    Temp_table_param **temp_table_param_arg, bool after_aggregation,
+    ORDER *group = nullptr) {
   JOIN *join = query_block->join;
   mem_root_deque<Item *> *items_to_materialize = join->fields;
 
@@ -172,7 +174,13 @@ static TABLE *CreateTemporaryTableFromSelectList(
     }
   }
 
-  Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
+  // This is for setting group_parts.
+  if (group != nullptr) calc_group_buffer(join, group);
+
+  Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param(
+      thd->mem_root,
+      join->tmp_table_param);  // Required to set key_info->actual_key_parts
+
   *temp_table_param_arg = temp_table_param;
   assert(!temp_table_param->precomputed_group_by);
   assert(!temp_table_param->skip_create_table);
@@ -182,10 +190,10 @@ static TABLE *CreateTemporaryTableFromSelectList(
                     /*save_sum_fields=*/after_aggregation);
 
   TABLE *temp_table = create_tmp_table(
-      thd, temp_table_param, *items_to_materialize,
-      /*group=*/nullptr, /*distinct=*/false,
+      thd, temp_table_param, *items_to_materialize, group, /*distinct=*/false,
       /*save_sum_fields=*/after_aggregation, query_block->active_options(),
       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
+  if (temp_table == nullptr) return nullptr;
 
   if (after_aggregation) {
     // Most items have been added to items_to_copy in create_tmp_field(), but
@@ -246,16 +254,28 @@ static TABLE *CreateTemporaryTableFromSelectList(
 /**
   Replaces the items in the SELECT list with items that point to fields in a
   temporary table. See FinalizePlanForQueryBlock() for more information.
+  Also creates a new items_to_copy list made up of aggregate items that were
+  not found while finding replacement. These items need to be added in
+  'applied_replacements' so that further items get a direct match for subsequent
+  occurences of these items, rather than generating a new replacement.
+  Without this, the replacement does not propagate from the bottom to
+  the top plan node.
  */
 static void ReplaceSelectListWithTempTableFields(
-    THD *thd, JOIN *join, const Func_ptr_array &items_to_copy) {
+    THD *thd, JOIN *join, const Func_ptr_array &items_to_copy,
+    Mem_root_array<const Func_ptr_array *> *applied_replacements) {
   auto fields = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
+  Func_ptr_array *agg_items_to_copy =
+      new (thd->mem_root) Func_ptr_array(thd->mem_root);
+
   for (Item *item : *join->fields) {
-    fields->push_back(
-        FindReplacementOrReplaceMaterializedItems(thd, item, items_to_copy,
-                                                  /*need_exact_match=*/true));
+    fields->push_back(FindReplacementOrReplaceMaterializedItems(
+        thd, item, items_to_copy,
+        /*need_exact_match=*/true, agg_items_to_copy));
   }
   join->fields = fields;
+  if (!agg_items_to_copy->empty())
+    applied_replacements->push_back(agg_items_to_copy);
 }
 
 void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
@@ -377,6 +397,9 @@ static Temp_table_param *GetItemsToCopy(AccessPath *path) {
     }
     return param->m_operands[0].temp_table_param;
   }
+  if (path->type == AccessPath::TEMPTABLE_AGGREGATE) {
+    return path->temptable_aggregate().temp_table_param;
+  }
   if (path->type == AccessPath::WINDOW) {
     return path->window().temp_table_param;
   }
@@ -384,7 +407,7 @@ static Temp_table_param *GetItemsToCopy(AccessPath *path) {
 }
 
 /// See FinalizePlanForQueryBlock().
-static void UpdateReferencesToMaterializedItems(
+static bool UpdateReferencesToMaterializedItems(
     THD *thd, Query_block *query_block, AccessPath *path,
     bool after_aggregation,
     Mem_root_array<const Func_ptr_array *> *applied_replacements) {
@@ -403,8 +426,21 @@ static void UpdateReferencesToMaterializedItems(
     applied_replacements->push_back(temp_table_param->items_to_copy);
 
     // Update SELECT list and IODKU references.
-    ReplaceSelectListWithTempTableFields(thd, join,
-                                         *temp_table_param->items_to_copy);
+    ReplaceSelectListWithTempTableFields(
+        thd, join, *temp_table_param->items_to_copy, applied_replacements);
+
+    if (path->type == AccessPath::TEMPTABLE_AGGREGATE) {
+      // Create a slot for backing up a slice, and set that slot as the current
+      // slice.
+      if (join->alloc_ref_item_slice(thd, REF_SLICE_SAVED_BASE)) return true;
+      join->copy_ref_item_slice(REF_SLICE_SAVED_BASE, REF_SLICE_ACTIVE);
+      join->current_ref_item_slice = REF_SLICE_SAVED_BASE;
+
+      // Create the tmp table slice from the updated join fields.
+      if (join->alloc_ref_item_slice(thd, REF_SLICE_TMP1)) return true;
+      join->assign_fields_to_slice(REF_SLICE_TMP1);
+    }
+
     if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
       ReplaceUpdateValuesWithTempTableFields(
           down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd), query_block,
@@ -480,6 +516,8 @@ static void UpdateReferencesToMaterializedItems(
       }
     }
   }
+
+  return false;
 }
 
 /**
@@ -490,7 +528,7 @@ static void UpdateReferencesToMaterializedItems(
   materialization access path coming right after this window, if any,
   so it uses last_window_temp_table as a buffer to hold this.
  */
-static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
+static bool DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
                                         AccessPath *path,
                                         bool after_aggregation,
                                         TABLE **last_window_temp_table,
@@ -503,9 +541,10 @@ static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
     ++*num_windows_seen;
     window->set_is_last(*num_windows_seen ==
                         query_block->join->m_windows.size());
-    path->window().temp_table = CreateTemporaryTableFromSelectList(
-        thd, query_block, window, &path->window().temp_table_param,
-        /*after_aggregation=*/true);
+    if ((path->window().temp_table = CreateTemporaryTableFromSelectList(
+             thd, query_block, window, &path->window().temp_table_param,
+             /*after_aggregation=*/true)) == nullptr)
+      return true;
     path->window().temp_table_param->m_window = window;
     *last_window_temp_table = path->window().temp_table;
   } else if (path->type == AccessPath::MATERIALIZE) {
@@ -523,6 +562,7 @@ static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
             thd, query_block, nullptr,
             &path->materialize().param->m_operands[0].temp_table_param,
             after_aggregation);
+        if (table == nullptr) return true;
         path->materialize().param->table =
             path->materialize().table_path->table_scan().table = table;
       }
@@ -532,14 +572,27 @@ static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
     *last_window_temp_table = nullptr;
   } else if (path->type == AccessPath::STREAM) {
     if (path->stream().table == nullptr) {
-      path->stream().table = CreateTemporaryTableFromSelectList(
-          thd, query_block, nullptr, &path->stream().temp_table_param,
-          after_aggregation);
+      if ((path->stream().table = CreateTemporaryTableFromSelectList(
+               thd, query_block, nullptr, &path->stream().temp_table_param,
+               after_aggregation)) == nullptr)
+        return true;
+    }
+    *last_window_temp_table = nullptr;
+  } else if (path->type == AccessPath::TEMPTABLE_AGGREGATE) {
+    if (path->temptable_aggregate().table == nullptr) {
+      TABLE *table = CreateTemporaryTableFromSelectList(
+          thd, query_block, nullptr,
+          &path->temptable_aggregate().temp_table_param, after_aggregation,
+          query_block->join->group_list.order);
+      if (table == nullptr) return true;
+      path->temptable_aggregate().table =
+          path->temptable_aggregate().table_path->table_scan().table = table;
     }
     *last_window_temp_table = nullptr;
   } else {
     *last_window_temp_table = nullptr;
   }
+  return false;
 }
 
 /// See FinalizePlanForQueryBlock().
@@ -717,17 +770,25 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
        &num_windows_seen, &error,
        &after_aggregation](AccessPath *path, JOIN *join) {
         if (error) return true;
-        DelayedCreateTemporaryTable(thd, query_block, path, after_aggregation,
-                                    &last_window_temp_table, &num_windows_seen);
-
+        if (DelayedCreateTemporaryTable(
+                thd, query_block, path, after_aggregation,
+                &last_window_temp_table, &num_windows_seen)) {
+          error = true;
+          return true;
+        }
         const mem_root_deque<Item *> *original_fields = join->fields;
-        UpdateReferencesToMaterializedItems(
-            thd, query_block, path, after_aggregation, &applied_replacements);
+        if (UpdateReferencesToMaterializedItems(thd, query_block, path,
+                                                after_aggregation,
+                                                &applied_replacements)) {
+          error = true;
+          return true;
+        }
         if (path->type == AccessPath::WINDOW) {
           FinalizeWindowPath(thd, query_block, *original_fields,
                              applied_replacements, path);
         } else if (path->type == AccessPath::AGGREGATE ||
-                   path->type == AccessPath::GROUP_INDEX_SKIP_SCAN) {
+                   path->type == AccessPath::GROUP_INDEX_SKIP_SCAN ||
+                   path->type == AccessPath::TEMPTABLE_AGGREGATE) {
           for (Cached_item &ci : join->group_fields) {
             for (const Func_ptr_array *earlier_replacement :
                  applied_replacements) {

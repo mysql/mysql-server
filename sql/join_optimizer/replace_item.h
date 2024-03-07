@@ -49,10 +49,20 @@ using Func_ptr_array = Mem_root_array<Func_ptr>;
        replaced; in this case, to (<temporary>.x + 1). This assumes that we
        never use the same item before and after a materialization in the
        query plan!
+    4. The item is not in items_to_copy but it is an aggregate item, so it
+       *has* to have a replacement created. In such case, 'agg_items_to_copy' is
+       non-null, and it indicates that a new items_to_copy list is to be saved
+       into this. It is made up of all such aggregate items that were not found
+       while finding replacement. These items need to be added in
+       'agg_items_to_copy' so that further items get a direct match for
+       subsequent occurences of these items, rather than generating a new
+       replacement.  Without this, the replacement does not propagate from the
+       bottom to the top plan node.
+
  */
 Item *FindReplacementOrReplaceMaterializedItems(
     THD *thd, Item *item, const Func_ptr_array &items_to_copy,
-    bool need_exact_match);
+    bool need_exact_match, Func_ptr_array *agg_items_to_copy = nullptr);
 
 /**
   Like FindReplacementOrReplaceMaterializedItems, but only search _below_ the

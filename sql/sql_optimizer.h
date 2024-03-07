@@ -805,6 +805,11 @@ class JOIN {
   void refresh_base_slice();
 
   /**
+    Similar to refresh_base_slice(), but refreshes only the specified slice.
+   */
+  void assign_fields_to_slice(int sliceno);
+
+  /**
     Whether this query block needs finalization (see
     FinalizePlanForQueryBlock()) before it can be actually used.
     This only happens when using the hypergraph join optimizer.
@@ -1098,6 +1103,8 @@ class Switch_ref_item_slice {
   ~Switch_ref_item_slice() { join->set_ref_item_slice(saved); }
 };
 
+uint get_tmp_table_rec_length(const mem_root_deque<Item *> &items,
+                              bool include_hidden, bool can_skip_aggs);
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
                             bool other_tbls_ok);
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,

@@ -972,6 +972,74 @@ void EstimateLimitOffsetCost(AccessPath *path) {
   }
 }
 
+void EstimateTemptableAggregateCost(THD *thd, AccessPath *path,
+                                    const Query_block *query_block) {
+  AccessPath *child = path->temptable_aggregate().subquery_path;
+  AccessPath *table_path = path->temptable_aggregate().table_path;
+  double init_cost = 0.0;
+  double num_output_rows = 0;
+
+  // Calculate estimate of output rows, which is same as the number of rows
+  // after aggregation.
+  if (path->num_output_rows() == kUnknownRowCount) {
+    path->set_num_output_rows(
+        EstimateAggregateRows(thd, child, query_block, /*rollup=*/false));
+  }
+  num_output_rows = path->num_output_rows();
+
+  const uint rowlen =
+      get_tmp_table_rec_length(*query_block->join->fields,
+                               /*include_hidden=*/true, /*can_skip_aggs=*/true);
+
+  const Cost_model_server *cost_model = query_block->join->cost_model();
+
+  Cost_model_server::enum_tmptable_type tmp_table_type;
+  if (rowlen * num_output_rows < thd->variables.max_heap_table_size)
+    tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
+  else
+    tmp_table_type = Cost_model_server::DISK_TMPTABLE;
+
+  // Add temp table creation cost.
+  init_cost += cost_model->tmptable_create_cost(tmp_table_type);
+
+  // Add temp table population cost....
+
+  init_cost += child->cost();
+
+  // Add key lookup cost, which is used for finding the group. Give some
+  // weightage to the number of groups. As the number of groups
+  // increases, it is found that the lookup cost increases slightly. The below
+  // formula approximately matches the rate at which the lookup time has
+  // shown to increase during testing.
+  init_cost += kTempTableAggLookupCost *
+               (1 + pow(log10(std::max(num_output_rows, 1.0)), 2) / 100) *
+               child->num_output_rows();
+
+  // Add Aggregation cost.
+  init_cost += kAggregateOneRowCost * child->num_output_rows();
+
+  // Add cost of inserting/updating the record into tmp table. We don't
+  // differentiate between update and insert.
+  init_cost += cost_model->tmptable_readwrite_cost(tmp_table_type,
+                                                   child->num_output_rows(), 0);
+
+  path->set_init_cost(init_cost);
+  path->set_cost(init_cost + cost_model->tmptable_readwrite_cost(
+                                 tmp_table_type, 0,
+                                 /*read_rows=*/num_output_rows));
+  path->set_init_once_cost(init_cost);
+  path->num_output_rows_before_filter = num_output_rows;
+  path->set_cost_before_filter(path->cost());
+
+  // Since the table access path is more of a placeholder in the EXPLAIN
+  // output, we keep the table access cost and the temp table materialization
+  // path cost the same. This way EXPLAIN won't have to adjust the cost figures
+  // the way it currently does for Materialization path.
+  table_path->set_num_output_rows(num_output_rows);
+  table_path->set_init_cost(init_cost);
+  table_path->set_cost(path->cost());
+}
+
 void EstimateWindowCost(AccessPath *path) {
   auto &win = path->window();
   AccessPath *child = win.child;

@@ -2036,6 +2036,7 @@ SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
 
 --sorted_result
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
+--skip_if_hypergraph   # Prunes away the subquery item, leaving no error.
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 

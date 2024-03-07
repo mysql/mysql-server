@@ -287,8 +287,9 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
-    -> Covering index skip scan for grouping on t using k1 over (d = 1) OR (d = 9)  (rows=11)
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -303,9 +304,9 @@ a	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	27
-Handler_read_last	1
-Handler_read_next	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -1412,8 +1413,9 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
-    -> Covering index skip scan for grouping on t using k1 over (d = 1) OR (d = 9)  (rows=11)
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -1428,9 +1430,9 @@ a	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	27
-Handler_read_last	1
-Handler_read_next	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -2412,8 +2414,9 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
-    -> Covering index skip scan for grouping on t using k1 over (d = 1) OR (d = 9)  (rows=11)
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -2428,9 +2431,9 @@ a	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	27
-Handler_read_last	1
-Handler_read_next	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -3412,8 +3415,9 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
 GROUP BY a, b;
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.185)
-    -> Covering index skip scan for grouping on t using k1 over (d = 1) OR (d = 9)  (rows=11)
+-> Group aggregate: max(t.d), min(t.d)  (rows=0.185)
+    -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.185)
+        -> Covering index lookup on t using k1 (a=1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -3428,9 +3432,9 @@ a	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	26
-Handler_read_last	1
-Handler_read_next	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	250
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0

@@ -1687,6 +1687,7 @@ select name,count(*) from t3 where name='cloakroom' group by name;
 select name,count(*) from t3 where name='cloakroom' and price>10 group by name;
 select count(*) from t3 where name='cloakroom' and price2=823742;
 select name,count(*) from t3 where name='cloakroom' and price2=823742 group by name;
+--sorted_result
 select name,count(*) from t3 where name >= "extramarital" and price <= 39654943 group by name;
 
 # We see the functional dependency implied by WHERE!

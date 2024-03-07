@@ -23,6 +23,7 @@
 
 #include "sql/join_optimizer/replace_item.h"
 #include "sql/item.h"
+#include "sql/item_sum.h"  // Item_sum
 #include "sql/sql_resolver.h"
 #include "sql/temp_table_param.h"
 
@@ -66,7 +67,7 @@ static Item *FindReplacementItem(Item *item,
       match = func.func()->real_item()->eq(item->real_item());
     }
     if (match) {
-      Item_field *item_field = func.result_item();
+      Item *item_field = func.result_item();
       if (item_field == nullptr) return nullptr;
       if (need_exact_match) {
         item_field->hidden = item->hidden;
@@ -79,35 +80,63 @@ static Item *FindReplacementItem(Item *item,
 
 Item *FindReplacementOrReplaceMaterializedItems(
     THD *thd, Item *item, const Func_ptr_array &items_to_copy,
-    bool need_exact_match) {
+    bool need_exact_match, Func_ptr_array *agg_items_to_copy) {
   Item *replacement =
       FindReplacementItem(item, items_to_copy, need_exact_match);
-  if (replacement != nullptr) {
-    return replacement;
-  } else {
-    // We don't need to care about the hidden flag when modifying the arguments
-    // to an item (ie., the item itself isn't in the SELECT list). Non-exact
-    // matches are important when modifying arguments within rollup group
-    // wrappers, since e.g. rollup_group_item(t1.a) will create a hidden item
-    // t1.a, and if we materialize t1.a -> <temporary>.a, we'll need to modify
-    // the argument to the rollup group wrapper as well.
-    ReplaceMaterializedItems(thd, item, items_to_copy,
-                             /*need_exact_match=*/false);
-    return item;
+  if (replacement != nullptr) return replacement;
+
+  // If agg_items_to_copy list is passed, it means we need to generate a new
+  // temp-table field for an aggregate item, and save it into the list.
+  if (Field *field = item->get_tmp_table_field();
+      agg_items_to_copy != nullptr && field != nullptr &&
+      field->table->group != nullptr && item->type() == Item::SUM_FUNC_ITEM) {
+    Item_sum *sum_item = down_cast<Item_sum *>(item);
+    Item *result_item = sum_item->result_item(field);
+    assert(result_item != nullptr);
+
+    result_item->item_name = item->item_name;
+    result_item->hidden = item->hidden;
+
+    agg_items_to_copy->push_back(Func_ptr{item, field, result_item});
+
+    return result_item;
   }
+
+  // We don't need to care about the hidden flag when modifying the arguments
+  // to an item (ie., the item itself isn't in the SELECT list). Non-exact
+  // matches are important when modifying arguments within rollup group
+  // wrappers, since e.g. rollup_group_item(t1.a) will create a hidden item
+  // t1.a, and if we materialize t1.a -> <temporary>.a, we'll need to modify
+  // the argument to the rollup group wrapper as well.
+  ReplaceMaterializedItems(thd, item, items_to_copy,
+                           /*need_exact_match=*/false);
+  return item;
 }
 
 void ReplaceMaterializedItems(THD *thd, Item *item,
                               const Func_ptr_array &items_to_copy,
                               bool need_exact_match) {
   bool modified = false;
-  const auto replace_functor = [&modified, &items_to_copy, need_exact_match](
-                                   Item *sub_item, Item *,
-                                   unsigned) -> ReplaceResult {
+  const auto replace_functor = [thd, &modified, &items_to_copy,
+                                need_exact_match](Item *sub_item, Item *,
+                                                  unsigned) -> ReplaceResult {
     Item *replacement = FindReplacementItem(sub_item->real_item(),
                                             items_to_copy, need_exact_match);
     if (replacement != nullptr) {
       modified = true;
+      // We want to avoid losing the was_null information for items having
+      // such information. So for such item, create a copy of it that
+      // references the replacement item rather than the original.
+      if (sub_item->type() == Item::REF_ITEM) {
+        if (Item_ref *ref_item = down_cast<Item_ref *>(sub_item);
+            ref_item->ref_type() == Item_ref::NULL_HELPER_REF) {
+          Item **ref_replacement = new (thd->mem_root)(Item *);
+          *ref_replacement = replacement;
+          Item_ref_null_helper *null_helper =
+              down_cast<Item_ref_null_helper *>(ref_item);
+          replacement = new Item_ref_null_helper(*null_helper, ref_replacement);
+        }
+      }
       return {ReplaceResult::REPLACE, replacement};
     } else {
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};

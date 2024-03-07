@@ -79,9 +79,9 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
 EXPLAIN
--> Filter: (s > (select #2))  (cost=6.24..7.14 rows=3.16)
-    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3.16)
-        -> Sort: x1.b  (cost=4.57..4.57 rows=10)
+-> Filter: (s > (select #2))  (cost=5.7..6.13 rows=3.16)
+    -> Table scan on <temporary>  (cost=4.35..4.57 rows=3.16)
+        -> Aggregate using temporary table  (cost=4.35..4.57 rows=3.16)
             -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.a)  (cost=1.25..1.25 rows=1)
@@ -90,13 +90,13 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
 EXPLAIN
--> Filter: (s > (select #2))  (cost=6.24..9.84 rows=3.16)
-    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3.16)
-        -> Sort: x1.b  (cost=4.57..4.57 rows=10)
+-> Filter: (s > `(select #2)`)  (cost=5.7..8.84 rows=3.16)
+    -> Table scan on <temporary>  (cost=4.35..4.57 rows=3.16)
+        -> Aggregate using temporary table  (cost=4.35..4.57 rows=3.16)
             -> Table scan on x1  (cost=0.025..0.25 rows=10)
-    -> Select #2 (subquery in condition; uncacheable)
-        -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
-            -> Table scan on x2  (cost=0.025..0.25 rows=10)
+-> Select #2 (subquery in projection; uncacheable)
+    -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
+        -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 DROP TABLE num,t1;
 #

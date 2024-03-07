@@ -471,7 +471,7 @@ void BuildInterestingOrders(
   }
 
   // Collect grouping from GROUP BY.
-  if (query_block->is_explicitly_grouped()) {
+  if (!join->group_list.empty()) {
     Ordering::Elements elements =
         CollectInterestingOrder(thd, join->group_list.order,
                                 /*unwrap_rollup=*/true, orderings);
@@ -791,7 +791,7 @@ void BuildInterestingOrders(
 
   // Collect the GROUP BY expression, which will be used by
   // AddFDsFromAggregateItems() later.
-  if (query_block->is_explicitly_grouped()) {
+  if (!join->group_list.empty()) {
     auto head = Bounds_checked_array<ItemHandle>::Alloc(
         thd->mem_root, CountOrderElements(join->group_list.order));
     int idx = 0;
@@ -824,6 +824,19 @@ void BuildInterestingOrders(
   if (*group_by_ordering_idx != -1) {
     *group_by_ordering_idx =
         orderings->RemapOrderingIndex(*group_by_ordering_idx);
+
+    // Store a copy of the already-reduced group element list into the
+    // group_list. Not applicable for ROLLUP; even a constant or a duplicate
+    // rollup item yields additional rows.
+    if (join->rollup_state == JOIN::RollupState::NONE) {
+      join->group_list = ORDER_with_src(
+          BuildSortAheadOrdering(thd, orderings,
+                                 orderings->ordering(*group_by_ordering_idx)),
+          join->order.src,
+          /*const_optimized_arg=*/true);
+      // Indicate if group-by is completely pruned away.
+      if (join->group_list.empty()) join->group_optimized_away = true;
+    }
   }
   if (*distinct_ordering_idx != -1) {
     *distinct_ordering_idx =

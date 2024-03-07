@@ -1766,10 +1766,10 @@ name	count(*)
 cloakroom	4181
 select name,count(*) from t3 where name >= "extramarital" and price <= 39654943 group by name;
 name	count(*)
+Iranizes	4181
 extramarital	4181
 gazer	4181
 gems	4181
-Iranizes	4181
 spates	4181
 tucked	4181
 violinist	4181

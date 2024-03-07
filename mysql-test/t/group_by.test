@@ -55,7 +55,7 @@ INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
 ANALYZE TABLE t1,t2;
 
 # Tests printing of TemptableAggregateIterator.
---skip_if_hypergraph  # TemptableAggregateIterator not supported.
+--skip_if_hypergraph  # Uses streaming aggregation instead of temp table aggregation.
 EXPLAIN FORMAT=tree SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 
 --sorted_result

@@ -5912,7 +5912,7 @@ class Item_ref : public Item_ident {
                                              bool no_conversions) override;
 
  public:
-  enum Ref_Type { REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
+  enum Ref_Type { REF, VIEW_REF, OUTER_REF, AGGREGATE_REF, NULL_HELPER_REF };
   // If true, depended_from information of this ref was pushed down to
   // underlying field.
   bool pusheddown_depended_from{false};
@@ -6344,6 +6344,9 @@ class Item_ref_null_helper final : public Item_ref {
   Item_ref_null_helper(Name_resolution_context *context_arg,
                        Item_in_subselect *master, Item **item)
       : super(context_arg, item, "", "", ""), owner(master) {}
+  Item_ref_null_helper(const Item_ref_null_helper &ref_null_helper, Item **item)
+      : Item_ref_null_helper(ref_null_helper.context, ref_null_helper.owner,
+                             item) {}
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;
@@ -6354,6 +6357,7 @@ class Item_ref_null_helper final : public Item_ref {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  Ref_Type ref_type() const override { return NULL_HELPER_REF; }
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
   */
