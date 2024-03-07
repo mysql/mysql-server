@@ -17,3 +17,67 @@ a
 3
 37
 DROP TABLE t1;
+#
+# Bug#30766579 ADDING AN INDEX WITH INPLACE GENERATES
+# - test adding an index on first pk column using inplace alter
+#
+CREATE TABLE t1 (
+col1 varbinary(80) NOT NULL,
+pk2 varchar(46) NOT NULL,
+pk1 bigint(20) NOT NULL,
+col2 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+col3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+col4 varchar(320) CHARACTER SET utf8 NOT NULL,
+col5 varbinary(16) NOT NULL,
+col6 int(11) NOT NULL,
+col7 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+col8 bigint(20) NOT NULL,
+col9 timestamp NULL DEFAULT NULL,
+col10 int(11) NOT NULL,
+col11 bit(1) NOT NULL,
+col12 binary(32) NOT NULL,
+col13 bit(1) NOT NULL DEFAULT b'0',
+col14 varchar(32) CHARACTER SET utf8 DEFAULT NULL,
+col15 bigint(10) DEFAULT NULL,
+col16 varchar(3) DEFAULT NULL,
+col17 bit(1) NOT NULL DEFAULT b'0',
+col18 bit(1) NOT NULL DEFAULT b'0',
+col19 varbinary(250) DEFAULT NULL,
+col20 varchar(20) DEFAULT NULL,
+col21 varchar(3) DEFAULT NULL,
+col22 int(11) DEFAULT NULL,
+PRIMARY KEY (pk1, pk2),
+UNIQUE KEY ix_pk2 (pk2),
+KEY ix_t1_col2 (col2),
+KEY ix_t1_col3 (col3),
+KEY ix_t1_pk1_col20 (pk1,col20),
+KEY ix_t1_pk1_col6 (pk1,col6)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+PARTITION BY KEY (pk1);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+# Show indexes on t1
+SELECT index_name, columns FROM ndbinfo.index_columns
+WHERE table_name = 't1' ORDER BY index_name;
+index_name	columns
+ix_pk2	pk2
+ix_pk2$unique	pk2
+ix_t1_col2	col2
+ix_t1_col3	col3
+ix_t1_pk1_col20	pk1,col20
+ix_t1_pk1_col6	pk1,col6
+PRIMARY	pk1,pk2
+ALTER TABLE t1 ALGORITHM = INPLACE, ADD INDEX ix_test (pk1);
+# Show that new index 'ix_test' was added to t1
+SELECT index_name, columns, index_type FROM ndbinfo.index_columns
+WHERE table_name = 't1' AND index_name = 'ix_test' ORDER BY index_name;
+index_name	columns	index_type
+ix_test	pk1	6
+DROP TABLE t1;
