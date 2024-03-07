@@ -44,7 +44,7 @@
     <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable"/>
 
     <!-- Upgrade -->
-    <Upgrade Id="@UPGRADE_ID@">
+    <Upgrade Id="@UPGRADE_CODE@">
       <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
@@ -124,7 +124,7 @@
     <!-- Custom actions used by the UI -->
     <CustomAction Id="LaunchConfigurator" BinaryRef="Wix4UtilCA_X86" DllEntry="WixShellExec" Execute="immediate" Return="check" Impersonate="yes" />
     <Property Id="WixShellExecTarget" Value="[#F.bin_mysql_configurator.exe]"/>
-    <CustomAction Id="RemoveConfigArtifacts"  FileRef="F.bin_mysql_configurator.exe" ExeCommand="--remove" Execute="deferred" Return="ignore" Impersonate="no" />
+    <CustomAction Id="RemoveConfigArtifacts"  FileRef="F.bin_mysql_configurator.exe" ExeCommand="--removenoshow" Execute="deferred" Return="ignore" Impersonate="no" />
     <InstallExecuteSequence>
       <Custom Action="RemoveConfigArtifacts" After="InstallInitialize" Condition="(NOT UPGRADINGPRODUCTCODE) AND (REMOVE=&quot;ALL&quot;) AND UILevel &gt; 2" />
     </InstallExecuteSequence>
