@@ -53,15 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_test_helpers.h"
-
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
-
-#define EXPECT_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return !bool(v); }))
-
-#define ASSERT_NO_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
+#include "stdx_expected_no_error.h"
 
 using mysql_harness::ConfigBuilder;
 using mysqlrouter::ClusterType;

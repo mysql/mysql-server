@@ -67,6 +67,7 @@
 #include "process_launcher.h"
 #include "process_wrapper.h"
 #include "random_generator.h"
+#include "stdx_expected_no_error.h"
 
 #ifdef USE_STD_REGEX
 #include <regex>
@@ -75,12 +76,6 @@
 #endif
 
 #include <gtest/gtest.h>  // FAIL
-
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
-
-#define ASSERT_NO_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
 
 using mysql_harness::Path;
 using mysql_harness::ProcessLauncher;
