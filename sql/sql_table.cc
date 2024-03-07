@@ -7546,16 +7546,27 @@ static bool prepare_key(
         } else {
           /*
             If explicit algorithm is not supported by SE, replace it with
-            default one. Don't mark key algorithm as explicitly specified
-            in this case.
+            default one. In the case of the external engine an index is not
+            supported, therefore any index algorithm is ignored. Don't mark key
+            algorithm as explicitly specified in those cases.
           */
           key_info->algorithm = file->get_default_index_algorithm();
-
-          push_warning_printf(
-              thd, Sql_condition::SL_NOTE, ER_UNSUPPORTED_INDEX_ALGORITHM,
-              ER_THD(thd, ER_UNSUPPORTED_INDEX_ALGORITHM),
-              ((key->key_create_info.algorithm == HA_KEY_ALG_HASH) ? "HASH"
-                                                                   : "BTREE"));
+          if (Overlaps(file->ht->flags, HTON_SUPPORTS_EXTERNAL_SOURCE)) {
+            push_warning_printf(
+                thd, Sql_condition::SL_NOTE,
+                ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM,
+                ER_THD(thd, ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM),
+                ((key->key_create_info.algorithm == HA_KEY_ALG_HASH)
+                     ? "HASH"
+                     : "BTREE"));
+          } else {
+            push_warning_printf(
+                thd, Sql_condition::SL_NOTE, ER_UNSUPPORTED_INDEX_ALGORITHM,
+                ER_THD(thd, ER_UNSUPPORTED_INDEX_ALGORITHM),
+                ((key->key_create_info.algorithm == HA_KEY_ALG_HASH)
+                     ? "HASH"
+                     : "BTREE"));
+          }
         }
       }
     } else {
