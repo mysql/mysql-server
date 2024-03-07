@@ -12781,6 +12781,12 @@ ER_INVALID_METER
 ER_INVALID_LOGGER
   eng "Invalid logger name or value for performance_schema_logger '%s'."
 
+ER_IB_DELETE_SCHEMA_DIR
+  eng "deleted the schema directory: %s"
+
+ER_IB_INSERT_DELETE_SCHEMA_DIRECTORY_DDL_LOG
+  eng "%s"
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

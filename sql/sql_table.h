@@ -471,6 +471,8 @@ bool mysql_rm_table(THD *thd, Table_ref *tables, bool if_exists,
                     bool drop_temporary);
 bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
+                             const char *database_name,
+                             const bool should_drop_schema_ddl_log,
                              bool *dropped_non_atomic_flag,
                              std::set<handlerton *> *post_ddl_htons,
                              Foreign_key_parents_invalidator *fk_invalidator,

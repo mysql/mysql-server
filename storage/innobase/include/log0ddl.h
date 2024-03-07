@@ -70,8 +70,11 @@ enum class Log_Type : uint32_t {
   /** Alter Unencrypt a tablespace */
   ALTER_UNENCRYPT_TABLESPACE_LOG,
 
+  /** For Atomic DROP/CREATE SCHEMA implementation */
+  DELETE_SCHEMA_DIRECTORY_LOG,
+
   /** Biggest log type */
-  BIGGEST_LOG = ALTER_UNENCRYPT_TABLESPACE_LOG
+  BIGGEST_LOG = DELETE_SCHEMA_DIRECTORY_LOG
 };
 
 /** DDL log record */
@@ -484,6 +487,15 @@ class Log_DDL {
   @return DB_SUCCESS or error */
   dberr_t write_remove_cache_log(trx_t *trx, dict_table_t *table);
 
+  /** Write a DELETE_SCHEMA_DIRECTORY_LOG
+  @param[in,out]    trx                   transaction
+  @param[in]        schema_directory_path path to the database directory
+  @param[in]        is_drop_schema        is it DROP SCHEMA query
+  @return           DB_SUCCESS or error */
+  dberr_t write_delete_schema_directory_log(trx_t *trx,
+                                            const char *schema_directory_path,
+                                            const bool is_drop_schema);
+
   /** Replay DDL log record
   @param[in,out]        record  DDL log record
   return DB_SUCCESS or error */
@@ -618,6 +630,21 @@ class Log_DDL {
   @param[in]    table_id        table id
   @param[in]    table_name      table name */
   void replay_remove_cache_log(table_id_t table_id, const char *table_name);
+
+  /** Insert a DELETE_SCHEMA_DIRECTORY_LOG
+  @param[in,out]  trx                   transaction
+  @param[in]      id                    record id
+  @param[in]      thread_id             thread id
+  @param[in]      schema_directory_path path to the schema directory
+  @return         DB_SUCCESS or not */
+  dberr_t insert_delete_schema_directory_log(trx_t *trx, uint64_t id,
+                                             ulint thread_id,
+                                             const char *schema_directory_path);
+
+  /** Replay a DELETE_SCHEMA_DIRECTORY_LOG
+  @param  schema_directory_path path to the schema directory
+  @return DB_SUCCESS or not */
+  dberr_t replay_delete_schema_directory_log(const char *schema_directory_path);
 
   /** Delete log record by id
   @param[in]    trx             transaction instance

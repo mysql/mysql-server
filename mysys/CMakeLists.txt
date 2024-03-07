@@ -86,6 +86,7 @@ SET(MYSYS_SOURCES
   my_rdtsc.cc
   my_read.cc
   my_rename.cc
+  my_rm_dir_w_symlink.cc
   my_seek.cc
   my_static.cc
   my_string.cc

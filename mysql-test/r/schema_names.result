@@ -1,0 +1,12 @@
+CREATE SCHEMA `aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffgggggggghhhhhhhh`;
+DROP SCHEMA `aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffgggggggghhhhhhhh`;
+CREATE SCHEMA `aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffgggggggghhhhhhhhx`;
+ERROR 42000: Identifier name 'aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffgggggggghhhhhhhhx' is too long
+CREATE SCHEMA `𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱`;
+Warnings:
+Warning	1300	Cannot convert string '\xF0\xA0\x9C\xB1\xF0\xA0...' from utf8mb4 to utf8mb3
+DROP SCHEMA `𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱`;
+Warnings:
+Warning	1300	Cannot convert string '\xF0\xA0\x9C\xB1\xF0\xA0...' from utf8mb4 to utf8mb3
+CREATE SCHEMA `𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱𠜱a`;
+ERROR HY000: Can't get stat of './@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003f@003fa' (OS error)

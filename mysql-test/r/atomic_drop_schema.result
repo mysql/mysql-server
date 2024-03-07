@@ -1,0 +1,29 @@
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+call mtr.add_suppression("Assertion `0' failed");
+# Points to verify in this test
+# scenario-1. if crash happens just before deleting the schema directory, recovery will delete the directory.
+# scenario-2. if crash happens happens after dropping 1/n tables, recovery should undo the transaction and
+#             both dd entry and ddl log table should be restored in their original state.
+# scenario-3. if schema has tables from non transactional engines, DROP SCHEMA should behave transactional way. 
+# scenario-1
+CREATE SCHEMA DB1;
+SET DEBUG = "+d,MAKE_SERVER_ABORT_BEFORE_DELETING_THE_SCHEMA_DIR_NEW_WAY";
+DROP SCHEMA DB1;
+# restart
+SET DEBUG = "-d,MAKE_SERVER_ABORT_BEFORE_DELETING_THE_SCHEMA_DIR_NEW_WAY";
+CREATE SCHEMA DB1;
+# scenario-2
+SET DEBUG = "+d,MAKE_SERVER_ABORT_AFTER_DROPPING_ONE_TABLE";
+CREATE TABLE DB1.T1 (C1 INT);
+CREATE TABLE DB1.T2 (C1 INT);
+DROP SCHEMA DB1;
+# restart
+SET DEBUG = "-d,MAKE_SERVER_ABORT_AFTER_DROPPING_ONE_TABLE";
+# scenario-3
+CREATE TABLE DB1.T3 (C1 INT) ENGINE=MyISAM;
+SET DEBUG = "+d,MAKE_SERVER_ABORT_BEFORE_DELETING_THE_SCHEMA_DIR_OLD_WAY";
+DROP SCHEMA DB1;
+# restart
+SET DEBUG = "-d,MAKE_SERVER_ABORT_BEFORE_DELETING_THE_SCHEMA_DIR_OLD_WAY";
+CREATE SCHEMA DB1;
+Got one of the listed errors

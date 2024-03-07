@@ -232,7 +232,7 @@ connection default;
 # Reap DROP DATABASE. Statement should succeed, but send warnings
 # about problems with removing database directory to user ...
 Warnings:
-Warning	3607	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './db1', errno: ## - ...). Please remove it manually.
+Warning	3607	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './db1/', errno: ## - ...). Please remove it manually.
 # ... and error log too. Let's check that.
 Pattern "Problem while dropping database. Can't remove database directory .* Please remove it manually." found
 # Clean-up.

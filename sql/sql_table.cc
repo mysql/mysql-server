@@ -1694,9 +1694,9 @@ bool mysql_rm_table(THD *thd, Table_ref *tables, bool if_exists,
 
     /* mark for close and remove all cached entries */
     thd->push_internal_handler(&err_handler);
-    error = mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
-                                    false, &not_used, &post_ddl_htons,
-                                    &fk_invalidator, &safe_to_release_mdl);
+    error = mysql_rm_table_no_locks(
+        thd, tables, if_exists, drop_temporary, false, nullptr, false,
+        &not_used, &post_ddl_htons, &fk_invalidator, &safe_to_release_mdl);
     thd->pop_internal_handler();
   }
 
@@ -3138,6 +3138,10 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   @param  drop_temporary  Only drop temporary tables
   @param  drop_database   This is DROP DATABASE statement. Drop views
                           and handle binary logging in a special way.
+  @param  database_name     Name of the database. nullptr if drop_database is
+  false.
+  @param  should_drop_schema_ddl_log should we go ahead and call
+                                     "ha_log_ddl_drop_schema"?
   @param[out] dropped_non_atomic_flag Indicates whether we have dropped some
                                       tables in SEs which don't support atomic
                                       DDL.
@@ -3172,6 +3176,8 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 
 bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
+                             const char *database_name,
+                             const bool should_drop_schema_ddl_log,
                              bool *dropped_non_atomic_flag,
                              std::set<handlerton *> *post_ddl_htons,
                              Foreign_key_parents_invalidator *fk_invalidator,
@@ -3187,6 +3193,13 @@ bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
   *dropped_non_atomic_flag = false;
 
   if (rm_table_sort_into_groups(thd, &drop_ctx, tables)) return true;
+
+  /*
+    Go ahead only when all tables are from transactional engines.
+  */
+  if (drop_ctx.drop_database && !drop_ctx.has_base_non_atomic_tables() &&
+      should_drop_schema_ddl_log && ha_log_ddl_drop_schema(database_name))
+    return true;
 
   /*
     Figure out in which situation we are regarding GTID and different
@@ -3392,6 +3405,14 @@ bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
                           &safe_to_release_mdl_atomic, &foreach_table_root)) {
         goto err_with_rollback;
       }
+
+      /*
+        If DROP SCHEMA crashes here, recovery should rollback the
+        transaction, and schema should return to its Pre-DROP state.
+      */
+      DBUG_EXECUTE_IF("MAKE_SERVER_ABORT_AFTER_DROPPING_ONE_TABLE",
+                      DBUG_SUICIDE(););
+
       foreach_table_root.ClearForReuse();
     }
 

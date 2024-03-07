@@ -36,7 +36,7 @@ ERROR HY000: Table 't1' is read only
 RENAME TABLE WL6445.t1 TO WL6444.t2;
 ERROR 42000: Unknown database 'WL6444'
 DROP DATABASE WL6445;
-ERROR HY000: Storage engine can't drop table 'WL6445.t1'
+ERROR HY000: Running in read-only mode
 SHOW CREATE TABLE WL6445.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

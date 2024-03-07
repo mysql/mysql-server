@@ -1,0 +1,19 @@
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+call mtr.add_suppression("Assertion `0' failed");
+# Points to verify in this test
+# scenario-1. if crash happens just after the schema directory is created, recovery should delete the directory.
+# scenario-2. if crash happens happens after we insert ddl log but before the directory is created,
+#             we'll have ddl log committed but no directory yet. recovery should go-through in this case.
+#
+SET DEBUG = "+d,MAKE_SERVER_ABORT_AFTER_SCHEMA_DIR";
+CREATE SCHEMA DB1;
+# restart
+SET DEBUG = "-d,MAKE_SERVER_ABORT_AFTER_SCHEMA_DIR";
+CREATE SCHEMA DB1;
+DROP SCHEMA DB1;
+SET DEBUG = "+d,MAKE_SERVER_ABORT_BEFORE_SCHEMA_DIR";
+CREATE SCHEMA DB1;
+# restart
+SET DEBUG = "-d,MAKE_SERVER_ABORT_BEFORE_SCHEMA_DIR";
+CREATE SCHEMA DB1;
+DROP SCHEMA DB1;

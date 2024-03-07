@@ -587,6 +587,9 @@ extern int my_close(File fd, myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
 extern int my_is_symlink(const char *filename, ST_FILE_ID *file_id);
+extern bool my_rm_dir_w_symlink(const char *directory_path, bool send_error,
+                                bool send_intermediate_errors,
+                                bool &directory_deletion_failed);
 extern int my_realpath(char *to, const char *filename, myf MyFlags);
 extern int my_is_same_file(File file, const ST_FILE_ID *file_id);
 extern File my_create_with_symlink(const char *linkname, const char *filename,

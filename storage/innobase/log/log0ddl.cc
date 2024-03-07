@@ -51,7 +51,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "log0chkp.h"
 #include "log0ddl.h"
+#include "my_sys.h"
 #include "mysql/plugin.h"
+#include "mysqld.h"  //get_server_state
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0ins.h"
@@ -219,6 +221,11 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
     case Log_Type::FREE_TREE_LOG:
       out << "FREE";
       break;
+
+    case Log_Type::DELETE_SCHEMA_DIRECTORY_LOG:
+      out << "DELETE SCHEMA DIRECTORY";
+      break;
+
     case Log_Type::DELETE_SPACE_LOG:
       out << "DELETE SPACE";
       break;
@@ -854,6 +861,108 @@ inline bool Log_DDL::skip(const dict_table_t *table, THD *thd) {
   return (recv_recovery_on || thread_local_ddl_log_replay ||
           (table != nullptr && table->is_temporary()) ||
           thd_is_bootstrap_thread(thd));
+}
+
+dberr_t Log_DDL::write_delete_schema_directory_log(
+    trx_t *trx, const char *schema_directory_path, const bool is_drop_schema) {
+  uint64_t id = next_id();
+  auto thread_id = thd_get_thread_id(trx->mysql_thd);
+
+  trx->ddl_operation = true;
+
+  if (is_drop_schema) {
+    /* Attach to the on-going transaction and insert the log */
+    return insert_delete_schema_directory_log(trx, id, thread_id,
+                                              schema_directory_path);
+  }
+
+  /* Create the new transaction, insert log and commit. */
+  dberr_t err;
+  err = insert_delete_schema_directory_log(nullptr, id, thread_id,
+                                           schema_directory_path);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  /*
+    Delete the above committed log entry using the main transaction (
+    one thats's used to update the DD).
+
+    It'll be committed as part of the final commmit on SQL Layer.
+  */
+  err = delete_by_id(trx, id, false);
+  ut_ad(err == DB_SUCCESS);
+
+  return err;
+}
+
+dberr_t Log_DDL::insert_delete_schema_directory_log(
+    trx_t *trx, uint64_t id, ulint thread_id,
+    const char *schema_directory_path) {
+  const bool has_dd_trx = (trx != nullptr);
+
+  if (!has_dd_trx) {
+    trx = trx_allocate_for_background();
+    trx_start_internal(trx, UT_LOCATION_HERE);
+    trx->ddl_operation = true;
+  }
+
+  DDL_Record record;
+  record.set_id(id);
+  record.set_thread_id(thread_id);
+  record.set_old_file_path(schema_directory_path);
+  record.set_type(Log_Type::DELETE_SCHEMA_DIRECTORY_LOG);
+
+  dberr_t error;
+  {
+    DDL_Log_Table ddl_log(trx);
+    error = ddl_log.insert(record);
+  }
+
+  if (!has_dd_trx) {
+    trx_commit_for_mysql(trx);
+    trx_free_for_background(trx);
+  }
+
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
+    ib::info(ER_IB_INSERT_DELETE_SCHEMA_DIRECTORY_DDL_LOG)
+        << "DDL log insert : " << record;
+  }
+
+  return error;
+}
+
+dberr_t Log_DDL::replay_delete_schema_directory_log(
+    const char *schema_directory_path) {
+  if (srv_print_ddl_logs) {
+    ib::info(ER_IB_DELETE_SCHEMA_DIR) << schema_directory_path;
+  }
+
+  const bool send_intermediate_errors =
+      (get_server_state() == SERVER_OPERATING);
+  bool directory_deletion_failed = false;
+  if (!my_rm_dir_w_symlink(schema_directory_path, true,
+                           send_intermediate_errors,
+                           directory_deletion_failed)) {
+    return DB_SUCCESS;
+  }
+
+  if (my_errno() == ENOENT) {
+    /*  This is to handle an edge case where CREATE DATABASE crashes just after
+    inserting the DDL Log (but before creating the directory).
+
+    In any other case than this, non-existence of the directory would've been
+    caught very early in the call-flow. */
+    return DB_SUCCESS;
+  }
+
+  if (directory_deletion_failed) {
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    my_error(ER_DB_DROP_RMDIR, MYF(0), schema_directory_path, errno,
+             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
+  }
+
+  return DB_ERROR;
 }
 
 dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
@@ -1620,6 +1729,10 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
     case Log_Type::FREE_TREE_LOG:
       replay_free_tree_log(record.get_space_id(), record.get_page_no(),
                            record.get_index_id());
+      break;
+
+    case Log_Type::DELETE_SCHEMA_DIRECTORY_LOG:
+      err = replay_delete_schema_directory_log(record.get_old_file_path());
       break;
 
     case Log_Type::DELETE_SPACE_LOG:

@@ -71,6 +71,8 @@
 #include "sql/dd/dd_schema.h"                // dd::create_schema
 #include "sql/dd/dd_table.h"                 // is_encrypted()
 #include "sql/dd/dictionary.h"               // dd::Dictionary
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::SERVER_VERSION_90100
+#include "sql/dd/impl/tables/dd_properties.h"  // dd::tables:DD_properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/schema.h"
@@ -310,6 +312,76 @@ static void set_db_default_charset(const THD *thd,
 }
 
 /**
+  Helps decide whether we should use DDL Logging for schema DDLs
+  (CREATE/DROP SCHEMA).
+
+  It helps us switch to traditional/non-atomic behaviour in the cases
+  where upgrade hasn't yet reached "point of no return".
+
+  This is done to address below scenario: During a database upgrade,
+  a crash might leave an incomplete log entry in the Log_DDL table.
+  If the user attempts to revert to the previous version of the
+  server, it won't recognize this leftover log, potentially
+  causing a crash.
+
+  @retval false we should not (during upgrade)
+  @retval true  we should use it (every other scenario)
+*/
+static bool use_ddl_log_for_schema_ddl() {
+  uint upgraded_server_version = 0;
+  bool exists = false;
+  if (dd::tables::DD_properties::instance().get(
+          current_thd, "MYSQLD_VERSION_UPGRADED", &upgraded_server_version,
+          &exists) ||
+      !exists)
+    return false;
+  return (upgraded_server_version >= dd::bootstrap::SERVER_VERSION_90100);
+}
+
+class Create_db_cleanup_handler {
+ private:
+  THD *m_thd;
+  const char *m_path;
+  bool *m_failed;
+  const bool m_log_ddl;
+  const bool m_schema_dir_exists;
+
+ public:
+  Create_db_cleanup_handler() = delete;
+  Create_db_cleanup_handler(THD *thd, const char *path, bool *failed,
+                            const bool log_ddl, const bool schema_dir_exists)
+      : m_thd(thd),
+        m_path(path),
+        m_failed(failed),
+        m_log_ddl(log_ddl),
+        m_schema_dir_exists(schema_dir_exists) {}
+  ~Create_db_cleanup_handler() {
+    if (*m_failed && !m_schema_dir_exists) {
+      /*
+        In case we reach here due to a failure (error while making dd
+        entry, writing to binlog or committing the transaction), DDL Log
+        already has entry of DELETE_SCHEMA_DIRECTORY_LOG committed by
+        separate transaction, which will be replyed here.
+
+        in case of success, corresponding DELETE entry for above log would
+        also be committed, leaving nothing to be replayed.
+
+        Note: The reason behind directly using innodb_hton here is that
+              the only storage engine we deal with here is innodb (because dd
+              data resides in innodb)
+      */
+      if (m_log_ddl) {
+        trans_rollback_stmt(m_thd);
+        trans_rollback(m_thd);
+      } else {
+        std::ignore = rm_dir_w_symlink(m_path, true);
+      }
+    }
+    if (!opt_initialize) innodb_hton->post_ddl(m_thd);
+  }
+};
+
+/**
   Create a database
 
   @param thd		Thread handler
@@ -328,7 +400,6 @@ static void set_db_default_charset(const THD *thd,
 
 bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   DBUG_TRACE;
-
   /*
     Use Auto_releaser to keep uncommitted object for database until
     trans_commit() call.
@@ -412,6 +483,14 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   }
   path[path_len - 1] = 0;  // Remove last '/' from path
 
+  /*
+    A switch to decide whether we want to atomic way or non-atomic way.
+
+    Note: We use !opt_initialize because ddl logs are not available when
+    server is started with --initialize.
+  */
+  bool log_ddl = false;
+
   // If we are creating the system schema, then we create it physically
   // only during first time server initialization. During ordinary restart,
   // we still execute the CREATE statement to initialize the meta data, but
@@ -445,6 +524,21 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
       return true;
     }
+
+    log_ddl = !opt_initialize && use_ddl_log_for_schema_ddl();
+    if (log_ddl && ha_log_ddl_create_schema(db)) return true;
+
+    /*
+      If CREATE SCHEMA crashes here, we'll have DELETE_SCHEMA_DIRECTORY_LOG
+      committed but won't have corresponding schema directory.
+      Recovery should ignore the fact that directory doesn't exist and
+      succeed.
+
+      Other cases of "schema directory not present" are caught early
+      in the call-flow.
+    */
+    DBUG_EXECUTE_IF("MAKE_SERVER_ABORT_BEFORE_SCHEMA_DIR", DBUG_SUICIDE(););
+
     if (my_mkdir(path, 0777, MYF(0)) < 0) {
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_error(ER_SCHEMA_DIR_CREATE_FAILED, MYF(0), db, my_errno(),
@@ -453,6 +547,16 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     }
   }
 
+  /*
+    If CREATE SCHEMA crashes here, recovery should rollback the
+    incomplete transaction and replay DELETE_SCHEMA_DIRECTORY_LOG
+    (i.e. delete the schema directory).
+  */
+  DBUG_EXECUTE_IF("MAKE_SERVER_ABORT_AFTER_SCHEMA_DIR", DBUG_SUICIDE(););
+
+  bool failed = true;
+  Create_db_cleanup_handler create_db_cleanup_handler(
+      thd, path, &failed, log_ddl, schema_dir_exists);
   /*
     Create schema in DD. This is done even when initializing the server
     and creating the system schema. In that case, the shared cache will
@@ -477,7 +581,6 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
         other error we ignore the error as we anyway return
         failure (true) here.
       */
-      if (!schema_dir_exists) rm_dir_w_symlink(path, true);
       return true;
     }
   }
@@ -491,20 +594,15 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     active transaction at this point. In this case we can't use
     binlog's trx cache, which requires transaction with valid XID.
   */
-  if (write_db_cmd_to_binlog(thd, db, store_in_dd)) {
-    if (!schema_dir_exists) rm_dir_w_symlink(path, true);
-    return true;
-  }
+  if (write_db_cmd_to_binlog(thd, db, store_in_dd)) return true;
 
   /*
     Do commit locally instead of relying on caller in order to be
     able to remove directory in case of failure.
   */
-  if (trans_commit_stmt(thd) || trans_commit(thd)) {
-    if (!schema_dir_exists) rm_dir_w_symlink(path, true);
-    return true;
-  }
+  if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
 
+  failed = false;
   my_ok(thd, 1);
   return false;
 }
@@ -809,11 +907,22 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     if (thd->killed) return true;
 
     thd->push_internal_handler(&err_handler);
-    if (tables)
-      error = mysql_rm_table_no_locks(thd, tables, true, false, true,
-                                      &dropped_non_atomic, &post_ddl_htons,
-                                      &fk_invalidator, nullptr);
 
+    /*
+      A switch to decide whether we want to atomic way or non-atomic way.
+
+      Note: We use !opt_initialize because ddl logs are not available when
+      the server is started with --initialize.
+    */
+    bool log_ddl = !opt_initialize && use_ddl_log_for_schema_ddl();
+    if (tables) {
+      error = mysql_rm_table_no_locks(
+          thd, tables, true, false, true, db.str, log_ddl, &dropped_non_atomic,
+          &post_ddl_htons, &fk_invalidator, nullptr);
+    } else {
+      // if there're no tables
+      if (log_ddl && ha_log_ddl_drop_schema(db.str)) return true;
+    }
     DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables", {
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       error = true;
@@ -874,10 +983,40 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     }
 
     /*
+      If DROP SCHEMA crahses here, recovery should replay the already committed
+      DELETE_SCHEMA_DIRECTORY_LOG entry (i.e. delete the schema directory).
+    */
+    DBUG_EXECUTE_IF("MAKE_SERVER_ABORT_BEFORE_DELETING_THE_SCHEMA_DIR_NEW_WAY",
+                    DBUG_SUICIDE(););
+
+    /*
+      For:
+        case-1: If database is empty, post_ddl_htons will be empty.
+        case-2: If database only has views/events/SPs, post_ddl_htons won't
+                have handletron for InnoDB.
+
+      Therefore, append innodb_hton because it has
+      DELETE_SCHEMA_DIRECTORY_LOG in DDL_LOG to be replayed at
+      this point.
+
+      The replay would be triggered only when hton has some log committed
+      by current connection.
+    */
+    post_ddl_htons.insert(innodb_hton);
+
+    /*
+      To comply with WL#7524
+    */
+    Rmdir_error_handler rmdir_handler;
+    thd->push_internal_handler(&rmdir_handler);
+
+    /*
       Call post-DDL handlerton hook. For engines supporting atomic DDL
       tables' files are removed from disk on this step.
     */
     for (handlerton *hton : post_ddl_htons) hton->post_ddl(thd);
+
+    thd->pop_internal_handler();
 
     fk_invalidator.invalidate(thd);
 
@@ -893,11 +1032,25 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
       Since the statement is committed already, we do not report unlikely
       failure to remove the directory as an error. Instead we report it
       as a warning, which is sent to user and written to server error log.
+
+      P.S: Go "non-atomic" way only if
+           1. db has some non atomic tables
+           2. if we didn't call innodb's log_ddl_drop_schema
     */
-    if (!error && schema_dirp != nullptr) {
-      Rmdir_error_handler rmdir_handler;
+    if (!error && schema_dirp != nullptr && (dropped_non_atomic || !log_ddl)) {
       thd->push_internal_handler(&rmdir_handler);
-      (void)rm_dir_w_symlink(path, true);
+
+      /*
+        If crash occurs at this point in non-atomic DROP SCHEMA execution,
+        it creates discrepancy between DD and filesystem. The DD would
+        have deleted the schema entry bug filesystem has the corresponding
+        directory still present.
+      */
+      DBUG_EXECUTE_IF(
+          "MAKE_SERVER_ABORT_BEFORE_DELETING_THE_SCHEMA_DIR_OLD_WAY",
+          DBUG_SUICIDE(););
+
+      std::ignore = rm_dir_w_symlink(path, true);
       thd->pop_internal_handler();
     }
 
@@ -1084,37 +1237,15 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
     0 OK
     1 ERROR
 */
-
 static bool rm_dir_w_symlink(const char *org_path, bool send_error) {
-  char tmp_path[FN_REFLEN], *pos;
-  char *path = tmp_path;
-  DBUG_TRACE;
-  unpack_filename(tmp_path, org_path);
-#ifndef _WIN32
-  int error;
-  char tmp2_path[FN_REFLEN];
-
-  /* Remove end FN_LIBCHAR as this causes problem on Linux in readlink */
-  pos = strend(path);
-  if (pos > path && pos[-1] == FN_LIBCHAR) *--pos = 0;
-
-  if ((error = my_readlink(tmp2_path, path, MYF(MY_WME))) < 0) return true;
-  if (!error) {
-    if (mysql_file_delete(key_file_misc, path, MYF(send_error ? MY_WME : 0))) {
-      return send_error;
+  bool directory_deletion_failed = false;
+  if (my_rm_dir_w_symlink(org_path, send_error, true,
+                          directory_deletion_failed)) {
+    if (directory_deletion_failed) {
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_DB_DROP_RMDIR, MYF(0), org_path, errno,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
     }
-    /* Delete directory symbolic link pointed at */
-    path = tmp2_path;
-  }
-#endif
-  /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
-  pos = strend(path);
-
-  if (pos > path && pos[-1] == FN_LIBCHAR) *--pos = 0;
-  if (rmdir(path) < 0 && send_error) {
-    char errbuf[MYSQL_ERRMSG_SIZE];
-    my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno,
-             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
     return true;
   }
   return false;

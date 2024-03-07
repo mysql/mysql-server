@@ -363,7 +363,7 @@ DROP TABLE s1.t1;
 # Drop s1 which is empty in DD, but which has files in directory
 DROP SCHEMA s1;
 Warnings:
-Warning	3607	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './s1', errno: ## - ...). Please remove it manually.
+Warning	3607	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './s1/', errno: ## - ...). Please remove it manually.
 # Show offending files
 t1.MYD
 t1.MYI

@@ -88,6 +88,7 @@ static constexpr uint SERVER_VERSION_80013 = 80013;
 static constexpr uint SERVER_VERSION_80014 = 80014;
 static constexpr uint SERVER_VERSION_80015 = 80015;
 static constexpr uint SERVER_VERSION_80016 = 80016;
+static constexpr uint SERVER_VERSION_90100 = 90100;
 
 /*
   Set of unsupported server version labels. An unsupported server version is a

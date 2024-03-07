@@ -1349,6 +1349,20 @@ static int innobase_rollback(handlerton *hton, /*!< in/out: InnoDB handlerton */
                                                  transaction false - rollback
                                                  the current statement only */
 
+/** Writes DELETE_SCHEMA_DIRECTORY_LOG for DROP SCHEMA
+ @param  hton  InnoDB handlerton
+ @param  schema_name name of the schema
+ @return bool  */
+static bool innobase_write_ddl_drop_schema(handlerton *hton,
+                                           const char *schema_name);
+
+/** Writes DELETE_SCHEMA_DIRECTORY_LOG for CREATE SCHEMA
+ @param  hton  InnoDB handlerton
+ @param  schema_name name of the schema
+ @return bool */
+static bool innobase_write_ddl_create_schema(handlerton *hton,
+                                             const char *schema_name);
+
 /** Rolls back a transaction to a savepoint.
  @return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
  given name */
@@ -5436,6 +5450,8 @@ static int innodb_init(void *p) {
   innobase_hton->state = SHOW_OPTION_YES;
   innobase_hton->db_type = DB_TYPE_INNODB;
   innobase_hton->savepoint_offset = sizeof(trx_named_savept_t);
+  innobase_hton->log_ddl_drop_schema = innobase_write_ddl_drop_schema;
+  innobase_hton->log_ddl_create_schema = innobase_write_ddl_create_schema;
   innobase_hton->close_connection = innobase_close_connection;
   innobase_hton->kill_connection = innobase_kill_connection;
   innobase_hton->savepoint_set = innobase_savepoint;
@@ -6398,6 +6414,57 @@ static int innobase_savepoint(
   }
 
   return convert_error_code_to_mysql(error, 0, nullptr);
+}
+
+/** Writes DELETE_SCHEMA_DIRECTORY_LOG. This function is used in both CREATE
+ SCHEMA and DROP SCHEMA call flows.
+ @retval  false success
+ @retval  true  failure */
+static bool write_delete_schema_directory_log(
+    handlerton *hton,          /*!< in: handle to the InnoDB
+                               handlerton */
+    const char *schema_name,   /*!< in: name of the schema
+                               being dropped or created */
+    const bool is_drop_schema) /*!< in: is this operation
+                                DROP SCHEMA? */
+{
+  ut_ad(!srv_read_only_mode);
+
+  THD *thd = current_thd;
+  trx_t *trx = check_trx_exists(thd);
+  innobase_register_trx(hton, thd, trx);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
+
+  /* FN_REFLEN represents the maximum length a full path-name can have.
+  In this case, it is the maximum posssible length of a directory path. */
+  char path[FN_REFLEN + 1];
+  bool was_truncated = false;
+  build_table_filename(path, sizeof(path) - 1, schema_name, "", nullptr, 0,
+                       &was_truncated);
+  if (was_truncated) {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
+    return true;
+  }
+
+  const dberr_t err =
+      log_ddl->write_delete_schema_directory_log(trx, path, is_drop_schema);
+
+  if (err != DB_SUCCESS) {
+    my_error(convert_error_code_to_mysql(err, 0, current_thd), MYF(0));
+    return true;
+  }
+
+  return false;
+}
+
+static bool innobase_write_ddl_drop_schema(handlerton *hton,
+                                           const char *schema_name) {
+  return write_delete_schema_directory_log(hton, schema_name, true);
+}
+
+static bool innobase_write_ddl_create_schema(handlerton *hton,
+                                             const char *schema_name) {
+  return write_delete_schema_directory_log(hton, schema_name, false);
 }
 
 /** Frees a possible InnoDB trx object associated with the current THD.

@@ -931,6 +931,47 @@ void ha_drop_database(char *path) {
   plugin_foreach(nullptr, dropdb_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, path);
 }
 
+static bool log_ddl_drop_schema_handletron(THD *, plugin_ref plugin,
+                                           void *schema_name) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->state == SHOW_OPTION_YES &&
+      (hton->log_ddl_drop_schema && hton->post_ddl && hton->is_dict_readonly)) {
+    if (hton->is_dict_readonly()) {
+      my_error(ER_READ_ONLY_MODE, MYF(0));
+      return true;
+    }
+    return hton->log_ddl_drop_schema(hton, static_cast<char *>(schema_name));
+  }
+  return false;
+}
+
+bool ha_log_ddl_drop_schema(const char *schema_name) {
+  return plugin_foreach(nullptr, log_ddl_drop_schema_handletron,
+                        MYSQL_STORAGE_ENGINE_PLUGIN,
+                        const_cast<char *>(schema_name));
+}
+
+static bool log_ddl_create_schema_handletron(THD *, plugin_ref plugin,
+                                             void *schema_name) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->state == SHOW_OPTION_YES &&
+      (hton->log_ddl_create_schema && hton->post_ddl &&
+       hton->is_dict_readonly)) {
+    if (hton->is_dict_readonly()) {
+      my_error(ER_READ_ONLY_MODE, MYF(0));
+      return true;
+    }
+    return hton->log_ddl_create_schema(hton, static_cast<char *>(schema_name));
+  }
+  return false;
+}
+
+bool ha_log_ddl_create_schema(const char *schema_name) {
+  return plugin_foreach(nullptr, log_ddl_create_schema_handletron,
+                        MYSQL_STORAGE_ENGINE_PLUGIN,
+                        const_cast<char *>(schema_name));
+}
+
 static bool closecon_handlerton(THD *thd, plugin_ref plugin, void *) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
   /*

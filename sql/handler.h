@@ -1490,6 +1490,12 @@ typedef handler *(*create_t)(handlerton *hton, TABLE_SHARE *table,
 
 typedef void (*drop_database_t)(handlerton *hton, char *path);
 
+typedef bool (*log_ddl_drop_schema_t)(handlerton *hton,
+                                      const char *schema_name);
+
+typedef bool (*log_ddl_create_schema_t)(handlerton *hton,
+                                        const char *schema_name);
+
 typedef int (*panic_t)(handlerton *hton, enum ha_panic_function flag);
 
 typedef int (*start_consistent_snapshot_t)(handlerton *hton, THD *thd);
@@ -2784,6 +2790,8 @@ struct handlerton {
   set_prepared_in_tc_by_xid_t set_prepared_in_tc_by_xid;
   create_t create;
   drop_database_t drop_database;
+  log_ddl_drop_schema_t log_ddl_drop_schema;
+  log_ddl_create_schema_t log_ddl_create_schema;
   panic_t panic;
   start_consistent_snapshot_t start_consistent_snapshot;
   flush_logs_t flush_logs;
@@ -7490,6 +7498,27 @@ void ha_pre_dd_shutdown(void);
 */
 bool ha_flush_logs(bool binlog_group_flush = false);
 void ha_drop_database(char *path);
+
+/**
+  Call "log_ddl_drop_schema" handletron for
+  storage engines who implement it.
+
+  @param schema_name name of the database to be dropped.
+  @retval false Succeed
+  @retval true Error
+*/
+bool ha_log_ddl_drop_schema(const char *schema_name);
+
+/**
+  Call "log_ddl_create_schema" handletron for
+  storage engines who implement it.
+
+  @param schema_name name of the database to be dropped.
+  @retval false Succeed
+  @retval true Error
+*/
+bool ha_log_ddl_create_schema(const char *schema_name);
+
 int ha_create_table(THD *thd, const char *path, const char *db,
                     const char *table_name, HA_CREATE_INFO *create_info,
                     bool update_create_info, bool is_temp_table,
