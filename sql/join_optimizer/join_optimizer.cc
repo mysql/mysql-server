@@ -3173,18 +3173,10 @@ bool CostingReceiver::ProposeDistanceIndexScan(
   double num_output_rows = table->file->stats.records;
   double cost;
 
-  // Same cost estimation as for index scan.
-  if (table->covering_keys.is_set(key_idx)) {
-    // The index is covering, so we can do an index-only scan.
-    cost =
-        table->file->index_scan_cost(key_idx, /*ranges=*/1.0, num_output_rows)
-            .total_cost();
-  } else {
-    // This is the case of distance index scan.
-    // For now we use the same cost as in the index scan case.
-    cost = table->file->read_cost(key_idx, /*ranges=*/1.0, num_output_rows)
-               .total_cost();
-  }
+  assert(!table->covering_keys.is_set(key_idx));
+  // Same cost estimation for index scan and distance index scan.
+  cost = table->file->read_cost(key_idx, /*ranges=*/1.0, num_output_rows)
+             .total_cost();
 
   path.num_output_rows_before_filter = num_output_rows;
   path.set_init_cost(0.0);

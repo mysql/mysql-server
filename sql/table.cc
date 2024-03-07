@@ -754,22 +754,25 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
 
   const bool full_length_key_part =
       field->key_length() == key_part->length && !field->is_flag_set(BLOB_FLAG);
+  const bool is_spatial_key = Overlaps(keyinfo->flags, HA_SPATIAL);
   /*
     part_of_key contains all non-prefix keys, part_of_prefixkey
     contains prefix keys.
     Note that prefix keys in the extended PK key parts
     (part_of_key_not_extended is false) are not considered.
-    Full-text keys are not considered prefix keys.
+    Full-text and spatial keys are not considered prefix keys.
   */
   if (full_length_key_part || Overlaps(keyinfo->flags, HA_FULLTEXT)) {
     field->part_of_key.set_bit(key_n);
     if (part_of_key_not_extended)
       field->part_of_key_not_extended.set_bit(key_n);
-  } else if (part_of_key_not_extended) {
+  } else if (part_of_key_not_extended && !is_spatial_key) {
     field->part_of_prefixkey.set_bit(key_n);
   }
+  // R-tree indexes do not allow index scans and therefore cannot be
+  // marked as keys for index only access.
   if ((handler_file->index_flags(key_n, key_part_n, false) & HA_KEYREAD_ONLY) &&
-      field->type() != MYSQL_TYPE_GEOMETRY) {
+      !is_spatial_key) {
     // Set the key as 'keys_for_keyread' even if it is prefix key.
     share->keys_for_keyread.set_bit(key_n);
   }
