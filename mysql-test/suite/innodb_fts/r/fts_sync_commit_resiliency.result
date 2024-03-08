@@ -1,0 +1,63 @@
+CREATE TABLE opening_lines (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+opening_line TEXT(500),
+author VARCHAR(200),
+title VARCHAR(200)
+) ENGINE=InnoDB;
+CREATE FULLTEXT INDEX idx ON opening_lines(opening_line);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+CREATE FULLTEXT INDEX ft_idx1 ON opening_lines(title);
+INSERT INTO opening_lines(opening_line,author,title) VALUES
+('Call me Ishmael.','Herman Melville','Moby Dick'),
+('A screaming comes across the sky.','Thomas Pynchon','Gravity\'s Rainbow'),
+       ('I am an invisible man.','Ralph Ellison','Invisible Man'),
+       ('Where now? Who now? When now?','Samuel Beckett','The Unnamable'),
+       ('It was love at first sight.','Joseph Heller','Catch-22'),
+       ('All this happened, more or less.','Kurt Vonnegut','Slaughterhouse-Five'),
+       ('Mrs. Dalloway said she would buy the flowers herself.','Virginia Woolf','Mrs. Dalloway'),
+       ('It was a pleasure to burn.','Ray Bradbury','Fahrenheit 451');
+SET GLOBAL innodb_ft_aux_table='test/opening_lines';
+SELECT * FROM information_schema.innodb_ft_config;
+KEY	VALUE
+optimize_checkpoint_limit	180
+synced_doc_id	0
+stopword_table_name	
+use_stopword	1
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('Ishmael');
+id	opening_line	author	title
+1	Call me Ishmael.	Herman Melville	Moby Dick
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('invisible');
+id	opening_line	author	title
+3	I am an invisible man.	Ralph Ellison	Invisible Man
+SELECT * FROM opening_lines;
+id	opening_line	author	title
+1	Call me Ishmael.	Herman Melville	Moby Dick
+2	A screaming comes across the sky.	Thomas Pynchon	Gravity's Rainbow
+3	I am an invisible man.	Ralph Ellison	Invisible Man
+4	Where now? Who now? When now?	Samuel Beckett	The Unnamable
+5	It was love at first sight.	Joseph Heller	Catch-22
+6	All this happened, more or less.	Kurt Vonnegut	Slaughterhouse-Five
+7	Mrs. Dalloway said she would buy the flowers herself.	Virginia Woolf	Mrs. Dalloway
+8	It was a pleasure to burn.	Ray Bradbury	Fahrenheit 451
+SET GLOBAL innodb_optimize_fulltext_only=ON;
+SET GLOBAL debug='+d,fts_crash_before_commit_sync';
+OPTIMIZE TABLE opening_lines;
+ERROR HY000: Lost connection to MySQL server during query
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('Ishmael');
+id	opening_line	author	title
+1	Call me Ishmael.	Herman Melville	Moby Dick
+SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('invisible');
+id	opening_line	author	title
+3	I am an invisible man.	Ralph Ellison	Invisible Man
+SELECT * FROM opening_lines;
+id	opening_line	author	title
+1	Call me Ishmael.	Herman Melville	Moby Dick
+2	A screaming comes across the sky.	Thomas Pynchon	Gravity's Rainbow
+3	I am an invisible man.	Ralph Ellison	Invisible Man
+4	Where now? Who now? When now?	Samuel Beckett	The Unnamable
+5	It was love at first sight.	Joseph Heller	Catch-22
+6	All this happened, more or less.	Kurt Vonnegut	Slaughterhouse-Five
+7	Mrs. Dalloway said she would buy the flowers herself.	Virginia Woolf	Mrs. Dalloway
+8	It was a pleasure to burn.	Ray Bradbury	Fahrenheit 451
+DROP TABLE opening_lines;
