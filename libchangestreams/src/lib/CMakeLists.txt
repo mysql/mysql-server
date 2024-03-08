@@ -30,8 +30,6 @@ DISABLE_MISSING_PROFILE_WARNING()
 
 ADD_LIBRARY(changestreams_static STATIC ${CS_LIB_SOURCES})
 IF(WITH_CS_PROTOBUF)
-  SET_TARGET_PROPERTIES(changestreams_static
-    PROPERTIES COMPILE_FLAGS "${CS_LIB_PB_COMPILE_FLAGS}")
   TARGET_LINK_LIBRARIES(changestreams_static changestreams_pb_static)
 ENDIF()
 

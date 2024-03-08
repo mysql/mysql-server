@@ -83,6 +83,7 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP GENERATED_SOURCE GENERATED_HEADERS)
   IF(NOT GENERATE_OUTPUT_DIRECTORY)
     SET(GENERATE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
   ENDIF()
+  SET(GENERATE_OUTPUT_DIRECTORY ${GENERATE_OUTPUT_DIRECTORY} PARENT_SCOPE)
 
   # Build import directory
   # If there are several files processed using this function,
@@ -211,6 +212,10 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
       "${BUNDLED_ABSEIL_SRCDIR}")
   ENDIF()
 
+  # Users of the library should treat it as "system" to avoid warnings.
+  SET_TARGET_PROPERTIES(${TARGET_NAME} PROPERTIES
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${GENERATE_OUTPUT_DIRECTORY}")
+
   # Run protoc to generate .pb.h and .pb.cc files, for clang-tidy.
   IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
     # New in version 3.19:
@@ -224,48 +229,53 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
   ENDIF()
 
   SET(MY_PROTOBUF_FLAGS "")
-  SET(MY_PUBLIC_PROTOBUF_FLAGS "")
 
   # The flags set below need to cover all "system" versions of protobuf,
   # in addition to the version we have bundled.
   IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT WIN32_CLANG)
-    STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-unused-parameter -Wno-undef")
-
-    STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-unused-variable -Wno-undef")
-    STRING_APPEND(MY_PROTOBUF_FLAGS
-      " -Wno-ignored-qualifiers -Wno-sign-compare")
+    STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-ignored-qualifiers")
+    STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-sign-compare")
+    STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-undef")
+    STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-unused-parameter")
+    STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-unused-variable")
 
     MY_CHECK_CXX_COMPILER_WARNING("-Wshadow-field" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
+      STRING_APPEND(MY_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
     ENDIF()
 
     MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
+      STRING_APPEND(MY_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
     ENDIF()
 
     MY_CHECK_CXX_COMPILER_WARNING("-Wextra-semi" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
+      STRING_APPEND(MY_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
     ENDIF()
 
     MY_CHECK_CXX_COMPILER_WARNING("-Wsuggest-override" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-suggest-override")
       STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-suggest-override")
     ENDIF()
   ENDIF()
 
   IF(MSVC)
     IF(WIN32_CLANG)
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-unused-parameter")
-      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-extra-semi")
+      STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-unused-parameter")
+      STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-extra-semi")
     ELSE()
+      SET(MY_PUBLIC_PROTOBUF_FLAGS "")
       # Silence warnings about: needs to have dll-interface
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4251")
       # __declspec(dllimport): ignored on left of ...  VS16 only
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4091")
+
+      # We must propagate those dll-related flags to users of this library.
+      STRING(REPLACE " " ";" public_flags "${MY_PUBLIC_PROTOBUF_FLAGS}")
+      TARGET_COMPILE_OPTIONS(${TARGET_NAME}
+        PUBLIC ${public_flags}
+        )
 
       # not all control paths return a value
       STRING_APPEND(MY_PROTOBUF_FLAGS " /wd4715")
@@ -274,21 +284,12 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
     ENDIF()
   ENDIF(MSVC)
 
-  STRING(REPLACE " " ";"
-    private_flags "${MY_PROTOBUF_FLAGS} ${MY_PUBLIC_PROTOBUF_FLAGS}")
+  # Silence warnings when building the .proto based library.
+  # Users of the libray should include it as "system" to avoid warnings.
+  STRING(REPLACE " " ";" private_flags "${MY_PROTOBUF_FLAGS}")
   TARGET_COMPILE_OPTIONS(${TARGET_NAME}
     PRIVATE ${private_flags}
     )
-
-  # We must propagate those dll-related flags to users of this library.
-  IF(MSVC AND NOT WIN32_CLANG)
-    STRING(REPLACE " " ";" public_flags "${MY_PUBLIC_PROTOBUF_FLAGS}")
-    TARGET_COMPILE_OPTIONS(${TARGET_NAME}
-      PUBLIC ${public_flags}
-      )
-  ENDIF()
-
-  SET(MY_PUBLIC_PROTOBUF_FLAGS ${MY_PUBLIC_PROTOBUF_FLAGS} PARENT_SCOPE)
 ENDFUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY)
 
 FUNCTION(MYSQL_PROTOBUF_GENERATE_PY GENERATED_SOURCE)

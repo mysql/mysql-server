@@ -55,8 +55,6 @@ IF (WITH_CS_PROTOBUF)
 
   LIST(APPEND CS_LIB_SOURCES
     ${CS_BASE_SRC_DIR}/lib/mysql/cs/codec/pb/reader_state_codec_pb.cpp)
-
-  SET(CS_LIB_PB_COMPILE_FLAGS "${MY_PUBLIC_PROTOBUF_FLAGS}")
 ENDIF()
 
 

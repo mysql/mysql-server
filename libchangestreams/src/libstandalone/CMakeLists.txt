@@ -32,8 +32,6 @@ ADD_STATIC_LIBRARY(changestreams_standalone_static
   )
 
 IF(WITH_CS_PROTOBUF)
-  SET_TARGET_PROPERTIES(changestreams_standalone_static
-    PROPERTIES COMPILE_FLAGS "${CS_LIB_PB_COMPILE_FLAGS}")
   TARGET_LINK_LIBRARIES(changestreams_standalone_static
     changestreams_pb_static)
 ENDIF()
