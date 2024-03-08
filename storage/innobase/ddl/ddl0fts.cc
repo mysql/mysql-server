@@ -1170,6 +1170,8 @@ dberr_t FTS::Inserter::write_word(Insert *ins_ctx,
                                   " index table, error ("
                                << ut_strerr(err) << ")";
       ret = err;
+    } else {
+      ut_ad(ins_ctx->m_btr_bulk->get_n_recs() > 0);
     }
 
     ut::free(fts_node->ilist);
@@ -1542,18 +1544,18 @@ dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
 #else
     Runnable runnable{PSI_NOT_INSTRUMENTED, seqnum};
 #endif /* UNIV_PFS_THREAD */
+    runnable([&]() {
+      auto thd = create_internal_thd();
+      ut_ad(current_thd == thd);
 
-    my_thread_init();
+      thd->push_diagnostics_area(&parser->da, false);
+      parser->parse(builder);
+      thd->pop_diagnostics_area();
 
-    auto thd = create_internal_thd();
-    ut_ad(current_thd == thd);
-
-    thd->push_diagnostics_area(&parser->da, false);
-    parser->parse(builder);
-    thd->pop_diagnostics_area();
-
-    destroy_internal_thd(current_thd);
-    my_thread_end();
+      destroy_internal_thd(current_thd);
+      /* Return value ignored but required for Runnable::operator() */
+      return DB_SUCCESS;
+    });
   };
 
   size_t seqnum{1};
@@ -1614,7 +1616,7 @@ dberr_t FTS::insert(Builder *builder) noexcept {
 #endif /* UNIV_PFS_THREAD */
 
     if (!handler->m_files.empty()) {
-      err = m_inserter->insert(builder, handler);
+      err = runnable([&]() { return m_inserter->insert(builder, handler); });
     }
   };
 
