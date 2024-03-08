@@ -37,7 +37,7 @@ class Indigestion_processor : public Block_processor {
   explicit Indigestion_processor(Execution_context *context)
       : m_context(context) {}
 
-  Result feed(std::istream &input, const char *linebuf) override {
+  Result feed(std::istream & /*input*/, const char *linebuf) override {
     std::string line(linebuf);
 
     aux::trim(line);

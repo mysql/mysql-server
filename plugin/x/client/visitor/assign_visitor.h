@@ -48,7 +48,7 @@ class Assign_visitor : public Default_visitor {
     callback is executed.
   */
   template <typename Value1_type, typename Value2_type>
-  bool assign(Value1_type *value1, const Value2_type *value2) {
+  bool assign(Value1_type * /*value1*/, const Value2_type * /*value2*/) {
     // Does nothing, types doesn't match
     return false;
   }

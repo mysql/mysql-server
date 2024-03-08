@@ -66,8 +66,9 @@ class Unixsocket_creator {
   }
 
   std::shared_ptr<iface::Socket> create_and_bind_unixsocket(
-      const std::string &unix_socket_file, std::string &error_message,
-      const uint32_t backlog) {
+      const std::string &unix_socket_file [[maybe_unused]],
+      std::string &error_message [[maybe_unused]],
+      const uint32_t backlog [[maybe_unused]]) {
     std::shared_ptr<iface::Socket> listener_socket(
         m_operations_factory.create_socket(MYSQL_INVALID_SOCKET));
 
@@ -173,8 +174,9 @@ class Unixsocket_creator {
     return unix_socket_file + ".lock";
   }
 
-  bool create_unixsocket_lockfile(const std::string &unix_socket_file,
-                                  std::string &error_message) {
+  bool create_unixsocket_lockfile(const std::string &unix_socket_file
+                                  [[maybe_unused]],
+                                  std::string &error_message [[maybe_unused]]) {
     std::shared_ptr<iface::File> lockfile_fd;
 #if !defined(HAVE_SYS_UN_H)
     return false;

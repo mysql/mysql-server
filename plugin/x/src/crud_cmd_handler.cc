@@ -141,7 +141,8 @@ ngs::Error_code Crud_command_handler::error_handling(
 
 template <>
 void Crud_command_handler::notice_handling(
-    const iface::Resultset::Info &info, const Insert_statement_builder &builder,
+    const iface::Resultset::Info &info,
+    const Insert_statement_builder & /*builder*/,
     const Mysqlx::Crud::Insert &msg) const {
   notice_handling_common(info);
   m_session->proto().send_notice_rows_affected(info.affected_rows);
@@ -230,7 +231,7 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
 
 template <>
 void Crud_command_handler::notice_handling(
-    const iface::Resultset::Info &info,
+    const iface::Resultset::Info & /*info*/,
     const Find_statement_builder & /*builder*/,
     const Mysqlx::Crud::Find & /*msg*/) const {}
 

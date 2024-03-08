@@ -79,9 +79,11 @@ class Validator {
       @retval true   value is correct
       @retval false  value is incorrect
     */
-  virtual bool valid_value(const Argument_value &value) { return true; }
+  virtual bool valid_value(const Argument_value &value [[maybe_unused]]) {
+    return true;
+  }
 
-  virtual void store(void *context, const Argument_value &value) {}
+  virtual void store(void * /*context*/, const Argument_value & /*value*/) {}
 };
 
 /**
@@ -142,7 +144,7 @@ class Array_of_strings_validator : public Validator {
  private:
   class Is_valid_array_visitor : public Default_visitor {
    public:
-    void visit_string(const std::string &value) override {
+    void visit_string(const std::string & /*value*/) override {
       DBUG_TRACE;
       m_valid = true;
     }

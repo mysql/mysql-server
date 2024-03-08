@@ -244,7 +244,8 @@ class Command {
   static void try_result(Result result);
 
   template <typename Equal_operator>
-  Result cmd_assert_generic(std::istream &input, Execution_context *context,
+  Result cmd_assert_generic(std::istream & /*input*/,
+                            Execution_context *context,
                             const std::string &args) {
     std::vector<std::string> vargs;
 

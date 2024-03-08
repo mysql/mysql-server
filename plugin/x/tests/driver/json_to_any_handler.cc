@@ -26,7 +26,7 @@
 #include "plugin/x/tests/driver/json_to_any_handler.h"
 
 bool Json_to_any_handler::Key(const char *str, rapidjson::SizeType length,
-                              bool copy) {
+                              bool /*copy*/) {
   typedef ::Mysqlx::Datatypes::Object_ObjectField Field;
   Field *f = m_stack.top()->mutable_obj()->add_fld();
   f->set_key(str, length);

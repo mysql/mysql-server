@@ -320,8 +320,8 @@ void Session_holder::setup_msg_callbacks() {
       });
 
   protocol.add_received_message_handler(
-      [this](xcl::XProtocol *protocol,
-             const xcl::XProtocol::Server_message_type_id msg_id,
+      [this](xcl::XProtocol * /*protocol*/,
+             const xcl::XProtocol::Server_message_type_id /*msg_id*/,
              const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
         print_message_to_consoles("<<<< RECEIVE ", msg);
 
@@ -331,8 +331,8 @@ void Session_holder::setup_msg_callbacks() {
       });
 
   protocol.add_send_message_handler(
-      [this](xcl::XProtocol *protocol,
-             const xcl::XProtocol::Client_message_type_id msg_id,
+      [this](xcl::XProtocol * /*protocol*/,
+             const xcl::XProtocol::Client_message_type_id /*msg_id*/,
              const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
         print_message_to_consoles(">>>> SEND ", msg);
 
@@ -350,7 +350,7 @@ void Session_holder::remove_notice_handler() {
 }
 
 xcl::Handler_result Session_holder::count_received_messages(
-    xcl::XProtocol *protocol,
+    xcl::XProtocol * /*protocol*/,
     const xcl::XProtocol::Server_message_type_id msg_id,
     const xcl::XProtocol::Message &msg) {
   const auto protobuf_message_name = msg.GetDescriptor()->full_name();
@@ -383,11 +383,9 @@ xcl::Handler_result Session_holder::count_received_messages(
   return xcl::Handler_result::Continue;
 }
 
-xcl::Handler_result Session_holder::dump_notices(const xcl::XProtocol *protocol,
-                                                 const bool is_global,
-                                                 const Frame_type type,
-                                                 const char *data,
-                                                 const uint32_t data_length) {
+xcl::Handler_result Session_holder::dump_notices(
+    const xcl::XProtocol * /*protocol*/, const bool /*is_global*/,
+    const Frame_type type, const char *data, const uint32_t data_length) {
   if (type == Frame_type::Frame_Type_SESSION_STATE_CHANGED) {
     Mysqlx::Notice::SessionStateChanged change;
 

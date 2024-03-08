@@ -35,17 +35,17 @@ namespace xcl {
 class Default_visitor : public Argument_visitor {
  public:
   void visit_null() override {}
-  void visit_integer(const int64_t value) override {}
-  void visit_uinteger(const uint64_t value) override {}
-  void visit_double(const double value) override {}
-  void visit_float(const float value) override {}
-  void visit_bool(const bool value) override {}
-  void visit_object(const Argument_object &value) override {}
-  void visit_uobject(const Argument_uobject &value) override {}
-  void visit_array(const Argument_array &value) override {}
-  void visit_string(const std::string &value) override {}
-  void visit_octets(const std::string &value) override {}
-  void visit_decimal(const std::string &value) override {}
+  void visit_integer(const int64_t /*value*/) override {}
+  void visit_uinteger(const uint64_t /*value*/) override {}
+  void visit_double(const double /*value*/) override {}
+  void visit_float(const float /*value*/) override {}
+  void visit_bool(const bool /*value*/) override {}
+  void visit_object(const Argument_object & /*value*/) override {}
+  void visit_uobject(const Argument_uobject & /*value*/) override {}
+  void visit_array(const Argument_array & /*value*/) override {}
+  void visit_string(const std::string & /*value*/) override {}
+  void visit_octets(const std::string & /*value*/) override {}
+  void visit_decimal(const std::string & /*value*/) override {}
 };
 
 }  // namespace xcl

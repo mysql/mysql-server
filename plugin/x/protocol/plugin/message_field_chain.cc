@@ -72,7 +72,7 @@ bool Message_field_chain::begin_validate_field(const FieldDescriptor *field,
   return true;
 }
 
-void Message_field_chain::end_validate_field(const FieldDescriptor *field,
+void Message_field_chain::end_validate_field(const FieldDescriptor * /*field*/,
                                              const Descriptor *message) {
   m_types_done.erase(message->full_name());
   const auto position = m_chain.find_last_of(".");

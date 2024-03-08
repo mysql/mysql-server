@@ -31,7 +31,7 @@
 
 #include "plugin/x/tests/driver/common/utils_mysql_parsing.h"
 
-Block_processor::Result Sql_stmt_processor::feed(std::istream &input,
+Block_processor::Result Sql_stmt_processor::feed(std::istream & /*input*/,
                                                  const char *linebuf) {
   if (!m_sql) {
     auto check_characters = [](const char c) {

@@ -398,7 +398,7 @@ Decode_error Message_decoder::parse_protobuf_frame(
 }
 
 Decode_error Message_decoder::parse_compressed_frame(
-    const uint32_t message_size, xpl::Vio_input_stream *net_stream) {
+    const uint32_t /*message_size*/, xpl::Vio_input_stream *net_stream) {
   DBUG_TRACE;
   if (m_config->m_compression_algorithm == Compression_algorithm::k_none)
     return Decode_error{Error_code(ER_X_FRAME_COMPRESSION_DISABLED,

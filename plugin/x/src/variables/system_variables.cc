@@ -41,7 +41,7 @@ namespace xpl {
 namespace details {
 
 template <typename Copy_type>
-void update_plugin_system_variable(THD *thd, SYS_VAR *, void *tgt,
+void update_plugin_system_variable(THD *, SYS_VAR *, void *tgt,
                                    const void *save) {
   *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
 
@@ -50,7 +50,7 @@ void update_plugin_system_variable(THD *thd, SYS_VAR *, void *tgt,
 
 template <typename Copy_type,
           void (xpl::iface::Client::*method)(const Copy_type value)>
-void update_thd_system_variable(THD *thd, SYS_VAR *sys_var, void *tgt,
+void update_thd_system_variable(THD *thd, SYS_VAR *, void *tgt,
                                 const void *save) {
   const auto value = *static_cast<const Copy_type *>(save);
 

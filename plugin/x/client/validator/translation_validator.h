@@ -140,11 +140,13 @@ class Translate_array_validator
   explicit Translate_array_validator(const Map &allowed_values)
       : m_allowed_values(update_string_if_case_insensitive(allowed_values)) {}
 
-  virtual bool valid_array_value(const Array_of_enums &values) { return true; }
-  virtual void visit_translate(const Array_of_enums &values) = 0;
+  virtual bool valid_array_value(const Array_of_enums & /*values*/) {
+    return true;
+  }
+  virtual void visit_translate(const Array_of_enums & /*values*/) = 0;
   virtual void visit_translate_with_source(
       const Array_of_enums &enum_values,
-      const Array_of_strings &string_values) {
+      const Array_of_strings & /*string_values*/) {
     visit_translate(enum_values);
   }
   virtual bool ignore_unkown_text_values() const { return false; }

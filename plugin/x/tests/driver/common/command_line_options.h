@@ -32,7 +32,7 @@ class Command_line_options {
   bool needs_password;
 
  protected:
-  Command_line_options(const int argc, char **argv) : exit_code(0) {}
+  Command_line_options(const int /*argc*/, char ** /*argv*/) : exit_code(0) {}
 
   bool check_arg(char **argv, int &argi, const char *arg, const char *larg);
 

@@ -36,7 +36,7 @@
 
 namespace xpl {
 
-void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any *any) {
+void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any *) {
   assert(false && "This method should not be used with CapGet");
 }
 
@@ -104,8 +104,9 @@ std::vector<unsigned char> Capability_connection_attributes::create_buffer() {
 }
 
 void Capability_connection_attributes::log_size_exceeded(
-    const char *const name, const std::size_t value,
-    const std::size_t max_value) const {
+    const char *const name [[maybe_unused]],
+    const std::size_t value [[maybe_unused]],
+    const std::size_t max_value [[maybe_unused]]) const {
   log_debug(
       "Capability session connect attributes failed, exceeded max %s size (%u"
       " bytes), current value is %u bytes long",

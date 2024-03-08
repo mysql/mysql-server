@@ -80,7 +80,7 @@ void Capabilities_negotiator::server_supports_algorithms(
                {"LZ4_MESSAGE", Compression_algorithm::k_lz4},
                {"ZSTD_STREAM", Compression_algorithm::k_zstd}}) {}
 
-    void visit_translate(const Array_of_enums &algos) override {}
+    void visit_translate(const Array_of_enums & /*algos*/) override {}
   };
 
   To_variable_validator<Compression_algorithms_validator2> validator;

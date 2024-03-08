@@ -68,5 +68,5 @@ bool Messages_used_by_server::begin_validate_field(const FieldDescriptor *field,
   return true;
 }
 
-void Messages_used_by_server::end_validate_field(const FieldDescriptor *field,
-                                                 const Descriptor *message) {}
+void Messages_used_by_server::end_validate_field(
+    const FieldDescriptor * /*field*/, const Descriptor * /*message*/) {}

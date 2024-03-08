@@ -30,7 +30,7 @@
 
 class Comment_processor : public Block_processor {
  public:
-  Result feed(std::istream &input, const char *linebuf) override {
+  Result feed(std::istream & /*input*/, const char *linebuf) override {
     while (*linebuf) {
       if (*linebuf != ' ' && *linebuf != '\t') break;
 

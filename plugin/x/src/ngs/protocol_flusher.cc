@@ -80,7 +80,7 @@ bool check_pages_count(protocol::Page *page) {
 }
 
 template <>
-bool check_pages_count<0>(protocol::Page *page) {
+bool check_pages_count<0>(protocol::Page *) {
   return true;
 }
 

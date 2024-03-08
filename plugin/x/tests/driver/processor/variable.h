@@ -66,7 +66,7 @@ class Variable_string_readonly : public Variable_string {
   explicit Variable_string_readonly(const Value_type &value)
       : Variable_string(std::to_string(value)) {}
 
-  bool set_value(const std::string &value) override { return false; }
+  bool set_value(const std::string & /*value*/) override { return false; }
 };
 
 class Variable_dynamic_string : public Variable_interface {
@@ -96,7 +96,7 @@ class Variable_dynamic_array_of_strings : public Variable_interface {
       const Array_of_string_ref &value_ref)
       : m_value(value_ref) {}
 
-  bool set_value(const std::string &value) override { return false; }
+  bool set_value(const std::string & /*value*/) override { return false; }
 
   std::string get_value() const override {
     switch (m_value.get().size()) {

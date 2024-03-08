@@ -25,6 +25,7 @@
 
 #include "plugin/x/client/authentication/mysql41_hash.h"
 
+#include <openssl/opensslv.h>
 #include <openssl/sha.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>

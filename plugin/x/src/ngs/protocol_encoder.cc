@@ -236,7 +236,7 @@ void Protocol_encoder::log_protobuf(const unsigned id,
   log_protobuf(id, direction_name, msg);
 }
 
-void Protocol_encoder::log_protobuf(const unsigned id,
+void Protocol_encoder::log_protobuf(const unsigned id [[maybe_unused]],
                                     const char *direction_name [[maybe_unused]],
                                     const Message *message [[maybe_unused]]) {
 #ifdef USE_MYSQLX_FULL_PROTO
@@ -296,7 +296,7 @@ std::string message_type_to_string(const uint8_t type_id) {
 }
 
 // for message sent as raw buffer only logging its type tag now
-void Protocol_encoder::log_protobuf(const unsigned id,
+void Protocol_encoder::log_protobuf(const unsigned id [[maybe_unused]],
                                     uint8_t type [[maybe_unused]]) {
   log_debug("%u: SEND RAW- Type: %s", id, message_type_to_string(type).c_str());
 }

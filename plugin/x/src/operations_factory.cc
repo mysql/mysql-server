@@ -147,7 +147,7 @@ class File : public iface::File {
 const int File::INVALID_FILE_DESCRIPTOR = -1;
 
 class System : public iface::System {
-  int32_t unlink(const char *name) override {
+  int32_t unlink(const char *name [[maybe_unused]]) override {
     return HAVE_UNIX_SOCKET(::unlink(name), 0);
   }
 
@@ -157,7 +157,8 @@ class System : public iface::System {
 
   int32_t get_pid() override { return HAVE_UNIX_SOCKET(::getpid(), 0); }
 
-  int32_t kill(int32_t pid, int32_t signal) override {
+  int32_t kill(int32_t pid [[maybe_unused]],
+               int32_t signal [[maybe_unused]]) override {
     return HAVE_UNIX_SOCKET(::kill(pid, signal), 0);
   }
 

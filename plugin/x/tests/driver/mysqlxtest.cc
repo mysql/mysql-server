@@ -35,8 +35,9 @@
 #include "plugin/x/tests/driver/driver_command_line_options.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 
-static void ignore_traces_from_libraries(enum loglevel ll, uint32_t ecode,
-                                         va_list args) {}
+static void ignore_traces_from_libraries(enum loglevel /*ll*/,
+                                         uint32_t /*ecode*/, va_list /*args*/) {
+}
 
 bool parse_mysql_connstring(const std::string &connstring,
                             std::string *protocol, std::string *user,

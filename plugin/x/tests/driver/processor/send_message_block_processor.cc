@@ -62,7 +62,7 @@ std::string data_to_bindump(const std::string &bindump) {
 }  // namespace
 
 Block_processor::Result Send_message_block_processor::feed(
-    std::istream &input, const char *linebuf) {
+    std::istream & /*input*/, const char *linebuf) {
   if (!is_eating()) {
     if (parser::get_name_and_body_from_text(linebuf, &m_full_name, &m_buffer)) {
       if (!m_buffer.empty() && '{' == m_buffer[0])

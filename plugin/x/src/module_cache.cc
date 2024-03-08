@@ -43,7 +43,7 @@ volatile bool Module_cache::m_is_sha256_password_cache_enabled = false;
   @returns Success always.
 */
 
-static int audit_cache_clean_event_notify(MYSQL_THD thd,
+static int audit_cache_clean_event_notify(MYSQL_THD thd [[maybe_unused]],
                                           mysql_event_class_t event_class,
                                           const void *event) {
   if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS) {
@@ -122,7 +122,7 @@ static struct st_mysql_audit sha2_cache_cleaner_plugin_descriptor = {
      // NOLINTNEXTLINE(runtime/int)
      static_cast<unsigned long>(MYSQL_AUDIT_AUTHENTICATION_ALL)}};
 
-int Module_cache::initialize(MYSQL_PLUGIN p) {
+int Module_cache::initialize(MYSQL_PLUGIN) {
   // If cache cleaner plugin is initialized before the X plugin we set this
   // flag so that we can enable cache when starting X plugin afterwards
   m_is_sha256_password_cache_enabled = true;
@@ -132,7 +132,7 @@ int Module_cache::initialize(MYSQL_PLUGIN p) {
   return 0;
 }
 
-int Module_cache::deinitialize(MYSQL_PLUGIN p) {
+int Module_cache::deinitialize(MYSQL_PLUGIN) {
   m_is_sha256_password_cache_enabled = false;
   auto sha256_password_cache =
       modules::Module_mysqlx::get_instance_sha256_password_cache();

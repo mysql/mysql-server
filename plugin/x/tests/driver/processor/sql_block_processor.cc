@@ -38,7 +38,7 @@
 #include "plugin/x/tests/driver/connector/warning.h"
 #include "plugin/x/tests/driver/processor/variable_names.h"
 
-Block_processor::Result Sql_block_processor::feed(std::istream &input,
+Block_processor::Result Sql_block_processor::feed(std::istream & /*input*/,
                                                   const char *linebuf) {
   if (m_sql) {
     if (strcmp(linebuf, "-->endsql") == 0) {

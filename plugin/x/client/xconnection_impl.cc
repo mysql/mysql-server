@@ -152,7 +152,8 @@ int make_vio_timeout(const int64_t value) {
   return -1;
 }
 
-XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
+XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname
+                              [[maybe_unused]]) {
   SSL *ssl = reinterpret_cast<SSL *>(vio->ssl_arg);
 
   if (nullptr == ssl) {
@@ -369,7 +370,8 @@ Connection_impl::Connection_impl(std::shared_ptr<Context> context)
 
 Connection_impl::~Connection_impl() { close(); }
 
-XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
+XError Connection_impl::connect_to_localhost(const std::string &unix_socket
+                                             [[maybe_unused]]) {
   m_connection_type = Connection_type::Unix_socket;
   m_hostname = "localhost";
 #if defined(HAVE_SYS_UN_H)

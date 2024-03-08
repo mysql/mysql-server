@@ -65,7 +65,7 @@ Block_processor::Result Dump_message_block_processor::feed(
 }
 
 int Dump_message_block_processor::process(
-    const xcl::XProtocol::Client_message_type_id msg_id,
+    const xcl::XProtocol::Client_message_type_id /*msg_id*/,
     const xcl::XProtocol::Message &message) {
   DBUG_TRACE;
   std::string bin_message;
