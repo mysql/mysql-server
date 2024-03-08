@@ -41,11 +41,9 @@
 
 ////////////////////////////////////////
 // Test system include files
+#include "router/tests/helpers/stdx_expected_no_error.h"
 #include "test/helpers.h"
 #include "test/temp_directory.h"
-
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
 
 using mysql_harness::Directory;
 using mysql_harness::Path;

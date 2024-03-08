@@ -30,14 +30,9 @@
 #include "mysql/harness/net_ts/impl/socket.h"  // net::impl::socket::init
 
 #include "mysql/harness/stdx/expected_ostream.h"
+#include "router/tests/helpers/stdx_expected_no_error.h"
 
 #if defined(_WIN32)
-
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](const auto &t) { return bool(t); }))
-
-#define ASSERT_NO_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](const auto &t) { return bool(t); }))
 
 using namespace std::string_literals;
 

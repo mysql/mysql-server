@@ -31,37 +31,8 @@
 
 #include "mysql/harness/net_ts/socket.h"  // net::impl::socket::init
 #include "mysql/harness/stdx/expected_ostream.h"
+#include "router/tests/helpers/stdx_expected_no_error.h"
 #include "test/temp_directory.h"
-
-template <class T, class E>
-::testing::AssertionResult StdxExpectedSuccess(const char *expr,
-                                               const stdx::expected<T, E> &e) {
-  if (e) return ::testing::AssertionSuccess();
-
-  return ::testing::AssertionFailure() << "Expected: " << expr << " succeeds.\n"
-                                       << "  Actual: " << e.error() << "\n";
-}
-
-template <class T, class E>
-::testing::AssertionResult StdxExpectedFailure(const char *expr,
-                                               const stdx::expected<T, E> &e) {
-  if (!e) return ::testing::AssertionSuccess();
-
-  if constexpr (std::is_void_v<T>) {
-    return ::testing::AssertionFailure() << "Expected: " << expr << " fails.\n"
-                                         << "  Actual: succeeded\n";
-  } else {
-    return ::testing::AssertionFailure()
-           << "Expected: " << expr << " fails.\n"
-           << "  Actual: " << ::testing::PrintToString(e.value()) << "\n";
-  }
-}
-
-#define EXPECT_NO_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedSuccess, (x))
-#define ASSERT_NO_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedSuccess, (x))
-
-#define EXPECT_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedFailure, (x))
-#define ASSERT_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedFailure, (x))
 
 #ifdef NET_TS_HAS_UNIX_SOCKET
 
