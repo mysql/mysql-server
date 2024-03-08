@@ -572,7 +572,7 @@ ALTER TABLE test.t1 DROP a8;
 ALTER TABLE test.t1 DROP a7;
 ALTER TABLE test.t1 DROP a6;
 ALTER TABLE test.t1 ALGORITHM=INPLACE, DROP PRIMARY KEY;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping primary key. Try ALGORITHM=COPY.
 ALTER TABLE test.t1 ALGORITHM=COPY, DROP PRIMARY KEY;
 SHOW CREATE TABLE test.t1;
 Table	Create Table

@@ -9,17 +9,15 @@ b int
 # Case A) on a NOT NULL column
 # NOTE! When adding a UNIQUE index it becomes ADD PRIMARY KEY
 ALTER TABLE t1 ALGORITHM=INPLACE, ADD UNIQUE INDEX a_idx(a);
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1088	Detected unsupported change: HA_ALTER_FLAGS = 0x10
-Error	1846	ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 ALTER TABLE t1 ALGORITHM=INPLACE, ADD PRIMARY KEY (a);
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1088	Detected unsupported change: HA_ALTER_FLAGS = 0x10
-Error	1846	ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 ALTER TABLE t1 ALGORITHM=INPLACE, ADD INDEX a_idx2(a);
 # Case B) on a nullable column
 ALTER TABLE t1 ALGORITHM=INPLACE, ADD UNIQUE INDEX b_idx(b);
