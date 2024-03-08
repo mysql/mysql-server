@@ -110,7 +110,7 @@ bool Transaction_consistency_info::is_the_transaction_prepared_remotely() {
 
 int Transaction_consistency_info::after_applier_prepare(
     my_thread_id thread_id,
-    Group_member_info::Group_member_status member_status) {
+    Group_member_info::Group_member_status member_status [[maybe_unused]]) {
   DBUG_TRACE;
   assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
   /*

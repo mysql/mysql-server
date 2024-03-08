@@ -59,7 +59,7 @@ int Consensus_leaders_handler::after_view_change(
 int Consensus_leaders_handler::after_primary_election(
     std::string primary_uuid,
     enum_primary_election_primary_change_status primary_change_status,
-    enum_primary_election_mode /*election_mode*/, int error) {
+    enum_primary_election_mode /*election_mode*/, int /*error*/) {
   if (enum_primary_election_primary_change_status::PRIMARY_DID_CHANGE ==
       primary_change_status) {
     Member_version const communication_protocol =

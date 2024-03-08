@@ -168,7 +168,7 @@ int Certification_handler::handle_applier_view_change_packet(
 }
 
 int Certification_handler::handle_recovery_metadata(Pipeline_event *pevent,
-                                                    Continuation *cont) {
+                                                    Continuation * /* cont */) {
   View_change_packet *view_change_packet =
       static_cast<View_change_packet *>(pevent->get_applier_event_packet());
   int error = 0;

@@ -325,7 +325,7 @@ static void group_replication_reset_member_actions_deinit(UDF_INIT *) {
   UDF_counter::terminated();
 }
 
-static char *group_replication_reset_member_actions(UDF_INIT *, UDF_ARGS *args,
+static char *group_replication_reset_member_actions(UDF_INIT *, UDF_ARGS *,
                                                     char *result,
                                                     unsigned long *length,
                                                     unsigned char *is_null,

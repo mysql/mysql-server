@@ -75,8 +75,8 @@ class Gms_listener_test_parameters : public Mysql_thread_body_parameters {
     @param [in]  message  Message to add to the table
     */
   Gms_listener_test_parameters(const std::string &message)
-      : m_message(message), m_error(1){};
-  virtual ~Gms_listener_test_parameters(){};
+      : m_message(message), m_error(1) {}
+  virtual ~Gms_listener_test_parameters() {}
 
   /**
     Get value for class private member error.

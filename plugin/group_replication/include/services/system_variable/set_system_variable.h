@@ -47,8 +47,8 @@ class Set_system_variable_parameters : public Mysql_thread_body_parameters {
   Set_system_variable_parameters(System_variable variable,
                                  const std::string &value,
                                  const std::string &type)
-      : m_value(value), m_type(type), m_variable(variable), m_error(1){};
-  virtual ~Set_system_variable_parameters(){};
+      : m_value(value), m_type(type), m_variable(variable), m_error(1) {}
+  virtual ~Set_system_variable_parameters() {}
 
   /**
     Get value for class private member error.
@@ -86,7 +86,7 @@ class Set_system_variable : Mysql_thread_body {
  public:
   Set_system_variable() = default;
 
-  virtual ~Set_system_variable() = default;
+  ~Set_system_variable() override = default;
 
   /**
     Method to set the global value of read_only.
@@ -152,7 +152,7 @@ class Set_system_variable : Mysql_thread_body {
     @param [in, out] parameters Values used by method to get service variable.
 
     */
-  void run(Mysql_thread_body_parameters *parameters);
+  void run(Mysql_thread_body_parameters *parameters) override;
 
  private:
   /**

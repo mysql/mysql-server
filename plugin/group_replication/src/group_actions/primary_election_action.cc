@@ -653,7 +653,7 @@ int Primary_election_action::after_view_change(
 }
 
 int Primary_election_action::after_primary_election(
-    std::string elected_uuid,
+    std::string /*elected_uuid*/,
     enum_primary_election_primary_change_status primary_change_status,
     enum_primary_election_mode primary_election_mode, int error) {
   // We are leaving the group but we can speed up the process

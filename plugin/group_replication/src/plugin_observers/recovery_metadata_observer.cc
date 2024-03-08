@@ -34,11 +34,11 @@ Recovery_metadata_observer::~Recovery_metadata_observer() {
 }
 
 int Recovery_metadata_observer::after_view_change(
-    const std::vector<Gcs_member_identifier> &joining,
+    const std::vector<Gcs_member_identifier> & /*joining*/,
     const std::vector<Gcs_member_identifier> &leaving,
-    const std::vector<Gcs_member_identifier> &group, bool is_leaving,
-    bool *skip_election, enum_primary_election_mode *election_mode,
-    std::string &suggested_primary) {
+    const std::vector<Gcs_member_identifier> & /*group*/, bool is_leaving,
+    bool * /*skip_election*/, enum_primary_election_mode * /*election_mode*/,
+    std::string & /*suggested_primary*/) {
   /*
     If joiner is waiting for the recovery metadata, inform joiner of
     metadata-senders that have left the group. If no recovery metadata sender is
@@ -97,14 +97,14 @@ int Recovery_metadata_observer::after_view_change(
 }
 
 int Recovery_metadata_observer::after_primary_election(
-    std::string primary_uuid,
-    enum_primary_election_primary_change_status primary_change_status,
-    enum_primary_election_mode election_mode, int error) {
+    std::string /*primary_uuid*/,
+    enum_primary_election_primary_change_status /*primary_change_status*/,
+    enum_primary_election_mode /*election_mode*/, int /*error*/) {
   return 0;
 }
 
 int Recovery_metadata_observer::before_message_handling(
-    const Plugin_gcs_message &message, const std::string &message_origin,
-    bool *skip_message) {
+    const Plugin_gcs_message & /*message*/,
+    const std::string & /*message_origin*/, bool * /*skip_message*/) {
   return 0;
 }

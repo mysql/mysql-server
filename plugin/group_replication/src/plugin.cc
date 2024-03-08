@@ -5261,8 +5261,7 @@ bool get_preemptive_garbage_collection_var() {
   return ov.preemptive_garbage_collection_var;
 }
 
-static int check_preemptive_garbage_collection(MYSQL_THD thd, SYS_VAR *,
-                                               void *save,
+static int check_preemptive_garbage_collection(MYSQL_THD, SYS_VAR *, void *save,
                                                struct st_mysql_value *value) {
   DBUG_TRACE;
   bool in_val;

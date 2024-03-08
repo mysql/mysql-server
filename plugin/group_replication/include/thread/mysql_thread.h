@@ -173,11 +173,11 @@ class Mysql_thread_task {
 
   Mysql_thread_task(Mysql_thread_body *body,
                     Mysql_thread_body_parameters *parameters)
-      : m_body(body), m_parameters(parameters){};
+      : m_body(body), m_parameters(parameters) {}
   virtual ~Mysql_thread_task() {
     delete m_parameters;
     m_parameters = nullptr;
-  };
+  }
 
   /**
     Execute task, calling body function with parameters

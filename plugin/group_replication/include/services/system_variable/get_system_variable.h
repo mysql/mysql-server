@@ -37,8 +37,8 @@ class Get_system_variable_parameters : public Mysql_thread_body_parameters {
   };
 
   Get_system_variable_parameters(System_variable_service service)
-      : m_result(""), m_service(service), m_error(1){};
-  virtual ~Get_system_variable_parameters(){};
+      : m_result(""), m_service(service), m_error(1) {}
+  virtual ~Get_system_variable_parameters() {}
 
   /**
     Get value for class private member error.
@@ -76,7 +76,7 @@ class Get_system_variable : Mysql_thread_body {
  public:
   Get_system_variable() = default;
 
-  virtual ~Get_system_variable() = default;
+  ~Get_system_variable() override = default;
 
   /**
     Method to return the server gtid_executed by executing the get_variables
@@ -132,7 +132,7 @@ class Get_system_variable : Mysql_thread_body {
     @param [in, out] parameters Values used by method to get service variable.
 
     */
-  void run(Mysql_thread_body_parameters *parameters);
+  void run(Mysql_thread_body_parameters *parameters) override;
 
  private:
   /**
