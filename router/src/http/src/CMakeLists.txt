@@ -23,20 +23,33 @@
 
 INCLUDE(GenerateExportHeader)
 
-IF(LIBEVENT_VERSION VERSION_LESS "2.1")
-  MESSAGE(FATAL_ERROR "At least version 2.1 is needed for libevent.")
+IF(WIN32_CLANG)
+  MY_CHECK_CXX_COMPILER_WARNING("-Wdeprecated-copy-with-dtor" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
 ENDIF()
 
 ADD_LIBRARY(http_common
   SHARED
   base64.cc
-  http_common.cc
-  http_time.cc
+  http_auth_method_basic.cc
+  http/cno/callback_init.cc
+  http/cno/cno_instantiation.cc
+  http/cno/error_code.cc
+  http/base/base_instantiation.cc
+  http/base/headers.cc
+  http/base/method.cc
+  http/base/status_code.cc
+  http/base/uri.cc
+  http/base/http_time.cc
   )
 TARGET_LINK_LIBRARIES(http_common
   PUBLIC
   harness_tls
-  ext::libevent
+  router_lib
+  ext::cno
+  router_openssl
   PRIVATE
   OpenSSL::SSL OpenSSL::Crypto
   )
@@ -71,6 +84,7 @@ ADD_LIBRARY(http_auth_backend_lib SHARED
   http_auth_error.cc
   http_auth_backend_component.cc
   )
+
 GENERATE_EXPORT_HEADER(http_auth_backend_lib
   EXPORT_FILE_NAME
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/http_auth_backend_lib_export.h
@@ -163,16 +177,21 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_realm PRIVATE
 
 ADD_HARNESS_PLUGIN(http_server
   SOURCES
+  http/server/bind.cc
+  http/server/request.cc
+  http/server/server.cc
+  http/http_server_context.cc
   http_auth.cc
-  http_auth_method_basic.cc
   http_server_component.cc
+  http_request_router.cc
   http_server_plugin.cc
   static_files.cc
   REQUIRES router_lib;http_common;http_auth_realm;
     ${LIBRT};
-    harness_stdx
+    harness_stdx;
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
+
 TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
@@ -180,16 +199,16 @@ TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
 
 ADD_LIBRARY(http_client
   SHARED
-  http_client.cc
   rest_client.cc
+  http/client/client.cc
+  http/client/error_code.cc
+  http/client/request.cc
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBRT}
-  http_common)
+  http_common
+  )
 
-SET_TARGET_PROPERTIES(http_client PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 TARGET_INCLUDE_DIRECTORIES(http_client PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
@@ -197,13 +216,20 @@ TARGET_INCLUDE_DIRECTORIES(http_client PUBLIC
 ## the rpath for the bundled openssl
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_client)
 
-# INSTALL(TARGETS http_client
-#   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}
-#   COMPONENT Router
-#   LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR}
-#   COMPONENT Router
-#   ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
-#   COMPONENT Router)
+SET_TARGET_PROPERTIES(http_client PROPERTIES
+  OUTPUT_NAME "http_client"
+  SOVERSION 1
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+  )
+
+#INSTALL(TARGETS http_client
+#  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}
+#  COMPONENT Router
+#  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
+#  COMPONENT Router
+#  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR}
+#  COMPONENT Router NAMELINK_SKIP)
 
 MYSQL_ADD_EXECUTABLE(rest_cli
   rest_cli.cc
@@ -228,5 +254,4 @@ ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/metadata_cache/include/)
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/http/include/)
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/src/http/include/)

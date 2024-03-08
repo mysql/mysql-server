@@ -32,15 +32,16 @@
 #include <utility>
 #include <vector>
 
-#include "mysqlrouter/http_server_component.h"
+#include "http/base/request.h"
+#include "mysqlrouter/component/http_server_component.h"
 #include "rest_api_plugin.h"
 
-class RestApiHttpRequestHandler : public BaseRequestHandler {
+class RestApiHttpRequestHandler : public http::base::RequestHandler {
  public:
   RestApiHttpRequestHandler(std::shared_ptr<RestApi> rest_api)
       : rest_api_(std::move(rest_api)) {}
 
-  void handle_request(HttpRequest &req) override;
+  void handle_request(http::base::Request &req) override;
 
  private:
   std::shared_ptr<RestApi> rest_api_;
@@ -58,7 +59,7 @@ class RestApiSpecHandler : public BaseRestApiHandler {
         require_realm_(require_realm) {}
 
   bool try_handle_request(
-      HttpRequest &req, const std::string &base_path,
+      http::base::Request &req, const std::string &base_path,
       const std::vector<std::string> &path_matches) override;
 
  private:

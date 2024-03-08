@@ -41,7 +41,7 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
-#include "base64.h"
+#include "mysqlrouter/base64.h"
 
 std::string ShaCrypt::salt() {
   // 12 byte input, generate 16 byte output
@@ -203,7 +203,7 @@ std::string ShaCrypt::derive(ShaCrypt::Type type, unsigned long rounds,
         a.update(b_out);
       }
       // 10.
-      a.update(std::vector<uint8_t>(b_out.begin(), b_out.begin() + cnt));
+      a.update({b_out.begin(), b_out.begin() + cnt});
     }
 
     // 11.

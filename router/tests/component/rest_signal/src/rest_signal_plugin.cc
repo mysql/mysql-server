@@ -39,7 +39,7 @@
 #include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // ::join()
 
-#include "mysqlrouter/http_server_component.h"
+#include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/rest_api_component.h"
 
 #include "rest_signal_abort.h"

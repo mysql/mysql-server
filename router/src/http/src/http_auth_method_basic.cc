@@ -23,7 +23,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "http_auth_method_basic.h"
+#include "mysqlrouter/component/http_auth_method_basic.h"
 
 #include <algorithm>  // std::find
 #include <iterator>   // std::back_inserter
@@ -31,7 +31,7 @@
 #include <system_error>  // std::errc
 #include <vector>
 
-#include "../src/base64.h"
+#include "mysqlrouter/base64.h"
 
 HttpAuthMethodBasic::AuthData HttpAuthMethodBasic::decode_authorization(
     const std::string &http_auth_data, std::error_code &ec) {

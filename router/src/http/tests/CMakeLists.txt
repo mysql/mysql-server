@@ -24,12 +24,22 @@
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
 
+# Google-test TYPED_TEST doesn't override the virtual method in derived class.
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+SET(TEST_FILES
+  server-key.pem
+  server-cert.pem
+  )
+COPY_TEST_FILES(${CMAKE_SOURCE_DIR}/mysql-test/std_data/ "${TEST_FILES}")
+
+
 add_test_file(test_time.cc
   MODULE http
   LIB_DEPENDS http_client
   )
 
-add_test_file(test_http_uri.cc
+add_test_file(test_uri.cc
   MODULE http
   LIB_DEPENDS http_common
   )
@@ -58,19 +68,26 @@ add_test_file(test_passwd.cc
 
 add_test_file(test_auth.cc
   MODULE http
-  EXTRA_SOURCES
-  ../src/http_auth.cc
-  ../src/http_auth_method_basic.cc
-  LIB_DEPENDS http_auth_realm_lib
+  LIB_DEPENDS
+    http_auth_realm_lib
+    router_lib
+    http_common
+    http_server
   )
 ## http_auth.cc and friends are from the http_server plugin and their symbols are marked a "dllimport"
 ## by default. As we use them directly, mark them as "static" instead.
 SET_TARGET_PROPERTIES(routertest_http_auth PROPERTIES
   COMPILE_DEFINITIONS "http_server_DEFINE_STATIC")
 
+TARGET_INCLUDE_DIRECTORIES(routertest_http_auth
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/
+  )
+
 add_test_file(test_auth_method.cc
   MODULE http
-  EXTRA_SOURCES ../src/http_auth_method_basic.cc
+  LIB_DEPENDS
+    http_common
   )
 ## http_auth_method_basic.cc is from the http_server plugin and its symbols are marked a "dllimport"
 ## by default. As we use them directly, mark them as "static" instead.

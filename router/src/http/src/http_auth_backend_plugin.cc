@@ -48,7 +48,7 @@
 #include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"
 
-#include "mysqlrouter/http_auth_backend_component.h"
+#include "mysqlrouter/component/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
 #include "mysqlrouter/http_constants.h"
 #include "mysqlrouter/metadata_cache.h"

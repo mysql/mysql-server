@@ -48,6 +48,8 @@ TlsClientContext::TlsClientContext(TlsVerify mode, bool session_cache_mode,
       session_cache_mode_(session_cache_mode),
       session_cache_size_(session_cache_size),
       session_cache_timeout_(session_cache_timeout) {
+  if (!ssl_ctx_.get()) return;
+
   (void)set_ecdh(ssl_ctx_.get());
   (void)set_dh(ssl_ctx_.get());
   verify(mode);
@@ -76,7 +78,7 @@ TlsClientContext::TlsClientContext(TlsVerify mode, bool session_cache_mode,
 }
 
 TlsClientContext::~TlsClientContext() {
-  if (session_cache_mode_) {
+  if (session_cache_mode_ && ssl_ctx_.get()) {
     SSL_CTX_sess_set_get_cb(ssl_ctx_.get(), nullptr);
     SSL_CTX_sess_set_remove_cb(ssl_ctx_.get(), nullptr);
   }

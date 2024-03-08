@@ -929,7 +929,7 @@ static bool match_query(const std::string &s, size_t pos_start, size_t &pos_end,
 }
 
 // decode a std::string with pct-encoding
-static std::string pct_decode(const std::string &s) {
+std::string pct_decode(const std::string &s) {
   size_t s_len = s.length();
   std::string decoded;
 
@@ -963,6 +963,41 @@ static URIQuery split_query(const std::string &s) {
   }
 
   return query;
+}
+
+std::string URIParser::decode(const std::string &uri, bool decode_plus) {
+  std::string pct;
+  std::string result;
+  bool gather_pct = false;
+
+  pct.reserve(3);
+  for (auto c : uri) {
+    if (gather_pct) {
+      pct += c;
+      if (3 == pct.length()) {
+        result += pct_decode(pct);
+        gather_pct = false;
+      }
+      continue;
+    } else if ('?' == c) {
+      decode_plus = true;
+    } else if ('+' == c && decode_plus) {
+      c = ' ';
+    } else if ('%' == c) {
+      gather_pct = true;
+      pct = '%';
+      continue;
+    }
+
+    result += c;
+  }
+
+  // If we did not flush the pct buffer
+  if (gather_pct) {
+    result += pct;
+  }
+
+  return result;
 }
 
 /**
@@ -1029,17 +1064,21 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
 }
 
 /*static*/ URI URIParser::parse(const std::string &uri,
-                                bool allow_path_rootless) {
+                                bool allow_path_rootless, bool allow_schemeless,
+                                bool path_keep_last_slash,
+                                bool query_single_parameter_when_cant_parse) {
   size_t pos = 0;
+  bool have_scheme = true;
 
   // stage: match and extract fields
   //
   std::string tmp_scheme;
   if (!match_scheme(uri, pos, pos, tmp_scheme)) {
-    throw URIError("no scheme", uri, pos);
+    if (!allow_schemeless) throw URIError("no scheme", uri, pos);
+    have_scheme = false;
   }
 
-  if (!match_colon(uri, pos, pos)) {
+  if (have_scheme && !match_colon(uri, pos, pos)) {
     throw URIError("expected colon after scheme", uri, pos);
   }
 
@@ -1107,16 +1146,16 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
     }
   }
 
-  URI u;
+  URI u{"", allow_path_rootless, allow_schemeless, path_keep_last_slash,
+        query_single_parameter_when_cant_parse};
 
   u.scheme = tmp_scheme;
   u.host = pct_decode(tmp_host);
   u.port = static_cast<uint16_t>(parsed_port);
   u.username = pct_decode(tmp_username);
   u.password = pct_decode(tmp_password);
-  u.path = split_string(tmp_path, '/', false);
-  std::transform(u.path.begin(), u.path.end(), u.path.begin(), pct_decode);
-  u.query = split_query(tmp_query);
+  u.set_path_from_string(tmp_path);
+  u.set_query_from_string(tmp_query);
   u.fragment = pct_decode(tmp_fragment);
 
   return u;
@@ -1166,7 +1205,12 @@ static std::string pct_encode(const std::string &s,
 std::ostream &operator<<(std::ostream &strm, const URI &uri) {
   bool need_slash = false;
 
-  strm << uri.scheme << ":";
+  if (!(uri.scheme.empty() && uri.allow_schemeless_)) {
+    strm << uri.scheme << ":";
+  } else {
+    need_slash = true;
+  }
+
   if (uri.username.length() > 0 || uri.host.length() > 0 || uri.port > 0 ||
       uri.password.length() > 0) {
     // we have a authority
@@ -1198,26 +1242,10 @@ std::ostream &operator<<(std::ostream &strm, const URI &uri) {
     need_slash = true;
   }
 
-  for (auto &segment : uri.path) {
-    if (need_slash) {
-      strm << "/";
-    }
-    strm << pct_encode(segment, kPathCharNoPctEncoded);
+  strm << uri.get_path_as_string(need_slash);
 
-    need_slash = true;
-  }
   if (uri.query.size() > 0) {
-    bool need_amp = false;
-
-    strm << "?";
-    for (auto &k_v : uri.query) {
-      if (need_amp) {
-        strm << "&";
-      }
-      strm << pct_encode(k_v.first, kUnreserved) << "="
-           << pct_encode(k_v.second, kUnreserved);
-      need_amp = true;
-    }
+    strm << "?" << uri.get_query_as_string();
   }
   if (uri.fragment.size() > 0) {
     strm << "#" << pct_encode(uri.fragment, kPathCharNoPctEncoded + "/?");
@@ -1238,7 +1266,82 @@ void URI::init_from_uri(const std::string &uri) {
     return;
   }
 
-  *this = URIParser::parse(uri, allow_path_rootless_);
+  *this = URIParser::parse(uri, allow_path_rootless_, allow_schemeless_,
+                           path_keep_last_slash_,
+                           query_single_parameter_when_cant_parse_);
+}
+
+void URI::set_path_from_string(const std::string &p) {
+  path = split_string(p, '/', path_keep_last_slash_);
+  const bool path_begins_with_slash = !p.empty() && *p.begin() == '/';
+  const bool is_first_element_empty = !path.empty() && path[0].empty();
+
+  if (path_begins_with_slash && is_first_element_empty) {
+    path.erase(path.begin());
+  }
+
+  std::transform(path.begin(), path.end(), path.begin(), pct_decode);
+}
+
+void URI::set_query_from_string(const std::string &q) {
+  try {
+    query = split_query(q);
+  } catch (...) {
+    if (!query_single_parameter_when_cant_parse_) throw;
+
+    query_is_signle_parameter_ = true;
+    query.clear();
+    query[""] = pct_decode(q);
+  }
+}
+
+std::string URI::get_path_as_string(bool needs_first_slash) const {
+  auto needs_slash = needs_first_slash;
+  std::string result;
+
+  auto size = path.size();
+  for (const auto &p : path) size += p.length();
+
+  result.reserve(size);
+
+  for (auto &segment : path) {
+    if (needs_slash) {
+      result.append("/");
+    }
+    result.append(pct_encode(segment, kPathCharNoPctEncoded));
+
+    needs_slash = true;
+  }
+
+  return result;
+}
+
+std::string URI::get_query_as_string() const {
+  if (!query_is_signle_parameter_) {
+    std::string result;
+    bool need_amp = false;
+    auto size = query.size();
+    for (const auto &p : query)
+      size += p.first.length() + p.second.length() + 1;
+
+    result.reserve(size);
+
+    for (auto &k_v : query) {
+      if (need_amp) {
+        result.append("&");
+      }
+
+      result += pct_encode(k_v.first, kUnreserved) + "=" +
+                pct_encode(k_v.second, kUnreserved);
+      need_amp = true;
+    }
+
+    return result;
+  }
+
+  if (query.empty()) return "";
+
+  return pct_encode(query.begin()->second, kUnreserved);
 }
 
 bool URI::operator==(const URI &u2) const {

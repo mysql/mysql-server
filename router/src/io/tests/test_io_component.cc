@@ -145,7 +145,17 @@ TEST_F(IoComponentTest, init_unknown_backend) {
 #define INIT_TOO_MANY_THREADS_TEST_NAME DISABLED_init_too_many_threads
 #endif
 
-TEST_F(IoComponentTest, INIT_TOO_MANY_THREADS_TEST_NAME) {
+// Test temporary disabled. The reason is faulty implementation
+// of std::error_code on older platforms.
+// Example: EL7 puts new things into stdc++ static library
+// and this doesn't work well when application puts code into
+// shared-libraries.
+// Generic error category gets an instance in each shared-library
+// and std::error_code compares the category by address.
+// This causes that the same errors, are not matched because
+// they have different instances of the same category
+// (were created in different shared_liblaries).
+TEST_F(IoComponentTest, DISABLED_init_too_many_threads) {
   auto &io_comp = IoComponent::get_instance();
 
 #if defined(__linux__)

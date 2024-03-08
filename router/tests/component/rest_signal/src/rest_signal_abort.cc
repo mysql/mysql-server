@@ -36,7 +36,7 @@
 
 constexpr const char RestSignalAbort::path_regex[];
 
-bool RestSignalAbort::on_handle_request(HttpRequest &req,
+bool RestSignalAbort::on_handle_request(http::base::Request &req,
                                         const std::string & /* base_path */,
                                         const std::vector<std::string> &) {
   if (!ensure_no_params(req)) return true;

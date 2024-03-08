@@ -29,7 +29,7 @@
 
 #include "http_auth_error.h"
 #include "http_auth_realm.h"
-#include "mysqlrouter/http_auth_realm_component.h"
+#include "mysqlrouter/component/http_auth_realm_component.h"
 
 void HttpAuthRealmComponent::add_realm(const std::string &name,
                                        std::shared_ptr<HttpAuthRealm> realm) {

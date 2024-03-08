@@ -182,7 +182,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
 
     ASSERT_TRUE(req) << "HTTP Request failed (early): " << req.error_msg()
                      << std::endl;
-    ASSERT_GT(req.get_response_code(), 0u)
+    ASSERT_GT(req.get_response_code(), 0)
         << "HTTP Request failed: " << req.error_msg() << std::endl;
   }
 

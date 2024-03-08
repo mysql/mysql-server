@@ -98,7 +98,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
     ${CMAKE_SOURCE_DIR}/plugin/x/client
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS
   http_client
@@ -139,7 +139,7 @@ FOREACH(test_file
     )
 add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/plugin/x/client/

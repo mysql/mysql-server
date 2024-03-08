@@ -28,8 +28,10 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <openssl/evp.h>
@@ -89,17 +91,12 @@ class Digest {
    *
    * @param data data to update digest function with
    */
-  void update(const std::string &data) {
+  void update(const std::span<uint8_t> &data) {
     EVP_DigestUpdate(ctx_.get(), data.data(), data.size());
   }
 
-  /**
-   * update Digest.
-   *
-   * @param data data to update digest function with
-   */
-  void update(const std::vector<uint8_t> &data) {
-    EVP_DigestUpdate(ctx_.get(), data.data(), data.size());
+  void update(const std::string_view &data) {
+    EVP_DigestUpdate(ctx_.get(), data.data(), data.length());
   }
 
   /**
