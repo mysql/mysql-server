@@ -133,7 +133,7 @@ SELECT (@id1<@id2);
 (@id1<@id2)
 1
 SET @@internal_tmp_mem_storage_engine = default;
-SET GLOBAL temptable_max_ram = default;
+SET GLOBAL temptable_max_ram = 1073741824;
 # ---------------------------------------------------------------------
 # Scenario 5: (ENGINE=TempTable, LIMIT=default, CASE=no-disk-memory, RESULT=error)
 #
@@ -159,7 +159,7 @@ SHOW STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	2
 SET @@internal_tmp_mem_storage_engine = default;
-SET GLOBAL temptable_max_ram = default;
+SET GLOBAL temptable_max_ram = 1073741824;
 SET debug = '-d,temptable_fetch_from_disk_return_null';
 DROP TABLE t;
 SET optimizer_switch="hash_join=on";

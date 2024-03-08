@@ -19,7 +19,7 @@ performance_schema	ON
 show global variables like "performance_schema_max_thread%";
 Variable_name	Value
 performance_schema_max_thread_classes	100
-performance_schema_max_thread_instances	50
+performance_schema_max_thread_instances	100
 select count(*) from performance_schema.threads
 where name like "thread/sql/main";
 count(*)

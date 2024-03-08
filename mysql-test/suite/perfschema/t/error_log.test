@@ -139,6 +139,8 @@ SELECT prio,error_code,subsystem,data
 # MY-010099: ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
 # MY-010101: ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
 # MY-011070: ER_DEPRECATE_MSG_NO_REPLACEMENT
+# MY-011872,MY-011874: ER_IB_MSG_47,ER_IB_MSG_49, innodb_numa_interleave constructor and destructor, depends on platform
+# MY-015140: ER_IB_MSG_INNODB_FLUSH_METHOD, info emitted if default flush method is used on non-Windows platforms, depends on platform
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -152,7 +154,8 @@ SELECT prio,error_code,subsystem
                          "MY-013880", "MY-013881", "MY-013882", "MY-013883",
                          "MY-013884", "MY-013908", "MY-013930", "MY-014013",
                          "MY-000068", "MY-014066", "MY-014067", "MY-014068",
-                         "MY-013932", "MY-010101", "MY-010099", "MY-011070")
+                         "MY-013932", "MY-010101", "MY-010099", "MY-011070",
+                         "MY-011872", "MY-011874", "MY-015140")
  ORDER BY logged, error_code;
 
 --echo

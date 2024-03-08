@@ -31,7 +31,7 @@ Warning	1292	Truncated incorrect temptable_max_ram value: '1'
 SELECT @@global.temptable_max_ram;
 @@global.temptable_max_ram
 2097152
-SET @@global.temptable_max_ram = default;
+SET @@global.temptable_max_ram = 1073741824;
 SET @@global.temptable_max_ram = NULL;
 ERROR 42000: Incorrect argument type to variable 'temptable_max_ram'
 SELECT @@global.temptable_max_ram;

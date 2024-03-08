@@ -22,7 +22,7 @@ SELECT @@global.temptable_max_ram;
 SET @@global.temptable_max_ram = 1;
 SELECT @@global.temptable_max_ram;
 
-SET @@global.temptable_max_ram = default;
+SET @@global.temptable_max_ram = 1073741824;
 
 -- error ER_WRONG_TYPE_FOR_VAR
 SET @@global.temptable_max_ram = NULL;

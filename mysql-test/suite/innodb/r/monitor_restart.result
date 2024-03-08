@@ -5,6 +5,8 @@ CREATE TABLE t1(a INT PRIMARY KEY, b BLOB) STATS_PERSISTENT=0;
 SET GLOBAL innodb_fast_shutdown=0;
 # restart
 SET GLOBAL innodb_purge_stop_now = ON;
+SET @saved_ahi = @@global.innodb_adaptive_hash_index;
+SET GLOBAL innodb_adaptive_hash_index = ON;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -18,3 +20,4 @@ a	b
 3	ghi
 DROP TABLE t1;
 SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_adaptive_hash_index = @saved_ahi;

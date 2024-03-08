@@ -1522,7 +1522,6 @@ The following options may be given as the first argument:
  --temptable-use-mmap 
  Use mmap files for temptables. This variable is
  deprecated and will be removed in a future release.
- (Defaults to on; use --skip-temptable-use-mmap to disable.)
  --terminology-use-previous=name 
  Make monitoring tables and statements use the identifiers
  that were in use before they were changed in a given
@@ -2007,9 +2006,8 @@ table-encryption-privilege-check FALSE
 table-open-cache-instances 16
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
-temptable-max-mmap 1073741824
-temptable-max-ram 1073741824
-temptable-use-mmap TRUE
+temptable-max-mmap 0
+temptable-use-mmap FALSE
 terminology-use-previous NONE
 thread-cache-size 9
 thread-handling one-thread-per-connection
