@@ -824,6 +824,7 @@ THD::THD(bool enable_plugins)
   protocol_text->init(this);
   protocol_binary->init(this);
   protocol_text->set_client_capabilities(0);  // minimalistic client
+  m_cached_is_connection_alive.store(m_protocol->connection_alive());
 
   /*
     Make sure thr_lock_info_init() is called for threads which do not get
@@ -3173,13 +3174,22 @@ bool THD::is_classic_protocol() const {
          get_protocol()->type() == Protocol::PROTOCOL_TEXT;
 }
 
-bool THD::is_connected() {
+bool THD::is_connected(bool use_cached_connection_alive) {
   /*
     All system threads (e.g., the slave IO thread) are connected but
     not using vio. So this function always returns true for all
     system threads.
   */
   if (system_thread) return true;
+
+  /*
+    In some situations, e.g. when generating information_schema.processlist,
+    we can live with a cached value to avoid introducing mutex usage.
+  */
+  if (use_cached_connection_alive) {
+    DEBUG_SYNC(current_thd, "wait_before_checking_alive");
+    return m_cached_is_connection_alive.load();
+  }
 
   if (is_classic_protocol())
     return get_protocol()->connection_alive() &&
@@ -3188,17 +3198,30 @@ bool THD::is_connected() {
   return get_protocol()->connection_alive();
 }
 
+Protocol *THD::get_protocol() {
+  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  return m_protocol;
+}
+
+Protocol_classic *THD::get_protocol_classic() {
+  assert(is_classic_protocol());
+  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  return pointer_cast<Protocol_classic *>(m_protocol);
+}
+
 void THD::push_protocol(Protocol *protocol) {
   assert(m_protocol != nullptr);
   assert(protocol != nullptr);
   m_protocol->push_protocol(protocol);
   m_protocol = protocol;
+  m_cached_is_connection_alive.store(m_protocol->connection_alive());
 }
 
 void THD::pop_protocol() {
   assert(m_protocol != nullptr);
   m_protocol = m_protocol->pop_protocol();
   assert(m_protocol != nullptr);
+  m_cached_is_connection_alive.store(m_protocol->connection_alive());
 }
 
 void THD::set_time() {
