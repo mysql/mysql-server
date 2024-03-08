@@ -789,7 +789,8 @@ SELECT DISTINCT REF_ID FROM t1 WHERE ID= (SELECT DISTINCT REF_ID FROM t1 WHERE I
 DROP TABLE t1;
 
 #
-# uninterruptable update
+# uninterruptable update (now that ER_SUBQUERY_NO_1_ROW is no longer ignoreable,
+# this test case has lost its significance).
 #
 create table t1 (a int, b int);
 create table t2 (a int, b int);
@@ -797,6 +798,7 @@ create table t2 (a int, b int);
 insert into t1 values (1,0), (2,0), (3,0);
 insert into t2 values (1,1), (2,1), (3,1), (2,2);
 
+--error ER_SUBQUERY_NO_1_ROW
 update ignore t1 set b=(select b from t2 where t1.a=t2.a);
 select * from t1;
 

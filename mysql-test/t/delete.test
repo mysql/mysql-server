@@ -121,10 +121,9 @@ select * from t2;
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 select * from t12;
-# Hypergraph optimizer has different number of warnings.
---disable_warnings
+--error ER_SUBQUERY_NO_1_ROW
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
---enable_warnings
+DELETE FROM t11 WHERE a = 2;
 analyze table t11,t12,t2;
 select * from t11;
 select * from t12;
@@ -133,6 +132,7 @@ analyze table t11,t12,t2;
 -- error 1242
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
+--error ER_SUBQUERY_NO_1_ROW
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 analyze table t11,t12,t2;
 select * from t11;
@@ -847,6 +847,7 @@ INSERT INTO t2 (c,d) SELECT b, a FROM t1;
 DELETE IGNORE FROM t1 WHERE b IS NOT NULL ORDER BY a LIMIT 1;
 --sorted_result
 SELECT a,b FROM t1;
+--error ER_SUBQUERY_NO_1_ROW
 DELETE IGNORE t1.*, t2.* FROM t1, t2
   WHERE c < b OR
         a != ( SELECT 1 UNION SELECT 2 );

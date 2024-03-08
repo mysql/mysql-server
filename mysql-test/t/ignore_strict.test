@@ -266,13 +266,15 @@ UPDATE t1 SET a=4 WHERE a=5;
 UPDATE IGNORE t1 SET a=4 WHERE a=5;
 DROP TABLE t1;
 
-#ER_SUBQUERY_NO_1_ROW
+#ER_SUBQUERY_NO_1_ROW (no longer ignored)
 CREATE TABLE t11 (a INT NOT NULL, b INT, PRIMARY KEY (a)) ENGINE = InnoDB;
 CREATE TABLE t2 (a INT NOT NULL, b INT, PRIMARY KEY (a)) ENGINE = InnoDB;
 INSERT INTO t11 VALUES (0, 10),(1, 11),(2, 12);
 INSERT INTO t2 VALUES (1, 21),(2, 12),(3, 23);
 --error ER_SUBQUERY_NO_1_ROW
 DELETE FROM t11 WHERE t11.b = (SELECT b FROM t2 WHERE t11.a < t2.a);
+# ER_SUBQUERY_NO_1_ROW is no longer in the ignored set
+--error ER_SUBQUERY_NO_1_ROW
 DELETE IGNORE FROM t11 WHERE t11.b = (SELECT b FROM t2 WHERE t11.a < t2.a);
 DROP TABLE t11, t2;
 
@@ -681,3 +683,14 @@ SET SESSION sql_safe_updates=ON;
 DELETE IGNORE FROM t1 WHERE a=1;
 DROP TABLE t1;
 SET sql_safe_updates= @org_safe_updates;
+
+--echo #
+--echo # Bug#35373406 Subquery to derived optimizer assertion error
+--echo #
+CREATE TABLE t1(c0 INT);
+INSERT INTO t1 VALUES (1), (2);
+SET @@SESSION.OPTIMIZER_SWITCH = 'subquery_to_derived=on';
+--error ER_SUBQUERY_NO_1_ROW
+INSERT IGNORE INTO t1 (SELECT (SELECT t1.c0 FROM t1) FROM t1);
+SET @@SESSION.OPTIMIZER_SWITCH = 'subquery_to_derived=default';
+DROP TABLE t1;

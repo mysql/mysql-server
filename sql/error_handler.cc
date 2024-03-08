@@ -92,7 +92,6 @@ bool Ignore_error_handler::handle_condition(
     codes are used in any other case in future.
   */
   switch (sql_errno) {
-    case ER_SUBQUERY_NO_1_ROW:
     case ER_ROW_IS_REFERENCED_2:
     case ER_NO_REFERENCED_ROW_2:
     case ER_NO_REFERENCED_ROW:

@@ -701,10 +701,12 @@ CREATE TABLE t2 ( a INT );
 INSERT INTO t2 VALUES (1), (2);
 CREATE TABLE t3 ( a INT );
 INSERT INTO t3 VALUES (1), (2);
-# Should not crash
+# This test has lost its original coverage for Bug#54543 now
+# that ER_SUBQUERY_NO_1_ROW is no longer ignored
 UPDATE IGNORE
 ( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
 SET t3.a = 0;
+ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
 set @@optimizer_switch=@optimizer_switch_saved;

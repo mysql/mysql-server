@@ -138,6 +138,8 @@ a	b
 2	12
 33	10
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
+ERROR 21000: Subquery returns more than 1 row
+DELETE FROM t11 WHERE a = 2;
 analyze table t11,t12,t2;
 Table	Op	Msg_type	Msg_text
 test.t11	analyze	status	OK
@@ -150,6 +152,7 @@ a	b
 select * from t12;
 a	b
 0	11
+2	12
 33	10
 insert into t11 values (2, 12);
 analyze table t11,t12,t2;
@@ -165,9 +168,7 @@ a	b
 1	11
 2	12
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
-Warnings:
-Warning	1242	Subquery returns more than 1 row
-Warning	1242	Subquery returns more than 1 row
+ERROR 21000: Subquery returns more than 1 row
 analyze table t11,t12,t2;
 Table	Op	Msg_type	Msg_text
 test.t11	analyze	status	OK
@@ -177,6 +178,7 @@ select * from t11;
 a	b
 0	10
 1	11
+2	12
 drop table t11, t12, t2;
 # sql_safe_updates mode with single-table DELETE.
 CREATE TABLE t (a INTEGER);
@@ -818,8 +820,7 @@ a	b
 DELETE IGNORE t1.*, t2.* FROM t1, t2
 WHERE c < b OR
 a != ( SELECT 1 UNION SELECT 2 );
-Warnings:
-Warning	1242	Subquery returns more than 1 row
+ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1, t2;
 #
 # Bug#29153485: ASSERTION IN JOIN_READ_CONST_TABLE()
