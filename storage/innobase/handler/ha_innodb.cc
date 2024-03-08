@@ -4522,9 +4522,11 @@ static inline bool innodb_io_capacity_max_is_set() {
   return innodb_variable_is_set("innodb_io_capacity_max");
 }
 
+#ifndef _WIN32
 static inline bool innodb_flush_method_is_set() {
   return innodb_variable_is_set("innodb_flush_method");
 }
+#endif
 
 /** Initialize and normalize innodb_buffer_pool_size. */
 static void innodb_buffer_pool_size_init() {
