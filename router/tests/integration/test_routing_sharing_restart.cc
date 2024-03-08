@@ -1180,7 +1180,6 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
       switch (ndx) {
         case 0:   // sleep
-        case 4:   // list-fields
         case 5:   // create-db
         case 6:   // drop-db
         case 7:   // refresh
@@ -1222,6 +1221,12 @@ TEST_P(ShareConnectionTestWithRestartedServer,
           // query was empty
           // malformed packet
           EXPECT_THAT(msg.error_code(), AnyOf(1065, 1835)) << msg.message();
+          break;
+        case cmd_byte<classic_protocol::message::client::ListFields>():  // 4
+
+          EXPECT_THAT(msg.error_code(), AnyOf(1047,   // unknown command in 9.0
+                                              1835))  // malformed packet in 8.4
+              << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::StmtPrepare>():  // 22
 
