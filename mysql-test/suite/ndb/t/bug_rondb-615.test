@@ -1,0 +1,35 @@
+--source rondb-simple-restore-prelude.inc
+
+--echo After index rebuild, index should be usable.
+--exec $restore -n 1 -m -D -r    $backup >> $trash
+--exec $restore -n 2    -D -r    $backup >> $trash
+--exec $restore -n 1          -R $backup >> $trash
+select * from t1 where val1=4;
+--source rondb-simple-restore-check.inc
+
+--echo Execute `show create table` while index is disabled. Then after index rebuild, index should be usable.
+--exec $restore -n 1 -m -D -r    $backup >> $trash
+--exec $restore -n 2    -D -r    $backup >> $trash
+show create table t1;
+--exec $restore -n 1          -R $backup >> $trash
+select * from t1 where val1=4;
+--source rondb-simple-restore-check.inc
+
+--echo Query the table while index is disabled. Then after index rebuild, index should be usable.
+--exec $restore -n 1 -m -D -r    $backup >> $trash
+--exec $restore -n 2    -D -r    $backup >> $trash
+select * from t1 order by val1;
+--exec $restore -n 1          -R $backup >> $trash
+select * from t1 where val1=4;
+--source rondb-simple-restore-check.inc
+
+--echo Attempt and fail to use the index while it is disabled. Then after index rebuild, index should be usable.
+--exec $restore -n 1 -m -D -r    $backup >> $trash
+--exec $restore -n 2    -D -r    $backup >> $trash
+--error 1034
+select * from t1 where val1=4;
+--exec $restore -n 1          -R $backup >> $trash
+select * from t1 where val1=4;
+--source rondb-simple-restore-check.inc
+
+--source rondb-simple-restore-epilogue.inc

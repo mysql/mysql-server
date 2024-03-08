@@ -1,0 +1,78 @@
+Create table t1 with a unique index, and table t2 without.
+use test;
+create table t1 (
+id int primary key,
+val1 int unique) engine=ndb;
+create table t2 (
+id int primary key,
+val1 int) engine=ndb;
+insert into t1 values
+(1, 6),
+(3, 4),
+(2, 5);
+insert into t2 values
+(8, 11),
+(7, 12),
+(9, 10);
+Original database
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `val1` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `val1` (`val1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from t1 order by id;
+id	val1
+1	6
+2	5
+3	4
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `val1` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from t2 order by id;
+id	val1
+7	12
+8	11
+9	10
+Backing up data
+After index rebuild, index should be usable.
+select * from t1 where val1=4;
+id	val1
+3	4
+- Restored database matches original
+Execute `show create table` while index is disabled. Then after index rebuild, index should be usable.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `val1` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `val1` (`val1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from t1 where val1=4;
+id	val1
+3	4
+- Restored database matches original
+Query the table while index is disabled. Then after index rebuild, index should be usable.
+select * from t1 order by val1;
+id	val1
+3	4
+2	5
+1	6
+select * from t1 where val1=4;
+id	val1
+3	4
+- Restored database matches original
+Attempt and fail to use the index while it is disabled. Then after index rebuild, index should be usable.
+select * from t1 where val1=4;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+select * from t1 where val1=4;
+id	val1
+3	4
+- Restored database matches original
