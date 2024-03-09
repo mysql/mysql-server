@@ -37,6 +37,7 @@ SET GLOBAL debug='+d,fts_crash_before_commit_sync';
 --error CR_SERVER_LOST
 OPTIMIZE TABLE opening_lines;
 
+--enable_reconnect
 --source include/wait_until_connected_again.inc
 
 SELECT * FROM opening_lines WHERE MATCH(opening_line) AGAINST('Ishmael');
