@@ -2790,7 +2790,9 @@ fts_cmp_set_sync_doc_id(
 						after comparing "doc_id_cmp"
 						to the one stored in CONFIG
 						table */
-        trx_t*                  trx = NULL)
+        trx_t*                  trx = NULL)     /*!< in: transaction in which
+                                                the doc_id is retrieved and
+                                                stored */
 {
 	pars_info_t*	info;
 	dberr_t		error;
