@@ -1,4 +1,9 @@
-# Test creation of FTS index with disable_sort_file_cache=ON
+# Test creation of FTS index with innodb_disable_sort_file_cache=ON
+
+# Disabled for filesystems with no O_DIRECT mode support -
+# innodb_disable_sort_file_cache will attempt to use direct mode and warn
+# if it's not available
+--source include/have_odirect.inc
 
 CREATE TABLE test (
   num INTEGER,
