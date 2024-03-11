@@ -2291,6 +2291,35 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
   EXPECT_FALSE(router.expect_output("Could not delete file .*", true, 0ms));
 }
 
+/**
+ * @test
+ *       verify that trying to register Router that is not unique in the
+ * metadata with --force parameter gives expected results.
+ */
+TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntryOverwrite) {
+  TempDirectory bootstrap_directory;
+  const auto bootstrap_server_port = port_pool_.get_next_available();
+  // const auto server_http_port = port_pool_.get_next_available();
+  const auto bootstrap_server_http_port = port_pool_.get_next_available();
+  const std::string json_stmts =
+      get_data_dir().join("bootstrap_gr_dup_router.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, bootstrap_server_port, EXIT_SUCCESS,
+                           false, bootstrap_server_http_port);
+  set_mock_metadata(bootstrap_server_http_port, "cluster-specific-id",
+                    classic_ports_to_gr_nodes({bootstrap_server_port}), 0,
+                    {bootstrap_server_port});
+
+  // launch the router in bootstrap mode
+  auto &router = launch_router_for_bootstrap(
+      {"--bootstrap=127.0.0.1:" + std::to_string(bootstrap_server_port), "-d",
+       bootstrap_directory.name(), "--force"},
+      EXIT_SUCCESS);
+
+  check_exit_code(router, EXIT_SUCCESS);
+}
+
 class ConfSetOptionTest : public RouterBootstrapTest {};
 
 /**
