@@ -93,9 +93,8 @@ dberr_t Datafile::open_or_create(bool read_only_mode) {
   ut_a(m_filepath != nullptr);
   ut_ad(m_handle.m_file == OS_FILE_CLOSED);
 
-  m_handle =
-      os_file_create(innodb_data_file_key, m_filepath, m_open_flags,
-                     OS_FILE_NORMAL, OS_DATA_FILE, read_only_mode, &success);
+  m_handle = os_file_create(innodb_data_file_key, m_filepath, m_open_flags,
+                            OS_DATA_FILE, read_only_mode, &success);
 
   if (!success) {
     m_last_os_error = os_file_get_last_error(true);

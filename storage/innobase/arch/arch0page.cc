@@ -232,9 +232,8 @@ int Arch_Group::mark_active() {
 
   ut_ad(m_active_file.m_file == OS_FILE_CLOSED);
 
-  m_active_file =
-      os_file_create(innodb_arch_file_key, m_active_file_name, option,
-                     OS_FILE_NORMAL, OS_CLONE_LOG_FILE, false, &success);
+  m_active_file = os_file_create(innodb_arch_file_key, m_active_file_name,
+                                 option, OS_CLONE_LOG_FILE, false, &success);
 
   int err = (success ? 0 : ER_CANT_OPEN_FILE);
 
@@ -268,9 +267,8 @@ int Arch_Group::mark_durable() {
 
   ut_ad(m_durable_file.m_file == OS_FILE_CLOSED);
 
-  m_durable_file =
-      os_file_create(innodb_arch_file_key, m_durable_file_name, option,
-                     OS_FILE_NORMAL, OS_CLONE_LOG_FILE, false, &success);
+  m_durable_file = os_file_create(innodb_arch_file_key, m_durable_file_name,
+                                  option, OS_CLONE_LOG_FILE, false, &success);
 
   int err = (success ? 0 : ER_CANT_OPEN_FILE);
 
@@ -751,7 +749,7 @@ bool Arch_File_Ctx::validate(Arch_Group *group, uint file_index,
   pfs_os_file_t file;
 
   file = os_file_create(innodb_arch_file_key, file_name, OS_FILE_OPEN,
-                        OS_FILE_NORMAL, OS_CLONE_LOG_FILE, true, &success);
+                        OS_CLONE_LOG_FILE, true, &success);
 
   if (!success) {
     return (false);
@@ -2926,7 +2924,7 @@ int Arch_Group::read_from_file(Arch_Page_Pos *read_pos, uint read_len,
   /* Open file in read only mode. */
   pfs_os_file_t file =
       os_file_create(innodb_arch_file_key, file_name, OS_FILE_OPEN,
-                     OS_FILE_NORMAL, OS_CLONE_LOG_FILE, true, &success);
+                     OS_CLONE_LOG_FILE, true, &success);
 
   if (!success) {
     my_error(ER_CANT_OPEN_FILE, MYF(0), file_name, errno,

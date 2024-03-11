@@ -2255,7 +2255,7 @@ int Clone_Handle::open_file(Clone_Task *task, const Clone_file_ctx *file_ctx,
   bool success = false;
 
   auto handle = os_file_create(innodb_clone_file_key, file_name.c_str(), option,
-                               OS_FILE_NORMAL, file_type, read_only, &success);
+                               file_type, read_only, &success);
 
   int err = 0;
 

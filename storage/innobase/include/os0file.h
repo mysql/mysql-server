@@ -120,10 +120,6 @@ static constexpr os_fd_t OS_FD_CLOSED = -1;
 
 typedef HANDLE os_file_dir_t; /*!< directory stream */
 
-/** We define always WIN_ASYNC_IO, and check at run-time whether
-the OS actually supports it: Win 95 does not, NT does. */
-#define WIN_ASYNC_IO
-
 /** Use unbuffered I/O */
 #define UNIV_NON_BUFFERED_IO
 
@@ -221,29 +217,20 @@ static const ulint OS_FILE_READ_WRITE = 444;
 
 /** Used by MySQLBackup */
 static const ulint OS_FILE_READ_ALLOW_DELETE = 555;
-
-/* Options for file_create */
-static const ulint OS_FILE_AIO = 61;
-static const ulint OS_FILE_NORMAL = 62;
 /** @} */
 
 /** Types for file create @{ */
 static const ulint OS_DATA_FILE = 100;
 static const ulint OS_LOG_FILE = 101;
+static const ulint OS_LOG_FILE_RESIZING = 102;
 /* Don't use this for Data files, Log files. Use it for smaller files
 or if number of bytes to write are not multiple of sector size.
 With this flag, writes to file will be always buffered and ignores the value
 of innodb_flush_method. */
-static const ulint OS_BUFFERED_FILE = 102;
-
-static const ulint OS_CLONE_DATA_FILE = 103;
-static const ulint OS_CLONE_LOG_FILE = 104;
-
-/** Doublewrite files. */
-static const ulint OS_DBLWR_FILE = 105;
-
-/** Redo log archive file. */
-static const ulint OS_REDO_LOG_ARCHIVE_FILE = 105;
+static const ulint OS_BUFFERED_FILE = 103;
+static const ulint OS_CLONE_DATA_FILE = 104;
+static const ulint OS_CLONE_LOG_FILE = 105;
+static const ulint OS_DBLWR_FILE = 106;
 /** @} */
 
 /** Error codes from os_file_get_last_error @{ */
@@ -756,24 +743,18 @@ void os_file_set_nocache(int fd, const char *file_name,
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      purpose         OS_FILE_AIO, if asynchronous, non-buffered I/O
-                                is desired, OS_FILE_NORMAL, if any normal file;
-                                NOTE that it also depends on type, os_aio_..
-                                and srv_.. variables whether we really use
-                                async I/O or unbuffered I/O: look in the
-                                function source code for the exact rules
-@param[in]      type            OS_DATA_FILE, OS_LOG_FILE etc.
-@param[in]      read_only       if true read only mode checks are enforced
-@param[in]      success         true if succeeded
+@param[in]      name              name of the file or path as a null-terminated
+                                  string
+@param[in]      create_mode       create mode
+@param[in]      purpose           OS_DATA_FILE, OS_LOG_FILE etc.
+@param[in]      read_only         if true read only mode checks are enforced
+@param[out]     success           true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] pfs_os_file_t os_file_create_func(const char *name,
                                                 ulint create_mode,
-                                                ulint purpose, ulint type,
-                                                bool read_only, bool *success);
+                                                ulint purpose, bool read_only,
+                                                bool *success);
 
 /** Deletes a file. The file has to be closed before calling this.
 @param[in]      name            file path as a null-terminated string
@@ -914,9 +895,9 @@ os_file_write
 
 The wrapper functions have the prefix of "innodb_". */
 
-#define os_file_create(key, name, create, purpose, type, read_only, success) \
-  pfs_os_file_create_func(key, name, create, purpose, type, read_only,       \
-                          success, UT_LOCATION_HERE)
+#define os_file_create(key, name, create, purpose, read_only, success)    \
+  pfs_os_file_create_func(key, name, create, purpose, read_only, success, \
+                          UT_LOCATION_HERE)
 
 #ifndef _WIN32
 #define os_file_create_simple_no_error_handling(key, name, create_mode,     \
@@ -1023,25 +1004,19 @@ MY_COMPILER_DIAGNOSTIC_POP()
 this function!
 A performance schema wrapper function for os_file_create().
 Add instrumentation to monitor file creation/open.
-@param[in]      key             Performance Schema Key
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      purpose         OS_FILE_AIO, if asynchronous, non-buffered I/O
-                                is desired, OS_FILE_NORMAL, if any normal file;
-                                NOTE that it also depends on type, os_aio_..
-                                and srv_.. variables whether we really use
-                                async I/O or unbuffered I/O: look in the
-                                function source code for the exact rules
-@param[in]      type            OS_DATA_FILE or OS_LOG_FILE
-@param[in]      read_only       if true read only mode checks are enforced
-@param[out]     success         true if succeeded
-@param[in]      src_location    location where func invoked
+@param[in]      key               Performance Schema Key
+@param[in]      name              name of the file or path as a null-terminated
+                                  string
+@param[in]      create_mode       create mode
+@param[in]      purpose           OS_DATA_FILE, OS_LOG_FILE etc.
+@param[in]      read_only         if true read only mode checks are enforced
+@param[out]     success           true if succeeded
+@param[in]      src_location      location where func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint purpose,
-    ulint type, bool read_only, bool *success, ut::Location src_location);
+    bool read_only, bool *success, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!
@@ -1262,8 +1237,8 @@ static inline bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key,
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
 to original un-instrumented file I/O APIs */
-#define os_file_create(key, name, create, purpose, type, read_only, success) \
-  os_file_create_func(name, create, purpose, type, read_only, success)
+#define os_file_create(key, name, create, purpose, read_only, success) \
+  os_file_create_func(name, create, purpose, read_only, success)
 
 #ifndef _WIN32
 

@@ -2932,11 +2932,11 @@ bool Fil_shard::open_file(fil_node_t *file) {
   if (file->is_raw_disk) {
     file->handle =
         os_file_create(innodb_data_file_key, file->name, OS_FILE_OPEN_RAW,
-                       OS_FILE_AIO, OS_DATA_FILE, read_only_mode, &success);
+                       OS_DATA_FILE, read_only_mode, &success);
   } else {
     file->handle =
         os_file_create(innodb_data_file_key, file->name, OS_FILE_OPEN,
-                       OS_FILE_AIO, OS_DATA_FILE, read_only_mode, &success);
+                       OS_DATA_FILE, read_only_mode, &success);
   }
 
   if (success) {
@@ -5576,9 +5576,8 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
   auto file = os_file_create(
       type == FIL_TYPE_TEMPORARY ? innodb_temp_file_key : innodb_data_file_key,
-      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode && (type != FIL_TYPE_TEMPORARY),
-      &success);
+      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_DATA_FILE,
+      srv_read_only_mode && (type != FIL_TYPE_TEMPORARY), &success);
 
   if (!success) {
     /* purecov: begin inspected */
