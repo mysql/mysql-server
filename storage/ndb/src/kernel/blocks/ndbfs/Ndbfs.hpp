@@ -151,6 +151,7 @@ class Ndbfs : public SimulatedBlock {
 
  public:
   const BaseString &get_base_path(Uint32 no) const;
+  static BaseString get_base_path_param_name(Uint32 no);
 };
 
 class VoidFs : public Ndbfs {

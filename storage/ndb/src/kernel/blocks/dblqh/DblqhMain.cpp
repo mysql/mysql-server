@@ -98,6 +98,7 @@
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
 #include "portlib/mt-asm.h"
+#include "portlib/ndb_file.h"
 
 #include "../backup/Backup.hpp"
 #include "../dbtux/Dbtux.hpp"
@@ -2107,6 +2108,8 @@ void Dblqh::execREAD_CONFIG_REQ(Signal *signal) {
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
   c_o_direct = true;
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
+  if (!ndb_file::have_direct_io_support())
+    c_o_direct = 0;  // Message in NDBFS::execREAD_CONFIG
 
   Uint32 encrypted_filesystem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_FILE_SYSTEM,
@@ -23124,7 +23127,7 @@ void Dblqh::initLogfile(LogFileRecordPtr logFilePtr, Uint32 partNo,
   logFilePtr.p->fileName[0] = (UintR)-1;
   logFilePtr.p->fileName[1] = (UintR)-1; /* = H'FFFFFFFF = -1 */
   logFilePtr.p->fileName[2] = fileNo;    /* Sfile_no */
-  tilTmp = 1;                            /* VERSION 1 OF FILE NAME */
+  tilTmp = FsOpenReq::V_BLOCK;           /* VERSION 1 OF FILE NAME */
   tilTmp = (tilTmp << 8) + 1; /* FRAGMENT LOG => .FRAGLOG AS EXTENSION */
   tilTmp = (tilTmp << 8) + (8 + partNo); /* DIRECTORY = D(8+Part)/DBLQH */
   tilTmp = (tilTmp << 8) + 255;          /* IGNORE Pxx PART OF FILE NAME */
@@ -23230,7 +23233,7 @@ void Dblqh::openFileRw(Signal *signal, LogFileRecordPtr olfLogFilePtr,
     LinearSectionPtr lsptr[3];
 
     // Use a dummy file name
-    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != FsOpenReq::V_FILENAME);
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
@@ -23295,7 +23298,7 @@ void Dblqh::openLogfileInit(Signal *signal, LogFileRecordPtr logFilePtr) {
     LinearSectionPtr lsptr[3];
 
     // Use a dummy file name
-    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != FsOpenReq::V_FILENAME);
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
@@ -23442,7 +23445,8 @@ void Dblqh::openNextLogfile(Signal *signal, LogFileRecord *logFilePtrP,
       LinearSectionPtr lsptr[3];
 
       // Use a dummy file name
-      ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+      ndbrequire(FsOpenReq::getVersion(req->fileNumber) !=
+                 FsOpenReq::V_FILENAME);
       lsptr[FsOpenReq::FILENAME].p = nullptr;
       lsptr[FsOpenReq::FILENAME].sz = 0;
 

@@ -35,6 +35,7 @@
 #include <EventLogger.hpp>
 #include <Properties.hpp>
 #include <signaldata/RedoStateRep.hpp>
+#include "portlib/ndb_file.h"
 
 #define JAM_FILE_ID 472
 
@@ -250,6 +251,8 @@ void Backup::execREAD_CONFIG_REQ(Signal *signal) {
   ndbrequire(
       !ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_defaults.m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_defaults.m_o_direct);
+  if (!ndb_file::have_direct_io_support())
+    c_defaults.m_o_direct = 0;  // Message in NDBFS::execREAD_CONFIG
 
   Uint32 encrypted_filesystem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_FILE_SYSTEM,

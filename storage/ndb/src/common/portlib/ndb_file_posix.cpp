@@ -316,7 +316,7 @@ int ndb_file::close() {
 
 void ndb_file::invalidate() { m_handle = -1; }
 
-bool ndb_file::have_direct_io_support() const {
+bool ndb_file::have_direct_io_support() {
 #if defined(O_DIRECT) || (defined(HAVE_DIRECTIO) && defined(DIRECTIO_ON))
   return true;
 #else

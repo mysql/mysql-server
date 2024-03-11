@@ -904,7 +904,7 @@ int Tsman::open_file(Signal *signal, Ptr<Tablespace> ts_ptr, Ptr<Datafile> ptr,
   req->userPointer = ptr.i;
 
   memset(req->fileNumber, 0, sizeof(req->fileNumber));
-  FsOpenReq::setVersion(req->fileNumber, 4);  // Version 4 = specified filename
+  FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_FILENAME);
   FsOpenReq::v4_setBasePath(req->fileNumber, FsOpenReq::BP_DD_DF);
 
   req->fileFlags = 0;
