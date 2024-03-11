@@ -579,7 +579,8 @@ remove_if_created:
   //  require(!created);
 #if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
   // Sometimes inject double file delete
-  if (created && ndb_rand() % 100 == 0) m_file.remove(theFileName.c_str());
+  if (created && check_inject_and_log_extra_remove(theFileName.c_str()))
+    m_file.remove(theFileName.c_str());
 #endif
   if (created && m_file.remove(theFileName.c_str()) == -1) {
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
@@ -1054,6 +1055,22 @@ bool AsyncFile::check_and_log_if_remove_failure_ok(const char *pathname) {
       "Unreliable filesystem?",
       pathname);
   set_last_os_error(0);
+  return true;
+}
+#endif
+
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+bool AsyncFile::check_inject_and_log_extra_remove(const char *pathname) {
+  // Remove file in 1% of cases
+  if (ndb_rand() % 100 >= 1) return false;
+  /*
+   * The actual injection of an extra remove should be done by caller when
+   * this function returns true.
+   */
+  g_eventLogger->info(
+      "Injected error: expect 'Ignoring unexpected error' for path %s to "
+      "follow. Removed file twice to emulate an unreliable filesystem.",
+      pathname);
   return true;
 }
 #endif
