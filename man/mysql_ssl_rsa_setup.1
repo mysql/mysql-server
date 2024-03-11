@@ -2,12 +2,12 @@
 .\"     Title: mysql_ssl_rsa_setup
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL_SSL_RSA_SETUP" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL_SSL_RSA_SETUP" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -74,7 +74,7 @@ uses the
 command, so its use is contingent on having OpenSSL installed on your machine\&.
 .PP
 Another way to generate SSL and RSA files, for MySQL distributions compiled using OpenSSL, is to have the server generate them automatically\&. See
-Section\ \&6.3.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&8.3.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -207,7 +207,7 @@ client\-key\&.pem       Client private key
 .\}
 .sp
 These files enable secure client connections using SSL; see
-Section\ \&6.3.1, \(lqConfiguring MySQL to Use Encrypted Connections\(rq\&.
+Section\ \&8.3.1, \(lqConfiguring MySQL to Use Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -250,13 +250,13 @@ sha256_password
 or
 caching_sha2_password
 plugin; see
-Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .PP
 For information about the characteristics of files created by
 \fBmysql_ssl_rsa_setup\fR, see
-Section\ \&6.3.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&8.3.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .PP
 At startup, the MySQL server automatically uses the SSL files created by
 \fBmysql_ssl_rsa_setup\fR
@@ -383,7 +383,7 @@ supports the following command\-line options, which can be specified on the comm
 and
 [mysqld]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -397,17 +397,11 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 \fB?\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --help
-T}
-T{
-Deprecated
-T}:T{
-8.0.34
 T}
 .TE
 .sp 1
@@ -426,17 +420,11 @@ Display a help message and exit\&.
 .TS
 allbox tab(:);
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --datadir=dir_name
-T}
-T{
-Deprecated
-T}:T{
-8.0.34
 T}
 T{
 Type
@@ -462,17 +450,11 @@ should check for default SSL and RSA files and in which it should create files i
 .TS
 allbox tab(:);
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --suffix=str
-T}
-T{
-Deprecated
-T}:T{
-8.0.34
 T}
 T{
 Type
@@ -496,17 +478,11 @@ The suffix for the Common Name attribute in X\&.509 certificates\&. The suffix v
 \fB\-v\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --uid=name
-T}
-T{
-Deprecated
-T}:T{
-8.0.34
 T}
 .TE
 .sp 1
@@ -531,17 +507,11 @@ system call\&.
 \fB\-v\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --verbose
-T}
-T{
-Deprecated
-T}:T{
-8.0.34
 T}
 .TE
 .sp 1
@@ -562,17 +532,11 @@ commands it runs, and produces output to indicate whether it skips SSL or RSA fi
 \fB\-V\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --version
-T}
-T{
-Deprecated
-T}:T{
-8.0.34
 T}
 .TE
 .sp 1
@@ -581,7 +545,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

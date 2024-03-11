@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBD" "8" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -49,7 +49,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.24.\ \&Command\-line options used with the program ndbd
+.B Table\ \&25.24.\ \&Command\-line options used with the program ndbd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -917,7 +917,7 @@ Requires
 EncryptedFileSystem = 1\&.
 .sp
 For more information, see
-Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
+Section\ \&25.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -953,7 +953,7 @@ Requires
 EncryptedFileSystem = 1\&.
 .sp
 For more information, see
-Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
+Section\ \&25.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1130,7 +1130,7 @@ affect backup files that have already been created by the affected node\&.
 Prior to NDB 8\&.0\&.21, the
 \fB\-\-initial\fR
 option also did not affect any Disk Data files\&. In NDB 8\&.0\&.21 and later, when used to perform an initial restart of the cluster, the option causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
-Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&25.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running (unless they also were started with
 \fB\-\-initial\fR, as part of an initial restart)\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -1562,7 +1562,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&23.6.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&25.6.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1907,8 +1907,8 @@ $> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\fR
 .\}
 .PP
 See
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&. For more information about data node configuration parameters, see
-Section\ \&23.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&. For more information about data node configuration parameters, see
+Section\ \&25.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1932,11 +1932,11 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.0 in a production setting\&. See
-Section\ \&23.2.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
+Section\ \&25.2.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

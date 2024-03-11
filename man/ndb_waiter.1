@@ -2,12 +2,12 @@
 .\"     Title: ndb_waiter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_WAITER" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_WAITER" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -140,7 +140,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.51.\ \&Command\-line options used with the program ndb_waiter
+.B Table\ \&25.51.\ \&Command\-line options used with the program ndb_waiter
 .TS
 allbox tab(:);
 lB lB lB.
@@ -152,6 +152,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -392,6 +393,17 @@ Display help text and exit; same as --help
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--verbose=#\fR,
+.PP
+\fB \fR\fB-v\fR\fB \fR
+T}:T{
+Set output verbosity level; see text for input and return values
+T}:T{
+.PP
+ADDED: 8.0.37
 T}
 T{
 .PP
@@ -1091,6 +1103,141 @@ Display help text and exit; same as
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-verbose\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose=#
+T}
+T{
+Introduced
+T}:T{
+8.0.37
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+2
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+2
+T}
+.TE
+.sp 1
+Controls verbosity level of printout\&. Possible levels and their effects are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+0: Do not print (return exit code only; see following for exit codes)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+1: Print final connection status only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+2: Print status each time it is checked\&.
+.sp
+This is the same behavior as in versions of NDB Cluster previous to 8\&.4\&.
+.RE
+.sp
+Exit codes returned by
+\fBndb_waiter\fR
+are listed here, with their meanings:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+0: Success\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+1: Wait timed out\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+2: Parameter error, such as an invalid node ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+3: Failed to connect to the management server\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-version\fR
 .TS
 allbox tab(:);
@@ -1235,7 +1382,7 @@ testing library\&. This dependency has been removed, eliminating the extraneous 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

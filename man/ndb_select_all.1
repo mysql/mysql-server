@@ -2,12 +2,12 @@
 .\"     Title: ndb_select_all
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_SELECT_ALL" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_SELECT_ALL" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.46.\ \&Command\-line options used with the program ndb_select_all
+.B Table\ \&25.46.\ \&Command\-line options used with the program ndb_select_all
 .TS
 allbox tab(:);
 lB lB lB.
@@ -785,8 +785,8 @@ Adds a disk reference column to the output\&. The column is nonempty only for Di
 Adds a
 GCI
 column to the output showing the global checkpoint at which each row was last updated\&. See
-Section\ \&23.2, \(lqNDB Cluster Overview\(rq, and
-Section\ \&23.6.3.2, \(lqNDB Cluster Log Events\(rq, for more information about checkpoints\&.
+Section\ \&25.2, \(lqNDB Cluster Overview\(rq, and
+Section\ \&25.6.3.2, \(lqNDB Cluster Log Events\(rq, for more information about checkpoints\&.
 .RE
 .sp
 .RS 4
@@ -1281,7 +1281,6 @@ id      name
 5       [grouper]
 1       [guppy]
 6 rows returned
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
@@ -1328,7 +1327,6 @@ GCI     id name          breed        DISK_REF
 834463  3  [Rin\-Tin\-Tin] [Alsatian]   [ m_file_no: 0 m_page: 34 m_page_idx: 0 ]
 835657  1  [Lassie]      [Collie]     [ m_file_no: 0 m_page: 66 m_page_idx: 0 ]
 4 rows returned
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
@@ -1336,7 +1334,7 @@ NDBT_ProgramExit: 0 \- OK
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

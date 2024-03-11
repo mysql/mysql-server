@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgmd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_MGMD" "8" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGMD" "8" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -44,7 +44,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgmd
+.B Table\ \&25.26.\ \&Command\-line options used with the program ndb_mgmd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -119,7 +119,7 @@ Override defaults group suffix when reading cluster_config sections in
               my.cnf file; used in testing
 T}:T{
 .PP
-ADDED: NDB 8.0.24
+ADDED: 8.0.24
 T}
 T{
 .PP
@@ -421,20 +421,20 @@ T}:T{
 T}
 T{
 .PP
-\fB--usage\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
+\fB \fR\fB--skip-config-file\fR\fB \fR
 T}:T{
-Display help text and exit; same as --help
+Do not use configuration file
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
-\fB \fR\fB--skip-config-file\fR\fB \fR
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
 T}:T{
-Do not use configuration file
+Display help text and exit; same as --help
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -549,7 +549,7 @@ T}
 T{
 Introduced
 T}:T{
-8.0.24-ndb-8.0.24
+8.0.24
 T}
 T{
 Type
@@ -605,7 +605,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -779,7 +779,7 @@ option is also read if
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -1162,7 +1162,7 @@ T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -1181,7 +1181,7 @@ is invoked with
 but cannot find a global configuration file, the management server cannot start\&.
 .sp
 When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data\&. This behavior has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&25.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 When used together with the
 \fB\-\-config\-file\fR
@@ -1700,7 +1700,7 @@ $> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as NDB Cluster SQL nodes connected to this cluster\&. See
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1800,7 +1800,7 @@ T}
 .TE
 .sp 1
 NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -1819,7 +1819,7 @@ When
 is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
 \fB\-\-initial\fR
 instead to force the existing cached configuration to be discarded and reloaded from the file\&. See
-Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
+Section\ \&25.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
 .RS 4
@@ -1958,7 +1958,7 @@ Display version information and exit\&.
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
 ndb_mgmd(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
@@ -1982,7 +1982,7 @@ is the unique node identifier\&.
 .\}
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&23.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
+Section\ \&25.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -1995,7 +1995,7 @@ Section\ \&23.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up t
 .\}
 ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
-Section\ \&23.6, \(lqManagement of NDB Cluster\(rq\&.
+Section\ \&25.6, \(lqManagement of NDB Cluster\(rq\&.
 .sp
 By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where
@@ -2036,7 +2036,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

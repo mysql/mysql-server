@@ -2,12 +2,12 @@
 .\"     Title: ndb_desc
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_DESC" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_DESC" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -125,7 +125,6 @@ uk$unique(name) \- UniqueHashIndex
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
 0               2               2               32768                   32768                   0               0
 1               4               4               32768                   32768                   0               0
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
@@ -182,7 +181,6 @@ name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
 NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 \-\- Indexes \-\-
 PRIMARY KEY(NDB$TNODE) \- UniqueHashIndex
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
@@ -264,7 +262,7 @@ Create Table: CREATE TABLE `fish` (
   `weight_gm` int(11) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk` (`name`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 COMMENT=\*(AqNDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1\*(Aq
 1 row in set (0\&.01 sec)
 .fi
@@ -320,14 +318,13 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
 .\}
 .PP
 For more information about these table properties, see
-Section\ \&13.1.20.12, \(lqSetting NDB Comment Options\(rq\&.
+Section\ \&15.1.20.12, \(lqSetting NDB Comment Options\(rq\&.
 .PP
 The
 Extent_space
@@ -368,9 +365,9 @@ ALTER TABLESPACE ts_1
 .\}
 .PP
 (For more information on the statements just shown and the objects created by them, see
-Section\ \&23.6.11.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
-Section\ \&13.1.16, \(lqCREATE LOGFILE GROUP Statement\(rq, and
-Section\ \&13.1.21, \(lqCREATE TABLESPACE Statement\(rq\&.)
+Section\ \&25.6.11.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
+Section\ \&15.1.16, \(lqCREATE LOGFILE GROUP Statement\(rq, and
+Section\ \&15.1.21, \(lqCREATE TABLESPACE Statement\(rq\&.)
 .PP
 Now we can create and populate a version of the
 fish
@@ -447,7 +444,6 @@ uk$unique(name) \- UniqueHashIndex
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
 0               2               2               32768                   32768                   1048576         1044440
 1               4               4               32768                   32768                   1048576         1044400
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
@@ -487,7 +483,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.31.\ \&Command\-line options used with the program ndb_desc
+.B Table\ \&25.31.\ \&Command\-line options used with the program ndb_desc
 .TS
 allbox tab(:);
 lB lB lB.
@@ -1509,7 +1505,7 @@ Table indexes listed in the output are ordered by ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

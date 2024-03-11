@@ -2,12 +2,12 @@
 .\"     Title: ndb_drop_index
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/27/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_DROP_INDEX" "1" "11/27/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_DROP_INDEX" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -66,7 +66,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.32.\ \&Command\-line options used with the program ndb_drop_index
+.B Table\ \&25.32.\ \&Command\-line options used with the program ndb_drop_index
 .TS
 allbox tab(:);
 lB lB lB.
@@ -910,7 +910,6 @@ Display version information and exit\&.
 .nf
 $> \fB\&./ndb_drop_index \-c localhost dogs ix \-d ctest1\fR
 Dropping index dogs/idx\&.\&.\&.OK
-NDBT_ProgramExit: 0 \- OK
 $> \fB\&./mysql \-u jon \-p ctest1\fR
 Enter password: *******
 Reading table information for completion of table and column names
@@ -947,7 +946,7 @@ ndb_drop_table(1)) to drop the table\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
