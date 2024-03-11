@@ -3079,6 +3079,8 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   Security_context *save_security_ctx = nullptr;
   if (!err_status) err_status = set_security_ctx(thd, &save_security_ctx);
 
+  DEBUG_SYNC(thd, "after_switching_security_context");
+
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
 #ifdef HAVE_PSI_SP_INTERFACE

@@ -1322,7 +1322,18 @@ class THD : public MDL_context_owner,
   Security_context *m_security_ctx;
 
   Security_context *security_context() const { return m_security_ctx; }
-  void set_security_context(Security_context *sctx) { m_security_ctx = sctx; }
+  void set_security_context(Security_context *sctx) {
+    if (sctx == m_security_ctx) return;
+
+    /*
+      To prevent race conditions arising from concurrent threads executing
+      I_S.PROCESSLIST, a mutex LOCK_thd_security_ctx safeguards the security
+      context switch.
+    */
+    mysql_mutex_lock(&LOCK_thd_security_ctx);
+    m_security_ctx = sctx;
+    mysql_mutex_unlock(&LOCK_thd_security_ctx);
+  }
   List<Security_context> m_view_ctx_list;
 
   /**
