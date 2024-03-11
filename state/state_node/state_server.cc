@@ -60,7 +60,7 @@ void StateServer::CleanQP() {
 
 int main(int argc, char* argv[]) {
     // std::string config_path = "../config/state_server_config.json";
-    std::string config_path = "/mysql8/config/state_server_config.json";
+    std::string config_path = "/mysql_data3/config/state_server_config.json";
     // auto json_config = JsonConfig::load_file(config_path);
     
     // auto state_node = json_config.get("state_node");
