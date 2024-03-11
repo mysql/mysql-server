@@ -32,7 +32,6 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
-#include "util/ndb_rand.h"
 
 #define JAM_FILE_ID 399
 
@@ -41,7 +40,8 @@ Win32AsyncFile::Win32AsyncFile(Ndbfs &fs) : AsyncFile(fs) {}
 void Win32AsyncFile::removeReq(Request *request) {
 #if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
   // Sometimes inject double file delete
-  if (ndb_rand() % 100 == 0) DeleteFile(theFileName.c_str());
+  if (check_inject_and_log_extra_remove(theFileName.c_str()))
+    DeleteFile(theFileName.c_str());
 #endif
   if (!DeleteFile(theFileName.c_str())) {
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
@@ -85,8 +85,8 @@ loop:
       strcat(path, ffd.cFileName);
 #if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
       // Sometimes inject double file delete
-      if (ndb_rand() % 100 == 0)
-        if (!DeleteFile(theFileName.c_str())) RemoveDirectory(path);
+      if (check_inject_and_log_extra_remove(path))
+        if (!DeleteFile(path)) RemoveDirectory(path);
 #endif
       bool deleted = DeleteFile(path) || RemoveDirectory(path);
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
@@ -116,7 +116,8 @@ loop:
 
 #if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
   // Sometimes inject double file delete
-  if (removePath && ndb_rand() % 100 == 0) RemoveDirectory(src);
+  if (removePath && check_inject_and_log_extra_remove(src))
+    RemoveDirectory(src);
 #endif
   if (removePath && !RemoveDirectory(src)) {
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
