@@ -64,7 +64,7 @@ class RedoLogFetch {
     log_buf_data = (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
     if (!log.coro_sched->RDMAReadSync(
             0, qp, (char *)log_buf_data,
-            meta_mgr->GetRedoLogCurrAddr() + sizeof(*redoLogItem),
+            meta_mgr->GetRedoLogCurrAddr() + sizeof(RedoLogItem),
             log_buf_data_size)) {
       // Fail
       std::cout << "failed to read log_buf_data\n";
