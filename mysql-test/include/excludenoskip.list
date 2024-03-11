@@ -319,10 +319,11 @@ have_webauthn_plugin.inc
 
 # 34.0 Tests skipped due to conflicting use of ./mtr --defaults-extra-file
 
-# 34.1 ./mtr-defaults-extra-file=source/ndb/encrypted_filesystem.cnf (and ndb/secure.cnf)
+# 34.1 ./mtr-defaults-extra-file=suite/ndb/encrypted_filesystem.cnf (and ndb/secure.cnf)
+ndb_redo_log_reader.test
 ndb_secretsfile1.test
 
-# 34.2 ./mtr-defaults-extra-file=source/ndb/tls.cnf (and ndb/secure.cnf)
+# 34.2 ./mtr-defaults-extra-file=suite/ndb/tls.cnf (and ndb/secure.cnf)
 api_require_trp.test
 clusterj.test
 no_path.test
