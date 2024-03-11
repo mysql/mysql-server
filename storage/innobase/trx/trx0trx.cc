@@ -778,6 +778,8 @@ void trx_resurrect_locks(bool all) {
       continue;
     }
 
+    const bool is_prepared = trx_state_eq(trx, TRX_STATE_PREPARED);
+
     const table_id_set &tables = element.second;
 
     for (auto table_id : tables) {
@@ -797,17 +799,13 @@ void trx_resurrect_locks(bool all) {
         continue;
       }
 
-      bool is_XA = false;
-
-      if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
-          !dict_table_is_sdi(table->id)) {
+      if (is_prepared && !dict_table_is_sdi(table->id)) {
         trx->mod_tables.insert(table);
-        is_XA = true;
       }
       DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
 
       /* We don't rollback DDL or XA prepared transaction in background */
-      if (!all || is_XA) {
+      if (trx->ddl_operation || is_prepared) {
         lock_table_ix_resurrect(table, trx);
         ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
                  table->name.m_name);
