@@ -395,8 +395,8 @@ uint32_t register_router_v2(
       //            router_name.c_str(), hostname.c_str());
       query = sqlstring(
           "SELECT router_id FROM mysql_innodb_cluster_metadata.v2_routers"
-          " WHERE router_name = ?");
-      query << router_name << sqlstring::end;
+          " WHERE router_name = ? and address = ?");
+      query << router_name << hostname << sqlstring::end;
       std::unique_ptr<MySQLSession::ResultRow> row(mysql->query_one(query));
       if (row) {
         return static_cast<uint32_t>(strtoui_checked((*row)[0]));
