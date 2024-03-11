@@ -2,12 +2,12 @@
 .\"     Title: myisamchk
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYISAMCHK" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYISAMCHK" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,8 +53,8 @@ REPAIR TABLE
 statements to check and repair
 MyISAM
 tables\&. See
-Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq, and
-Section\ \&13.7.3.5, \(lqREPAIR TABLE Statement\(rq\&.
+Section\ \&15.7.3.2, \(lqCHECK TABLE Statement\(rq, and
+Section\ \&15.7.3.5, \(lqREPAIR TABLE Statement\(rq\&.
 .PP
 The use of
 \fBmyisamchk\fR
@@ -192,7 +192,7 @@ the section called \(lqMYISAMCHK MEMORY USAGE\(rq\&.
 .PP
 For additional information about using
 \fBmyisamchk\fR, see
-Section\ \&7.6, \(lqMyISAM Table Maintenance and Crash Recovery\(rq\&.
+Section\ \&9.6, \(lqMyISAM Table Maintenance and Crash Recovery\(rq\&.
 .if n \{\
 .sp
 .\}
@@ -241,7 +241,7 @@ CHECK TABLE
 instead of
 \fBmyisamchk\fR
 to check tables\&. See
-Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq\&.
+Section\ \&15.7.3.2, \(lqCHECK TABLE Statement\(rq\&.
 .sp .5v
 .RE
 .PP
@@ -249,7 +249,7 @@ Section\ \&13.7.3.2, \(lqCHECK TABLE Statement\(rq\&.
 supports the following options, which can be specified on the command line or in the
 [myisamchk]
 group of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .SH "MYISAMCHK GENERAL OPTIONS"
 .PP
 The options described in this section can be used for any type of table maintenance operation performed by
@@ -375,7 +375,7 @@ Read this option file after the global option file but (on Unix) before the user
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -408,7 +408,7 @@ Use only the given option file\&. If the file does not exist or is otherwise ina
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -449,7 +449,7 @@ also reads the
 group\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -486,7 +486,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -511,7 +511,7 @@ T}
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -788,8 +788,8 @@ myisam_stats_method
 system variable\&. For more information, see the description of
 myisam_stats_method
 in
-Section\ \&5.1.8, \(lqServer System Variables\(rq, and
-Section\ \&8.3.8, \(lqInnoDB and MyISAM Index Statistics Collection\(rq\&.
+Section\ \&7.1.8, \(lqServer System Variables\(rq, and
+Section\ \&10.3.8, \(lqInnoDB and MyISAM Index Statistics Collection\(rq\&.
 .PP
 ft_min_word_len
 and
@@ -1170,7 +1170,7 @@ T}
 .TE
 .sp 1
 The directory where character sets are installed\&. See
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1336,48 +1336,6 @@ T}
 Skip rows larger than the given length if
 \fBmyisamchk\fR
 cannot allocate memory to hold them\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-parallel\-recover\fR,
-\fB\-p\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---parallel-recover
-T}
-.TE
-.sp 1
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-This option is deprecated in MySQL 8\&.0\&.28 and removed in MySQL 8\&.0\&.30\&.
-.sp .5v
-.RE
-Use the same technique as
-\fB\-r\fR
-and
-\fB\-n\fR, but create all the keys in parallel, using different threads\&.
-\fIThis is beta\-quality code\&. Use at your own risk!\fR
 .RE
 .sp
 .RS 4
@@ -2084,7 +2042,7 @@ The number of rows in the table\&.
 Deleted blocks
 .sp
 How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
-Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&9.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2112,7 +2070,7 @@ Data records\&.
 Deleted data
 .sp
 How many bytes of unreclaimed deleted data there are\&. You can optimize your table to minimize this space\&. See
-Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&9.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2599,7 +2557,7 @@ The number of rows in the table\&.
 Deleted blocks
 .sp
 How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
-Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&9.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2737,7 +2695,7 @@ What percentage of the data file is unused\&.
 Blocks/Record
 .sp
 Average number of blocks per row (that is, how many links a fragmented row is composed of)\&. This is always 1\&.0 for fixed\-format tables\&. This value should stay as close to 1\&.0 as possible\&. If it gets too large, you can reorganize the table\&. See
-Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&9.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2945,7 +2903,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

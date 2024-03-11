@@ -2,12 +2,12 @@
 .\"     Title: ndb_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDB_CONFIG" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDB_CONFIG" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -63,6 +63,28 @@ All options that can be used with
 \fBndb_config\fR
 are shown in the following table\&. Additional descriptions follow the table\&.
 .PP
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-character\-sets\-dir\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=path
+T}
+.TE
+.sp 1
+Directory containing character sets\&.
+.RE
 .sp
 .RS 4
 .ie n \{\
@@ -256,20 +278,20 @@ $> \fBndb_config \-\-config\-binary\-file=\&.\&./mysql\-cluster/ndb_50_config\&.
 config of [DB] node id 5 that is different from default 
 CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
 NodeId,5,(mandatory) 
-BackupDataDir,/local/data/8\&.1,(null) 
-DataDir,/local/data/8\&.1,\&. 
+BackupDataDir,/local/data/8\&.4,(null) 
+DataDir,/local/data/8\&.4,\&. 
 DataMemory,2G,98M 
-FileSystemPath,/local/data/8\&.1,(null) 
+FileSystemPath,/local/data/8\&.4,(null) 
 HostName,127\&.0\&.0\&.1,localhost 
 Nodegroup,0,(null) 
 ThreadConfig,,(null) 
 config of [DB] node id 6 that is different from default 
 CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
 NodeId,6,(mandatory) 
-BackupDataDir,/local/data/8\&.1,(null) 
-DataDir,/local/data/8\&.1\&. 
+BackupDataDir,/local/data/8\&.4,(null) 
+DataDir,/local/data/8\&.4\&. 
 DataMemory,2G,98M 
-FileSystemPath,/local/data/8\&.1,(null) 
+FileSystemPath,/local/data/8\&.4,(null) 
 HostName,127\&.0\&.0\&.1,localhost 
 Nodegroup,0,(null) 
 ThreadConfig,,(null)
@@ -301,11 +323,11 @@ HostName= 127\&.0\&.0\&.1
 [ndbd]
 NodeId= 5
 HostName= 127\&.0\&.0\&.1
-DataDir= /local/data/8\&.1
+DataDir= /local/data/8\&.4
 [ndbd]
 NodeId= 6
 HostName= 127\&.0\&.0\&.1
-DataDir= /local/data/8\&.1
+DataDir= /local/data/8\&.4
 .fi
 .if n \{\
 .RE
@@ -407,6 +429,133 @@ fails with an error\&. (To obtain configuration data from the management node in
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-connect\-retries\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retries=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+12
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+12
+T}
+.TE
+.sp 1
+Number of times to retry connection before giving up\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+5
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+5
+T}
+.TE
+.sp 1
+Number of seconds to wait between attempts to contact management server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-string\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-string=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-connections\fR
 .TS
 allbox tab(:);
@@ -428,13 +577,137 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&23.4.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
-Section\ \&23.4.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+Section\ \&25.4.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
+Section\ \&25.4.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
 and
 \fB\-\-system\fR; only one of these 3 options can be used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-core\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--core-file
+T}
+.TE
+.sp 1
+Write core file on error; used in debugging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
 .RE
 .sp
 .RS 4
@@ -525,6 +798,28 @@ for the linefeed character), then it must be quoted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Display help text and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
@@ -588,6 +883,40 @@ in the same fashion\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
@@ -637,8 +966,199 @@ T}
 .TE
 .sp 1
 Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required to connect to the management server; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgmd\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgmd-host=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-nodeid\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-nodeid=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set node ID for this node, overriding any ID set by
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-optimized\-node\-selection\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-optimized-node-selection
+T}
+.TE
+.sp 1
+Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
+\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
+to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
 .RE
 .sp
 .RS 4
@@ -661,6 +1181,28 @@ T}
 .TE
 .sp 1
 Do not read default options from any option file other than login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Skips reading options from the login path file\&.
 .RE
 .sp
 .RS 4
@@ -723,12 +1265,34 @@ to print information relating only to parameters defined in an
 or
 [ndbd default]
 section of the cluster configuration file (see
-Section\ \&23.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
+Section\ \&25.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-connections\fR
 and
 \fB\-\-system\fR; only one of these 3 options can be used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
 .RE
 .sp
 .RS 4
@@ -1227,473 +1791,6 @@ or
 my\&.cnf
 file is required for these two options\&.
 .RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-print\-defaults\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---print-defaults
-T}
-.TE
-.sp 1
-Print program argument list and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read default options from given file only\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-extra\-file\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-extra-file=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given file after global files are read\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-defaults\-group\-suffix\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---defaults-group-suffix=string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Also read groups with concat(group, suffix)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-login\-path\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---login-path=path
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Read given path from login file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-no\-login\-paths\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---no-login-paths
-T}
-.TE
-.sp 1
-Skips reading options from the login path file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-help\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---help
-T}
-.TE
-.sp 1
-Display help text and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-string\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-string=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Same as
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-mgmd\-host\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-mgmd-host=connection_string
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Same as
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-nodeid\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-nodeid=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Set node ID for this node, overriding any ID set by
-\fB\-\-ndb\-connectstring\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-core\-file\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---core-file
-T}
-.TE
-.sp 1
-Write core file on error; used in debugging\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-character\-sets\-dir\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---character-sets-dir=path
-T}
-.TE
-.sp 1
-Directory containing character sets\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retries\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-retries=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-12
-T}
-T{
-Minimum Value
-T}:T{
-0
-T}
-T{
-Maximum Value
-T}:T{
-12
-T}
-.TE
-.sp 1
-Number of times to retry connection before giving up\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retry\-delay\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---connect-retry-delay=#
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-5
-T}
-T{
-Minimum Value
-T}:T{
-0
-T}
-T{
-Maximum Value
-T}:T{
-5
-T}
-.TE
-.sp 1
-Number of seconds to wait between attempts to contact management server\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-optimized\-node\-selection\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---ndb-optimized-node-selection
-T}
-.TE
-.sp 1
-Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
-\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
-to disable\&.
-.RE
 .PP
 Combining other
 \fBndb_config\fR
@@ -1856,7 +1953,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

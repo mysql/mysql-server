@@ -2,12 +2,12 @@
 .\"     Title: mysql_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQL_CONFIG" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQL_CONFIG" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -122,7 +122,7 @@ Libraries and options required to link with the MySQL client library\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-libs_r\fR
-Libraries and options required to link with the thread\-safe MySQL client library\&. In MySQL 8\&.3, all client libraries are thread\-safe, so this option need not be used\&. The
+Libraries and options required to link with the thread\-safe MySQL client library\&. In MySQL 8\&.4, all client libraries are thread\-safe, so this option need not be used\&. The
 \fB\-\-libs\fR
 option can be used in all cases\&.
 .RE
@@ -204,19 +204,20 @@ with no options, it displays a list of all options that it supports, and their v
 .\}
 .nf
 $> \fBmysql_config\fR
-Usage: /usr/local/mysql/bin/mysql_config [options]
+Usage: \&./mysql_config [OPTIONS]
+Compiler: GNU 10\&.4\&.0
 Options:
-  \-\-cflags         [\-I/usr/local/mysql/include/mysql \-mcpu=pentiumpro]
-  \-\-cxxflags       [\-I/usr/local/mysql/include/mysql \-mcpu=pentiumpro]
+  \-\-cflags         [\-I/usr/local/mysql/include/mysql]
+  \-\-cxxflags       [\-I/usr/local/mysql/include/mysql]
   \-\-include        [\-I/usr/local/mysql/include/mysql]
-  \-\-libs           [\-L/usr/local/mysql/lib/mysql \-lmysqlclient
-                    \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl]
-  \-\-libs_r         [\-L/usr/local/mysql/lib/mysql \-lmysqlclient_r
-                    \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl]
+  \-\-libs           [\-L/usr/local/mysql/lib/mysql \-lmysqlclient \-lpthread \-ldl  
+                    \-lssl  \-lcrypto \-lresolv \-lm \-lrt]
+  \-\-libs_r         [\-L/usr/local/mysql/lib/mysql \-lmysqlclient \-lpthread \-ldl  
+                    \-lssl  \-lcrypto \-lresolv \-lm \-lrt]
   \-\-plugindir      [/usr/local/mysql/lib/plugin]
   \-\-socket         [/tmp/mysql\&.sock]
   \-\-port           [3306]
-  \-\-version        [5\&.8\&.0\-m17]
+  \-\-version        [8\&.4\&.0]
   \-\-variable=VAR   VAR is one of:
           pkgincludedir [/usr/local/mysql/include]
           pkglibdir     [/usr/local/mysql/lib]
@@ -245,7 +246,7 @@ gcc \-o progname progname\&.o `mysql_config \-\-libs`
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -257,7 +258,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Building C API Client Programs Using pkg-config
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.2/en/c-api-building-clients-pkg-config.html
+\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-building-clients-pkg-config.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

@@ -2,12 +2,12 @@
 .\"     Title: mysqldumpslow
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLDUMPSLOW" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQLDUMPSLOW" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,7 +35,7 @@ mysqldumpslow \- Summarize slow query log files
 .SH "DESCRIPTION"
 .PP
 The MySQL slow query log contains information about queries that take a long time to execute (see
-Section\ \&5.4.5, \(lqThe Slow Query Log\(rq)\&.
+Section\ \&7.4.5, \(lqThe Slow Query Log\(rq)\&.
 \fBmysqldumpslow\fR
 parses MySQL slow query log files and summarizes their contents\&.
 .PP
@@ -73,7 +73,7 @@ Example output with no options given:
 .RS 4
 .\}
 .nf
-Reading mysql slow query log from /usr/local/mysql/data/mysqld83\-slow\&.log
+Reading mysql slow query log from /usr/local/mysql/data/mysqld84\-slow\&.log
 Count: 1  Time=4\&.32s (4s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
  insert into t2 select * from t1
 Count: 3  Time=2\&.53s (7s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
@@ -411,7 +411,7 @@ Verbose mode\&. Print more information about what the program does\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

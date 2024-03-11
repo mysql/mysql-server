@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/22/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Router
-.\"    Source: MySQL 8.1
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "11/22/2023" "MySQL 8\&.1" "MySQL Router"
+.TH "MYSQLROUTER" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -96,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 $> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.1\&.0 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.4\&.0 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -248,7 +248,7 @@ option is required if executing a bootstrap with a super user (uid=0)\&. Althoug
 \fI\-\-user=root\fR\&.
 .sp
 The minimum GRANT permissions required to execute
-\fB\-\-boostrap\fR
+\fB\-\-bootstrap\fR
 are:
 .sp
 .if n \{\
@@ -916,18 +916,16 @@ This option is used while bootstrapping, and enabling it adds the
 option to the generated configuration file\&.
 .sp
 The name of the generated socket file depends on the
-\fBmode\fR
-and
 \fBprotocol\fR
-options\&. With the classic protocol enabled, the file is named
+option\&. With the classic protocol enabled, the file is named
 mysql\&.sock
-in read\-write mode, and
+for read\-write connections, and
 mysqlro\&.sock
-in read\-only mode\&. With the X Protocol enabled, the file is named
+for read\-only connections\&. With the X Protocol enabled, the file is named
 mysqlx\&.sock
-in read\-write mode, and
+for read\-write connections, and
 mysqlxro\&.sock
-in read\-only mode\&.
+for read\-only connections\&.
 .sp
 This option is not available on Windows\&.
 .RE
@@ -1567,16 +1565,21 @@ The configuration file equivalent is documented separately at
 .TS
 allbox tab(:);
 lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
---ssl-key file_path
+--ssl-cert file_path
 T}
 T{
 Type
 T}:T{
 String
+T}
+T{
+Default Value
+T}:T{
 T}
 .TE
 .sp 1
@@ -1817,6 +1820,665 @@ T}
 .TE
 .sp 1
 Path to the directory containing SSL CRL files to use when verifying a server\*(Aqs certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-mode \fR\fB\fImode\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-mode
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+PREFERRED
+T}
+T{
+Valid Values
+T}:T{
+.PP
+PREFERRED
+.PP
+DISABLED
+.PP
+PASSTHROUGH
+.PP
+REQUIRED
+T}
+.TE
+.sp 1
+SSL connection mode for use during bootstrap and normal operation when connecting between MySQL Router and client\&.
+.sp
+During bootstrap, all connections to clients made by the Router will use the SSL options specified\&. If
+\fBclient_ssl_mode\fR
+is not specified in the configuration, it defaults to
+PREFERRED\&.
+.sp
+The configuration file equivalent is documented separately at
+\fBclient_ssl_mode\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-cert \fR\fB\fIfile_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-cert file_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+The path name of the SSL public key certificate file in PEM format\&. This is used to facilitate client\-side authentication during the bootstrap process\&.
+.sp
+Like
+\fB\-\-client\-ssl\-key\fR, this option is only used during bootstrap that uses a root account\&. It is useful when the root account was created with REQUIRE X509, and therefore logging in as root requires the client to authenticate itself\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBclient\-ssl\-curves\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-curves
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Defaults to a secure list of SSL curves\&. Format this string as a colon separated list of curve names\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-key \fR\fB\fIfile_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-key file_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+The path name of the SSL private key file in PEM format\&. This is used to facilitate client\-side authentication during the bootstrap process\&.
+.sp
+Like
+\fB\-\-client\-ssl\-cert\fR, this option is only used during a bootstrap process that uses a root account\&. It is useful when the root account was created with REQUIRE X509, and therefore logging in as root requires the client to authenticate itself\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-cipher \fR\fB\fIciphers\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-cipher
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+A colon\-separated (":") list of SSL ciphers to allow, if SSL is enabled\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBclient\-ssl\-dh\-params\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-dh-params=filepath
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Filename of the DH parameter file\&. If specified and not empty, the DH parameters from this file are used instead of internal default DH parameters\&. Format the DH param file in PEM format\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-ca \fR\fB\fIfile_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-ca file_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to the SSL CA file to verify a server\*(Aqs certificate against\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-capath \fR\fB\fIdir_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-capath dir_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to directory containing the SSL CA files to verify a server\*(Aqs certificate against\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-crl \fR\fB\fIfile_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-crl file_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to the SSL CRL file to use when verifying a server\*(Aqs certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-client\-ssl\-crlpath \fR\fB\fIdir_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--client-ssl-crlpath dir_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to the directory containing SSL CRL files to use when verifying a server\*(Aqs certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-mode \fR\fB\fImode\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-mode
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+PREFERRED
+T}
+T{
+Valid Values
+T}:T{
+.PP
+AS_CLIENT
+.PP
+DISABLED
+.PP
+PREFERRED
+.PP
+REQUIRED
+T}
+.TE
+.sp 1
+SSL connection mode for use during bootstrap and normal operation when connecting between MySQL Router and server\&.
+.sp
+During bootstrap, all connections to servers made by the Router will use the SSL options specified\&. If
+\fBserver_ssl_mode\fR
+is not specified in the configuration, it defaults to
+PREFERRED\&.
+.sp
+The configuration file equivalent is documented separately at
+\fBserver_ssl_mode\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-cipher \fR\fB\fIciphers\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-cipher
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+A colon\-separated (":") list of SSL ciphers to allow, if SSL is enabled\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-ca \fR\fB\fIfile_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-ca file_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to the SSL CA file to verify a server\*(Aqs certificate against\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-capath \fR\fB\fIdir_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-capath dir_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to directory containing the SSL CA files to verify a server\*(Aqs certificate against\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-crl \fR\fB\fIfile_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-crl file_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to the SSL CRL file to use when verifying a server\*(Aqs certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-crlpath \fR\fB\fIdir_path\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-crlpath dir_path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Path to the directory containing SSL CRL files to use when verifying a server\*(Aqs certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBserver\-ssl\-curves\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-curves
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Defaults to a secure list of SSL curves\&. Format this string as a colon separated list of curve names\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-ssl\-verify \fR\fB\fIstring\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--server-ssl-verify
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+DISABLED
+T}
+T{
+Valid Values
+T}:T{
+.PP
+DISABLED
+.PP
+VERIFY_CA
+.PP
+VERIFY_IDENTITY
+T}
+.TE
+.sp 1
+Verification of the SSL certificates presented to the router by the server
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+DISABLED: the connection fails if the server does not provide a certificate in the handshake\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+VERIFY_CA: the connection fails if the server\*(Aqs certificate does not match a CA trusted by MySQL Router\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+VERIFY_IDENTITY: the connection fails if the server\*(Aqs certificate does not match a CA trusted by MySQL Router, or the server certificate\*(Aqs subject does not match the hostname or IP address MySQL Router connected to\&.
+.RE
 .RE
 .sp
 .RS 4
@@ -2367,7 +3029,7 @@ at bootstrap\&. It defaults to 8443\&. Availability of the port is not checked\&
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2023, Oracle and/or its affiliates.
+Copyright \(co 2006, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2379,12 +3041,12 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Connecting Using URI-Like Connection Strings
 .RS 4
-\%https://dev.mysql.com/doc/refman/8.2/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri
+\%https://dev.mysql.com/doc/refman/8.4/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri
 .RE
 .IP " 2." 4
 ClusterSet
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.3/en/innodb-clusterset.html
+\%https://dev.mysql.com/doc/mysql-shell/8.4/en/innodb-clusterset.html
 .RE
 .SH AUTHOR
 Oracle Corporation (http://dev.mysql.com/).

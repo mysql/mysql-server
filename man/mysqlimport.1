@@ -2,12 +2,12 @@
 .\"     Title: mysqlimport
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLIMPORT" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQLIMPORT" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ SQL statement\&. Most options to
 correspond directly to clauses of
 LOAD DATA
 syntax\&. See
-Section\ \&13.2.9, \(lqLOAD DATA Statement\(rq\&.
+Section\ \&15.2.9, \(lqLOAD DATA Statement\(rq\&.
 .PP
 Invoke
 \fBmysqlimport\fR
@@ -74,7 +74,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -153,7 +153,7 @@ T}
 .TE
 .sp 1
 The directory where character sets are installed\&. See
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -218,7 +218,7 @@ T}
 .TE
 .sp 1
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
@@ -272,7 +272,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -425,7 +425,7 @@ T}
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -454,7 +454,7 @@ T}
 .TE
 .sp 1
 A hint about which client\-side authentication plugin to use\&. See
-Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
+Section\ \&8.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -487,7 +487,7 @@ Read this option file after the global option file but (on Unix) before the user
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -524,7 +524,7 @@ Exception: Even with
 \&.mylogin\&.cnf\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -569,7 +569,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -629,7 +629,7 @@ T}
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&8.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -710,7 +710,7 @@ T}
 .sp 1
 These options have the same meaning as the corresponding clauses for
 LOAD DATA\&. See
-Section\ \&13.2.9, \(lqLOAD DATA Statement\(rq\&.
+Section\ \&15.2.9, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -776,7 +776,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -898,7 +898,7 @@ T}
 This option has the same meaning as the corresponding clause for
 LOAD DATA\&. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
 \fB\-\-lines\-terminated\-by="\er\en"\fR\&. (You might have to double the backslashes, depending on the escaping conventions of your command interpreter\&.) See
-Section\ \&13.2.9, \(lqLOAD DATA Statement\(rq\&.
+Section\ \&15.2.9, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -942,7 +942,7 @@ LOCAL
 load operations within
 \fBmysqlimport\fR
 also requires that the server permits local loading; see
-Section\ \&6.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
+Section\ \&8.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
 .RE
 .sp
 .RS 4
@@ -1005,7 +1005,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1034,7 +1034,7 @@ See
 for related information\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1098,7 +1098,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1138,7 +1138,7 @@ or
 and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp
 To explicitly specify that there is no password and that
 \fBmysqlimport\fR
@@ -1165,7 +1165,7 @@ between
 and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp
 To explicitly specify that there is no password and that
 \fBmysqlimport\fR
@@ -1271,7 +1271,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlimport\fR
 does not find it\&. See
-Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
+Section\ \&8.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1331,7 +1331,7 @@ T}
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1379,7 +1379,7 @@ T}
 .TE
 .sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
+Section\ \&6.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1455,8 +1455,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1619,7 +1619,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.8, \(lqFIPS Support\(rq\&.
+Section\ \&8.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -1713,7 +1713,7 @@ T}
 .TE
 .sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1790,7 +1790,7 @@ T}
 .TE
 .sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1932,7 +1932,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .RE
 .PP
 Here is a sample session that demonstrates use of
@@ -1971,7 +1971,7 @@ $> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

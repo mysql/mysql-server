@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDBD" "8" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -510,7 +510,7 @@ Requires
 EncryptedFileSystem = 1\&.
 .sp
 For more information, see
-Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
+Section\ \&25.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -540,7 +540,7 @@ Requires
 EncryptedFileSystem = 1\&.
 .sp
 For more information, see
-Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
+Section\ \&25.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -624,7 +624,7 @@ to perform an initial start\&. An initial start erases any files created for rec
 \fBndbd\fR\&. It also re\-creates recovery log files\&. On some operating systems, this process can take a substantial amount of time\&.
 .sp
 The option also causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
-Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&25.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .sp
 An
 \fB\-\-initial\fR
@@ -984,7 +984,12 @@ T}:T{
 T}
 .TE
 .sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+Set connection string for connecting to
+\fBndb_mgmd\fR\&. Syntax:
+[nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. Overrides entries in
+NDB_CONNECTSTRING
+and
+my\&.cnf\&.
 .RE
 .sp
 .RS 4
@@ -1020,6 +1025,56 @@ T}
 .sp 1
 Same as
 \fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required to connect to the management server; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
 .RE
 .sp
 .RS 4
@@ -1078,6 +1133,53 @@ T}
 Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
 \fB\-\-skip\-ndb\-optimized\-node\-selection\fR
 to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
 .RE
 .sp
 .RS 4
@@ -1163,7 +1265,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&23.6.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&25.6.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1508,8 +1610,8 @@ $> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\fR
 .\}
 .PP
 See
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&. For more information about data node configuration parameters, see
-Section\ \&23.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&. For more information about data node configuration parameters, see
+Section\ \&25.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1532,12 +1634,12 @@ process can consume up to 2 CPUs if permitted to do so\&.
 .PP
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
-processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.3 in a production setting\&. See
-Section\ \&23.2.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
+processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.4 in a production setting\&. See
+Section\ \&25.2.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

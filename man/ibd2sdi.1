@@ -2,12 +2,12 @@
 .\"     Title: ibd2sdi
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "IBD2SDI" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "IBD2SDI" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -146,11 +146,11 @@ Display a help message and exit\&. For example:
 .\}
 .nf
 Usage: \&./ibd2sdi [\-v] [\-c <strict\-check>] [\-d <dump file name>] [\-n] filename1 [filenames]
-See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\&.
+See http://dev\&.mysql\&.com/doc/refman/8\&.4/en/ibd2sdi\&.html for usage hints\&.
   \-h, \-\-help          Display this help and exit\&.
   \-v, \-\-version       Display version information and exit\&.
   \-#, \-\-debug[=name]  Output debug log\&. See
-                      http://dev\&.mysql\&.com/doc/refman/8\&.0/en/dbug\-package\&.html
+                      http://dev\&.mysql\&.com/doc/refman/8\&.4/en/dbug\-package\&.html
   \-d, \-\-dump\-file=name
                       Dump the tablespace SDI into the file passed by user\&.
                       Without the filename, it will default to stdout
@@ -221,7 +221,7 @@ Display version information and exit\&. For example:
 .RS 4
 .\}
 .nf
-ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
+ibd2sdi  Ver 8\&.4\&.0 for Linux on x86_64 (Source distribution)
 .fi
 .if n \{\
 .RE
@@ -261,7 +261,7 @@ T}
 .TE
 .sp 1
 Prints a debug log\&. For debug options, refer to
-Section\ \&5.9.4, \(lqThe DBUG Package\(rq\&.
+Section\ \&7.9.4, \(lqThe DBUG Package\(rq\&.
 .sp
 .if n \{\
 .RS 4
@@ -427,7 +427,7 @@ mysql\&.tables
 and
 mysql\&.tablespace
 data dictionary tables\&. For information about data dictionary tables, see
-Section\ \&14.1, \(lqData Dictionary Schema\(rq\&.
+Section\ \&16.1, \(lqData Dictionary Schema\(rq\&.
 .sp
 .if n \{\
 .RS 4
@@ -796,7 +796,7 @@ ibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
