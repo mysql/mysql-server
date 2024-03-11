@@ -327,3 +327,9 @@ have_ruby.inc
 
 # 33. Skip tests on platforms that don't support the FIDO plugins
 have_fido_plugin.inc
+
+# 34.0 Tests skipped due to conflicting use of ./mtr --defaults-extra-file
+
+# 34.1 ./mtr-defaults-extra-file=suite/ndb/encrypted_filesystem.cnf
+ndb_redo_log_reader.test
+ndb_secretsfile1.test
