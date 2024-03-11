@@ -1185,7 +1185,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     //       0, qp, (char *)log.buf,
 
     // TODO: 不太确定log.buf的大小，log.buf_size? buf_size_sn?
-    size_t log_buf_data_size = ut::INNODB_CACHE_LINE_SIZE;
+    size_t log_buf_data_size = log.buf_size; // ut::INNODB_CACHE_LINE_SIZE;
     byte *log_buf_data =
         (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
     // log_buf_data = static_cast<byte *>(log.buf);
@@ -1196,6 +1196,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
             log_buf_data_size)) {  
       // Fail
       std::cout << "failed to write log_buf_data\n";
+      assert(0);
       return lsn;
     }
     // std::cout << "success to write log_buf_data\n";
