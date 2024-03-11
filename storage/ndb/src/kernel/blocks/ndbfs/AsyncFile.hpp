@@ -100,6 +100,9 @@ class AsyncFile {
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
   bool check_and_log_if_remove_failure_ok(const char *pathname);
 #endif
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  bool check_inject_and_log_extra_remove(const char *pathname);
+#endif
 
   /**
    * Implementers of AsyncFile interface
