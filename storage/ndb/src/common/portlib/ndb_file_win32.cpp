@@ -356,7 +356,7 @@ void ndb_file::invalidate() {
   m_handle = INVALID_HANDLE_VALUE;
 }
 
-bool ndb_file::have_direct_io_support() const { return false; }
+bool ndb_file::have_direct_io_support() { return false; }
 
 bool ndb_file::avoid_direct_io_on_append() const { return false; }
 

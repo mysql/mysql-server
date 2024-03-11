@@ -2411,7 +2411,7 @@ void Dbtup::lcp_open_ctl_file(Signal *signal, Uint32 tabPtrI, Uint32 tableId,
   req->fileFlags = FsOpenReq::OM_READONLY;
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->userPointer = tabPtrI;
-  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_LCP);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
   FsOpenReq::v5_setLcpNo(req->fileNumber, ctl_file);
   FsOpenReq::v5_setTableId(req->fileNumber, tableId);
@@ -2722,7 +2722,7 @@ void Dbtup::drop_fragment_fsremove(Signal *signal, TablerecPtr tabPtr,
   req->directory = 0;
   req->ownDirectory = 0;
   for (Uint32 i = 0; i < loop_count; i++) {
-    FsOpenReq::setVersion(req->fileNumber, 5);
+    FsOpenReq::setVersion(req->fileNumber, FsOpenReq::V_LCP);
     if (file_type == 2) {
       jam();
       FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
