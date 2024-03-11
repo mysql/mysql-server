@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQL" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ mysql_store_result()\&.
 .br
 .PP
 Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
-\m[blue]\fBMySQL Shell 8\&.2\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBMySQL Shell 8\&.3\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp .5v
 .RE
 .PP
@@ -137,7 +137,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -549,7 +549,7 @@ T}
 .TE
 .sp 1
 The directory where character sets are installed\&. See
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -695,7 +695,7 @@ T}
 .TE
 .sp 1
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
@@ -749,7 +749,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -774,7 +774,7 @@ T}
 Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
-Section\ \&6.2.16, \(lqServer Handling of Expired Passwords\(rq\&.)
+Section\ \&8.2.16, \(lqServer Handling of Expired Passwords\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -990,7 +990,7 @@ T}
 .TE
 .sp 1
 A hint about which client\-side authentication plugin to use\&. See
-Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
+Section\ \&8.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1027,8 +1027,8 @@ This option can be useful if the operating system uses one character set and the
 client by default uses another\&. In this case, output may be formatted incorrectly\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 For more information, see
-Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq, and
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&12.4, \(lqConnection Character Sets and Collations\(rq, and
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1061,7 +1061,7 @@ Read this option file after the global option file but (on Unix) before the user
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1098,7 +1098,7 @@ Exception: Even with
 \&.mylogin\&.cnf\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1143,7 +1143,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1225,7 +1225,7 @@ T}
 .TE
 .sp 1
 Specifies the name of a DNS SRV record that determines the candidate hosts to use for establishing a connection to a MySQL server\&. For information about DNS SRV support in MySQL, see
-Section\ \&4.2.6, \(lqConnecting to the Server Using DNS SRV Records\(rq\&.
+Section\ \&6.2.6, \(lqConnecting to the Server Using DNS SRV Records\(rq\&.
 .sp
 Suppose that DNS is configured with this SRV information for the
 example\&.com
@@ -1319,7 +1319,7 @@ T}
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&8.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -1350,7 +1350,7 @@ T}
 .sp 1
 Execute the statement and quit\&. The default output format is like that produced with
 \fB\-\-batch\fR\&. See
-Section\ \&4.2.2.1, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
+Section\ \&6.2.2.1, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
 \fBmysql\fR
 does not use the history file\&.
 .RE
@@ -1401,7 +1401,7 @@ T}
 This option is deprecated and subject to removal in a future MySQL release\&. It is superseded by the
 \fB\-\-register\-factor\fR
 option, which supports FIDO/FIDO2 device\-based authentication\&. For related information, see
-Section\ \&6.4.1.11, \(lqWebAuthn Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.11, \(lqWebAuthn Pluggable Authentication\(rq\&.
 .sp .5v
 .RE
 The factor or factors for which FIDO device registration must be performed\&. This option value must be a single value, or two values separated by commas\&. Each value must be 2 or 3, so the permitted option values are
@@ -1553,7 +1553,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1687,7 +1687,7 @@ T}
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.11, \(lqServer SQL Modes\(rq)\&.
+Section\ \&7.1.11, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1736,7 +1736,7 @@ Add an additional SQL statement to execute after connecting or reconnecting to t
 \fB\-\-init\-command\fR
 but has no effect if used before it because
 \fBinit\-command\fR
-resets the list of commands to call\&. Option added in MySQL 8\&.2\&.0\&.
+resets the list of commands to call\&.
 .RE
 .sp
 .RS 4
@@ -1874,7 +1874,7 @@ LOCAL
 load operations within
 \fBmysql\fR
 also requires that the server permits local loading; see
-Section\ \&6.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
+Section\ \&8.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
 .RE
 .sp
 .RS 4
@@ -1936,7 +1936,7 @@ LOCAL
 load operations within
 \fBmysql\fR
 also requires that the server permits local loading; see
-Section\ \&6.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
+Section\ \&8.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
 .RE
 .sp
 .RS 4
@@ -1974,7 +1974,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2003,7 +2003,7 @@ See
 for related information\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2173,7 +2173,7 @@ T}
 .TE
 .sp 1
 The network namespace to use for TCP/IP connections\&. If omitted, the connection uses the default (global) namespace\&. For information about network namespaces, see
-Section\ \&5.1.14, \(lqNetwork Namespace Support\(rq\&.
+Section\ \&7.1.14, \(lqNetwork Namespace Support\(rq\&.
 .sp
 This option is available only on platforms that implement network namespace support\&.
 .RE
@@ -2266,7 +2266,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2491,7 +2491,7 @@ or
 and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp
 To explicitly specify that there is no password and that
 \fBmysql\fR
@@ -2518,7 +2518,7 @@ between
 and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp
 To explicitly specify that there is no password and that
 \fBmysql\fR
@@ -2700,7 +2700,7 @@ This option has no effect if the device does not support the resident\-key featu
 .sp .5v
 .RE
 For more information, see
-Section\ \&6.4.1.11, \(lqWebAuthn Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.11, \(lqWebAuthn Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2733,7 +2733,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysql\fR
 does not find it\&. See
-Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
+Section\ \&8.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2793,7 +2793,7 @@ T}
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2877,7 +2877,7 @@ T}
 .TE
 .sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
+Section\ \&6.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2903,6 +2903,52 @@ T}
 Do not cache each query result, print each row as it is received\&. This may slow down the server if the output is suspended\&. With this option,
 \fBmysql\fR
 does not use the history file\&.
+.sp
+By default,
+\fBmysql\fR
+fetches all result rows before producing any output; while storing these, it calculates a running maximum column length from the actual value of each column in succession\&. When printing the output, it uses this maximum to format it\&. When
+\fB\-\-quick\fR
+is specified,
+\fBmysql\fR
+does not have the rows for which to calculate the length before starting, and so uses the maximum length\&. In the following example, table
+t1
+has a single column of type
+BIGINT
+and containing 4 rows\&. The default output is 9 characters wide; this width is equal the maximum number of characters in any of the column values in the rows returned (5), plus 2 characters each for the spaces used as padding and the
+|
+characters used as column delimiters)\&. The output when using the
+\fB\-\-quick\fR
+option is 25 characters wide; this is equal to the number of characters needed to represent
+\-9223372036854775808, which is the longest possible value that can be stored in a (signed)
+BIGINT
+column, or 19 characters, plus the 4 characters used for padding and column delimiters\&. The difference can be seen here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> \fBmysql \-t test \-e "SELECT * FROM t1"\fR
++\-\-\-\-\-\-\-+
+| c1    |
++\-\-\-\-\-\-\-+
+|   100 |
+|  1000 |
+| 10000 |
+|    10 |
++\-\-\-\-\-\-\-+
+$> \fBmysql \-\-quick \-t test \-e "SELECT * FROM t1"\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| c1                   |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+|                  100 |
+|                 1000 |
+|                10000 |
+|                   10 |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
 .RE
 .sp
 .RS 4
@@ -3104,7 +3150,7 @@ The
 \fB\-\-register\-factor\fR
 option is only available for the
 \fBmysql\fR
-client\&. Other MySQL client programs do not support it\&.
+and MySQL Shell clients\&. Other MySQL client programs do not support it\&.
 .sp
 For related information, see
 the section called \(lqUsing WebAuthn Authentication\(rq\&.
@@ -3243,8 +3289,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3378,7 +3424,28 @@ T}:T{
 T}
 .TE
 .sp 1
-Do not write column names in results\&.
+Do not write column names in results\&. Use of this option causes the output to be right\-aligned, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> \fBecho "SELECT * FROM t1" | mysql \-t test\fR
++\-\-\-\-\-\-\-+
+| c1    |
++\-\-\-\-\-\-\-+
+| a,c,d |
+| c     |
++\-\-\-\-\-\-\-+
+$> \fBecho "SELECT * FROM t1" | \&./mysql \-uroot \-Nt test\fR
++\-\-\-\-\-\-\-+
+| a,c,d |
+|     c |
++\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
 .RE
 .sp
 .RS 4
@@ -3508,7 +3575,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.8, \(lqFIPS Support\(rq\&.
+Section\ \&8.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -3703,7 +3770,7 @@ T}
 .TE
 .sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3780,7 +3847,7 @@ T}
 .TE
 .sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -4037,7 +4104,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -4074,7 +4141,7 @@ T}
 Enables the telemetry client plugin (Linux only)\&.
 .sp
 For more information, see
-Chapter\ \&33, Telemetry\&.
+Chapter\ \&35, Telemetry\&.
 .RE
 .SH "MYSQL CLIENT COMMANDS"
 .PP
@@ -4115,18 +4182,14 @@ rehash    (\e#) Rebuild completion hash\&.
 source    (\e\&.) Execute an SQL script file\&. Takes a file name as an argument\&.
 status    (\es) Get status information from the server\&.
 system    (\e!) Execute a system shell command\&.
-tee       (\eT) Set outfile [to_outfile]\&. Append everything into given
-               outfile\&.
+tee       (\eT) Set outfile [to_outfile]\&. Append everything into given outfile\&.
 use       (\eu) Use another database\&. Takes database name as argument\&.
-charset   (\eC) Switch to another charset\&. Might be needed for processing
-               binlog with multi\-byte charsets\&.
+charset   (\eC) Switch to another charset\&. Might be needed for processing binlog with multi\-byte charsets\&.
 warnings  (\eW) Show warnings after every statement\&.
 nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
 resetconnection(\ex) Clean session context\&.
-query_attributes Sets string parameters (name1 value1 name2 value2 \&.\&.\&.)
-for the next query to pick up\&.
-ssl_session_data_print Serializes the current SSL session data to stdout 
-or file\&.
+query_attributes Sets string parameters (name1 value1 name2 value2 \&.\&.\&.) for the next query to pick up\&.
+ssl_session_data_print Serializes the current SSL session data to stdout or file
 For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
@@ -4282,7 +4345,7 @@ is set to something other than the default of
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
 \m[blue]\fBMultiple Statement Execution Support\fR\m[]\&\s-2\u[3]\d\s+2), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&25.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&27.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -4488,7 +4551,7 @@ mysql>\&.
 query_attributes \fIname\fR \fIvalue\fR [\fIname\fR \fIvalue\fR \&.\&.\&.]
 .sp
 Define query attributes that apply to the next query sent to the server\&. For discussion of the purpose and use of query attributes, see
-Section\ \&9.6, \(lqQuery Attributes\(rq\&.
+Section\ \&11.6, \(lqQuery Attributes\(rq\&.
 .sp
 The
 query_attributes
@@ -5239,7 +5302,7 @@ prompt=(\e\eu@\e\eh) [\e\ed]>\e\e_
 In this example, note that the backslashes are doubled\&. If you set the prompt using the
 prompt
 option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of permissible prompt options and the set of special escape sequences that are recognized in option files\&. (The rules for escape sequences in option files are listed in
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
 \es
 is interpreted as a space rather than as the current seconds value\&. The following example shows how to define a prompt within an option file to include the current time in
 \fIhh:mm:ss\fR>
@@ -5521,7 +5584,7 @@ Controlling the History File
 The
 \&.mysql_history
 file should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. Statements in the file are accessible from the
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. Statements in the file are accessible from the
 \fBmysql\fR
 client when the
 up\-arrow
@@ -5721,7 +5784,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.17, \(lqServer-Side Help Support\(rq)\&.
+Section\ \&7.1.17, \(lqServer-Side Help Support\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -5801,7 +5864,6 @@ Name: \*(AqSHOW BINARY LOGS\*(Aq
 Description:
 Syntax:
 SHOW BINARY LOGS
-SHOW MASTER LOGS
 Lists the binary log files on the server\&. This statement is used as
 part of the procedure described in [purge\-binary\-logs], that shows how
 to determine which logs can be purged\&.
@@ -5950,7 +6012,7 @@ with an option such as
 \fB\-\-default\-character\-set=utf8mb4\fR\&.
 .PP
 For more information about batch mode, see
-Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
+Section\ \&5.5, \(lqUsing mysql in Batch Mode\(rq\&.
 .SH "MYSQL CLIENT TIPS"
 .PP
 This section provides information about techniques for more effective use of
@@ -6417,11 +6479,11 @@ the section called \(lqLimiting Memory Use for Range Optimization\(rq\&.
 .IP \(bu 2.3
 .\}
 If key comparisons require type conversion, the index may not be used (see
-Section\ \&8.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed string column
+Section\ \&10.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed string column
 c1
 is compared to a numeric value using
 WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
-Section\ \&12.3, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
+Section\ \&14.3, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
 .RE
 .PP
 These behaviors are included in safe\-updates mode:
@@ -6589,7 +6651,7 @@ command)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -6599,29 +6661,29 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-MySQL Shell 8.2
+MySQL Shell 8.3
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.1/en/
+\%https://dev.mysql.com/doc/mysql-shell/8.4/en/
 .RE
 .IP " 2." 4
 C API Basic Data Structures
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.2/en/c-api-data-structures.html
+\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-data-structures.html
 .RE
 .IP " 3." 4
 Multiple Statement Execution Support
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.2/en/c-api-multiple-queries.html
+\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-multiple-queries.html
 .RE
 .IP " 4." 4
 mysql_change_user()
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.2/en/mysql-change-user.html
+\%https://dev.mysql.com/doc/c-api/8.4/en/mysql-change-user.html
 .RE
 .IP " 5." 4
 Automatic Reconnection Control
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.2/en/c-api-auto-reconnect.html
+\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-auto-reconnect.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

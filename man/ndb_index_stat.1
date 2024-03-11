@@ -2,12 +2,12 @@
 .\"     Title: ndb_index_stat
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDB_INDEX_STAT" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDB_INDEX_STAT" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,7 +77,6 @@ table:City index:PRIMARY fragCount:2
 sampleVersion:3 loadTime:1399585986 sampleCount:1994 keyBytes:7976
 query cache: valid:1 sampleCount:1994 totalBytes:27916
 times in ms: save: 7\&.133 sort: 1\&.974 sort per sample: 0\&.000
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
@@ -149,15 +148,13 @@ query cache created
 query cache: valid:1 sampleCount:0 totalBytes:0
 times in ms: save: 20\&.766 sort: 0\&.001
 disconnected
-NDBT_ProgramExit: 0 \- OK
 $>
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-If the only output from the program is
-NDBT_ProgramExit: 0 \- OK, this may indicate that no statistics yet exist\&. To force them to be created (or updated if they already exist), invoke
+If the output from the program is empty, this may indicate that no statistics yet exist\&. To force them to be created (or updated if they already exist), invoke
 \fBndb_index_stat\fR
 with the
 \fB\-\-update\fR
@@ -690,7 +687,62 @@ T}:T{
 T}
 .TE
 .sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+Set connection string for connecting to
+\fBndb_mgmd\fR\&. Syntax:
+[nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. Overrides entries in
+NDB_CONNECTSTRING
+and
+my\&.cnf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required to connect to the management server; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
 .RE
 .sp
 .RS 4
@@ -785,6 +837,53 @@ T}
 Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
 \fB\-\-skip\-ndb\-optimized\-node\-selection\fR
 to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
 .RE
 .sp
 .RS 4
@@ -1265,7 +1364,7 @@ ndb_index_stat system options)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

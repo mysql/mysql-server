@@ -2,12 +2,12 @@
 .\"     Title: mysqld_safe
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLD_SAFE" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQLD_SAFE" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -85,7 +85,7 @@ Many of the options to
 \fBmysqld_safe\fR
 are the same as the options to
 \fBmysqld\fR\&. See
-Section\ \&5.1.7, \(lqServer Command Options\(rq\&.
+Section\ \&7.1.7, \(lqServer Command Options\(rq\&.
 .PP
 Options unknown to
 \fBmysqld_safe\fR
@@ -94,7 +94,7 @@ are passed to
 if they are specified on the command line, but ignored if they are specified in the
 [mysqld_safe]
 group of an option file\&. See
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .PP
 \fBmysqld_safe\fR
 reads all options from the
@@ -129,7 +129,7 @@ sections, but to be current you should rename such sections to
 .PP
 \fBmysqld_safe\fR
 accepts options on the command line and in option files, as described in the following table\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -225,7 +225,7 @@ should be able to create\&. The option value is passed to
 The
 innodb_buffer_pool_in_core_file
 variable can be used to reduce the size of core files on operating systems that support it\&. For more information, see
-Section\ \&15.8.3.7, \(lqExcluding Buffer Pool Pages from Core Files\(rq\&.
+Section\ \&17.8.3.7, \(lqExcluding Buffer Pool Pages from Core Files\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -288,7 +288,7 @@ Read this option file in addition to the usual option files\&. If the file does 
 is not an absolute path name, it is interpreted relative to the current directory\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -321,7 +321,7 @@ Use only the given option file\&. If the file does not exist or is otherwise ina
 is not an absolute path name, it is interpreted relative to the current directory\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -384,7 +384,7 @@ T}
 .TE
 .sp 1
 Write the error log to the given file\&. See
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&7.4.2, \(lqThe Error Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -825,7 +825,7 @@ Do not read any option files\&. If program startup fails due to reading unknown 
 can be used to prevent them from being read\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1079,7 +1079,7 @@ facility/severity is used for all log messages\&.
 Using these options to control
 \fBmysqld\fR
 logging is deprecated\&. To write error log output to the system log, use the instructions at
-Section\ \&5.4.2.8, \(lqError Logging to the System Log\(rq\&. To control the facility, use the server
+Section\ \&7.4.2.8, \(lqError Logging to the System Log\(rq\&. To control the facility, use the server
 log_syslog_facility
 system variable\&.
 .RE
@@ -1128,7 +1128,7 @@ Using this option to control
 logging is deprecated\&. Use the server
 log_syslog_tag
 system variable instead\&. See
-Section\ \&5.4.2.8, \(lqError Logging to the System Log\(rq\&.
+Section\ \&7.4.2.8, \(lqError Logging to the System Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1398,13 +1398,13 @@ logging from
 is deprecated\&. Use the server\*(Aqs native
 syslog
 support instead\&. For more information, see
-Section\ \&5.4.2.8, \(lqError Logging to the System Log\(rq\&.
+Section\ \&7.4.2.8, \(lqError Logging to the System Log\(rq\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDB_MGM" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDB_MGM" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -446,7 +446,7 @@ or
 option works with the
 \fBmysql\fR
 command\-line client\&. See
-Section\ \&4.2.2.1, \(lqUsing Options on the Command Line\(rq\&.
+Section\ \&6.2.2.1, \(lqUsing Options on the Command Line\(rq\&.
 .if n \{\
 .sp
 .\}
@@ -625,6 +625,56 @@ Set node ID for this node, overriding any ID set by
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required to connect to the management server; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-ndb\-mgmd\-host\fR
 .TS
 allbox tab(:);
@@ -684,6 +734,53 @@ to disable\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-no\-defaults\fR
 .TS
 allbox tab(:);
@@ -718,6 +815,43 @@ T}
 .TE
 .sp 1
 Print program argument list and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-test\-tls\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--test-tls
+T}
+.TE
+.sp 1
+Connect using TLS, then exit\&. Output if successful is similar to what is shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+>$ \fBndb_mgm \-\-test\-tls\fR
+Connected to Management Server at: sakila:1186
+>$
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+See
+Section\ \&25.6.15, \(lqTLS Link Encryption for NDB Cluster\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -837,11 +971,11 @@ Display version information and exit\&.
 Additional information about using
 \fBndb_mgm\fR
 can be found in
-Section\ \&23.6.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
+Section\ \&25.6.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

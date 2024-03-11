@@ -2,12 +2,12 @@
 .\"     Title: mysql_secure_installation
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQL_SECURE_INSTALLATION" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQL_SECURE_INSTALLATION" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -137,7 +137,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -192,7 +192,7 @@ Read this option file after the global option file but (on Unix) before the user
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -225,7 +225,7 @@ Use only the given option file\&. If the file does not exist or is otherwise ina
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -270,7 +270,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -330,7 +330,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -427,7 +427,7 @@ T}
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -475,7 +475,7 @@ T}
 .TE
 .sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
+Section\ \&6.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -582,7 +582,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.8, \(lqFIPS Support\(rq\&.
+Section\ \&8.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -676,7 +676,7 @@ T}
 .TE
 .sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -753,7 +753,7 @@ T}
 .TE
 .sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -815,7 +815,7 @@ The user name of the MySQL account to use for connecting to the server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

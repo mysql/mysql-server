@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgmd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDB_MGMD" "8" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDB_MGMD" "8" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -170,7 +170,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -344,7 +344,7 @@ option is also read if
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -708,7 +708,7 @@ T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -727,7 +727,7 @@ is invoked with
 but cannot find a global configuration file, the management server cannot start\&.
 .sp
 When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data\&. This behavior has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&25.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 When used together with the
 \fB\-\-config\-file\fR
@@ -984,6 +984,56 @@ is specified; a warning is issued if both options are used concurrently\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required to connect to the management server; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-ndb\-mgmd\-host\fR
 .TS
 allbox tab(:);
@@ -1066,6 +1116,53 @@ T}
 Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
 \fB\-\-skip\-ndb\-optimized\-node\-selection\fR
 to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
 .RE
 .sp
 .RS 4
@@ -1262,7 +1359,7 @@ $> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as NDB Cluster SQL nodes connected to this cluster\&. See
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1362,7 +1459,7 @@ T}
 .TE
 .sp 1
 NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&23.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&25.4.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -1381,7 +1478,7 @@ When
 is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
 \fB\-\-initial\fR
 instead to force the existing cached configuration to be discarded and reloaded from the file\&. See
-Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
+Section\ \&25.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
 .RS 4
@@ -1520,7 +1617,7 @@ Display version information and exit\&.
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
 ndb_mgmd(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
@@ -1544,7 +1641,7 @@ is the unique node identifier\&.
 .\}
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&23.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
+Section\ \&25.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -1557,7 +1654,7 @@ Section\ \&23.4, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up t
 .\}
 ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
-Section\ \&23.6, \(lqManagement of NDB Cluster\(rq\&.
+Section\ \&25.6, \(lqManagement of NDB Cluster\(rq\&.
 .sp
 By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where
@@ -1598,7 +1695,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

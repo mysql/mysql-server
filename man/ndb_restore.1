@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ directory\&. This program reads the files created as a result of the backup and 
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&25.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .if n \{\
 .sp
 .\}
@@ -59,7 +59,7 @@ Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&23.6.6, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
+Section\ \&25.6.6, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
@@ -348,7 +348,7 @@ and
 must be run twice\(emonce for each storage node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&23.3.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
+Section\ \&25.3.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -366,9 +366,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.0\&.35 to a cluster running NDB Cluster 7\&.6\&.28, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.4\&.0 to a cluster running NDB Cluster 8\&.0\&.35, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.6\&.28 distribution\&.
+that comes with the NDB Cluster 8\&.0\&.35 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -495,7 +495,7 @@ T}
 This option is required; it is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&25.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -894,7 +894,7 @@ idx
 on table
 tbl\&. See
 Primary Keys and Indexes, for more information, as well as
-Section\ \&8.3.12, \(lqInvisible Indexes\(rq\&.
+Section\ \&10.3.12, \(lqInvisible Indexes\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1111,7 +1111,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.23.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&25.23.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1552,7 +1552,7 @@ T}
 .sp 1
 \fBndb_restore\fR
 does not by default restore shared users and grants (see
-Section\ \&23.6.13, \(lqPrivilege Synchronization and NDB_STORED_USER\(rq) to the
+Section\ \&25.6.13, \(lqPrivilege Synchronization and NDB_STORED_USER\(rq) to the
 ndb_sql_metadata
 table\&. Specifying this option causes it to do so\&.
 .RE
@@ -1606,7 +1606,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.24.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&25.24.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1832,7 +1832,7 @@ This option is intended to complement the
 option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
-Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+Section\ \&19.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
 .sp
 This option also makes it possible to restore a
 NULL
@@ -1894,7 +1894,7 @@ T}
 This option stops
 \fBndb_restore\fR
 from restoring any NDB Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
+Section\ \&25.6.11, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
 .RE
 .sp
 .RS 4
@@ -1956,7 +1956,62 @@ T}:T{
 T}
 .TE
 .sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+Set connection string for connecting to
+\fBndb_mgmd\fR\&. Syntax:
+[nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. Overrides entries in
+NDB_CONNECTSTRING
+and
+my\&.cnf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required to connect to the management server; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
 .RE
 .sp
 .RS 4
@@ -2074,6 +2129,53 @@ T}
 Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
 \fB\-\-skip\-ndb\-optimized\-node\-selection\fR
 to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
 .RE
 .sp
 .RS 4
@@ -2768,7 +2870,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&19.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .sp
 This option also makes it possible to restore a
 NOT NULL
@@ -2996,7 +3098,7 @@ function is
 to
 2147483647
 (see
-Section\ \&11.1.2, \(lqInteger Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT\(rq)\&.
+Section\ \&13.1.2, \(lqInteger Types (Exact Value) - INTEGER, INT, SMALLINT, TINYINT, MEDIUMINT, BIGINT\(rq)\&.
 .sp
 If applying the offset value to the column would cause an overflow or underflow, the restore operation fails\&. This could happen, for example, if the column is a
 BIGINT, and the option attempts to apply an offset value of 8 on a row in which the column value is 4294967291, since
@@ -3004,7 +3106,7 @@ BIGINT, and the option attempts to apply an offset value of 8 on a row in which 
 .RE
 .sp
 This option can be useful when you wish to merge data stored in multiple source instances of NDB Cluster (all using the same schema) into a single destination NDB Cluster, using NDB native backup (see
-Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq) and
+Section\ \&25.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq) and
 \fBndb_restore\fR
 to merge the data, where primary and unique key values are overlapping between source clusters, and it is necessary as part of the process to remap these values to ranges that do not overlap\&. It may also be necessary to preserve other relationships between tables\&. To fulfill such requirements, it is possible to use the option multiple times in the same invocation of
 \fBndb_restore\fR
@@ -3104,7 +3206,7 @@ having
 in the
 id
 column is updated if it already exists; such a row is inserted if it does not already exist\&. (See
-Section\ \&23.7.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
+Section\ \&25.7.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -3726,7 +3828,7 @@ The
 option is used to specify a connection string which tells
 ndb_restore
 where to locate the cluster management server (see
-Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq)\&. If this option is not used, then
+Section\ \&25.4.3.3, \(lqNDB Cluster Connection Strings\(rq)\&. If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -3744,7 +3846,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&23.4.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
+Section\ \&25.4.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
 .PP
 \fBndb_restore\fR
 can decrypt an encrypted backup using
@@ -3800,7 +3902,7 @@ START REPLICA\&. This is a known issue in NDB Cluster\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: ndbinfo_select_all
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 03/11/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDBINFO_SELECT_ALL" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "NDBINFO_SELECT_ALL" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -589,7 +589,12 @@ T}:T{
 T}
 .TE
 .sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+Set connection string for connecting to
+\fBndb_mgmd\fR\&. Syntax:
+[nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. Overrides entries in
+NDB_CONNECTSTRING
+and
+my\&.cnf\&.
 .RE
 .sp
 .RS 4
@@ -932,7 +937,7 @@ table_info
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2023, Oracle and/or its affiliates.
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
