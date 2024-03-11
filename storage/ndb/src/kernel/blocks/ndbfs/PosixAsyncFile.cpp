@@ -41,7 +41,6 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
-#include "util/ndb_rand.h"
 
 #include <NdbTick.h>
 
@@ -56,7 +55,8 @@ PosixAsyncFile::PosixAsyncFile(Ndbfs &fs) : AsyncFile(fs) {}
 void PosixAsyncFile::removeReq(Request *request) {
 #if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
   // Sometimes inject double file delete
-  if (ndb_rand() % 100 == 0) ::remove(theFileName.c_str());
+  if (check_inject_and_log_extra_remove(theFileName.c_str()))
+    ::remove(theFileName.c_str());
 #endif
   if (-1 == ::remove(theFileName.c_str())) {
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
@@ -94,7 +94,7 @@ loop:
       strcat(path, dp->d_name);
 #if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
       // Sometimes inject double file delete
-      if (ndb_rand() % 100 == 0) remove(path);
+      if (check_inject_and_log_extra_remove(path)) remove(path);
 #endif
       bool removed = (remove(path) == 0);
 #if UNRELIABLE_DISTRIBUTED_FILESYSTEM
