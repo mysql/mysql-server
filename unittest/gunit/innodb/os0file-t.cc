@@ -36,9 +36,8 @@ class os0file_t : public ::testing::Test {
   void SetUp() override {
     bool success;
     os_file_delete_if_exists_func(TEST_FILE_NAME, nullptr);
-    test_file =
-        os_file_create_func(TEST_FILE_NAME, OS_FILE_CREATE, OS_FILE_NORMAL,
-                            OS_BUFFERED_FILE, false, &success);
+    test_file = os_file_create_func(TEST_FILE_NAME, OS_FILE_CREATE,
+                                    OS_BUFFERED_FILE, false, &success);
     EXPECT_TRUE(success);
   }
 
