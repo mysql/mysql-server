@@ -455,10 +455,10 @@ function get_response(stmt_key, options) {
     case "router_select_router_id":
       return {
         stmt_regex:
-            "SELECT router_id FROM mysql_innodb_cluster_metadata.v2_routers WHERE router_name = .*",
+            "SELECT router_id FROM mysql_innodb_cluster_metadata.v2_routers WHERE router_name = .* and address = .*",
         result: {
           columns: [{"type": "LONG", "name": "router_id"}],
-          rows: [options.router_id]
+          rows: [[options.router_id]]
         }
       };
     case "router_insert_into_routers":
