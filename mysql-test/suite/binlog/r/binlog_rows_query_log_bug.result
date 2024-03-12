@@ -1,0 +1,20 @@
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS = 1;
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t (name VARCHAR(255));
+# Adding debug point 'rows_query_alter' to @@GLOBAL.debug
+INSERT INTO t VALUES ('foo\0bar');;
+# Removing debug point 'rows_query_alter' from @@GLOBAL.debug
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Rows_query	#	#	# INSERT INTO t VALUES ('foobar')
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+include/assert_grep.inc [Found the right query]
+INSERT INTO t VALUES ('foo\0bar');;
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Rows_query	#	#	# INSERT INTO t VALUES ('foo\0bar')
+binlog.000001	#	Table_map	#	#	table_id: # (test.t)
+include/assert_grep.inc [Found the right query]
+DROP TABLE t;

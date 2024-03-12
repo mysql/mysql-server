@@ -12879,39 +12879,75 @@ void Rows_query_log_event::claim_memory_ownership(bool claim) {
 #ifdef MYSQL_SERVER
 int Rows_query_log_event::pack_info(Protocol *protocol) {
   char *buf;
-  size_t bytes;
-  size_t len = sizeof("# ") + strlen(m_rows_query);
+  size_t len = strlen("# ") + m_rows_query_length;
   if (!(buf = (char *)my_malloc(key_memory_log_event, len, MYF(MY_WME))))
     return 1;
-  bytes = snprintf(buf, len, "# %s", m_rows_query);
-  protocol->store_string(buf, bytes, &my_charset_bin);
+  memcpy(buf, "# ", 2);
+  memcpy(buf + 2, m_rows_query, m_rows_query_length);
+  protocol->store_string(buf, len, &my_charset_bin);
   my_free(buf);
   return 0;
 }
 #endif
 
 #ifndef MYSQL_SERVER
+/**
+  Print a string
+
+  @param[out] cache  IO_CACHE where the string will be printed.
+  @param[in] rows_query  the string to be printed.
+  @param[in] len  length of the string.
+*/
+static inline void pretty_print_rows_query(IO_CACHE *cache,
+                                           const char *rows_query, size_t len) {
+  /*
+    Prefix every line of a multi-line query with '#' to prevent the
+    statement from being executed when binary log will be processed
+    using 'mysqlbinlog --verbose --verbose'.
+  */
+  my_b_printf(cache, "# ");
+  for (const auto &c : std::string_view(rows_query, len)) {
+    switch ((c)) {
+      case '\n':
+        my_b_printf(cache, "\n");
+        my_b_printf(cache, "# ");
+        break;
+      case '\r':
+        my_b_printf(cache, "\\r");
+        break;
+      case '\\':
+        my_b_printf(cache, "\\\\");
+        break;
+      case '\b':
+        my_b_printf(cache, "\\b");
+        break;
+      case '\t':
+        my_b_printf(cache, "\\t");
+        break;
+      case 0:
+        my_b_printf(cache, "\\0");
+        break;
+      default:
+        my_b_printf(cache, "%c", c);
+        break;
+    }
+  }
+  my_b_printf(cache, "\n");
+}
 void Rows_query_log_event::print(FILE *,
                                  PRINT_EVENT_INFO *print_event_info) const {
   if (!print_event_info->short_form && print_event_info->verbose > 1) {
     IO_CACHE *const head = &print_event_info->head_cache;
     IO_CACHE *const body = &print_event_info->body_cache;
-    char *token = nullptr, *saveptr = nullptr;
     char *rows_query_copy = nullptr;
-    if (!(rows_query_copy =
-              my_strdup(key_memory_log_event, m_rows_query, MYF(MY_WME))))
+    if (!(rows_query_copy = my_strndup(key_memory_log_event, m_rows_query,
+                                       m_rows_query_length, MYF(MY_WME))))
       return;
 
     print_header(head, print_event_info, false);
     my_b_printf(head, "\tRows_query\n");
-    /*
-      Prefix every line of a multi-line query with '#' to prevent the
-      statement from being executed when binary log will be processed
-      using 'mysqlbinlog --verbose --verbose'.
-    */
-    for (token = my_strtok_r(rows_query_copy, "\n", &saveptr); token;
-         token = my_strtok_r(nullptr, "\n", &saveptr))
-      my_b_printf(head, "# %s\n", token);
+    pretty_print_rows_query(head, rows_query_copy, m_rows_query_length);
+
     my_free(rows_query_copy);
     print_base64(body, print_event_info, true);
   }
@@ -12922,19 +12958,26 @@ void Rows_query_log_event::print(FILE *,
 bool Rows_query_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_TRACE;
   /*
-   m_rows_query length will be stored using only one byte, but on read
-   that length will be ignored and the complete query will be read.
+    Previously we used the first byte to write length of the string but in
+    this case the length of string(m_rows_query) can be greater than 255 bytes
+    so we will not be using the first byte to store length and assign a
+    value 0 to mark that its unused.
   */
-  return write_str_at_most_255_bytes(ostream, m_rows_query,
-                                     strlen(m_rows_query));
+  uchar unused_byte[1];
+
+  unused_byte[0] = 0;
+  return (ostream->write(unused_byte, 1) ||
+          (m_rows_query_length > 0 &&
+           ostream->write(pointer_cast<const uchar *>(m_rows_query),
+                          m_rows_query_length)));
 }
 
 int Rows_query_log_event::do_apply_event(Relay_log_info const *rli) {
   DBUG_TRACE;
   assert(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
-  thd->set_query(m_rows_query, strlen(m_rows_query));
-  thd->set_query_for_display(m_rows_query, strlen(m_rows_query));
+  thd->set_query(m_rows_query, m_rows_query_length);
+  thd->set_query_for_display(m_rows_query, m_rows_query_length);
 
   assert(rli->rows_query_ev == nullptr);
 

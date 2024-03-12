@@ -1167,6 +1167,11 @@ class Delete_rows_event : public virtual Rows_event {
     <td>char array</td>
     <td>Records the original query executed in RBR </td>
   </tr>
+  <tr>
+    <td>m_rows_query_length</td>
+    <td>integer</td>
+    <td>Stores the original query length executed in RBR </td>
+  </tr>
   </table>
 */
 class Rows_query_event : public virtual Ignorable_event {
@@ -1192,12 +1197,15 @@ class Rows_query_event : public virtual Ignorable_event {
     ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
   */
   Rows_query_event()
-      : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(nullptr) {}
+      : Ignorable_event(ROWS_QUERY_LOG_EVENT),
+        m_rows_query(nullptr),
+        m_rows_query_length(0) {}
 
   ~Rows_query_event() override;
 
  protected:
   char *m_rows_query;
+  size_t m_rows_query_length;
 };
 }  // namespace mysql::binlog::event
 

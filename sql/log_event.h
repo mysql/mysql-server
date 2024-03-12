@@ -3784,11 +3784,24 @@ class Rows_query_log_event : public Ignorable_log_event,
       : Ignorable_log_event(thd_arg) {
     DBUG_TRACE;
     common_header->type_code = mysql::binlog::event::ROWS_QUERY_LOG_EVENT;
+    m_rows_query_length = query_len;
     if (!(m_rows_query =
               (char *)my_malloc(key_memory_Rows_query_log_event_rows_query,
-                                query_len + 1, MYF(MY_WME))))
+                                m_rows_query_length, MYF(MY_WME))))
       return;
-    snprintf(m_rows_query, query_len + 1, "%s", query);
+    memcpy(m_rows_query, query, m_rows_query_length);
+    DBUG_EXECUTE_IF(
+        "rows_query_alter", size_t i = 0; while (i < m_rows_query_length) {
+          if (m_rows_query[i] == '\\') {
+            m_rows_query[i] = '\0';
+            i++;
+            for (auto j = i; j < m_rows_query_length - 1; j++) {
+              m_rows_query[j] = m_rows_query[j + 1];
+            }
+            m_rows_query_length -= 1;
+          } else
+            i++;
+        });
     DBUG_PRINT("enter", ("%s", m_rows_query));
     return;
   }
@@ -3815,7 +3828,7 @@ class Rows_query_log_event : public Ignorable_log_event,
 #endif
   size_t get_data_size() override {
     return mysql::binlog::event::Binary_log_event::IGNORABLE_HEADER_LEN + 1 +
-           strlen(m_rows_query);
+           m_rows_query_length;
   }
 };
 

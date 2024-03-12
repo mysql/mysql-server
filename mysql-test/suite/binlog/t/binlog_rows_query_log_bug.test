@@ -1,0 +1,75 @@
+# ==== PURPOSE ====
+#
+# This test validates that Rows_query_log_event is processed correctly
+# in case the query has null(\0) characters in between the query.
+#
+# ==== REQUIREMENTS ====
+#
+# 1. The insert query should succeed
+# 2. Show binlog events must show the correct value for rows_query_log event
+# 3. mysqlbinlog should print value without truncating.
+# 4. Repeat the above for debug and non-debug scenario.
+#
+# ==== REFERENCES ====
+#
+# Bug#35336260:Rows_query_log_event truncates query due to treating query as C string
+#
+
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS = 1;
+
+# Clean any old binlogs
+RESET BINARY LOGS AND GTIDS;
+
+CREATE TABLE t (name VARCHAR(255));
+
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+
+# This debug point will force the query to be processed as
+# INSERT INTO t VALUES ('foo\0bar') where the null character is
+# not masked.
+
+--let $debug_point = rows_query_alter
+--source include/add_debug_point.inc
+--let $query = INSERT INTO t VALUES ('foo\0bar');
+--eval $query
+--let $debug_point = rows_query_alter
+--source include/remove_debug_point.inc
+
+--let $binlog_limit = 4
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $output_file = $MYSQLTEST_VARDIR/tmp/rows_query_log.output
+--exec $MYSQL_BINLOG  --force-if-open -vv $MYSQLD_DATADIR/$binlog_file > $output_file
+
+--let $assert_text = Found the right query
+--let $assert_file = $output_file
+--let $assert_select = INSERT INTO t VALUES \('foo..bar'\)
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--remove_file $output_file
+
+--let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+--eval $query
+
+--let $binlog_limit = 4
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--let $output1_file = $MYSQLTEST_VARDIR/tmp/rows_query_log1.output
+--exec $MYSQL_BINLOG --force-if-open -vv $MYSQLD_DATADIR/$binlog_file > $output1_file
+
+--let $assert_text = Found the right query
+--let $assert_file = $output1_file
+--let $assert_select = INSERT INTO t VALUES \('foo..bar'\)
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+DROP TABLE t;
+
+# Cleanup
+--remove_file $output1_file
