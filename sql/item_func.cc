@@ -4593,6 +4593,7 @@ void udf_handler::clean_buffers() {
   if (buffers == nullptr) return;
   for (uint i = 0; i < f_args.arg_count; i++) {
     buffers[i].mem_free();
+    arg_buffers[i].mem_free();
   }
 }
 
@@ -4703,6 +4704,8 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     // if (!(buffers = new String[arg_count]) ||
     if (!(buffers = pointer_cast<String *>(
               (*THR_MALLOC)->Alloc(sizeof(String) * arg_count))) ||
+        !(arg_buffers = pointer_cast<String *>(
+              (*THR_MALLOC)->Alloc(sizeof(String) * arg_count))) ||
         !(f_args.args =
               (char **)(*THR_MALLOC)->Alloc(arg_count * sizeof(char *))) ||
         !(f_args.lengths =
@@ -4723,6 +4726,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   }
   for (uint i = 0; i < arg_count; i++) {
     (void)::new (buffers + i) String;
+    (void)::new (arg_buffers + i) String;
     m_args_extension.charset_info[i] = nullptr;
   }
 
@@ -5044,29 +5048,17 @@ bool udf_handler::get_and_convert_string(uint index) {
   String *res = args[index]->val_str(&buffers[index]);
 
   if (!args[index]->null_value) {
-    auto check_charset = m_args_extension.charset_info[index];
-    if (check_charset != nullptr && res->charset() != check_charset) {
-      /* m_args_extension.charset_info[index] is a legitimate charset */
-      String temp;
-      uint dummy;
-      if (temp.copy(res->ptr(), res->length(), res->charset(),
-                    m_args_extension.charset_info[index], &dummy)) {
-        return true;
-      }
-      *res = std::move(temp);
-    } else if (res != &buffers[index]) {
-      /* The res returned above is &Item::str_value
-       * We may call c_ptr_safe() below, reallocating the buffer of
-       * Item::str_value If we set the str_value m_ptr directly somewhere, the
-       * allocated buffer at c_ptr_safe() will be freed, before the UDF is able
-       * to use it. So, instead of changing Item::str_value, copy its contents
-       * to udf_handler::buffers and use that instead.
-       */
-      buffers[index] = *res;
-      res = &buffers[index];
+    uint errors = 0;
+    if (arg_buffers[index].copy(res->ptr(), res->length(), res->charset(),
+                                m_args_extension.charset_info[index],
+                                &errors)) {
+      return true;
     }
-    f_args.args[index] = res->c_ptr_safe();
-    f_args.lengths[index] = res->length();
+    if (errors) {
+      return true;
+    }
+    f_args.args[index] = arg_buffers[index].c_ptr_safe();
+    f_args.lengths[index] = arg_buffers[index].length();
   } else {
     f_args.lengths[index] = 0;
   }

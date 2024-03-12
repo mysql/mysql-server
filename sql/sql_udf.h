@@ -84,6 +84,7 @@ class udf_handler {
  protected:
   udf_func *u_d;
   String *buffers{nullptr};
+  String *arg_buffers{nullptr};
   UDF_ARGS f_args;
   UDF_INIT initid;
   char *num_buffer{nullptr};
