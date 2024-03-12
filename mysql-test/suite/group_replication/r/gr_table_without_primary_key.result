@@ -9,37 +9,37 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #     members.
 CREATE TABLE `t1` (
 `col_bit_64` bit(64),
-`col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8,
+`col_varchar_255_utf8mb3_key` varchar(255) CHARACTER SET utf8mb3,
 `col_bigint` bigint,
 `col_varchar_255_binary_key` varchar(255) CHARACTER SET binary,
-`col_varchar_255_utf8` varchar(255) CHARACTER SET utf8,
-`col_text_utf8` text CHARACTER SET utf8,
+`col_varchar_255_utf8` varchar(255) CHARACTER SET utf8mb3,
+`col_text_utf8` text CHARACTER SET utf8mb3,
 `col_set_binary_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET binary,
 `col_text_binary` text CHARACTER SET binary,
 `col_varchar_255_binary` varchar(255) CHARACTER SET binary,
 `col_bigint_key` bigint,
-`col_set_utf8` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8,
+`col_set_utf8` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8mb3,
 `col_text_binary_key` text CHARACTER SET binary,
 `col_set_binary` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET binary,
-`col_set_utf8_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8,
-`col_text_utf8_key` text CHARACTER SET utf8,
+`col_set_utf8mb3_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8mb3,
+`col_text_utf8mb3_key` text CHARACTER SET utf8mb3,
 `col_bit_64_key` bit(64),
-key (`col_varchar_255_utf8_key`),
+key (`col_varchar_255_utf8mb3_key`),
 key (`col_varchar_255_binary_key`),
 key (`col_set_binary_key`),
 key (`col_bigint_key`),
 key (`col_text_binary_key`(255)),
-key (`col_set_utf8_key`),
-key (`col_text_utf8_key` (255)),
+key (`col_set_utf8mb3_key`),
+key (`col_text_utf8mb3_key` (255)),
 key (`col_bit_64_key`)
 ) ENGINE=InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync.inc
 
 ############################################################
