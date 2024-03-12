@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -702,6 +702,35 @@ static void short_usage(void)
   printf("For more options, use %s --help\n", my_progname);
 }
 
+static void get_safe_server_info(char *safe_server_info,
+                                 size_t safe_server_info_len) {
+  const char *server_info = mysql_get_server_info(&mysql_connection);
+  if (server_info == NULL) {
+    safe_server_info[0] = 0;
+    return;
+  }
+  DBUG_EXECUTE_IF("server_version_injection_test", {
+    const char *payload = "5.7.0-injection_test\n\\! touch /tmp/xxx";
+    server_info = payload;
+  });
+  for (size_t i = 0; i < safe_server_info_len; ++i) {
+    // End of string.
+    if (server_info[i] == 0) {
+      safe_server_info[i] = 0;
+      return;
+    }
+    // Version may include only alphanumeric and punctuation characters.
+    // Cut off the rest of the string if incorrect character found.
+    if (!(isalnum(server_info[i]) || ispunct(server_info[i]))) {
+      safe_server_info[i] = 0;
+      fprintf(stderr,
+              "-- Warning: version string returned by server is incorrect.\n");
+      return;
+    }
+    safe_server_info[i] = server_info[i];
+  }
+  safe_server_info[safe_server_info_len - 1] = 0;
+}
 
 static void write_header(FILE *sql_file, char *db_name)
 {
@@ -722,6 +751,8 @@ static void write_header(FILE *sql_file, char *db_name)
   {
     my_bool freemem= FALSE;
     char const* text= fix_identifier_with_newline(db_name, &freemem);
+    char safe_server_info[SERVER_VERSION_LENGTH];
+    get_safe_server_info(safe_server_info, SERVER_VERSION_LENGTH);
 
     print_comment(sql_file, 0,
                   "-- MySQL dump %s  Distrib %s, for %s (%s)\n--\n",
@@ -737,8 +768,7 @@ static void write_header(FILE *sql_file, char *db_name)
     print_comment(sql_file, 0,
                   "-- ------------------------------------------------------\n"
                  );
-    print_comment(sql_file, 0, "-- Server version\t%s\n",
-                  mysql_get_server_info(&mysql_connection));
+    print_comment(sql_file, 0, "-- Server version\t%s\n", safe_server_info);
 
     if (opt_set_charset)
       fprintf(sql_file,
