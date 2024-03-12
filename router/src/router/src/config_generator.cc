@@ -123,9 +123,17 @@ static const std::chrono::milliseconds kDefaultAuthCacheTTL =
     std::chrono::seconds(-1);
 static const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval =
     std::chrono::milliseconds(2000);
-static constexpr uint32_t kMaxRouterId =
-    999999;  // max router id is 6 digits due to username size constraints
-static constexpr unsigned kNumRandomChars = 12;
+
+/* The max mysql username length is 32.
+ * We create user following the pattern mysql_routerXX_YY
+ * where:
+ * - XX is the router_id which can be max 4294967295.
+ * - YY is the random characters suffix
+ * To satisfy the 32 max length limit, we have 7 characters left for
+ * random part (YY).
+ */
+static constexpr unsigned kNumRandomChars = 7;
+
 static constexpr unsigned kDefaultPasswordRetries =
     20;  // number of the retries when generating random password
          // for the router user during the bootstrap
@@ -1586,12 +1594,6 @@ uint32_t ConfigGenerator::register_router(const std::string &router_name,
     }
 
     throw;
-  }
-
-  if (router_id > kMaxRouterId) {
-    throw std::runtime_error("router_id (" + std::to_string(router_id) +
-                             ") exceeded max allowable value (" +
-                             std::to_string(kMaxRouterId) + ")");
   }
 
   return router_id;
