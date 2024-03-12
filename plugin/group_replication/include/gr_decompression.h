@@ -39,8 +39,6 @@ class GR_decompress {
   using Managed_buffer_t = Decompressor_t::Managed_buffer_t;
   using Decompress_status_t =
       mysql::binlog::event::compression::Decompress_status;
-  using Char_t = Decompressor_t::Char_t;
-  using String_t = std::basic_string<Char_t>;
 
   /**
     Decompression Error

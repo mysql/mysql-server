@@ -84,8 +84,6 @@ class PayloadEventBufferStreamTest {
   using Decompress_status_t =
       mysql::binlog::event::compression::Decompress_status;
   using Size_t = typename Compressor_t::Size_t;
-  using Char_t = typename Compressor_t::Char_t;
-  using String_t = std::basic_string<Char_t>;
   using Stream_t =
       mysql::binlog::event::compression::Payload_event_buffer_istream;
   using Buffer_ptr_t = Stream_t::Buffer_ptr_t;
