@@ -946,7 +946,7 @@ EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         title VARCHAR(200),
         text TEXT
-        ) CHARACTER SET = utf8, ENGINE=InnoDB;
+        ) CHARACTER SET = utf8mb3, ENGINE=InnoDB;
 
 INSERT INTO t1 (title, text) VALUES
 ('Я могу есть стекло', 'оно мне не вредит'),

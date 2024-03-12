@@ -1,4 +1,4 @@
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 -- echo # Create table : Test with row_type $table_row_format with char,varchar,text columns
 EVAL CREATE TABLE articles_1 (
@@ -12,12 +12,12 @@ EVAL CREATE TABLE articles (
         seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
         c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
         c2 CHAR(200) CHARACTER SET gbk COLLATE gbk_chinese_ci,
-        c3 CHAR(200) CHARACTER SET utf8,
+        c3 CHAR(200) CHARACTER SET utf8mb3,
         j1 TEXT CHARACTER SET ujis COLLATE ujis_japanese_ci,
         j2 VARCHAR(200) CHARACTER SET sjis COLLATE sjis_japanese_ci,
         j3 VARCHAR(200) CHARACTER SET ujis,
         k1 CHAR(200) CHARACTER SET euckr COLLATE euckr_korean_ci,
-        k2 CHAR(200) CHARACTER SET utf8,
+        k2 CHAR(200) CHARACTER SET utf8mb3,
         e1 CHAR(200) CHARACTER SET latin1,
         FULLTEXT KEY con1 (c1) WITH PARSER ngram,
         FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
@@ -28,12 +28,12 @@ EVAL CREATE TABLE 名字 (
         seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
         c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
         c2 CHAR(200) CHARACTER SET gbk COLLATE gbk_chinese_ci,
-        c3 CHAR(200) CHARACTER SET utf8,
+        c3 CHAR(200) CHARACTER SET utf8mb3,
         さようなら TEXT CHARACTER SET ujis COLLATE ujis_japanese_ci,
         j2 VARCHAR(200) CHARACTER SET sjis COLLATE sjis_japanese_ci,
         j3 VARCHAR(200) CHARACTER SET ujis,
         행운을빈다 CHAR(200) CHARACTER SET euckr COLLATE euckr_korean_ci,
-        k2 CHAR(200) CHARACTER SET utf8,
+        k2 CHAR(200) CHARACTER SET utf8mb3,
         e1 CHAR(200) CHARACTER SET latin1,
         FULLTEXT KEY con1 (c1) WITH PARSER ngram,
         FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,

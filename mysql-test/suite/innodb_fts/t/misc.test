@@ -1138,7 +1138,7 @@ fulltext key (`a`)) ENGINE=INNODB;
 INSERT INTO `t` VALUES ('a');
 INSERT INTO `t` VALUES ('aaa');
 
-# 0x22 is the '"', 0xdd is not encoded in utf8
+# 0x22 is the '"', 0xdd is not encoded in utf8mb3
 SELECT MATCH(`a`) AGAINST (0x22dd22) FROM `t`;
 SELECT MATCH(`a`) AGAINST (0x2222) FROM `t`;
 SELECT MATCH(`a`) AGAINST (0x22) FROM `t`;

@@ -160,20 +160,20 @@ CREATE TABLE articles (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
 c2 CHAR(200) CHARACTER SET gbk COLLATE gbk_chinese_ci,
-c3 CHAR(200) CHARACTER SET utf8,
+c3 CHAR(200) CHARACTER SET utf8mb3,
 j1 TEXT CHARACTER SET ujis COLLATE ujis_japanese_ci,
 j2 VARCHAR(200) CHARACTER SET sjis COLLATE sjis_japanese_ci,
 j3 VARCHAR(200) CHARACTER SET ujis,
 k1 CHAR(200) CHARACTER SET euckr COLLATE euckr_korean_ci,
-k2 CHAR(200) CHARACTER SET utf8,
+k2 CHAR(200) CHARACTER SET utf8mb3,
 e1 CHAR(200) CHARACTER SET latin1,
 FULLTEXT KEY `con1` (c1),
 FULLTEXT KEY `con2` (j1,j3),
 FULLTEXT KEY `con3` (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET DEBUG='+d,alter_table_rollback_new_index';
 ALTER TABLE articles ADD FULLTEXT INDEX (c2(64));
 ERROR HY000: Unknown error

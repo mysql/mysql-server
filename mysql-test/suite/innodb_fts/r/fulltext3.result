@@ -10,30 +10,30 @@ DROP TABLE t1;
 SET NAMES utf8mb4;
 CREATE TABLE t1(a VARCHAR(255) CHARACTER SET gb18030, FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0xF043616161),(0xBEF361616197C22061616161);
-SELECT CONVERT(a USING utf8) FROM t1;
-CONVERT(a USING utf8)
+SELECT CONVERT(a USING utf8mb3) FROM t1;
+CONVERT(a USING utf8mb3)
 餋aaa
 倔aaa椔 aaaa
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT CONVERT(_gb18030 0x97C22061616161 USING utf8);
-CONVERT(_gb18030 0x97C22061616161 USING utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT CONVERT(_gb18030 0x97C22061616161 USING utf8mb3);
+CONVERT(_gb18030 0x97C22061616161 USING utf8mb3)
 椔 aaaa
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C220616161 IN BOOLEAN MODE);
-HEX(a)	CONVERT(a USING utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT HEX(a), CONVERT(a USING utf8mb3) FROM t1 WHERE MATCH(a) AGAINST(0x97C220616161 IN BOOLEAN MODE);
+HEX(a)	CONVERT(a USING utf8mb3)
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C22061616161 IN BOOLEAN MODE);
-HEX(a)	CONVERT(a USING utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT HEX(a), CONVERT(a USING utf8mb3) FROM t1 WHERE MATCH(a) AGAINST(0x97C22061616161 IN BOOLEAN MODE);
+HEX(a)	CONVERT(a USING utf8mb3)
 BEF361616197C22061616161	倔aaa椔 aaaa
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C2206161616161 IN BOOLEAN MODE);
-HEX(a)	CONVERT(a USING utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT HEX(a), CONVERT(a USING utf8mb3) FROM t1 WHERE MATCH(a) AGAINST(0x97C2206161616161 IN BOOLEAN MODE);
+HEX(a)	CONVERT(a USING utf8mb3)
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET NAMES latin1;
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, FULLTEXT(a)) ENGINE=InnoDB DEFAULT CHARSET=gb18030 COLLATE=gb18030_bin;

@@ -113,7 +113,7 @@ id	title	body
 3	要想将数据添加到数据库	或访问、处理计算机数据库中保存的数据
 4	需要使用数据库管理系统	计算机是处理大量数据的理想工具
 DROP TABLE articles;
-# Test Case 3: Test Chinese with UTF8 Charset.
+# Test Case 3: Test Chinese with utf8mb3 Charset.
 CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),

@@ -395,9 +395,9 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ïðéìëé');
 t	collation(t)
 üÔÏ ÍÙ - ÏÐÉÌËÉ	utf8mb4_0900_ai_ci
 DROP TABLE t1;
-CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (s) values ('pära para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
 s
@@ -426,9 +426,9 @@ insert t1 values (1, "aaaa"), (2, "bbbb");
 insert t2 values (10, "aaaa"), (2, "cccc");
 replace t1 select * from t2;
 drop table t1, t2;
-CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t)) ENGINE = InnoDB;
+CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci, FULLTEXT (t)) ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SET NAMES latin1;
 INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');

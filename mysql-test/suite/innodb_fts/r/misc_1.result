@@ -1,6 +1,6 @@
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 SET restrict_fk_on_non_standard_key=OFF;
@@ -11,18 +11,18 @@ id1 INT ,
 a1 VARCHAR(200) ,
 b1 TEXT ,
 FULLTEXT KEY (a1,b1), PRIMARY KEY (a1, id1)
-) CHARACTER SET = utf8 , ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3 , ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t2 (
 id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a2 VARCHAR(200),
 b2 TEXT ,
 FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
 FULLTEXT KEY (b2,a2)
-) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SET restrict_fk_on_non_standard_key=ON;
 Warnings:
@@ -215,22 +215,22 @@ DROP TABLE t2 , t1;
 CREATE TABLE t1 (
 id1 INT ,
 a1 VARCHAR(200) PRIMARY KEY,
-b1 TEXT character set utf8 ,
+b1 TEXT character set utf8mb3 ,
 FULLTEXT KEY (a1,b1)
-) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t2 (
 id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a2 VARCHAR(200),
-b2 TEXT character set utf8 ,
+b2 TEXT character set utf8mb3 ,
 FOREIGN KEY (a2) REFERENCES t1(a1) ON DELETE CASCADE,
 FULLTEXT KEY (b2,a2)
-) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (id1,a1,b1) VALUES
 (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 (2,'How To Use MySQL Well','After you went through a ...'),
@@ -264,18 +264,18 @@ id1 INT ,
 a1 VARCHAR(200) ,
 b1 TEXT ,
 FULLTEXT KEY (a1,b1), PRIMARY KEY(a1, id1)
-) CHARACTER SET = utf8 , ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3 , ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t2 (
 id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a2 VARCHAR(200),
 b2 TEXT ,
 FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
 FULLTEXT KEY (b2,a2)
-) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	6124	Foreign key 't2_ibfk_1' refers to non-unique key or partial key. This is deprecated and will be removed in a future release.
 SET restrict_fk_on_non_standard_key=ON;
 Warnings:
@@ -505,9 +505,9 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = utf8, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -692,9 +692,9 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = utf8, ENGINE=InnoDB;
+) CHARACTER SET = utf8mb3, ENGINE=InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('Я могу есть стекло', 'оно мне не вредит'),
 ('Мога да ям стъкло', 'то не ми вреди'),

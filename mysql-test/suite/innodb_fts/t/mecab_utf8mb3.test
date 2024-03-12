@@ -2,7 +2,7 @@
 
 #
 # WL#6607 : InnoDB FULLTEXT SEARCH: CJK support (mecab parser)
-# Test mecab charset utf8
+# Test mecab charset utf8mb3
 #------------------------------------------------------------------------------
 
 let $ipadic_charset=utf-8;

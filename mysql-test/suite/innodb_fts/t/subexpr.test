@@ -9,7 +9,7 @@ CREATE TABLE t1 (
     f2 TEXT NOT NULL,
     PRIMARY KEY (f1),
     FULLTEXT (f2)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 (f2) VALUES
 ('Pumpkin soup with cheese bread'),

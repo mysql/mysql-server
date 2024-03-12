@@ -310,20 +310,20 @@ id	a	b
 6	Trial version	query performace 1255 minute on 2.1Hz Memory 2GB...
 7	when To Use MySQL Well	for free faq  mail@xyz.com ...
 DROP TABLE t1;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 "In connection 1"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -332,9 +332,9 @@ INSERT INTO t1 (a,b) VALUES
 ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -530,20 +530,20 @@ id	a	b
 2	when To Use MySQL Well	After that you went through a ...
 5	when To Use MySQL Well	for free faq  xyz.com ...
 DROP TABLE t1;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 "In connection 1"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -552,9 +552,9 @@ INSERT INTO t1 (a,b) VALUES
 ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@session.transaction_isolation;
 @@session.transaction_isolation
 REPEATABLE-READ
@@ -654,29 +654,29 @@ id	a	b
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 7	adding record using session 1	for verifying multiple concurrent transactions
 DROP TABLE t1;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 "In connection 1"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
 ('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@session.transaction_isolation;
 @@session.transaction_isolation
 REPEATABLE-READ
@@ -804,20 +804,20 @@ id	a	b
 6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
 DROP TABLE t1;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 "In connection 1"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -826,9 +826,9 @@ INSERT INTO t1 (a,b) VALUES
 ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@session.transaction_isolation;
 @@session.transaction_isolation
 REPEATABLE-READ
@@ -933,29 +933,29 @@ id	a	b
 7	adding record using session 1	for verifying multiple concurrent transactions
 8	Мога да ям стъкло	то Mне ми вреди
 DROP TABLE t1;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 "In connection 1"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
 ('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@session.transaction_isolation;
 @@session.transaction_isolation
 REPEATABLE-READ

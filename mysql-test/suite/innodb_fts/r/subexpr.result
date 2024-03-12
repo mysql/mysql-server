@@ -7,9 +7,9 @@ f1 INT NOT NULL AUTO_INCREMENT,
 f2 TEXT NOT NULL,
 PRIMARY KEY (f1),
 FULLTEXT (f2)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (f2) VALUES
 ('Pumpkin soup with cheese bread'),
 ('Yellow chicken curry'),

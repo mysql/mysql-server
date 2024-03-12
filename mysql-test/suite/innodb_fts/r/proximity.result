@@ -105,9 +105,9 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8, ENGINE= InnoDB;
+) CHARACTER SET = utf8mb3, ENGINE= InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -145,9 +145,9 @@ id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a TEXT,
 b TEXT,
 c TEXT
-) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+) CHARACTER SET = utf8mb3, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, very little long blob very much blob', 'very long blob');
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000),"very 租车 供 blob","new 供需分析information");
@@ -191,9 +191,9 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) CHARACTER SET = UTF8, ENGINE= InnoDB;
+) CHARACTER SET = utf8mb3, ENGINE= InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for    + DataBase ...');
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -210,9 +210,9 @@ id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a TEXT,
 b TEXT,
 c TEXT
-) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+) CHARACTER SET = utf8mb3, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
 INSERT INTO t1 (a,b,c) VALUES   ('XYZ, 租车 very little long blob very much blob', repeat("b", 19000), 'very long but smaller blob');
 CREATE FULLTEXT INDEX idx on t1 (a,b,c);

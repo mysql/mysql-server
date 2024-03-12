@@ -8,7 +8,7 @@
 # - FTS index with single and two columns
 # - external parser index using alter table
 # - check with transactional statement
-# - Check utf8 charset table
+# - Check utf8mb3 charset table
 # - alter table commands Add/drop fulltext index and column
 # - NULL values in table
 # - FTS query with join condition
@@ -182,8 +182,8 @@ DROP TABLE articles;
 # Get warning here
 
 
-#set names utf8;
-SET NAMES UTF8;
+#set names utf8mb3;
+SET NAMES utf8mb3;
 
 
 --disable_warnings
@@ -196,7 +196,7 @@ EVAL CREATE TABLE t1 (
         a VARCHAR(200),
         b TEXT,
         FULLTEXT (b) WITH PARSER simple_parser
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 # Insert rows
@@ -240,7 +240,7 @@ EVAL CREATE TABLE t1 (
         a VARCHAR(200),
         b TEXT,
         FULLTEXT (b) WITH PARSER simple_parser
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 INSERT INTO t1 (a,b) VALUES

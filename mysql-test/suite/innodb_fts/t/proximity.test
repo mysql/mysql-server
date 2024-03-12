@@ -119,12 +119,12 @@ SELECT * FROM t1
 
 DROP TABLE t1;
 
-# test on utf8 encoded proximity search
+# test on utf8mb3 encoded proximity search
 CREATE TABLE t1 (
 	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 	a VARCHAR(200),
 	b TEXT
-	) CHARACTER SET = UTF8, ENGINE= InnoDB;
+	) CHARACTER SET = utf8mb3, ENGINE= InnoDB;
 
 INSERT INTO t1 (a,b) VALUES
 	('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
@@ -167,7 +167,7 @@ CREATE TABLE t1 (
 	a TEXT,
 	b TEXT,
 	c TEXT
-	) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+	) CHARACTER SET = utf8mb3, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
 
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, very little long blob very much blob', 'very long blob');
@@ -214,7 +214,7 @@ CREATE TABLE t1 (
 	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 	a VARCHAR(200),
 	b TEXT
-	) CHARACTER SET = UTF8, ENGINE= InnoDB;
+	) CHARACTER SET = utf8mb3, ENGINE= InnoDB;
 
 # Space and special characters are not counted as word
 INSERT INTO t1 (a,b) VALUES
@@ -234,7 +234,7 @@ CREATE TABLE t1 (
 	a TEXT,
 	b TEXT,
 	c TEXT
-	) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+	) CHARACTER SET = utf8mb3, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
 
 INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
 INSERT INTO t1 (a,b,c) VALUES   ('XYZ, 租车 very little long blob very much blob', repeat("b", 19000), 'very long but smaller blob');

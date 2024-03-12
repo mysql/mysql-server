@@ -5,7 +5,7 @@
 #------------------------------------------------------------------------------
 # FTS with FK and update cascade
 #-------------------------------------------------------------------------------
-set names utf8;
+set names utf8mb3;
 
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
@@ -17,7 +17,7 @@ CREATE TABLE t1 (
         a1 VARCHAR(200) ,
         b1 TEXT ,
         FULLTEXT KEY (a1,b1), PRIMARY KEY (a1, id1)
-        ) CHARACTER SET = utf8 , ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3 , ENGINE = InnoDB;
 
 CREATE TABLE t2 (
         id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -25,7 +25,7 @@ CREATE TABLE t2 (
         b2 TEXT ,
         FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
         FULLTEXT KEY (b2,a2)
-        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 SET restrict_fk_on_non_standard_key=ON;
 
 # Insert rows
@@ -178,17 +178,17 @@ DROP TABLE t2 , t1;
 CREATE TABLE t1 (
         id1 INT ,
         a1 VARCHAR(200) PRIMARY KEY,
-        b1 TEXT character set utf8 ,
+        b1 TEXT character set utf8mb3 ,
         FULLTEXT KEY (a1,b1)
-        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 
 CREATE TABLE t2 (
         id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a2 VARCHAR(200),
-        b2 TEXT character set utf8 ,
+        b2 TEXT character set utf8mb3 ,
         FOREIGN KEY (a2) REFERENCES t1(a1) ON DELETE CASCADE,
         FULLTEXT KEY (b2,a2)
-        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 
 # Insert rows
 INSERT INTO t1 (id1,a1,b1) VALUES
@@ -233,7 +233,7 @@ CREATE TABLE t1 (
         a1 VARCHAR(200) ,
         b1 TEXT ,
         FULLTEXT KEY (a1,b1), PRIMARY KEY(a1, id1)
-        ) CHARACTER SET = utf8 , ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3 , ENGINE = InnoDB;
 
 CREATE TABLE t2 (
         id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -241,7 +241,7 @@ CREATE TABLE t2 (
         b2 TEXT ,
         FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
         FULLTEXT KEY (b2,a2)
-        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3 ,ENGINE = InnoDB;
 SET restrict_fk_on_non_standard_key=ON;
 
 # Insert rows
@@ -445,7 +445,7 @@ CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = utf8, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES
@@ -590,7 +590,7 @@ DROP TABLE t1;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 
 #------------------------------------------------------------------------------
-# FTS index with utf8 character testcase
+# FTS index with utf8mb3 character testcase
 #------------------------------------------------------------------------------
 
 # Create FTS table
@@ -598,7 +598,7 @@ EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = utf8, ENGINE=InnoDB;
+        ) CHARACTER SET = utf8mb3, ENGINE=InnoDB;
 
 
 # Insert rows from different languages

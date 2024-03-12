@@ -263,9 +263,9 @@ SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('("msyql database")@3' IN BOOLEAN MODE);
 id	title	body
 DROP TABLE articles;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Test Part 7: Test Different Charset
 CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,

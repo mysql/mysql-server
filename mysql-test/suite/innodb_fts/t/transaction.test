@@ -340,20 +340,20 @@ DROP TABLE t1;
 # FTS with transaction - multiple connections
 #------------------------------------------------------------------------------
 
-#set names utf8;
-SET NAMES UTF8;
+#set names utf8mb3;
+SET NAMES utf8mb3;
 
 # Create FTS table
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 --echo "In connection 1"
 --connect (con1,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES
@@ -367,7 +367,7 @@ INSERT INTO t1 (a,b) VALUES
 
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -597,19 +597,19 @@ DROP TABLE t1;
 # FTS with delete transaction with multiple session 
 #------------------------------------------------------------------------------
 
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Create FTS table
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 --echo "In connection 1"
 --connect (con1,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES
@@ -623,7 +623,7 @@ INSERT INTO t1 (a,b) VALUES
 
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 select @@session.transaction_isolation;
 
 # Create the FTS index again
@@ -701,19 +701,19 @@ DROP TABLE t1;
 # FTS with update transaction with multiple session 
 #------------------------------------------------------------------------------
 
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Create FTS table
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 --echo "In connection 1"
 --connect (con1,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES
@@ -725,7 +725,7 @@ INSERT INTO t1 (a,b) VALUES
 
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 select @@session.transaction_isolation;
 
 # Create the FTS index again
@@ -824,19 +824,19 @@ DROP TABLE t1;
 # FTS with delete/rollback transaction with multiple session 
 #------------------------------------------------------------------------------
 
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Create FTS table
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 --echo "In connection 1"
 --connect (con1,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES
@@ -850,7 +850,7 @@ INSERT INTO t1 (a,b) VALUES
 
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 select @@session.transaction_isolation;
 
 # Create the FTS index again
@@ -928,19 +928,19 @@ DROP TABLE t1;
 # FTS with update/rollback transaction with multiple session 
 #------------------------------------------------------------------------------
 
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Create FTS table
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+        ) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 
 
 --echo "In connection 1"
 --connect (con1,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES
@@ -952,7 +952,7 @@ INSERT INTO t1 (a,b) VALUES
 
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 select @@session.transaction_isolation;
 
 # Create the FTS index again

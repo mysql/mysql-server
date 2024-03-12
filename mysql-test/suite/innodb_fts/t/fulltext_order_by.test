@@ -73,14 +73,14 @@ CREATE TABLE t1 (
   PRIMARY KEY  (id),
   KEY thread (thread),
   FULLTEXT KEY beitrag (beitrag)
-) ENGINE =InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
+) ENGINE =InnoDB DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=7923 ;
 
 CREATE TABLE t2 (
   id int(11) NOT NULL auto_increment,
   text varchar(100) NOT NULL default '',
   PRIMARY KEY  (id),
   KEY text (text)
-) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=63 ;
 
 CREATE TABLE t3 (
   id int(11) NOT NULL auto_increment,
@@ -89,7 +89,7 @@ CREATE TABLE t3 (
   PRIMARY KEY  (id),
   KEY forum (forum),
   FULLTEXT KEY betreff (betreff)
-) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=996 ;
 
 --error ER_TABLENAME_NOT_ALLOWED_HERE
 select a.text, b.id, b.betreff
@@ -180,7 +180,7 @@ drop table t1,t2,t3;
 --disable_warnings
 CREATE TABLE t_fts (
    FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-   c0000 longtext CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+   c0000 longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
    FULLTEXT KEY i0000 (c0000)
 );
 --enable_warnings
@@ -211,7 +211,7 @@ DROP TABLE t_fts;
 --echo # Test with implicit FTS index
 --disable_warnings
 CREATE TABLE t_nofts (
-   c0000 longtext CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+   c0000 longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
    FULLTEXT KEY i0000 (c0000)
 );
 --enable_warnings

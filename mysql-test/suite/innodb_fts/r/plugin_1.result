@@ -213,18 +213,18 @@ SELECT * FROM articles WHERE
 MATCH(body1,body2) AGAINST('row7col5');
 id	title	body	body1	body2	body3
 DROP TABLE articles;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT,
 FULLTEXT (b) WITH PARSER simple_parser
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -269,9 +269,9 @@ id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT,
 FULLTEXT (b) WITH PARSER simple_parser
-) CHARACTER SET = UTF8,ENGINE = InnoDB;
+) CHARACTER SET = utf8mb3,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),

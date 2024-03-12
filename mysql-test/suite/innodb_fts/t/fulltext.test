@@ -307,7 +307,7 @@ insert into t1 select "xxxx yyyy zzzz";
 drop table t1;
 
 #
-# UTF8
+# utf8mb3
 # INNODB_FTS: Charset Support (FIX)
 SET NAMES latin1;
 --character_set latin1
@@ -335,7 +335,7 @@ DROP TABLE t1;
 # bug#3964
 #
 --character_set latin1
-CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8mb3;
 insert into t1 (s) values ('pära para para'),('para para para');
 --sorted_result
 select * from t1 where match(s) against('para' in boolean mode);
@@ -380,7 +380,7 @@ drop table t1, t2;
 # bug#8351
 #
 # INNODB_FTS: Charset Support
-CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t)) ENGINE = InnoDB;
+CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci, FULLTEXT (t)) ENGINE = InnoDB;
 SET NAMES latin1;
 INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');
 SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrück"' IN BOOLEAN MODE);
@@ -399,7 +399,7 @@ INSERT INTO t1 VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 #SET myisam_repair_threads=@@global.myisam_repair_threads;
 
 #
-# BUG#5686 - #1034 - Incorrect key file for table - only utf8
+# BUG#5686 - #1034 - Incorrect key file for table - only utf8mb3
 #
 INSERT INTO t1 VALUES('testword\'\'');
 SELECT a FROM t1 WHERE MATCH a AGAINST('testword' IN BOOLEAN MODE);

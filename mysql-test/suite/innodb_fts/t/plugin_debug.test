@@ -238,7 +238,7 @@ SELECT * FROM articles WHERE
 
 DROP TABLE articles;
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 -- echo # Test Part 7: Test Different Charset
 CREATE TABLE articles (
