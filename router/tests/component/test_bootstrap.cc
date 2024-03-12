@@ -2320,6 +2320,51 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntryOverwrite) {
   check_exit_code(router, EXIT_SUCCESS);
 }
 
+/**
+ * @test
+ *       verify that Router creates an account even if the router_id
+ * AUTOINCREMENT value is high
+ */
+TEST_F(RouterBootstrapTest, BootstrapRouterRouterIdMax) {
+  TempDirectory bootstrap_directory;
+  const auto server_port = port_pool_.get_next_available();
+  // const auto server_http_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "cluster-specific-id",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
+
+  {
+    std::string server_globals =
+        MockServerRestClient(http_port).get_globals_as_json_string();
+    JsonDocument globals;
+    if (globals.Parse<0>(server_globals.c_str()).HasParseError()) {
+      FAIL() << "Failed parsing mock server globals";
+    }
+
+    JsonAllocator allocator;
+    // mimic the highiest possible router_id (2^32-1)
+    globals.AddMember("last_insert_id", std::numeric_limits<uint32_t>::max(),
+                      allocator);
+
+    server_globals = json_to_string(globals);
+    MockServerRestClient(http_port).set_globals(server_globals);
+  }
+
+  // launch the router in bootstrap mode
+  auto &router = launch_router_for_bootstrap(
+      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+       bootstrap_directory.name()},
+      EXIT_SUCCESS);
+
+  // the bootstrap should be fine even with the router_id that high
+  check_exit_code(router, EXIT_SUCCESS);
+}
+
 class ConfSetOptionTest : public RouterBootstrapTest {};
 
 /**
