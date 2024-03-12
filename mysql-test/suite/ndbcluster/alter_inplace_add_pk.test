@@ -1,0 +1,31 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # Test adding index on table without primary key
+--echo # using inplace alter table.
+--echo #
+CREATE TABLE t1 (
+  a int not null,
+  b int
+) ENGINE = NDB;
+
+--echo # Case A) on a NOT NULL column
+--echo # NOTE! When adding a UNIQUE index it becomes ADD PRIMARY KEY
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD UNIQUE INDEX a_idx(a);
+SHOW WARNINGS;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD PRIMARY KEY (a);
+SHOW WARNINGS;
+
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD INDEX a_idx2(a);
+
+--echo # Case B) on a nullable column
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD UNIQUE INDEX b_idx(b);
+
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD INDEX b_idx2(b);
+
+DROP TABLE t1;
+
+

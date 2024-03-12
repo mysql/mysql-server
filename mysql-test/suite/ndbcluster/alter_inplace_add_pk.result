@@ -1,0 +1,25 @@
+#
+# Test adding index on table without primary key
+# using inplace alter table.
+#
+CREATE TABLE t1 (
+a int not null,
+b int
+) ENGINE = NDB;
+# Case A) on a NOT NULL column
+# NOTE! When adding a UNIQUE index it becomes ADD PRIMARY KEY
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD UNIQUE INDEX a_idx(a);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD PRIMARY KEY (a);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD INDEX a_idx2(a);
+# Case B) on a nullable column
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD UNIQUE INDEX b_idx(b);
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD INDEX b_idx2(b);
+DROP TABLE t1;

@@ -15722,6 +15722,16 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
     }
   }
 
+  if (alter_flags & Alter_inplace_info::ADD_PK_INDEX) {
+    return inplace_unsupported(ha_alter_info, "Adding primary key");
+  }
+
+  if (alter_flags & Alter_inplace_info::DROP_PK_INDEX) {
+    return inplace_unsupported(ha_alter_info, "Dropping primary key");
+  }
+
+  // Catch all for everything not supported, should ideally have been caught
+  // already and returned a clear text message.
   if (alter_flags & not_supported) {
     if (alter_info->requested_algorithm ==
         Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)

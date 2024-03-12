@@ -353,7 +353,7 @@ Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 ALTER TABLE t1 algorithm=inplace, ADD PRIMARY KEY (a);
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, ADD PRIMARY KEY (a);
 Primary keys:
 Number of primary keys: 1
@@ -361,21 +361,21 @@ a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 ALTER TABLE t1 algorithm=inplace, DROP PRIMARY KEY;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping primary key. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, DROP PRIMARY KEY;
 Primary keys:
 Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 CREATE UNIQUE INDEX pk ON t1(a) algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 CREATE UNIQUE INDEX pk ON t1(a) algorithm=copy;
 Primary keys:
 Number of primary keys: 1
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 ALTER TABLE t1 algorithm=inplace, DROP INDEX PK;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping primary key. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, DROP INDEX PK;
 Primary keys:
 Number of primary keys: 1
@@ -391,7 +391,7 @@ Number of primary keys: 1
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 ALTER TABLE t1 algorithm=inplace, ADD c INT NOT NULL UNIQUE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding primary key. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, ADD c INT NOT NULL UNIQUE;
 Primary keys:
 Number of primary keys: 1
