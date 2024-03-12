@@ -153,50 +153,50 @@ c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(250), c40 char(247)
 ) charset latin1 ROW_FORMAT=dynamic;
 ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
-CREATE TABLE t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(4) character set utf8,
+CREATE TABLE t1 (a varchar(255) character set utf8mb3,
+b varchar(255) character set utf8mb3,
+c varchar(255) character set utf8mb3,
+d varchar(255) character set utf8mb3,
+e varchar(4) character set utf8mb3,
 PRIMARY KEY (a,b,c,d,e))
 ENGINE=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
-CREATE TABLE t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(5) character set utf8,
+CREATE TABLE t1 (a varchar(255) character set utf8mb3,
+b varchar(255) character set utf8mb3,
+c varchar(255) character set utf8mb3,
+d varchar(255) character set utf8mb3,
+e varchar(5) character set utf8mb3,
 PRIMARY KEY (a,b,c,d,e))
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
-CREATE TABLE t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(255) character set utf8,
-f varchar(4)   character set utf8,
+CREATE TABLE t1 (a varchar(255) character set utf8mb3,
+b varchar(255) character set utf8mb3,
+c varchar(255) character set utf8mb3,
+d varchar(255) character set utf8mb3,
+e varchar(255) character set utf8mb3,
+f varchar(4)   character set utf8mb3,
 PRIMARY KEY (a), KEY (b,c,d,e,f))
 ENGINE=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
-CREATE TABLE t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(255) character set utf8,
-f varchar(5)   character set utf8,
+CREATE TABLE t1 (a varchar(255) character set utf8mb3,
+b varchar(255) character set utf8mb3,
+c varchar(255) character set utf8mb3,
+d varchar(255) character set utf8mb3,
+e varchar(255) character set utf8mb3,
+f varchar(5)   character set utf8mb3,
 PRIMARY KEY (a), KEY (b,c,d,e,f))
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
@@ -322,17 +322,17 @@ DROP TABLE t4,t5;
 # Moving the test allows the rest of innodb-index to be run on all
 # page sizes.  The previously disabled portions of this test were
 # moved as well.
-CREATE TABLE t2(d varchar(17) PRIMARY KEY) ENGINE=innodb DEFAULT CHARSET=utf8;
+CREATE TABLE t2(d varchar(17) PRIMARY KEY) ENGINE=innodb DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t3(a int PRIMARY KEY) ENGINE=innodb;
 INSERT INTO t3 VALUES (22),(44),(33),(55),(66);
 INSERT INTO t2 VALUES ('jejdkrun87'),('adfd72nh9k'),
 ('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
 CREATE TABLE t1(a int, b blob, c text, d text NOT NULL)
-ENGINE=innodb DEFAULT CHARSET=utf8 STATS_PERSISTENT=0;
+ENGINE=innodb DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1
 SELECT a,LEFT(REPEAT(d,100*a),65535),REPEAT(d,20*a),d FROM t2,t3 order by a, d;
 DROP TABLE t2, t3;

@@ -151,39 +151,39 @@ c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
 # Moved from innodb-index.test since each page size has its own max key length.
 # Max Key Length is 768 for 4k pages.
 #
-# InnoDB assumes 3 bytes for each UTF8 character.
+# InnoDB assumes 3 bytes for each utf8mb3 character.
 #
-CREATE TABLE t1 (a varchar(64) character set utf8,
-                 b varchar(64) character set utf8,
-                 c varchar(64) character set utf8,
-                 d varchar(64) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+                 b varchar(64) character set utf8mb3,
+                 c varchar(64) character set utf8mb3,
+                 d varchar(64) character set utf8mb3,
                  PRIMARY KEY (a,b,c,d))
 		 charset latin1
 		 ENGINE=innodb;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
-CREATE TABLE t1 (a varchar(64) character set utf8,
-                 b varchar(64) character set utf8,
-                 c varchar(64) character set utf8,
-                 d varchar(65) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+                 b varchar(64) character set utf8mb3,
+                 c varchar(64) character set utf8mb3,
+                 d varchar(65) character set utf8mb3,
                  PRIMARY KEY (a,b,c,d))
 		 charset latin1
 		 ENGINE=innodb;
-CREATE TABLE t1 (a varchar(64) character set utf8,
-                 b varchar(64) character set utf8,
-                 c varchar(64) character set utf8,
-                 d varchar(64) character set utf8,
-                 e varchar(64) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+                 b varchar(64) character set utf8mb3,
+                 c varchar(64) character set utf8mb3,
+                 d varchar(64) character set utf8mb3,
+                 e varchar(64) character set utf8mb3,
                  PRIMARY KEY (a), KEY (b,c,d,e))
 		 charset latin1
 		 ENGINE=innodb;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
-CREATE TABLE t1 (a varchar(64) character set utf8,
-                 b varchar(64) character set utf8,
-                 c varchar(64) character set utf8,
-                 d varchar(64) character set utf8,
-                 e varchar(65) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+                 b varchar(64) character set utf8mb3,
+                 c varchar(64) character set utf8mb3,
+                 d varchar(64) character set utf8mb3,
+                 e varchar(65) character set utf8mb3,
                  PRIMARY KEY (a), KEY (b,c,d,e))
 		 charset latin1
 		 ENGINE=innodb;
@@ -475,7 +475,7 @@ RENAME TABLE mysql.slave_master_info to mysql.slave_master_info_28490361;
 
 # Should fail because its not an InnoDB Table
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE mysql.slave_master_info(Number_of_lines int(10)unsigned COMMENT 'Number of lines in the file.',Master_log_name text COLLATE utf8_bin COMMENT 'The name of the master binary log currently being read from the master.',Master_log_pos INT(20) unsigned COMMENT 'The master log position of the last read event.',Host char(64) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT''COMMENT 'The host name of the master.',User_name text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',User_password text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',Port int(10) unsigned COMMENT 'The network port used to connect to the master.',Connect_retry int(10) unsigned COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',Enabled_ssl INT(1) COMMENT 'Indicates whether the server supports SSL connections.',Ssl_ca text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',Ssl_capath text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',Ssl_cert text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',Ssl_cipher text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',Sslk text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',Ssl_verify_server_cert INT(1) COMMENT 'Whether to verify the server certificate.',Heartbeat float,Bind text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',Ignored_server_ids text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored,followed by the actual server IDs',Uuid text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',Retry_count INT(20) unsigned COMMENT 'Number of reconnect attempts,to the master,before giving up.',Ssl_crl text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',Ssl_crlpath text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',Enabled_auto_position INT(1) COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',PRIMARY KEY (Host,Port)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' ENGINE=ARCHIVE;
+CREATE TABLE mysql.slave_master_info(Number_of_lines int(10)unsigned COMMENT 'Number of lines in the file.',Master_log_name text COLLATE utf8mb3_bin COMMENT 'The name of the master binary log currently being read from the master.',Master_log_pos INT(20) unsigned COMMENT 'The master log position of the last read event.',Host char(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT''COMMENT 'The host name of the master.',User_name text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The user name used to connect to the master.',User_password text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The password used to connect to the master.',Port int(10) unsigned COMMENT 'The network port used to connect to the master.',Connect_retry int(10) unsigned COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',Enabled_ssl INT(1) COMMENT 'Indicates whether the server supports SSL connections.',Ssl_ca text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',Ssl_capath text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',Ssl_cert text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL certificate file.',Ssl_cipher text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the cipher in use for the SSL connection.',Sslk text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL key file.',Ssl_verify_server_cert INT(1) COMMENT 'Whether to verify the server certificate.',Heartbeat float,Bind text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',Ignored_server_ids text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The number of server IDs to be ignored,followed by the actual server IDs',Uuid text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The master server uuid.',Retry_count INT(20) unsigned COMMENT 'Number of reconnect attempts,to the master,before giving up.',Ssl_crl text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',Ssl_crlpath text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',Enabled_auto_position INT(1) COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',PRIMARY KEY (Host,Port)) DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 COMMENT='Master Information' ENGINE=ARCHIVE;
 
 # Should fail because its a temporary table
 --error ER_TOO_LONG_KEY

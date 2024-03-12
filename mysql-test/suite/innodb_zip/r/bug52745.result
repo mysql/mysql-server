@@ -5,13 +5,13 @@ SET SESSION innodb_strict_mode=OFF;
 CREATE TABLE bug52745 (
 a2 int(10) unsigned DEFAULT NULL,
 col37 time DEFAULT NULL,
-col38 char(229) CHARACTER SET utf8 DEFAULT NULL,
+col38 char(229) CHARACTER SET utf8mb3 DEFAULT NULL,
 col39 text,
 col40 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 col41 int(10) unsigned DEFAULT NULL,
-col42 varchar(248) CHARACTER SET utf8 DEFAULT NULL,
+col42 varchar(248) CHARACTER SET utf8mb3 DEFAULT NULL,
 col43 smallint(5) unsigned zerofill DEFAULT NULL,
-col44 varchar(150) CHARACTER SET utf8 DEFAULT NULL,
+col44 varchar(150) CHARACTER SET utf8mb3 DEFAULT NULL,
 col45 float unsigned zerofill DEFAULT NULL,
 col46 binary(1) DEFAULT NULL,
 col47 tinyint(4) DEFAULT NULL,
@@ -29,7 +29,7 @@ col58 decimal(52,16) unsigned zerofill NOT NULL DEFAULT '00000000000000000000000
 col59 binary(1) DEFAULT NULL,
 col60 longblob,
 col61 time DEFAULT NULL,
-col62 longtext CHARACTER SET utf8 COLLATE utf8_persian_ci,
+col62 longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_persian_ci,
 col63 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 col64 int(10) unsigned DEFAULT NULL,
 col65 date DEFAULT NULL,
@@ -38,7 +38,7 @@ col67 binary(1) DEFAULT NULL,
 col68 tinyblob,
 col69 date DEFAULT NULL,
 col70 tinyint(3) unsigned zerofill DEFAULT NULL,
-col71 varchar(44) CHARACTER SET utf8 DEFAULT NULL,
+col71 varchar(44) CHARACTER SET utf8mb3 DEFAULT NULL,
 col72 datetime DEFAULT NULL,
 col73 smallint(5) unsigned zerofill DEFAULT NULL,
 col74 longblob,
@@ -61,28 +61,28 @@ col90 tinyblob
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
-Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.

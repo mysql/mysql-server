@@ -105,47 +105,47 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
 ) charset latin1 ROW_FORMAT=dynamic;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
-CREATE TABLE t1 (a varchar(64) character set utf8,
-b varchar(64) character set utf8,
-c varchar(64) character set utf8,
-d varchar(64) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+b varchar(64) character set utf8mb3,
+c varchar(64) character set utf8mb3,
+d varchar(64) character set utf8mb3,
 PRIMARY KEY (a,b,c,d))
 charset latin1
 ENGINE=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
-CREATE TABLE t1 (a varchar(64) character set utf8,
-b varchar(64) character set utf8,
-c varchar(64) character set utf8,
-d varchar(65) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+b varchar(64) character set utf8mb3,
+c varchar(64) character set utf8mb3,
+d varchar(65) character set utf8mb3,
 PRIMARY KEY (a,b,c,d))
 charset latin1
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 768 bytes
-CREATE TABLE t1 (a varchar(64) character set utf8,
-b varchar(64) character set utf8,
-c varchar(64) character set utf8,
-d varchar(64) character set utf8,
-e varchar(64) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+b varchar(64) character set utf8mb3,
+c varchar(64) character set utf8mb3,
+d varchar(64) character set utf8mb3,
+e varchar(64) character set utf8mb3,
 PRIMARY KEY (a), KEY (b,c,d,e))
 charset latin1
 ENGINE=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
-CREATE TABLE t1 (a varchar(64) character set utf8,
-b varchar(64) character set utf8,
-c varchar(64) character set utf8,
-d varchar(64) character set utf8,
-e varchar(65) character set utf8,
+CREATE TABLE t1 (a varchar(64) character set utf8mb3,
+b varchar(64) character set utf8mb3,
+c varchar(64) character set utf8mb3,
+d varchar(64) character set utf8mb3,
+e varchar(65) character set utf8mb3,
 PRIMARY KEY (a), KEY (b,c,d,e))
 charset latin1
 ENGINE=innodb;
@@ -439,7 +439,7 @@ DROP TABLE t1;
 #
 USE mysql;
 RENAME TABLE mysql.slave_master_info to mysql.slave_master_info_28490361;
-CREATE TABLE mysql.slave_master_info(Number_of_lines int(10)unsigned COMMENT 'Number of lines in the file.',Master_log_name text COLLATE utf8_bin COMMENT 'The name of the master binary log currently being read from the master.',Master_log_pos INT(20) unsigned COMMENT 'The master log position of the last read event.',Host char(64) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT''COMMENT 'The host name of the master.',User_name text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',User_password text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',Port int(10) unsigned COMMENT 'The network port used to connect to the master.',Connect_retry int(10) unsigned COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',Enabled_ssl INT(1) COMMENT 'Indicates whether the server supports SSL connections.',Ssl_ca text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',Ssl_capath text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',Ssl_cert text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',Ssl_cipher text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',Sslk text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',Ssl_verify_server_cert INT(1) COMMENT 'Whether to verify the server certificate.',Heartbeat float,Bind text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',Ignored_server_ids text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored,followed by the actual server IDs',Uuid text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',Retry_count INT(20) unsigned COMMENT 'Number of reconnect attempts,to the master,before giving up.',Ssl_crl text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',Ssl_crlpath text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',Enabled_auto_position INT(1) COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',PRIMARY KEY (Host,Port)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' ENGINE=ARCHIVE;
+CREATE TABLE mysql.slave_master_info(Number_of_lines int(10)unsigned COMMENT 'Number of lines in the file.',Master_log_name text COLLATE utf8mb3_bin COMMENT 'The name of the master binary log currently being read from the master.',Master_log_pos INT(20) unsigned COMMENT 'The master log position of the last read event.',Host char(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT''COMMENT 'The host name of the master.',User_name text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The user name used to connect to the master.',User_password text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The password used to connect to the master.',Port int(10) unsigned COMMENT 'The network port used to connect to the master.',Connect_retry int(10) unsigned COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',Enabled_ssl INT(1) COMMENT 'Indicates whether the server supports SSL connections.',Ssl_ca text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',Ssl_capath text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',Ssl_cert text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL certificate file.',Ssl_cipher text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the cipher in use for the SSL connection.',Sslk text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL key file.',Ssl_verify_server_cert INT(1) COMMENT 'Whether to verify the server certificate.',Heartbeat float,Bind text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',Ignored_server_ids text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The number of server IDs to be ignored,followed by the actual server IDs',Uuid text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The master server uuid.',Retry_count INT(20) unsigned COMMENT 'Number of reconnect attempts,to the master,before giving up.',Ssl_crl text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',Ssl_crlpath text CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',Enabled_auto_position INT(1) COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',PRIMARY KEY (Host,Port)) DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 COMMENT='Master Information' ENGINE=ARCHIVE;
 ERROR HY000: Storage engine 'ARCHIVE' does not support system tables. [mysql.slave_master_info]
 create temporary table mysql.slave_master_info (a varchar(334) character set utf32 primary key) ROW_FORMAT=COMPACT ENGINE=INNODB;
 ERROR 42000: Specified key was too long; max key length is 767 bytes

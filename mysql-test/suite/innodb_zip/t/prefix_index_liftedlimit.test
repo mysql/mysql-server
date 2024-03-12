@@ -600,11 +600,11 @@ SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743;
 DROP TABLE worklog5743;
 
 #------------------------------------------------------------------------------
-# Prefix index with utf8 charset
-# utf8 charcter takes 3 bytes in mysql so prefix index limit is 3072/3 = 1024
+# Prefix index with utf8mb3 charset
+# utf8mb3 charcter takes 3 bytes in mysql so prefix index limit is 3072/3 = 1024
 CREATE TABLE worklog5743 (
-col_1_text TEXT (4000) CHARACTER SET 'utf8',
-col_2_text TEXT (4000) CHARACTER SET 'utf8',
+col_1_text TEXT (4000) CHARACTER SET 'utf8mb3',
+col_2_text TEXT (4000) CHARACTER SET 'utf8mb3',
 PRIMARY KEY (col_1_text(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
@@ -620,9 +620,9 @@ DELETE FROM worklog5743 WHERE col_1_text = REPEAT("b", 4000);
 SELECT col_1_text = REPEAT("c", 4000) FROM worklog5743;
 DROP TABLE worklog5743;
 
-# Prefix index with utf8 charset + varchar.
-CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8',
-col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,
+# Prefix index with utf8mb3 charset + varchar.
+CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8mb3',
+col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8mb3' ,
 PRIMARY KEY (col_1_varchar(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
@@ -639,11 +639,11 @@ SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
 DROP TABLE worklog5743;
 
 #------------------------------------------------------------------------------
-# prefinx index on utf8 charset with transaction
+# prefinx index on utf8mb3 charset with transaction
 CREATE TABLE worklog5743 (
 col_1_varbinary VARBINARY (4000) ,
-col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8',
-col_3_text TEXT (4000) CHARACTER SET 'utf8',
+col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8mb3',
+col_3_text TEXT (4000) CHARACTER SET 'utf8mb3',
 col_4_blob BLOB (4000),col_5_text TEXT (4000),
 col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
@@ -688,10 +688,10 @@ DROP TABLE worklog5743;
 
 
 #------------------------------------------------------------------------------
-# Prefix index with utf8 charset on TEXT data type with actual utf8 character
+# Prefix index with utf8mb3 charset on TEXT data type with actual utf8mb3 character
 # like "स" and "क"
 CREATE TABLE worklog5743 (
-col_1_text TEXT (4000) CHARACTER SET 'utf8',
+col_1_text TEXT (4000) CHARACTER SET 'utf8mb3',
 col_2_text TEXT (4000) ,
 PRIMARY KEY (col_1_text(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;

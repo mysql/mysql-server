@@ -6,7 +6,7 @@ SET GLOBAL innodb_file_per_table=on;
 
 set old_alter_table=0;
 
-CREATE TABLE bug53591(a text charset utf8 not null)
+CREATE TABLE bug53591(a text charset utf8mb3 not null)
 ENGINE=InnoDB KEY_BLOCK_SIZE=1;
 -- replace_result 8126 {checked_valid} 4030 {checked_valid} 1982 {checked_valid}
 -- error ER_TOO_BIG_ROWSIZE
