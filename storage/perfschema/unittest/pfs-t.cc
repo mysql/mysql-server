@@ -577,7 +577,7 @@ static void test_bad_registration() {
   ok(dummy_rwlock_key == 0, "zero key");
   dummy_rwlock_key = 9999;
   rwlock_service->register_rwlock("123456789012", bad_rwlock_1, 1);
-  ok(dummy_rwlock_key == 3, "assigned key");
+  ok(dummy_rwlock_key == 1, "assigned key");
 
   /*
     Test that length('wait/synch/rwlock/' (18) + category + '/' (1) + name) <=
@@ -622,7 +622,7 @@ static void test_bad_registration() {
   ok(dummy_rwlock_key == 0, "zero key");
 
   rwlock_service->register_rwlock("X", bad_rwlock_3, 1);
-  ok(dummy_rwlock_key == 4, "assigned key");
+  ok(dummy_rwlock_key == 2, "assigned key");
 
   dummy_rwlock_key = 9999;
   PSI_rwlock_info bad_rwlock_3_sx[] = {
@@ -637,7 +637,7 @@ static void test_bad_registration() {
   ok(dummy_rwlock_key == 0, "zero key SX");
 
   rwlock_service->register_rwlock("Y", bad_rwlock_3_sx, 1);
-  ok(dummy_rwlock_key == 5, "assigned key SX");
+  ok(dummy_rwlock_key == 3, "assigned key SX");
 
   /*
     Test that length('wait/synch/cond/' (16) + category + '/' (1)) < 32
@@ -2036,10 +2036,10 @@ static void test_event_name_index() {
   rwlock_service->register_rwlock("X", dummy_rwlocks, 2);
   rwlock_class = find_rwlock_class(dummy_rwlock_key_1);
   ok(rwlock_class != nullptr, "rwlock class 1");
-  ok(rwlock_class->m_event_name_index == 16, "index 16");
+  ok(rwlock_class->m_event_name_index == 14, "index 14");
   rwlock_class = find_rwlock_class(dummy_rwlock_key_2);
   ok(rwlock_class != nullptr, "rwlock class 2");
-  ok(rwlock_class->m_event_name_index == 17, "index 17");
+  ok(rwlock_class->m_event_name_index == 15, "index 15");
 
   const PFS_cond_class *cond_class;
   PSI_cond_key dummy_cond_key_1;
