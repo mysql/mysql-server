@@ -144,10 +144,10 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
 --let $explicit_default_wait_counter = 15000
 --source include/rpl/restart_server.inc
 
-# We have only 1 table here as group_replication_recovery does not show up
+# Group replication channel for recovery has REQUIRE_ROW_FORMAT enabled by default
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_ROW_FORMAT = 'YES'`
 --let $assert_text = Check the number of channels with enabled REQUIRE_ROW_FORMAT
---let $assert_cond = $count = 0
+--let $assert_cond = $count = 1
 --source include/assert.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_ROW_FORMAT = 'NO'`
