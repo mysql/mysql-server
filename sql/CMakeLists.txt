@@ -1159,6 +1159,12 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
   )
+
+# With Ninja, link huge executables one-by-one.
+IF(WIN32)
+  SET_PROPERTY(TARGET mysqld PROPERTY JOB_POOL_LINK one_job)
+ENDIF()
+
 # You may want to redirect output for this one,
 # the list of exported symbols is loooong.
 ADD_OBJDUMP_TARGET(show_mysqld "$<TARGET_FILE:mysqld>" DEPENDS mysqld)
