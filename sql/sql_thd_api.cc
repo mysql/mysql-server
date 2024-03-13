@@ -278,6 +278,17 @@ my_socket thd_get_fd(THD *thd) {
 }
 
 /**
+  Get MYSQL_SOCKET struct for this connection
+
+  @param thd            THD object
+
+  @retval               MYSQL_SOCKET struct of the connection
+*/
+MYSQL_SOCKET thd_get_mysql_socket(THD *thd) {
+  return thd->get_protocol_classic()->get_vio()->mysql_socket;
+}
+
+/**
   Set thread specific environment required for thd cleanup in thread pool.
 
   @param thd            THD object
