@@ -122,7 +122,14 @@ loop:
     goto loop;
   }
 
+#if TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM
+  // Sometimes inject double file delete
+  if (removePath && check_inject_and_log_extra_remove(src)) rmdir(src);
+#endif
   if (removePath && rmdir(src) != 0) {
+#if UNRELIABLE_DISTRIBUTED_FILESYSTEM
+    if (check_and_log_if_remove_failure_ok(src)) return;
+#endif
     NDBFS_SET_REQUEST_ERROR(request, errno);
   }
 }
