@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,6 +201,11 @@
   do {                           \
     cerrorInsert = 0;            \
     c_error_insert_extra = 0;    \
+  } while (0)
+#define CLEAR_ERROR_INSERT_VALUE3(signal, node, block)                    \
+  do {                                                                    \
+    signal->theData[0] = 0;                                               \
+    sendSignal(numberToRef(block, node), GSN_NDB_TAMPER, signal, 1, JBB); \
   } while (0)
 #define CLEAR_ERROR_INSERT_EXTRA c_error_insert_extra = 0
 #else

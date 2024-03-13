@@ -11721,21 +11721,15 @@ void Dblqh::lqhTransNextLab(Signal* signal,
        * now scan markers
        */
 #ifdef ERROR_INSERT
-      if (ERROR_INSERTED(5061))
-      {
-        CLEAR_ERROR_INSERT_VALUE;
-        for (Uint32 i = 0; i < cnoOfNodes; i++)
-        {
+      if (ERROR_INSERTED(5061)) {
+        for (Uint32 i = 0; i < cnoOfNodes; i++) {
           Uint32 node = cnodeData[i];
-          if (node != getOwnNodeId() && cnodeStatus[i] == ZNODE_UP)
-          {
-            ndbout_c("clearing ERROR_INSERT in LQH:%u", node);
-            signal->theData[0] = 0;
-            sendSignal(numberToRef(DBLQH, node), GSN_NDB_TAMPER,
-                       signal, 1, JBB);
+          if (cnodeStatus[i] == ZNODE_UP) {
+            g_eventLogger->info("clearing ERROR_INSERT in LQH:%u", node);
+            CLEAR_ERROR_INSERT_VALUE3(signal, node, DBLQH);
           }
         }
-        
+
         signal->theData[0] = ZSCAN_MARKERS;
         signal->theData[1] = tcNodeFailPtr.i;
         signal->theData[2] = 0;
