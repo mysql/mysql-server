@@ -2042,7 +2042,8 @@ class Query_block : public Query_term {
   Item *select_limit{nullptr};
   /// LIMIT ... OFFSET clause, NULL if no offset is given
   Item *offset_limit{nullptr};
-
+  /// Whether we have LIMIT 1 and no OFFSET.
+  bool m_limit_1{false};
   /**
     Circular linked list of aggregate functions in nested query blocks.
     This is needed if said aggregate functions depend on outer values
@@ -2297,6 +2298,9 @@ class Query_block : public Query_term {
   bool decorrelate_derived_scalar_subquery_post(
       THD *thd, Table_ref *derived, Lifted_expressions_map *lifted_exprs,
       bool added_card_check, size_t added_window_card_checks);
+  /// Replace the first visible item in the select list with a wrapping
+  /// MIN or MAX aggregate function.
+  bool replace_first_item_with_min_max(THD *thd, int item_no, bool use_min);
   void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
   void mark_item_as_maybe_null_if_non_primitive_grouped(Item *item) const;

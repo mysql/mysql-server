@@ -242,7 +242,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2`) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
 QA's query is properly rejected:
 SELECT DISTINCT GP1.a AS g1 FROM t1 AS GP1
 WHERE GP1.a >= 0
@@ -471,7 +471,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2`) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
 QA's query is properly rejected:
 SELECT DISTINCT GP1.a AS g1 FROM v1 AS GP1
 WHERE GP1.a >= 0
@@ -700,7 +700,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2`) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
 QA's query is properly rejected:
 SELECT DISTINCT GP1.a AS g1 FROM v1 AS GP1
 WHERE GP1.a >= 0
@@ -929,7 +929,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2`) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
 QA's query is properly rejected:
 SELECT DISTINCT GP1.a AS g1 FROM (SELECT t1.* FROM t1 left join t2 on 1) AS GP1
 WHERE GP1.a >= 0

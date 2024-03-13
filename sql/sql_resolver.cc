@@ -80,6 +80,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/key_spec.h"
 #include "sql/mdl.h"  // MDL_SHARED_READ
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
@@ -418,6 +419,11 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   // Resolve OFFSET and LIMIT clauses
   if (resolve_limits(thd)) return true;
+
+  if (has_limit()) {
+    m_limit_1 = (offset_limit == nullptr && select_limit->const_item() &&
+                 select_limit->val_int() == 1);
+  }
 
   /*
     Query block is completely resolved, except for windows (see below) which
@@ -3994,13 +4000,18 @@ bool Query_block::remove_redundant_subquery_clauses(THD *thd) {
     REMOVE_NONE = 0,
     REMOVE_ORDER = 1 << 0,
     REMOVE_DISTINCT = 1 << 1,
-    REMOVE_GROUP = 1 << 2
+    REMOVE_GROUP = 1 << 2,
+    REMOVE_LIMIT = 1 << 3
   };
   uint possible_changes;
 
   if (subq_predicate->subquery_type() == Item_subselect::SCALAR_SUBQUERY) {
-    if (has_limit()) return false;
-    possible_changes = REMOVE_ORDER;
+    if (has_limit()) {
+      if (!(m_limit_1 && is_implicitly_grouped())) return false;
+      possible_changes = REMOVE_LIMIT | REMOVE_ORDER;
+    } else {
+      possible_changes = REMOVE_ORDER;
+    }
   } else {
     assert(subq_predicate->subquery_type() == Item_subselect::EXISTS_SUBQUERY ||
            subq_predicate->subquery_type() == Item_subselect::IN_SUBQUERY ||
@@ -4016,7 +4027,13 @@ bool Query_block::remove_redundant_subquery_clauses(THD *thd) {
     if (empty_order_list(this)) return true;
   }
 
-  if ((possible_changes & REMOVE_DISTINCT) && is_distinct()) {
+  if ((possible_changes & static_cast<uint>(REMOVE_LIMIT)) != 0U) {
+    changelog |= REMOVE_LIMIT;
+    select_limit = nullptr;
+  }
+
+  if (((possible_changes & static_cast<uint>(REMOVE_DISTINCT)) != 0U) &&
+      is_distinct()) {
     changelog |= REMOVE_DISTINCT;
     remove_base_options(SELECT_DISTINCT);
   }
@@ -4049,12 +4066,17 @@ bool Query_block::remove_redundant_subquery_clauses(THD *thd) {
     if (unlikely(trace->is_started())) {
       Opt_trace_object trace_wrapper(trace);
       Opt_trace_array trace_changes(trace, "transformations_to_subquery");
-      if (changelog & REMOVE_ORDER) trace_changes.add_alnum("removed_ordering");
-      if (changelog & REMOVE_DISTINCT)
+      if ((changelog & static_cast<uint>(REMOVE_ORDER)) != 0U)
+        trace_changes.add_alnum("removed_ordering");
+      if ((changelog & static_cast<uint>(REMOVE_DISTINCT)) != 0U)
         trace_changes.add_alnum("removed_distinct");
-      if (changelog & REMOVE_GROUP) trace_changes.add_alnum("removed_grouping");
+      if ((changelog & static_cast<uint>(REMOVE_GROUP)) != 0U)
+        trace_changes.add_alnum("removed_grouping");
+      if ((changelog & static_cast<uint>(REMOVE_LIMIT)) != 0U)
+        trace_changes.add_alnum("removed_limit");
     }
   }
+
   return false;
 }
 
@@ -7031,6 +7053,41 @@ bool Query_block::add_inner_func_calls_to_select_list(
   return false;
 }
 
+bool Query_block::replace_first_item_with_min_max(THD *thd, int item_no,
+                                                  bool use_min) {
+  Item *expr = fields[item_no];
+  Item *min_max{nullptr};
+  if (use_min) {
+    min_max = new (thd->mem_root) Item_sum_min(expr);
+  } else {
+    min_max = new (thd->mem_root) Item_sum_max(expr);
+  }
+  if (min_max == nullptr) return true;
+  int tmp = item_no;
+  baptize_item(thd, min_max, &tmp);
+
+  // prelude to binding MIN/MAX
+  Query_block *save_query_block = thd->lex->current_query_block();
+  assert(save_query_block == outer_query_block());
+  thd->lex->set_current_query_block(this);
+  const auto save_allow_sum_func = thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func |= (nesting_map)1 << nest_level;
+
+  if (min_max->fix_fields(thd, &min_max)) return true;
+
+  // postlude to binding MIN/MAX
+  thd->lex->set_current_query_block(save_query_block);
+  thd->lex->allow_sum_func = save_allow_sum_func;
+
+  // replace first visible field with MIN/MAX(first visible field)
+  fields[item_no] = min_max;
+  base_ref_items[0] = min_max;
+  min_max->increment_ref_count();
+  m_agg_func_used = true;
+
+  return false;
+}
+
 /**
    We have a correlated scalar subquery, so we must do several things:
 
@@ -7165,6 +7222,28 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     }
   }
 
+  const bool applicable_limit_1 = m_limit_1 && !is_explicitly_grouped();
+  if (applicable_limit_1) {
+    // Add MAX or MIN depending on ORDER BY direction, if any. If no ORDER BY
+    // the subquery result is non-deterministic of more than one row, so we
+    // choose MIN.  NOTE: we must do this *before* the calls to
+    // add_inner_fields_to_select_list/add_inner_exprs_to_group_by for those to
+    // work as expected due to their reliance on selected_field_or_ref/
+    // selected_func_call.
+    if (replace_first_item_with_min_max(
+            thd, CountHiddenFields(fields),  // index of first visible
+            order_list.elements == 0 ||      // use min or max
+                order_list.first->direction != ORDER_DESC))
+      return true;
+
+    // We have gotten rid of LIMIT 1, now remove the ORDER BY list too
+    // Both are replaced by MIN or MAX.
+    empty_order_list(this);
+    // We have replaced any of these with min/max:
+    selected_field_or_ref = nullptr;
+    selected_func_call = nullptr;
+  }
+
   //**************************************************************
   // Add inner fields and calls to the derived table's select list
   //**************************************************************
@@ -7212,7 +7291,8 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   Item *const fnh = fields[first_non_hidden];
   if (!subquery_was_grouped && !selected_expr_added_to_group_by &&
       !fnh->const_item() &&
-      !is_function_of_type(fnh, Item_func::ANY_VALUE_FUNC)) {
+      !is_function_of_type(fnh, Item_func::ANY_VALUE_FUNC) &&
+      !applicable_limit_1 /* will be replaced by MIN/MAX */) {
     Item *const old_expr = fnh;
     Item *func_any = new (thd->mem_root) Item_func_any_value(old_expr);
     if (func_any == nullptr) return true;
@@ -7222,10 +7302,17 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   }
 
   //****************************************************************
-  // Add grouped COUNT(0) to the select list if subquery was not grouped, or
-  // one or more windowed COUNT(0) if subquery was explicitly grouped
+  // Next, we consider three special cases:
+  // a) applicable_limit_1 (handled above)
+  // b) if the subquery was not grouped, add grouped COUNT(0) to the
+  //    select list
+  // c) if subquery was explicitly grouped, add one or more
+  //    windowed COUNT(0)
   //****************************************************************
-  if (!subquery_was_grouped) {
+  if (applicable_limit_1) {
+    // a)
+  } else if (!subquery_was_grouped) {
+    // b)
     Item_int *number_0 = new (thd->mem_root) Item_int(int32{0}, 1);
     if (number_0 == nullptr) return true;
     Item *cnt = new (thd->mem_root) Item_sum_count(number_0);
@@ -7259,9 +7346,10 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     derived->derived_query_expression()->types.push_back(cnt);
     *added_card_check = true;
   } else if (subquery_was_explicitly_grouped) {
+    // c)
     // For this case (not implicit grouping and correlated), we need to make
     // sure the derived table has no more than one row of each partition on
-    // a) the grouped expression list and b) any added inner expression: to do
+    // 1) the grouped expression list and 2) any added inner expression: to do
     // this we add window function COUNT and check that it is less than or
     // equal to one.
     if (setup_counts_over_partitions(thd, derived, lifted_exprs,
@@ -7758,8 +7846,8 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
     if (tr->is_derived() && tr->derived_query_expression()->uncacheable)
       return false;
 
-  // Disallow LIMIT, OFFSET
-  if (has_limit()) return false;
+  // Mostly disallow LIMIT and always OFFSET
+  if (has_limit() && (!m_limit_1 || is_explicitly_grouped())) return false;
 
   // Disallow window functions: transform not valid in their presence.
   if (has_windows()) return false;
@@ -7767,6 +7855,21 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
   // Disallow ROLLUP
   if (olap == ROLLUP_TYPE) return false;
 
+  if (m_limit_1) {
+    if (is_implicitly_grouped()) {
+      // LIMIT should have been removed by remove_redundant_subquery_clauses
+      assert(select_limit == nullptr);
+      m_limit_1 = false;
+    } else if (!is_explicitly_grouped()) {
+      // We will replace LIMIT and any ORDER BY by MAX/MIN.
+      // The first ORDER BY expression, if any, must be the selected expression.
+      const size_t first_visible_index = CountHiddenFields(fields);
+      if (order_list.elements >= 1 &&
+          !order_list.first->item_initial->eq(fields[first_visible_index]))
+        return false;
+      select_limit = nullptr;  // replaced by MIN or MAX
+    }
+  }
   const size_t first_selected = CountHiddenFields(fields);
   if (is_implicitly_grouped()) {
     Item_sum::Collect_grouped_aggregate_info aggregates(this);
