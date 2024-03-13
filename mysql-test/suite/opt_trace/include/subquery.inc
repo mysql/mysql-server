@@ -429,6 +429,24 @@ eval $query;
 --skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"join_execution": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Test removal of LIMIT 1 when no OFFSET in scalar subquery
+--echo # with implicit grouping
+CREATE TABLE t1(a INT, b INT);
+
+SELECT 1 FROM t1 WHERE 1 LIKE
+ (SELECT MIN(b) FROM t1 WHERE a = 1 ORDER BY MIN(b) LIMIT 1);
+--skip_if_hypergraph  # Does not support the same optimizer trace.
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT 1 FROM t1 WHERE 1 LIKE
+ (SELECT MIN(b) FROM t1 WHERE a = 1 LIMIT 1);
+--skip_if_hypergraph  # Does not support the same optimizer trace.
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+DROP TABLE t1;
+
+
 SET @@optimizer_trace_features=default;
 
 drop function show_json_object;

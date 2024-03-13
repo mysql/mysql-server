@@ -3148,5 +3148,263 @@ show_json_object('"join_execution": {', TRACE)
           }
         ] /* steps */
       } 
+# Test removal of LIMIT 1 when no OFFSET in scalar subquery
+# with implicit grouping
+CREATE TABLE t1(a INT, b INT);
+SELECT 1 FROM t1 WHERE 1 LIKE
+(SELECT MIN(b) FROM t1 WHERE a = 1 ORDER BY MIN(b) LIMIT 1);
+1
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT 1 FROM t1 WHERE 1 LIKE
+(SELECT MIN(b) FROM t1 WHERE a = 1 ORDER BY MIN(b) LIMIT 1)	{
+  "steps": [
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(1 like (/* select#2 */ select min(`t1`.`b`) from `t1` where (`t1`.`a` = 1)))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 like (/* select#2 */ select min(`t1`.`b`) from `t1` where (`t1`.`a` = 1)))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 like (/* select#2 */ select min(`t1`.`b`) from `t1` where (`t1`.`a` = 1)))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                          {
+                            "join_optimization": {
+                              "select#": 2,
+                              "steps": [
+                                {
+                                  "condition_processing": {
+                                    "condition": "WHERE",
+                                    "original_condition": "(`t1`.`a` = 1)",
+                                    "steps": [
+                                      {
+                                        "transformation": "equality_propagation",
+                                        "resulting_condition": "multiple equal(1, `t1`.`a`)"
+                                      },
+                                      {
+                                        "transformation": "constant_propagation",
+                                        "resulting_condition": "multiple equal(1, `t1`.`a`)"
+                                      },
+                                      {
+                                        "transformation": "trivial_condition_removal",
+                                        "resulting_condition": "multiple equal(1, `t1`.`a`)"
+                                      }
+                                    ] /* steps */
+                                  } /* condition_processing */
+                                },
+                                {
+                                  "substitute_generated_columns": {
+                                  } /* substitute_generated_columns */
+                                },
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "table": "`t1`",
+                                      "row_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
+                                  "ref_optimizer_key_uses": [
+                                  ] /* ref_optimizer_key_uses */
+                                },
+                                {
+                                  "rows_estimation": [
+                                    {
+                                      "table": "`t1`",
+                                      "rows": 1,
+                                      "cost": 1,
+                                      "table_type": "system",
+                                      "empty": true
+                                    }
+                                  ] /* rows_estimation */
+                                }
+                              ] /* steps */,
+                              "empty_result": {
+                                "cause": "no matching row in const table"
+                              } /* empty_result */
+                            } /* join_optimization */
+                          },
+                          {
+                            "join_execution": {
+                              "select#": 2,
+                              "steps": [
+                              ] /* steps */
+                            } /* join_execution */
+                          }
+                        ] /* steps */
+                      } /* subselect_execution */
+                    }
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+SELECT 1 FROM t1 WHERE 1 LIKE
+(SELECT MIN(b) FROM t1 WHERE a = 1 LIMIT 1);
+1
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT 1 FROM t1 WHERE 1 LIKE
+(SELECT MIN(b) FROM t1 WHERE a = 1 LIMIT 1)	{
+  "steps": [
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(1 like (/* select#2 */ select min(`t1`.`b`) from `t1` where (`t1`.`a` = 1)))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 like (/* select#2 */ select min(`t1`.`b`) from `t1` where (`t1`.`a` = 1)))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 like (/* select#2 */ select min(`t1`.`b`) from `t1` where (`t1`.`a` = 1)))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                          {
+                            "join_optimization": {
+                              "select#": 2,
+                              "steps": [
+                                {
+                                  "condition_processing": {
+                                    "condition": "WHERE",
+                                    "original_condition": "(`t1`.`a` = 1)",
+                                    "steps": [
+                                      {
+                                        "transformation": "equality_propagation",
+                                        "resulting_condition": "multiple equal(1, `t1`.`a`)"
+                                      },
+                                      {
+                                        "transformation": "constant_propagation",
+                                        "resulting_condition": "multiple equal(1, `t1`.`a`)"
+                                      },
+                                      {
+                                        "transformation": "trivial_condition_removal",
+                                        "resulting_condition": "multiple equal(1, `t1`.`a`)"
+                                      }
+                                    ] /* steps */
+                                  } /* condition_processing */
+                                },
+                                {
+                                  "substitute_generated_columns": {
+                                  } /* substitute_generated_columns */
+                                },
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "table": "`t1`",
+                                      "row_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
+                                  "ref_optimizer_key_uses": [
+                                  ] /* ref_optimizer_key_uses */
+                                },
+                                {
+                                  "rows_estimation": [
+                                    {
+                                      "table": "`t1`",
+                                      "rows": 1,
+                                      "cost": 1,
+                                      "table_type": "system",
+                                      "empty": true
+                                    }
+                                  ] /* rows_estimation */
+                                }
+                              ] /* steps */,
+                              "empty_result": {
+                                "cause": "no matching row in const table"
+                              } /* empty_result */
+                            } /* join_optimization */
+                          },
+                          {
+                            "join_execution": {
+                              "select#": 2,
+                              "steps": [
+                              ] /* steps */
+                            } /* join_execution */
+                          }
+                        ] /* steps */
+                      } /* subselect_execution */
+                    }
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+DROP TABLE t1;
 SET @@optimizer_trace_features=default;
 drop function show_json_object;
