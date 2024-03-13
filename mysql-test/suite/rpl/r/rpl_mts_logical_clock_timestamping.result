@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");
+call mtr.add_suppression("tagged with inconsistent logical timestamps");
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
 include/rpl/stop_replica.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
@@ -44,12 +44,8 @@ include/diff_tables.inc [master:t1,slave:t1]
 SET @@session.debug ='+d,feign_commit_parent';
 INSERT INTO t1 SET a=0;
 SET @@session.debug ='-d,feign_commit_parent';
-include/rpl/wait_for_applier_to_stop.inc
-include/rpl/stop_receiver.inc
-RESET BINARY LOGS AND GTIDS;
-RESET REPLICA;
-RESET BINARY LOGS AND GTIDS;
-include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
+include/assert_grep.inc [Warning Found]
 DROP TABLE t1;
 include/rpl/stop_replica.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;

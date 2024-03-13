@@ -4132,6 +4132,9 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const override { return spec.gtid.gno; }
 
+  /// @returns The GTID event specification
+  Gtid_specification get_gtid_spec();
+
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
 

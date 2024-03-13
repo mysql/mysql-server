@@ -618,17 +618,26 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
   } else {
     if (unlikely(clock_leq(sequence_number, last_committed) &&
                  last_committed != SEQ_UNINIT)) {
-      /* inconsistent (buggy) timestamps */
-      LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_TIMESTAMPS_IN_TRX,
-             sequence_number, last_committed);
-      return ER_MTA_CANT_PARALLEL;
+      Gtid_log_event *gtid_ev = dynamic_cast<Gtid_log_event *>(ev);
+      char buff_gtid[Gtid::MAX_TEXT_LENGTH + 1];
+      gtid_ev->get_gtid_spec().to_string(gtid_ev->get_tsid(), buff_gtid);
+
+      LogErr(WARNING_LEVEL, ER_RPL_INCONSISTENT_TIMESTAMPS_IN_TRX, buff_gtid,
+             rli->get_event_relay_log_name(), sequence_number, last_committed);
+      ptr_group->sequence_number = sequence_number = SEQ_UNINIT;
+      ptr_group->last_committed = last_committed = SEQ_UNINIT;
     }
     if (unlikely(clock_leq(sequence_number, last_sequence_number) &&
                  sequence_number != SEQ_UNINIT)) {
-      /* inconsistent (buggy) timestamps */
-      LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX,
-             sequence_number, last_sequence_number);
-      return ER_MTA_CANT_PARALLEL;
+      Gtid_log_event *gtid_ev = dynamic_cast<Gtid_log_event *>(ev);
+      char buff_gtid[Gtid::MAX_TEXT_LENGTH + 1];
+      gtid_ev->get_gtid_spec().to_string(gtid_ev->get_tsid(), buff_gtid);
+
+      LogErr(WARNING_LEVEL, ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX, buff_gtid,
+             rli->get_event_relay_log_name(), sequence_number,
+             last_sequence_number);
+      ptr_group->sequence_number = sequence_number = SEQ_UNINIT;
+      ptr_group->last_committed = last_committed = SEQ_UNINIT;
     }
     /*
       Transaction sequence as scheduled may have gaps, even in

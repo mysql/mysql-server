@@ -13285,6 +13285,7 @@ uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer) {
 
   assert((sequence_number == 0 && last_committed == 0) ||
          (sequence_number > last_committed));
+
   DBUG_EXECUTE_IF("set_commit_parent_100", {
     last_committed =
         max<int64>(sequence_number > 1 ? 1 : 0, sequence_number - 100);
@@ -13294,6 +13295,10 @@ uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer) {
         max<int64>(sequence_number > 1 ? 1 : 0, sequence_number - 150);
   });
   DBUG_EXECUTE_IF("feign_commit_parent", { last_committed = sequence_number; });
+  DBUG_EXECUTE_IF("feign_seq_number_3", {
+    sequence_number = 3;
+    last_committed = 2;
+  });
   int8store(ptr_buffer, last_committed);
   int8store(ptr_buffer + 8, sequence_number);
   ptr_buffer += LOGICAL_TIMESTAMP_LENGTH;
@@ -13633,6 +13638,8 @@ rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
   }
   return spec.gtid.sidno;
 }
+
+Gtid_specification Gtid_log_event::get_gtid_spec() { return spec; }
 
 Previous_gtids_log_event::Previous_gtids_log_event(
     const char *buf_arg, const Format_description_event *description_event)

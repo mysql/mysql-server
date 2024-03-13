@@ -1288,10 +1288,10 @@ ER_RPL_WORKER_ID_IS
   eng "Choosing worker id %lu, the following is going to be %lu"
 
 ER_RPL_INCONSISTENT_TIMESTAMPS_IN_TRX
-  eng "Transaction is tagged with inconsistent logical timestamps: sequence_number (%lld) <= last_committed (%lld)"
+  eng "Transaction %s in file %s is tagged with inconsistent logical timestamps: sequence_number (%lld) <= last_committed (%lld). There may be a bug in how these timestamps were generated. Transaction will be applied in isolation"
 
 ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX
-  eng "Transaction's sequence number is inconsistent with that of a preceding one: sequence_number (%lld) <= previous sequence_number (%lld)"
+  eng "Transaction %s sequence number in file %s is inconsistent with that of a preceding one: sequence_number (%lld) <= previous sequence_number (%lld). There may be a bug in how these timestamps were generated. Transaction will be applied in isolation"
 
 OBSOLETE_ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES
   eng "For the creation of replication channels the connection metadata and applier metadata repositories must be set to TABLE"

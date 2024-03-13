@@ -1,0 +1,80 @@
+include/only_with_option.inc [GLOBAL.replica_parallel_workers > 2]
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. SET GTID_MODE = OFF
+#
+[connection slave]
+#
+# 2. Suppression of error messages
+#
+call mtr.add_suppression("tagged with inconsistent logical timestamps");
+call mtr.add_suppression("inconsistent with that of a preceding one");
+[connection master]
+#
+#  3. Create Table t1 and t2 and insert values
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+include/rpl/sync_to_replica.inc
+[connection slave1]
+LOCK TABLE t1 READ;
+#
+#  4. Add debug point for t1
+#
+[connection master]
+# Adding debug point 'feign_commit_parent' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+# Removing debug point 'feign_commit_parent' from @@GLOBAL.debug
+INSERT INTO t2 VALUES (1);
+#
+# 5. Assert that t2 waits on t1
+#
+include/rpl/sync_to_replica_received.inc
+include/assert.inc [Table t1 on the replica  has no records]
+include/assert.inc [Table t2 on the replica has no records]
+[connection slave1]
+UNLOCK TABLES;
+#
+# 6. Assert that a warning is emitted on the error log
+#
+[connection slave]
+include/assert_grep.inc [Warning Found - Transaction is tagged with inconsistent logical timestamps]
+[connection master]
+#
+# 7. SET GTID_MODE = ON
+#
+include/rpl/set_gtid_mode.inc [ON on servers 1,2]
+[connection slave1]
+LOCK TABLE t1 READ;
+#
+#  8. Add debug point
+#
+[connection master]
+# Adding debug point 'feign_seq_number_3' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (2);
+# Removing debug point 'feign_seq_number_3' from @@GLOBAL.debug
+INSERT INTO t2 VALUES (2);
+#
+# 9. Assert that t2 waits on t1
+#
+include/rpl/sync_to_replica_received.inc
+include/assert.inc [Table t1 contains only 1 row]
+include/assert.inc [Table t2 contains only 1 row]
+[connection slave1]
+UNLOCK TABLES;
+#
+# 10. Assert that a warning is emitted on the error log
+#
+[connection slave]
+include/assert_grep.inc [Warning Found - Transaction's sequence number is inconsistent with that of a preceding one]
+#
+#  11. Cleanup
+#
+[connection master]
+include/rpl/set_gtid_mode.inc [0 on servers 1,2]
+DROP TABLE t1, t2;
+include/rpl/deinit.inc

@@ -1,0 +1,195 @@
+###############################################################################
+# === Purpose ===
+#
+# The purpose of this test is to verify that a warning is emitted in case of
+# inconsistent logical timestamps when replica_parallel_workers >= 1 and
+# prove the transaction is executed in isolation.
+#
+# === Implementation ===
+#
+#  1. SET GTID_MODE = OFF
+#  2. Suppression of error messages
+#  3. Create Table t1 and t2 and insert values
+#  4. Add debug point for t1
+#  5. Assert that t2 waits on t1
+#  6. Assert that a warning is emitted on the error log
+#  7. Set GTID_MODE = ON
+#  8. Add debug point for t1
+#  9. Assert that t2 waits on t1
+#  10. Assert that a warning is emitted on the error log
+#  11. Cleanup
+#
+# === Reference ===
+#
+# Bug#36058442 : Allow inconsistent logical timestamps when replica_parallel_workers=1 
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+# This test needs at least 2 applier workers
+--let $option_name = replica_parallel_workers
+--let $option_operator = >
+--let $option_value = 2
+--source include/only_with_option.inc
+
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # 1. SET GTID_MODE = OFF
+--echo #
+
+if($gtid_mode_on == 1){
+    --let $rpl_gtid_mode= OFF
+    --let $rpl_set_enforce_gtid_consistency= 0
+    --source include/rpl/set_gtid_mode.inc
+}
+
+--source include/rpl/connection_replica.inc
+
+--echo #
+--echo # 2. Suppression of error messages
+--echo #
+
+call mtr.add_suppression("tagged with inconsistent logical timestamps");
+call mtr.add_suppression("inconsistent with that of a preceding one");
+
+--source include/rpl/connection_source.inc
+
+--echo #
+--echo #  3. Create Table t1 and t2 and insert values
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica1.inc
+
+# Lock t1 to assert that t2 waits when t1 can't commit
+LOCK TABLE t1 READ;
+
+--echo #
+--echo #  4. Add debug point for t1
+--echo #
+
+--source include/rpl/connection_source.inc
+
+--let $debug_point = feign_commit_parent
+--source include/add_debug_point.inc
+INSERT INTO t1 VALUES (1);
+--source include/remove_debug_point.inc
+
+INSERT INTO t2 VALUES (1);
+
+--echo #
+--echo # 5. Assert that t2 waits on t1
+--echo #
+
+--source include/rpl/sync_to_replica_received.inc
+
+--let $t1_count = `SELECT count(*) FROM t1`
+--let $assert_text = Table t1 on the replica  has no records
+--let $assert_cond = $t1_count = 0
+--source include/assert.inc
+
+--let $t2_count = `SELECT count(*) FROM t2`
+--let $assert_text = Table t2 on the replica has no records
+--let $assert_cond = $t2_count = 0
+--source include/assert.inc
+
+--source include/rpl/connection_replica1.inc
+UNLOCK TABLES;
+
+--echo #
+--echo # 6. Assert that a warning is emitted on the error log
+--echo #
+
+--source include/rpl/connection_replica.inc
+
+--let $wait_condition = SELECT count(*) = 1 FROM t2
+--source include/wait_condition.inc
+
+--let $assert_text = Warning Found - Transaction is tagged with inconsistent logical timestamps
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select = tagged with inconsistent logical timestamps
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--source include/rpl/connection_source.inc
+
+--echo #
+--echo # 7. SET GTID_MODE = ON
+--echo #
+--let $rpl_gtid_mode= ON
+--let $rpl_set_enforce_gtid_consistency= 1
+--source include/rpl/set_gtid_mode.inc
+
+--source include/rpl/connection_replica1.inc
+
+# Lock t1 to assert that t2 waits when t1 can't commit
+LOCK TABLE t1 READ;
+
+--echo #
+--echo #  8. Add debug point
+--echo #
+
+--source include/rpl/connection_source.inc
+
+--let $debug_point = feign_seq_number_3
+--source include/add_debug_point.inc
+INSERT INTO t1 VALUES (2);
+--source include/remove_debug_point.inc
+
+INSERT INTO t2 VALUES (2);
+
+--echo #
+--echo # 9. Assert that t2 waits on t1
+--echo #
+
+--source include/rpl/sync_to_replica_received.inc
+
+--let $t1_count = `SELECT count(*) FROM t1`
+--let $assert_text = Table t1 contains only 1 row
+--let $assert_cond = $t1_count = 1
+--source include/assert.inc
+
+--let $t2_count = `SELECT count(*) FROM t2`
+--let $assert_text = Table t2 contains only 1 row
+--let $assert_cond = $t2_count = 1
+--source include/assert.inc
+
+--source include/rpl/connection_replica1.inc
+UNLOCK TABLES;
+
+--echo #
+--echo # 10. Assert that a warning is emitted on the error log
+--echo #
+
+--source include/rpl/connection_replica.inc
+
+--let $wait_condition = SELECT count(*) = 2 FROM t2
+--source include/wait_condition.inc
+
+--let $assert_text = Warning Found - Transaction's sequence number is inconsistent with that of a preceding one
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select = inconsistent with that of a preceding one
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo #
+--echo #  11. Cleanup
+--echo #
+--source include/rpl/connection_source.inc
+
+#Setting GTID_MODE to original state
+if ($gtid_mode_on == 0) {
+  --let $rpl_gtid_mode = 0
+  --let $rpl_set_enforce_gtid_consistency = 0
+}
+--source include/rpl/set_gtid_mode.inc
+
+DROP TABLE t1, t2;
+--source include/rpl/deinit.inc
