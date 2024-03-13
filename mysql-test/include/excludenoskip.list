@@ -47,10 +47,11 @@ costmodel_planchange.test
 have_met_timezone.inc
 # Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
 have_moscow_leap_timezone.inc
-
 # 32/64 bits time_t
 have_32bits_time.inc
 have_64bits_time.inc
+# Skip filesystems which do not support O_DIRECT mode, e.g. when using --mem option on Linux
+have_odirect.inc
 
 # 2.0 Binlog formats
 # Below files are included because rpl suite runs each test with 3 different
