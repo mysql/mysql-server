@@ -26,8 +26,7 @@
 
 #include <string>
 
-namespace keyring_common {
-namespace meta {
+namespace keyring_common::meta {
 
 /**
   Common metadata.
@@ -38,7 +37,7 @@ namespace meta {
 
 class Metadata final {
  public:
-  Metadata(const std::string key_id, const std::string owner_id);
+  Metadata(std::string key_id, std::string owner_id);
   Metadata(const char *key_id, const char *owner_id);
   Metadata();
 
@@ -54,17 +53,17 @@ class Metadata final {
   ~Metadata();
 
   /** Get key ID */
-  const std::string key_id() const;
+  std::string key_id() const;
 
   /** Get owner info */
-  const std::string owner_id() const;
+  std::string owner_id() const;
 
   /** Validity of metadata object */
   bool valid() const;
 
   /* For unordered map */
 
-  const std::string hash_key() const { return hash_key_; }
+  std::string hash_key() const { return hash_key_; }
   bool operator==(const Metadata &other) const {
     return key_id_ == other.key_id_ && owner_id_ == other.owner_id_;
   }
@@ -87,7 +86,6 @@ class Metadata final {
   bool valid_{false};
 };
 
-}  // namespace meta
-}  // namespace keyring_common
+}  // namespace keyring_common::meta
 
 #endif  // !META_INCLUDED

@@ -26,12 +26,11 @@
 
 #include <memory> /* std::unique_ptr */
 
-namespace keyring_common {
-namespace utils {
+namespace keyring_common::utils {
 
 bool get_random_data(const std::unique_ptr<unsigned char[]> &data,
                      size_t length);
-}  // namespace utils
-}  // namespace keyring_common
+
+}  // namespace keyring_common::utils
 
 #endif  // !UTILS_INCLUDED

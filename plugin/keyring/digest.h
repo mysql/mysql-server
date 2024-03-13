@@ -35,7 +35,7 @@ enum DigestKind { SHA256 };
 
 class Digest {
  public:
-  explicit Digest(DigestKind digestKind = SHA256);
+  explicit Digest(DigestKind digest_kind = SHA256);
   Digest(DigestKind digestKind, const char *value);
 
   ~Digest();

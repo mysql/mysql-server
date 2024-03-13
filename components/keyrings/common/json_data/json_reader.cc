@@ -28,8 +28,7 @@
 
 #include "json_reader.h"
 
-namespace keyring_common {
-namespace json_data {
+namespace keyring_common::json_data {
 
 static std::string schema_version_1_0 =
     "{"
@@ -77,12 +76,10 @@ static std::string schema_version_1_0 =
   @param [in] version_key JSON schema version information
   @param [in] array_key   Key for array of elements
 */
-Json_reader::Json_reader(const std::string schema, const std::string data,
-                         const std::string version_key,
-                         const std::string array_key)
-    : document_(),
-      version_key_(version_key),
-      array_key_(array_key),
+Json_reader::Json_reader(const std::string &schema, const std::string &data,
+                         std::string version_key, std::string array_key)
+    : version_key_(std::move(version_key)),
+      array_key_(std::move(array_key)),
       valid_(false) {
   rapidjson::Document schema_json;
   if (schema_json.Parse(schema).HasParseError()) return;
@@ -103,7 +100,7 @@ Json_reader::Json_reader(const std::string schema, const std::string data,
   Initializes JSON document with given data
   and sets validity state.
 */
-Json_reader::Json_reader(const std::string data)
+Json_reader::Json_reader(const std::string &data)
     : Json_reader(schema_version_1_0, data) {}
 
 /* Default constructor - creates empty document */
@@ -138,10 +135,10 @@ bool Json_reader::get_element(
   if (!elements.IsArray()) return true;
   metadata = {elements[index]["data_id"].Get<std::string>(),
               elements[index]["user"].Get<std::string>()};
-  std::string hex_data(elements[index]["data"].Get<std::string>());
+  const auto hex_data(elements[index]["data"].Get<std::string>());
   std::string unhex_data(hex_data.length() * 2, '\0');
   const unsigned long length = unhex_string(
-      hex_data.data(), hex_data.data() + hex_data.size(), &unhex_data[0]);
+      hex_data.data(), hex_data.data() + hex_data.size(), unhex_data.data());
   unhex_data.resize(length);
   data = {unhex_data, elements[index]["data_type"].Get<std::string>()};
   json_data_extension = std::make_unique<Json_data_extension>();
@@ -156,7 +153,7 @@ bool Json_reader::get_elements(output_vector &output) const {
     meta::Metadata metadata;
     data::Data secret_data;
     std::unique_ptr<Json_data_extension> ext;
-    if (get_element(t, metadata, secret_data, ext) == true) {
+    if (get_element(t, metadata, secret_data, ext)) {
       output.clear();
       return true;
     }
@@ -166,5 +163,4 @@ bool Json_reader::get_elements(output_vector &output) const {
   return false;
 }
 
-}  // namespace json_data
-}  // namespace keyring_common
+}  // namespace keyring_common::json_data

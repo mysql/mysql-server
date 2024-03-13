@@ -26,9 +26,8 @@
 
 #include <string>
 
-namespace keyring_common {
+namespace keyring_common::data_file {
 
-namespace data_file {
 /* RAII class to read a file */
 class File_reader final {
  public:
@@ -53,8 +52,6 @@ class File_reader final {
   size_t size_;
 };
 
-}  // namespace data_file
-
-}  // namespace keyring_common
+}  // namespace keyring_common::data_file
 
 #endif  // !READER_INCLUDED

@@ -29,9 +29,7 @@
 #include "components/keyrings/common/data/data.h" /* data::Data */
 #include "components/keyrings/common/data/meta.h" /* meta::Metadata */
 
-namespace keyring_common {
-
-namespace cache {
+namespace keyring_common::cache {
 
 template <typename Data_extension>
 using Cache =
@@ -133,7 +131,6 @@ class Datacache final {
   size_t version_{0};
 };
 
-}  // namespace cache
-}  // namespace keyring_common
+}  // namespace keyring_common::cache
 
 #endif  // !CACHE_INCLUDED

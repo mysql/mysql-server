@@ -30,11 +30,11 @@
 #include <components/keyrings/common/memstore/iterator.h>
 #include <components/keyrings/common/operations/operations.h>
 
-namespace keyring_file {
-namespace backend {
+namespace keyring_file::backend {
+
 class Keyring_file_backend final {
  public:
-  explicit Keyring_file_backend(const std::string keyring_file_name,
+  explicit Keyring_file_backend(const std::string &keyring_file_name,
                                 bool read_only);
 
   ~Keyring_file_backend() = default;
@@ -128,7 +128,7 @@ class Keyring_file_backend final {
   bool write_to_file();
 
   /** Create data file if missing */
-  void create_file_if_missing(std::string file_name);
+  void create_file_if_missing(const std::string &file_name);
 
  private:
   /** Keyring file */
@@ -143,7 +143,7 @@ class Keyring_file_backend final {
   /** Validity */
   bool valid_;
 };
-}  // namespace backend
-}  // namespace keyring_file
+
+}  // namespace keyring_file::backend
 
 #endif  // !KEYRING_FILE_BACKEND_INCLUDED

@@ -71,7 +71,7 @@ class Path {
 
   bool exists();
 
-  const std::string to_str();
+  std::string to_str();
 
   bool empty();
 #ifndef _WIN32

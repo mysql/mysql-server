@@ -26,9 +26,7 @@
 
 #include <string>
 
-namespace keyring_common {
-
-namespace json_data {
+namespace keyring_common::json_data {
 
 /* Base class for data extensions */
 class Json_data_extension {
@@ -38,7 +36,5 @@ class Json_data_extension {
   virtual ~Json_data_extension() = default;
 };
 
-}  // namespace json_data
-
-}  // namespace keyring_common
+}  // namespace keyring_common::json_data
 #endif  // !JSON_DS_INCLUDED

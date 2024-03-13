@@ -35,9 +35,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 
-namespace keyring_file {
-
-namespace backend {
+namespace keyring_file::backend {
 
 using keyring_common::data::Data;
 using keyring_common::data_file::File_reader;
@@ -51,11 +49,10 @@ using keyring_common::utils::get_random_data;
 
 Json_data_extension ext;
 
-Keyring_file_backend::Keyring_file_backend(const std::string keyring_file_name,
+Keyring_file_backend::Keyring_file_backend(const std::string &keyring_file_name,
                                            bool read_only)
     : keyring_file_name_(keyring_file_name),
       read_only_(read_only),
-      json_writer_(),
       valid_(false) {
   if (keyring_file_name_.length() == 0) {
     LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_KEYRING_FILE_NAME_EMPTY);
@@ -109,12 +106,12 @@ bool Keyring_file_backend::load_cache(
     std::unique_ptr<Json_data_extension> data_ext;
     Metadata metadata;
     Data data;
-    if (json_reader.get_element(i, metadata, data, data_ext) == true) {
+    if (json_reader.get_element(i, metadata, data, data_ext)) {
       LogComponentErr(ERROR_LEVEL,
                       ER_KEYRING_COMPONENT_KEYRING_FILE_KEY_EXTRACT_FAILED);
       return true;
     }
-    if (operations.insert(metadata, data) == true) return true;
+    if (operations.insert(metadata, data)) return true;
   }
   return false;
 }
@@ -167,7 +164,8 @@ bool Keyring_file_backend::write_to_file() {
   return !file_writer.valid();
 }
 
-void Keyring_file_backend::create_file_if_missing(std::string file_name) {
+void Keyring_file_backend::create_file_if_missing(
+    const std::string &file_name) {
   std::ifstream f(file_name.c_str());
   if (f.good())
     f.close();
@@ -177,6 +175,4 @@ void Keyring_file_backend::create_file_if_missing(std::string file_name) {
   }
 }
 
-}  // namespace backend
-
-}  // namespace keyring_file
+}  // namespace keyring_file::backend

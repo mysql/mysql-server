@@ -69,6 +69,7 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
     STRING_APPEND(suppress_warnings " /wd26402") # Return a scoped object instead of a heap-allocated if it has a move constructor (r.3).
     STRING_APPEND(suppress_warnings " /wd26403") # Reset or explicitly delete an owner<T> pointer '...' (r.3).
     STRING_APPEND(suppress_warnings " /wd26405") # Do not assign to an owner<t> which may be in a valid state (r.3).
+    STRING_APPEND(suppress_warnings " /wd26407") # Prefer scoped objects, don't heap-allocate unnecessarily
     STRING_APPEND(suppress_warnings " /wd26408") # Avoid malloc() and free(), prefer the nothrow version of new with delete (r.10).
     STRING_APPEND(suppress_warnings " /wd26409") # Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
     STRING_APPEND(suppress_warnings " /wd26410") # The parameter '...' is a reference to const unique pointer, use const T* or const T& instead(r.32)

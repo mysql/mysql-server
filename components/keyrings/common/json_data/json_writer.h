@@ -39,21 +39,20 @@
 
 #include "json_ds.h"
 
-namespace keyring_common {
-namespace json_data {
+namespace keyring_common::json_data {
 
 class Json_writer {
  public:
-  Json_writer(const std::string data = {}, const std::string version = "1.0",
-              const std::string version_key = "version",
-              const std::string array_key = "elements");
+  Json_writer(const std::string &data = {}, const std::string &version = "1.0",
+              const std::string &version_key = "version",
+              const std::string &array_key = "elements");
 
   /** Destructor */
   virtual ~Json_writer() = default;
 
-  bool set_data(const std::string data);
+  bool set_data(const std::string &data);
 
-  const std::string to_string() const;
+  std::string to_string() const;
 
   /**
     Add an element
@@ -97,7 +96,6 @@ class Json_writer {
   bool valid_;
 };
 
-}  // namespace json_data
-}  // namespace keyring_common
+}  // namespace keyring_common::json_data
 
 #endif  // !JSON_WRITER_INCLUDED

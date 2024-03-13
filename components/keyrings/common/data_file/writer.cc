@@ -26,9 +26,8 @@
 
 #include "writer.h"
 
-namespace keyring_common {
+namespace keyring_common::data_file {
 
-namespace data_file {
 /* Constructor */
 File_writer::File_writer(const std::string &file, const std::string &data,
                          bool backup_exists)
@@ -51,5 +50,4 @@ bool File_writer::write_data_to_file(const std::string &file,
   return retval;
 }
 
-}  // namespace data_file
-}  // namespace keyring_common
+}  // namespace keyring_common::data_file

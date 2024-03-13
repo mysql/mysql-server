@@ -45,7 +45,7 @@
 
 #define MAX_KEYRING_UDF_KEY_LENGTH 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH
-const size_t KEYRING_UDF_KEY_TYPE_LENGTH = 128;
+constexpr size_t KEYRING_UDF_KEY_TYPE_LENGTH = 128;
 namespace {
 SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(mysql_udf_metadata) *udf_metadata_service = nullptr;
@@ -203,7 +203,7 @@ static bool validate_compile_time(UDF_ARGS *args, uint expected_arg_count,
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_current_user_execute_privilege = 0;
 
-  if (is_keyring_udf_initialized == false) {
+  if (!is_keyring_udf_initialized) {
     strcpy(message,
            "This function requires keyring_udf plugin which is not installed."
            " Please install keyring_udf plugin and try again.");
@@ -215,7 +215,7 @@ static bool validate_compile_time(UDF_ARGS *args, uint expected_arg_count,
                                   &has_current_user_execute_privilege))
     return true;
 
-  if (has_current_user_execute_privilege == false) {
+  if (!has_current_user_execute_privilege) {
     strcpy(message,
            "The user is not privileged to execute this function. "
            "User needs to have EXECUTE permission.");
@@ -294,10 +294,8 @@ static bool keyring_udf_func_init(
 
   if (size_of_memory_to_allocate != 0) {
     initid->ptr = new (std::nothrow) char[size_of_memory_to_allocate];
-    if (initid->ptr == nullptr)
-      return true;
-    else
-      memset(initid->ptr, 0, size_of_memory_to_allocate);
+    if (initid->ptr == nullptr) return true;
+    memset(initid->ptr, 0, size_of_memory_to_allocate);
   }
 
   for (uint index = 0; index < expected_arg_count; index++) {
@@ -328,9 +326,9 @@ PLUGIN_EXPORT
 long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
                             unsigned char *error) {
   std::string current_user;
-  char *key_id = args->args[0];
+  const char *key_id = args->args[0];
   char *key = args->args[2];
-  char *key_type = args->args[1];
+  const char *key_type = args->args[1];
 
   if (validate_run_time(args,
                         VALIDATE_KEY_ID | VALIDATE_KEY_TYPE | VALIDATE_KEY)) {
@@ -607,7 +605,7 @@ long long keyring_key_remove(UDF_INIT *, UDF_ARGS *args, unsigned char *,
     *error = 1;
     return 0;
   }
-  char *key_id = args->args[0];
+  const char *key_id = args->args[0];
   if (keyring_writer_service->remove(key_id, current_user.c_str()) != 0) {
     //  if (my_key_remove(args->args[0], current_user.c_str())) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
@@ -648,8 +646,8 @@ long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   std::string current_user;
   if (get_current_user(&current_user)) return 0;
 
-  char *key_id = args->args[0];
-  char *key_type = args->args[1];
+  const char *key_id = args->args[0];
+  const char *key_type = args->args[1];
   const long long key_length = *reinterpret_cast<long long *>(args->args[2]);
 
   if (keyring_generator_service->generate(key_id, current_user.c_str(),

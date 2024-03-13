@@ -44,7 +44,7 @@ int read_secret(SERVICE_TYPE(keyring_reader_with_status) * keyring_reader,
   const bool retval = keyring_reader->init(secret_id, auth_id, &reader_object);
 
   /* Keyring error */
-  if (retval == true) return -1;
+  if (retval) return -1;
 
   /* Key absent */
   if (reader_object == nullptr) return 0;

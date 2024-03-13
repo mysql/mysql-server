@@ -29,8 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/keyring_keys_metadata_iterator.h>
 
-namespace keyring_common {
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 class Keyring_keys_metadata_iterator_service_impl {
  public:
@@ -120,8 +119,7 @@ class Keyring_keys_metadata_iterator_service_impl {
             size_t data_id_length, char *auth_id, size_t auth_id_length));
 };
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition
 
 #define KEYRING_KEYS_METADATA_FORWARD_ITERATOR_IMPLEMENTOR(component_name)     \
   BEGIN_SERVICE_IMPLEMENTATION(component_name, keyring_keys_metadata_iterator) \

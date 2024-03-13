@@ -26,9 +26,7 @@
 
 #include "data.h" /* data::Data */
 
-namespace keyring_common {
-
-namespace data {
+namespace keyring_common::data {
 /**
   Data wrapper to include backend specific extensions
 */
@@ -49,17 +47,18 @@ class Data_extension final : public Data {
 
   /** Assignment operator */
   Data_extension &operator=(const Data_extension &src) {
-    Data::operator=(src);
-    ext_ = src.ext_;
-
+    if (this != &src) {
+      Data::operator=(src);
+      ext_ = src.ext_;
+    }
     return *this;
   }
 
   /* Get data */
-  const data::Data get_data() const override { return Data::get_data(); }
+  data::Data get_data() const override { return Data::get_data(); }
 
   /* Get Metadata extension details */
-  const Extension get_extension() const { return ext_; }
+  Extension get_extension() const { return ext_; }
 
   /* Set data */
   void set_data(const data::Data &data) override { Data::operator=(data); }
@@ -71,8 +70,6 @@ class Data_extension final : public Data {
   Extension ext_;
 };
 
-}  // namespace data
-
-}  // namespace keyring_common
+}  // namespace keyring_common::data
 
 #endif  // !Data_extension_INCLUDED

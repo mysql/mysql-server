@@ -58,12 +58,11 @@ bool Keys_iterator::get_key(Key_metadata **km) {
   if (key_metadata_list_iterator == key_metadata_list.end()) {
     *km = nullptr;
     return false;
-  } else {
-    std::unique_ptr<Key_metadata> key_meta(new Key_metadata());
-    key_meta->id = key_metadata_list_iterator->id;
-    key_meta->user = key_metadata_list_iterator->user;
-    *km = key_meta.release();
   }
+  std::unique_ptr<Key_metadata> key_meta(new Key_metadata());
+  key_meta->id = key_metadata_list_iterator->id;
+  key_meta->user = key_metadata_list_iterator->user;
+  *km = key_meta.release();
   ++key_metadata_list_iterator;
   return false;
 }

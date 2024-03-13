@@ -30,21 +30,19 @@ using keyring_file::g_keyring_file_inited;
 using keyring_file::init_or_reinit_keyring;
 using keyring_file::set_paths;
 
-namespace keyring_common {
-
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
                    (const char *component_path, const char *instance_path)) {
   std::string err;
   try {
-    if (set_paths(component_path, instance_path) == true) {
+    if (set_paths(component_path, instance_path)) {
       LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_NOT_INITIALIZED,
                       "Failed to set path to component");
       return true;
     }
 
-    if (init_or_reinit_keyring(err) == true) {
+    if (init_or_reinit_keyring(err)) {
       LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_NOT_INITIALIZED,
                       err.c_str());
       return true;
@@ -59,5 +57,4 @@ DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
   }
 }
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition

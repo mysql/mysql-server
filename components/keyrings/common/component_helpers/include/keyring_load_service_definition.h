@@ -29,8 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/keyring_load.h>
 
-namespace keyring_common {
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 class Keyring_load_service_impl {
  public:
@@ -49,8 +48,7 @@ class Keyring_load_service_impl {
                                    const char *instance_path));
 };
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition
 
 #define KEYRING_LOAD_IMPLEMENTOR(component_name)                      \
   BEGIN_SERVICE_IMPLEMENTATION(component_name, keyring_load)          \

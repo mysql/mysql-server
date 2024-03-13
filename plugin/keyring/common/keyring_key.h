@@ -41,7 +41,7 @@ struct Key : IKey {
 
   ~Key() override;
 
-  bool load_from_buffer(uchar *buffer, size_t *buffer_position,
+  bool load_from_buffer(uchar *buffer, size_t *number_of_bytes_read_from_buffer,
                         size_t input_buffer_size) override;
   void store_in_buffer(uchar *buffer, size_t *buffer_position) const override;
   std::string *get_key_signature() const override;

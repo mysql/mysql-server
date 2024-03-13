@@ -26,9 +26,8 @@
 #include "reader.h"
 #include "writer.h" /* File_writer */
 
-namespace keyring_common {
+namespace keyring_common::data_file {
 
-namespace data_file {
 /* Constructor */
 File_reader::File_reader(const std::string &file, bool read_only,
                          std::string &data)
@@ -72,10 +71,10 @@ File_reader::File_reader(const std::string &file, bool read_only,
 
 bool File_reader::read_data_from_file(const std::string &file,
                                       std::string &data) {
-  bool retval = false;
+  bool retval;
   std::ifstream file_stream(file, std::ios::in | std::ios::ate);
   if (!file_stream.is_open()) return false;
-  auto file_length = file_stream.tellg();
+  const auto file_length = file_stream.tellg();
   if (file_length > 0) {
     data.reserve(file_length);
     file_stream.seekg(std::ios::beg);
@@ -95,6 +94,4 @@ bool File_reader::read_data_from_file(const std::string &file,
   return retval;
 }
 
-}  // namespace data_file
-
-}  // namespace keyring_common
+}  // namespace keyring_common::data_file

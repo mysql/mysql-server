@@ -25,11 +25,11 @@
 
 #include "data.h"
 
-namespace keyring_common {
-namespace data {
+namespace keyring_common::data {
 
 /** Constructor to create a data object */
-Data::Data(const Sensitive_data data, Type type) : data_(data), type_(type) {
+Data::Data(const Sensitive_data &data, Type type)
+    : data_(data), type_(std::move(type)) {
   set_validity();
 }
 
@@ -62,7 +62,7 @@ Data &Data::operator=(Data &&src) noexcept {
 Data::~Data() { valid_ = false; }
 
 /** Return self */
-const Data Data::get_data() const { return *this; }
+Data Data::get_data() const { return *this; }
 
 /** Get data */
 Sensitive_data Data::data() const { return data_; }
@@ -84,7 +84,7 @@ void Data::set_data(const Data &src) { *this = src; }
 
 /** Set type */
 void Data::set_type(Type type) {
-  type_ = type;
+  type_ = std::move(type);
   set_validity();
 }
 
@@ -94,7 +94,6 @@ bool Data::operator==(const Data &other) const {
 }
 
 /** Set validity of the data object */
-void Data::set_validity() { valid_ = type_ != ""; }
+void Data::set_validity() { valid_ = !type_.empty(); }
 
-}  // namespace data
-}  // namespace keyring_common
+}  // namespace keyring_common::data

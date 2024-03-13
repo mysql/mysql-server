@@ -192,8 +192,8 @@ size_t Converter::convert(char const *src, char *dst, Arch src_t, Arch dst_t) {
   // find out source and destination characteristics
   const size_t src_width = get_width(src_t);
   const size_t dst_width = get_width(dst_t);
-  const bool src_is_le = get_endian(src_t) == Endian::LITTLE ? true : false;
-  const bool dst_is_le = get_endian(dst_t) == Endian::LITTLE ? true : false;
+  const bool src_is_le = get_endian(src_t) == Endian::LITTLE;
+  const bool dst_is_le = get_endian(dst_t) == Endian::LITTLE;
 
   // determine required operations
   const bool swap = (src_is_le != dst_is_le);

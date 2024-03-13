@@ -43,14 +43,10 @@ enum class enum_plugin_type { SOURCE_PLUGIN = 0, DESTINATION_PLUGIN };
 class Key_info {
  public:
   Key_info() = default;
-  Key_info(char *key_id, char *user_id) {
-    m_key_id = key_id;
-    m_user_id = user_id;
-  }
-  Key_info(const Key_info &ki) {
-    this->m_key_id = ki.m_key_id;
-    this->m_user_id = ki.m_user_id;
-  }
+  Key_info(char *key_id, char *user_id)
+      : m_key_id(key_id), m_user_id(user_id) {}
+  Key_info(const Key_info &ki)
+      : m_key_id(ki.m_key_id), m_user_id(ki.m_user_id) {}
 
  public:
   std::string m_key_id;
@@ -66,14 +62,14 @@ using const_keyring_keys_metadata_iterator_t =
 
 class Keyring_component {
  protected:
-  Keyring_component() {}
-  Keyring_component(const std::string component_path,
-                    const std::string implementation_name);
+  Keyring_component() = default;
+  Keyring_component(std::string component_path,
+                    const std::string &implementation_name);
   ~Keyring_component();
 
  public:
   const_keyring_load_t *initializer() { return keyring_load_service_; }
-  bool ok() { return ok_; }
+  bool ok() const { return ok_; }
 
  protected:
   const std::string component_path_;
@@ -85,8 +81,8 @@ class Keyring_component {
 
 class Source_keyring_component final : public Keyring_component {
  public:
-  Source_keyring_component(const std::string component_path,
-                           const std::string implementation_name);
+  Source_keyring_component(const std::string &component_path,
+                           const std::string &implementation_name);
   ~Source_keyring_component();
 
   const_keyring_reader_with_status_t *reader() {
@@ -104,8 +100,8 @@ class Source_keyring_component final : public Keyring_component {
 
 class Destination_keyring_component final : public Keyring_component {
  public:
-  Destination_keyring_component(const std::string component_path,
-                                const std::string implementation_name);
+  Destination_keyring_component(const std::string &component_path,
+                                const std::string &implementation_name);
   ~Destination_keyring_component();
 
   const_keyring_writer_t *writer() { return keyring_writer_service_; }

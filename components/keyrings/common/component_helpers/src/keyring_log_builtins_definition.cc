@@ -89,7 +89,7 @@ typedef struct _log_item_wellknown_key {
 } log_item_wellknown_key;
 
 /** Required items and their type - See LogComponentErr */
-static const log_item_wellknown_key log_item_wellknown_keys[] = {
+static constexpr log_item_wellknown_key log_item_wellknown_keys[] = {
     {STRING_WITH_LEN("prio"), LOG_INTEGER, LOG_ITEM_LOG_PRIO},
     {STRING_WITH_LEN("err_code"), LOG_INTEGER, LOG_ITEM_SQL_ERRCODE},
     {STRING_WITH_LEN("subsystem"), LOG_CSTRING, LOG_ITEM_SRV_SUBSYS},
@@ -169,7 +169,7 @@ static log_item_data *kr_line_item_set_with_key(log_line *ll, log_item_type t,
   @param  li  log-item to release the payload of
 */
 static void kr_log_item_free(log_item *li) {
-  char *fa = nullptr;
+  const char *fa;
   if ((li->alloc & LOG_ITEM_FREE_VALUE) && (li->item_class == LOG_LEX_STRING) &&
       ((fa = const_cast<char *>(li->data.data_string.str)) != nullptr)) {
     delete[] fa;
@@ -188,8 +188,7 @@ static void kr_log_line_item_free_all(log_line *ll) {
   ll->seen = LOG_ITEM_END;
 }
 
-namespace keyring_common {
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 /* log_builtins */
 DEFINE_METHOD(log_item_data *, Log_builtins_keyring::line_item_set_with_key,
@@ -203,13 +202,13 @@ DEFINE_METHOD(log_item_data *, Log_builtins_keyring::line_item_set,
 }
 
 DEFINE_METHOD(log_line *, Log_builtins_keyring::line_init, ()) {
-  log_line *ll = new log_line();
+  auto *ll = new log_line();
   if (ll != nullptr) memset(ll, 0, sizeof(log_line));
   return ll;
 }
 
 DEFINE_METHOD(void, Log_builtins_keyring::line_exit, (log_line * ll)) {
-  if (ll != nullptr) delete ll;
+  delete ll;
 }
 
 DEFINE_METHOD(log_item_type_mask, Log_builtins_keyring::line_item_types_seen,
@@ -252,7 +251,7 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
     int out_fields = 0;
     const char *label = "Error";
     size_t label_len = strlen(label);
-    enum loglevel prio = ERROR_LEVEL;
+    enum loglevel prio;
     unsigned int errcode = 0;
     const char *msg = "";
     size_t msg_len = 0;
@@ -272,11 +271,10 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
           break;
         case LOG_ITEM_LOG_MESSAGE: {
           have_message = true;
-          const char *nl;
           msg = ll->item[c].data.data_string.str;
           msg_len = ll->item[c].data.data_string.length;
-          if ((nl = (const char *)memchr(msg, '\n', msg_len)) != nullptr) {
-            if (line_buffer != nullptr) delete[] line_buffer;
+          if (memchr(msg, '\n', msg_len) != nullptr) {
+            delete[] line_buffer;
             line_buffer = new char[msg_len + 1]();
             if (line_buffer == nullptr) {
               msg =
@@ -301,14 +299,14 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
 
     if (have_message) {
       char internal_buff[LOG_BUFF_MAX];
-      const size_t buff_size = sizeof(internal_buff);
+      constexpr size_t buff_size = sizeof(internal_buff);
       char *buff_line = internal_buff;
 
-      const char format[] = "%Y-%m-%d %X";
+      constexpr char format[] = "%Y-%m-%d %X";
       const time_t t(time(nullptr));
       const tm tm(*localtime(&t));
 
-      const size_t date_length{50};
+      constexpr size_t date_length{50};
       const std::unique_ptr<char[]> date{new char[date_length]};
       strftime(date.get(), date_length, format, &tm);
 
@@ -318,7 +316,7 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
                      time_string.c_str(), (int)label_len, label, errcode,
                      (int)msg_len, msg);
       std::cout << buff_line << std::endl;
-      if (line_buffer) delete[] line_buffer;
+      delete[] line_buffer;
       kr_log_line_item_free_all(ll);
       return out_fields;
     }
@@ -362,7 +360,7 @@ DEFINE_METHOD(char *, Log_builtins_keyring::strndup,
 
 DEFINE_METHOD(void, Log_builtins_keyring::free, (void *ptr)) {
   if (ptr != nullptr) {
-    char *mem = (char *)ptr;
+    const char *mem = (const char *)ptr;
     delete[] mem;
   }
 }
@@ -375,5 +373,5 @@ DEFINE_METHOD(size_t, Log_builtins_keyring::substitutev,
               (char *to, size_t n, const char *fmt, va_list ap)) {
   return vsnprintf(to, n, fmt, ap);
 }
-}  // namespace service_definition
-}  // namespace keyring_common
+
+}  // namespace keyring_common::service_definition

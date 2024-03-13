@@ -193,16 +193,15 @@ bool init_or_reinit_keyring(std::string &err) {
 
   /* Initialize backend handler */
   std::unique_ptr<Keyring_file_backend> new_backend =
-      std::make_unique<Keyring_file_backend>(
-          new_config_pod.get()->config_file_path_,
-          new_config_pod.get()->read_only_);
-  if (!new_backend || !new_backend.get()->valid()) {
+      std::make_unique<Keyring_file_backend>(new_config_pod->config_file_path_,
+                                             new_config_pod->read_only_);
+  if (!new_backend || !new_backend->valid()) {
     err = "Failed to initialize keyring backend";
     return true;
   }
 
   /* Create new operations class */
-  Keyring_operations<Keyring_file_backend> *new_operations = new (std::nothrow)
+  auto *new_operations = new (std::nothrow)
       Keyring_operations<Keyring_file_backend>(true, new_backend.release());
   if (new_operations == nullptr) {
     err = "Failed to allocate memory for keyring operations";
@@ -216,10 +215,10 @@ bool init_or_reinit_keyring(std::string &err) {
   }
 
   std::swap(g_keyring_operations, new_operations);
-  Config_pod *current = g_config_pod;
+  const Config_pod *current = g_config_pod;
   g_config_pod = new_config_pod.release();
-  if (current != nullptr) delete current;
-  if (new_operations != nullptr) delete new_operations;
+  delete current;
+  delete new_operations;
   return false;
 }
 
@@ -246,13 +245,13 @@ static mysql_service_status_t keyring_file_deinit() {
   if (g_instance_path) free(g_instance_path);
   g_instance_path = nullptr;
 
-  if (g_keyring_operations != nullptr) delete g_keyring_operations;
+  delete g_keyring_operations;
   g_keyring_operations = nullptr;
 
-  if (g_config_pod) delete g_config_pod;
+  delete g_config_pod;
   g_config_pod = nullptr;
 
-  if (g_component_callbacks) delete g_component_callbacks;
+  delete g_component_callbacks;
   g_component_callbacks = nullptr;
 
   return false;

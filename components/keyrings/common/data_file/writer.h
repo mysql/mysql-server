@@ -26,9 +26,8 @@
 
 #include <string>
 
-namespace keyring_common {
+namespace keyring_common::data_file {
 
-namespace data_file {
 class File_writer final {
  public:
   File_writer(const std::string &file, const std::string &data,
@@ -47,7 +46,5 @@ class File_writer final {
   bool valid_;
 };
 
-}  // namespace data_file
-
-}  // namespace keyring_common
+}  // namespace keyring_common::data_file
 #endif  // !WRITER_INCLUDED

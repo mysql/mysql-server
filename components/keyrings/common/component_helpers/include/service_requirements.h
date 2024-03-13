@@ -28,8 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <string>
 #include <vector>
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 using config_vector = std::vector<std::pair<std::string, std::string>>;
 
@@ -55,7 +54,7 @@ class Component_callbacks {
   */
   bool create_config(std::unique_ptr<config_vector> &metadata);
 };
-}  // namespace service_implementation
-}  // namespace keyring_common
+
+}  // namespace keyring_common::service_implementation
 
 #endif /* SERVICE_REQUIREMENTS_INCLUDED */

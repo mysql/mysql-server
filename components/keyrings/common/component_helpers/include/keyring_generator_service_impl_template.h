@@ -35,8 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/keyrings/common/data/meta.h>
 #include <components/keyrings/common/operations/operations.h>
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 using keyring_common::meta::Metadata;
 using keyring_common::operations::Keyring_operations;
@@ -63,7 +62,7 @@ bool generate_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
@@ -84,7 +83,7 @@ bool generate_template(
     }
 
     Metadata metadata(data_id, auth_id);
-    if (keyring_operations.generate(metadata, data_type, data_size) == true) {
+    if (keyring_operations.generate(metadata, data_type, data_size)) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_GENERATE_FAILED, data_id,
                       (auth_id == nullptr || !*auth_id) ? "NULL" : auth_id);
@@ -98,7 +97,6 @@ bool generate_template(
   }
 }
 
-}  // namespace service_implementation
-}  // namespace keyring_common
+}  // namespace keyring_common::service_implementation
 
 #endif  // !KEYRING_GENERATOR_SERVICE_IMPL_TEMPLATE_INCLUDED

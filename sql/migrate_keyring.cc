@@ -38,9 +38,9 @@ using keyring_reader_with_status_t =
 using keyring_keys_metadata_iterator_t =
     SERVICE_TYPE_NO_CONST(keyring_keys_metadata_iterator);
 
-Keyring_component::Keyring_component(const std::string component_path,
-                                     const std::string implementation_name)
-    : component_path_(component_path),
+Keyring_component::Keyring_component(std::string component_path,
+                                     const std::string &implementation_name)
+    : component_path_(std::move(component_path)),
       h_keyring_load_service(nullptr),
       keyring_load_service_(nullptr),
       component_loaded_(false),
@@ -48,7 +48,7 @@ Keyring_component::Keyring_component(const std::string component_path,
   {
     const char *urn[] = {component_path_.c_str()};
     const bool load_status = dynamic_loader_srv->load(urn, 1);
-    if (load_status == true) return;
+    if (load_status) return;
     component_loaded_ = true;
   }
   std::string load_service_name("keyring_load");
@@ -68,7 +68,7 @@ Keyring_component::Keyring_component(const std::string component_path,
 }
 
 Keyring_component::~Keyring_component() {
-  if (component_loaded_ == true) {
+  if (component_loaded_) {
     const char *urn[] = {component_path_.c_str()};
     dynamic_loader_srv->unload(urn, 1);
   }
@@ -86,7 +86,7 @@ Keyring_component::~Keyring_component() {
 }
 
 Source_keyring_component::Source_keyring_component(
-    const std::string component_path, const std::string implementation_name)
+    const std::string &component_path, const std::string &implementation_name)
     : Keyring_component(component_path, implementation_name),
       keyring_keys_metadata_iterator_service_(nullptr),
       keyring_reader_service_(nullptr) {
@@ -147,7 +147,7 @@ Source_keyring_component::~Source_keyring_component() {
 }
 
 Destination_keyring_component::Destination_keyring_component(
-    const std::string component_path, const std::string implementation_name)
+    const std::string &component_path, const std::string &implementation_name)
     : Keyring_component(component_path, implementation_name),
       keyring_writer_service_(nullptr) {
   my_h_service h_keyring_writer_service = nullptr;
@@ -235,7 +235,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
                            bool migrate_from_component) {
   DBUG_TRACE;
 
-  std::size_t found = std::string::npos;
+  std::size_t found;
   const string equal("=");
   const string so(".so");
   const string dll(".dll");
@@ -325,7 +325,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     /* set default compression method */
     mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
                   compression_method.c_str());
-    enum mysql_ssl_mode ssl_mode = SSL_MODE_REQUIRED;
+    constexpr enum mysql_ssl_mode ssl_mode = SSL_MODE_REQUIRED;
     mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
     mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
     mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqld");
@@ -417,9 +417,9 @@ bool Migrate_keyring::execute() {
   tmp_m_argv = m_argv + 1;
   /* check for invalid options */
   if (m_argc > 1) {
-    struct my_option no_opts[] = {{nullptr, 0, nullptr, nullptr, nullptr,
-                                   nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0,
-                                   nullptr, 0, nullptr}};
+    constexpr struct my_option no_opts[] = {
+        {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0,
+         0, 0, nullptr, 0, nullptr}};
     my_getopt_skip_unknown = false;
     my_getopt_use_args_separator = true;
     if (handle_options(&m_argc, &tmp_m_argv, no_opts, nullptr)) return true;
@@ -486,8 +486,8 @@ bool Migrate_keyring::load_component() {
 bool Migrate_keyring::load_plugin(enum_plugin_type plugin_type) {
   DBUG_TRACE;
 
-  char *keyring_plugin = nullptr;
-  char *plugin_name = nullptr;
+  const char *keyring_plugin;
+  const char *plugin_name;
   bool is_source_plugin = false;
 
   if (plugin_type == enum_plugin_type::SOURCE_PLUGIN) is_source_plugin = true;
@@ -553,7 +553,7 @@ static bool fetch_key_from_source_keyring_component(
   /* Fetch key details */
   my_h_keyring_reader_object reader_object = nullptr;
   const bool status = reader->init(key_id, user_id, &reader_object);
-  if (status == true) {
+  if (status) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, "Keyring reported error");
     return true;
   }
@@ -574,20 +574,28 @@ static bool fetch_key_from_source_keyring_component(
     *skipped = true;
     return false;
   }
-  unsigned char *key_local = reinterpret_cast<unsigned char *>(
+  auto *key_local = reinterpret_cast<unsigned char *>(
       my_malloc(PSI_NOT_INSTRUMENTED, *key_len, MYF(MY_WME)));
   char *key_type_local = reinterpret_cast<char *>(
       my_malloc(PSI_NOT_INSTRUMENTED, data_type_size + 1, MYF(MY_WME)));
-  memset(key_local, 0, *key_len);
-  memset(key_type_local, 0, data_type_size + 1);
 
   if (key_local == nullptr || key_type_local == nullptr) {
-    string errmsg =
-        "Failed to allocated required memory for data pointed by "
+    if (key_local)
+      my_free(key_local);
+    else if (key_type_local)
+      my_free(key_type_local);
+
+    const string errmsg =
+        "Failed to allocate required memory for data pointed by "
         "data_id: " +
         string(key_id) + ", auth_id: " + string(user_id);
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, errmsg.c_str());
+    return true;
   }
+
+  memset(key_local, 0, *key_len);
+  memset(key_type_local, 0, data_type_size + 1);
+
   if (reader->fetch(reader_object, key_local, *key_len, key_len, key_type_local,
                     data_type_size + 1, &data_type_size) != 0) {
     LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATE_SKIPPED_KEY, key_id, user_id);
@@ -664,7 +672,7 @@ bool Migrate_keyring::fetch_and_store_keys() {
       if (m_source_plugin_handle->mysql_key_fetch(key_id, &key_type, user_id,
                                                   &key, &key_len)) {
         /* fetch failed */
-        string errmsg =
+        const string errmsg =
             "Fetching key (" + string(key_id) + ") from source plugin failed.";
         LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, errmsg.c_str());
         error = true;
@@ -679,8 +687,8 @@ bool Migrate_keyring::fetch_and_store_keys() {
                   : m_destination_plugin_handle->mysql_key_store(
                         key_id, key_type, user_id, key, key_len);
       if (error) {
-        string errmsg = "Storing key (" + string(key_id) +
-                        ") into destination plugin failed.";
+        const string errmsg = "Storing key (" + string(key_id) +
+                              ") into destination plugin failed.";
         LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, errmsg.c_str());
       } else {
         /*
@@ -696,20 +704,20 @@ bool Migrate_keyring::fetch_and_store_keys() {
   }
 
   /* If there are zero keys in the keyring, it means no keys were migrated */
-  if (!error && m_source_keys.size() == 0) {
+  if (!error && m_source_keys.empty()) {
     LogErr(WARNING_LEVEL, ER_WARN_MIGRATION_EMPTY_SOURCE_KEYRING);
   }
 
   if (error) {
     /* something went wrong remove keys from destination keystore. */
-    while (m_source_keys.size()) {
-      Key_info ki = m_source_keys.back();
+    while (!m_source_keys.empty()) {
+      const Key_info ki = m_source_keys.back();
       if (m_migrate_to_component
               ? writer->remove(ki.m_key_id.c_str(), ki.m_user_id.c_str())
               : m_destination_plugin_handle->mysql_key_remove(
                     ki.m_key_id.c_str(), ki.m_user_id.c_str())) {
-        string errmsg = "Removing key (" + string(ki.m_key_id.c_str()) +
-                        ") from destination keystore failed.";
+        const string errmsg = "Removing key (" + ki.m_key_id +
+                              ") from destination keystore failed.";
         LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, errmsg.c_str());
       }
       m_source_keys.pop_back();
@@ -730,7 +738,7 @@ bool Migrate_keyring::fetch_and_store_keys() {
 */
 bool Migrate_keyring::disable_keyring_operations() {
   DBUG_TRACE;
-  const char query[] = "SET GLOBAL KEYRING_OPERATIONS=0";
+  constexpr char query[] = "SET GLOBAL KEYRING_OPERATIONS=0";
   if (mysql && mysql_real_query(mysql, query, strlen(query))) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to disable keyring_operations variable.");
@@ -747,7 +755,7 @@ bool Migrate_keyring::disable_keyring_operations() {
 */
 bool Migrate_keyring::enable_keyring_operations() {
   DBUG_TRACE;
-  const char query[] = "SET GLOBAL KEYRING_OPERATIONS=1";
+  constexpr char query[] = "SET GLOBAL KEYRING_OPERATIONS=1";
 
   /* clear the SSL error stack first as the connection could be encrypted */
   ERR_clear_error();
@@ -771,8 +779,8 @@ Migrate_keyring::~Migrate_keyring() {
     mysql = nullptr;
     if (migrate_connect_options) vio_end();
   }
-  if (m_source_component != nullptr) delete m_source_component;
+  delete m_source_component;
   m_source_component = nullptr;
-  if (m_destination_component != nullptr) delete m_destination_component;
+  delete m_destination_component;
   m_destination_component = nullptr;
 }

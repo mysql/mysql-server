@@ -461,9 +461,7 @@
 
 /* clang-format on */
 
-namespace keyring_common {
-
-namespace operations {
+namespace keyring_common::operations {
 
 /**
   Keyring operations
@@ -509,7 +507,7 @@ class Keyring_operations {
   */
   bool insert(const meta::Metadata &metadata, Data_extension secret_data) {
     /* valid_ = true implies cache is operational. Do not permit bulk insert */
-    if (valid_ == true) return true;
+    if (valid_) return true;
     if (!cache_data_) secret_data.set_data(data::Data{});
     return !cache_.store(metadata, secret_data);
   }
@@ -798,7 +796,7 @@ class Keyring_operations {
       return;
     }
 
-    if (backend->load_cache(*this) == true) return;
+    if (backend->load_cache(*this)) return;
 
     /*
       If we fail to load metadata (and data) for all keys,
@@ -821,8 +819,6 @@ class Keyring_operations {
   bool valid_;
 };
 
-}  // namespace operations
-
-}  // namespace keyring_common
+}  // namespace keyring_common::operations
 
 #endif  // !OPERATIONS_INCLUDED

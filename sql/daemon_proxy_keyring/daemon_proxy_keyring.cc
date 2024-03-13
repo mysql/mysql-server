@@ -67,7 +67,7 @@ struct my_h_keyring_reader_object_keyring_proxy {
   size_t data_type_size_;
 };
 
-const size_t KEYRING_PROXY_MAX_ID_LENGTH = 1024 + 1;
+constexpr size_t KEYRING_PROXY_MAX_ID_LENGTH = 1024 + 1;
 struct my_h_keyring_keys_metadata_iterator_keyring_proxy {
   void *iterator;
   char data_id[KEYRING_PROXY_MAX_ID_LENGTH];
@@ -93,7 +93,7 @@ class Callback {
     @param callback Lambda function that is called using the invoke method.
   */
   explicit Callback(std::function<bool(st_mysql_keyring *keyring)> callback)
-      : m_callback(callback), m_result(true) {}
+      : m_callback(std::move(callback)), m_result(true) {}
 
   /**
     Invoke the underlying callback using the specified parameter and store
@@ -108,7 +108,7 @@ class Callback {
 
     @return Result of the invoke operation.
   */
-  bool result() { return m_result; }
+  bool result() const { return m_result; }
 
  private:
   /**
@@ -133,7 +133,7 @@ class Callback {
 static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
   plugin = my_plugin_lock(nullptr, &plugin);
   if (plugin) {
-    Callback *callback = reinterpret_cast<Callback *>(arg);
+    auto *callback = reinterpret_cast<Callback *>(arg);
     callback->invoke(
         reinterpret_cast<st_mysql_keyring *>(plugin_decl(plugin)->info));
   }
@@ -157,8 +157,6 @@ static bool iterate_plugins(std::function<bool(st_mysql_keyring *keyring)> fn) {
                  &callback);
   return callback.result();
 }
-
-static const std::string oom_error("Failed to allocate required memory");
 
 /**
   A class that implements proxy keyring component
@@ -187,7 +185,7 @@ class Keyring_proxy_imp {
                             (const char *data_id, const char *auth_id,
                              const char *data_type, size_t data_size)) {
     try {
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_generate(data_id, data_type, auth_id,
                                            data_size);
       });
@@ -211,7 +209,7 @@ class Keyring_proxy_imp {
   static DEFINE_BOOL_METHOD(init, (my_h_keyring_keys_metadata_iterator *
                                    forward_iterator)) {
     try {
-      my_h_keyring_keys_metadata_iterator_keyring_proxy *local_object =
+      auto *local_object =
           new my_h_keyring_keys_metadata_iterator_keyring_proxy();
       local_object->iterator = nullptr;
       memset(local_object->data_id, 0, KEYRING_PROXY_MAX_ID_LENGTH);
@@ -279,14 +277,14 @@ class Keyring_proxy_imp {
   static DEFINE_BOOL_METHOD(
       deinit, (my_h_keyring_keys_metadata_iterator forward_iterator)) {
     try {
-      my_h_keyring_keys_metadata_iterator_keyring_proxy *local_object =
+      auto *local_object =
           reinterpret_cast<my_h_keyring_keys_metadata_iterator_keyring_proxy *>(
               forward_iterator);
       if (local_object == nullptr) return false;
       memset(local_object->data_id, 0, KEYRING_PROXY_MAX_ID_LENGTH);
       memset(local_object->auth_id, 0, KEYRING_PROXY_MAX_ID_LENGTH);
       local_object->iterator_valid = false;
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         keyring->mysql_key_iterator_deinit(local_object->iterator);
         return false;
       });
@@ -307,10 +305,10 @@ class Keyring_proxy_imp {
   static DEFINE_BOOL_METHOD(
       is_valid, (my_h_keyring_keys_metadata_iterator forward_iterator)) {
     try {
-      my_h_keyring_keys_metadata_iterator_keyring_proxy *local_object =
+      const auto *local_object =
           reinterpret_cast<my_h_keyring_keys_metadata_iterator_keyring_proxy *>(
               forward_iterator);
-      if (local_object == nullptr || local_object->iterator_valid == false)
+      if (local_object == nullptr || !local_object->iterator_valid)
         return false;
       return true;
     } catch (...) {
@@ -329,14 +327,13 @@ class Keyring_proxy_imp {
   static DEFINE_BOOL_METHOD(
       next, (my_h_keyring_keys_metadata_iterator forward_iterator)) {
     try {
-      my_h_keyring_keys_metadata_iterator_keyring_proxy *local_object =
+      auto *local_object =
           reinterpret_cast<my_h_keyring_keys_metadata_iterator_keyring_proxy *>(
               forward_iterator);
-      if (local_object == nullptr || local_object->iterator_valid == false)
-        return true;
+      if (local_object == nullptr || !local_object->iterator_valid) return true;
       memset(local_object->data_id, 0, KEYRING_PROXY_MAX_ID_LENGTH);
       memset(local_object->auth_id, 0, KEYRING_PROXY_MAX_ID_LENGTH);
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_iterator_get_key(local_object->iterator,
                                                    local_object->data_id,
                                                    local_object->auth_id);
@@ -370,11 +367,10 @@ class Keyring_proxy_imp {
       }
       *data_id_length = 0;
       *auth_id_length = 0;
-      my_h_keyring_keys_metadata_iterator_keyring_proxy *local_object =
+      const auto *local_object =
           reinterpret_cast<my_h_keyring_keys_metadata_iterator_keyring_proxy *>(
               forward_iterator);
-      if (local_object == nullptr || local_object->iterator_valid == false)
-        return true;
+      if (local_object == nullptr || !local_object->iterator_valid) return true;
       *data_id_length = strlen(local_object->data_id);
       *auth_id_length = strlen(local_object->auth_id);
       return false;
@@ -405,11 +401,10 @@ class Keyring_proxy_imp {
         return true;
       }
 
-      my_h_keyring_keys_metadata_iterator_keyring_proxy *local_object =
+      const auto *local_object =
           reinterpret_cast<my_h_keyring_keys_metadata_iterator_keyring_proxy *>(
               forward_iterator);
-      if (local_object == nullptr || local_object->iterator_valid == false)
-        return true;
+      if (local_object == nullptr || !local_object->iterator_valid) return true;
 
       if (data_id_length < strlen(local_object->data_id)) return true;
       if (auth_id_length < strlen(local_object->auth_id)) return true;
@@ -441,20 +436,19 @@ class Keyring_proxy_imp {
       unsigned char *key = nullptr;
       char *key_type = nullptr;
       size_t key_size = 0;
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_fetch(data_id, &key_type, auth_id,
                                         (void **)&key, &key_size);
       });
 
-      if (retval == false) {
+      if (!retval) {
         /*
           Keyring plugin returns success even if key is absent.
           We need to check if key is really present
         */
         if (key_size > 0 && key != nullptr) {
-          my_h_keyring_reader_object_keyring_proxy *local_object =
-              new my_h_keyring_reader_object_keyring_proxy{
-                  key, key_type, key_size, strlen(key_type)};
+          auto *local_object = new my_h_keyring_reader_object_keyring_proxy{
+              key, key_type, key_size, strlen(key_type)};
           key = nullptr;
           key_type = nullptr;
           key_size = 0;
@@ -486,7 +480,7 @@ class Keyring_proxy_imp {
   static DEFINE_BOOL_METHOD(reader_deinit,
                             (my_h_keyring_reader_object reader_object)) {
     try {
-      my_h_keyring_reader_object_keyring_proxy *local_object =
+      auto *local_object =
           reinterpret_cast<my_h_keyring_reader_object_keyring_proxy *>(
               reader_object);
       if (!local_object) return false;
@@ -521,7 +515,7 @@ class Keyring_proxy_imp {
                             (my_h_keyring_reader_object reader_object,
                              size_t *data_size, size_t *data_type_size)) {
     try {
-      my_h_keyring_reader_object_keyring_proxy *local_object =
+      const auto *local_object =
           reinterpret_cast<my_h_keyring_reader_object_keyring_proxy *>(
               reader_object);
       if (!local_object) return true;
@@ -557,7 +551,7 @@ class Keyring_proxy_imp {
                              char *data_type, size_t data_type_buffer_length,
                              size_t *data_type_size)) {
     try {
-      my_h_keyring_reader_object_keyring_proxy *local_object =
+      const auto *local_object =
           reinterpret_cast<my_h_keyring_reader_object_keyring_proxy *>(
               reader_object);
       if (!local_object) return true;
@@ -594,7 +588,7 @@ class Keyring_proxy_imp {
                                     const unsigned char *data, size_t data_size,
                                     const char *data_type)) {
     try {
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_store(data_id, data_type, auth_id, data,
                                         data_size);
       });
@@ -618,7 +612,7 @@ class Keyring_proxy_imp {
   static DEFINE_BOOL_METHOD(remove,
                             (const char *data_id, const char *auth_id)) {
     try {
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_remove(data_id, auth_id);
       });
       return retval;
@@ -642,12 +636,12 @@ class Keyring_proxy_imp {
       char *key = nullptr;
       char *key_type = nullptr;
       size_t key_size;
-      bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
+      const bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_fetch("dummy_daemon_proxy_keyring_id",
                                         &key_type, nullptr, (void **)&key,
                                         &key_size);
       });
-      if (retval == false) {
+      if (!retval) {
         /* We are not interested in key data */
         if (key != nullptr) my_free(key);
         if (key_type != nullptr) my_free(key_type);
@@ -741,14 +735,14 @@ static my_h_service proxy_keyring_service_handles[] = {
   Registers the proxy keyring services.
 */
 static int daemon_keyring_proxy_plugin_init(void *) {
-  my_service<SERVICE_TYPE(registry_registration)> registrator(
+  const my_service<SERVICE_TYPE(registry_registration)> registrator(
       "registry_registration", srv_registry);
   bool retval;
 
   for (unsigned int i = GENERATOR; i <= WRITER; ++i) {
     retval = registrator->register_service(proxy_keyring_service_names[i],
                                            proxy_keyring_service_handles[i]);
-    if (retval == true) return 1;
+    if (retval) return 1;
   }
 
   /*
@@ -766,7 +760,7 @@ static int daemon_keyring_proxy_plugin_init(void *) {
   Unregisters services.
 */
 static int daemon_keyring_proxy_plugin_deinit(void *) {
-  my_service<SERVICE_TYPE(registry_registration)> registrator(
+  const my_service<SERVICE_TYPE(registry_registration)> registrator(
       "registry_registration", srv_registry);
   int retval = 0;
 

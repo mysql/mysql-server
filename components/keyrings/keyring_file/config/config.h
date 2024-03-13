@@ -28,8 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace keyring_file {
-namespace config {
+namespace keyring_file::config {
 
 /* Component path */
 extern char *g_component_path;
@@ -69,7 +68,7 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
 bool create_config(
     std::unique_ptr<std::vector<std::pair<std::string, std::string>>>
         &metadata);
-}  // namespace config
-}  // namespace keyring_file
+
+}  // namespace keyring_file::config
 
 #endif  // !KEYRING_FILE_CONFIG_INCLUDED

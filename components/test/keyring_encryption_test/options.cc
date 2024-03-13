@@ -132,9 +132,9 @@ bool process_options(int *argc, char ***argv, int &exit_code) {
   }
   my_getopt_use_args_separator = false;
 
-  bool save_skip_unknown = my_getopt_skip_unknown;
+  const bool save_skip_unknown = my_getopt_skip_unknown;
   my_getopt_skip_unknown = true;
-  bool ret = get_options(*argc, *argv, exit_code);
+  const bool ret = get_options(*argc, *argv, exit_code);
   my_getopt_skip_unknown = save_skip_unknown;
   return ret;
 }

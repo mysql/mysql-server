@@ -25,9 +25,7 @@
 
 #include "json_writer.h"
 
-namespace keyring_common {
-
-namespace json_data {
+namespace keyring_common::json_data {
 
 /**
   Constructor
@@ -37,12 +35,11 @@ namespace json_data {
   @param [in] version_key Writer version key
   @param [in] array_key   Key to array that stores all elements
 */
-Json_writer::Json_writer(const std::string data /* = {} */,
-                         const std::string version /* = "1.0" */,
-                         const std::string version_key /* = "version" */,
-                         const std::string array_key /* = "elements" */)
-    : document_(),
-      version_key_(version_key),
+Json_writer::Json_writer(const std::string &data /* = {} */,
+                         const std::string &version /* = "1.0" */,
+                         const std::string &version_key /* = "version" */,
+                         const std::string &array_key /* = "elements" */)
+    : version_key_(version_key),
       array_key_(array_key),
       valid_(version.length() > 0 && version_key.length() > 0 &&
              array_key.length() > 0) {
@@ -63,19 +60,19 @@ Json_writer::Json_writer(const std::string data /* = {} */,
   }
 }
 
-bool Json_writer::set_data(const std::string data) {
+bool Json_writer::set_data(const std::string &data) {
   valid_ = !document_.Parse(data).HasParseError();
   return valid_;
 }
 
 /** Get string representation of the JSON document */
-const std::string Json_writer::to_string() const {
+std::string Json_writer::to_string() const {
   if (!valid_) return std::string{};
   rapidjson::StringBuffer string_buffer;
   string_buffer.Clear();
   rapidjson::Writer<rapidjson::StringBuffer> string_writer(string_buffer);
   document_.Accept(string_writer);
-  return std::string(string_buffer.GetString(), string_buffer.GetSize());
+  return {string_buffer.GetString(), string_buffer.GetSize()};
 }
 
 bool Json_writer::add_element(const meta::Metadata &metadata,
@@ -105,7 +102,7 @@ bool Json_writer::add_element(const meta::Metadata &metadata,
 
   /* Add data */
   std::string hex_data(data.data().size() * 2, '\0');
-  (void)hex_string(&(hex_data[0]), data.data().c_str(), data.data().size());
+  (void)hex_string(hex_data.data(), data.data().c_str(), data.data().size());
   hex_data.shrink_to_fit();
   element_member.SetString(hex_data.c_str(),
                            static_cast<rapidjson::SizeType>(hex_data.size()),
@@ -153,5 +150,4 @@ size_t Json_writer::num_elements() const {
   return static_cast<size_t>(document_[array_key_.c_str()].Size());
 }
 
-}  // namespace json_data
-}  // namespace keyring_common
+}  // namespace keyring_common::json_data

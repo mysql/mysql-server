@@ -94,8 +94,8 @@ class Mysql_connection {
  public:
   explicit Mysql_connection(bool connect);
   ~Mysql_connection();
-  bool execute(std::string command);
-  bool ok() { return ok_; }
+  bool execute(const std::string &command);
+  bool ok() const { return ok_; }
 
  private:
   bool ok_;

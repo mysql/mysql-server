@@ -35,10 +35,8 @@ namespace keyring {
 class Buffer : public ISerialized_object {
  public:
   Buffer() : data(nullptr) { mark_as_empty(); }
-  Buffer(size_t memory_size) : data(nullptr) { reserve(memory_size); }
-  ~Buffer() override {
-    if (data != nullptr) delete[] data;
-  }
+  explicit Buffer(size_t memory_size) : data(nullptr) { reserve(memory_size); }
+  ~Buffer() override { delete[] data; }
 
   void free();
   bool get_next_key(IKey **key) override;

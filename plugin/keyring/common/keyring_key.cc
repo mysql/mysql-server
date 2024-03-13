@@ -205,7 +205,7 @@ bool Key::is_key_type_valid() { return key_type_enum != Key_type::unknown; }
 bool Key::is_key_valid() { return is_key_id_valid() || is_key_type_valid(); }
 
 bool Key::is_key_length_valid() {
-  bool valid = false;
+  bool valid;
   switch (key_type_enum) {
     case Key_type::aes: {
       valid = (key_len == 16 || key_len == 24 || key_len == 32);
@@ -268,7 +268,7 @@ void Key::create_key_signature() const {
 }
 
 std::string *Key::get_key_signature() const {
-  if (key_signature.empty() == true) create_key_signature();
+  if (key_signature.empty()) create_key_signature();
   return &key_signature;
 }
 

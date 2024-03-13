@@ -26,9 +26,8 @@
 
 #include "utils.h"
 
-namespace keyring_common {
+namespace keyring_common::utils {
 
-namespace utils {
 /**
   Generate random data
 
@@ -39,7 +38,6 @@ namespace utils {
     @retval true  Success. data contains generated data.
     @retval false Error. Do not rely on data.
 */
-
 bool get_random_data(const std::unique_ptr<unsigned char[]> &data,
                      size_t length) {
   if (!data || length == 0) return false;
@@ -50,5 +48,4 @@ bool get_random_data(const std::unique_ptr<unsigned char[]> &data,
   return true;
 }
 
-}  // namespace utils
-}  // namespace keyring_common
+}  // namespace keyring_common::utils

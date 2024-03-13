@@ -56,11 +56,11 @@ void deinit_components_subsystem() {
   minimal_chassis_deinit(components_registry, nullptr);
 }
 
-Keyring_component_load::Keyring_component_load(const std::string component_name,
-                                               const std::string type)
+Keyring_component_load::Keyring_component_load(
+    const std::string &component_name, std::string type)
     : dynamic_loader_(components_dynamic_loader),
       component_path_("file://"),
-      type_(type) {
+      type_(std::move(type)) {
   if (Options::s_component_dir != nullptr)
     component_path_.append(Options::s_component_dir);
   component_path_ += "/" + component_name;
@@ -93,8 +93,8 @@ Keyring_component_load::~Keyring_component_load() {
   }
 }
 
-Keyring_services::Keyring_services(const std::string implementation_name,
-                                   const std::string instance_path)
+Keyring_services::Keyring_services(const std::string &implementation_name,
+                                   const std::string &instance_path)
     : registry_(components_registry),
       implementation_name_(implementation_name),
       keyring_load_service_(
@@ -129,7 +129,7 @@ Keyring_services::~Keyring_services() {
 }
 
 Source_keyring_services::Source_keyring_services(
-    const std::string implementation_name, const std::string instance_path)
+    const std::string &implementation_name, const std::string &instance_path)
     : Keyring_services(implementation_name, instance_path),
       keyring_keys_metadata_service_("keyring_keys_metadata_iterator",
                                      keyring_load_service_, registry_),
@@ -157,7 +157,7 @@ Source_keyring_services::~Source_keyring_services() {
 }
 
 Destination_keyring_services::Destination_keyring_services(
-    const std::string implementation_name, const std::string instance_path)
+    const std::string &implementation_name, const std::string &instance_path)
     : Keyring_services(implementation_name, instance_path),
       keyring_writer_service_("keyring_writer", keyring_load_service_,
                               registry_) {
@@ -185,11 +185,11 @@ Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
     : src_(src), dst_(dst), mysql_connection_(online_migration) {
   if (!src_.ok() || !dst_.ok()) return;
   if (online_migration && !mysql_connection_.ok()) return;
-  if (lock_source_keyring() == false) {
+  if (!lock_source_keyring()) {
     log_error << "Failed to lock source keyring" << std::endl;
     return;
   }
-  auto iterator = src_.metadata_iterator();
+  const auto *iterator = src_.metadata_iterator();
   if (iterator->init(&iterator_) != 0) {
     log_error << "Error creating source keyring iterator" << std::endl;
     return;
@@ -198,15 +198,14 @@ Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
 }
 
 bool Keyring_migrate::lock_source_keyring() {
-  if (Options::s_online_migration == false) return true;
+  if (!Options::s_online_migration) return true;
   if (!mysql_connection_.ok()) return false;
   const std::string lock_statement("SET GLOBAL KEYRING_OPERATIONS=0");
   return mysql_connection_.execute(lock_statement);
 }
 
 bool Keyring_migrate::unlock_source_keyring() {
-  if (Options::s_online_migration == false || !mysql_connection_.ok())
-    return true;
+  if (!Options::s_online_migration || !mysql_connection_.ok()) return true;
   const std::string unlock_statement("SET GLOBAL KEYRING_OPERATIONS=1");
   return mysql_connection_.execute(unlock_statement);
 }
@@ -217,9 +216,9 @@ bool Keyring_migrate::migrate_keys() {
                  "keyrings are initialized properly."
               << std::endl;
 
-  auto metadata_iterator = src_.metadata_iterator();
-  auto reader = src_.reader();
-  auto writer = dst_.writer();
+  const auto *metadata_iterator = src_.metadata_iterator();
+  const auto *reader = src_.reader();
+  const auto *writer = dst_.writer();
   size_t migrated_count = 0;
   size_t skipped_count = 0;
   bool retval = true;
@@ -244,7 +243,7 @@ bool Keyring_migrate::migrate_keys() {
     const std::unique_ptr<char[]> data_id(new char[data_id_length + 1]);
     const std::unique_ptr<char[]> auth_id(new char[auth_id_length + 1]);
 
-    if (data_id.get() == nullptr || auth_id.get() == nullptr) {
+    if (data_id == nullptr || auth_id == nullptr) {
       log_error << "Failed to allocated required memory for data_id and auth_id"
                 << std::endl;
       retval = false;
@@ -264,7 +263,7 @@ bool Keyring_migrate::migrate_keys() {
     const bool status =
         reader->init(data_id.get(), auth_id.get(), &reader_object);
 
-    if (status == true) {
+    if (status) {
       log_error << "Keyring reported error" << std::endl;
       retval = false;
       break;
@@ -311,7 +310,7 @@ bool Keyring_migrate::migrate_keys() {
     const std::unique_ptr<char[]> data_type_buffer(
         new char[data_type_size + 1]);
 
-    if (data_buffer.get() == nullptr || data_type_buffer.get() == nullptr) {
+    if (data_buffer == nullptr || data_type_buffer == nullptr) {
       log_error << "Failed to allocated required memory for data pointed by "
                    "data_id: "
                 << data_id.get() << ", auth_id: " << auth_id.get()
@@ -340,7 +339,7 @@ bool Keyring_migrate::migrate_keys() {
                         data_size, data_type_buffer.get());
       memset(data_buffer.get(), 0, data_size);
       memset(data_type_buffer.get(), 0, data_type_size + 1);
-      if (write_status == true) {
+      if (write_status) {
         log_error << "Failed to write data pointed by data_id: "
                   << data_id.get() << ", auth_id: " << auth_id.get()
                   << " into destination keyring" << std::endl;
@@ -373,7 +372,7 @@ bool Keyring_migrate::migrate_keys() {
 }
 
 Keyring_migrate::~Keyring_migrate() {
-  if (unlock_source_keyring() == false) {
+  if (!unlock_source_keyring()) {
     log_error << "Failed to unlock source keyring. Please unlock it manually."
               << std::endl;
   }

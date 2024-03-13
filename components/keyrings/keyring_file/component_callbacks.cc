@@ -23,8 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "keyring_file.h"
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 bool Component_callbacks::keyring_initialized() {
   return keyring_file::g_keyring_file_inited;
@@ -35,8 +34,7 @@ bool Component_callbacks::create_config(
   return keyring_file::config::create_config(metadata);
 }
 
-}  // namespace service_implementation
-}  // namespace keyring_common
+}  // namespace keyring_common::service_implementation
 
 namespace keyring_file {
 /** Component callbacks */

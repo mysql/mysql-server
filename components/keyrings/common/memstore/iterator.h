@@ -26,9 +26,8 @@
 
 #include "cache.h" /* Datacache */
 
-namespace keyring_common {
+namespace keyring_common::iterator {
 
-namespace iterator {
 template <typename Data_extension>
 class Iterator {
  public:
@@ -67,7 +66,7 @@ class Iterator {
 
   /** Move iterator forward */
   bool next(size_t version) {
-    if (iterator_valid(version) == false) {
+    if (!iterator_valid(version)) {
       it_ = end_;
       valid_ = false;
       return false;
@@ -77,7 +76,7 @@ class Iterator {
   }
 
   bool metadata(size_t version, meta::Metadata &metadata) {
-    if (iterator_valid(version) == false) {
+    if (!iterator_valid(version)) {
       it_ = end_;
       valid_ = false;
       return false;
@@ -87,7 +86,7 @@ class Iterator {
   }
 
   bool data(size_t version, Data_extension &data) {
-    if (iterator_valid(version) == false) {
+    if (!iterator_valid(version)) {
       it_ = end_;
       valid_ = false;
       return false;
@@ -125,8 +124,6 @@ class Iterator {
   typename cache::Datacache<Data_extension> metadata_;
 };
 
-}  // namespace iterator
-
-}  // namespace keyring_common
+}  // namespace keyring_common::iterator
 
 #endif  // !ITERATOR_INCLUDED

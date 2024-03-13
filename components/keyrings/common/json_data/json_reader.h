@@ -40,8 +40,7 @@
 
 #include "json_ds.h"
 
-namespace keyring_common {
-namespace json_data {
+namespace keyring_common::json_data {
 
 using output_vector =
     std::vector<std::pair<std::pair<meta::Metadata, data::Data>,
@@ -70,11 +69,11 @@ using output_vector =
 
 class Json_reader {
  public:
-  Json_reader(const std::string schema, const std::string data,
-              const std::string version_key = "version",
-              const std::string array_key = "elements");
+  Json_reader(const std::string &schema, const std::string &data,
+              std::string version_key = "version",
+              std::string array_key = "elements");
 
-  Json_reader(const std::string data);
+  Json_reader(const std::string &data);
 
   Json_reader();
 
@@ -130,8 +129,6 @@ class Json_reader {
   bool valid_;
 };
 
-}  // namespace json_data
-
-}  // namespace keyring_common
+}  // namespace keyring_common::json_data
 
 #endif  // !JSON_READER_INCLUDED

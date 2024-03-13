@@ -27,7 +27,7 @@ int my_key_iterator_init(void **);
 int my_key_iterator_deinit(void *);
 int my_key_iterator_get_key(void *, char *, char *);
 
-void mysql_keyring_iterator_service_init() { return; }
+void mysql_keyring_iterator_service_init() {}
 
 DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
                    (my_h_keyring_iterator * iterator)) {

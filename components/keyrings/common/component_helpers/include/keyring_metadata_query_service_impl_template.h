@@ -34,8 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <components/keyrings/common/component_helpers/include/service_requirements.h>
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 /**
   Returns status of the keyring component
@@ -105,7 +104,7 @@ bool keyring_metadata_query_deinit_template(
 bool keyring_metadata_query_is_valid_template(
     std::unique_ptr<config_vector> &it) {
   try {
-    return ((it.get() != nullptr) && (it.get()->size() > 0));
+    return (it != nullptr) && !it->empty();
   } catch (...) {
     LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_EXCEPTION, "is_valid",
                     "keyring_component_metadata_query");
@@ -124,10 +123,10 @@ bool keyring_metadata_query_is_valid_template(
 */
 bool keyring_metadata_query_next_template(std::unique_ptr<config_vector> &it) {
   try {
-    if (it.get()->size() == 0) {
+    if (it->empty()) {
       return true;
     }
-    it.get()->erase(it.get()->begin());
+    it->erase(it->begin());
     return false;
   } catch (...) {
     LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_EXCEPTION, "next",
@@ -151,7 +150,7 @@ bool keyring_metadata_query_get_length_template(
     std::unique_ptr<config_vector> &it, size_t *key_buffer_length,
     size_t *value_buffer_length) {
   try {
-    if (it->size() == 0) {
+    if (it->empty()) {
       return true;
     }
 
@@ -193,7 +192,7 @@ bool keyring_metadata_query_get_template(char *key_buffer,
                                          size_t value_buffer_length,
                                          std::unique_ptr<config_vector> &it) {
   try {
-    if (it->size() == 0) {
+    if (it->empty()) {
       return true;
     }
 
@@ -222,6 +221,5 @@ bool keyring_metadata_query_get_template(char *key_buffer,
   }
 }
 
-}  // namespace service_implementation
-}  // namespace keyring_common
+}  // namespace keyring_common::service_implementation
 #endif  // !KEYRING_METADATA_QUERY_SERVICE_IMPL_TEMPLATE_INCLUDED

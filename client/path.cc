@@ -66,7 +66,7 @@ void Path::trim() {
 }
 
 void Path::parent_directory(Path *out) {
-  size_t idx = m_path.rfind(FN_DIRSEP);
+  const size_t idx = m_path.rfind(FN_DIRSEP);
   if (idx == std::string::npos) {
     out->path("");
   } else
@@ -74,7 +74,7 @@ void Path::parent_directory(Path *out) {
 }
 
 Path &Path::up() {
-  size_t idx = m_path.rfind(FN_DIRSEP);
+  const size_t idx = m_path.rfind(FN_DIRSEP);
   if (idx == std::string::npos) {
     m_path.clear();
   } else
@@ -108,7 +108,7 @@ void Path::path(const Path &p) { path(p.m_path); }
 void Path::filename(const Path &p) { path(p.m_filename); }
 
 bool Path::qpath(const std::string &qp) {
-  size_t idx = qp.rfind(FN_DIRSEP);
+  const size_t idx = qp.rfind(FN_DIRSEP);
   if (idx == std::string::npos) {
     m_filename = qp;
     m_path.clear();
@@ -158,7 +158,7 @@ bool Path::exists() {
   }
 }
 
-const std::string Path::to_str() {
+std::string Path::to_str() {
   std::string qpath(m_path);
   if (m_filename.length() != 0) {
     qpath.append(FN_DIRSEP);

@@ -57,7 +57,7 @@ Log log_error(std::cerr, "ERROR");
 
 class Migration_setup {
  public:
-  explicit Migration_setup(char *progname) {
+  explicit Migration_setup(const char *progname) {
     MY_INIT(progname);
     init_components_subsystem();
     init_connection_basic();
@@ -76,23 +76,23 @@ int main(int argc, char **argv) {
   const Migration_setup migration_setup(argv[0]);
   DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
-  const int exit_status = EXIT_FAILURE;
 
   int exit_code;
-  if (process_options(&argc, &argv, exit_code) == false) {
+  if (!process_options(&argc, &argv, exit_code)) {
     return exit_code;
   }
 
   {
-    Keyring_component_load source_component_load(Options::s_source_keyring,
-                                                 "source");
+    constexpr int exit_status = EXIT_FAILURE;
+    const Keyring_component_load source_component_load(
+        Options::s_source_keyring, "source");
 
     if (!source_component_load.ok()) {
       log_error << "Error loading source keyring component. Exiting."
                 << std::endl;
       return exit_status;
     }
-    Keyring_component_load destination_component_load(
+    const Keyring_component_load destination_component_load(
         Options::s_destination_keyring, "destination");
 
     if (!destination_component_load.ok()) {

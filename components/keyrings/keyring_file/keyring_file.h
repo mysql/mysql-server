@@ -34,9 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "backend/backend.h"
 #include "config/config.h"
 
-extern SERVICE_TYPE(log_builtins) * log_bi;
-extern SERVICE_TYPE(log_builtins_string) * log_bs;
-
 namespace keyring_file {
 /** Keyring operations object */
 extern keyring_common::operations::Keyring_operations<

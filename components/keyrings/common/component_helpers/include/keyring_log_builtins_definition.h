@@ -29,8 +29,7 @@
 
 #include <mysql/components/services/log_builtins.h>
 
-namespace keyring_common {
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 class Log_builtins_keyring {
  public:
@@ -77,9 +76,7 @@ class Log_builtins_keyring {
   static DEFINE_METHOD(log_item_iter *, line_item_iter_acquire, (log_line *)) {
     return nullptr;
   }
-  static DEFINE_METHOD(void, line_item_iter_release, (log_item_iter *)) {
-    return;
-  }
+  static DEFINE_METHOD(void, line_item_iter_release, (log_item_iter *)) {}
   static DEFINE_METHOD(log_item *, line_item_iter_first, (log_item_iter *)) {
     return nullptr;
   }
@@ -161,8 +158,7 @@ class Log_builtins_keyring {
       MY_ATTRIBUTE((format(printf, 3, 0)));
 };
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition
 
 #define KEYRING_LOG_BUILTINS_IMPLEMENTOR(component_name)                       \
   BEGIN_SERVICE_IMPLEMENTATION(component_name, log_builtins)                   \

@@ -31,8 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <openssl/evp.h>
 
-namespace keyring_common {
-namespace aes_encryption {
+namespace keyring_common::aes_encryption {
 
 /** Supported AES cipher/block mode combos */
 enum class Keyring_aes_opmode {
@@ -62,11 +61,11 @@ using Known_block_mode_map = std::map<block_mode_key, Keyring_aes_opmode>;
 
 class Aes_operation_context final {
  public:
-  Aes_operation_context(const std::string data_id, const std::string auth_id,
-                        const std::string mode, size_t block_size);
+  Aes_operation_context(std::string data_id, std::string auth_id,
+                        const std::string &mode, size_t block_size);
   ~Aes_operation_context() = default;
-  const std::string data_id() const { return data_id_; }
-  const std::string auth_id() const { return auth_id_; }
+  std::string data_id() const { return data_id_; }
+  std::string auth_id() const { return auth_id_; }
   Keyring_aes_opmode opmode() const { return opmode_; }
   bool valid() const { return valid_; }
   static const Known_block_mode_map s_blockmodes;
@@ -78,9 +77,9 @@ class Aes_operation_context final {
   bool valid_;
 };
 
-const EVP_CIPHER *aes_evp_type(const Keyring_aes_opmode mode);
+const EVP_CIPHER *aes_evp_type(Keyring_aes_opmode mode);
 
-size_t get_ciphertext_size(size_t input_size, const Keyring_aes_opmode mode);
+size_t get_ciphertext_size(size_t input_size, Keyring_aes_opmode mode);
 
 aes_return_status aes_encrypt(const unsigned char *source,
                               unsigned int source_length, unsigned char *dest,
@@ -94,7 +93,6 @@ aes_return_status aes_decrypt(const unsigned char *source,
                               Keyring_aes_opmode mode, const unsigned char *iv,
                               bool padding, size_t *decrypted_length);
 
-}  // namespace aes_encryption
-}  // namespace keyring_common
+}  // namespace keyring_common::aes_encryption
 
 #endif  // !AES_INCLUDED

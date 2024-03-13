@@ -53,7 +53,7 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::init,
   std::unique_ptr<config_vector> it;
   const bool retval =
       keyring_metadata_query_init_template(it, *g_component_callbacks);
-  if (retval == false)
+  if (!retval)
     *metadata_iterator =
         reinterpret_cast<my_h_keyring_component_metadata_iterator>(
             it.release());

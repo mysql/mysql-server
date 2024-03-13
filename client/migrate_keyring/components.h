@@ -59,12 +59,11 @@ void deinit_components_subsystem();
 
 class Keyring_component_load final {
  public:
-  Keyring_component_load(const std::string component_name,
-                         const std::string type);
+  Keyring_component_load(const std::string &component_name, std::string type);
 
   ~Keyring_component_load();
 
-  bool ok() { return ok_; }
+  bool ok() const { return ok_; }
 
  private:
   dynamic_loader_type_t *dynamic_loader_;
@@ -75,12 +74,12 @@ class Keyring_component_load final {
 
 class Keyring_services {
  public:
-  Keyring_services(const std::string implementation_name,
-                   const std::string instance_path);
+  Keyring_services(const std::string &implementation_name,
+                   const std::string &instance_path);
 
   virtual ~Keyring_services();
 
-  bool ok() { return ok_; }
+  bool ok() const { return ok_; }
 
  protected:
   registry_type_t *registry_;
@@ -91,10 +90,10 @@ class Keyring_services {
 
 class Source_keyring_services final : public Keyring_services {
  public:
-  Source_keyring_services(const std::string implementation_name,
-                          const std::string instance_path);
+  Source_keyring_services(const std::string &implementation_name,
+                          const std::string &instance_path);
 
-  ~Source_keyring_services();
+  ~Source_keyring_services() override;
 
   const_keyring_keys_metadata_iterator_t *metadata_iterator() {
     return keyring_keys_metadata_service_;
@@ -111,10 +110,10 @@ class Source_keyring_services final : public Keyring_services {
 
 class Destination_keyring_services final : public Keyring_services {
  public:
-  Destination_keyring_services(const std::string implementation_name,
-                               const std::string instance_path);
+  Destination_keyring_services(const std::string &implementation_name,
+                               const std::string &instance_path);
 
-  ~Destination_keyring_services();
+  ~Destination_keyring_services() override;
 
   const_keyring_writer_t *writer() { return keyring_writer_service_; }
 
@@ -133,7 +132,7 @@ class Keyring_migrate final {
 
   bool lock_source_keyring();
   bool unlock_source_keyring();
-  bool ok() { return ok_; }
+  bool ok() const { return ok_; }
 
  private:
   Source_keyring_services &src_;

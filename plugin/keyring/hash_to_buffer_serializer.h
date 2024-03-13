@@ -39,7 +39,7 @@ class Hash_to_buffer_serializer : public ISerializer {
   ISerialized_object *serialize(
       const collation_unordered_map<std::string, std::unique_ptr<IKey>>
           &keys_hash,
-      IKey *key, const Key_operation operation) override;
+      IKey *key, Key_operation operation) override;
 
   void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
     this->memory_needed_for_buffer = memory_needed_for_buffer;

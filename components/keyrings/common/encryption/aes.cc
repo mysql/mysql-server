@@ -35,8 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "aes.h"
 
-namespace keyring_common {
-namespace aes_encryption {
+namespace keyring_common::aes_encryption {
 
 const Known_block_mode_map Aes_operation_context::s_blockmodes = {
     {std::make_pair("ecb", 256), Keyring_aes_opmode::keyring_aes_256_ecb},
@@ -46,16 +45,16 @@ const Known_block_mode_map Aes_operation_context::s_blockmodes = {
     {std::make_pair("cfb128", 256), Keyring_aes_opmode::keyring_aes_256_cfb128},
     {std::make_pair("ofb", 256), Keyring_aes_opmode::keyring_aes_256_ofb}};
 
-Aes_operation_context::Aes_operation_context(const std::string data_id,
-                                             const std::string auth_id,
-                                             const std::string mode,
+Aes_operation_context::Aes_operation_context(std::string data_id,
+                                             std::string auth_id,
+                                             const std::string &mode,
                                              size_t block_size)
-    : data_id_(data_id),
-      auth_id_(auth_id),
+    : data_id_(std::move(data_id)),
+      auth_id_(std::move(auth_id)),
       opmode_(Keyring_aes_opmode::keyring_aes_opmode_invalid),
       valid_(false) {
-  block_mode_key key(mode, block_size);
-  auto it = Aes_operation_context::s_blockmodes.find(key);
+  const block_mode_key key(mode, block_size);
+  const auto it = Aes_operation_context::s_blockmodes.find(key);
   if (it != Aes_operation_context::s_blockmodes.end()) {
     opmode_ = it->second;
   }
@@ -110,7 +109,7 @@ bool aes_create_key(const unsigned char *key, unsigned int key_length,
   if (rkey_size == nullptr) return false;
   *rkey_size = aes_opmode_key_sizes[static_cast<unsigned int>(opmode)] / 8;
   rkey = std::make_unique<unsigned char[]>(*rkey_size);
-  if (rkey.get() == nullptr) return false;
+  if (rkey == nullptr) return false;
   switch (*rkey_size) {
     case 32: /* 256 bit key */ {
       EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
@@ -169,7 +168,7 @@ aes_return_status aes_encrypt(const unsigned char *source,
   /* The real key to be used for encryption */
   std::unique_ptr<unsigned char[]> rkey;
   size_t rkey_size;
-  if (aes_create_key(key, key_length, rkey, &rkey_size, mode) == false)
+  if (!aes_create_key(key, key_length, rkey, &rkey_size, mode))
     return AES_KEY_TRANSFORMATION_ERROR;
 
   if (EVP_CIPHER_iv_length(cipher) > 0 && !iv) return AES_IV_EMPTY;
@@ -220,7 +219,7 @@ aes_return_status aes_decrypt(const unsigned char *source,
   /* The real key to be used for encryption */
   std::unique_ptr<unsigned char[]> rkey;
   size_t rkey_size;
-  if (aes_create_key(key, key_length, rkey, &rkey_size, mode) == false)
+  if (!aes_create_key(key, key_length, rkey, &rkey_size, mode))
     return AES_KEY_TRANSFORMATION_ERROR;
 
   if (EVP_CIPHER_iv_length(cipher) > 0 && !iv) return AES_IV_EMPTY;
@@ -240,5 +239,4 @@ aes_return_status aes_decrypt(const unsigned char *source,
   return AES_OP_OK;
 }
 
-}  // namespace aes_encryption
-}  // namespace keyring_common
+}  // namespace keyring_common::aes_encryption

@@ -63,10 +63,11 @@ bool Digest::operator==(const Digest &digest) const {
 }
 
 Digest &Digest::operator=(const Digest &digest) {
-  this->length = digest.length;
-  this->is_empty = digest.is_empty;
-  if (digest.is_empty == false)
-    memcpy(this->value, digest.value, digest.length);
+  if (this != &digest) {
+    this->length = digest.length;
+    this->is_empty = digest.is_empty;
+    if (!digest.is_empty) memcpy(this->value, digest.value, digest.length);
+  }
   return *this;
 }
 

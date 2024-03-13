@@ -29,8 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/keyring_aes.h>
 
-namespace keyring_common {
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 class Keyring_aes_service_impl {
  public:
@@ -104,8 +103,7 @@ class Keyring_aes_service_impl {
                 size_t *out_length));
 };
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition
 
 #define KEYRING_AES_IMPLEMENTOR(component_name)                              \
   BEGIN_SERVICE_IMPLEMENTATION(component_name, keyring_aes)                  \

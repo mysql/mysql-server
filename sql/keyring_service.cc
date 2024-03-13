@@ -48,7 +48,7 @@ class Callback {
     @param callback Lambda function that is called using the invoke method.
   */
   explicit Callback(std::function<bool(st_mysql_keyring *keyring)> callback)
-      : m_callback(callback), m_result(true) {}
+      : m_callback(std::move(callback)), m_result(true) {}
 
   /**
     Invoke the underlying callback using the specified parameter and store
@@ -63,7 +63,7 @@ class Callback {
 
     @return Result of the invoke operation.
   */
-  bool result() { return m_result; }
+  bool result() const { return m_result; }
 
  private:
   /**
@@ -88,7 +88,7 @@ class Callback {
 static bool key_plugin_cb_fn(THD *, plugin_ref plugin, void *arg) {
   plugin = my_plugin_lock(nullptr, &plugin);
   if (plugin) {
-    Callback *callback = reinterpret_cast<Callback *>(arg);
+    auto *callback = reinterpret_cast<Callback *>(arg);
     callback->invoke(
         reinterpret_cast<st_mysql_keyring *>(plugin_decl(plugin)->info));
   }

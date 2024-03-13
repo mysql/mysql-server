@@ -46,7 +46,7 @@ class Converter {
 
   static Arch get_native_arch();
   static size_t get_width(Arch arch);
-  static size_t native_value(const char *length);
+  static size_t native_value(const char *binary_value);
   static size_t convert(char const *src, char *dst, Arch src_t, Arch dst_t);
   static bool convert_data(char const *data, size_t data_size, Arch src,
                            Arch dst, std::string &out);

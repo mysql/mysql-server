@@ -29,8 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/keyring_generator.h>
 
-namespace keyring_common {
-namespace service_definition {
+namespace keyring_common::service_definition {
 
 class Keyring_generator_service_impl {
  public:
@@ -52,8 +51,7 @@ class Keyring_generator_service_impl {
                              const char *data_type, size_t data_size));
 };
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace keyring_common::service_definition
 
 #define KEYRING_GENERATOR_IMPLEMENTOR(component_name)                          \
   BEGIN_SERVICE_IMPLEMENTATION(component_name, keyring_generator)              \

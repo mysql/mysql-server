@@ -43,8 +43,7 @@ using keyring_common::iterator::Iterator;
 using keyring_common::meta::Metadata;
 using keyring_common::operations::Keyring_operations;
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 /**
   Forward iterator initialization
@@ -64,13 +63,13 @@ bool init_keys_metadata_iterator_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }
 
-    if (keyring_operations.init_forward_iterator(it, false) == true) {
+    if (keyring_operations.init_forward_iterator(it, false)) {
       LogComponentErr(
           INFORMATION_LEVEL,
           ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_INIT_FAILED);
@@ -103,7 +102,7 @@ bool deinit_keys_metadata_iterator_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
@@ -135,7 +134,7 @@ bool keys_metadata_iterator_is_valid(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return false;
@@ -166,12 +165,12 @@ bool keys_metadata_iterator_next(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }
-    if (keyring_operations.next(it) == true) {
+    if (keyring_operations.next(it)) {
       return true;
     }
     return false;
@@ -203,7 +202,7 @@ bool keys_metadata_get_length_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
@@ -211,7 +210,7 @@ bool keys_metadata_get_length_template(
 
     Data_extension data;
     Metadata metadata;
-    if (keyring_operations.get_iterator_data(it, metadata, data) == true) {
+    if (keyring_operations.get_iterator_data(it, metadata, data)) {
       LogComponentErr(
           INFORMATION_LEVEL,
           ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED);
@@ -250,7 +249,7 @@ bool keys_metadata_get_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
@@ -258,7 +257,7 @@ bool keys_metadata_get_template(
 
     Data_extension data;
     Metadata metadata;
-    if (keyring_operations.get_iterator_metadata(it, metadata, data) == true) {
+    if (keyring_operations.get_iterator_metadata(it, metadata, data)) {
       LogComponentErr(
           INFORMATION_LEVEL,
           ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED);
@@ -287,7 +286,6 @@ bool keys_metadata_get_template(
   }
 }
 
-}  // namespace service_implementation
-}  // namespace keyring_common
+}  // namespace keyring_common::service_implementation
 
 #endif  // !KEYRING_KEYS_METADATA_SERVICE_IMPL_TEMPLATE_INCLUDED

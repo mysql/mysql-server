@@ -77,7 +77,7 @@ bool aes_get_encrypted_size_template(size_t input_length, const char *mode,
 
     const Aes_operation_context context(std::string{}, std::string{}, mode,
                                         block_size);
-    if (context.valid() == false) return true;
+    if (!context.valid()) return true;
     *out_size = get_ciphertext_size(input_length, context.opmode());
     return false;
   } catch (...) {
@@ -119,7 +119,7 @@ bool aes_encrypt_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       return true;
     }
 
@@ -135,10 +135,10 @@ bool aes_encrypt_template(
       return true;
     }
 
-    Aes_operation_context context(data_id, auth_id, mode, block_size);
+    const Aes_operation_context context(data_id, auth_id, mode, block_size);
 
-    Keyring_aes_opmode opmode = context.opmode();
-    size_t required_out_buffer_size =
+    const Keyring_aes_opmode opmode = context.opmode();
+    const size_t required_out_buffer_size =
         get_ciphertext_size(data_buffer_length, opmode);
     if (out_buffer == nullptr || required_out_buffer_size > out_buffer_length) {
       assert(false);
@@ -159,15 +159,14 @@ bool aes_encrypt_template(
       return true;
     }
     if (fetch_length_template<Backend, Data_extension>(
-            it, &key_length, &key_type_length, keyring_operations, callbacks) ==
-        true) {
+            it, &key_length, &key_type_length, keyring_operations, callbacks)) {
       // Error would have been raised
       return true;
     }
 
-    std::unique_ptr<unsigned char[]> key_buffer =
+    const std::unique_ptr<unsigned char[]> key_buffer =
         std::make_unique<unsigned char[]>(key_length);
-    if (key_buffer.get() == nullptr) {
+    if (key_buffer == nullptr) {
       LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_MEMORY_ALLOCATION_ERROR,
                       "key buffer", "encrypt", "keyring_aes");
     }
@@ -178,7 +177,7 @@ bool aes_encrypt_template(
     if (fetch_template<Backend, Data_extension>(
             it, key_buffer.get(), key_length, &dummy_key_buffer_size,
             key_type_buffer, 32, &dummy_key_type_buffer_size,
-            keyring_operations, callbacks) == true) {
+            keyring_operations, callbacks)) {
       // Error would have been raised
       return true;
     }
@@ -193,7 +192,7 @@ bool aes_encrypt_template(
       return true;
     }
 
-    aes_return_status ret =
+    const aes_return_status ret =
         aes_encrypt(data_buffer, (unsigned int)data_buffer_length, out_buffer,
                     key_buffer.get(), (unsigned int)key_length, opmode, iv,
                     padding, out_length);
@@ -223,7 +222,7 @@ bool aes_encrypt_template(
           ss << "'Unknown error number: '" << ret;
           break;
       }
-      std::string ss_str = ss.str();
+      const std::string ss_str = ss.str();
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_AES_OPERATION_ERROR,
                       ss_str.c_str(), "encrypt", data_id,
@@ -272,7 +271,7 @@ bool aes_decrypt_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       return true;
     }
 
@@ -311,8 +310,7 @@ bool aes_decrypt_template(
       return true;
     }
     if (fetch_length_template<Backend, Data_extension>(
-            it, &key_length, &key_type_length, keyring_operations, callbacks) ==
-        true) {
+            it, &key_length, &key_type_length, keyring_operations, callbacks)) {
       // Error would have been raised
       return true;
     }
@@ -330,7 +328,7 @@ bool aes_decrypt_template(
     if (fetch_template<Backend, Data_extension>(
             it, key_buffer.get(), key_length, &dummy_key_buffer_size,
             key_type_buffer, 32, &dummy_key_type_buffer_size,
-            keyring_operations, callbacks) == true) {
+            keyring_operations, callbacks)) {
       // Error would have been raised
       return true;
     }
@@ -375,7 +373,7 @@ bool aes_decrypt_template(
           ss << "'Unknown error number: '" << ret;
           break;
       }
-      std::string ss_str = ss.str();
+      const std::string ss_str = ss.str();
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_AES_OPERATION_ERROR,
                       ss_str.c_str(), "decrypt", data_id,

@@ -28,11 +28,10 @@
 
 #include <rapidjson/istreamwrapper.h> /* IStreamWrapper */
 
-namespace keyring_common {
-namespace config {
+namespace keyring_common::config {
 
-Config_reader::Config_reader(const std::string config_file_path)
-    : config_file_path_(config_file_path), data_(), valid_(false) {
+Config_reader::Config_reader(std::string config_file_path)
+    : config_file_path_(std::move(config_file_path)), valid_(false) {
   std::ifstream file_stream(config_file_path_);
   if (!file_stream.is_open()) return;
   rapidjson::IStreamWrapper json_fstream_reader(file_stream);
@@ -40,5 +39,4 @@ Config_reader::Config_reader(const std::string config_file_path)
   file_stream.close();
 }
 
-}  // namespace config
-}  // namespace keyring_common
+}  // namespace keyring_common::config

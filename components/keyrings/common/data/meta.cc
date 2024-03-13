@@ -23,12 +23,11 @@
 
 #include "meta.h"
 
-namespace keyring_common {
-namespace meta {
+namespace keyring_common::meta {
 
 /** Constructor */
-Metadata::Metadata(const std::string key_id, const std::string owner_id)
-    : key_id_(key_id), owner_id_(owner_id), hash_key_() {
+Metadata::Metadata(std::string key_id, std::string owner_id)
+    : key_id_(std::move(key_id)), owner_id_(std::move(owner_id)) {
   valid_ = !(key_id_.empty() && owner_id_.empty());
   create_hash_key();
 }
@@ -67,10 +66,10 @@ Metadata &Metadata::operator=(Metadata &&src) noexcept {
 Metadata::~Metadata() { valid_ = false; }
 
 /** Get key ID */
-const std::string Metadata::key_id() const { return key_id_; }
+std::string Metadata::key_id() const { return key_id_; }
 
 /** Get owner info */
-const std::string Metadata::owner_id() const { return owner_id_; }
+std::string Metadata::owner_id() const { return owner_id_; }
 
 /** Validity of metadata object */
 bool Metadata::valid() const { return valid_; }
@@ -86,5 +85,4 @@ void Metadata::create_hash_key() {
   }
 }
 
-}  // namespace meta
-}  // namespace keyring_common
+}  // namespace keyring_common::meta

@@ -36,8 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/keyrings/common/data/meta.h>
 #include <components/keyrings/common/operations/operations.h>
 
-namespace keyring_common {
-namespace service_implementation {
+namespace keyring_common::service_implementation {
 
 using keyring_common::data::Data;
 using keyring_common::meta::Metadata;
@@ -67,7 +66,7 @@ bool store_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
@@ -90,7 +89,7 @@ bool store_template(
     Metadata metadata(data_id, auth_id);
     Data data_to_be_stored({reinterpret_cast<const char *>(data), data_size},
                            {data_type, data_type ? strlen(data_type) : 0});
-    if (keyring_operations.store(metadata, data_to_be_stored) == true) {
+    if (keyring_operations.store(metadata, data_to_be_stored)) {
       LogComponentErr(INFORMATION_LEVEL, ER_NOTE_KEYRING_COMPONENT_STORE_FAILED,
                       data_id,
                       (auth_id == nullptr || !*auth_id) ? "NULL" : auth_id);
@@ -123,7 +122,7 @@ bool remove_template(
     Keyring_operations<Backend, Data_extension> &keyring_operations,
     Component_callbacks &callbacks) {
   try {
-    if (callbacks.keyring_initialized() == false) {
+    if (!callbacks.keyring_initialized()) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
@@ -137,7 +136,7 @@ bool remove_template(
     }
 
     Metadata metadata(data_id, auth_id);
-    if (keyring_operations.erase(metadata) == true) {
+    if (keyring_operations.erase(metadata)) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_REMOVE_FAILED, data_id,
                       (auth_id == nullptr || !*auth_id) ? "NULL" : auth_id);
@@ -151,7 +150,6 @@ bool remove_template(
   }
 }
 
-}  // namespace service_implementation
-}  // namespace keyring_common
+}  // namespace keyring_common::service_implementation
 
 #endif  // !KEYRING_WRITER_SERVICE_IMPL_TEMPLATE_INCLUDED

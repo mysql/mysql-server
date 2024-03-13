@@ -41,7 +41,6 @@ using keyring::Keys_iterator;
 
 namespace keyring {
 /* Always defined. */
-extern PSI_memory_key key_memory_KEYRING;
 extern PSI_rwlock_key key_LOCK_keyring;
 }  // namespace keyring
 
@@ -76,7 +75,7 @@ void mysql_keyring_iterator_deinit(Keys_iterator *);
 bool mysql_keyring_iterator_get_key(Keys_iterator *, char *key_id,
                                     char *user_id);
 
-bool check_key_for_writing(IKey *key, std::string error_for);
+bool check_key_for_writing(IKey *key, const std::string &error_for);
 
 void log_operation_error(const char *failed_operation, const char *plugin_name);
 

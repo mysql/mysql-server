@@ -55,14 +55,15 @@ void deinit_components_subsystem() {
   minimal_chassis_deinit(components_registry, nullptr);
 }
 
-Keyring_component_load::Keyring_component_load(const std::string component_name)
+Keyring_component_load::Keyring_component_load(
+    const std::string &component_name)
     : dynamic_loader_(components_dynamic_loader), component_path_("file://") {
   if (Options::s_component_dir != nullptr)
     component_path_.append(Options::s_component_dir);
   component_path_ += "/" + component_name;
 
   const char *urn[] = {component_path_.c_str()};
-  bool load_status = dynamic_loader_->load(urn, 1);
+  const bool load_status = dynamic_loader_->load(urn, 1);
   ok_ = !load_status;
 }
 
@@ -74,7 +75,7 @@ Keyring_component_load::~Keyring_component_load() {
   }
 }
 
-Keyring_services::Keyring_services(const std::string implementation_name)
+Keyring_services::Keyring_services(const std::string &implementation_name)
     : registry_(components_registry),
       implementation_name_(implementation_name),
       keyring_load_service_(
@@ -96,7 +97,7 @@ Keyring_services::~Keyring_services() {
 }
 
 AES_encryption_keyring_services::AES_encryption_keyring_services(
-    const std::string implementation_name)
+    const std::string &implementation_name)
     : Keyring_services(implementation_name),
       keyring_aes_service_("keyring_aes", keyring_load_service_, registry_),
       keyring_writer_service_("keyring_writer", keyring_load_service_,
@@ -121,10 +122,10 @@ Keyring_encryption_test::Keyring_encryption_test(
 bool Keyring_encryption_test::test_aes() {
   if (!ok_) return false;
 
-  auto writer = aes_service_.writer();
-  auto aes = aes_service_.aes();
+  const auto writer = aes_service_.writer();
+  const auto aes = aes_service_.aes();
 
-  std::string aes_key_1("AES_test_key_1");
+  const std::string aes_key_1("AES_test_key_1");
   if (writer->store("aes_key_1", "keyring_aes_test",
                     reinterpret_cast<const unsigned char *>(aes_key_1.c_str()),
                     aes_key_1.length(), "AES") != 0) {
@@ -141,11 +142,13 @@ bool Keyring_encryption_test::test_aes() {
         << std::endl;
     return false;
   }
-  std::string mode("cbc");
-  size_t block_size = 256;
-  bool padding = true;
-  const unsigned char plaintext[] = "Quick brown fox jumped over the lazy dog.";
-  size_t plaintext_length = strlen(reinterpret_cast<const char *>(plaintext));
+  const std::string mode("cbc");
+  constexpr size_t block_size = 256;
+  constexpr bool padding = true;
+  constexpr unsigned char plaintext[] =
+      "Quick brown fox jumped over the lazy dog.";
+  const size_t plaintext_length =
+      strlen(reinterpret_cast<const char *>(plaintext));
   size_t ciphertext_length = 0;
   if (aes->get_size(plaintext_length, mode.c_str(), block_size,
                     &ciphertext_length) != 0) {
@@ -155,11 +158,11 @@ bool Keyring_encryption_test::test_aes() {
 
   std::unique_ptr<unsigned char[]> output_1;
   output_1 = std::make_unique<unsigned char[]>(ciphertext_length);
-  if (output_1.get() == nullptr) {
+  if (output_1 == nullptr) {
     std::cerr << "Failed to allocate memory for output buffer" << std::endl;
     return false;
   }
-  std::string iv1("abcdefgh12345678");
+  const std::string iv1("abcdefgh12345678");
 
   if (aes->encrypt("aes_key_invalid", "keyring_aes_test", mode.c_str(),
                    block_size,
@@ -197,7 +200,7 @@ bool Keyring_encryption_test::test_aes() {
 
   std::unique_ptr<unsigned char[]> output_2;
   output_2 = std::make_unique<unsigned char[]>(decrypted_length);
-  if (output_2.get() == nullptr) {
+  if (output_2 == nullptr) {
     std::cerr << "Failed to allocate memory for output buffer" << std::endl;
     return false;
   }
@@ -230,8 +233,8 @@ bool Keyring_encryption_test::test_aes() {
   std::cout << "Successfully decrypted plaintext using AES-CBC-256"
             << std::endl;
 
-  std::string decrypted_output{reinterpret_cast<char *>(output_2.get()),
-                               decrypted_length};
+  const std::string decrypted_output{reinterpret_cast<char *>(output_2.get()),
+                                     decrypted_length};
   std::cout << "Decrypted plaintext: '" << decrypted_output << "'" << std::endl;
 
   if (writer->remove("secret_key_1", "keyring_aes_test") != 0) {
