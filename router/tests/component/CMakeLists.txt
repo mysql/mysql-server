@@ -105,9 +105,6 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
-  mysqlxclient_lite
-  mysqlxmessages_lite
-  ext::libprotobuf-lite
 
   DEPENDS
   http_auth_backend
@@ -142,11 +139,6 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/plugin/x/client/
   $<TARGET_PROPERTY:routing_connections,INCLUDE_DIRECTORIES>
-
-  LIB_DEPENDS
-  mysqlxclient_lite
-  mysqlxmessages_lite
-  ext::libprotobuf-lite
 
   DEPENDS
   http_auth_backend

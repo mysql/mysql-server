@@ -27,11 +27,6 @@
 # interface without implementing a connection to the underlying metadata node.
 # The MockMetadata class does the functionality of the Metadata class.
 
-STATICLIB_FROM_TARGET(metadata_cache_export_all metadata_cache)
-TARGET_COMPILE_DEFINITIONS(metadata_cache_export_all
-  PUBLIC METADATA_CACHE_STATIC_DEFINE=1)
-TARGET_COMPILE_FEATURES(metadata_cache_export_all PUBLIC cxx_std_20)
-
 SET(TEST_MODULE metadata_cache)
 FOREACH(test_file
     test_cache_plugin.cc
@@ -40,7 +35,6 @@ FOREACH(test_file
     ${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE ${TEST_MODULE}
     LIB_DEPENDS
-      metadata_cache_export_all
       test-helpers
     INCLUDE_DIRS
       ../src
@@ -56,7 +50,6 @@ ADD_TEST_FILE(test_plugin_config.cc
     ../src/plugin_config.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
-    metadata_cache
     test-helpers
     extra::rapidjson
   )
