@@ -121,10 +121,10 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-const static std::array<const char *, 2> required = {{
+static constexpr std::array required{
     "logger",
     "io",
-}};
+};
 
 namespace {
 

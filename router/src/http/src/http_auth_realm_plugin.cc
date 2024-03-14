@@ -198,9 +198,9 @@ static void deinit(mysql_harness::PluginFuncEnv *) {
   registered_realms.clear();
 }
 
-static const std::array<const char *, 1> required = {{
+static constexpr std::array required{
     "logger",
-}};
+};
 
 namespace {
 

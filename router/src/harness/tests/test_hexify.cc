@@ -36,7 +36,7 @@
 using mysql_harness::hexify;
 
 TEST(Hexify, from_array) {
-  auto cont = std::array<char, 3>{{1, 2, 3}};
+  auto cont = std::to_array<char>({1, 2, 3});
 
   EXPECT_EQ(hexify(cont),
             "01 02 03 .. .. .. .. .. .. .. .. .. .. .. .. ..  ...\n");
@@ -113,7 +113,7 @@ TEST(Hexify, empty) {
 }
 
 TEST(Hexify, eight_bit) {
-  auto cont = std::array<uint8_t, 3>{{0xf1, 0xf2, 0xf3}};
+  auto cont = std::to_array<uint8_t>({0xf1, 0xf2, 0xf3});
 
   EXPECT_THAT(hexify(cont),
               ::testing::AnyOf(

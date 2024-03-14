@@ -39,7 +39,7 @@
 #include "mysql/harness/plugin.h"
 namespace mysql_harness {
 class PluginFuncEnv;
-}
+}  // namespace mysql_harness
 
 #include <array>
 #include <thread>
@@ -65,7 +65,7 @@ void trace(const char *, ...) {}
 // At CMake level we don't specify this requirement, because truly, this plugin
 // doesn't depend on lifecycle. However, to ensure that it is always initialized
 // after lifecycle in unit tests, we set this dependency here to enforce this.
-static const std::array<const char *, 1> required = {
+static constexpr std::array required{
     "routertestplugin_lifecycle",
 };
 

@@ -154,85 +154,119 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 using JsonPointer = RestApiComponent::JsonPointer;
 using JsonValue = RestApiComponent::JsonValue;
 
-#define STR(s) \
-  { s, strlen(s), rapidjson::kPointerInvalidIndex }
+static JsonPointer::Token make_json_pointer_token(std::string_view token) {
+  return {token.data(), token.size(), rapidjson::kPointerInvalidIndex};
+}
 
-static const std::array<JsonPointer::Token, 2> routing_status_path_tokens{
-    {STR("paths"), STR("/routing/status")}};
+static const std::array routing_status_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routing/status"),
+};
 
-static const std::array<JsonPointer::Token, 2> routing_status_def_tokens{
-    {STR("definitions"), STR("RoutingGlobalStatus")}};
+static const std::array routing_status_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RoutingGlobalStatus"),
+};
 
-static const std::array<JsonPointer::Token, 2> route_name_param_tokens{
-    {STR("parameters"), STR("routeNameParam")}};
+static const std::array route_name_param_tokens{
+    make_json_pointer_token("parameters"),
+    make_json_pointer_token("routeNameParam"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_list_def_tokens{
-    {STR("definitions"), STR("RouteList")}};
+static const std::array routes_list_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteList"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_destination_list_def_tokens{
-        {STR("definitions"), STR("RouteDestinationList")}};
+static const std::array routes_destination_list_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteDestinationList"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_destination_summary_def_tokens{
-        {STR("definitions"), STR("RouteDestinationSummary")}};
+static const std::array routes_destination_summary_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteDestinationSummary"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_blockedhost_list_def_tokens{
-        {STR("definitions"), STR("RouteBlockedHostList")}};
+static const std::array routes_blockedhost_list_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteBlockedHostList"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_blockedhost_summary_def_tokens{
-        {STR("definitions"), STR("RouteBlockedHostSummary")}};
+static const std::array routes_blockedhost_summary_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteBlockedHostSummary"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_connection_list_def_tokens{
-        {STR("definitions"), STR("RouteConnectionsList")}};
+static const std::array routes_connection_list_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteConnectionsList"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_connection_summary_def_tokens{
-        {STR("definitions"), STR("RouteConnectionsSummary")}};
+static const std::array routes_connection_summary_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteConnectionsSummary"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_summary_def_tokens{
-    {STR("definitions"), STR("RouteSummary")}};
+static const std::array routes_summary_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteSummary"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_config_def_tokens{
-    {STR("definitions"), STR("RouteConfig")}};
+static const std::array routes_config_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteConfig"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_status_def_tokens{
-    {STR("definitions"), STR("RouteStatus")}};
+static const std::array routes_status_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteStatus"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_health_def_tokens{
-    {STR("definitions"), STR("RouteHealth")}};
+static const std::array routes_health_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouteHealth"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_status_path_tokens{
-    {STR("paths"), STR("/routes/{routeName}/status")}};
+static const std::array routes_status_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes/{routeName}/status"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_config_path_tokens{
-    {STR("paths"), STR("/routes/{routeName}/config")}};
+static const std::array routes_config_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes/{routeName}/config"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_health_path_tokens{
-    {STR("paths"), STR("/routes/{routeName}/health")}};
+static const std::array routes_health_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes/{routeName}/health"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_connection_list_path_tokens{
-        {STR("paths"), STR("/routes/{routeName}/connections")}};
+static const std::array routes_connection_list_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes/{routeName}/connections"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_blockedhost_list_path_tokens{
-        {STR("paths"), STR("/routes/{routeName}/blockedHosts")}};
+static const std::array routes_blockedhost_list_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes/{routeName}/blockedHosts"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    routes_destination_list_path_tokens{
-        {STR("paths"), STR("/routes/{routeName}/destinations")}};
+static const std::array routes_destination_list_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes/{routeName}/destinations"),
+};
 
-static const std::array<JsonPointer::Token, 2> routes_list_path_tokens{
-    {STR("paths"), STR("/routes")}};
+static const std::array routes_list_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/routes"),
+};
 
-static const std::array<JsonPointer::Token, 2> tags_append_tokens{
-    {STR("tags"), STR("-")}};
-
-#undef STR
+static const std::array tags_append_tokens{
+    make_json_pointer_token("tags"),
+    make_json_pointer_token("-"),
+};
 
 std::string json_pointer_stringfy(const JsonPointer &ptr) {
   rapidjson::StringBuffer sb;
@@ -1176,24 +1210,32 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  std::array<RestApiComponentPath, 8> paths{{
-      {rest_api_srv, RestRoutingStatus::path_regex,
-       std::make_unique<RestRoutingStatus>(require_realm_routing)},
-      {rest_api_srv, RestRoutingList::path_regex,
-       std::make_unique<RestRoutingList>(require_realm_routing)},
-      {rest_api_srv, RestRoutingBlockedHosts::path_regex,
-       std::make_unique<RestRoutingBlockedHosts>(require_realm_routing)},
-      {rest_api_srv, RestRoutingDestinations::path_regex,
-       std::make_unique<RestRoutingDestinations>(require_realm_routing)},
-      {rest_api_srv, RestRoutingConfig::path_regex,
-       std::make_unique<RestRoutingConfig>(require_realm_routing)},
-      {rest_api_srv, RestRoutingRoutesStatus::path_regex,
-       std::make_unique<RestRoutingRoutesStatus>(require_realm_routing)},
-      {rest_api_srv, RestRoutingHealth::path_regex,
-       std::make_unique<RestRoutingHealth>(require_realm_routing)},
-      {rest_api_srv, RestRoutingConnections::path_regex,
-       std::make_unique<RestRoutingConnections>(require_realm_routing)},
-  }};
+  std::array paths{
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingStatus::path_regex,
+          std::make_unique<RestRoutingStatus>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingList::path_regex,
+          std::make_unique<RestRoutingList>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingBlockedHosts::path_regex,
+          std::make_unique<RestRoutingBlockedHosts>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingDestinations::path_regex,
+          std::make_unique<RestRoutingDestinations>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingConfig::path_regex,
+          std::make_unique<RestRoutingConfig>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingRoutesStatus::path_regex,
+          std::make_unique<RestRoutingRoutesStatus>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingHealth::path_regex,
+          std::make_unique<RestRoutingHealth>(require_realm_routing)},
+      RestApiComponentPath{
+          rest_api_srv, RestRoutingConnections::path_regex,
+          std::make_unique<RestRoutingConnections>(require_realm_routing)},
+  };
 
   mysql_harness::on_service_ready(env);
 
@@ -1204,11 +1246,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
 }
 
-static std::array<const char *, 2> required = {{
+static constexpr std::array required{
     "logger",
     // "routing",
     "rest_api",
-}};
+};
 
 namespace {
 

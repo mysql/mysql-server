@@ -562,14 +562,14 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   g_dest_tls_contexts.clear();
 }
 
-static const std::array<const char *, 6> required = {{
-    "logger",
-    "router_protobuf",
-    "router_openssl",
+static const std::array required{
+    "logger",           //
+    "router_protobuf",  //
+    "router_openssl",   //
     "io",
     "connection_pool",
     "destination_status",
-}};
+};
 
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
                                  const char *key, bool initial) {

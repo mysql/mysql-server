@@ -49,12 +49,12 @@
 IMPORT_LOG_FUNCTIONS()
 
 namespace {
-constexpr const std::array<std::pair<const char *, mysql_ssl_mode>, 3>
-    allowed_ssl_modes = {{
+constexpr const auto allowed_ssl_modes =
+    std::to_array<std::pair<const char *, mysql_ssl_mode>>({
         {"DISABLED", SSL_MODE_DISABLED},
         {"PREFERRED", SSL_MODE_PREFERRED},
         {"REQUIRED", SSL_MODE_REQUIRED},
-    }};
+    });
 
 static constexpr const char kSectionName[]{"mock_server"};
 
@@ -104,10 +104,11 @@ class StringsOption {
 using mysql_harness::IntOption;
 using mysql_harness::StringOption;
 
-static constexpr std::array<const char *, 14> supported_options{
-    "filename", "module_prefix", "bind_address", "port",       "protocol",
-    "ssl_ca",   "ssl_capath",    "ssl_cert",     "ssl_key",    "ssl_cipher",
-    "ssl_crl",  "ssl_crlpath",   "ssl_mode",     "tls_version"};
+static constexpr std::array supported_options{
+    "filename", "module_prefix", "bind_address", "port",        "protocol",
+    "ssl_ca",   "ssl_capath",    "ssl_cert",     "ssl_key",     "ssl_cipher",
+    "ssl_crl",  "ssl_crlpath",   "ssl_mode",     "tls_version",
+};
 
 #define GET_OPTION_CHECKED(option, section, name, value)                    \
   static_assert(mysql_harness::str_in_collection(supported_options, name)); \
@@ -339,12 +340,12 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   io_context_work_guards([](auto &work_guards) { work_guards.clear(); });
 }
 
-static const std::array<const char *, 4> required = {{
+static constexpr std::array required{
     "logger",
     "router_openssl",
     "router_protobuf",
     "io",
-}};
+};
 
 extern "C" {
 mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {

@@ -28,7 +28,7 @@
 
 #include <array>
 
-static constexpr std::array<const char *, 18> metadata_cache_supported_options{{
+static constexpr std::array metadata_cache_supported_options{
     "user",
     "ttl",
     "auth_cache_ttl",
@@ -47,6 +47,6 @@ static constexpr std::array<const char *, 18> metadata_cache_supported_options{{
     "ssl_capath",
     "ssl_crl",
     "ssl_crlpath",
-}};
+};
 
 #endif /* METADATA_CACHE_SUPPORTED_OPTIONS_INCLUDED */

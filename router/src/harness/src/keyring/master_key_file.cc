@@ -35,8 +35,9 @@
 #include "mysql/harness/tls_cipher.h"
 
 namespace mysql_harness {
-static const std::array<char, 5> kMasterKeyFileSignature = {'M', 'R', 'K', 'F',
-                                                            '\0'};
+static const auto kMasterKeyFileSignature =
+    std::to_array<char>({'M', 'R', 'K', 'F', '\0'});
+
 static constexpr unsigned char kAesIv[] = {0x39, 0x62, 0x9f, 0x52, 0x7f, 0x76,
                                            0x9a, 0xae, 0xcd, 0xca, 0xf7, 0x04,
                                            0x65, 0x8e, 0x5d, 0x88};

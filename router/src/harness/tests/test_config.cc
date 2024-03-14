@@ -707,9 +707,9 @@ TEST(TestConfig, ConfigInitialDefaultsOverwritten) {
 }
 
 struct InvalidConfigParam {
-  std::string test_name;
+  std::string_view test_name;
   std::string input;
-  std::string expected_error_msg;
+  std::string_view expected_error_msg;
 };
 
 class InvalidConfigTest
@@ -729,7 +729,7 @@ TEST_P(InvalidConfigTest, ensure_fails) {
   }
 }
 
-static const std::array<InvalidConfigParam, 4> invalid_config_params = {{
+static const auto invalid_config_params = std::to_array<InvalidConfigParam>({
     {"invalid_char_in_section_key", "[example:abc:def]",
      "config-section '[example:abc:def]' contains invalid "
      "character ':' in section key 'abc:def'. Only alpha-numeric "
@@ -742,12 +742,12 @@ static const std::array<InvalidConfigParam, 4> invalid_config_params = {{
      "config-section '[foo-bar:foo]' contains invalid "
      "character '-' in section name 'foo-bar'. Only alpha-numeric "
      "characters and _ are valid."},
-}};
+});
 
 INSTANTIATE_TEST_SUITE_P(Spec, InvalidConfigTest,
                          ::testing::ValuesIn(invalid_config_params),
                          [](auto const &test_params) {
-                           return test_params.param.test_name;
+                           return std::string{test_params.param.test_name};
                          });
 
 template <class T>

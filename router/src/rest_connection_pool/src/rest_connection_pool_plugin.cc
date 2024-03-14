@@ -154,42 +154,54 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 using JsonPointer = RestApiComponent::JsonPointer;
 using JsonValue = RestApiComponent::JsonValue;
 
-#define STR(s) \
-  { s, strlen(s), rapidjson::kPointerInvalidIndex }
+static JsonPointer::Token make_json_pointer_token(std::string_view token) {
+  return {token.data(), token.size(), rapidjson::kPointerInvalidIndex};
+}
 
-static const std::array<JsonPointer::Token, 2> route_name_param_tokens{
-    {STR("parameters"), STR("connectionPoolNameParam")}};
+static const std::array route_name_param_tokens{
+    make_json_pointer_token("parameters"),
+    make_json_pointer_token("connectionPoolNameParam"),
+};
 
-static const std::array<JsonPointer::Token, 2> connection_pool_list_def_tokens{
-    {STR("definitions"), STR("ConnectionPoolList")}};
+static const std::array connection_pool_list_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("ConnectionPoolList"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    connection_pool_summary_def_tokens{
-        {STR("definitions"), STR("ConnectionPoolSummary")}};
+static const std::array connection_pool_summary_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("ConnectionPoolSummary"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    connection_pool_config_def_tokens{
-        {STR("definitions"), STR("ConnectionPoolConfig")}};
+static const std::array connection_pool_config_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("ConnectionPoolConfig"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    connection_pool_status_def_tokens{
-        {STR("definitions"), STR("ConnectionPoolStatus")}};
+static const std::array connection_pool_status_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("ConnectionPoolStatus"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    connection_pool_status_path_tokens{
-        {STR("paths"), STR("/connection_pool/{connectionPoolName}/status")}};
+static const std::array connection_pool_status_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/connection_pool/{connectionPoolName}/status"),
+};
 
-static const std::array<JsonPointer::Token, 2>
-    connection_pool_config_path_tokens{
-        {STR("paths"), STR("/connection_pool/{connectionPoolName}/config")}};
+static const std::array connection_pool_config_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/connection_pool/{connectionPoolName}/config"),
+};
 
-static const std::array<JsonPointer::Token, 2> connection_pool_list_path_tokens{
-    {STR("paths"), STR("/connection_pool")}};
+static const std::array connection_pool_list_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/connection_pool"),
+};
 
-static const std::array<JsonPointer::Token, 2> tags_append_tokens{
-    {STR("tags"), STR("-")}};
-
-#undef STR
+static const std::array tags_append_tokens{
+    make_json_pointer_token("tags"),
+    make_json_pointer_token("-"),
+};
 
 std::string json_pointer_stringfy(const JsonPointer &ptr) {
   rapidjson::StringBuffer sb;
@@ -566,16 +578,17 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  std::array<RestApiComponentPath, 3> paths{{
-      {rest_api_srv, RestConnectionPoolStatus::path_regex,
-       std::make_unique<RestConnectionPoolStatus>(
-           require_realm_connection_pool)},
-      {rest_api_srv, RestConnectionPoolList::path_regex,
-       std::make_unique<RestConnectionPoolList>(require_realm_connection_pool)},
-      {rest_api_srv, RestConnectionPoolConfig::path_regex,
-       std::make_unique<RestConnectionPoolConfig>(
-           require_realm_connection_pool)},
-  }};
+  std::array paths{
+      RestApiComponentPath{rest_api_srv, RestConnectionPoolStatus::path_regex,
+                           std::make_unique<RestConnectionPoolStatus>(
+                               require_realm_connection_pool)},
+      RestApiComponentPath{rest_api_srv, RestConnectionPoolList::path_regex,
+                           std::make_unique<RestConnectionPoolList>(
+                               require_realm_connection_pool)},
+      RestApiComponentPath{rest_api_srv, RestConnectionPoolConfig::path_regex,
+                           std::make_unique<RestConnectionPoolConfig>(
+                               require_realm_connection_pool)},
+  };
 
   mysql_harness::on_service_ready(env);
 
@@ -586,10 +599,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
 }
 
-static std::array<const char *, 2> required = {{
+static constexpr std::array required{
     "logger",
     "rest_api",
-}};
+};
 
 namespace {
 

@@ -46,8 +46,6 @@
 #include "dim.h"
 #include "harness_assert.h"
 
-using mysql_harness::Path;
-using mysql_harness::serial_comma;
 using mysql_harness::logging::Logger;
 using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::Record;
@@ -57,8 +55,8 @@ namespace {
 using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::LogTimestampPrecision;
 
-constexpr const std::array<std::pair<std::string_view, LogLevel>, 7> kLogLevels{
-    {
+constexpr auto kLogLevels =
+    std::to_array<std::pair<std::string_view, LogLevel>>({
         {"fatal", LogLevel::kFatal},
         {"system", LogLevel::kSystem},
         {"error", LogLevel::kError},
@@ -66,11 +64,10 @@ constexpr const std::array<std::pair<std::string_view, LogLevel>, 7> kLogLevels{
         {"info", LogLevel::kInfo},
         {"note", LogLevel::kNote},
         {"debug", LogLevel::kDebug},
-    }};
+    });
 
-constexpr const std::array<std::pair<std::string_view, LogTimestampPrecision>,
-                           12>
-    kLogTimestampPrecisions{{
+constexpr auto kLogTimestampPrecisions =
+    std::to_array<std::pair<std::string_view, LogTimestampPrecision>>({
         {"second", LogTimestampPrecision::kSec},
         {"sec", LogTimestampPrecision::kSec},
         {"s", LogTimestampPrecision::kSec},
@@ -83,7 +80,7 @@ constexpr const std::array<std::pair<std::string_view, LogTimestampPrecision>,
         {"nanosecond", LogTimestampPrecision::kNanoSec},
         {"nsec", LogTimestampPrecision::kNanoSec},
         {"ns", LogTimestampPrecision::kNanoSec},
-    }};
+    });
 }  // namespace
 
 namespace mysql_harness {

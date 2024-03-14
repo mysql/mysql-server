@@ -48,7 +48,9 @@ IMPORT_LOG_FUNCTIONS()
 
 static const char kSectionName[]{"rest_api"};
 
-static constexpr std::array<const char *, 1> supported_options{"require_realm"};
+static constexpr std::array supported_options = {
+    "require_realm",
+};
 
 // one shared setting
 std::string require_realm_api;
@@ -278,10 +280,10 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
 #define DLLEXPORT
 #endif
 
-static const std::array<const char *, 2> plugin_requires = {{
+static constexpr std::array plugin_requires{
     "http_server",
     "logger",
-}};
+};
 
 namespace {
 

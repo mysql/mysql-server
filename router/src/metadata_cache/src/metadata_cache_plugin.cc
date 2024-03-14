@@ -266,10 +266,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   metadata_cache::MetadataCacheAPI::instance()->cache_stop();
 }
 
-static const std::array<const char *, 2> required = {{
+static constexpr std::array required{
     "logger",
     "router_protobuf",
-}};
+};
 
 static void expose_configuration(mysql_harness::PluginFuncEnv *env,
                                  const char * /*key*/, bool initial) {

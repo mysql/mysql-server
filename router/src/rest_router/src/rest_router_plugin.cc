@@ -147,19 +147,24 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 using JsonPointer = RestApiComponent::JsonPointer;
 using JsonValue = RestApiComponent::JsonValue;
 
-#define STR(s) \
-  { s, strlen(s), rapidjson::kPointerInvalidIndex }
+static JsonPointer::Token make_json_pointer_token(std::string_view token) {
+  return {token.data(), token.size(), rapidjson::kPointerInvalidIndex};
+}
 
-static const std::array<JsonPointer::Token, 2> router_status_def_tokens{
-    {STR("definitions"), STR("RouterStatus")}};
+static const std::array router_status_def_tokens{
+    make_json_pointer_token("definitions"),
+    make_json_pointer_token("RouterStatus"),
+};
 
-static const std::array<JsonPointer::Token, 2> router_status_path_tokens{
-    {STR("paths"), STR("/router/status")}};
+static const std::array router_status_path_tokens{
+    make_json_pointer_token("paths"),
+    make_json_pointer_token("/router/status"),
+};
 
-static const std::array<JsonPointer::Token, 2> tags_append_tokens{
-    {STR("tags"), STR("-")}};
-
-#undef STR
+static const std::array tags_append_tokens{
+    make_json_pointer_token("tags"),
+    make_json_pointer_token("-"),
+};
 
 std::string json_pointer_stringfy(const JsonPointer &ptr) {
   rapidjson::StringBuffer sb;
@@ -269,10 +274,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
   const bool spec_adder_executed = rest_api_srv.try_process_spec(spec_adder);
 
-  std::array<RestApiComponentPath, 1> paths{{
-      {rest_api_srv, RestRouterStatus::path_regex,
-       std::make_unique<RestRouterStatus>(require_realm_router)},
-  }};
+  std::array paths{
+      RestApiComponentPath{
+          rest_api_srv, RestRouterStatus::path_regex,
+          std::make_unique<RestRouterStatus>(require_realm_router)},
+  };
 
   mysql_harness::on_service_ready(env);
 
@@ -290,7 +296,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-static const std::array<const char *, 2> rest_router_plugin_requires = {
+static constexpr std::array rest_router_plugin_requires = {
     "logger",
     "rest_api",
 };

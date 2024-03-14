@@ -89,7 +89,7 @@ static constexpr const char kRouterRequireEnforce[]{"router_require_enforce"};
 }  // namespace options
 }  // namespace routing
 
-static constexpr std::array<const char *, 45> routing_supported_options{
+static constexpr std::array routing_supported_options{
     routing::options::kProtocol,
     routing::options::kDestinations,
     routing::options::kBindPort,

@@ -28,7 +28,8 @@
 
 #include <array>
 
-static constexpr std::array<const char *, 1> rest_plugin_supported_options{
-    "require_realm"};
+static constexpr std::array rest_plugin_supported_options = {
+    "require_realm",
+};
 
 #endif /* MYSQLROUTER_REST_API_SUPPORTED_OPTIONS_INCLUDED */

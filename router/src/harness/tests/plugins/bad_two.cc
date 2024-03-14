@@ -27,11 +27,11 @@
 
 #include <array>
 
-static const std::array<const char *, 1> required = {{
+static constexpr std::array required{
     // Magic plugin is version 1.2.3, so version does not match and this
     // should fail to load.
     "routertestplugin_magic (>>1.2.3)",
-}};
+};
 
 static void init(mysql_harness::PluginFuncEnv *) {}
 

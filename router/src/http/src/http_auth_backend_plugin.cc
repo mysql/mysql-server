@@ -218,10 +218,10 @@ static void deinit(mysql_harness::PluginFuncEnv *) {
   registered_backends.clear();
 }
 
-static const std::array<const char *, 2> required = {{
+static constexpr std::array required{
     "logger",
     "router_protobuf",
-}};
+};
 
 namespace {
 

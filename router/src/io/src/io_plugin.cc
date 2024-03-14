@@ -75,8 +75,10 @@ using StringOption = mysql_harness::StringOption;
 template <class T>
 using IntOption = mysql_harness::IntOption<T>;
 
-static constexpr std::array<const char *, 2> supported_options{"backend",
-                                                               "threads"};
+static constexpr std::array supported_options{
+    "backend",
+    "threads",
+};
 
 #define GET_OPTION_CHECKED(option, section, name, value)                    \
   static_assert(mysql_harness::str_in_collection(supported_options, name)); \
@@ -205,9 +207,9 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   IoComponent::get_instance().reset();
 }
 
-static std::array<const char *, 1> required = {{
+static constexpr std::array required{
     "logger",
-}};
+};
 
 namespace {
 

@@ -43,7 +43,7 @@ class JoinTest : public ::testing::Test {};
 TYPED_TEST_SUITE_P(JoinTest);
 
 TYPED_TEST_P(JoinTest, many) {
-  EXPECT_EQ(join(std::array<TypeParam, 2>{"abc", "def"}, "-"), "abc-def");
+  EXPECT_EQ(join(std::to_array<TypeParam>({"abc", "def"}), "-"), "abc-def");
   EXPECT_EQ(join(std::deque<TypeParam>{"abc", "def"}, "-"), "abc-def");
   EXPECT_EQ(join(std::forward_list<TypeParam>{"abc", "def"}, "-"), "abc-def");
   EXPECT_EQ(join(std::list<TypeParam>{"abc", "def"}, "-"), "abc-def");
@@ -59,7 +59,7 @@ TYPED_TEST_P(JoinTest, many) {
 }
 
 TYPED_TEST_P(JoinTest, one) {
-  EXPECT_EQ(join(std::array<TypeParam, 1>{"abc"}, "-"), "abc");
+  EXPECT_EQ(join(std::to_array<TypeParam>({"abc"}), "-"), "abc");
   EXPECT_EQ(join(std::deque<TypeParam>{"abc"}, "-"), "abc");
   EXPECT_EQ(join(std::forward_list<TypeParam>{"abc"}, "-"), "abc");
   EXPECT_EQ(join(std::list<TypeParam>{"abc"}, "-"), "abc");

@@ -59,17 +59,18 @@ class ContentType {
    */
   static const char *from_extension(std::string extension) {
     // sorted list of extensions and their mapping to their mimetype
-    const std::array<std::pair<std::string, const char *>, 9> mimetypes{{
-        std::make_pair("css", MimeType::TextCss),
-        std::make_pair("htm", MimeType::TextHtml),
-        std::make_pair("html", MimeType::TextHtml),
-        std::make_pair("jpeg", MimeType::ImageJpeg),
-        std::make_pair("jpg", MimeType::ImageJpeg),
-        std::make_pair("js", MimeType::ApplicationJavascript),
-        std::make_pair("json", MimeType::ApplicationJson),
-        std::make_pair("png", MimeType::ImagePng),
-        std::make_pair("svg", MimeType::ImageSvgXML),
-    }};
+    constexpr auto mimetypes =
+        std::to_array<std::pair<std::string_view, const char *>>({
+            {"css", MimeType::TextCss},
+            {"htm", MimeType::TextHtml},
+            {"html", MimeType::TextHtml},
+            {"jpeg", MimeType::ImageJpeg},
+            {"jpg", MimeType::ImageJpeg},
+            {"js", MimeType::ApplicationJavascript},
+            {"json", MimeType::ApplicationJson},
+            {"png", MimeType::ImagePng},
+            {"svg", MimeType::ImageSvgXML},
+        });
 
     // lower-case file-extensions.
     //
@@ -81,7 +82,7 @@ class ContentType {
         extension.begin(), extension.end(), extension.begin(),
         [](char c) { return (c >= 'A' && c <= 'Z') ? c + ('z' - 'Z') : c; });
 
-    auto low_bound_it = std::lower_bound(
+    const auto low_bound_it = std::lower_bound(
         mimetypes.begin(), mimetypes.end(), extension,
         [](const auto &a, const auto &_ext) { return a.first < _ext; });
 

@@ -424,9 +424,9 @@ TEST(MessageServerError, sql_state) {
 }
 
 TEST(MessageServerError, short_sql_state) {
-  std::array<uint8_t, 6> packet{
-      0xff, 0x12, 0x34, '#', 'F', 'O',
-  };
+  constexpr auto packet =
+      std::to_array<uint8_t>({0xff, 0x12, 0x34, '#', 'F', 'O'});
+
   auto decode_res =
       classic_protocol::Codec<classic_protocol::message::server::Error>::decode(
           net::buffer(packet), {classic_protocol::capabilities::protocol_41});
@@ -1513,13 +1513,13 @@ TEST(CodecMessageClientStmtExecuteFail, param_count_less_than_num_params) {
 
   auto caps = classic_protocol::capabilities::query_attributes;
 
-  std::array<uint8_t, 11> encoded{
+  auto encoded = std::to_array<uint8_t>({
       0x17,                    // cmd
       0x01, 0x00, 0x00, 0x00,  // stmt-id
       0x10,                    // flags: param-count-available
       0x01, 0x00, 0x00, 0x00,  // iteration-count
       0x00,                    // param-count
-  };
+  });
 
   auto decode_res = classic_protocol::Codec<msg_type>::decode(
       net::buffer(encoded), caps,

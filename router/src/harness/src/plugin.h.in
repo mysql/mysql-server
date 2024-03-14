@@ -361,10 +361,10 @@ struct Plugin {
    *
    * A typical use is:
    * @code
-   * static const std::array<char *, 2> required = {{
+   * static const std::array required{
    *   "first",
    *   "second",
-   * }};
+   * };
    *
    * Plugin my_plugin = {
    *   ...
@@ -499,7 +499,8 @@ struct Plugin {
    * Expose plugin configuration in the DynamicConfig object.
    *
    */
-  void (*expose_configuration)(PluginFuncEnv *env, const char *key, bool initial);
+  void (*expose_configuration)(PluginFuncEnv *env, const char *key,
+                               bool initial);
 };
 
 /**

@@ -143,10 +143,10 @@ static void deinit(mysql_harness::PluginFuncEnv *) {
   ConnectionPoolComponent::get_instance().clear();
 }
 
-const static std::array<const char *, 2> required = {{
+static constexpr std::array required{
     "logger",
     "io",
-}};
+};
 
 namespace {
 

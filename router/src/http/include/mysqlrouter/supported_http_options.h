@@ -28,14 +28,21 @@
 
 #include <array>
 
-static constexpr std::array<const char *, 10> http_server_supported_options{
+static constexpr std::array http_server_supported_options [[maybe_unused]]{
     "static_folder", "bind_address", "require_realm", "ssl_cert", "ssl_key",
-    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port"};
+    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port",
+};
 
-static constexpr std::array<const char *, 4> http_auth_realm_suported_options{
-    "backend", "method", "require", "name"};
+static constexpr std::array http_auth_realm_suported_options [[maybe_unused]]{
+    "backend",
+    "method",
+    "require",
+    "name",
+};
 
-static constexpr std::array<const char *, 2> http_backend_supported_options{
-    "backend", "filename"};
+static constexpr std::array http_backend_supported_options [[maybe_unused]]{
+    "backend",
+    "filename",
+};
 
 #endif /* MYSQL_ROUTER_SUPPORTED_HTTP_OPTIONS_H_INCLUDED */

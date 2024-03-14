@@ -29,33 +29,17 @@
 #include <chrono>
 #include <string>
 
-#ifndef _WIN32
-#include <netdb.h>        // addrinfo
-#include <netinet/tcp.h>  // TCP_NODELAY
-#include <sys/socket.h>   // SOCK_NONBLOCK, ...
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
 #include "common.h"  // serial_comma
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/net_ts/impl/resolver.h"
-#include "mysql/harness/net_ts/impl/socket.h"
-#include "mysql/harness/net_ts/impl/socket_error.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 namespace routing {
 
 // unused constant
 // const int kMaxConnectTimeout = INT_MAX / 1000;
 
-static const std::array<const char *, 2> kAccessModeNames{{
-    nullptr,
+static const std::array kAccessModeNames{
+    static_cast<const char *>(nullptr),
     "auto",
-}};
+};
 
 AccessMode get_access_mode(const std::string &value) {
   for (unsigned int i = 1; i < kAccessModeNames.size(); ++i)
@@ -76,13 +60,13 @@ std::string get_access_mode_name(AccessMode mode) noexcept {
 }
 
 // keep in-sync with enum RoutingStrategy
-static const std::array<const char *, 5> kRoutingStrategyNames{{
-    nullptr,
+static const std::array kRoutingStrategyNames{
+    static_cast<const char *>(nullptr),
     "first-available",
     "next-available",
     "round-robin",
     "round-robin-with-fallback",
-}};
+};
 
 RoutingStrategy get_routing_strategy(const std::string &value) {
   for (unsigned int i = 1; i < kRoutingStrategyNames.size(); ++i)
@@ -93,18 +77,18 @@ RoutingStrategy get_routing_strategy(const std::string &value) {
 
 std::string get_routing_strategy_names(bool metadata_cache) {
   // round-robin-with-fallback is not supported for static routing
-  const std::array<const char *, 3> kRoutingStrategyNamesStatic{{
+  constexpr std::array kRoutingStrategyNamesStatic{
       "first-available",
       "next-available",
       "round-robin",
-  }};
+  };
 
   // next-available is not supported for metadata-cache routing
-  const std::array<const char *, 3> kRoutingStrategyNamesMetadataCache{{
+  constexpr std::array kRoutingStrategyNamesMetadataCache{
       "first-available",
       "round-robin",
       "round-robin-with-fallback",
-  }};
+  };
 
   const auto &v = metadata_cache ? kRoutingStrategyNamesMetadataCache
                                  : kRoutingStrategyNamesStatic;

@@ -28,8 +28,9 @@
 
 #include <array>
 
-static constexpr std::array<const char *, 2>
-    destination_status_supported_options{"error_quarantine_interval",
-                                         "error_quarantine_threshold"};
+static constexpr std::array destination_status_supported_options{
+    "error_quarantine_interval",
+    "error_quarantine_threshold",
+};
 
 #endif /* MYSQLROUTER_ROUTING_SUPPORTED_DESTINATION_STATUS_OPTIONS_INCLUDED */

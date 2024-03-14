@@ -317,7 +317,7 @@ static void run(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-static const std::array<const char *, 2> plugin_requires = {
+static constexpr std::array plugin_requires{
     "logger",
     // "mock_server",
     "http_server",

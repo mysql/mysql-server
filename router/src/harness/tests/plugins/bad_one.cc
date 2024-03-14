@@ -27,10 +27,10 @@
 
 #include <array>
 
-static const std::array<const char *, 1> required = {{
+static constexpr std::array required{
     // This plugin do not exist
     "routertestplugin_foobar",
-}};
+};
 
 static void init(mysql_harness::PluginFuncEnv *) {}
 
