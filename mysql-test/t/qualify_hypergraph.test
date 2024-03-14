@@ -377,3 +377,13 @@ SELECT id, ROW_NUMBER() OVER w FROM (SELECT * FROM t) AS dt
 GROUP BY id, x WITH ROLLUP WINDOW w AS (ORDER BY id) QUALIFY x <> 1;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36313072: mysqld crash in Item_ref::real_item
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+
+SELECT NTILE(1) OVER() FROM (SELECT * FROM t1) as dt QUALIFY f1 AND FALSE;
+
+DROP TABLE t1;
