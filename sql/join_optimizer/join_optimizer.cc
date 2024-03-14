@@ -209,6 +209,34 @@ struct PossibleIndexMerge {
   bool inexact;
 };
 
+// Specifies a mapping in an Index_lookup between an index keypart and a
+// condition, with the intention to satisfy the condition with the index keypart
+// (ref access). Roughly comparable to Key_use in the non-hypergraph optimizer.
+struct KeypartForRef final {
+  // The condition we are pushing down (e.g. t1.f1 = 3).
+  Item *condition;
+
+  // The field that is to be matched (e.g. t1.f1).
+  Field *field;
+
+  // The value we are matching against (e.g. 3). Could be another field.
+  Item *val;
+
+  // Whether this condition would never match if either side is NULL.
+  bool null_rejecting;
+
+  // Tables used by the condition. Necessarily includes the table “field”
+  // is part of.
+  table_map used_tables;
+
+  // Is it safe to evaluate "val" during optimization? It must be
+  // const_for_execution() and contain no subqueries or stored procedures.
+  bool can_evaluate;
+};
+
+int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
+                       unsigned num_keyparts);
+
 // Represents a candidate row-id ordered scan. For a ROR compatible
 // range scan, it stores the applied and subsumed predicates.
 struct PossibleRORScan {
@@ -249,6 +277,8 @@ struct PossibleIndexSkipScan {
   larger subplans.
  */
 class CostingReceiver {
+  friend class RefAccessBuilder;
+
  public:
   CostingReceiver(
       THD *thd, Query_block *query_block, JoinHypergraph &graph,
@@ -659,10 +689,6 @@ class CostingReceiver {
                                 double force_num_output_rows_after_filter,
                                 const SpatialDistanceScanInfo &order_info,
                                 int ordering_idx);
-  bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
-                        double force_num_output_rows_after_filter, bool reverse,
-                        table_map allowed_parameter_tables, int ordering_idx,
-                        bool *found_ref);
   bool ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx, bool *found);
   bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
@@ -839,6 +865,474 @@ bool CheckKilledOrError(THD *thd) {
 }
 
 /**
+   A builder class for constructing REF (or EQ_REF) AccessPath
+   objects. Doing so in a single function would give an excessively
+   long function with an overly long parameter list.
+*/
+class RefAccessBuilder final {
+ public:
+  // Setters for the parameters to the build operation.
+
+  RefAccessBuilder &set_receiver(CostingReceiver *val) {
+    m_receiver = val;
+    return *this;
+  }
+  RefAccessBuilder &set_table(TABLE *val) {
+    m_table = val;
+    return *this;
+  }
+  RefAccessBuilder &set_node_idx(int val) {
+    m_node_idx = val;
+    return *this;
+  }
+  RefAccessBuilder &set_key_idx(unsigned val) {
+    m_key_idx = val;
+    return *this;
+  }
+  RefAccessBuilder &set_force_num_output_rows_after_filter(double val) {
+    m_force_num_output_rows_after_filter = val;
+    return *this;
+  }
+  RefAccessBuilder &set_reverse(bool val) {
+    m_reverse = val;
+    return *this;
+  }
+  RefAccessBuilder &set_allowed_parameter_tables(table_map val) {
+    m_allowed_parameter_tables = val;
+    return *this;
+  }
+  RefAccessBuilder &set_ordering_idx(int val) {
+    m_ordering_idx = val;
+    return *this;
+  }
+
+  /// Return value of ProposePath().
+  enum class ProposeResult {
+    /// No path was proposed.
+    kNoPathFound,
+
+    /// One or more paths were proposed.
+    kPathsFound,
+
+    /// There was an error.
+    kError
+  };
+
+  /**
+     Popose an AccessPath if we found a suitable match betweeen the key
+     and the sargable predicates.
+  */
+  ProposeResult ProposePath() const;
+
+ private:
+  /// The receiver for the current Query_block.
+  CostingReceiver *m_receiver;
+
+  /// The table for which we want to create an AcessPath.
+  TABLE *m_table;
+
+  /// The hypergraph node.
+  int m_node_idx;
+
+  /// The key for the REF/EQ_REF AccessPath.
+  unsigned m_key_idx;
+
+  /// A row estimate from the range optimizer (or kUnknownRowCount if there
+  /// is none.
+  double m_force_num_output_rows_after_filter{kUnknownRowCount};
+
+  /// True if we wish to do a reverse scan.
+  bool m_reverse{false};
+
+  /// The set of tables that we may use as parameters for the REF AccessPath.
+  table_map m_allowed_parameter_tables{0};
+
+  /// The output ordering of the AccessPath we propose.
+  int m_ordering_idx;
+
+  // Shorthand functions.
+  THD *thd() const { return m_receiver->m_thd; }
+  JoinHypergraph *graph() const { return m_receiver->m_graph; }
+
+  /// Result type for FindKeyMatch().
+  struct KeyMatch final {
+    /// The mapping between key fields and condition items.
+    std::array<KeypartForRef, MAX_REF_PARTS> keyparts;
+
+    /// The number of matched keyparts.
+    unsigned matched_keyparts{0};
+
+    /// The total length (in bytes) of the matched keyparts.
+    unsigned length{0};
+
+    /// The parameter tables used for building key values.
+    table_map parameter_tables{0};
+  };
+
+  /// Go through each of the sargable predicates and see how many key parts
+  /// we can match.
+  KeyMatch FindKeyMatch() const;
+
+  /// Result type for BuildLookup().
+  struct Lookup final {
+    /// The lookup object for this REF/EQ_REF AccessPath.
+    Index_lookup *ref;
+
+    /// True if the key is null-rejecting.
+    bool null_rejecting_key;
+  };
+
+  /// Create Index_lookup for this ref, and set it up based on the chosen
+  /// keyparts.
+  std::optional<Lookup> BuildLookup(const KeyMatch &key_match) const;
+
+  /// Result type of AnalyzePredicates().
+  struct PredicateAnalysis final {
+    /// Row estimate.
+    double num_output_rows;
+
+    /// The combined selectivity of the conditions refering to the target table.
+    double join_condition_selectivity;
+
+    /// Predicates promoted from a join condition to a WHERE predicate,
+    /// since they were part of cycles.
+    MutableOverflowBitset applied_predicates;
+
+    /// Predicates subsumed by the index access.
+    MutableOverflowBitset subsumed_predicates;
+  };
+
+  /// Find which predicates that are covered by this index access.
+  std::optional<PredicateAnalysis> AnalyzePredicates(
+      const KeyMatch &key_match) const;
+
+  /// Create the REF/EQ_REF access path.
+  AccessPath MakePath(const KeyMatch &key_match, const Lookup &lookup,
+                      double num_output_rows) const;
+};
+
+RefAccessBuilder::KeyMatch RefAccessBuilder::FindKeyMatch() const {
+  const unsigned usable_keyparts{
+      actual_key_parts(&m_table->key_info[m_key_idx])};
+  KEY *const key{&m_table->key_info[m_key_idx]};
+  KeyMatch result;
+
+  for (unsigned keypart_idx = 0;
+       keypart_idx < usable_keyparts && keypart_idx < MAX_REF_PARTS;
+       ++keypart_idx) {
+    const KEY_PART_INFO &keyinfo = key->key_part[keypart_idx];
+    bool matched_this_keypart = false;
+
+    for (const SargablePredicate &sp :
+         graph()->nodes[m_node_idx].sargable_predicates()) {
+      if (!sp.field->part_of_key.is_set(m_key_idx)) {
+        // Quick reject.
+        continue;
+      }
+      Item_func_eq *item = down_cast<Item_func_eq *>(
+          graph()->predicates[sp.predicate_index].condition);
+      if (sp.field->eq(keyinfo.field)) {
+        const table_map other_side_tables =
+            sp.other_side->used_tables() & ~PSEUDO_TABLE_BITS;
+        if (IsSubset(other_side_tables, m_allowed_parameter_tables)) {
+          result.parameter_tables |= other_side_tables;
+          matched_this_keypart = true;
+          result.keyparts[keypart_idx].field = sp.field;
+          result.keyparts[keypart_idx].condition = item;
+          result.keyparts[keypart_idx].val = sp.other_side;
+          result.keyparts[keypart_idx].null_rejecting = true;
+          result.keyparts[keypart_idx].used_tables = item->used_tables();
+          result.keyparts[keypart_idx].can_evaluate = sp.can_evaluate;
+          ++result.matched_keyparts;
+          result.length += keyinfo.store_length;
+          break;
+        }
+      }
+    }
+    if (!matched_this_keypart) {
+      break;
+    }
+  }
+  return result;
+}
+
+std::optional<RefAccessBuilder::Lookup> RefAccessBuilder::BuildLookup(
+    const KeyMatch &key_match) const {
+  Index_lookup *ref = new (thd()->mem_root) Index_lookup;
+  if (init_ref(thd(), key_match.matched_keyparts, key_match.length, m_key_idx,
+               ref)) {
+    return {};
+  }
+
+  KEY *const key{&m_table->key_info[m_key_idx]};
+  uchar *key_buff = ref->key_buff;
+  uchar *null_ref_key = nullptr;
+  bool null_rejecting_key = true;
+  for (unsigned keypart_idx = 0; keypart_idx < key_match.matched_keyparts;
+       keypart_idx++) {
+    const KeypartForRef *keypart = &key_match.keyparts[keypart_idx];
+    const KEY_PART_INFO *keyinfo = &key->key_part[keypart_idx];
+
+    if (init_ref_part(thd(), keypart_idx, keypart->val, /*cond_guard=*/nullptr,
+                      keypart->null_rejecting, /*const_tables=*/0,
+                      keypart->used_tables, keyinfo->null_bit, keyinfo,
+                      key_buff, ref)) {
+      return {};
+    }
+    // TODO(sgunders): When we get support for REF_OR_NULL,
+    // set null_ref_key = key_buff here if appropriate.
+    /*
+      The selected key will reject matches on NULL values if:
+       - the key field is nullable, and
+       - predicate rejects NULL values (keypart->null_rejecting is true), or
+       - JT_REF_OR_NULL is not effective.
+    */
+    if ((keyinfo->field->is_nullable() || m_table->is_nullable()) &&
+        (!keypart->null_rejecting || null_ref_key != nullptr)) {
+      null_rejecting_key = false;
+    }
+    key_buff += keyinfo->store_length;
+  }
+
+  return Lookup{ref, null_rejecting_key};
+}
+
+std::optional<RefAccessBuilder::PredicateAnalysis>
+RefAccessBuilder::AnalyzePredicates(
+    const RefAccessBuilder::KeyMatch &key_match) const {
+  double num_output_rows = m_table->file->stats.records;
+  double join_condition_selectivity = 1.0;
+
+  MutableOverflowBitset applied_predicates{thd()->mem_root,
+                                           graph()->predicates.size()};
+  MutableOverflowBitset subsumed_predicates{thd()->mem_root,
+                                            graph()->predicates.size()};
+  for (size_t i = 0; i < graph()->predicates.size(); ++i) {
+    const Predicate &pred = graph()->predicates[i];
+    int keypart_idx = WasPushedDownToRef(
+        pred.condition, key_match.keyparts.data(), key_match.matched_keyparts);
+    if (keypart_idx == -1) {
+      continue;
+    }
+
+    if (pred.was_join_condition) {
+      // This predicate was promoted from a join condition to a WHERE predicate,
+      // since it was part of a cycle. For purposes of sargable predicates,
+      // we always see all relevant join conditions, so skip it this time
+      // so that we don't double-count its selectivity.
+      applied_predicates.SetBit(i);
+      continue;
+    }
+
+    if (i < graph()->num_where_predicates &&
+        !has_single_bit(pred.total_eligibility_set)) {
+      // This is a WHERE condition that is either nondeterministic,
+      // or after an outer join, so it is not sargable. (Having these
+      // show up here is very rare, but will get more common when we
+      // get to (x=... OR NULL) predicates.)
+      continue;
+    }
+
+    if (!IsSubset(pred.condition->used_tables() & ~PSEUDO_TABLE_BITS,
+                  m_table->pos_in_table_list->map())) {
+      join_condition_selectivity *= pred.selectivity;
+    }
+
+    num_output_rows *= pred.selectivity;
+    applied_predicates.SetBit(i);
+
+    const KeypartForRef &keypart = key_match.keyparts[keypart_idx];
+    bool subsumes;
+    if (ref_lookup_subsumes_comparison(thd(), keypart.field, keypart.val,
+                                       keypart.can_evaluate, &subsumes)) {
+      return {};
+    }
+    if (subsumes) {
+      if (TraceStarted(thd())) {
+        Trace(thd()) << " - " << ItemToString(pred.condition)
+                     << " is subsumed by ref access on " << m_table->alias
+                     << "." << keypart.field->field_name << "\n";
+      }
+      subsumed_predicates.SetBit(i);
+    } else {
+      if (TraceStarted(thd())) {
+        Trace(thd()) << " - " << ItemToString(pred.condition)
+                     << " is not fully subsumed by ref access on "
+                     << m_table->alias << "." << keypart.field->field_name
+                     << ", keeping\n";
+      }
+    }
+  }
+
+  return PredicateAnalysis{num_output_rows, join_condition_selectivity,
+                           std::move(applied_predicates),
+                           std::move(subsumed_predicates)};
+}
+
+AccessPath RefAccessBuilder::MakePath(
+    const RefAccessBuilder::KeyMatch &key_match,
+    const RefAccessBuilder::Lookup &lookup, double num_output_rows) const {
+  KEY *const key{&m_table->key_info[m_key_idx]};
+  // We are guaranteed to get a single row back if all of these hold:
+  //
+  //  - The index must be unique.
+  //  - We can never query it with NULL (ie., no keyparts are nullable,
+  //    or our condition is already NULL-rejecting), since NULL is
+  //    an exception for unique indexes.
+  //  - We use all key parts.
+  //
+  // This matches the logic in create_ref_for_key().
+  const bool single_row = Overlaps(actual_key_flags(key), HA_NOSAME) &&
+                          (!Overlaps(actual_key_flags(key), HA_NULL_PART_KEY) ||
+                           lookup.null_rejecting_key) &&
+                          key_match.matched_keyparts == actual_key_parts(key);
+  if (single_row) {
+    // FIXME: This can cause inconsistent row estimates between different access
+    // paths doing the same thing, which is bad (it causes index lookups to be
+    // unfairly preferred, especially as we add more tables to the join -- and
+    // it also causes access path pruning to work less efficiently). See
+    // comments in EstimateFieldSelectivity() and on has_clamped_eq_ref.
+    if (num_output_rows > 1.0 && key_match.matched_keyparts >= 2) {
+      m_receiver->has_clamped_multipart_eq_ref = true;
+    }
+    num_output_rows = std::min(num_output_rows, 1.0);
+  }
+
+  const double cost{EstimateRefAccessCost(m_table, m_key_idx, num_output_rows)};
+
+  AccessPath path;
+  if (single_row) {
+    path.type = AccessPath::EQ_REF;
+    path.eq_ref().table = m_table;
+    path.eq_ref().ref = lookup.ref;
+
+    // We could set really any ordering here if we wanted to.
+    // It's very rare that it should matter, though.
+    path.ordering_state = m_receiver->m_orderings->SetOrder(m_ordering_idx);
+  } else {
+    path.type = AccessPath::REF;
+    path.ref().table = m_table;
+    path.ref().ref = lookup.ref;
+    path.ref().reverse = m_reverse;
+
+    // TODO(sgunders): Some storage engines, like NDB, can benefit from
+    // use_order = false if we don't actually need the ordering later.
+    // Consider adding a cost model for this, and then proposing both
+    // with and without order.
+    path.ordering_state = m_receiver->m_orderings->SetOrder(m_ordering_idx);
+    path.ref().use_order = (path.ordering_state != 0);
+  }
+
+  path.num_output_rows_before_filter = num_output_rows;
+  path.set_cost_before_filter(cost);
+  path.set_init_cost(0.0);
+  path.set_init_once_cost(0.0);
+  path.parameter_tables = GetNodeMapFromTableMap(
+      key_match.parameter_tables & ~m_table->pos_in_table_list->map(),
+      graph()->table_num_to_node_num);
+
+  if (IsBitSet(m_node_idx, m_receiver->m_immediate_update_delete_candidates)) {
+    path.immediate_update_delete_table = m_node_idx;
+    // Disallow immediate update on the key being looked up for REF_OR_NULL and
+    // REF. It might be safe to update the key on which the REF lookup is
+    // performed, but we follow the lead of the old optimizer and don't try it,
+    // since we don't know how the engine behaves if doing an index lookup on a
+    // changing index.
+    //
+    // EQ_REF should be safe, though. I has at most one matching row, with a
+    // constant lookup value as this is the first table. So this row won't be
+    // seen a second time; the iterator won't even try a second read.
+    if (path.type != AccessPath::EQ_REF && IsUpdateStatement(thd()) &&
+        is_key_used(m_table, m_key_idx, m_table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
+  }
+
+  return path;
+}
+
+RefAccessBuilder::ProposeResult RefAccessBuilder::ProposePath() const {
+  if (!m_table->keys_in_use_for_query.is_set(m_key_idx)) {
+    return ProposeResult::kNoPathFound;
+  }
+
+  KEY *const key{&m_table->key_info[m_key_idx]};
+
+  if (key->flags & HA_FULLTEXT) {
+    return ProposeResult::kNoPathFound;
+  }
+
+  const unsigned usable_keyparts{
+      actual_key_parts(&m_table->key_info[m_key_idx])};
+  const KeyMatch key_match{FindKeyMatch()};
+  if (key_match.matched_keyparts == 0) {
+    return ProposeResult::kNoPathFound;
+  }
+  if (key_match.parameter_tables != m_allowed_parameter_tables) {
+    // We've already seen this before, with a more lenient subset,
+    // so don't try it again.
+    return ProposeResult::kNoPathFound;
+  }
+
+  if (key_match.matched_keyparts < usable_keyparts &&
+      (m_table->file->index_flags(m_key_idx, 0, false) & HA_ONLY_WHOLE_INDEX)) {
+    if (TraceStarted(thd())) {
+      Trace(thd()) << " - " << key->name
+                   << " is whole-key only, and we could only match "
+                   << key_match.matched_keyparts << "/" << usable_keyparts
+                   << " key parts for ref access\n";
+    }
+    return ProposeResult::kNoPathFound;
+  }
+
+  if (TraceStarted(thd())) {
+    if (key_match.matched_keyparts < usable_keyparts) {
+      Trace(thd()) << " - " << key->name
+                   << " is applicable for ref access (using "
+                   << key_match.matched_keyparts << "/" << usable_keyparts
+                   << " key parts only)\n";
+    } else {
+      Trace(thd()) << " - " << key->name << " is applicable for ref access\n";
+    }
+  }
+
+  const std::optional<Lookup> lookup{BuildLookup(key_match)};
+
+  if (!lookup.has_value()) {
+    return ProposeResult::kError;
+  }
+
+  std::optional<PredicateAnalysis> predicate_analysis{
+      AnalyzePredicates(key_match)};
+
+  if (!predicate_analysis.has_value()) {
+    return ProposeResult::kError;
+  }
+
+  AccessPath path{MakePath(key_match, lookup.value(),
+                           predicate_analysis.value().num_output_rows)};
+
+  const double row_count{
+      m_force_num_output_rows_after_filter == kUnknownRowCount
+          ? kUnknownRowCount
+          :
+          // The range optimizer has given us an estimate for the number of
+          // rows after all filters have been applied, that we should be
+          // consistent with. However, that is only filters; not join
+          // conditions. The join conditions we apply are completely independent
+          // of the filters, so we make our usual independence assumption.
+          m_force_num_output_rows_after_filter *
+              predicate_analysis.value().join_condition_selectivity};
+
+  m_receiver->ProposeAccessPathForIndex(
+      m_node_idx, std::move(predicate_analysis.value().applied_predicates),
+      std::move(predicate_analysis.value().subsumed_predicates), row_count,
+      key->name, &path);
+
+  return ProposeResult::kPathsFound;
+}
+
+/**
   Called for each table in the query block, at some arbitrary point before we
   start seeing subsets where it's joined to other tables.
 
@@ -1006,10 +1500,27 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
 
       // Propose ref access using only sargable predicates that reference no
       // other table.
-      if (ProposeRefAccess(
-              table, node_idx, key_idx, range_optimizer_row_estimate, reverse,
-              /*allowed_parameter_tables=*/0, order, &found_index_scan)) {
-        return true;
+      RefAccessBuilder ref_access_builder{
+          RefAccessBuilder()
+              .set_receiver(this)
+              .set_table(table)
+              .set_node_idx(node_idx)
+              .set_key_idx(key_idx)
+              .set_force_num_output_rows_after_filter(
+                  range_optimizer_row_estimate)
+              .set_reverse(reverse)
+              .set_ordering_idx(order)};
+
+      switch (ref_access_builder.ProposePath()) {
+        case RefAccessBuilder::ProposeResult::kError:
+          return true;
+
+        case RefAccessBuilder::ProposeResult::kPathsFound:
+          found_index_scan = true;
+          break;
+
+        case RefAccessBuilder::ProposeResult::kNoPathFound:
+          break;
       }
       // Propose ref access using all sargable predicates that also refer to
       // other tables (e.g. t1.x = t2.x). Such access paths can only be used
@@ -1035,10 +1546,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       }
       for (table_map allowed_parameter_tables :
            NonzeroSubsetsOf(want_parameter_tables)) {
-        bool found_ref = false;
-        if (ProposeRefAccess(table, node_idx, key_idx,
-                             range_optimizer_row_estimate, reverse,
-                             allowed_parameter_tables, order, &found_ref)) {
+        if (ref_access_builder
+                .set_allowed_parameter_tables(allowed_parameter_tables)
+                .ProposePath() == RefAccessBuilder::ProposeResult::kError) {
           return true;
         }
       }
@@ -2686,31 +3196,6 @@ void CostingReceiver::ProposeIndexSkipScan(
                                  "index skip scan");
 }
 
-// Specifies a mapping in an Index_lookup between an index keypart and a
-// condition, with the intention to satisfy the condition with the index keypart
-// (ref access). Roughly comparable to Key_use in the non-hypergraph optimizer.
-struct KeypartForRef {
-  // The condition we are pushing down (e.g. t1.f1 = 3).
-  Item *condition;
-
-  // The field that is to be matched (e.g. t1.f1).
-  Field *field;
-
-  // The value we are matching against (e.g. 3). Could be another field.
-  Item *val;
-
-  // Whether this condition would never match if either side is NULL.
-  bool null_rejecting;
-
-  // Tables used by the condition. Necessarily includes the table “field”
-  // is part of.
-  table_map used_tables;
-
-  // Is it safe to evaluate "val" during optimization? It must be
-  // const_for_execution() and contain no subqueries or stored procedures.
-  bool can_evaluate;
-};
-
 int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
                        unsigned num_keyparts) {
   for (unsigned keypart_idx = 0; keypart_idx < num_keyparts; keypart_idx++) {
@@ -2727,287 +3212,6 @@ bool ContainsSubqueries(Item *item_arg) {
   return WalkItem(item_arg, enum_walk::POSTFIX, [](Item *item) {
     return item->type() == Item::SUBQUERY_ITEM;
   });
-}
-
-bool CostingReceiver::ProposeRefAccess(
-    TABLE *table, int node_idx, unsigned key_idx,
-    double force_num_output_rows_after_filter, bool reverse,
-    table_map allowed_parameter_tables, int ordering_idx, bool *found_ref) {
-  KEY *key = &table->key_info[key_idx];
-
-  if (!table->keys_in_use_for_query.is_set(key_idx)) {
-    return false;
-  }
-
-  if (key->flags & HA_FULLTEXT) {
-    return false;
-  }
-
-  // Go through each of the sargable predicates and see how many key parts
-  // we can match.
-  unsigned matched_keyparts = 0;
-  unsigned length = 0;
-  const unsigned usable_keyparts = actual_key_parts(key);
-  KeypartForRef keyparts[MAX_REF_PARTS];
-  table_map parameter_tables = 0;
-
-  for (unsigned keypart_idx = 0;
-       keypart_idx < usable_keyparts && keypart_idx < MAX_REF_PARTS;
-       ++keypart_idx) {
-    const KEY_PART_INFO &keyinfo = key->key_part[keypart_idx];
-    bool matched_this_keypart = false;
-
-    for (const SargablePredicate &sp :
-         m_graph->nodes[node_idx].sargable_predicates()) {
-      if (!sp.field->part_of_key.is_set(key_idx)) {
-        // Quick reject.
-        continue;
-      }
-      Item_func_eq *item = down_cast<Item_func_eq *>(
-          m_graph->predicates[sp.predicate_index].condition);
-      if (sp.field->eq(keyinfo.field)) {
-        const table_map other_side_tables =
-            sp.other_side->used_tables() & ~PSEUDO_TABLE_BITS;
-        if (IsSubset(other_side_tables, allowed_parameter_tables)) {
-          parameter_tables |= other_side_tables;
-          matched_this_keypart = true;
-          keyparts[keypart_idx].field = sp.field;
-          keyparts[keypart_idx].condition = item;
-          keyparts[keypart_idx].val = sp.other_side;
-          keyparts[keypart_idx].null_rejecting = true;
-          keyparts[keypart_idx].used_tables = item->used_tables();
-          keyparts[keypart_idx].can_evaluate = sp.can_evaluate;
-          ++matched_keyparts;
-          length += keyinfo.store_length;
-          break;
-        }
-      }
-    }
-    if (!matched_this_keypart) {
-      break;
-    }
-  }
-  if (matched_keyparts == 0) {
-    return false;
-  }
-  if (parameter_tables != allowed_parameter_tables) {
-    // We've already seen this before, with a more lenient subset,
-    // so don't try it again.
-    return false;
-  }
-
-  if (matched_keyparts < usable_keyparts &&
-      (table->file->index_flags(key_idx, 0, false) & HA_ONLY_WHOLE_INDEX)) {
-    if (TraceStarted(m_thd)) {
-      Trace(m_thd) << StringPrintf(
-          " - %s is whole-key only, and we could only match %d/%d "
-          "key parts for ref access\n",
-          key->name, matched_keyparts, usable_keyparts);
-    }
-    return false;
-  }
-
-  if (TraceStarted(m_thd)) {
-    if (matched_keyparts < usable_keyparts) {
-      Trace(m_thd) << StringPrintf(
-          " - %s is applicable for ref access (using %d/%d key parts only)\n",
-          key->name, matched_keyparts, usable_keyparts);
-    } else {
-      Trace(m_thd) << StringPrintf(" - %s is applicable for ref access\n",
-                                   key->name);
-    }
-  }
-
-  // Create Index_lookup for this ref, and set it up based on the chosen
-  // keyparts.
-  Index_lookup *ref = new (m_thd->mem_root) Index_lookup;
-  if (init_ref(m_thd, matched_keyparts, length, key_idx, ref)) {
-    return true;
-  }
-
-  uchar *key_buff = ref->key_buff;
-  uchar *null_ref_key = nullptr;
-  bool null_rejecting_key = true;
-  for (unsigned keypart_idx = 0; keypart_idx < matched_keyparts;
-       keypart_idx++) {
-    KeypartForRef *keypart = &keyparts[keypart_idx];
-    const KEY_PART_INFO *keyinfo = &key->key_part[keypart_idx];
-
-    if (init_ref_part(m_thd, keypart_idx, keypart->val, /*cond_guard=*/nullptr,
-                      keypart->null_rejecting, /*const_tables=*/0,
-                      keypart->used_tables, keyinfo->null_bit, keyinfo,
-                      key_buff, ref)) {
-      return true;
-    }
-    // TODO(sgunders): When we get support for REF_OR_NULL,
-    // set null_ref_key = key_buff here if appropriate.
-    /*
-      The selected key will reject matches on NULL values if:
-       - the key field is nullable, and
-       - predicate rejects NULL values (keypart->null_rejecting is true), or
-       - JT_REF_OR_NULL is not effective.
-    */
-    if ((keyinfo->field->is_nullable() || table->is_nullable()) &&
-        (!keypart->null_rejecting || null_ref_key != nullptr)) {
-      null_rejecting_key = false;
-    }
-    key_buff += keyinfo->store_length;
-  }
-
-  double num_output_rows = table->file->stats.records;
-  double join_condition_selectivity = 1.0;
-
-  MutableOverflowBitset applied_predicates{m_thd->mem_root,
-                                           m_graph->predicates.size()};
-  MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
-                                            m_graph->predicates.size()};
-  for (size_t i = 0; i < m_graph->predicates.size(); ++i) {
-    const Predicate &pred = m_graph->predicates[i];
-    int keypart_idx =
-        WasPushedDownToRef(pred.condition, keyparts, matched_keyparts);
-    if (keypart_idx == -1) {
-      continue;
-    }
-
-    if (pred.was_join_condition) {
-      // This predicate was promoted from a join condition to a WHERE predicate,
-      // since it was part of a cycle. For purposes of sargable predicates,
-      // we always see all relevant join conditions, so skip it this time
-      // so that we don't double-count its selectivity.
-      applied_predicates.SetBit(i);
-      continue;
-    }
-
-    if (i < m_graph->num_where_predicates &&
-        !has_single_bit(pred.total_eligibility_set)) {
-      // This is a WHERE condition that is either nondeterministic,
-      // or after an outer join, so it is not sargable. (Having these
-      // show up here is very rare, but will get more common when we
-      // get to (x=... OR NULL) predicates.)
-      continue;
-    }
-
-    if (!IsSubset(pred.condition->used_tables() & ~PSEUDO_TABLE_BITS,
-                  table->pos_in_table_list->map())) {
-      join_condition_selectivity *= pred.selectivity;
-    }
-
-    num_output_rows *= pred.selectivity;
-    applied_predicates.SetBit(i);
-
-    const KeypartForRef &keypart = keyparts[keypart_idx];
-    bool subsumes;
-    if (ref_lookup_subsumes_comparison(m_thd, keypart.field, keypart.val,
-                                       keypart.can_evaluate, &subsumes)) {
-      return true;
-    }
-    if (subsumes) {
-      if (TraceStarted(m_thd)) {
-        Trace(m_thd) << StringPrintf(
-            " - %s is subsumed by ref access on %s.%s\n",
-            ItemToString(pred.condition).c_str(), table->alias,
-            keypart.field->field_name);
-      }
-      subsumed_predicates.SetBit(i);
-    } else {
-      if (TraceStarted(m_thd)) {
-        Trace(m_thd) << StringPrintf(
-            " - %s is not fully subsumed by ref access on %s.%s, keeping\n",
-            ItemToString(pred.condition).c_str(), table->alias,
-            keypart.field->field_name);
-      }
-    }
-  }
-
-  if (force_num_output_rows_after_filter >= 0.0) {
-    // The range optimizer has given us an estimate for the number of
-    // rows after all filters have been applied, that we should be
-    // consistent with. However, that is only filters; not join conditions.
-    // The join conditions we apply are completely independent of the
-    // filters, so we make our usual independence assumption.
-    force_num_output_rows_after_filter *= join_condition_selectivity;
-  }
-
-  // We are guaranteed to get a single row back if all of these hold:
-  //
-  //  - The index must be unique.
-  //  - We can never query it with NULL (ie., no keyparts are nullable,
-  //    or our condition is already NULL-rejecting), since NULL is
-  //    an exception for unique indexes.
-  //  - We use all key parts.
-  //
-  // This matches the logic in create_ref_for_key().
-  const bool single_row = Overlaps(actual_key_flags(key), HA_NOSAME) &&
-                          (!Overlaps(actual_key_flags(key), HA_NULL_PART_KEY) ||
-                           null_rejecting_key) &&
-                          matched_keyparts == usable_keyparts;
-  if (single_row) {
-    // FIXME: This can cause inconsistent row estimates between different access
-    // paths doing the same thing, which is bad (it causes index lookups to be
-    // unfairly preferred, especially as we add more tables to the join -- and
-    // it also causes access path pruning to work less efficiently). See
-    // comments in EstimateFieldSelectivity() and on has_clamped_eq_ref.
-    if (num_output_rows > 1.0 && matched_keyparts >= 2) {
-      has_clamped_multipart_eq_ref = true;
-    }
-    num_output_rows = std::min(num_output_rows, 1.0);
-  }
-
-  const double cost = EstimateRefAccessCost(table, key_idx, num_output_rows);
-
-  AccessPath path;
-  if (single_row) {
-    path.type = AccessPath::EQ_REF;
-    path.eq_ref().table = table;
-    path.eq_ref().ref = ref;
-
-    // We could set really any ordering here if we wanted to.
-    // It's very rare that it should matter, though.
-    path.ordering_state = m_orderings->SetOrder(ordering_idx);
-  } else {
-    path.type = AccessPath::REF;
-    path.ref().table = table;
-    path.ref().ref = ref;
-    path.ref().reverse = reverse;
-
-    // TODO(sgunders): Some storage engines, like NDB, can benefit from
-    // use_order = false if we don't actually need the ordering later.
-    // Consider adding a cost model for this, and then proposing both
-    // with and without order.
-    path.ordering_state = m_orderings->SetOrder(ordering_idx);
-    path.ref().use_order = (path.ordering_state != 0);
-  }
-
-  path.num_output_rows_before_filter = num_output_rows;
-  path.set_cost_before_filter(cost);
-  path.set_init_cost(0.0);
-  path.set_init_once_cost(0.0);
-  path.parameter_tables = GetNodeMapFromTableMap(
-      parameter_tables & ~table->pos_in_table_list->map(),
-      m_graph->table_num_to_node_num);
-
-  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
-    path.immediate_update_delete_table = node_idx;
-    // Disallow immediate update on the key being looked up for REF_OR_NULL and
-    // REF. It might be safe to update the key on which the REF lookup is
-    // performed, but we follow the lead of the old optimizer and don't try it,
-    // since we don't know how the engine behaves if doing an index lookup on a
-    // changing index.
-    //
-    // EQ_REF should be safe, though. I has at most one matching row, with a
-    // constant lookup value as this is the first table. So this row won't be
-    // seen a second time; the iterator won't even try a second read.
-    if (path.type != AccessPath::EQ_REF && IsUpdateStatement(m_thd) &&
-        is_key_used(table, key_idx, table->write_set)) {
-      path.immediate_update_delete_table = -1;
-    }
-  }
-
-  ProposeAccessPathForIndex(
-      node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
-      force_num_output_rows_after_filter, key->name, &path);
-  *found_ref = true;
-  return false;
 }
 
 /**
@@ -3070,13 +3274,23 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
                  return HasConstantEqualityForField(sargable_predicates,
                                                     key_part.field);
                })) {
-      if (ProposeRefAccess(
-              table, node_idx, index_info.key_idx,
-              /*force_num_output_rows_after_filter=*/-1.0, /*reverse=*/false,
-              /*allowed_parameter_tables=*/0,
-              m_orderings->RemapOrderingIndex(index_info.forward_order),
-              found)) {
-        return true;
+      switch (RefAccessBuilder()
+                  .set_receiver(this)
+                  .set_table(table)
+                  .set_node_idx(node_idx)
+                  .set_key_idx(index_info.key_idx)
+                  .set_ordering_idx(
+                      m_orderings->RemapOrderingIndex(index_info.forward_order))
+                  .ProposePath()) {
+        case RefAccessBuilder::ProposeResult::kError:
+          return true;
+
+        case RefAccessBuilder::ProposeResult::kPathsFound:
+          *found = true;
+          break;
+
+        case RefAccessBuilder::ProposeResult::kNoPathFound:
+          break;
       }
     }
   }
