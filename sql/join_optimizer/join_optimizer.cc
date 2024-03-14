@@ -685,6 +685,48 @@ class CostingReceiver {
   bool ProposeIndexScan(TABLE *table, int node_idx,
                         double force_num_output_rows_after_filter,
                         unsigned key_idx, bool reverse, int ordering_idx);
+
+  /// Return type for FindRangeScans().
+  struct FindRangeScansResult final {
+    /// The row estimate, or UnknownRowCount if no estimate could be made.
+    double row_estimate;
+    enum {
+      /// Normal execution.
+      kOk,
+      /// An error occurred.
+      kError,
+      /// The range predicate is always false.
+      kImpossible,
+      /// Range scan forced through hint.
+      kForced
+    } status;
+  };
+
+  /**
+     Propose possible range scan access paths for a single node.
+     @param node_idx The hypergraph node for which we need paths.
+     @param table_ref The table accessed by that node.
+     @returns Status and row estimate.
+  */
+  FindRangeScansResult FindRangeScans(int node_idx, Table_ref *table_ref);
+
+  /// Return value of  ProposeRefs
+  struct ProposeRefsResult final {
+    /// True if one or more index scans were proposed.
+    bool index_scan{false};
+    /// True if one or more REF access paths *not* refering other tables
+    /// were proposed.
+    bool ref_without_parameters{false};
+  };
+
+  /// Propose REF access paths for a single node and particular index.
+  /// @param order_info The index.
+  /// @param node_idx The hypergraph node.
+  /// @param row_estimate The estimated number of result rows.
+  /// @returns A ProposeRefsResult object if there was no error.
+  std::optional<ProposeRefsResult> ProposeRefs(
+      const ActiveIndexInfo &order_info, int node_idx, double row_estimate);
+
   bool ProposeDistanceIndexScan(TABLE *table, int node_idx,
                                 double force_num_output_rows_after_filter,
                                 const SpatialDistanceScanInfo &order_info,
@@ -1332,6 +1374,165 @@ RefAccessBuilder::ProposeResult RefAccessBuilder::ProposePath() const {
   return ProposeResult::kPathsFound;
 }
 
+CostingReceiver::FindRangeScansResult CostingReceiver::FindRangeScans(
+    int node_idx, Table_ref *table_ref) {
+  if (table_ref->is_recursive_reference()) {
+    return {0, FindRangeScansResult::kOk};
+  }
+  const bool force_index_merge{
+      hint_table_state(m_thd, table_ref, INDEX_MERGE_HINT_ENUM, 0)};
+  const bool force_skip_scan{
+      hint_table_state(m_thd, table_ref, SKIP_SCAN_HINT_ENUM, 0)};
+
+  // Note that true error returns in itself is not enough to fail the query;
+  // the range optimizer could be out of RAM easily enough, which is
+  // nonfatal. That just means we won't be using it for this table.
+  bool impossible{false};
+  bool found_forced_plan{false};
+  double range_optimizer_row_estimate{kUnknownRowCount};
+  if (FindIndexRangeScans(node_idx, &impossible, &range_optimizer_row_estimate,
+                          force_index_merge, force_skip_scan,
+                          &found_forced_plan) &&
+      m_thd->is_error()) {
+    return {kUnknownRowCount, FindRangeScansResult::kError};
+  }
+
+  if (!impossible) {
+    return {range_optimizer_row_estimate, found_forced_plan
+                                              ? FindRangeScansResult::kForced
+                                              : FindRangeScansResult::kOk};
+  }
+
+  const char *const cause = "WHERE condition is always false";
+  if (!IsBitSet(table_ref->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
+    // The entire top-level join is going to be empty, so we can abort the
+    // planning and return a zero rows plan.
+    m_query_block->join->zero_result_cause = cause;
+    return {kUnknownRowCount, FindRangeScansResult::kError};
+  }
+
+  AccessPath *const table_path = NewTableScanAccessPath(
+      m_thd, table_ref->table, /*count_examined_rows=*/false);
+
+  AccessPath *const zero_path = NewZeroRowsAccessPath(m_thd, table_path, cause);
+
+  // We need to get the set of functional dependencies right,
+  // even though we don't need to actually apply any filters.
+  FunctionalDependencySet new_fd_set;
+  ApplyPredicatesForBaseTable(
+      node_idx,
+      /*applied_predicates=*/
+      MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
+      /*subsumed_predicates=*/
+      MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
+      /*materialize_subqueries=*/false, zero_path, &new_fd_set);
+
+  zero_path->filter_predicates =
+      MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()};
+
+  zero_path->ordering_state =
+      m_orderings->ApplyFDs(zero_path->ordering_state, new_fd_set);
+
+  ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
+                                 /*obsolete_orderings=*/0, zero_path, "");
+
+  if (TraceStarted(m_thd)) {
+    TraceAccessPaths(TableBitmap(node_idx));
+  }
+
+  return {0, FindRangeScansResult::kImpossible};
+}
+
+std::optional<CostingReceiver::ProposeRefsResult> CostingReceiver::ProposeRefs(
+    const ActiveIndexInfo &order_info, int node_idx, double row_estimate) {
+  const int forward_order =
+      m_orderings->RemapOrderingIndex(order_info.forward_order);
+
+  const int reverse_order =
+      m_orderings->RemapOrderingIndex(order_info.reverse_order);
+
+  ProposeRefsResult result;
+
+  RefAccessBuilder ref_builder;
+  ref_builder.set_receiver(this)
+      .set_table(order_info.table)
+      .set_node_idx(node_idx)
+      .set_force_num_output_rows_after_filter(row_estimate);
+
+  for (bool reverse : {false, true}) {
+    if (reverse && reverse_order == 0) {
+      continue;
+    }
+    const int order = reverse ? reverse_order : forward_order;
+    const int key_idx = order_info.key_idx;
+    // An index scan is more interesting than a table scan if it follows an
+    // interesting order that can be used to avoid a sort later, or if it is
+    // covering so that it can reduce the volume of data to read. A scan of a
+    // clustered primary index reads as much data as a table scan, so it is
+    // not considered unless it follows an interesting order.
+    if (order != 0 || (order_info.table->covering_keys.is_set(key_idx) &&
+                       !IsClusteredPrimaryKey(order_info.table, key_idx))) {
+      if (ProposeIndexScan(order_info.table, node_idx, row_estimate, key_idx,
+                           reverse, order)) {
+        return {};
+      }
+      result.index_scan = true;
+    }
+
+    // Propose ref access using only sargable predicates that reference no
+    // other table.
+    ref_builder.set_reverse(reverse)
+        .set_ordering_idx(order)
+        .set_key_idx(key_idx)
+        .set_allowed_parameter_tables(0);
+
+    switch (ref_builder.ProposePath()) {
+      case RefAccessBuilder::ProposeResult::kError:
+        return {};
+
+      case RefAccessBuilder::ProposeResult::kPathsFound:
+        result.ref_without_parameters = true;
+        break;
+
+      case RefAccessBuilder::ProposeResult::kNoPathFound:
+        break;
+    }
+
+    // Propose ref access using all sargable predicates that also refer to
+    // other tables (e.g. t1.x = t2.x). Such access paths can only be used
+    // on the inner side of a nested loop join, where all the other
+    // referenced tables are among the outer tables of the join. Such path
+    // is called a parameterized path.
+    //
+    // Since indexes can have multiple parts, the access path can also end
+    // up being parameterized on multiple outer tables. However, since
+    // parameterized paths are less flexible in joining than
+    // non-parameterized ones, it can be advantageous to not use all parts
+    // of the index; it's impossible to say locally. Thus, we enumerate all
+    // possible subsets of table parameters that may be useful, to make sure
+    // we don't miss any such paths.
+    table_map want_parameter_tables = 0;
+    for (const SargablePredicate &sp :
+         m_graph->nodes[node_idx].sargable_predicates()) {
+      if (sp.field->table == order_info.table &&
+          sp.field->part_of_key.is_set(key_idx) &&
+          !Overlaps(
+              sp.other_side->used_tables(),
+              PSEUDO_TABLE_BITS | order_info.table->pos_in_table_list->map())) {
+        want_parameter_tables |= sp.other_side->used_tables();
+      }
+    }
+    for (table_map allowed_parameter_tables :
+         NonzeroSubsetsOf(want_parameter_tables)) {
+      if (ref_builder.set_allowed_parameter_tables(allowed_parameter_tables)
+              .ProposePath() == RefAccessBuilder::ProposeResult::kError) {
+        return {};
+      }
+    }
+  }
+  return result;
+}
+
 /**
   Called for each table in the query block, at some arbitrary point before we
   start seeing subsets where it's joined to other tables.
@@ -1347,13 +1548,12 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   m_graph->secondary_engine_costing_flags &=
       ~SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
 
-  TABLE *table = m_graph->nodes[node_idx].table();
-  Table_ref *tl = table->pos_in_table_list;
+  TABLE *const table = m_graph->nodes[node_idx].table();
+  Table_ref *const tl = table->pos_in_table_list;
 
   if (TraceStarted(m_thd)) {
-    Trace(m_thd) << StringPrintf("\nFound node %s [rows=%llu]\n",
-                                 m_graph->nodes[node_idx].table()->alias,
-                                 table->file->stats.records);
+    Trace(m_thd) << "\nFound node " << table->alias
+                 << " [rows=" << table->file->stats.records << "]\n";
   }
   const bool force_index_merge = hint_table_state(
       m_thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
@@ -1387,74 +1587,39 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // row count estimation between the access paths. (It is also usually
   // more precise for complex range conditions than our default estimates.
   // This is also the reason why we run it even if HA_NO_INDEX_ACCESS is set.)
-  double range_optimizer_row_estimate = -1.0;
-  {
-    auto cleanup_mem_root = create_scope_guard([this, node_idx] {
-      if (node_idx == 0) {
-        // We won't be calling the range optimizer anymore, so we don't need
-        // to keep its temporary allocations around. Note that FoundSingleNode()
-        // counts down from N-1 to 0, not up.
-        m_range_optimizer_mem_root.Clear();
-      } else {
-        m_range_optimizer_mem_root.ClearForReuse();
-      }
-    });
-    if (!tl->is_recursive_reference()) {
-      // Note that true error returns in itself is not enough to fail the query;
-      // the range optimizer could be out of RAM easily enough, which is
-      // nonfatal. That just means we won't be using it for this table.
-      bool impossible = false;
-      bool found_forced_plan = false;
-      if (FindIndexRangeScans(node_idx, &impossible,
-                              &range_optimizer_row_estimate, force_index_merge,
-                              force_skip_scan, &found_forced_plan) &&
-          m_thd->is_error()) {
-        return true;
-      }
-      found_index_scan = found_forced_plan;
-      if (impossible) {
-        const char *const cause = "WHERE condition is always false";
-        if (!IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
-          // The entire top-level join is going to be empty, so we can abort the
-          // planning and return a zero rows plan.
-          m_query_block->join->zero_result_cause = cause;
-          return true;
-        }
-        AccessPath *table_path =
-            NewTableScanAccessPath(m_thd, table, /*count_examined_rows=*/false);
-        AccessPath *zero_path = NewZeroRowsAccessPath(m_thd, table_path, cause);
+  const FindRangeScansResult range_result{FindRangeScans(node_idx, tl)};
 
-        // We need to get the set of functional dependencies right,
-        // even though we don't need to actually apply any filters.
-        FunctionalDependencySet new_fd_set;
-        ApplyPredicatesForBaseTable(
-            node_idx,
-            /*applied_predicates=*/
-            MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
-            /*subsumed_predicates=*/
-            MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
-            /*materialize_subqueries=*/false, zero_path, &new_fd_set);
-        zero_path->filter_predicates =
-            MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()};
-        zero_path->ordering_state =
-            m_orderings->ApplyFDs(zero_path->ordering_state, new_fd_set);
-        ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
-                                       /*obsolete_orderings=*/0, zero_path, "");
-        if (TraceStarted(m_thd)) {
-          TraceAccessPaths(TableBitmap(node_idx));
-        }
+  if (node_idx == 0) {
+    // We won't be calling the range optimizer anymore, so we don't need
+    // to keep its temporary allocations around. Note that FoundSingleNode()
+    // counts down from N-1 to 0, not up.
+    m_range_optimizer_mem_root.Clear();
+  } else {
+    m_range_optimizer_mem_root.ClearForReuse();
+  }
+
+  switch (range_result.status) {
+    case FindRangeScansResult::kOk:
+      break;
+
+    case FindRangeScansResult::kError:
+      return true;
+
+    case FindRangeScansResult::kImpossible:
+      return false;
+
+    case FindRangeScansResult::kForced:
+      if (force_index_merge || force_skip_scan) {
         return false;
       }
-      if ((force_index_merge || force_skip_scan) && found_forced_plan) {
-        return false;
-      }
-    }
+      found_index_scan = true;
+      break;
   }
 
   if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) ||
       tl->is_recursive_reference()) {
     // We can't use any indexes, so propose only table scans and end here.
-    if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
+    if (ProposeTableScan(table, node_idx, range_result.row_estimate)) {
       return true;
     }
     if (TraceStarted(m_thd)) {
@@ -1469,88 +1634,17 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // through the tournament. However, if a force index is specified, then
   // we propose index scans.
   for (const ActiveIndexInfo &order_info : *m_active_indexes) {
-    if (order_info.table != table ||
-        Overlaps(table->key_info[order_info.key_idx].flags, HA_SPATIAL)) {
-      continue;
-    }
-    const int forward_order =
-        m_orderings->RemapOrderingIndex(order_info.forward_order);
-    const int reverse_order =
-        m_orderings->RemapOrderingIndex(order_info.reverse_order);
-    for (bool reverse : {false, true}) {
-      if (reverse && reverse_order == 0) {
-        continue;
+    if (order_info.table == table) {
+      const std::optional<ProposeRefsResult> propose_result{
+          ProposeRefs(order_info, node_idx, range_result.row_estimate)};
+
+      if (!propose_result.has_value()) {
+        return true;
       }
-      const int order = reverse ? reverse_order : forward_order;
-      const int key_idx = order_info.key_idx;
-      // An index scan is more interesting than a table scan if it follows an
-      // interesting order that can be used to avoid a sort later, or if it is
-      // covering so that it can reduce the volume of data to read. A scan of a
-      // clustered primary index reads as much data as a table scan, so it
-      // is not considered unless it follows an interesting order.
-      // If force index is specified, we propose index scan anyway.
-      if (order != 0 || (table->covering_keys.is_set(key_idx) &&
-                         !IsClusteredPrimaryKey(table, key_idx))) {
-        if (ProposeIndexScan(table, node_idx, range_optimizer_row_estimate,
-                             key_idx, reverse, order)) {
-          return true;
-        }
+
+      if (propose_result.value().index_scan ||
+          propose_result.value().ref_without_parameters) {
         found_index_scan = true;
-      }
-
-      // Propose ref access using only sargable predicates that reference no
-      // other table.
-      RefAccessBuilder ref_access_builder{
-          RefAccessBuilder()
-              .set_receiver(this)
-              .set_table(table)
-              .set_node_idx(node_idx)
-              .set_key_idx(key_idx)
-              .set_force_num_output_rows_after_filter(
-                  range_optimizer_row_estimate)
-              .set_reverse(reverse)
-              .set_ordering_idx(order)};
-
-      switch (ref_access_builder.ProposePath()) {
-        case RefAccessBuilder::ProposeResult::kError:
-          return true;
-
-        case RefAccessBuilder::ProposeResult::kPathsFound:
-          found_index_scan = true;
-          break;
-
-        case RefAccessBuilder::ProposeResult::kNoPathFound:
-          break;
-      }
-      // Propose ref access using all sargable predicates that also refer to
-      // other tables (e.g. t1.x = t2.x). Such access paths can only be used
-      // on the inner side of a nested loop join, where all the other
-      // referenced tables are among the outer tables of the join. Such path
-      // is called a parameterized path.
-      //
-      // Since indexes can have multiple parts, the access path can also end
-      // up being parameterized on multiple outer tables. However, since
-      // parameterized paths are less flexible in joining than
-      // non-parameterized ones, it can be advantageous to not use all parts
-      // of the index; it's impossible to say locally. Thus, we enumerate all
-      // possible subsets of table parameters that may be useful, to make sure
-      // we don't miss any such paths.
-      table_map want_parameter_tables = 0;
-      for (const SargablePredicate &sp :
-           m_graph->nodes[node_idx].sargable_predicates()) {
-        if (sp.field->table == table && sp.field->part_of_key.is_set(key_idx) &&
-            !Overlaps(sp.other_side->used_tables(),
-                      PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
-          want_parameter_tables |= sp.other_side->used_tables();
-        }
-      }
-      for (table_map allowed_parameter_tables :
-           NonzeroSubsetsOf(want_parameter_tables)) {
-        if (ref_access_builder
-                .set_allowed_parameter_tables(allowed_parameter_tables)
-                .ProposePath() == RefAccessBuilder::ProposeResult::kError) {
-          return true;
-        }
       }
     }
   }
@@ -1563,9 +1657,8 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     const int order = m_orderings->RemapOrderingIndex(order_info.forward_order);
 
     if (table->force_index || order != 0) {
-      if (ProposeDistanceIndexScan(table, node_idx,
-                                   range_optimizer_row_estimate, order_info,
-                                   order)) {
+      if (ProposeDistanceIndexScan(table, node_idx, range_result.row_estimate,
+                                   order_info, order)) {
         return true;
       }
     }
@@ -1573,15 +1666,15 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   }
 
   if (tl->is_fulltext_searched()) {
-    if (ProposeAllFullTextIndexScans(
-            table, node_idx, range_optimizer_row_estimate, &found_index_scan)) {
+    if (ProposeAllFullTextIndexScans(table, node_idx, range_result.row_estimate,
+                                     &found_index_scan)) {
       return true;
     }
   }
   if (!(table->force_index || table->force_index_order ||
         table->force_index_group) ||
       !found_index_scan) {
-    if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
+    if (ProposeTableScan(table, node_idx, range_result.row_estimate)) {
       return true;
     }
   }
