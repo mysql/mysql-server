@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ using std::string;
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
 #define MAX_DELIMITER_LENGTH 16
-#define DEFAULT_MAX_CONN       128
+#define DEFAULT_MAX_CONN       512
 #define REPLACE_ROUND_MAX      16
 #ifdef _WIN32
 #define snprintf sprintf_s
@@ -7097,7 +7097,7 @@ static struct my_option my_long_options[] =
   {"max-connections", OPT_MAX_CONNECTIONS,
    "Max number of open connections to server",
    &opt_max_connections, &opt_max_connections, 0,
-   GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
+   GET_INT, REQUIRED_ARG, 512, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
