@@ -54,7 +54,9 @@ int ndbcluster_binlog_start();
 
 void ndbcluster_binlog_set_server_started();
 
-int ndbcluster_binlog_end();
+void ndbcluster_binlog_pre_dd_shutdown();
+
+void ndbcluster_binlog_end();
 
 /*
   Will return true when the ndb binlog component is properly setup

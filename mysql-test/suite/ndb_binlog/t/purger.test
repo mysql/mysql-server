@@ -1,0 +1,252 @@
+#
+# Test ability of ndb binlog purger to remove rows from mysql.ndb_binlog_index
+# by offloading the removal to purger thread.
+#
+# This is done by:
+# 1. Showing configuration required by test
+# 2. Create 9 binary log files
+# 3. Add additional rows to ndb_binlog_index corresponding to the binary logs,
+#    the number of rows should exceed the configured ndb_log_rate_limit
+# 4. Purging the binary logs, first 1 and then remaininig gradually
+# 5. Check that rows has been removed from ndb_binlog_index
+
+--source include/have_ndb.inc
+
+RESET BINARY LOGS AND GTIDS;
+
+--echo # Find physical binlog file name format as it varies between platforms
+CREATE TABLE check_binlog_name (a int primary key) engine = NDB;
+INSERT INTO check_binlog_name VALUES (1);
+DROP TABLE check_binlog_name;
+let $binlog_name =
+  `SELECT SUBSTRING(File, 1, LENGTH(File)-1)
+     FROM mysql.ndb_binlog_index ORDER BY epoch LIMIT 1`;
+#echo binlog_name: $binlog_name;
+
+RESET BINARY LOGS AND GTIDS;
+
+
+--echo # =======================================
+--echo # 1. Showing configuration required by test
+--echo # =======================================
+
+--echo # Show that binlogging of NDB changes are on
+SHOW VARIABLES LIKE 'log_bin';
+SHOW VARIABLES LIKE 'ndb_log_bin';
+
+--echo # Turn off binlogging statements in this file
+SET sql_log_bin = OFF;
+
+--echo # Turn off writing queries to query log
+SET sql_log_off = ON;
+
+--echo # Turn off using backslash as escape to avoid interfering with filename
+SET sql_mode=(SELECT CONCAT(@@sql_mode,',NO_BACKSLASH_ESCAPES'));
+
+--echo #
+--echo # InnoDB adaptive flushing on
+let $adaptive_flushing =
+`SELECT VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'innodb_adaptive_flushing'`;
+echo adaptive_flushing: $adaptive_flushing;
+
+--echo #
+--echo # Innodb buffer pool size
+let $buffer_pool_size =
+`SELECT VARIABLE_VALUE / 1024 / 1024
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'innodb_buffer_pool_size'`;
+echo buffer_pool_size: $buffer_pool_size MB;
+
+--echo #
+--echo # InnoDB redo log capacity controls how much can be changed without flush
+let $redo_log_capacity =
+`SELECT VARIABLE_VALUE / 1024 / 1024
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME =  'innodb_redo_log_capacity'`;
+echo redo_log_capacity: $redo_log_capacity MB;
+
+--echo #
+--echo # The ndb binlog purger rate limit
+let $purge_rate =
+`SELECT VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME =  'ndb_log_purge_rate'`;
+echo purge_rate: $purge_rate;
+
+--echo #
+--echo # Show primary keys of mysql.ndb_binlog_index table
+SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'mysql' AND
+        TABLE_NAME = 'ndb_binlog_index' AND
+        COLUMN_KEY = 'PRI'
+  ORDER BY ORDINAL_POSITION;
+
+--echo #
+--echo # Show columns of mysql.ndb_binlog_index table
+SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'mysql' AND
+        TABLE_NAME = 'ndb_binlog_index'
+  ORDER BY ORDINAL_POSITION;
+
+# Read initial status counter values
+let $purged_rows_before =
+`SELECT VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'ndb_log_purged_rows'`;
+let $purged_files_before =
+`SELECT VARIABLE_VALUE
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'ndb_log_purged_files'`;
+
+
+--echo # =======================================
+--echo # 2. Create 9 binary log files
+--echo # =======================================
+
+let $NUM_FILES = 9;
+let $i = 0;
+while ($i < $NUM_FILES) {
+  FLUSH BINARY LOGS;
+  inc $i;
+}
+
+SHOW BINARY LOGS;
+
+--echo # =======================================
+--echo # 3. Add additional rows to  ndb_binlog_index corresponding to the
+--echo #    binary logs, the number of rows should exceed the configured
+--echo #    ndb_log_rate_limit
+--echo # =======================================
+
+--disable_query_log
+--disable_result_log
+# Load 10000 rows into temp table
+CREATE TEMPORARY TABLE temp (
+  `Position` bigint unsigned NOT NULL,
+  `File` varchar(255) NOT NULL,
+  `epoch` bigint unsigned NOT NULL,
+  `inserts` int unsigned NOT NULL,
+  `updates` int unsigned NOT NULL,
+  `deletes` int unsigned NOT NULL,
+  `schemaops` int unsigned NOT NULL,
+  `orig_server_id` int unsigned NOT NULL,
+  `orig_epoch` bigint unsigned NOT NULL,
+  `gci` int unsigned NOT NULL,
+  `next_position` bigint unsigned NOT NULL,
+  `next_file` varchar(255) NOT NULL,
+  PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
+) engine = InnoDB;
+let $i = 0;
+let $rows = 1000;
+while ($i < $rows) {
+  eval INSERT INTO temp (
+      epoch, orig_server_id, orig_epoch,
+      Position, File, inserts, updates, deletes, schemaops,
+      gci, next_position, next_file
+    ) VALUES (
+      $i, 200, $i,
+      123456, 'some_filename.00001', 1, 2, 3, 5,
+      $i, 300, 'some_other_filename.00001');
+
+  inc $i;
+}
+
+# Load from temp table into ndb_binlog_index, setting new pks and filename
+# for each lap
+let $i = 1;
+let $count = 1;
+let $loops = $NUM_FILES;
+while ($i <= $loops) {
+  let $file = '$binlog_name$i';
+  let $j = 1;
+  let $chunk = 10; # *1000 rows per file
+  while($j <= $chunk) {
+    eval INSERT INTO mysql.ndb_binlog_index (
+      epoch, orig_server_id, orig_epoch,
+      Position, File, inserts, updates, deletes, schemaops,
+      gci, next_position, next_file
+    )
+    SELECT epoch+$rows*$count, orig_server_id, orig_epoch,
+      Position, $file, inserts, updates, deletes, schemaops,
+      gci, next_position, next_file
+      FROM temp ORDER BY epoch, orig_server_id, orig_epoch;
+    inc $j;
+    inc $count;
+  }
+
+  inc $i;
+}
+
+--enable_query_log
+--enable_result_log
+
+SELECT COUNT(*) FROM mysql.ndb_binlog_index;
+--replace_result $binlog_name BINLOG_NAME
+SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
+
+
+--echo # =======================================
+--echo # 4. Purging the binary logs
+--echo # =======================================
+
+--echo #
+--echo # Remove the first binlog
+PURGE BINARY LOGS TO 'binlog.000002';
+--echo # Check that rows for first binlog file is removed
+--replace_result $binlog_name BINLOG_NAME
+eval SELECT COUNT(*) FROM mysql.ndb_binlog_index
+  WHERE File IN (CONCAT('$binlog_name', 1));
+
+--echo #
+--echo # Remove the subsequent two binlogs
+PURGE BINARY LOGS TO 'binlog.000004';
+--echo # Check that rows for the two purged binlog files has been removed
+--replace_result $binlog_name BINLOG_NAME
+eval SELECT COUNT(*) FROM mysql.ndb_binlog_index
+  WHERE File IN (CONCAT('$binlog_name', 2),
+                 CONCAT('$binlog_name', 3));
+
+--echo #
+--echo # Remove the subsequent five binlogs
+PURGE BINARY LOGS TO 'binlog.000009';
+--echo # Check that rows for the five purged binlog files has been removed
+--replace_result $binlog_name BINLOG_NAME
+eval SELECT COUNT(*) FROM mysql.ndb_binlog_index
+  WHERE File IN (CONCAT('$binlog_name', 4),
+                 CONCAT('$binlog_name', 5),
+                 CONCAT('$binlog_name', 6),
+                 CONCAT('$binlog_name', 7),
+                 CONCAT('$binlog_name', 8));
+
+--echo # Still rows left for the last binlog file
+--replace_result $binlog_name BINLOG_NAME
+SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
+
+--echo # Rotate to new binary log and purge the last binlog file with rows
+FLUSH BINARY LOGS;
+PURGE BINARY LOGS TO 'binlog.000010';
+
+--echo # Show status counters:
+let $purged_rows =
+`SELECT VARIABLE_VALUE - $purged_rows_before
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'ndb_log_purged_rows'`;
+echo purged_rows: $purged_rows;
+let $purged_files =
+`SELECT VARIABLE_VALUE - $purged_files_before
+  FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'ndb_log_purged_files'`;
+echo purged_files: $purged_files;
+
+--echo # =======================================
+--echo # 5. Check that all rows has been removed from ndb_binlog_index
+--echo # =======================================
+
+if (`SELECT COUNT(*) FROM mysql.ndb_binlog_index`) {
+  echo binlog_name: $binlog_name;
+  SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
+  SELECT * FROM mysql.ndb_binlog_index LIMIT 10;
+  die Failed to delete all rows;
+}

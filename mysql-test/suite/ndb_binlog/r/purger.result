@@ -1,0 +1,152 @@
+RESET BINARY LOGS AND GTIDS;
+# Find physical binlog file name format as it varies between platforms
+CREATE TABLE check_binlog_name (a int primary key) engine = NDB;
+INSERT INTO check_binlog_name VALUES (1);
+DROP TABLE check_binlog_name;
+RESET BINARY LOGS AND GTIDS;
+# =======================================
+# 1. Showing configuration required by test
+# =======================================
+# Show that binlogging of NDB changes are on
+SHOW VARIABLES LIKE 'log_bin';
+Variable_name	Value
+log_bin	ON
+SHOW VARIABLES LIKE 'ndb_log_bin';
+Variable_name	Value
+ndb_log_bin	ON
+# Turn off binlogging statements in this file
+SET sql_log_bin = OFF;
+# Turn off writing queries to query log
+SET sql_log_off = ON;
+# Turn off using backslash as escape to avoid interfering with filename
+SET sql_mode=(SELECT CONCAT(@@sql_mode,',NO_BACKSLASH_ESCAPES'));
+#
+# InnoDB adaptive flushing on
+adaptive_flushing: ON
+#
+# Innodb buffer pool size
+buffer_pool_size: 24 MB
+#
+# InnoDB redo log capacity controls how much can be changed without flush
+redo_log_capacity: 10 MB
+#
+# The ndb binlog purger rate limit
+purge_rate: 8192
+#
+# Show primary keys of mysql.ndb_binlog_index table
+SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'mysql' AND
+TABLE_NAME = 'ndb_binlog_index' AND
+COLUMN_KEY = 'PRI'
+  ORDER BY ORDINAL_POSITION;
+COLUMN_NAME	COLUMN_TYPE
+epoch	bigint unsigned
+orig_server_id	int unsigned
+orig_epoch	bigint unsigned
+#
+# Show columns of mysql.ndb_binlog_index table
+SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'mysql' AND
+TABLE_NAME = 'ndb_binlog_index'
+  ORDER BY ORDINAL_POSITION;
+COLUMN_NAME	COLUMN_TYPE
+Position	bigint unsigned
+File	varchar(255)
+epoch	bigint unsigned
+inserts	int unsigned
+updates	int unsigned
+deletes	int unsigned
+schemaops	int unsigned
+orig_server_id	int unsigned
+orig_epoch	bigint unsigned
+gci	int unsigned
+next_position	bigint unsigned
+next_file	varchar(255)
+# =======================================
+# 2. Create 9 binary log files
+# =======================================
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+SHOW BINARY LOGS;
+Log_name	File_size	Encrypted
+binlog.000001	202	No
+binlog.000002	202	No
+binlog.000003	202	No
+binlog.000004	202	No
+binlog.000005	202	No
+binlog.000006	202	No
+binlog.000007	202	No
+binlog.000008	202	No
+binlog.000009	202	No
+binlog.000010	158	No
+# =======================================
+# 3. Add additional rows to  ndb_binlog_index corresponding to the
+#    binary logs, the number of rows should exceed the configured
+#    ndb_log_rate_limit
+# =======================================
+SELECT COUNT(*) FROM mysql.ndb_binlog_index;
+COUNT(*)
+90000
+SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
+COUNT(*)	File
+10000	BINLOG_NAME1
+10000	BINLOG_NAME2
+10000	BINLOG_NAME3
+10000	BINLOG_NAME4
+10000	BINLOG_NAME5
+10000	BINLOG_NAME6
+10000	BINLOG_NAME7
+10000	BINLOG_NAME8
+10000	BINLOG_NAME9
+# =======================================
+# 4. Purging the binary logs
+# =======================================
+#
+# Remove the first binlog
+PURGE BINARY LOGS TO 'binlog.000002';
+# Check that rows for first binlog file is removed
+SELECT COUNT(*) FROM mysql.ndb_binlog_index
+WHERE File IN (CONCAT('BINLOG_NAME', 1));
+COUNT(*)
+0
+#
+# Remove the subsequent two binlogs
+PURGE BINARY LOGS TO 'binlog.000004';
+# Check that rows for the two purged binlog files has been removed
+SELECT COUNT(*) FROM mysql.ndb_binlog_index
+WHERE File IN (CONCAT('BINLOG_NAME', 2),
+CONCAT('BINLOG_NAME', 3));
+COUNT(*)
+0
+#
+# Remove the subsequent five binlogs
+PURGE BINARY LOGS TO 'binlog.000009';
+# Check that rows for the five purged binlog files has been removed
+SELECT COUNT(*) FROM mysql.ndb_binlog_index
+WHERE File IN (CONCAT('BINLOG_NAME', 4),
+CONCAT('BINLOG_NAME', 5),
+CONCAT('BINLOG_NAME', 6),
+CONCAT('BINLOG_NAME', 7),
+CONCAT('BINLOG_NAME', 8));
+COUNT(*)
+0
+# Still rows left for the last binlog file
+SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
+COUNT(*)	File
+10000	BINLOG_NAME9
+# Rotate to new binary log and purge the last binlog file with rows
+FLUSH BINARY LOGS;
+PURGE BINARY LOGS TO 'binlog.000010';
+# Show status counters:
+purged_rows: 90000
+purged_files: 9
+# =======================================
+# 5. Check that all rows has been removed from ndb_binlog_index
+# =======================================

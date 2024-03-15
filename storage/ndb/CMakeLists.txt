@@ -117,6 +117,7 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_replica.cc
     plugin/ndb_binlog_index_rows.cc
     plugin/ndb_rpl_filter.cc
+    plugin/ndb_binlog_purger.cc
   )
 
   # Include directories used when building ha_ndbcluster

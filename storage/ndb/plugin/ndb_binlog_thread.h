@@ -32,7 +32,6 @@
 #include <vector>
 
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
-#include "storage/ndb/plugin/ndb_binlog_hooks.h"
 #include "storage/ndb/plugin/ndb_binlog_index_rows.h"
 #include "storage/ndb/plugin/ndb_component.h"
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
@@ -50,8 +49,6 @@ class Ndb_blobs_buffer;
 struct NDB_SHARE;
 
 class Ndb_binlog_thread : public Ndb_component {
-  Ndb_binlog_hooks binlog_hooks;
-  static int do_after_reset_master(void *);
   Ndb_metadata_sync metadata_sync;
 
   // Holds reference to share for ndb_apply_status table
@@ -112,38 +109,21 @@ class Ndb_binlog_thread : public Ndb_component {
   ~Ndb_binlog_thread() override;
 
   /*
-    @brief Check if purge of the specified binlog file can be handled
-    by the binlog thread.
-
-    @param filename Name of the binlog file which has been purged
-
-    @return true the binlog thread will handle the purge
-    @return false the binlog thread will not handle the purge
-  */
-  bool handle_purge(const char *filename);
-
-  /*
     @brief Iterate through the excluded objects and check if the mismatches
            are still present or if the user has manually synchronized the
            objects
 
     @param thd  Thread handle
-
-    @return void
   */
   void validate_sync_excluded_objects(THD *thd);
 
   /*
     @brief Clear the list of objects excluded from sync
-
-    @return void
   */
   void clear_sync_excluded_objects();
 
   /*
     @brief Clear the list of objects whose sync has been retried
-
-    @return void
   */
   void clear_sync_retry_objects();
 
@@ -193,8 +173,6 @@ class Ndb_binlog_thread : public Ndb_component {
     @brief Retrieve information about objects currently excluded from sync
 
     @param excluded_table  Pointer to excluded objects table object
-
-    @return void
   */
   void retrieve_sync_excluded_objects(
       Ndb_sync_excluded_objects_table *excluded_table);
@@ -210,8 +188,6 @@ class Ndb_binlog_thread : public Ndb_component {
     @brief Retrieve information about objects currently awaiting sync
 
     @param pending_table  Pointer to pending objects table object
-
-    @return void
   */
   void retrieve_sync_pending_objects(
       Ndb_sync_pending_objects_table *pending_table);
@@ -275,15 +251,7 @@ class Ndb_binlog_thread : public Ndb_component {
   void check_reconnect_incident(THD *thd, injector *inj,
                                 Reconnect_type incident_id) const;
 
-  /**
-    @brief Perform any purge requests which has been queued up earlier.
-
-    @param thd Thread handle
-  */
-  void recall_pending_purges(THD *thd);
-  std::mutex m_purge_mutex;                   // Protects m_pending_purges
-  std::vector<std::string> m_pending_purges;  // List of pending purges
-
+ private:
   /**
      @brief Remove event operations belonging to one Ndb object
 

@@ -26,8 +26,10 @@
 #ifndef NDB_LOCAL_CONNECTION_H
 #define NDB_LOCAL_CONNECTION_H
 
+#include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "my_inttypes.h"
 
@@ -66,6 +68,17 @@ class Ndb_local_connection {
 
   bool delete_rows(const std::string &db, const std::string &table,
                    bool ignore_no_such_table, const std::string &where);
+
+  bool get_affected_rows(ulong &rows);
+
+  // Run the given SQL query and return a list of first column from all rows
+  bool select_column(const std::string &query,
+                     std::vector<std::string> &values);
+  // Run the given query and return a list of first column from rows where the
+  // first column match the filter
+  bool select_column_matching_filter(
+      const std::string &query, std::vector<std::string> &values,
+      std::function<bool(std::string_view)> filter);
 
   bool create_util_table(const std::string &table_def_sql);
 
