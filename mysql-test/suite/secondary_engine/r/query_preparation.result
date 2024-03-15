@@ -1071,6 +1071,8 @@ DROP TABLE t;
 #
 CREATE TABLE t(x INT);
 INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
+PREPARE ps FROM 'SELECT * FROM t';
+TRUNCATE TABLE performance_schema.prepared_statements_instances;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT * FROM t;
 x
@@ -1086,6 +1088,25 @@ FROM performance_schema.events_statements_summary_by_digest
 WHERE digest_text LIKE 'SELECT %';
 count_star	count_secondary	sum_select_scan
 1	0	1
+EXECUTE ps;
+x
+1
+2
+3
+4
+5
+6
+7
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'EXECUTE %';
+count_star	count_secondary	sum_select_scan
+1	0	1
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+execution_engine	count_execute	count_secondary
+PRIMARY	1	0
 ALTER TABLE t SECONDARY_ENGINE MOCK;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT * FROM t;
@@ -1102,6 +1123,25 @@ FROM performance_schema.events_statements_summary_by_digest
 WHERE digest_text LIKE 'SELECT %';
 count_star	count_secondary	sum_select_scan
 1	0	1
+EXECUTE ps;
+x
+1
+2
+3
+4
+5
+6
+7
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'EXECUTE %';
+count_star	count_secondary	sum_select_scan
+1	0	1
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+execution_engine	count_execute	count_secondary
+PRIMARY	2	0
 ALTER TABLE t SECONDARY_LOAD;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT * FROM t;
@@ -1111,6 +1151,65 @@ FROM performance_schema.events_statements_summary_by_digest
 WHERE digest_text LIKE 'SELECT %';
 count_star	count_secondary	sum_select_scan
 1	1	1
+EXECUTE ps;
+x
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'EXECUTE %';
+count_star	count_secondary	sum_select_scan
+1	1	1
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+execution_engine	count_execute	count_secondary
+SECONDARY	3	1
+SET @saved_use_secondary_engine = @@use_secondary_engine;
+SET use_secondary_engine = OFF;
+EXECUTE ps;
+x
+1
+2
+3
+4
+5
+6
+7
+SET @@use_secondary_engine = @saved_use_secondary_engine;
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'EXECUTE %';
+count_star	count_secondary	sum_select_scan
+2	1	2
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+execution_engine	count_execute	count_secondary
+PRIMARY	4	1
+SET @saved_use_secondary_engine = @@use_secondary_engine;
+SET use_secondary_engine = FORCED;
+EXECUTE ps;
+x
+SET @@use_secondary_engine = @saved_use_secondary_engine;
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'EXECUTE %';
+count_star	count_secondary	sum_select_scan
+3	2	3
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+execution_engine	count_execute	count_secondary
+SECONDARY	5	2
+CREATE PROCEDURE p() EXECUTE ps;
+CALL p();
+x
+DROP PROCEDURE p;
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+execution_engine	count_execute	count_secondary
+SECONDARY	6	3
+DROP PREPARE ps;
 FLUSH STATUS;
 CREATE TABLE tt AS SELECT * FROM t;
 SHOW STATUS LIKE 'Select_scan';

@@ -96,10 +96,10 @@ When one supplies long data for a placeholder:
 #include "my_config.h"
 
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <unordered_map>
@@ -108,6 +108,7 @@ When one supplies long data for a placeholder:
 #include "decimal.h"
 #include "field_types.h"
 #include "map_helpers.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_command.h"
@@ -118,9 +119,10 @@ When one supplies long data for a placeholder:
 #include "my_time.h"
 #include "mysql/com_data.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_ps.h"  // MYSQL_EXECUTE_PS
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/strings/dtoa.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
@@ -131,10 +133,13 @@ When one supplies long data for a placeholder:
 #include "nulls.h"
 #include "scope_guard.h"
 #include "sql-common/my_decimal.h"
+#include "sql/aggregated_stats.h"
+#include "sql/aggregated_stats_buffer.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
+#include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/handler.h"
@@ -142,7 +147,8 @@ When one supplies long data for a placeholder:
 #include "sql/item_func.h"  // user_var_entry
 #include "sql/log.h"        // query_logger
 #include "sql/mdl.h"
-#include "sql/mysqld.h"     // opt_general_log
+#include "sql/mysqld.h"  // opt_general_log
+#include "sql/opt_hints.h"
 #include "sql/opt_trace.h"  // Opt_trace_array
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
@@ -159,13 +165,17 @@ When one supplies long data for a placeholder:
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_cmd_dml.h"
 #include "sql/sql_const.h"
 #include "sql/sql_cursor.h"  // Server_side_cursor
 #include "sql/sql_db.h"      // mysql_change_db
+#include "sql/sql_digest.h"
 #include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables
 #include "sql/sql_insert.h"   // Query_result_create
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // sql_command_flags
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h"
@@ -175,12 +185,10 @@ When one supplies long data for a placeholder:
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_rollback_implicit
-#include "sql/window.h"
 #include "sql_string.h"
 #include "string_with_len.h"
-#include "violite.h"
+#include "template_utils.h"
 
 namespace resourcegroups {
 class Resource_group;
@@ -2969,15 +2977,10 @@ reexecute:
                Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         assert(!m_lex->unit->is_executed());
         thd->clear_error();
-        if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE) {
-          thd->set_secondary_engine_optimization(
-              Secondary_engine_optimization::SECONDARY);
-          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, true);
-        } else {
-          thd->set_secondary_engine_optimization(
-              Secondary_engine_optimization::PRIMARY_ONLY);
-          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
-        }
+        thd->set_secondary_engine_optimization(
+            err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE
+                ? Secondary_engine_optimization::SECONDARY
+                : Secondary_engine_optimization::PRIMARY_ONLY);
         // Disable the general log. The query was written to the general log in
         // the first attempt to execute it. No need to write it twice.
         general_log_temporarily_disabled |= disable_general_log(thd);
@@ -2995,7 +2998,6 @@ reexecute:
           thd->clear_error();
           thd->set_secondary_engine_optimization(
               Secondary_engine_optimization::PRIMARY_ONLY);
-          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
           error = reprepare(thd);
           if (!error) {
             // The reprepared statement should not use a secondary engine.
@@ -3015,6 +3017,13 @@ reexecute:
   // and executing a statement for a secondary engine.
   if (general_log_temporarily_disabled)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
+
+  // Record in performance schema whether a secondary engine was used.
+  const bool used_secondary = thd->secondary_engine_optimization() ==
+                              Secondary_engine_optimization::SECONDARY;
+  MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, used_secondary);
+  mysql_thread_set_secondary_engine(used_secondary);
+  mysql_statement_set_secondary_engine(thd->m_statement_psi, used_secondary);
 
   return error;
 }

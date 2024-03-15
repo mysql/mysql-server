@@ -836,10 +836,24 @@ DROP TABLE t;
 CREATE TABLE t(x INT);
 INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
 
+PREPARE ps FROM 'SELECT * FROM t';
+
 let $show_events =
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
 WHERE digest_text LIKE 'SELECT %';
+
+let $show_events_ps =
+SELECT count_star, count_secondary, sum_select_scan
+FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'EXECUTE %';
+
+let $show_ps_instances =
+SELECT execution_engine, count_execute, count_secondary
+FROM performance_schema.prepared_statements_instances
+WHERE statement_name = 'ps';
+
+TRUNCATE TABLE performance_schema.prepared_statements_instances;
 
 # The table does not have a secondary engine yet. Count_star should be
 # 1, since a single statement is executed. Count_secondary should be
@@ -852,6 +866,11 @@ SELECT * FROM t;
 --enable_ps_protocol
 --eval $show_events
 
+--sorted_result
+EXECUTE ps;
+--eval $show_events_ps
+--eval $show_ps_instances
+
 ALTER TABLE t SECONDARY_ENGINE MOCK;
 
 # The table has a secondary engine, but it's not loaded into the
@@ -863,6 +882,11 @@ TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT * FROM t;
 --enable_ps_protocol
 --eval $show_events
+
+--sorted_result
+EXECUTE ps;
+--eval $show_events_ps
+--eval $show_ps_instances
 
 ALTER TABLE t SECONDARY_LOAD;
 
@@ -880,6 +904,38 @@ TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT * FROM t;
 --enable_ps_protocol
 --eval $show_events
+
+EXECUTE ps;
+--eval $show_events_ps
+--eval $show_ps_instances
+
+# Executing while secondary engine is disabled should increase
+# execution count and scan count, but not secondary engine count.
+SET @saved_use_secondary_engine = @@use_secondary_engine;
+SET use_secondary_engine = OFF;
+--sorted_result
+EXECUTE ps;
+SET @@use_secondary_engine = @saved_use_secondary_engine;
+--eval $show_events_ps
+--eval $show_ps_instances
+
+# Executing while secondary is forced should increase secondary engine
+# count, as well as execution count and scan count.
+SET @saved_use_secondary_engine = @@use_secondary_engine;
+SET use_secondary_engine = FORCED;
+EXECUTE ps;
+SET @@use_secondary_engine = @saved_use_secondary_engine;
+--eval $show_events_ps
+--eval $show_ps_instances
+
+# Executing the prepared statement from a stored procedure should also
+# increase the execution count and secondary engine count.
+CREATE PROCEDURE p() EXECUTE ps;
+CALL p();
+DROP PROCEDURE p;
+--eval $show_ps_instances
+
+DROP PREPARE ps;
 
 # Expect no double-counting in CREATE TABLE AS SELECT either.
 FLUSH STATUS;

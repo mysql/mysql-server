@@ -26,29 +26,27 @@
 #include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <new>
 
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_command.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql_com.h"
 #include "sql/sql_class.h"  // Query_arena
-#include "sql/sql_error.h"
-#include "sql/sql_list.h"
-#include "sql/statement/statement_runnable.h"
 
-class Item;
 class Item_param;
 class Prepared_statement;
-class Query_result_send;
+class Protocol;
+class Query_result;
+class Server_runnable;
 class String;
 struct LEX;
 struct PS_PARAM;
-class Table_ref;
+template <class T>
+class List;
 union COM_DATA;
 
 /**
