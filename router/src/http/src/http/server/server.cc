@@ -45,7 +45,7 @@ std::atomic<uint64_t> http_connections_reused{0};
 namespace {
 
 template <typename Connection>
-void disconnect(Connection *c) {
+void disconnect(Connection &c) {
   auto &socket = c->get_socket();
   auto &io_ctx = socket.get_executor().context();
 
@@ -104,11 +104,11 @@ size_t Server::disconnect_all() {
   std::lock_guard<std::mutex> lock(mutex_connection_);
   auto count = connections_.size() + connections_ssl_.size();
   for (auto &c : connections_ssl_) {
-    disconnect(c.get());
+    disconnect(c);
   }
 
   for (auto &c : connections_) {
-    disconnect(c.get());
+    disconnect(c);
   }
 
   sync_state_.exchange({State::kInitializing, State::kRunning},
