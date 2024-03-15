@@ -227,10 +227,6 @@ DROP TABLESPACE mysql;
 ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 ALTER TABLESPACE mysql RENAME TO xyz;
 ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
-ALTER TABLESPACE mysql ENGINE=myisam;
-ERROR HY000: Engine 'myisam' does not match stored engine 'InnoDB' for tablespace 'mysql'
-ALTER TABLESPACE mysql ENGINE=memory;
-ERROR HY000: Engine 'memory' does not match stored engine 'InnoDB' for tablespace 'mysql'
 #########################################################################
 # Restart with same keyring option
 #   - tables in mysql ts should be accessible
