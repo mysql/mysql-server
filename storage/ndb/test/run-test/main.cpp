@@ -1019,7 +1019,11 @@ void test_case_results(TestResult *test_result, const atrt_testcase &testcase) {
   res_dir.assfmt("result.%d", testcase.test_no);
   remove_dir(res_dir.c_str(), true);
 
-  if (testcase.m_report || test_result->result != ERR_OK) {
+  if (!testcase.m_report && test_result->result == ERR_TEST_SKIPPED &&
+      rename("result/ndb_api.1", res_dir.c_str()) == 0) {
+    g_logger.debug("Test skipped, storing only test output");
+    remove_dir("result", true);
+  } else if (testcase.m_report || test_result->result != ERR_OK) {
     if (rename("result", res_dir.c_str()) != 0) {
       g_logger.critical("Failed to rename %s as %s", "result", res_dir.c_str());
       remove_dir("result", true);
