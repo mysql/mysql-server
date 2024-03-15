@@ -1080,41 +1080,6 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
   // 把该线程内部的 RDMABufferAllocator 等直接移到log_t中
   // storage/innobase/include/log0sys.h
 
-  //  if (log.m_remote_buf_thd == nullptr) {
-  //    log.m_remote_buf_thd = create_internal_thd();
-  //    // sql/conn_handler/connection_handler_per_thread.cc
-  //    /* @StateReplicate: Init the recourses need for RDMA operation when init
-  //     new_thd: CoroutineScheduler, used for RDMA operations (coro_num = 1)
-  //     thread local RDMA region (allocated from global RDMA region)
-  //     address_cache, used to address info in remote StateNode () qp_manager,
-  //     used to build QPConnection
-  //     */
-  //    THD *thd = log.m_remote_buf_thd;
-  //    thd->coro_sched = new CoroutineScheduler(0, CORO_NUM);
-  //    auto local_rdma_region_range =
-  //      RDMARegionAllocator::get_instance()->GetThreadLocalRegion(
-  //          0);
-  //    // rdma_buffer_allocator is used to manage the local buffer used for
-  //    RDMA
-  //    // operations
-  //    thd->rdma_buffer_allocator = new RDMABufferAllocator(
-  //        local_rdma_region_range.first, local_rdma_region_range.second);
-  //    // log_offset allocator is used to calculte the remote log_buffer_offset
-  //    // 初始化 LogOffsetAllocator 需要用到 Connection_handler_manager
-  //    // thd->log_offset_allocator = new LogOffsetAllocator(
-  //    //     thd->thread_id(),
-  //    //     Connection_handler_manager::get_instance()->max_threads);
-  //    // thd->qp_manager = new QPManager(thd->thread_id());
-  //    std::cout << "QPMgr::get_instance in log0buf \n";
-  //    thd->qp_manager = QPManager::get_instance();
-  //    // thd->qp_manager->BuildQPConnection(MetaManager::get_instance());
-  //
-  //    thd->rdma_allocated_ = true;
-  //  }
-
-  // 这里是新启的线程，不是trx->mysql_thd，读不到rdma_allocated_
-  //  if (log.m_remote_buf_thd != nullptr &&
-  //      log.m_remote_buf_thd->rdma_allocated_) {
   if (log.qp_manager != nullptr) {
     node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
     RCQP *qp = log.qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
@@ -1123,25 +1088,9 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // std::fstream f;
     // f.open("/usr/local/mysql/mylog.log", std::ios::out|std::ios::app);
 
-    // 不需要加锁
-    // 加锁，并发控制
-    //  char *redo_log_remote_buf_latch =
-    //      thd->rdma_buffer_allocator->Alloc(sizeof(latch_t));
-    //  *(rwlatch_t *)redo_log_remote_buf_latch = REDOLOG_LOCKED;
-    //
-    //  while (*(rwlatch_t *)redo_log_remote_buf_latch != REDOLOG_UNLOCKED) {
-    //    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
-    //                                      meta_mgr->GetRedoLogRemoteBufLatchAddr(),
-    //                                      static_cast<uint64_t>(REDOLOG_UNLOCKED),
-    //                                      static_cast<uint64_t>(REDOLOG_LOCKED)))
-    //                                      {
-    //      // return;
-    //    }
-    //  }
 
     // 不分配额外的buffer了，直接把原有的buffer传到状态层
-    // 在状态节点分配空间
-    // 实际数据存储在log.buf
+    // 在状态节点分配空间，实际数据存储在log.buf
     // log_t没法转成char*直接传过去，模仿TxnItem包装成RedoLogItem
     RedoLogItem *redo_log_remote_buf =
         (RedoLogItem *)log.rdma_buffer_allocator->Alloc(sizeof(RedoLogItem));
@@ -1180,15 +1129,10 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // f << "success to write redo_log_remote_buf\n";
 
     // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
-    //  error: invalid cast from type ‘ut::aligned_array_pointer<unsigned char,
-    //  512>’ to type ‘char*’
-    //       0, qp, (char *)log.buf,
-
     // TODO: 不太确定log.buf的大小，log.buf_size? buf_size_sn?
     size_t log_buf_data_size = log.buf_size; // ut::INNODB_CACHE_LINE_SIZE;
     byte *log_buf_data =
         (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
-    // log_buf_data = static_cast<byte *>(log.buf);
     std::memcpy(log_buf_data, log.buf, log_buf_data_size);
     if (!log.coro_sched->RDMAWriteSync(
             0, qp, (char *)log_buf_data,
@@ -1202,21 +1146,6 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     // std::cout << "success to write log_buf_data\n";
     // f << "success to write log_buf_data\n";
     // f.close();
-
-    // 放锁
-    //    if (!thd->coro_sched->RDMACASSync(0, qp, redo_log_remote_buf_latch,
-    //                                      meta_mgr->GetRedoLogRemoteBufLatchAddr(),
-    //                                      REDOLOG_LOCKED, REDOLOG_UNLOCKED)) {
-    //      // return;
-    //    }
-
-    // this CAS must succeed, because only one thread can obtain the authority
-    // assert(*(rwlatch_t *)redo_log_remote_buf_latch == REDOLOG_LOCKED);
-
-    // 销毁线程
-    //    if (log.m_remote_buf_thd != nullptr) {
-    //      destroy_internal_thd(log.m_remote_buf_thd);
-    //    }
   }
 
   // 状态分离部分截止，下面为原有逻辑

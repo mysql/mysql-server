@@ -59,7 +59,7 @@ class RedoLogFetch {
     }
 
     // 取回 redo log buffer 的实际数据
-    // TODO:这里的size还不确定，需要与storage/innobase/log/log0buf.cc:1188保持一致
+    // TODO:这里的size还不确定，需要与storage/innobase/log/log0buf.cc:1133保持一致
     size_t log_buf_data_size = log.buf_size; // ut::INNODB_CACHE_LINE_SIZE;
     log_buf_data = (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
     if (!log.coro_sched->RDMAReadSync(
