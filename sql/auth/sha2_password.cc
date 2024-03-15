@@ -475,14 +475,14 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
   }
   std::string iteration_info =
       serialized_string.substr(delimiter + 1, ITERATION_LENGTH);
-  iterations =
-      std::min((std::stoul(iteration_info, nullptr, 16)) * ITERATION_MULTIPLIER,
-               MAX_ITERATIONS);
-  if (!iterations) {
+  unsigned long int iteration_count =
+      strtoul(iteration_info.c_str(), nullptr, 16);
+  if (!iteration_count) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Invalid iteration count information."));
     return true;
   }
+  iterations = std::min(iteration_count * ITERATION_MULTIPLIER, MAX_ITERATIONS);
 
   /* Salt */
   delimiter = delimiter_2;
