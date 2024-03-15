@@ -2083,6 +2083,11 @@ INCLUDE(maintainer)
 INCLUDE(msvc_cppcheck)
 DO_MSVC_CPPCHECK()
 
+# We know that 3.12 generates extra-semi, and that 3.19 does not:
+IF(WITH_PROTOBUF STREQUAL "system" AND ${PROTOBUF_VERSION} VERSION_LESS 3.19)
+  STRING(REPLACE "-Wextra-semi" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ENDIF()
+
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
   INCLUDE(googletest)
