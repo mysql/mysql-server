@@ -45,6 +45,7 @@ THREAD_ID	NAME	TYPE	THREAD_OS_ID
 <thread_id>	thread/ndbcluster/ndb_binlog	BACKGROUND	<thread_os_id>
 <thread_id>	thread/ndbcluster/ndb_index_stat	BACKGROUND	<thread_os_id>
 <thread_id>	thread/ndbcluster/ndb_metadata	BACKGROUND	<thread_os_id>
+<thread_id>	thread/ndbcluster/ndb_purger	BACKGROUND	<thread_os_id>
 # The threads created by the ndbcluster plugin can be used to query
 # the amount of memory allocated by those from the mem_root arena
 SELECT IF(PFS_MEM.SUM_NUMBER_OF_BYTES_ALLOC > 0, "true", "false") AS has_alloc_mem
@@ -95,4 +96,6 @@ has_thread_id	true
 component	Index Stat
 has_thread_id	false
 component	Metadata
+has_thread_id	true
+component	Purger
 has_thread_id	true

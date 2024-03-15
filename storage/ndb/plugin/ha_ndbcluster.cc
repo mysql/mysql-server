@@ -12263,8 +12263,6 @@ static bool is_supported_system_table(const char *, const char *, bool) {
 Ndb_index_stat_thread ndb_index_stat_thread;
 Ndb_metadata_change_monitor ndb_metadata_change_monitor_thread;
 
-extern THD *ndb_create_thd(char *stackptr);
-
 //
 // Functionality used for delaying MySQL Server startup until
 // connection to NDB and setup (of index stat plus binlog) has completed
@@ -12318,9 +12316,30 @@ static int ndb_wait_setup_server_startup(void *) {
   Returns false on success.
 */
 static bool upgrade_migrate_privilege_tables() {
+  /*
+    Setup THD object
+  */
+  auto ndb_create_thd = [](void *stackptr) -> THD * {
+    THD *thd = new THD;
+    thd->thread_stack = reinterpret_cast<char *>(stackptr);
+    thd->store_globals();
+
+    thd->init_query_mem_roots();
+    thd->set_command(COM_DAEMON);
+    thd->security_context()->skip_grants();
+
+    CHARSET_INFO *charset_connection =
+        get_charset_by_csname("utf8mb3", MY_CS_PRIMARY, MYF(MY_WME));
+    thd->variables.character_set_client = charset_connection;
+    thd->variables.character_set_results = charset_connection;
+    thd->variables.collation_connection = charset_connection;
+    thd->update_charset();
+
+    return thd;
+  };
+
   int stack_base = 0;
-  std::unique_ptr<THD> temp_thd(
-      ndb_create_thd(reinterpret_cast<char *>(&stack_base)));
+  std::unique_ptr<THD> temp_thd(ndb_create_thd(&stack_base));
   Ndb *ndb = check_ndb_in_thd(temp_thd.get());
 
   NdbDictionary::Dictionary *dict = ndb->getDictionary();
@@ -17493,7 +17512,7 @@ bool ha_ndbcluster::upgrade_table(THD *thd, const char *db_name,
 }
 
 /*
-  @brief Shut down ndbcluster background tasks that could access the DD
+  @brief Shut down background tasks accessing DD or InnoDB before shutting down.
 
   @param  hton  Handlerton of the SE
 
@@ -17502,6 +17521,8 @@ static void ndbcluster_pre_dd_shutdown(handlerton *hton [[maybe_unused]]) {
   // Stop and deinitialize the ndb_metadata_change_monitor thread
   ndb_metadata_change_monitor_thread.stop();
   ndb_metadata_change_monitor_thread.deinit();
+  // Notify ndb_binlog that the ndb_purger need to be stopped
+  ndbcluster_binlog_pre_dd_shutdown();
 }
 
 static int show_ndb_status(THD *thd, SHOW_VAR *var, char *) {
@@ -18079,6 +18100,20 @@ static MYSQL_SYSVAR_UINT(log_transaction_compression_level_zstd, /* name */
                          22,                             /* max */
                          0);
 
+ulong opt_ndb_log_purge_rate;
+static MYSQL_SYSVAR_ULONG(
+    log_purge_rate,         /* name */
+    opt_ndb_log_purge_rate, /* var */
+    PLUGIN_VAR_RQCMDARG,
+    "Rate of rows to delete when purging rows from ndb_binlog_index.",
+    nullptr,     /* check func. */
+    nullptr,     /* update func. */
+    8192,        /* default */
+    1,           /* min */
+    1024 * 1024, /* max */
+    0            /* block */
+);
+
 bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
@@ -18489,6 +18524,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_transaction_id),
     MYSQL_SYSVAR(log_transaction_compression),
     MYSQL_SYSVAR(log_transaction_compression_level_zstd),
+    MYSQL_SYSVAR(log_purge_rate),
     MYSQL_SYSVAR(log_fail_terminate),
     MYSQL_SYSVAR(log_transaction_dependency),
     MYSQL_SYSVAR(clear_apply_status),
