@@ -36,47 +36,13 @@
 #include "storage/ndb/include/ndbapi/NdbError.hpp"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"  // Ndb_global_schema_lock_guard
-#include "storage/ndb/plugin/ndb_local_connection.h"
-#include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_metadata_change_monitor.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_share.h"
 
-int Ndb_binlog_thread::do_init() {
-  if (!binlog_hooks.register_hooks(do_after_reset_master)) {
-    ndb_log_error("Failed to register binlog hooks");
-    return 1;
-  }
-  return 0;
-}
+int Ndb_binlog_thread::do_init() { return 0; }
 
-int Ndb_binlog_thread::do_deinit() {
-  binlog_hooks.unregister_all();
-  return 0;
-}
-
-/*
-  @brief Callback called when RESET BINARY LOGS AND GTIDS has successfully
-  removed binlog and reset index. This means that ndbcluster also need to clear
-  its own binlog index(which is stored in the mysql.ndb_binlog_index table).
-
-  @return 0 on success
-*/
-int Ndb_binlog_thread::do_after_reset_master(void *) {
-  DBUG_TRACE;
-
-  // Truncate the mysql.ndb_binlog_index table
-  // - if table does not exist ignore the error as it is a
-  // "consistent" behavior
-  Ndb_local_connection mysqld(current_thd);
-  const bool ignore_no_such_table = true;
-  if (mysqld.truncate_table("mysql", "ndb_binlog_index",
-                            ignore_no_such_table)) {
-    // Failed to truncate table
-    return 1;
-  }
-  return 0;
-}
+int Ndb_binlog_thread::do_deinit() { return 0; }
 
 void Ndb_binlog_thread::validate_sync_excluded_objects(THD *thd) {
   metadata_sync.validate_excluded_objects(thd);
