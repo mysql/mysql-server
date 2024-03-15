@@ -2460,7 +2460,8 @@ class Item : public Parse_tree_node {
 
   virtual bool walk(Item_processor processor, enum_walk walk [[maybe_unused]],
                     uchar *arg) {
-    return (this->*processor)(arg);
+    return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
+           ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
 
   /** @see WalkItem, CompileItem, TransformItem */
@@ -4102,16 +4103,6 @@ class Item_ident : public Item {
   bool is_alias_of_expr() const { return m_alias_of_expr; }
   /// Marks that this Item's name is alias of SELECT expression
   void set_alias_of_expr() { m_alias_of_expr = true; }
-
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
-    /*
-      Item_ident processors like aggregate_check*() use
-      enum_walk::PREFIX|enum_walk::POSTFIX and depend on the processor being
-      called twice then.
-    */
-    return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
-           ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
-  }
 
   /**
     Argument structure for walk processor Item::update_depended_from
