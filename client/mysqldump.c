@@ -705,29 +705,33 @@ static void short_usage(void)
 static void get_safe_server_info(char *safe_server_info,
                                  size_t safe_server_info_len) {
   const char *server_info = mysql_get_server_info(&mysql_connection);
+  size_t i;
   if (server_info == NULL) {
     safe_server_info[0] = 0;
     return;
   }
-  DBUG_EXECUTE_IF("server_version_injection_test", {
-    const char *payload = "5.7.0-injection_test\n\\! touch /tmp/xxx";
-    server_info = payload;
+  DBUG_EXECUTE_IF("server_version_injection_test",
+  {
+    const char *payload= "5.7.0-injection_test\n\\! touch /tmp/xxx";
+    server_info= payload;
   });
-  for (size_t i = 0; i < safe_server_info_len; ++i) {
+  for (i = 0; i < safe_server_info_len; ++i) {
     // End of string.
-    if (server_info[i] == 0) {
-      safe_server_info[i] = 0;
+    if (server_info[i] == 0)
+    {
+      safe_server_info[i]= 0;
       return;
     }
     // Version may include only alphanumeric and punctuation characters.
     // Cut off the rest of the string if incorrect character found.
-    if (!(isalnum(server_info[i]) || ispunct(server_info[i]))) {
+    if (!(my_isalnum(charset_info, server_info[i]) || my_ispunct(charset_info, server_info[i])))
+    {
       safe_server_info[i] = 0;
       fprintf(stderr,
               "-- Warning: version string returned by server is incorrect.\n");
       return;
     }
-    safe_server_info[i] = server_info[i];
+    safe_server_info[i]= server_info[i];
   }
   safe_server_info[safe_server_info_len - 1] = 0;
 }
