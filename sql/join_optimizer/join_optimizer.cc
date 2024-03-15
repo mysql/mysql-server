@@ -680,6 +680,15 @@ class CostingReceiver {
                                       OrderingSet obsolete_orderings,
                                       AccessPath *path,
                                       const char *description_for_trace);
+
+  /**
+     Make a path that materializes 'table'.
+     @param path The table access path for the materialized table.
+     @param table The table to materialize.
+     @returns The path that materializes 'table'.
+  */
+  AccessPath *MakeMaterializePath(const AccessPath &path, TABLE *table) const;
+
   bool ProposeTableScan(TABLE *table, int node_idx,
                         double force_num_output_rows_after_filter);
   bool ProposeIndexScan(TABLE *table, int node_idx,
@@ -3439,6 +3448,89 @@ void CostingReceiver::ProposeAccessPathForIndex(
   }
 }
 
+AccessPath *CostingReceiver::MakeMaterializePath(const AccessPath &path,
+                                                 TABLE *table) const {
+  Table_ref *const tl{table->pos_in_table_list};
+  assert(tl->uses_materialization());
+  // Move the path to stable storage, since we'll be referring to it.
+  AccessPath *stable_path = new (m_thd->mem_root) AccessPath(path);
+
+  // TODO(sgunders): We don't need to allocate materialize_path on the
+  // MEM_ROOT.
+  AccessPath *materialize_path;
+  const char *always_empty_cause = nullptr;
+  if (tl->is_table_function()) {
+    materialize_path = NewMaterializedTableFunctionAccessPath(
+        m_thd, table, tl->table_function, stable_path);
+    CopyBasicProperties(*stable_path, materialize_path);
+    materialize_path->set_cost_before_filter(materialize_path->cost());
+    materialize_path->set_init_cost(materialize_path->cost());
+    materialize_path->set_init_once_cost(materialize_path->cost());
+    materialize_path->num_output_rows_before_filter = path.num_output_rows();
+
+    materialize_path->parameter_tables = GetNodeMapFromTableMap(
+        tl->table_function->used_tables() & ~PSEUDO_TABLE_BITS,
+        m_graph->table_num_to_node_num);
+    if (Overlaps(tl->table_function->used_tables(),
+                 OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) {
+      // Make sure the table function is never hashed, ever.
+      materialize_path->parameter_tables |= RAND_TABLE_BIT;
+    }
+  } else {
+    // If the derived table is known to be always empty, we may be able to
+    // optimize away parts of the outer query block too.
+    if (const AccessPath *derived_table_path =
+            tl->derived_query_expression()->root_access_path();
+        derived_table_path != nullptr &&
+        derived_table_path->type == AccessPath::ZERO_ROWS) {
+      always_empty_cause = derived_table_path->zero_rows().cause;
+    }
+
+    if (always_empty_cause != nullptr &&
+        !IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
+      // The entire query block can be optimized away. Stop planning.
+      m_query_block->join->zero_result_cause = always_empty_cause;
+      return nullptr;
+    }
+
+    const bool rematerialize{
+        // Handled in clear_corr_derived_tmp_tables(), not here.
+        !tl->common_table_expr() &&
+        Overlaps(tl->derived_query_expression()->uncacheable,
+                 UNCACHEABLE_DEPENDENT)};
+
+    materialize_path = GetAccessPathForDerivedTable(
+        m_thd, tl, table, rematerialize,
+        /*invalidators=*/nullptr, m_need_rowid, stable_path);
+    // Handle LATERAL.
+    materialize_path->parameter_tables =
+        GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
+                               m_graph->table_num_to_node_num);
+
+    // If we don't need row IDs, we also don't care about row ID safety.
+    // This keeps us from retaining many extra unneeded paths.
+    if (!m_need_rowid) {
+      materialize_path->safe_for_rowid = AccessPath::SAFE;
+    }
+  }
+
+  materialize_path->filter_predicates = path.filter_predicates;
+  materialize_path->delayed_predicates = path.delayed_predicates;
+  stable_path->filter_predicates.Clear();
+  stable_path->delayed_predicates.Clear();
+  assert(materialize_path->cost() >= 0.0);
+
+  if (always_empty_cause != nullptr) {
+    // The entire query block cannot be optimized away, only the inner block
+    // for the derived table. But the materialization step is unnecessary, so
+    // return a ZERO_ROWS path directly for the derived table. This also
+    // allows subtrees of this query block to be removed (if the derived table
+    // is inner-joined to some other tables).
+    return NewZeroRowsAccessPath(m_thd, materialize_path, always_empty_cause);
+  }
+  return materialize_path;
+}
+
 bool CostingReceiver::ProposeTableScan(
     TABLE *table, int node_idx, double force_num_output_rows_after_filter) {
   Table_ref *tl = table->pos_in_table_list;
@@ -3508,81 +3600,12 @@ bool CostingReceiver::ProposeTableScan(
     path = *materialize_path;
     assert(path.cost() >= 0.0);
   } else if (tl->uses_materialization()) {
-    // Move the path to stable storage, since we'll be referring to it.
-    AccessPath *stable_path = new (m_thd->mem_root) AccessPath(path);
-
-    // TODO(sgunders): We don't need to allocate materialize_path on the
-    // MEM_ROOT.
-    AccessPath *materialize_path;
-    const char *always_empty_cause = nullptr;
-    if (tl->is_table_function()) {
-      materialize_path = NewMaterializedTableFunctionAccessPath(
-          m_thd, table, tl->table_function, stable_path);
-      CopyBasicProperties(*stable_path, materialize_path);
-      materialize_path->set_cost_before_filter(materialize_path->cost());
-      materialize_path->set_init_cost(materialize_path->cost());
-      materialize_path->set_init_once_cost(materialize_path->cost());
-      materialize_path->num_output_rows_before_filter = num_output_rows;
-
-      materialize_path->parameter_tables =
-          m_graph->nodes[node_idx].lateral_dependencies();
-      if (Overlaps(tl->table_function->used_tables(),
-                   OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) {
-        // Make sure the table function is never hashed, ever.
-        materialize_path->parameter_tables |= RAND_TABLE_BIT;
-      }
+    path.set_num_output_rows(num_output_rows);
+    AccessPath *const materialize_path{MakeMaterializePath(path, table)};
+    if (materialize_path == nullptr) {
+      return true;
     } else {
-      // If the derived table is known to be always empty, we may be able to
-      // optimize away parts of the outer query block too.
-      if (const AccessPath *derived_table_path =
-              tl->derived_query_expression()->root_access_path();
-          derived_table_path != nullptr &&
-          derived_table_path->type == AccessPath::ZERO_ROWS) {
-        always_empty_cause = derived_table_path->zero_rows().cause;
-      }
-
-      if (always_empty_cause != nullptr &&
-          !IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
-        // The entire query block can be optimized away. Stop planning.
-        m_query_block->join->zero_result_cause = always_empty_cause;
-        return true;
-      }
-
-      bool rematerialize = Overlaps(tl->derived_query_expression()->uncacheable,
-                                    UNCACHEABLE_DEPENDENT);
-      if (tl->common_table_expr()) {
-        // Handled in clear_corr_derived_tmp_tables(), not here.
-        rematerialize = false;
-      }
-      materialize_path = GetAccessPathForDerivedTable(
-          m_thd, tl, table, rematerialize,
-          /*invalidators=*/nullptr, m_need_rowid, stable_path);
-      // Handle LATERAL.
-      materialize_path->parameter_tables =
-          m_graph->nodes[node_idx].lateral_dependencies();
-
-      // If we don't need row IDs, we also don't care about row ID safety.
-      // This keeps us from retaining many extra unneeded paths.
-      if (!m_need_rowid) {
-        materialize_path->safe_for_rowid = AccessPath::SAFE;
-      }
-    }
-
-    materialize_path->filter_predicates = path.filter_predicates;
-    materialize_path->delayed_predicates = path.delayed_predicates;
-    stable_path->filter_predicates.Clear();
-    stable_path->delayed_predicates.Clear();
-    path = *materialize_path;
-    assert(path.cost() >= 0.0);
-
-    if (always_empty_cause != nullptr) {
-      // The entire query block cannot be optimized away, only the inner block
-      // for the derived table. But the materialization step is unnecessary, so
-      // return a ZERO_ROWS path directly for the derived table. This also
-      // allows subtrees of this query block to be removed (if the derived table
-      // is inner-joined to some other tables).
-      path = *NewZeroRowsAccessPath(
-          m_thd, new (m_thd->mem_root) AccessPath(path), always_empty_cause);
+      path = *materialize_path;
     }
   }
   assert(path.cost() >= 0.0);
