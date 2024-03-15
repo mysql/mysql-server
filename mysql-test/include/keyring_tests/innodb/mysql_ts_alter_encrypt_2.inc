@@ -283,12 +283,6 @@ DROP TABLESPACE mysql;
 --error ER_WRONG_TABLESPACE_NAME
 ALTER TABLESPACE mysql RENAME TO xyz;
 
---error ER_TABLESPACE_ENGINE_MISMATCH
-ALTER TABLESPACE mysql ENGINE=myisam;
-
---error ER_TABLESPACE_ENGINE_MISMATCH
-ALTER TABLESPACE mysql ENGINE=memory;
-
 --echo #########################################################################
 --echo # Restart with same keyring option
 --echo #   - tables in mysql ts should be accessible
