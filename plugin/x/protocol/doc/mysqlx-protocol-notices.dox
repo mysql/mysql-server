@@ -47,7 +47,7 @@ Global Notices {#notices_Global_Notices}
 Global Notices are sent by the server in case of events happen that are
 unrelated to the currently active message sequence:
 - server is shutting down
-- replication slave disconnected
+- replica disconnected
 - group replication state change
 - schema or table dropped
 
@@ -57,15 +57,15 @@ unrelated to the currently active message sequence:
 The server indicates that it shuts down in a clean way.
 @warning Not supported yet
 
-## Replication slave disconnected
+## Replica disconnected
 
-The slave stopped to replicate changes from the master/group and may
-contain stale information.
+The replica stopped to replicate changes from the replication source/group
+and may contain stale information.
 
 @note
     Checking for ``SHOW REPLICA STATUS`` and ``io_thread`` and
     ``sql_thread`` leads to a race condition for the following query.
-    One would have to check after query of the slave is still running to
+    One would have to check after query of the replica is still running to
     see if it didn't stop in between.
 @warning Not supported yet
 
