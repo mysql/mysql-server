@@ -507,7 +507,7 @@ ELSE()
   SET(WITH_NDB_DEFAULT OFF)
 ENDIF()
 
-OPTION(WITH_NDB "Build MySQL Cluster" ON)
+OPTION(WITH_NDB "Build MySQL Cluster" ${WITH_NDB_DEFAULT})
 IF(WITH_NDB)
   MESSAGE(STATUS "Building MySQL Cluster")
 ENDIF()
@@ -990,7 +990,7 @@ ENDMACRO()
 # To only avoid failing on warning when compiled with -Werror and still show
 # the warnings use SHOW_SUPPRESSED_COMPILER_WARNINGS=ON.
 OPTION(SHOW_SUPPRESSED_COMPILER_WARNINGS
-  "Show suppressed compiler warnings, without failing with -Werror" ON)
+  "Show suppressed compiler warnings, without failing with -Werror" OFF)
 MARK_AS_ADVANCED(SHOW_SUPPRESSED_COMPILER_WARNINGS)
 
 FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
