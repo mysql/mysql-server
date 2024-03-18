@@ -474,6 +474,8 @@ void Ndb_metadata_change_monitor::do_run() {
       }
     }
 
+    log_info("Started");
+
     for (;;) {
       Ndb_thd_memory_guard metadata_change_loop_guard(thd);
 
