@@ -1100,7 +1100,7 @@ static inline dict_index_t *dict_table_get_index_on_first_col(
     ulint col_index)     /*!< in: position of column
                          in table */
 {
-  ut_ad(col_index < table->n_cols);
+  ut_a(col_index < table->n_t_cols);
 
   ulint non_v_col_index = col_index;
   dict_col_t *column = nullptr;
