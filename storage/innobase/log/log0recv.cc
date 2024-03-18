@@ -3577,6 +3577,12 @@ bool meb_scan_log_recs(
   return finished;
 }
 
+
+  /**
+   * @StateReplicate: recv_read_log_seg 负责从 ib_logfile 文件中读取 64KB 的 redo log 到内存中
+   *
+   */
+
 #ifndef UNIV_HOTBACKUP
 static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
                                const lsn_t end_lsn) {
@@ -3702,7 +3708,7 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   bool finished = false;
 
   /**
-   * @StateReplicate: 修改此处逻辑，改为从状态层读取buf并应用
+   * @StateReplicate: 修改此处逻辑，改为从状态层读取 redo log 并解析
    *
    * include: state/state_fetch/redo_log_fetch.h
    */
