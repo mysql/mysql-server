@@ -515,7 +515,8 @@ class AutoIncRowInsert : public RowInsert {
       : RowInsert(parent, table, row_ownership), gen_id_column_(id_column) {}
 
   void on_post_insert(MySQLSession *session) override {
-    if (pk_.find(gen_id_column_->name) == pk_.end()) {
+    if (auto pk = pk_.find(gen_id_column_->name);
+        pk == pk_.end() || pk->second.str() == "NULL") {
       auto row = session->query_one("SELECT LAST_INSERT_ID()");
       pk_[gen_id_column_->name] = (*row)[0];
     }
