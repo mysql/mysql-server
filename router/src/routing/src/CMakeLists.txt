@@ -166,7 +166,7 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   harness_stdx
   harness_tls
   mysql_protocol
-  router_lib
+  router_utils
   routing_connections
   router_mysqlxmessages
   routing_frontend_lib

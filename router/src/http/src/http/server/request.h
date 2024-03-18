@@ -33,7 +33,7 @@
 
 #include "http/base/request.h"
 
-#include "mysqlrouter/http_server_export.h"
+#include "mysqlrouter/http_server_lib_export.h"
 
 namespace http {
 namespace server {
@@ -43,7 +43,7 @@ namespace server {
  *
  * wraps evhttp_request
  */
-class HTTP_SERVER_EXPORT ServerRequest : public http::base::Request {
+class HTTP_SERVER_LIB_EXPORT ServerRequest : public http::base::Request {
  public:
   struct Holder {
     uint32_t stream_id_{0};

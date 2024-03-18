@@ -26,7 +26,7 @@
 #ifndef MYSQLROUTER_LOG_FILTER_INCLUDED
 #define MYSQLROUTER_LOG_FILTER_INCLUDED
 
-#include "mysqlrouter/router_export.h"
+#include "mysqlrouter/router_mysql_export.h"
 
 #include <string>
 #include <vector>
@@ -39,7 +39,7 @@ namespace mysqlrouter {
 /*
  * A LogFilter allows to replace substring with '***'.
  */
-class ROUTER_LIB_EXPORT LogFilter {
+class ROUTER_MYSQL_EXPORT LogFilter {
  public:
   static const char kFillCharacter;
   static const unsigned int kFillSize = 3;

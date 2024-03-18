@@ -38,11 +38,11 @@
 #include "http/server/bind.h"
 #include "http/server/server.h"
 #include "http_request_router.h"
-#include "mysqlrouter/http_server_export.h"
+#include "mysqlrouter/http_server_lib_export.h"
 
 namespace http {
 
-class HTTP_SERVER_EXPORT HttpServerContext {
+class HTTP_SERVER_LIB_EXPORT HttpServerContext {
  public:
   using IoThreads = std::list<IoThread>;
 

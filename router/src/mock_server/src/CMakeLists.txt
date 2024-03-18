@@ -166,7 +166,8 @@ add_harness_plugin(mock_server
     router_mysqlxmessages
     harness_stdx
     harness-library
-    router_lib
+    router_utils
+    io_component
     harness_tls
   )
 ADD_DEPENDENCIES(mock_server mysql_server_mock_schema)

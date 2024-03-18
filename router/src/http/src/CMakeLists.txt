@@ -48,16 +48,13 @@ ROUTER_ADD_SHARED_LIBRARY(http_common
   LINK_LIBRARIES
   PUBLIC
   harness_tls
-  router_lib
+  router_utils
+  harness-library
   ext::cno
   router_tls
   PRIVATE
   OpenSSL::SSL OpenSSL::Crypto
   )
-TARGET_INCLUDE_DIRECTORIES(http_common
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
-
 
 ## split library code from the plugin to use them _passwd and tests
 ROUTER_ADD_SHARED_LIBRARY(http_auth_backend_lib
@@ -79,7 +76,10 @@ ADD_HARNESS_PLUGIN(http_auth_backend
   http_auth_backend_plugin.cc
   http_auth_backend_metadata_cache.cc
   REQUIRES
-  http_common;http_auth_backend_lib;router_lib;metadata_cache
+  http_common
+  http_auth_backend_lib
+  router_utils
+  metadata_cache
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 GENERATE_EXPORT_HEADER(http_auth_backend
@@ -106,7 +106,9 @@ ADD_HARNESS_PLUGIN(http_auth_realm
   SOURCES
   http_auth_realm_plugin.cc
   REQUIRES
-  http_auth_realm_lib;router_lib;http_auth_backend
+  http_auth_realm_lib
+  router_utils
+  http_auth_backend_lib
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 GENERATE_EXPORT_HEADER(http_auth_realm
@@ -117,9 +119,14 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_realm PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
 
-
-ADD_HARNESS_PLUGIN(http_server
-  SOURCES
+# http_server_component
+#
+# used by the plugins:
+#
+# - rest_api
+# - http_server
+#
+ROUTER_ADD_SHARED_LIBRARY(http_server_lib
   http/server/bind.cc
   http/server/request.cc
   http/server/server.cc
@@ -127,15 +134,40 @@ ADD_HARNESS_PLUGIN(http_server
   http_auth.cc
   http_server_component.cc
   http_request_router.cc
+
+  OUTPUT_NAME "mysqlrouter_http_server"
+
+  LINK_LIBRARIES
+  PUBLIC
+  io_component
+  http_common
+  http_auth_realm_lib
+  )
+
+TARGET_INCLUDE_DIRECTORIES(http_server_lib
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}  # http/...
+  )
+
+
+ADD_HARNESS_PLUGIN(http_server
+  SOURCES
   http_server_plugin.cc
   static_files.cc
-  REQUIRES router_lib;http_common;http_auth_realm;
-    ${LIBRT};
-    harness_stdx;
+  REQUIRES
+    router_utils
+    http_common
+    http_auth_realm_lib
+    http_server_lib
+    ${LIBRT}
+    harness_stdx
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 
-TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
+TARGET_INCLUDE_DIRECTORIES(http_server
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
 
@@ -169,9 +201,8 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
   COMPONENT Router
   LINK_LIBRARIES
   harness-library
-  router_lib
+  router_utils
   http_auth_backend_lib
-  metadata_cache
   )
 ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 

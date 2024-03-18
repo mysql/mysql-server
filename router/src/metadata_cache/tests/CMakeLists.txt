@@ -28,33 +28,62 @@
 # The MockMetadata class does the functionality of the Metadata class.
 
 SET(TEST_MODULE metadata_cache)
-FOREACH(test_file
-    test_cache_plugin.cc
-    )
-  ADD_TEST_FILE(
-    ${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
-    MODULE ${TEST_MODULE}
-    LIB_DEPENDS
-      test-helpers
-    INCLUDE_DIRS
-      ../src
-      ${CMAKE_CURRENT_SOURCE_DIR}/helper
-    EXTRA_SOURCES
-      ${CMAKE_CURRENT_SOURCE_DIR}/helper/mock_metadata.cc
-      ${CMAKE_CURRENT_SOURCE_DIR}/helper/mock_metadata_factory.cc
-)
-ENDFOREACH()
+ADD_TEST_FILE(test_cache_plugin.cc
+  MODULE ${TEST_MODULE}
+  LIB_DEPENDS
+    test-helpers
+    mysqlxclient_lite
+    mysqlxmessages_lite
+    router_cluster    # ClusterMetadataDynamicState
+  INCLUDE_DIRS
+    ../src
+    ${CMAKE_CURRENT_SOURCE_DIR}/helper
+  EXTRA_SOURCES
+    ../src/router_options.cc
+    ../src/log_suppressor.cc
+    ../src/cluster_metadata_ar.cc
+    ../src/cluster_metadata_gr.cc
+    ../src/cluster_metadata.cc
+    ../src/metadata_cache.cc
+    ../src/metadata_cache_ar.cc
+    ../src/metadata_cache_gr.cc
+    ../src/cache_api.cc
+    ../src/gr_notifications_listener.cc
+    ../src/group_replication_metadata.cc
+    ../src/metadata_factory.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/helper/mock_metadata.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/helper/mock_metadata_factory.cc
+  )
+
+ROUTERTEST_GET_TARGET(T "test_cache_plugin.cc" "${TEST_MODULE}")
+TARGET_INCLUDE_DIRECTORIES(${T}
+  PRIVATE
+    $<TARGET_PROPERTY:metadata_cache,INCLUDE_DIRECTORIES>
+  )
+TARGET_COMPILE_DEFINITIONS(${T}
+  PRIVATE
+  METADATA_CACHE_PLUGIN_STATIC_DEFINE=1
+  METADATA_CACHE_STATIC_DEFINE=1
+  )
+
 
 ADD_TEST_FILE(test_plugin_config.cc
   EXTRA_SOURCES
     ../src/plugin_config.cc
+    ../src/router_options.cc
+    ../src/log_suppressor.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
-    test-helpers
-    extra::rapidjson
+    test-helpers    # init_test_logger
+    router_cluster  # ClusterMetadataDynamicState
   )
 ROUTERTEST_GET_TARGET(T "test_plugin_config.cc" "${TEST_MODULE}")
+TARGET_INCLUDE_DIRECTORIES(${T}
+  PRIVATE
+    $<TARGET_PROPERTY:metadata_cache,INCLUDE_DIRECTORIES>
+  )
 TARGET_COMPILE_DEFINITIONS(${T}
   PRIVATE
   METADATA_CACHE_PLUGIN_STATIC_DEFINE=1
+  METADATA_CACHE_STATIC_DEFINE=1
   )

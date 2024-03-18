@@ -21,37 +21,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(PLUGIN_INFO_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src/plugin.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src/library_file.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src/plugin_info_app.cc
-)
-
-SET(include_dirs
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src/
-  ${PROJECT_SOURCE_DIR}/tests/
-)
-
-IF(WIN32)
-  ADD_LIBRARY(plugin_info_tests STATIC ${PLUGIN_INFO_SOURCES})
-ELSE()
-  ADD_LIBRARY(plugin_info_tests SHARED ${PLUGIN_INFO_SOURCES})
-ENDIF()
-
-TARGET_LINK_LIBRARIES(plugin_info_tests PRIVATE
-  harness-library router_lib extra::rapidjson)
-
-SET_TARGET_PROPERTIES(plugin_info_tests PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
-  )
-
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(plugin_info_tests)
-
-TARGET_INCLUDE_DIRECTORIES(plugin_info_tests PRIVATE ${include_dirs})
-
-add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/test_plugin_info_app.cc
-             MODULE "mysqlrouter_plugin_info"
-             LIB_DEPENDS plugin_info_tests
-             INCLUDE_DIRS ${include_dirs}
-             SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+add_googletest_file(${CMAKE_CURRENT_SOURCE_DIR}/test_plugin_info_app.cc
+  MODULE "mysqlrouter_plugin_info"
+  EXTRA_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/plugin.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/library_file.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/plugin_info_app.cc
+  LIB_DEPENDS
+    harness-library
+    extra::rapidjson
+    routertest_helpers
+  INCLUDE_DIRS 
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/
 )

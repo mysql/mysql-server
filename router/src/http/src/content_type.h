@@ -26,13 +26,11 @@
 #ifndef MYSQLROUTER_HTTP_CONTENT_TYPE_INCLUDED
 #define MYSQLROUTER_HTTP_CONTENT_TYPE_INCLUDED
 
-#include "mysqlrouter/http_server_export.h"
-
 #include <algorithm>
 #include <array>
 #include <string>
 
-class HTTP_SERVER_EXPORT MimeType {
+class MimeType {
  public:
   // RFC4329 deprecated text/javascript for application/javascript
   static constexpr const char ApplicationJavascript[] =
@@ -47,7 +45,7 @@ class HTTP_SERVER_EXPORT MimeType {
   static constexpr const char ImageSvgXML[] = "image/svg+xml";
 };
 
-class HTTP_SERVER_EXPORT ContentType {
+class ContentType {
  public:
   /**
    * get a mimetype for a file-extension.

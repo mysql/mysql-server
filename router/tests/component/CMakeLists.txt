@@ -94,10 +94,7 @@ FOREACH(test_file
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
-    ${PROJECT_SOURCE_DIR}/src/harness/shared/include/
-    ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
-    ${CMAKE_SOURCE_DIR}/plugin/x/client
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS
@@ -105,6 +102,9 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  router_cluster
 
   DEPENDS
   http_auth_backend
@@ -120,8 +120,6 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   rest_metadata_cache
   rest_router
   rest_routing
-  router_openssl
-  router_protobuf
   routing
   routertestplugin_logger
   signal_me
@@ -141,6 +139,10 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/plugin/x/client/
   $<TARGET_PROPERTY:routing_connections,INCLUDE_DIRECTORIES>
+
+  LIB_DEPENDS
+  mysqlxclient_lite
+  mysqlxmessages_lite
 
   DEPENDS
   http_auth_backend

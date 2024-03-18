@@ -32,7 +32,7 @@
 #include <vector>
 
 #include "helper/wait_variable.h"
-#include "mysqlrouter/http_server_export.h"
+#include "mysqlrouter/http_server_lib_export.h"
 
 #include "http/base/connection.h"
 #include "http/base/connection_status_callbacks.h"
@@ -56,8 +56,8 @@ using ConnectionTls = ServerConnectionTls::Parent;
 using ConnectionStatusCallbacksRaw = ConnectionRaw::ConnectionStatusCallbacks;
 using ConnectionStatusCallbacksTls = ConnectionTls::ConnectionStatusCallbacks;
 
-class HTTP_SERVER_EXPORT Server : public ConnectionStatusCallbacksRaw,
-                                  public ConnectionStatusCallbacksTls {
+class HTTP_SERVER_LIB_EXPORT Server : public ConnectionStatusCallbacksRaw,
+                                      public ConnectionStatusCallbacksTls {
  public:
   using native_handle_type = net::impl::socket::native_handle_type;
   using io_context = net::io_context;

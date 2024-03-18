@@ -63,6 +63,7 @@
 #include "mysqlrouter/component/http_auth_realm_component.h"
 #include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/http_constants.h"
+#include "mysqlrouter/http_server_export.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/supported_http_options.h"
 #include "static_files.h"

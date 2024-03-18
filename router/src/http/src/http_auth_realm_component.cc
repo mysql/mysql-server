@@ -23,13 +23,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mysqlrouter/component/http_auth_realm_component.h"
+
 #include <memory>
 #include <mutex>
 #include <string>
 
 #include "http_auth_error.h"
 #include "http_auth_realm.h"
-#include "mysqlrouter/component/http_auth_realm_component.h"
 
 void HttpAuthRealmComponent::add_realm(const std::string &name,
                                        std::shared_ptr<HttpAuthRealm> realm) {

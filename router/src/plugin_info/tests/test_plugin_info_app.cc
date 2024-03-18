@@ -34,13 +34,13 @@
 
 #include <gmock/gmock.h>
 
-#include "helpers/router_test_helpers.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/vt100.h"
 #include "mysql/harness/vt100_filter.h"
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_PACKAGE_NAME
+#include "router_test_helpers.h"
 #include "welcome_copyright_notice.h"
 
 using mysql_harness::Path;

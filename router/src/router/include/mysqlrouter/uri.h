@@ -26,7 +26,7 @@
 #ifndef URI_ROUTING_INCLUDED
 #define URI_ROUTING_INCLUDED
 
-#include "mysqlrouter/router_export.h"
+#include "mysqlrouter/router_utils_export.h"
 
 #include <cstdint>
 #include <exception>
@@ -67,7 +67,7 @@ class URIError : public std::runtime_error {
  * * (RFC 3986)[https://tools.ietf.org/html/rfc3986)
  *
  */
-class ROUTER_LIB_EXPORT URI {
+class ROUTER_UTILS_EXPORT URI {
  public:
   /** @brief Delimiter used in the Query part */
   static const char query_delimiter = '&';
@@ -158,7 +158,8 @@ class ROUTER_LIB_EXPORT URI {
   std::string fragment;
 
  private:
-  friend std::ostream &operator<<(std::ostream &strm, const URI &uri);
+  friend ROUTER_UTILS_EXPORT std::ostream &operator<<(std::ostream &strm,
+                                                      const URI &uri);
   /** @brief Sets information using the given URI
    *
    * Takes a and parsers out all URI elements.
@@ -182,9 +183,10 @@ class ROUTER_LIB_EXPORT URI {
   bool query_is_signle_parameter_{false};
 };
 
-std::ostream &operator<<(std::ostream &strm, const URI &uri);
+ROUTER_UTILS_EXPORT std::ostream &operator<<(std::ostream &strm,
+                                             const URI &uri);
 
-class ROUTER_LIB_EXPORT URIParser {
+class ROUTER_UTILS_EXPORT URIParser {
  public:
   static std::string decode(const std::string &uri, bool decode_plus);
   static URI parse(const std::string &uri, bool allow_path_rootless = true,

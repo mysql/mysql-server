@@ -48,16 +48,20 @@ usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_cluster.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_connection_pool.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_destination_status.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http_server.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_io_component.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_metadata_cache.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_mysql.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing_connections.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_utils.so.1
 
 usr/share/mysqlrouter/docs/sample_mysqlrouter.conf
 usr/share/mysqlrouter/mysqlrouter-systemd-start

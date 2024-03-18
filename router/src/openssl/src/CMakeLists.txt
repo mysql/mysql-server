@@ -35,7 +35,6 @@ TARGET_INCLUDE_DIRECTORIES(router_openssl PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/../include/
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   )
-
 GENERATE_EXPORT_HEADER(router_openssl
   EXPORT_FILE_NAME
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_openssl_export.h
@@ -49,5 +48,3 @@ TARGET_INCLUDE_DIRECTORIES(router_tls INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   $<TARGET_PROPERTY:harness_stdx,INCLUDE_DIRECTORIES>
   )
-
-
