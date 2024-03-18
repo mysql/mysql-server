@@ -188,5 +188,5 @@ alter tablespace mysql encryption='N';
 --echo # Cleanup: Restart with default options.
 --echo ########################################################################
 let $restart_parameters =;
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc
 

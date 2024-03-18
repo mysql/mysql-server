@@ -240,8 +240,6 @@ EOF
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Simulating disk space full scenario
---let $restart_parameters="restart: --innodb_temp_tablespaces_dir=."
---source include/start_mysqld.inc
 SET GLOBAL big_tables=ON;
 
 --replace_regex /\.[\\\/]#innodb_temp[\\\/]/#innodb_temp/

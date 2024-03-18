@@ -32,7 +32,6 @@
 if ($_expect_file_name == '') {
   --die ERROR: $expect_file_name parameter needed for `wait_for_wait_in_expect_file.inc`
 }
---echo include/wait_for_wait_in_expect_file.inc
 --let _WFWIEF_EXPECT_FILE_NAME = $_expect_file_name
 --let _WFWIEF_WAIT_TIMEOUT = $wait_timeout
 --perl

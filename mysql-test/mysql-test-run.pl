@@ -5990,17 +5990,24 @@ sub check_expected_crash_and_restart($$) {
           delete $mysqld->{'restart_opts'};
         }
 
-        # Attempt to remove the .expect file. If it fails in
-        # windows, retry removal after a sleep.
-        my $retry = 1;
-        while (
-          unlink($expect_file) == 0 &&
-          $! == 13 &&    # Error = 13, Permission denied
-          IS_WINDOWS && $retry-- >= 0
-          ) {
-          # Permission denied to unlink.
-          # Race condition seen on windows. Wait and retry.
-          mtr_milli_sleep(1000);
+        # Attempt to remove the .expect file. It was observed that on Windows
+        # 439 are sometimes not enough, while 440th attempt succeeded. The exact
+        # cause of the problem is unknown, as trying to list the processes with
+        # open handle using sysinternal tool named Handle, caused the tool
+        # itself to crash. We make only 30 iterations here, as a trade-off,
+        # which seems to be enough in most cases, but waitng longer seems to
+        # risk timing out the whole test suite. Not removing a file might impact
+        # the next test case, thus we emit a warning in such case.
+        my $attempts = 0;
+        while (unlink($expect_file) == 0) {
+          if ($! == 13 && IS_WINDOWS && ++$attempts < 30){
+            # Permission denied to unlink.
+            # Race condition seen on windows. Wait and retry.
+            mtr_milli_sleep(1000);
+          } else {
+            mtr_warning("attempt#$attempts to unlink($expect_file) failed: $!");
+            last;
+          }
         }
 
         # Instruct an implicit wait in case the restart is intended

@@ -5,7 +5,6 @@
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
 --echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/shutdown_mysqld.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
@@ -244,7 +243,6 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --source include/wait_until_connected_again.inc
 
 --echo # Stop the server.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/shutdown_mysqld.inc
 
 --echo # Remove the datadir, but keep the error log in case.
