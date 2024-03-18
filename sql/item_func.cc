@@ -784,15 +784,10 @@ bool Item_func::eq(const Item *item) const {
           functions and UDFs return names in system character set,
           therefore the comparison is performed using this character set.
   */
-  if (func_type != func->functype() || arg_count != func->arg_count ||
-      my_strcasecmp(system_charset_info, func_name(), func->func_name()) ||
-      !eq_specific(item)) {
-    return false;
-  }
-  if (arg_count == 0) {
-    return true;
-  }
-  return AllItemsAreEqual(args, func->args, arg_count);
+  return func_type == func->functype() && arg_count == func->arg_count &&
+         !my_strcasecmp(system_charset_info, func_name(), func->func_name()) &&
+         (arg_count == 0 || AllItemsAreEqual(args, func->args, arg_count)) &&
+         eq_specific(item);
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {

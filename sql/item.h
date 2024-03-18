@@ -5617,6 +5617,9 @@ class Item_string : public Item_basic_constant {
   }
   Item_result result_type() const override { return STRING_RESULT; }
   bool eq(const Item *item) const override;
+  bool eq_binary(const Item_string *item) const {
+    return !stringcmp(&str_value, &item->str_value);
+  }
   Item *clone_item() const override {
     return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
                            str_value.length(), collation.collation);

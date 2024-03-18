@@ -2244,12 +2244,15 @@ bool Item_func_date_format::eq_specific(const Item *item) const {
     format modifiers with different case, for example %m and %M,
     have different meanings.
   */
-  if (!args[1]->const_item() || !item_func->args[1]->const_item()) {
-    return false;
+  if (!args[1]->basic_const_item() || !item_func->args[1]->basic_const_item() ||
+      args[1]->type() != STRING_ITEM ||
+      item_func->args[1]->type() != STRING_ITEM) {
+    return true;
   }
-  String str1, str2;
-  return !stringcmp(args[1]->val_str(&str1),
-                    item_func->args[1]->val_str(&str2));
+  const Item_string *str1 = down_cast<Item_string *>(args[1]);
+  const Item_string *str2 = down_cast<Item_string *>(item_func->args[1]);
+
+  return str1->eq_binary(str2);
 }
 
 uint Item_func_date_format::format_length(const String *format) {
