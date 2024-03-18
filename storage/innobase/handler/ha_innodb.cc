@@ -1095,15 +1095,14 @@ static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Directory for temporary non-tablespace files.",
                         innodb_tmpdir_validate, nullptr, nullptr);
 
-static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
-                          "Number of threads to do parallel read.", nullptr,
-                          nullptr,
-                          std::max(ulong{std::thread::hardware_concurrency() /
-                                         8},
-                                   4UL),                /* Default. */
-                          1,                            /* Minimum. */
-                          Parallel_reader::MAX_THREADS, /* Maximum. */
-                          0);
+static MYSQL_THDVAR_ULONG(
+    parallel_read_threads, PLUGIN_VAR_RQCMDARG,
+    "Number of threads to do parallel read.", nullptr, nullptr,
+    std::clamp(ulong{std::thread::hardware_concurrency() / 8}, 4UL,
+               ulong{Parallel_reader::MAX_THREADS}), /* Default. */
+    1,                                               /* Minimum. */
+    Parallel_reader::MAX_THREADS,                    /* Maximum. */
+    0);
 
 static MYSQL_THDVAR_ULONG(ddl_buffer_size, PLUGIN_VAR_RQCMDARG,
                           "Maximum size of memory to use (in bytes) for DDL.",
@@ -22721,12 +22720,11 @@ static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
                          "Only optimize the Fulltext index of the table",
                          nullptr, nullptr, false);
 
-static MYSQL_SYSVAR_ULONG(read_io_threads, srv_n_read_io_threads,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "Number of background read I/O threads in InnoDB.",
-                          nullptr, nullptr,
-                          std::max(4U, std::thread::hardware_concurrency() / 2),
-                          1, 64, 0);
+static MYSQL_SYSVAR_ULONG(
+    read_io_threads, srv_n_read_io_threads,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of background read I/O threads in InnoDB.", nullptr, nullptr,
+    std::clamp(std::thread::hardware_concurrency() / 2, 4U, 64U), 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(write_io_threads, srv_n_write_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
