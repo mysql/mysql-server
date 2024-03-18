@@ -4695,12 +4695,9 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
       used_tables_cache |= item->used_tables();
       f_args.arg_type[i] = item->result_type();
     }
-    // TODO: why all following memory is not allocated with 1 call of sql_alloc?
-    // if (!(buffers = new String[arg_count]) ||
-    if (!(buffers = pointer_cast<String *>(
-              (*THR_MALLOC)->Alloc(sizeof(String) * arg_count))) ||
-        !(arg_buffers = pointer_cast<String *>(
-              (*THR_MALLOC)->Alloc(sizeof(String) * arg_count))) ||
+
+    if (!(buffers = (*THR_MALLOC)->ArrayAlloc<String>(arg_count)) ||
+        !(arg_buffers = (*THR_MALLOC)->ArrayAlloc<String>(arg_count)) ||
         !(f_args.args =
               (char **)(*THR_MALLOC)->Alloc(arg_count * sizeof(char *))) ||
         !(f_args.lengths =
@@ -4714,15 +4711,10 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
         !(f_args.attribute_lengths =
               (ulong *)(*THR_MALLOC)->Alloc(arg_count * sizeof(long))) ||
         !(m_args_extension.charset_info =
-              (const CHARSET_INFO **)(*THR_MALLOC)
-                  ->Alloc(f_args.arg_count * sizeof(CHARSET_INFO *)))) {
+              (*THR_MALLOC)
+                  ->ArrayAlloc<const CHARSET_INFO *>(f_args.arg_count))) {
       return true;
     }
-  }
-  for (uint i = 0; i < arg_count; i++) {
-    (void)::new (buffers + i) String;
-    (void)::new (arg_buffers + i) String;
-    m_args_extension.charset_info[i] = nullptr;
   }
 
   if (func->resolve_type(thd)) return true;
