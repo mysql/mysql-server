@@ -3701,6 +3701,12 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
 
   bool finished = false;
 
+  /**
+   * @StateReplicate: 修改此处逻辑，改为从状态层读取buf并应用
+   *
+   * include: state/state_fetch/redo_log_fetch.h
+   */
+
   while (!finished) {
     const lsn_t end_lsn =
         recv_read_log_seg(log, log.buf, start_lsn, start_lsn + RECV_SCAN_SIZE);
