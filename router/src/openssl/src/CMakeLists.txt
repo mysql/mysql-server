@@ -25,13 +25,15 @@ INCLUDE(GenerateExportHeader)
 
 ADD_HARNESS_PLUGIN(router_openssl SOURCES
   openssl_plugin.cc
-  REQUIRES OpenSSL::SSL OpenSSL::Crypto;harness_tls
+  REQUIRES
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  harness_tls
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
-TARGET_INCLUDE_DIRECTORIES(router_openssl PUBLIC
+TARGET_INCLUDE_DIRECTORIES(router_openssl PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/../include/
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_BINARY_DIR}/router/src/harness/include/
   )
 
 GENERATE_EXPORT_HEADER(router_openssl
@@ -40,3 +42,12 @@ GENERATE_EXPORT_HEADER(router_openssl
   )
 
 ADD_INSTALL_RPATH_FOR_OPENSSL(router_openssl)
+
+ADD_LIBRARY(router_tls INTERFACE)
+TARGET_INCLUDE_DIRECTORIES(router_tls INTERFACE
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  $<TARGET_PROPERTY:harness_stdx,INCLUDE_DIRECTORIES>
+  )
+
+
