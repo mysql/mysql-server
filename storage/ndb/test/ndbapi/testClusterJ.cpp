@@ -142,9 +142,7 @@ bool write_properties() {
   return write_properties(connStr, mysqlStr);
 }
 
-int main(int argc, char **argv) {
-  ndb_init();
-
+int run_tests(int argc, char **argv) {
   std::string clusterjJar, clusterjTestJar, ndbClientDir;
 
   /* If the Cluster/J jar file exists in the build directory,
@@ -164,7 +162,6 @@ int main(int argc, char **argv) {
   if (!File_class::exists(clusterjTestJar.c_str())) {
     fprintf(stderr, "Cannot find clusterj-test jar file '%s'\n",
             clusterjTestJar.c_str());
-    ndb_end(0);
     return -1;
   }
 
@@ -172,7 +169,6 @@ int main(int argc, char **argv) {
   if (!write_properties()) {
     fprintf(stderr, "Cannot open file '%s'\n", paths.propsFile().c_str());
     perror(nullptr);
-    ndb_end(0);
     return -1;
   }
 
@@ -188,6 +184,12 @@ int main(int argc, char **argv) {
     classpath += compileTimeClassPath;
   }
   printf("Java Classpath: %s \n", classpath.c_str());
+
+  /* Fail here if there is no possible path to the JDBC driver */
+  if (!(mtr_classpath || strlen(compileTimeClassPath))) {
+    fprintf(stderr, " ** Error: No path to mysql-connector-j jar file **\n");
+    return -1;
+  }
 
   /* Create the arguments to the Java command line */
   NdbProcess::Args args;
@@ -211,6 +213,12 @@ int main(int argc, char **argv) {
   /* Delete the properties file */
   File_class::remove(paths.propsFile().c_str());
 
-  ndb_end(0);
   return ret;
+}
+
+int main(int argc, char **argv) {
+  ndb_init();
+  int status = run_tests(argc, argv);
+  ndb_end(0);
+  return status;
 }
