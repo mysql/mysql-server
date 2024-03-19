@@ -164,7 +164,12 @@ bool Protocol_local_v2::store_decimal(const my_decimal *value, uint prec,
 bool Protocol_local_v2::store_string(const char *str, size_t length,
                                      const CHARSET_INFO *src_cs) {
   const CHARSET_INFO *dst_cs = src_cs;
-  if (m_execute_statement->m_expected_charset != nullptr)
+  /*
+  If the source charset is not binary and expected (destination) charset is
+  set, then convert string to destination charset and store.
+ */
+  if (m_execute_statement->m_expected_charset != nullptr &&
+      src_cs != &my_charset_bin)
     dst_cs = m_execute_statement->m_expected_charset;
 
   return store_string(str, length, src_cs, dst_cs);
@@ -470,8 +475,12 @@ bool Protocol_local_v2::send_field_metadata(Send_field *field,
   if (original_col_name.str == nullptr) return true;
   m_current_metadata_column->original_col_name = original_col_name.str;
 
-  // If there is no expected charset, use the default charset specified cs
-  if (m_execute_statement->m_expected_charset == nullptr) {
+  /*
+   If there is no expected charset or if the source charset is binary, use the
+   default charset specified by the source charset_info cs
+  */
+  if (m_execute_statement->m_expected_charset == nullptr ||
+      cs == &my_charset_bin) {
     // Charset Number.
     m_current_metadata_column->charsetnr = cs->number;
     // Column Length.
@@ -480,7 +489,6 @@ bool Protocol_local_v2::send_field_metadata(Send_field *field,
     // Charset Number.
     m_current_metadata_column->charsetnr =
         m_execute_statement->m_expected_charset->number;
-
     // Column Length.
     uint32 max_length =
         (field->type >= MYSQL_TYPE_TINY_BLOB && field->type <= MYSQL_TYPE_BLOB)
