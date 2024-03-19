@@ -37,7 +37,5 @@ if ($recovery_scenario == '') {
 --copy_file $target_binlog_file $target_binlog_file_bak
 --remove_file $target_binlog_file
 --copy_file $malformed_binlog_file $target_binlog_file
-
---let $restart_parameters = restart: --debug=+d,eval_force_bin_log_recovery
---let $expect_crash_on_start = 1
---source include/start_mysqld.inc
+--let $restart_parameters=--debug=+d,eval_force_bin_log_recovery
+--source include/start_mysqld_expecting_crash.inc
