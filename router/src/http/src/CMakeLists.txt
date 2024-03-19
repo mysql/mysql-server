@@ -49,7 +49,7 @@ TARGET_LINK_LIBRARIES(http_common
   harness_tls
   router_lib
   ext::cno
-  router_openssl
+  router_tls
   PRIVATE
   OpenSSL::SSL OpenSSL::Crypto
   )
