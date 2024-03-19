@@ -37,7 +37,7 @@
 --     mysql -u root -p mysql < file_name
 
 SET sql_log_bin=0;
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 
 TRUNCATE TABLE help_topic;
 TRUNCATE TABLE help_category;

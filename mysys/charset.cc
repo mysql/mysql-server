@@ -301,7 +301,7 @@ CHARSET_INFO *my_charset_get_by_name(const char *cs_name, uint cs_flags,
   if (cs_flags & MY_CS_PRIMARY) {
     cs = entry()->find_primary(name, flags, errmsg);
     if (cs == nullptr && name() == "utf8") {
-      // Dictionary bootstrap still uses "utf8".
+      // The parser does get_charset_by_csname().
       // Also needed for e.g. SET character_set_client= 'utf8'.
       cs = entry()->find_primary(mysql::collation::Name("utf8mb3"), flags,
                                  errmsg);
@@ -309,7 +309,6 @@ CHARSET_INFO *my_charset_get_by_name(const char *cs_name, uint cs_flags,
   } else if (cs_flags & MY_CS_BINSORT) {
     cs = entry()->find_default_binary(name, flags, errmsg);
     if (cs == nullptr && name() == "utf8") {
-      assert(false);  // TODO(tdidriks) no longer needed?
       cs = entry()->find_default_binary(mysql::collation::Name("utf8mb3"),
                                         flags, errmsg);
     }

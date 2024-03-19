@@ -119,7 +119,11 @@ const CHARSET_INFO *mysql::collation::find_by_id(unsigned id) {
 
 const CHARSET_INFO *mysql::collation::find_primary(Name cs_name) {
   // Needed by lexer, to parse e.g. "select _utf8 0xD0B0D0B1D0B2;"
-  if (cs_name() == "utf8") cs_name = Name("utf8mb3");
+  if (cs_name() == "utf8") {
+    // Uncomment to catch unwanted use of "utf8".
+    // assert(false);
+    cs_name = Name("utf8mb3");
+  }
   return entry()->find_primary(cs_name);
 }
 
