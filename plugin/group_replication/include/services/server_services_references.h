@@ -25,6 +25,7 @@
 #define GR_SERVER_SERVICES_REFERENCES
 
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_global_variable_attributes_service.h>
 #include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/components/services/registry.h>
 #include <mysql/service_plugin_registry.h>
@@ -90,6 +91,7 @@ class Server_services_references {
   SERVICE_TYPE(mysql_string_factory) *mysql_string_factory_service{nullptr};
   SERVICE_TYPE(mysql_string_charset_converter) *mysql_string_charset_converter_service{nullptr};
   SERVICE_TYPE(mysql_system_variable_update_string) *mysql_system_variable_update_string_service{nullptr};
+  SERVICE_TYPE(mysql_global_variable_attributes) *mysql_global_variable_attributes_service{nullptr};
   SERVICE_TYPE(mysql_system_variable_update_integer) *mysql_system_variable_update_integer_service{nullptr};
   SERVICE_TYPE(component_sys_variable_register) *component_sys_variable_register_service{nullptr};
   /* clang-format on */
@@ -100,6 +102,7 @@ class Server_services_references {
   my_h_service m_mysql_string_factory_handle{nullptr};
   my_h_service m_mysql_string_charset_converter_handle{nullptr};
   my_h_service m_mysql_system_variable_update_string_handle{nullptr};
+  my_h_service m_mysql_global_variable_attributes_handle{nullptr};
   my_h_service m_mysql_system_variable_update_integer_handle{nullptr};
   my_h_service m_component_sys_variable_register_handle{nullptr};
   /* clang-format on */

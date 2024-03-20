@@ -51,7 +51,7 @@ int Set_system_variable::set_global_read_only(bool value) {
   Set_system_variable_parameters *parameter =
       new Set_system_variable_parameters(
           Set_system_variable_parameters::VAR_READ_ONLY, parameter_value,
-          "GLOBAL");
+          "GLOBAL", "");
   Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
   /*
     Since enable `read_only` and `super_read_only` are blocking
@@ -67,7 +67,8 @@ int Set_system_variable::set_global_read_only(bool value) {
   return error;
 }
 
-int Set_system_variable::set_global_super_read_only(bool value) {
+int Set_system_variable::set_global_super_read_only(bool value,
+                                                    const std::string &reason) {
   int error = 1;
 
   if (nullptr == mysql_thread_handler_read_only_mode) {
@@ -79,10 +80,16 @@ int Set_system_variable::set_global_super_read_only(bool value) {
     parameter_value.assign("OFF");
   }
 
+#ifndef NDEBUG
+  if (value) {
+    assert(!reason.empty());
+  }
+#endif
+
   Set_system_variable_parameters *parameter =
       new Set_system_variable_parameters(
           Set_system_variable_parameters::VAR_SUPER_READ_ONLY, parameter_value,
-          "GLOBAL");
+          "GLOBAL", reason);
   Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
   /*
     Since enable `read_only` and `super_read_only` are blocking
@@ -98,7 +105,8 @@ int Set_system_variable::set_global_super_read_only(bool value) {
   return error;
 }
 
-int Set_system_variable::set_global_offline_mode(bool value) {
+int Set_system_variable::set_global_offline_mode(bool value,
+                                                 const std::string &reason) {
   int error = 1;
 
   if (nullptr == mysql_thread_handler) {
@@ -110,10 +118,16 @@ int Set_system_variable::set_global_offline_mode(bool value) {
     parameter_value.assign("OFF");
   }
 
+#ifndef NDEBUG
+  if (value) {
+    assert(!reason.empty());
+  }
+#endif
+
   Set_system_variable_parameters *parameter =
       new Set_system_variable_parameters(
           Set_system_variable_parameters::VAR_OFFLINE_MODE, parameter_value,
-          "GLOBAL");
+          "GLOBAL", reason);
   Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
   error = mysql_thread_handler->trigger(task);
   error |= parameter->get_error();
@@ -139,7 +153,7 @@ int Set_system_variable::set_persist_only_group_replication_single_primary_mode(
       new Set_system_variable_parameters(
           Set_system_variable_parameters::
               VAR_GROUP_REPLICATION_SINGLE_PRIMARY_MODE,
-          parameter_value, "PERSIST_ONLY");
+          parameter_value, "PERSIST_ONLY", "");
   Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
   error = mysql_thread_handler->trigger(task);
   error |= parameter->get_error();
@@ -166,7 +180,7 @@ int Set_system_variable::
       new Set_system_variable_parameters(
           Set_system_variable_parameters::
               VAR_GROUP_REPLICATION_ENFORCE_UPDATE_EVERYWHERE_CHECKS,
-          parameter_value, "PERSIST_ONLY");
+          parameter_value, "PERSIST_ONLY", "");
   Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
   error = mysql_thread_handler->trigger(task);
   error |= parameter->get_error();
@@ -182,7 +196,7 @@ void Set_system_variable::run(Mysql_thread_body_parameters *parameters) {
     case Set_system_variable_parameters::VAR_READ_ONLY:
       param->set_error(internal_set_system_variable(
           std::string("read_only"), param->m_value, param->m_type,
-          READ_ONLY_WAIT_LOCK_TIMEOUT));
+          READ_ONLY_WAIT_LOCK_TIMEOUT, param->m_reason));
       break;
     case Set_system_variable_parameters::VAR_SUPER_READ_ONLY:
 #ifndef NDEBUG
@@ -201,24 +215,24 @@ void Set_system_variable::run(Mysql_thread_body_parameters *parameters) {
 #endif
       param->set_error(internal_set_system_variable(
           std::string("super_read_only"), param->m_value, param->m_type,
-          READ_ONLY_WAIT_LOCK_TIMEOUT));
+          READ_ONLY_WAIT_LOCK_TIMEOUT, param->m_reason));
       break;
     case Set_system_variable_parameters::VAR_OFFLINE_MODE:
       param->set_error(internal_set_system_variable(
           std::string("offline_mode"), param->m_value, param->m_type,
-          WAIT_LOCK_TIMEOUT));
+          WAIT_LOCK_TIMEOUT, param->m_reason));
       break;
     case Set_system_variable_parameters::
         VAR_GROUP_REPLICATION_SINGLE_PRIMARY_MODE:
       param->set_error(internal_set_system_variable(
           std::string("group_replication_single_primary_mode"), param->m_value,
-          param->m_type, WAIT_LOCK_TIMEOUT));
+          param->m_type, WAIT_LOCK_TIMEOUT, param->m_reason));
       break;
     case Set_system_variable_parameters::
         VAR_GROUP_REPLICATION_ENFORCE_UPDATE_EVERYWHERE_CHECKS:
       param->set_error(internal_set_system_variable(
           std::string("group_replication_enforce_update_everywhere_checks"),
-          param->m_value, param->m_type, WAIT_LOCK_TIMEOUT));
+          param->m_value, param->m_type, WAIT_LOCK_TIMEOUT, param->m_reason));
       break;
     default:
       param->set_error(1);
@@ -227,7 +241,8 @@ void Set_system_variable::run(Mysql_thread_body_parameters *parameters) {
 
 int Set_system_variable::internal_set_system_variable(
     const std::string &variable, const std::string &value,
-    const std::string &type, unsigned long long lock_wait_timeout) {
+    const std::string &type, unsigned long long lock_wait_timeout,
+    const std::string &reason) {
   int error = 0;
   CHARSET_INFO_h charset_utf8{nullptr};
   my_h_string variable_name{nullptr};
@@ -251,9 +266,10 @@ int Set_system_variable::internal_set_system_variable(
       nullptr == server_services_references_module
                      ->mysql_system_variable_update_integer_service ||
       nullptr == server_services_references_module
-                     ->mysql_system_variable_update_string_service) {
-    error = 1;
-    goto end;
+                     ->mysql_system_variable_update_string_service ||
+      nullptr == server_services_references_module
+                     ->mysql_global_variable_attributes_service) {
+    return 1;
   }
 
   if (server_services_references_module->mysql_string_factory_service->create(
@@ -308,6 +324,15 @@ int Set_system_variable::internal_set_system_variable(
               variable_value)) {
     error = 1;
     goto end;
+  }
+
+  if (type == "GLOBAL" && !reason.empty()) {
+    if (server_services_references_module
+            ->mysql_global_variable_attributes_service->set(
+                nullptr, variable.c_str(), "reason", reason.c_str())) {
+      error = 1;
+      goto end;
+    }
   }
 
 end:

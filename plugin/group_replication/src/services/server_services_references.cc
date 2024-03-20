@@ -69,6 +69,15 @@ bool Server_services_references::initialize() {
       reinterpret_cast<SERVICE_TYPE(mysql_system_variable_update_string) *>(
           m_mysql_system_variable_update_string_handle);
 
+  if (registry_service->acquire("mysql_global_variable_attributes",
+                                &m_mysql_global_variable_attributes_handle)) {
+    error = true;
+    goto end;
+  }
+  mysql_global_variable_attributes_service =
+      reinterpret_cast<SERVICE_TYPE(mysql_global_variable_attributes) *>(
+          m_mysql_global_variable_attributes_handle);
+
   if (registry_service->acquire(
           "mysql_system_variable_update_integer",
           &m_mysql_system_variable_update_integer_handle)) {
@@ -118,6 +127,13 @@ bool Server_services_references::finalize() {
     error |=
         registry_service->release(m_mysql_system_variable_update_string_handle);
     m_mysql_system_variable_update_string_handle = nullptr;
+  }
+
+  mysql_global_variable_attributes_service = nullptr;
+  if (nullptr != m_mysql_global_variable_attributes_handle) {
+    error |=
+        registry_service->release(m_mysql_global_variable_attributes_handle);
+    m_mysql_global_variable_attributes_handle = nullptr;
   }
 
   mysql_string_charset_converter_service = nullptr;

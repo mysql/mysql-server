@@ -10427,6 +10427,12 @@ ER_TO_VECTOR_CONVERSION
 ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM
   eng "This storage engine ignores the %s index algorithm."
 
+ER_SERVER_OFFLINE_MODE_REASON
+  eng "The server is currently in offline mode since %s, reason: %s"
+
+ER_SERVER_OFFLINE_MODE_USER
+  eng "The server is currently in offline mode since %s, set by user %s"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

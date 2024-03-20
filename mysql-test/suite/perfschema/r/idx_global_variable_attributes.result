@@ -1,0 +1,11 @@
+show create table performance_schema.global_variable_attributes;
+Table	Create Table
+global_variable_attributes	CREATE TABLE `global_variable_attributes` (
+  `VARIABLE_NAME` varchar(64) NOT NULL,
+  `ATTR_NAME` varchar(32) NOT NULL,
+  `ATTR_VALUE` varchar(1024) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "global_variable_attributes";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION

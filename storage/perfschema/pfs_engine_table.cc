@@ -120,6 +120,7 @@
 #include "storage/perfschema/table_replication_applier_status_by_coordinator.h"
 #include "storage/perfschema/table_replication_applier_status_by_worker.h"
 /* For replication related perfschema tables. */
+#include "storage/perfschema/table_global_variable_attributes.h"
 #include "storage/perfschema/table_log_status.h"
 #include "storage/perfschema/table_replication_asynchronous_connection_failover.h"
 #include "storage/perfschema/table_replication_connection_configuration.h"
@@ -157,6 +158,7 @@
 #include "storage/perfschema/table_uvar_by_thread.h"
 #include "storage/perfschema/table_variables_by_thread.h"
 #include "storage/perfschema/table_variables_info.h"
+#include "storage/perfschema/table_variables_metadata.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
@@ -602,6 +604,8 @@ static PFS_engine_table_share *all_shares[] = {
     &table_global_variables::m_share,
     &table_session_variables::m_share,
     &table_variables_info::m_share,
+    &table_variables_metadata::m_share,
+    &table_global_variable_attributes::m_share,
     &table_persisted_variables::m_share,
     &table_user_defined_functions::m_share,
     &table_binary_log_transaction_compression_stats::m_share,

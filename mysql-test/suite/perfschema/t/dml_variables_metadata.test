@@ -1,0 +1,35 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.variables_metadata
+  where variable_name like 'autocommit%' limit 1;
+
+select * from performance_schema.variables_metadata
+  where variable_name='FOO';
+
+select * from performance_schema.variables_metadata;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.variables_metadata
+  set variable_name='FOO', variable_scope='GLOBAL';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.variables_metadata
+  set variable_name='FOO', data_type='Integer';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.variables_metadata
+  where variable_name <> 'FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.variables_metadata;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.variables_metadata READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.variables_metadata WRITE;
+UNLOCK TABLES;
+

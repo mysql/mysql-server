@@ -46,7 +46,8 @@ SHOW STATUS LIKE 'threads_connected';
 --disconnect conu1
 --disable_connect_log
 --disable_query_log
---error ER_SERVER_OFFLINE_MODE
+--replace_regex /mode since .*, set by user/mode since TIMESTAMP, set by user/
+--error ER_SERVER_OFFLINE_MODE_USER
 --connect(conu1,localhost,user1)
 --enable_query_log
 --echo connect(conu1,localhost,user1)

@@ -202,7 +202,7 @@ Multi_primary_migration_action::execute_action(
               local_member_info->get_member_version(),
               group_member_mgr->get_group_lowest_online_version()) ==
           READ_COMPATIBLE) {
-        if (enable_server_read_mode()) {
+        if (enable_server_read_mode("(GR) version compatibility")) {
           /* purecov: begin inspected */
           LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
           /* purecov: end */

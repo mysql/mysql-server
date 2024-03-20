@@ -870,7 +870,7 @@ SET GLOBAL init_connect = '';
 SET GLOBAL offline_mode = 'ON';
 REVOKE CONNECTION_ADMIN ON *.* from u1@localhost;
 # Connection will fail
-ERROR HY000: The server is currently in offline mode
+ERROR HY000: The server is currently in offline mode since TIMESTAMP, set by user u1
 GRANT CONNECTION_ADMIN ON *.* TO u1@localhost;
 SET GLOBAL offline_mode = 'OFF';
 SET GLOBAL read_only = 'ON';

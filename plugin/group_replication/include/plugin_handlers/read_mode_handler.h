@@ -24,14 +24,17 @@
 #ifndef READ_MODE_HANDLER_INCLUDE
 #define READ_MODE_HANDLER_INCLUDE
 
+#include <string>
+
 /**
   Enable the super read only mode in the server.
 
+  @param reason explains why we set the mode
   @return the operation status
     @retval 0      OK
     @retval !=0    Error
 */
-int enable_server_read_mode();
+int enable_server_read_mode(const std::string &reason);
 
 /**
   Disable the read only mode in the server.

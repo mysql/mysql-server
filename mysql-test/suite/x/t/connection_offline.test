@@ -1,0 +1,83 @@
+##
+## There are three levels on which the feature is verified:
+##
+## * on X Protocol layer (without decompressing)
+## * confirming that resultset flow is correct
+## * confirming that resultset contains correct data
+##
+## Test of that verifies X Protocol flow for standard SQL queries (after decompression, bullet no 2)
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+--source ../../service_sys_var_registration/include/have_component_test_sys_var_service.inc
+call mtr.add_suppression("duplicate variable name");
+create user nonblank@localhost identified by 'nonblank';
+INSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+## Test starts here
+
+--echo
+--echo ## I.  Validate that connection is rejected when server is in offline mode
+--echo #      with timestamp and user name.
+--echo ## II. Validate that connection is rejected when server is in offline mode
+--echo #      with timestamp and reason.
+--echo ## III.Validate that connection is rejected when server is in offline mode.
+--echo #      with default error message.
+
+--echo
+--echo #
+--echo # I. Offline mode - rejects with username and timestamp.
+--echo #
+SET GLOBAL offline_mode=ON;
+
+replace_regex /mode since .*, set by use/mode since DATE, set by use/;
+exec $MYSQLXTEST --ssl-mode=REQUIRED --expect-error ER_SERVER_OFFLINE_MODE_USER -u nonblank --password='nonblank'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+let $wait_quiet=1;
+source ../include/wait_for_status_variables.inc;
+
+--echo
+--echo #
+--echo # II. Offline mode - reject with username and attribute
+--echo #
+
+SELECT test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL");
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request");
+
+replace_regex /mode since .*, reason/mode since DATE, reason/;
+exec $MYSQLXTEST --ssl-mode=REQUIRED --expect-error ER_SERVER_OFFLINE_MODE_REASON -u nonblank --password='nonblank'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 2;
+let $wait_quiet=1;
+source ../include/wait_for_status_variables.inc;
+
+--echo
+--echo #
+--echo # III. Offline mode - reject with generic message
+--echo #
+let $restart_parameters = restart: --offline_mode=ON;
+replace_regex /\.dll/.so/;
+source include/restart_mysqld.inc;
+exec $MYSQLXTEST --ssl-mode=REQUIRED --expect-error ER_SERVER_OFFLINE_MODE -u nonblank --password='nonblank'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+let $wait_quiet=1;
+source ../include/wait_for_status_variables.inc;
+
+
+## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+drop user nonblank@localhost;
+UNINSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+--source ../include/xplugin_cleanup.inc

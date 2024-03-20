@@ -29,7 +29,7 @@
 #include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
 #include "plugin/group_replication/include/services/system_variable/set_system_variable.h"
 
-int enable_server_read_mode() {
+int enable_server_read_mode(const std::string &reason) {
   DBUG_TRACE;
   int error = 0;
 
@@ -44,7 +44,7 @@ int enable_server_read_mode() {
   LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
   if (!super_read_only_value) {
     Set_system_variable set_system_variable;
-    error = set_system_variable.set_global_super_read_only(true);
+    error = set_system_variable.set_global_super_read_only(true, reason);
   }
 
   return error;
@@ -95,7 +95,7 @@ int set_read_mode_state(bool read_only_enabled, bool super_read_only_enabled) {
     error |= set_system_variable.set_global_read_only(false);
   } else if (!super_read_only_enabled) {
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
-    error |= set_system_variable.set_global_super_read_only(false);
+    error |= set_system_variable.set_global_super_read_only(false, "");
   }
 
   if (error) {

@@ -59,6 +59,7 @@ file_instances
 file_summary_by_event_name
 file_summary_by_instance
 global_status
+global_variable_attributes
 global_variables
 host_cache
 hosts
@@ -120,6 +121,7 @@ user_variables_by_thread
 users
 variables_by_thread
 variables_info
+variables_metadata
 show create table accounts;
 Table	Create Table
 accounts	CREATE TABLE `accounts` (

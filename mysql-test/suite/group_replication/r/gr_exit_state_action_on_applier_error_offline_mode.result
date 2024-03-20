@@ -65,7 +65,7 @@ Got one of the listed errors
 #########################################################################
 
 connect(localhost,user,pass,test,SOURCE_PORT,MASTER_MYSOCK);
-ERROR HY000: The server is currently in offline mode
+ERROR HY000: The server is currently in offline mode since TIMESTAMP, reason: (GR) leave group on failure
 
 #########################################################################
 # 6) Cleanup.

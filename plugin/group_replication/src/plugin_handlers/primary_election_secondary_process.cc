@@ -148,7 +148,7 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
 
   if (election_process_aborted) goto end;
 
-  if (enable_read_mode_on_server()) {
+  if (enable_read_mode_on_server("(GR) new primary elected")) {
     if (!election_process_aborted && !get_server_shutdown_status()) {
       abort_plugin_process(
           "Cannot enable the super read only mode on a secondary member.");
@@ -262,13 +262,14 @@ bool Primary_election_secondary_process::is_election_process_running() {
   return election_process_thd_state.is_thread_alive();
 }
 
-bool Primary_election_secondary_process::enable_read_mode_on_server() {
+bool Primary_election_secondary_process::enable_read_mode_on_server(
+    const std::string &reason) {
   int error = 0;
   remote_clone_handler->lock_gr_clone_read_mode_lock();
 
   if (!plugin_is_group_replication_cloning()) {
     if (!error && !election_process_aborted) {
-      error = enable_server_read_mode();
+      error = enable_server_read_mode(reason);
     }
   }
 

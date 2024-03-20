@@ -104,9 +104,10 @@ class Primary_election_secondary_process : public Group_event_observer {
 
   /**
     Enables the read mode in the server
+    @param reason explains why we set the mode
     @return false in case of success, or true otherwise
   */
-  bool enable_read_mode_on_server();
+  bool enable_read_mode_on_server(const std::string &reason);
 
   /**
      Signal that the read mode is ready on this member

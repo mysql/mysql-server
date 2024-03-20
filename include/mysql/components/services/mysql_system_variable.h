@@ -51,7 +51,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   const char *type = "GLOBAL";
 
   my_h_string base = nullptr, name = nullptr, value = nullptr;
-  if ((base != nullptr &&
+
+  mysql_service_mysql_string_factory->create(&base);
+  mysql_service_mysql_string_factory->create(&name);
+  mysql_service_mysql_string_factory->create(&value);
+
+  if ((base_input != nullptr &&
        mysql_service_mysql_string_converter->convert_from_buffer(
           &base, base_input, strlen(base_input), cs)) ||
       mysql_service_mysql_string_converter->convert_from_buffer(
@@ -133,7 +138,11 @@ END_SERVICE_DEFINITION(mysql_system_variable_update_string)
   unsigned long long value_unsigned = 500000;
 
   my_h_string base = nullptr, name = nullptr;
-  if ((base != nullptr &&
+
+  mysql_service_mysql_string_factory->create(&base);
+  mysql_service_mysql_string_factory->create(&name);
+
+  if ((base_input != nullptr &&
       mysql_service_mysql_string_converter->convert_from_buffer(
           &base, base_input, strlen(base_input), cs)) ||
       mysql_service_mysql_string_converter->convert_from_buffer(
@@ -236,7 +245,11 @@ END_SERVICE_DEFINITION(mysql_system_variable_update_integer)
   const char *type = "PERSIST";
 
   my_h_string base = nullptr, name = nullptr;
-  if ((base != nullptr &&
+
+  mysql_service_mysql_string_factory->create(&base);
+  mysql_service_mysql_string_factory->create(&name);
+
+  if ((base_input != nullptr &&
        mysql_service_mysql_string_converter->convert_from_buffer(
           &base, base_input, strlen(base_input), cs)) ||
       mysql_service_mysql_string_converter->convert_from_buffer(

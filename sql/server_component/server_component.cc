@@ -79,6 +79,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_command_services_imp.h"
 #include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
+#include "mysql_global_variable_attributes_service_imp.h"
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "mysql_page_track_imp.h"
 #include "mysql_runtime_error_imp.h"
@@ -979,6 +980,9 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
     PROVIDES_SERVICE(performance_schema, psi_metric_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
+
+    PROVIDES_SERVICE(mysql_server, mysql_global_variable_attributes),
+    PROVIDES_SERVICE(mysql_server, mysql_global_variable_attributes_iterator),
 
     PROVIDES_SERVICE(mysql_server, pfs_notification_v3),
     PROVIDES_SERVICE(mysql_server, pfs_resource_group_v3),

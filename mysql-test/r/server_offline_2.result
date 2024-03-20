@@ -27,7 +27,7 @@ Variable_name	Value
 Threads_connected	1
 disconnect default;
 disconnect conu1;
-ERROR HY000: The server is currently in offline mode
+ERROR HY000: The server is currently in offline mode since TIMESTAMP, set by user root
 connect(conu1,localhost,user1)
 connect(root,localhost,root)
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;

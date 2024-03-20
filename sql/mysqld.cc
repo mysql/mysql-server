@@ -396,6 +396,7 @@ MySQL clients support the protocol:
   @subpage page_event_tracking_services
   @subpage PAGE_MYSQL_SERVER_METRICS_INSTRUMENT_SERVICE
   @subpage PAGE_MYSQL_SERVER_TELEMETRY_METRICS_SERVICE
+  @subpage PAGE_MYSQL_GLOBAL_VARIABLE_ATTRIBUTES_SERVICE
 */
 
 

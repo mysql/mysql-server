@@ -22,12 +22,16 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <cstdarg>
+#include <string>
 #include <tuple>
 #include <vector>
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/mysql_global_variable_attributes_service.h>
 #include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
@@ -40,6 +44,8 @@ REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_converter);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_global_variable_attributes);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_global_variable_attributes_iterator);
 
 BEGIN_COMPONENT_PROVIDES(test_mysql_system_variable_set)
 END_COMPONENT_PROVIDES();
@@ -54,8 +60,32 @@ BEGIN_COMPONENT_REQUIRES(test_mysql_system_variable_set)
   REQUIRES_SERVICE(mysql_string_factory),
   REQUIRES_SERVICE(mysql_string_converter),
   REQUIRES_SERVICE(mysql_udf_metadata),
+  REQUIRES_SERVICE(mysql_global_variable_attributes),
+  REQUIRES_SERVICE(mysql_global_variable_attributes_iterator),  
 END_COMPONENT_REQUIRES();
 // clang-format on
+
+void write_log(const char *logfile, const char *format, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
+#else
+    ;
+#endif
+
+void write_log(const char *logfile, const char *format, ...) {
+  FILE *outfile = fopen(logfile, "a+");
+  if (!outfile) return;
+
+  char msg[2048];
+  va_list args;
+  va_start(args, format);
+  const int len = vsnprintf(msg, sizeof(msg), format, args);
+  va_end(args);
+
+  const int bytes = std::min(len, (int)(sizeof(msg) - 1));
+  auto written [[maybe_unused]] = fwrite(msg, sizeof(char), bytes, outfile);
+  (void)fclose(outfile);
+}
 
 bool test_set_system_variable_string_init(UDF_INIT *, UDF_ARGS *args,
                                           char *message) {
@@ -346,6 +376,203 @@ long long test_set_system_variable_default(UDF_INIT * /*initd*/, UDF_ARGS *args,
   return *error ? 1 : 0;
 }
 
+bool test_set_global_variable_attrs_init(UDF_INIT *, UDF_ARGS *args,
+                                         char *message) {
+  if (args->arg_count < 4) {
+    strcpy(message, "wrong number of arguments");
+    return true;
+  }
+
+  args->maybe_null[0] = true;   // variable base
+  args->maybe_null[1] = false;  // variable name
+  args->maybe_null[2] = false;  // 1st attribute name
+  args->maybe_null[3] = false;  // 1st attribute value
+  // more optional attribute key/value pairs may follow
+
+  void *cset = (void *)const_cast<char *>("latin1");
+  if (mysql_service_mysql_udf_metadata->argument_set(args, "charset", 1,
+                                                     cset)) {
+    strcpy(message,
+           "Failed to set latin1 as character set for the second argument");
+    return true;
+  }
+  if (mysql_service_mysql_udf_metadata->argument_set(args, "charset", 2,
+                                                     cset)) {
+    strcpy(message,
+           "Failed to set latin1 as character set for the third argument");
+    return true;
+  }
+  if (mysql_service_mysql_udf_metadata->argument_set(args, "charset", 3,
+                                                     cset)) {
+    strcpy(message,
+           "Failed to set latin1 as character set for the forth argument");
+    return true;
+  }
+
+  return false;
+}
+
+long long test_set_global_variable_attrs(UDF_INIT * /*initd*/, UDF_ARGS *args,
+                                         unsigned char * /*is_null*/,
+                                         unsigned char *error) {
+  *error = 0;
+
+  const char *variable_base = args->args[0];
+  const char *variable_name = args->args[1];
+  size_t number_of_attributes = (args->arg_count - 2) / 2;
+
+  for (size_t i = 0; i < number_of_attributes; i++) {
+    const int idx1 = 2 + i * 2;
+    if (*error == 0 && mysql_service_mysql_global_variable_attributes->set(
+                           variable_base, variable_name, args->args[idx1],
+                           args->args[idx1 + 1])) {
+      *error = 1;
+      break;
+    }
+  }
+
+  return *error ? 1 : 0;
+}
+
+bool test_get_global_variable_attrs_init(UDF_INIT *, UDF_ARGS *args,
+                                         char *message) {
+  if (args->arg_count < 3) {
+    strcpy(message, "wrong number of arguments");
+    return true;
+  }
+
+  args->maybe_null[0] = true;   // variable base
+  args->maybe_null[1] = false;  // variable name
+  args->maybe_null[2] = true;   // attribute name
+
+  void *cset = (void *)const_cast<char *>("latin1");
+  if (mysql_service_mysql_udf_metadata->argument_set(args, "charset", 0,
+                                                     cset)) {
+    strcpy(message,
+           "Failed to set latin1 as character set for the first argument");
+    return true;
+  }
+  if (mysql_service_mysql_udf_metadata->argument_set(args, "charset", 1,
+                                                     cset)) {
+    strcpy(message,
+           "Failed to set latin1 as character set for the second argument");
+    return true;
+  }
+  if (mysql_service_mysql_udf_metadata->argument_set(args, "charset", 2,
+                                                     cset)) {
+    strcpy(message,
+           "Failed to set latin1 as character set for the third argument");
+    return true;
+  }
+
+  return false;
+}
+
+// custom log file for attribute testing
+#define LOGFILE "test_mysql_global_variable_attributes.log"
+
+long long test_get_global_variable_attrs(UDF_INIT * /*initd*/, UDF_ARGS *args,
+                                         unsigned char * /*is_null*/,
+                                         unsigned char *error) {
+  *error = 0;
+
+  const char *variable_base = args->args[0];
+  const char *variable_name = args->args[1];
+  const char *attribute_name = args->args[2];
+
+  write_log(LOGFILE,
+            "*** test_get_global_variable_attributes: Iterate attributes of "
+            "system variable [%s] (attribute=%s)\n",
+            variable_name, attribute_name);
+
+  const char *cs = "latin1";
+  global_variable_attributes_iterator attr_iterator = nullptr;
+  if (*error == 0 &&
+      mysql_service_mysql_global_variable_attributes_iterator->create(
+          variable_base, variable_name, attribute_name, &attr_iterator)) {
+    write_log(LOGFILE,
+              "*** test_get_global_variable_attributes: Failed to create "
+              "iterator (%s)\n",
+              variable_name);
+    *error = 1;
+  }
+
+  my_h_string name_handle = nullptr;
+  my_h_string value_handle = nullptr;
+
+  if (*error == 0) {
+    for (;;) {
+      if (mysql_service_mysql_global_variable_attributes_iterator->get_name(
+              attr_iterator, &name_handle)) {
+        write_log(
+            LOGFILE,
+            "*** test_get_global_variable_attributes: Failed to get name\n");
+        *error = 1;
+        break;
+      }
+      if (mysql_service_mysql_global_variable_attributes_iterator->get_value(
+              attr_iterator, &value_handle)) {
+        write_log(
+            LOGFILE,
+            "*** test_get_global_variable_attributes: Failed to get value\n");
+        *error = 1;
+        break;
+      }
+
+      char attr_name[32 + 1];
+      if (mysql_service_mysql_string_converter->convert_to_buffer(
+              name_handle, attr_name, sizeof(attr_name), cs)) {
+        write_log(LOGFILE,
+                  "*** test_get_global_variable_attributes: Failed to convert "
+                  "name\n");
+        *error = 1;
+        break;
+      }
+      attr_name[32] = '\0';
+
+      char attr_value[1024 + 1];
+      if (mysql_service_mysql_string_converter->convert_to_buffer(
+              value_handle, attr_value, sizeof(attr_value), cs)) {
+        write_log(
+            LOGFILE,
+            "*** test_get_global_variable_attributes: Failed to get value\n");
+        *error = 1;
+        break;
+      }
+      attr_value[1024] = '\0';
+
+      write_log(LOGFILE, " >> attribute_name [%s], attribute_value [%s]\n",
+                attr_name, attr_value);
+
+      if (name_handle) {
+        mysql_service_mysql_string_factory->destroy(name_handle);
+        name_handle = nullptr;
+      }
+      if (value_handle) {
+        mysql_service_mysql_string_factory->destroy(value_handle);
+        value_handle = nullptr;
+      }
+
+      if (mysql_service_mysql_global_variable_attributes_iterator->advance(
+              attr_iterator))
+        break;
+    }
+  }
+
+  if (*error == 0 &&
+      mysql_service_mysql_global_variable_attributes_iterator->destroy(
+          attr_iterator)) {
+    write_log(LOGFILE,
+              "*** test_get_global_variable_attributes: Failed to destroy "
+              "iterator\n");
+    *error = 1;
+  }
+
+  if (name_handle) mysql_service_mysql_string_factory->destroy(name_handle);
+  if (value_handle) mysql_service_mysql_string_factory->destroy(value_handle);
+  return *error ? 1 : 0;
+}
+
 static std::vector<std::tuple<const char *, Udf_func_longlong, Udf_func_init>>
     function_list{
         {"test_set_system_variable_string", test_set_system_variable_string,
@@ -357,7 +584,12 @@ static std::vector<std::tuple<const char *, Udf_func_longlong, Udf_func_init>>
          test_set_system_variable_unsigned_integer,
          test_set_system_variable_unsigned_integer_init},
         {"test_set_system_variable_default", test_set_system_variable_default,
-         test_set_system_variable_default_init}};
+         test_set_system_variable_default_init},
+        {"test_set_global_variable_attributes", test_set_global_variable_attrs,
+         test_set_global_variable_attrs_init},
+        {"test_get_global_variable_attributes", test_get_global_variable_attrs,
+         test_get_global_variable_attrs_init},
+    };
 
 static mysql_service_status_t init() {
   size_t pos = 0;

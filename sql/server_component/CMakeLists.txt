@@ -42,6 +42,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_cond_service.cc
   mysql_connection_attributes_iterator_imp.cc
   mysql_current_thread_reader_imp.cc
+  mysql_global_variable_attributes_service_imp.cc
   mysql_mutex_service.cc
   mysql_psi_system_service.cc
   mysql_runtime_error.cc

@@ -183,6 +183,8 @@ table_users.h
 table_uvar_by_thread.h
 table_variables_by_thread.h
 table_variables_info.h
+table_variables_metadata.h
+table_global_variable_attributes.h
 cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
@@ -355,6 +357,8 @@ table_users.cc
 table_uvar_by_thread.cc
 table_variables_by_thread.cc
 table_variables_info.cc
+table_variables_metadata.cc
+table_global_variable_attributes.cc
 cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc

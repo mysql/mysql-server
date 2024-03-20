@@ -41,6 +41,7 @@
 #include <string_view>
 #include <vector>
 
+#include <map>
 #include "lex_string.h"
 #include "my_getopt.h"    // get_opt_arg_type
 #include "my_hostname.h"  // HOSTNAME_LENGTH
@@ -162,6 +163,9 @@ class sys_var {
     SESSION_VARIABLE_IN_BINLOG
   } binlog_status;
 
+  ///< Global system variable attributes.
+  std::map<std::string, std::string> m_global_attributes;
+
  protected:
   typedef bool (*on_check_function)(sys_var *self, THD *thd, set_var *var);
   typedef bool (*pre_update_function)(sys_var *self, THD *thd, set_var *var);
@@ -279,6 +283,7 @@ class sys_var {
   bool is_persist_readonly() const { return flags & PERSIST_AS_READ_ONLY; }
   bool is_parse_early() const { return (m_parse_flag == PARSE_EARLY); }
   bool is_sensitive() const { return flags & SENSITIVE; }
+
   /**
     Check if the variable can be set using SET_VAR hint.
 
@@ -1105,6 +1110,21 @@ collation_unordered_map<std::string, sys_var *>
     *get_static_system_variable_hash(void);
 collation_unordered_map<std::string, sys_var *>
     *get_dynamic_system_variable_hash(void);
+
+bool get_global_variable_attributes(
+    const char *variable_base, const char *variable_name,
+    std::vector<std::pair<std::string, std::string>> &attributes);
+bool get_global_variable_attribute(const char *variable_base,
+                                   const char *variable_name,
+                                   const char *attribute_name,
+                                   std::string &value);
+bool set_global_variable_attribute(const char *variable_base,
+                                   const char *variable_name,
+                                   const char *attribute_name,
+                                   const char *attribute_value);
+bool set_global_variable_attribute(const System_variable_tracker &var_tracker,
+                                   const char *attribute_name,
+                                   const char *attribute_value);
 
 extern bool get_sysvar_source(const char *name, uint length,
                               enum enum_variable_source *source);

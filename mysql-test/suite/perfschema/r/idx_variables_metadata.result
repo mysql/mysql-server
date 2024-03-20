@@ -1,0 +1,14 @@
+show create table performance_schema.variables_metadata;
+Table	Create Table
+variables_metadata	CREATE TABLE `variables_metadata` (
+  `VARIABLE_NAME` varchar(64) NOT NULL,
+  `VARIABLE_SCOPE` enum('GLOBAL','SESSION','SESSION_ONLY') NOT NULL,
+  `DATA_TYPE` enum('Integer','Numeric','String','Enumeration','Boolean','Set') NOT NULL,
+  `MIN_VALUE` varchar(64) DEFAULT NULL,
+  `MAX_VALUE` varchar(64) DEFAULT NULL,
+  `DOCUMENTATION` mediumtext NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "variables_metadata";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION

@@ -43,11 +43,18 @@ class Set_system_variable_parameters : public Mysql_thread_body_parameters {
     @param [in]  variable The system variable to be set
     @param [in]  value    The value to be set
     @param [in]  type     GLOBAL or PERSIST_ONLY
+    @param [in]  reason   Explains why we set OFFLINE_MODE or SUPER_READ_ONLY to
+    ON
     */
   Set_system_variable_parameters(System_variable variable,
                                  const std::string &value,
-                                 const std::string &type)
-      : m_value(value), m_type(type), m_variable(variable), m_error(1) {}
+                                 const std::string &type,
+                                 const std::string &reason)
+      : m_value(value),
+        m_type(type),
+        m_variable(variable),
+        m_error(1),
+        m_reason(reason) {}
   virtual ~Set_system_variable_parameters() {}
 
   /**
@@ -80,6 +87,9 @@ class Set_system_variable_parameters : public Mysql_thread_body_parameters {
  private:
   System_variable m_variable{System_variable::VAR_READ_ONLY};
   int m_error{1};
+
+ public:
+  const std::string m_reason{};
 };
 
 class Set_system_variable : Mysql_thread_body {
@@ -103,23 +113,25 @@ class Set_system_variable : Mysql_thread_body {
     Method to set the global value of super_read_only.
 
     @param [in] value The value to be set
+    @param [in] reason Explains why we set the mode
 
     @return the error value returned
     @retval 0      OK
     @retval !=0    Error
     */
-  int set_global_super_read_only(bool value);
+  int set_global_super_read_only(bool value, const std::string &reason);
 
   /**
     Method to set the global value of offline_mode.
 
     @param [in] value The value to be set
+    @param [in] reason Explains why we set the mode
 
     @return the error value returned
     @retval 0      OK
     @retval !=0    Error
     */
-  int set_global_offline_mode(bool value);
+  int set_global_offline_mode(bool value, const std::string &reason);
 
   /**
     Method to only persist the value of
@@ -162,6 +174,7 @@ class Set_system_variable : Mysql_thread_body {
     @param [in]  value    The value to be set
     @param [in]  type     GLOBAL or PERSIST_ONLY
     @param [in]  lock_wait_timeout Lock wait timeout in seconds
+    @param [in]  reason Explains why we set the mode
 
     @return the error value returned
     @retval 0      OK
@@ -170,7 +183,8 @@ class Set_system_variable : Mysql_thread_body {
   int internal_set_system_variable(const std::string &variable,
                                    const std::string &value,
                                    const std::string &type,
-                                   unsigned long long lock_wait_timeout);
+                                   unsigned long long lock_wait_timeout,
+                                   const std::string &reason);
 };
 
 #endif  // GR_SET_SYSTEM_VARIABLE

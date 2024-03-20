@@ -1,0 +1,21 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.variables_metadata
+  add column foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+truncate table performance_schema.variables_metadata;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.variables_metadata
+  ADD INDEX test_index(VARIABLE_NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.variables_metadata(VARIABLE_NAME);
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.variables_metadata;
+
+DROP TABLE test.create_select;

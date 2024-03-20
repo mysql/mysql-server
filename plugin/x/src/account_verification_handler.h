@@ -99,6 +99,7 @@ class Account_verification_handler
   iface::Account_verification::Account_type get_account_verificator_id(
       const std::string &plugin_name) const;
 
+  ngs::Error_code get_offline_mode_error() const;
   ngs::Error_code get_account_record(const std::string &user,
                                      const std::string &host,
                                      Account_record &record) const;

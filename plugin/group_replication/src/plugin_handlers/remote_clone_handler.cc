@@ -407,7 +407,7 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(bool critical_error) {
     return 1;
   }
   // If it failed to (re)connect to the server or the set read only query
-  if (enable_server_read_mode()) {
+  if (enable_server_read_mode("(GR) leave group on failure")) {
     abort_plugin_process(
         "Cannot re-enable the super read only after clone failure.");
     return 1;

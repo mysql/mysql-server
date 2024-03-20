@@ -94,6 +94,7 @@
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_time.h"    // Interval
 #include "sql/strfunc.h"
+#include "sql/sys_vars_shared.h"  // find_static_system_variable
 #include "sql/system_variables.h"
 #include "sql/tztime.h"  // Time_zone
 #include "sql_common.h"  // mpvio_info
@@ -3947,6 +3948,63 @@ static void check_and_update_password_lock_state(MPVIO_EXT &mpvio, THD *thd,
 }
 
 /**
+  Generate ER_SERVER_OFFLINE_MODE with several possible variants of the error
+  text, depending on whether OFFLINE_MODE system variable has a "reason"
+  attribute attached and if SET_TIME and SET_USER parameters for a variable
+  change are present.
+*/
+void send_server_offline_mode_error() {
+  ulonglong timestamp_usec = 0;
+  char set_user[USERNAME_CHAR_LENGTH + 1] = "";
+
+  // safe sysvar data access
+  const System_variable_tracker var_tracker =
+      System_variable_tracker::make_tracker({}, "offline_mode");
+  auto f = [&](const System_variable_tracker &, sys_var *var) -> int {
+    timestamp_usec = var->get_timestamp();
+    memcpy(set_user, var->get_user(), sizeof(set_user));
+    return 0;
+  };
+  int ret = var_tracker
+                .access_system_variable<int>(current_thd, f,
+                                             Suppress_not_found_error::NO)
+                .value_or(-1);
+  if (ret == -1) return;
+
+  // format timestamp to string, format identical to SET_TIME from
+  // performance_schema.variables_info
+  my_timeval tm{};
+  my_micro_time_to_timeval(timestamp_usec, &tm);
+  char set_time[100] = "";
+  MYSQL_TIME mt{};
+  current_thd->variables.time_zone->gmt_sec_to_TIME(&mt, tm);
+  current_thd->time_zone_used = true;
+  my_datetime_to_str(mt, set_time, 6);
+
+  // If an ATTR_VALUE is found, the following error is raised:
+  // "The server is currently in offline mode since $SET_TIME, reason:
+  // $ATTR_VALUE"
+  std::string value;
+  get_global_variable_attribute(nullptr, "offline_mode", "reason", value);
+  if (!value.empty()) {
+    my_error(ER_SERVER_OFFLINE_MODE_REASON, MYF(0), set_time, value.c_str());
+    return;
+  }
+
+  // else, if both SET_TIME and SET_USER are not empty:
+  // "The server is currently in offline mode since $SET_TIME, set by user
+  // $SET_USER"
+  if (set_user[0] != '\0') {
+    my_error(ER_SERVER_OFFLINE_MODE_USER, MYF(0), set_time, set_user);
+    return;
+  }
+
+  // else, fallback to legacy message without any context info:
+  // "The server is currently in offline mode."
+  my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+}
+
+/**
   Perform the handshake, authorize the client and update thd sctx variables.
 
   @param thd                     thread handle
@@ -4215,7 +4273,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
             sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
                 .first)) {
         if (mysqld_offline_mode()) {
-          my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+          send_server_offline_mode_error();
           goto end;
         }
       }

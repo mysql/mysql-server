@@ -1,8 +1,8 @@
 "Checking the data dictionary properties ..."
 DATA DICTIONARY TAG
-PS_VERSION=80300
+PS_VERSION=90000
 DATA DICTIONARY VERSION
-80300
+90000
 "Checking the performance schema database structure ..."
 CHECK STATUS
-The tables in the performance_schema were last changed in MySQL 8.3.0, with a PFS_DD_VERSION = 80300
+The tables in the performance_schema were last changed in MySQL 9.0.0, with a PFS_DD_VERSION = 90000

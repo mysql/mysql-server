@@ -29,6 +29,10 @@ SET @@GLOBAL.group_replication_recovery_retry_count = 1;
 SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
 SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 
+SET sql_log_bin = 0;
+CREATE USER 'user1'@'localhost';
+SET sql_log_bin = 1;
+
 # Create a table on M1 while it isn't part of the group
 SET sql_log_bin = 0;
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -82,6 +86,20 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 
+--echo
+--echo # WL#15855: System variable metadata and attribute data
+--echo # Validate that the member set custom reason for entiering offline mode
+--echo
+
+--echo # Check that the 'reason' attribute is visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Validate new session gets rejected with a custom message (including Health Monitor's reason)
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--replace_regex /mode since .*, reason/mode since TIMESTAMP, reason/
+--error ER_SERVER_OFFLINE_MODE_REASON
+--connect(conu1,localhost,user1)
+
 --source include/assert_and_disable_read_only.inc
 --source include/assert_and_disable_offline_mode.inc
 
@@ -103,6 +121,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
+DROP USER 'user1'@'localhost';
 SET SESSION sql_log_bin= 1;
 
 --source include/start_group_replication.inc

@@ -140,7 +140,7 @@ int Primary_election_handler::execute_primary_election(
         enum_primary_election_primary_change_status::
             PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
         mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode("(GR) primary election failed")) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
     }
@@ -307,7 +307,7 @@ int Primary_election_handler::legacy_primary_election(
     member_actions_handler->trigger_actions(
         Member_actions::AFTER_PRIMARY_ELECTION);
   } else {
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode("(GR) new primary elected")) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
     }

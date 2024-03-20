@@ -28,11 +28,11 @@
 #include "plugin/group_replication/include/plugin_utils.h"
 #include "plugin/group_replication/include/services/system_variable/set_system_variable.h"
 
-void enable_server_offline_mode() {
+void enable_server_offline_mode(const std::string &reason) {
   DBUG_TRACE;
 
   Set_system_variable set_system_variable;
-  int error = set_system_variable.set_global_offline_mode(true);
+  int error = set_system_variable.set_global_offline_mode(true, reason);
 
   if (error) {
     /* purecov: begin inspected */

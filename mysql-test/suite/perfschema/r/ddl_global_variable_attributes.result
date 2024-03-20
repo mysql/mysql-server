@@ -1,0 +1,14 @@
+alter table performance_schema.global_variable_attributes
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+truncate table performance_schema.global_variable_attributes;
+ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+ALTER TABLE performance_schema.global_variable_attributes
+ADD INDEX test_index(VARIABLE_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index
+ON performance_schema.global_variable_attributes(VARIABLE_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.global_variable_attributes;
+DROP TABLE test.create_select;

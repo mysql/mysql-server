@@ -1,0 +1,22 @@
+select * from performance_schema.variables_metadata
+where variable_name like 'autocommit%' limit 1;
+select * from performance_schema.variables_metadata
+where variable_name='FOO';
+select * from performance_schema.variables_metadata;
+insert into performance_schema.variables_metadata
+set variable_name='FOO', variable_scope='GLOBAL';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'variables_metadata'
+update performance_schema.variables_metadata
+set variable_name='FOO', data_type='Integer';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'variables_metadata'
+delete from performance_schema.variables_metadata
+where variable_name <> 'FOO';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'variables_metadata'
+delete from performance_schema.variables_metadata;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'variables_metadata'
+LOCK TABLES performance_schema.variables_metadata READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'variables_metadata'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.variables_metadata WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'variables_metadata'
+UNLOCK TABLES;

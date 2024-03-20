@@ -1,0 +1,24 @@
+select * from performance_schema.global_variable_attributes
+where variable_name like 'autocommit%' limit 1;
+select * from performance_schema.global_variable_attributes
+where variable_name='FOO';
+insert into performance_schema.global_variable_attributes
+set variable_name='FOO', attr_name='BAR';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+insert into performance_schema.global_variable_attributes
+set variable_name='FOO', attr_name='BAR', attr_value='BAZ';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+update performance_schema.global_variable_attributes
+set variable_name='FOO', attr_value='BAZ';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+delete from performance_schema.global_variable_attributes
+where variable_name <> 'FOO';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+delete from performance_schema.global_variable_attributes;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+LOCK TABLES performance_schema.global_variable_attributes READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.global_variable_attributes WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'global_variable_attributes'
+UNLOCK TABLES;

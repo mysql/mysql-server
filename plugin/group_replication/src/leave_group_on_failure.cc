@@ -177,7 +177,7 @@ void leave_group_on_failure::leave(
 
   if (!actions[leave_group_on_failure::SKIP_SET_READ_ONLY]) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS);
-    enable_server_read_mode();
+    enable_server_read_mode("(GR) leave group on failure");
   }
 
   /*
@@ -188,7 +188,7 @@ void leave_group_on_failure::leave(
   if (actions[leave_group_on_failure::HANDLE_EXIT_STATE_ACTION] &&
       !start_auto_rejoin) {
     if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
-      enable_server_offline_mode();
+      enable_server_offline_mode("(GR) leave group on failure");
     }
   }
 

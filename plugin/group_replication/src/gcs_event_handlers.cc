@@ -1156,7 +1156,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode("(GR) join group")) {
       /*
         The notification will be triggered in the top level handle function
         that calls this one. In this case, the on_view_changed handle.

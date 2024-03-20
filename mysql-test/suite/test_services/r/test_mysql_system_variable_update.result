@@ -527,11 +527,172 @@ test_set_system_variable_default(1, NULL, "connection_memory_limit", "PERSIST")
 0
 # reset persisted value
 RESET PERSIST connection_memory_limit;
+#
+# WL#15855: System variable metadata and attribute data
+#
+CREATE USER 'user1'@'localhost';
+# Test #1: Try setting super_read_only attributes. Should succeed
+SELECT test_set_global_variable_attributes(NULL, "super_read_only", "reason", "testing");
+test_set_global_variable_attributes(NULL, "super_read_only", "reason", "testing")
+0
+# Check that the attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+super_read_only	reason	testing
+# Test #2: Set offline_mode to ON with attributes
+SELECT test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL");
+test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL")
+0
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request");
+test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request")
+0
+# Check that the attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	reason	API request
+offline_mode	when	today
+super_read_only	reason	testing
+# Validate new user session gets rejected with a custom message (including reason)
+connect(localhost,user1,,test,SOURCE_PORT,SOURCE_SOCKET);
+ERROR HY000: The server is currently in offline mode since TIMESTAMP, reason: API request
+# Iterate all attributes for "offline_mode"
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", NULL);
+test_get_global_variable_attributes(NULL, "offline_mode", NULL)
+0
+# Set another set of attributes (without including 'reason')
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", NULL, NULL);
+test_set_global_variable_attributes(NULL, "offline_mode", NULL, NULL)
+0
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "yesterday");
+test_set_global_variable_attributes(NULL, "offline_mode", "when", "yesterday")
+0
+# Check that the attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	when	yesterday
+super_read_only	reason	testing
+# Ensure the value of offline_mode is on
+SELECT @@global.offline_mode;
+@@global.offline_mode
+1
+# Validate new user session gets rejected with a custom message (not including reason, but includes user name)
+connect(localhost,user1,,test,SOURCE_PORT,SOURCE_SOCKET);
+ERROR HY000: The server is currently in offline mode since TIMESTAMP, set by user root
+# Iterate all attributes for "offline_mode"
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", NULL);
+test_get_global_variable_attributes(NULL, "offline_mode", NULL)
+0
+# Iterate all attributes for "super_read_only"
+SELECT test_get_global_variable_attributes(NULL, "super_read_only", NULL);
+test_get_global_variable_attributes(NULL, "super_read_only", NULL)
+0
+# Test #3: Try setting super_read_only off using other API. Should succeed, but reset its attributes.
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "off", "GLOBAL");
+test_set_system_variable_string(0, NULL, "super_read_only", "off", "GLOBAL")
+0
+# Ensure the value of super read only is off
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+# Check that only "super_read_only" variable attribute has been reset
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	when	yesterday
+# Test #4: Test that setting the attribute of a SESSION-only variable will fail
+SELECT test_set_global_variable_attributes(NULL, "warning_count", "reason", "should fail");
+test_set_global_variable_attributes(NULL, "warning_count", "reason", "should fail")
+NULL
+# Check that the attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	when	yesterday
+# Test #5: Test that adding an attribute is additive, old attribute was preserved
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "additional", "explanation");
+test_set_global_variable_attributes(NULL, "offline_mode", "additional", "explanation")
+0
+# Check that both old and new attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	additional	explanation
+offline_mode	when	yesterday
+# Test #6: Iterate exact attribute "when" for "offline_mode", should exist
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", "when");
+test_get_global_variable_attributes(NULL, "offline_mode", "when")
+0
+# Test #7: Iterate exact attribute "invalid" for "offline_mode", should not exist
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", "invalid");
+test_get_global_variable_attributes(NULL, "offline_mode", "invalid")
+NULL
+# Test #8: test setting attribute fails when attribute name too long
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "attribute_name_was_toooooo_loooooooong", "value");
+test_set_global_variable_attributes(NULL, "offline_mode", "attribute_name_was_toooooo_loooooooong", "value")
+NULL
+# Check that "name too long" attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	additional	explanation
+offline_mode	when	yesterday
+# Test #9: test setting attribute fails when attribute value too long
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "attribute", RPAD("Too long value", 1025,'e'));
+test_set_global_variable_attributes(NULL, "offline_mode", "attribute", RPAD("Too long value", 1025,'e'))
+NULL
+# Check that "value too long" attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	additional	explanation
+offline_mode	when	yesterday
+# Test #10: test setting attribute fails when attribute name is emtpy
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "", "value");
+test_set_global_variable_attributes(NULL, "offline_mode", "", "value")
+NULL
+# Check that "name empty" attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	additional	explanation
+offline_mode	when	yesterday
+# Test #11: test that setting system variable via "SET GLOBAL ..." SQL resets its attributes
+SET GLOBAL offline_mode=1;
+# Verify that offline_mode attributes are not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+# Test #12: test that setting system variable via "SET PERSIST ..." SQL resets its attributes
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "reason", "something happened");
+test_set_global_variable_attributes(NULL, "offline_mode", "reason", "something happened")
+0
+# Verify that we correctly set the test attribute
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
+offline_mode	reason	something happened
+SET PERSIST offline_mode=0;
+# Verify that offline_mode attributes are not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+VARIABLE_NAME	ATTR_NAME	ATTR_VALUE
 # Cleanup
 SET @@GLOBAL.connection_memory_limit = @orig_connection_memory_limit;
 SET @@GLOBAL.lc_messages = @orig_lc_messages;
 SET GLOBAL read_only = DEFAULT;
+SET GLOBAL offline_mode = DEFAULT;
 RESET PERSIST;
+# Test #12: Restart server with offline_mode set on startup
+# restart: --offline-mode=1
+# Validate new user session gets rejected with a legacy message (not including reason nor user name)
+connect(localhost,user1,,test,SOURCE_PORT,SOURCE_SOCKET);
+ERROR HY000: The server is currently in offline mode
+Attribute testing logs:
+*** test_get_global_variable_attributes: Iterate attributes of system variable [offline_mode] (attribute=(null))
+ >> attribute_name [reason], attribute_value [API request]
+ >> attribute_name [when], attribute_value [today]
+*** test_get_global_variable_attributes: Iterate attributes of system variable [offline_mode] (attribute=(null))
+ >> attribute_name [when], attribute_value [yesterday]
+*** test_get_global_variable_attributes: Iterate attributes of system variable [super_read_only] (attribute=(null))
+ >> attribute_name [reason], attribute_value [testing]
+*** test_get_global_variable_attributes: Iterate attributes of system variable [offline_mode] (attribute=when)
+ >> attribute_name [when], attribute_value [yesterday]
+*** test_get_global_variable_attributes: Iterate attributes of system variable [offline_mode] (attribute=invalid)
+*** test_get_global_variable_attributes: Failed to create iterator (offline_mode)
+# Final cleanup
+SET GLOBAL offline_mode = DEFAULT;
 UNINSTALL COMPONENT "file://component_test_mysql_system_variable_set";
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
+DROP USER 'user1'@'localhost';
 # End of 8.0 tests

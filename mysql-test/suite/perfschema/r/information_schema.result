@@ -54,6 +54,7 @@ performance_schema	file_instances	def
 performance_schema	file_summary_by_event_name	def
 performance_schema	file_summary_by_instance	def
 performance_schema	global_status	def
+performance_schema	global_variable_attributes	def
 performance_schema	global_variables	def
 performance_schema	host_cache	def
 performance_schema	hosts	def
@@ -115,6 +116,7 @@ performance_schema	user_variables_by_thread	def
 performance_schema	users	def
 performance_schema	variables_by_thread	def
 performance_schema	variables_info	def
+performance_schema	variables_metadata	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -171,6 +173,7 @@ file_instances	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
 global_status	BASE TABLE	PERFORMANCE_SCHEMA
+global_variable_attributes	BASE TABLE	PERFORMANCE_SCHEMA
 global_variables	BASE TABLE	PERFORMANCE_SCHEMA
 host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
@@ -232,6 +235,7 @@ user_variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 users	BASE TABLE	PERFORMANCE_SCHEMA
 variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 variables_info	BASE TABLE	PERFORMANCE_SCHEMA
+variables_metadata	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -288,6 +292,7 @@ file_instances	10	Dynamic
 file_summary_by_event_name	10	Dynamic
 file_summary_by_instance	10	Dynamic
 global_status	10	Dynamic
+global_variable_attributes	10	Dynamic
 global_variables	10	Dynamic
 host_cache	10	Dynamic
 hosts	10	Fixed
@@ -349,6 +354,7 @@ user_variables_by_thread	10	Dynamic
 users	10	Fixed
 variables_by_thread	10	Dynamic
 variables_info	10	Dynamic
+variables_metadata	10	Dynamic
 select lower(TABLE_NAME), AVG_ROW_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema' and
@@ -405,6 +411,7 @@ events_waits_summary_global_by_event_name	0
 file_instances	0
 file_summary_by_event_name	0
 file_summary_by_instance	0
+global_variable_attributes	0
 host_cache	0
 hosts	0
 innodb_redo_log_files	0
@@ -472,6 +479,7 @@ status_by_thread	table_rows	avg_row_len
 status_by_user	table_rows	avg_row_len
 variables_by_thread	table_rows	avg_row_len
 variables_info	table_rows	avg_row_len
+variables_metadata	table_rows	avg_row_len
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -528,6 +536,7 @@ file_instances	0	0
 file_summary_by_event_name	0	0
 file_summary_by_instance	0	0
 global_status	0	0
+global_variable_attributes	0	0
 global_variables	0	0
 host_cache	0	0
 hosts	0	0
@@ -589,6 +598,7 @@ user_variables_by_thread	0	0
 users	0	0
 variables_by_thread	0	0
 variables_info	0	0
+variables_metadata	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -645,6 +655,7 @@ file_instances	0	0	NULL
 file_summary_by_event_name	0	0	NULL
 file_summary_by_instance	0	0	NULL
 global_status	0	0	NULL
+global_variable_attributes	0	0	NULL
 global_variables	0	0	NULL
 host_cache	0	0	NULL
 hosts	0	0	NULL
@@ -706,6 +717,7 @@ user_variables_by_thread	0	0	NULL
 users	0	0	NULL
 variables_by_thread	0	0	NULL
 variables_info	0	0	NULL
+variables_metadata	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -762,6 +774,7 @@ file_instances	NULL	NULL	NULL
 file_summary_by_event_name	NULL	NULL	NULL
 file_summary_by_instance	NULL	NULL	NULL
 global_status	NULL	NULL	NULL
+global_variable_attributes	NULL	NULL	NULL
 global_variables	NULL	NULL	NULL
 host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
@@ -823,6 +836,7 @@ user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
 variables_by_thread	NULL	NULL	NULL
 variables_info	NULL	NULL	NULL
+variables_metadata	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -879,6 +893,7 @@ file_instances	utf8mb4_0900_ai_ci	NULL
 file_summary_by_event_name	utf8mb4_0900_ai_ci	NULL
 file_summary_by_instance	utf8mb4_0900_ai_ci	NULL
 global_status	utf8mb4_0900_ai_ci	NULL
+global_variable_attributes	utf8mb4_0900_ai_ci	NULL
 global_variables	utf8mb4_0900_ai_ci	NULL
 host_cache	utf8mb4_0900_ai_ci	NULL
 hosts	utf8mb4_0900_ai_ci	NULL
@@ -940,6 +955,7 @@ user_variables_by_thread	utf8mb4_0900_ai_ci	NULL
 users	utf8mb4_0900_ai_ci	NULL
 variables_by_thread	utf8mb4_0900_ai_ci	NULL
 variables_info	utf8mb4_0900_ai_ci	NULL
+variables_metadata	utf8mb4_0900_ai_ci	NULL
 select lower(TABLE_NAME), CREATE_OPTIONS
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -996,6 +1012,7 @@ file_instances
 file_summary_by_event_name	
 file_summary_by_instance	
 global_status	
+global_variable_attributes	
 global_variables	
 host_cache	
 hosts	
@@ -1057,6 +1074,7 @@ user_variables_by_thread
 users	
 variables_by_thread	
 variables_info	
+variables_metadata	
 select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
@@ -1113,6 +1131,7 @@ file_instances
 file_summary_by_event_name	
 file_summary_by_instance	
 global_status	
+global_variable_attributes	
 global_variables	
 host_cache	
 hosts	
@@ -1174,3 +1193,4 @@ user_variables_by_thread
 users	
 variables_by_thread	
 variables_info	
+variables_metadata	

@@ -253,8 +253,14 @@
       - events_transactions_history_long:
         - GTID 64->90 bytes
 
+  90000:
+
+   - WL#15855: System variable metadata
+      New tables variable_metadata, global_variable_attributes added to
+  performance_schema
+
 */
 
-static const uint PFS_DD_VERSION = 80300;
+static const uint PFS_DD_VERSION = 90000;
 
 #endif /* PFS_DD_VERSION_H */

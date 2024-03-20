@@ -75,6 +75,11 @@
 /** Size of the SOURCE columns, in bytes. */
 #define COL_SOURCE_SIZE (COL_SOURCE_CHAR_SIZE * 1)
 
+/** Size of the short NAME columns, in characters. */
+#define COL_SHORT_NAME_CHAR_SIZE 32
+/** Size of the short NAME columns, in bytes. */
+#define COL_SHORT_NAME_SIZE (COL_SHORT_NAME_CHAR_SIZE * 1)
+
 /**
   Enum values for the TIMER_NAME columns.
   This enum is found in the following tables:

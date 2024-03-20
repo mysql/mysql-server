@@ -497,13 +497,144 @@ SELECT test_set_system_variable_default(1, NULL, "connection_memory_limit", "PER
 --echo # reset persisted value
 RESET PERSIST connection_memory_limit;
 
+--echo #
+--echo # WL#15855: System variable metadata and attribute data
+--echo #
+CREATE USER 'user1'@'localhost';
+
+--echo # Test #1: Try setting super_read_only attributes. Should succeed
+SELECT test_set_global_variable_attributes(NULL, "super_read_only", "reason", "testing");
+
+--echo # Check that the attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #2: Set offline_mode to ON with attributes
+SELECT test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL");
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request");
+
+--echo # Check that the attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Validate new user session gets rejected with a custom message (including reason)
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--replace_regex /mode since .*, reason/mode since TIMESTAMP, reason/
+--error ER_SERVER_OFFLINE_MODE_REASON
+--connect(conu1,localhost,user1)
+
+--echo # Iterate all attributes for "offline_mode"
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", NULL);
+
+--echo # Set another set of attributes (without including 'reason')
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", NULL, NULL);
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "yesterday");
+
+--echo # Check that the attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Ensure the value of offline_mode is on
+SELECT @@global.offline_mode;
+
+--echo # Validate new user session gets rejected with a custom message (not including reason, but includes user name)
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--replace_regex /mode since .*, set by user/mode since TIMESTAMP, set by user/
+--error ER_SERVER_OFFLINE_MODE_USER
+--connect(conu1,localhost,user1)
+
+--echo # Iterate all attributes for "offline_mode"
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", NULL);
+
+--echo # Iterate all attributes for "super_read_only"
+SELECT test_get_global_variable_attributes(NULL, "super_read_only", NULL);
+
+--echo # Test #3: Try setting super_read_only off using other API. Should succeed, but reset its attributes.
+SELECT test_set_system_variable_string(0, NULL, "super_read_only", "off", "GLOBAL");
+
+--echo # Ensure the value of super read only is off
+SELECT @@global.super_read_only;
+
+--echo # Check that only "super_read_only" variable attribute has been reset
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #4: Test that setting the attribute of a SESSION-only variable will fail
+SELECT test_set_global_variable_attributes(NULL, "warning_count", "reason", "should fail");
+
+--echo # Check that the attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #5: Test that adding an attribute is additive, old attribute was preserved
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "additional", "explanation");
+
+--echo # Check that both old and new attributes are visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #6: Iterate exact attribute "when" for "offline_mode", should exist
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", "when");
+
+--echo # Test #7: Iterate exact attribute "invalid" for "offline_mode", should not exist
+SELECT test_get_global_variable_attributes(NULL, "offline_mode", "invalid");
+
+--echo # Test #8: test setting attribute fails when attribute name too long
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "attribute_name_was_toooooo_loooooooong", "value");
+
+--echo # Check that "name too long" attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #9: test setting attribute fails when attribute value too long
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "attribute", RPAD("Too long value", 1025,'e'));
+
+--echo # Check that "value too long" attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #10: test setting attribute fails when attribute name is emtpy
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "", "value");
+
+--echo # Check that "name empty" attribute is not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #11: test that setting system variable via "SET GLOBAL ..." SQL resets its attributes
+SET GLOBAL offline_mode=1;
+
+--echo # Verify that offline_mode attributes are not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
+--echo # Test #12: test that setting system variable via "SET PERSIST ..." SQL resets its attributes
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "reason", "something happened");
+
+--echo # Verify that we correctly set the test attribute
+SELECT * FROM performance_schema.global_variable_attributes;
+
+SET PERSIST offline_mode=0;
+
+--echo # Verify that offline_mode attributes are not visible in P_S
+SELECT * FROM performance_schema.global_variable_attributes;
+
 --echo # Cleanup
 SET @@GLOBAL.connection_memory_limit = @orig_connection_memory_limit;
 SET @@GLOBAL.lc_messages = @orig_lc_messages;
 SET GLOBAL read_only = DEFAULT;
+SET GLOBAL offline_mode = DEFAULT;
 RESET PERSIST;
+
+--echo # Test #12: Restart server with offline_mode set on startup
+--let $restart_parameters=restart: --offline-mode=1
+--source include/restart_mysqld.inc
+
+--echo # Validate new user session gets rejected with a legacy message (not including reason nor user name)
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--replace_regex /[0-9][0-9]*T[0-9]*/TIMESTAMP/
+--error ER_SERVER_OFFLINE_MODE
+--connect(conu1,localhost,user1)
+
+--echo Attribute testing logs:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_mysql_global_variable_attributes.log;
+remove_file $MYSQLD_DATADIR/test_mysql_global_variable_attributes.log;
+
+--echo # Final cleanup
+SET GLOBAL offline_mode = DEFAULT;
 UNINSTALL COMPONENT "file://component_test_mysql_system_variable_set";
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
+DROP USER 'user1'@'localhost';
 
 # Remove component log file
 let $MYSQLD_DATADIR= `select @@datadir`;

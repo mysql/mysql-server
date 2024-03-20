@@ -24,10 +24,12 @@
 #ifndef OFFLINE_MODE_HANDLER_INCLUDE
 #define OFFLINE_MODE_HANDLER_INCLUDE
 
+#include <string>
+
 /**
   This method creates a server session and connects to the server
   to enable the offline mode
 */
-void enable_server_offline_mode();
+void enable_server_offline_mode(const std::string &reason);
 
 #endif /* OFFLINE_MODE_HANDLER_INCLUDE */

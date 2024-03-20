@@ -854,6 +854,9 @@ def	performance_schema	global_status	VARIABLE_NAME	1	NULL	NO	varchar	64	256	NULL
 def	performance_schema	global_status	VARIABLE_VALUE	2	NULL	YES	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	global_variables	VARIABLE_NAME	1	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	global_variables	VARIABLE_VALUE	2	NULL	YES	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
+def	performance_schema	global_variable_attributes	VARIABLE_NAME	1	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	global_variable_attributes	ATTR_NAME	2	NULL	NO	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	global_variable_attributes	ATTR_VALUE	3	NULL	NO	varchar	1024	4096	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	hosts	HOST	1	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	UNI		select,insert,update,references			NULL
 def	performance_schema	hosts	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	hosts	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
@@ -1501,6 +1504,12 @@ def	performance_schema	variables_info	MAX_VALUE	5	NULL	YES	varchar	64	256	NULL	N
 def	performance_schema	variables_info	SET_TIME	6	NULL	YES	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	variables_info	SET_USER	7	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)			select,insert,update,references			NULL
 def	performance_schema	variables_info	SET_HOST	8	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references			NULL
+def	performance_schema	variables_metadata	VARIABLE_NAME	1	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	variables_metadata	VARIABLE_SCOPE	2	NULL	NO	enum	12	48	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('GLOBAL','SESSION','SESSION_ONLY')			select,insert,update,references			NULL
+def	performance_schema	variables_metadata	DATA_TYPE	3	NULL	NO	enum	11	44	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('Integer','Numeric','String','Enumeration','Boolean','Set')			select,insert,update,references			NULL
+def	performance_schema	variables_metadata	MIN_VALUE	4	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	variables_metadata	MAX_VALUE	5	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	variables_metadata	DOCUMENTATION	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	mediumtext			select,insert,update,references			NULL
 select count(*) from information_schema.columns
 where table_schema="performance_schema" and data_type = "bigint"
    and column_name like "%number_of_bytes" into @count_byte_columns;

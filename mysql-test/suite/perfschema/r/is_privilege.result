@@ -2,6 +2,7 @@ CREATE USER test@localhost;
 SELECT table_name FROM information_schema.TABLES WHERE TABLE_SCHEMA='performance_schema' ORDER BY table_name;
 TABLE_NAME
 global_status
+global_variable_attributes
 global_variables
 persisted_variables
 processlist
@@ -9,6 +10,7 @@ session_account_connect_attrs
 session_status
 session_variables
 variables_info
+variables_metadata
 GRANT SELECT ON performance_schema.cond_instances TO test@localhost;
 GRANT SELECT ON performance_schema.setup_consumers TO test@localhost;
 GRANT SELECT ON performance_schema.accounts TO test@localhost;
@@ -18,6 +20,7 @@ TABLE_NAME
 accounts
 cond_instances
 global_status
+global_variable_attributes
 global_variables
 persisted_variables
 processlist
@@ -27,6 +30,7 @@ session_variables
 setup_consumers
 setup_objects
 variables_info
+variables_metadata
 SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA='performance_schema'

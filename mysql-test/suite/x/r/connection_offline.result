@@ -1,0 +1,41 @@
+call mtr.add_suppression("duplicate variable name");
+create user nonblank@localhost identified by 'nonblank';
+INSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+## I.  Validate that connection is rejected when server is in offline mode
+#      with timestamp and user name.
+## II. Validate that connection is rejected when server is in offline mode
+#      with timestamp and reason.
+## III.Validate that connection is rejected when server is in offline mode.
+#      with default error message.
+
+#
+# I. Offline mode - rejects with username and timestamp.
+#
+SET GLOBAL offline_mode=ON;
+Application terminated with expected error: The server is currently in offline mode since DATE, set by user root (code 6141)
+ok
+
+#
+# II. Offline mode - reject with username and attribute
+#
+SELECT test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL");
+test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL")
+0
+SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request");
+test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request")
+0
+Application terminated with expected error: The server is currently in offline mode since DATE, reason: API request (code 6140)
+ok
+
+#
+# III. Offline mode - reject with generic message
+#
+# restart: --offline_mode=ON
+Application terminated with expected error: The server is currently in offline mode (code 3032)
+ok
+# restart:
+drop user nonblank@localhost;
+UNINSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
