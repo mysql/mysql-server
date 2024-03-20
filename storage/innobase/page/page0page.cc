@@ -2580,15 +2580,7 @@ bool page_delete_rec(const dict_index_t *index, page_cur_t *pcur,
   }
 
   if (no_compress_needed) {
-#ifdef UNIV_ZIP_DEBUG
-    ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
-
     page_cur_delete_rec(pcur, index, offsets, nullptr);
-
-#ifdef UNIV_ZIP_DEBUG
-    ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
   }
 
   return (no_compress_needed);

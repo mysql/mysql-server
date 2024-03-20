@@ -2135,7 +2135,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
           case FIL_PAGE_RTREE:
 #ifdef UNIV_ZIP_DEBUG
             ut_a(page_zip_validate(&bpage->zip, page,
-                                   ((buf_block_t *)bpage)->index));
+                                   ((buf_block_t *)bpage)->ahi.index));
 #endif /* UNIV_ZIP_DEBUG */
             break;
           default:
