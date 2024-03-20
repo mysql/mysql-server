@@ -274,6 +274,10 @@ bool LocalConfig::readFile(const char *filename, bool &fopenError) {
     return false;
   }
 
+  fprintf(stderr,
+          "Warning: Use of Ndb.cfg is deprecated and will be removed in a "
+          "future release.\n");
+
   BaseString theString;
 
   while (fgets(line, sizeof(line), file)) {
