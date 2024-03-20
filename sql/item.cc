@@ -7673,6 +7673,7 @@ bool Item::send(Protocol *protocol, String *buffer) {
     case MYSQL_TYPE_DATE: {
       MYSQL_TIME tm;
       get_date(&tm, TIME_FUZZY_DATE);
+      if (current_thd->is_error()) return true;
       if (!null_value) return protocol->store_date(tm);
       break;
     }
@@ -7680,12 +7681,14 @@ bool Item::send(Protocol *protocol, String *buffer) {
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME tm;
       get_date(&tm, TIME_FUZZY_DATE);
+      if (current_thd->is_error()) return true;
       if (!null_value) return protocol->store_datetime(tm, decimals);
       break;
     }
     case MYSQL_TYPE_TIME: {
       MYSQL_TIME tm;
       get_time(&tm);
+      if (current_thd->is_error()) return true;
       if (!null_value) return protocol->store_time(tm, decimals);
       break;
     }
