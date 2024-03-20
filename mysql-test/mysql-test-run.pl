@@ -203,6 +203,7 @@ our $opt_client_ddd;
 our $opt_client_debugger;
 our $opt_client_gdb;
 our $opt_client_lldb;
+our $opt_ctest_filter;
 our $opt_ctest_report;
 our $opt_dbx;
 our $opt_ddd;
@@ -1807,6 +1808,7 @@ sub command_line_setup {
     'timer!'                => \&report_option,
     'timestamp'             => \&report_option,
     'unit-tests!'           => \$opt_ctest,
+    'unit-tests-filter=s'    => \$opt_ctest_filter,
     'unit-tests-report!'    => \$opt_ctest_report,
     'user-args'             => \$opt_user_args,
     'user=s'                => \$opt_user,
@@ -2177,8 +2179,8 @@ sub command_line_setup {
 
   # Set default values for opt_ctest (--unit-tests)
   if ($opt_ctest == -1) {
-    if (defined $opt_ctest_report && $opt_ctest_report) {
-      # Turn on --unit-tests by default if --unit-tests-report is used
+    if ((defined $opt_ctest_report && $opt_ctest_report) || defined $opt_ctest_filter) {
+      # Turn on --unit-tests by default if --unit-tests-report or --unit-tests-filter is used
       $opt_ctest = 1;
     } elsif ($opt_suites || @opt_cases) {
       # Don't run ctest if tests or suites named
@@ -7781,7 +7783,14 @@ sub run_ctest() {
     # Skip tests with label NDB
     $ctest_opts .= "-LE " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
   }
-  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+  my $ctest_out = "";
+  if (defined $opt_ctest_filter) {
+    $ctest_out =
+      `ctest -R $opt_ctest_filter $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+  } else {
+    $ctest_out =
+      `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+  }
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
@@ -8162,6 +8171,8 @@ Misc options
   timer                 Show test case execution time.
   timestamp             Print timestamp before each test report line.
   unit-tests            Run unit tests even if they would otherwise not be run.
+  unit-tests-filter=    Execute only a specific subset of unit tests that matches
+                        a given regular expression.
   unit-tests-report     Include report of every test included in unit tests.
   user-args             In combination with start* and no test name, drops
                         arguments to mysqld except those specified with

@@ -5196,6 +5196,13 @@
     </li>
 
     <li>
+      <tt>`--unit-tests-filter`</tt>
+
+      Execute only a specific subset of unit tests that matches a
+      given regular expression.
+    </li>
+
+    <li>
       <tt>`--unit-tests-report`</tt>
 
       Extend the unit test run by also outputting the log from the
