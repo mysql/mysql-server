@@ -2900,7 +2900,7 @@ static void os_parent_dir_fsync_posix(std::filesystem::path path) {
   since this operation is not very frequent, but WSL1 does
   not support fdatasync on directories. */
   auto ret = ::fsync(dir_fd);
-  ut_a_eq(ret, 0);
+  ut_a(ret == 0);
 
   ::close(dir_fd);
 }
