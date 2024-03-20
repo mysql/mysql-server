@@ -1,0 +1,140 @@
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+
+--echo
+--echo # Connection 1
+--echo
+connect(con1, localhost, root,,);
+--disable_query_log
+let $con1_thread_id= `SELECT ps_current_thread_id()`;
+let $con1_connection_id= `SELECT connection_id()`;
+--enable_query_log
+
+--connection default
+CREATE TABLE test.t1(a int, b varchar(80));
+INSERT INTO test.t1 VALUES (1, "a"), (2, "b"), (3, "c");
+SELECT * FROM test.t1;
+
+BEGIN;
+SELECT * FROM test.t1 FOR UPDATE;
+
+--echo
+--echo # Regular query
+--echo
+--connection con1
+SELECT "This is not secret" as normal_query;
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Regular query (in flight)
+--echo
+--connection con1
+--send INSERT INTO test.t1 VALUES (4, "This is not secret");
+--connection default
+--source ../include/rewritten_queries.inc
+
+COMMIT;
+--connection con1
+--reap
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Sensitive query
+--echo
+--connection con1
+CREATE USER alice IDENTIFIED BY 'thisisapassword';
+--connection default
+--source ../include/rewritten_queries.inc
+
+
+--echo
+--echo # Regular prepared statement (prepare)
+--echo
+--connection con1
+PREPARE stmt FROM "SELECT 'This is not a secret either' as prepared_query";
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Regular prepared statement (execute)
+--echo
+--connection con1
+EXECUTE stmt;
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Regular prepared statement (deallocate)
+--echo
+--connection con1
+DEALLOCATE PREPARE stmt;
+--connection default
+--source ../include/rewritten_queries.inc
+
+BEGIN;
+SELECT * FROM test.t1 FOR UPDATE;
+
+--echo
+--echo # Regular prepared statement (prepare)
+--echo
+--connection con1
+PREPARE stmt FROM "INSERT INTO test.t1 VALUES (5, 'This is not secret either')";
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Regular prepared statement (execute, in flight)
+--echo
+--connection con1
+--send EXECUTE stmt;
+--connection default
+--source ../include/rewritten_queries.inc
+
+COMMIT;
+--connection con1
+--reap
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Regular prepared statement (deallocate)
+--echo
+--connection con1
+DEALLOCATE PREPARE stmt;
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Sensitive prepared statement (prepare)
+--echo
+--connection con1
+PREPARE stmt FROM "CREATE USER bob IDENTIFIED BY 'thisisapassword'";
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Sensitive prepared statement (execute)
+--echo
+--connection con1
+EXECUTE stmt;
+--connection default
+--source ../include/rewritten_queries.inc
+
+--echo
+--echo # Sensitive prepared statement (deallocate)
+--echo
+--connection con1
+DEALLOCATE PREPARE stmt;
+--connection default
+--source ../include/rewritten_queries.inc
+
+--connection default
+--disconnect con1
+
+DROP USER alice;
+DROP USER bob;
+DROP TABLE test.t1;

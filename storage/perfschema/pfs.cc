@@ -221,6 +221,13 @@ static void adjust_collect_flags(PSI_statement_locker_state *state) {
 */
 #undef PFS_PARANOID
 
+/*
+  This is a development tool to investigate
+  the statement instrumentation,
+  do not use in production.
+*/
+#undef PFS_INFO_PARANOID
+
 #ifdef PFS_PARANOID
 static void report_memory_accounting_error(const char *api_name,
                                            PFS_thread *new_thread, size_t size,
@@ -3377,6 +3384,12 @@ void pfs_set_thread_state_v1(const char *) { /* DEPRECATED. */
 void pfs_set_thread_info_vc(const char *info, uint info_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
+
+#ifdef PFS_INFO_PARANOID
+  if (info != nullptr) {
+    fprintf(stderr, "THREAD.INFO = %.*s\n", info_len, info);
+  }
+#endif
 
   if (likely(pfs != nullptr)) {
     if (info_len > sizeof(pfs->m_processlist_info)) {
@@ -6699,6 +6712,12 @@ void pfs_set_statement_text_vc(PSI_statement_locker *locker, const char *text,
                                uint text_len) {
   auto *state = reinterpret_cast<PSI_statement_locker_state *>(locker);
   assert(state != nullptr);
+
+#ifdef PFS_INFO_PARANOID
+  if (text != nullptr) {
+    fprintf(stderr, "STATEMENT.TEXT = %.*s\n", text_len, text);
+  }
+#endif
 
   if (!(state->m_collect_flags & STATE_FLAG_EVENT)) {
     return;
