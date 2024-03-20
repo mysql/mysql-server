@@ -1120,8 +1120,7 @@ buf_block_t *buf_pool_contains_zip(buf_pool_t *buf_pool, const void *data) {
 #endif /* UNIV_DEBUG */
 
 /** Checks that all file pages in the buffer chunk are in a replaceable state.
-@param[in] chunk The chunk to be checked
-@return address of a non-free block, or NULL if all freed */
+@param[in] chunk The chunk to be checked */
 static void buf_assert_all_are_replaceable(buf_chunk_t *chunk) {
   buf_block_t *block = chunk->blocks;
 
