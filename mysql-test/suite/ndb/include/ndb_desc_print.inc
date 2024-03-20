@@ -16,6 +16,7 @@ let $ndb_desc_cmd= $NDB_DESC --no-defaults $ndb_desc_opts;
 replace_regex /Version: [0-9]*/Version: Any/
               /NDB\$BLOB_[0-9]*_/NDB$BLOB_XX_/
               /Length of frm data: [0-9]*/Length of frm data: XXX/
+              /^[0-9]+\/[0-9]+/XX\/XX/
               /IndexTable [0-9]*/IndexTable XX/
               /^([0-9][0-9]*) [0-9 	]*/\1 .../;
 --exec $ndb_desc_cmd

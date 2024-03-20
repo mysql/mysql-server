@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 #include "Dbdict.hpp"
 #include "diskpage.hpp"
 
+#include <stdlib.h>
+#include <utility>
 #include <ndb_limits.h>
 #include <ndb_math.h>
 #include <NdbOut.hpp>
@@ -27778,20 +27780,6 @@ Dbdict::createFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   }
 }
 
-static
-int
-cmp_uint(const void * _p1, const void * _p2)
-{
-  Uint32 * p1 = (Uint32*)_p1;
-  Uint32 * p2 = (Uint32*)_p2;
-
-  if (* p1 < * p2)
-    return -1;
-  else if (* p2 < * p1)
-    return 1;
-  return 0;
-}
-
 // CreateFK: PREPARE
 void
 Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
@@ -27828,6 +27816,97 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   const OpSection& sec = getOpSection(op_ptr, 0);
   writeTableFile(signal, op_ptr, impl_req->fkId, sec, &cb);
+}
+
+/*
+ * Dbdict::get_fk_index_column_orders
+ *
+ * The column order used in the foreign key constraint is not necessarily the
+ * column order used for the indexes used to maintain the constraint.
+ *
+ * If an ordered index is used it will have the same column order as the
+ * constraint and the columns will be prefix of the index columns.
+ *
+ * For primary key and unique indexes the column order in the index follows the
+ * order they occur in the indexed table definition.
+ *
+ * This function returns which columns and in what order to pick them from
+ * parent table for then lookup in child table using index and vice versa.
+ */
+static int cmp_pair_first(const void* vx, const void* vy)
+{
+  const std::pair<Uint32, Uint32>* x = static_cast<const std::pair<Uint32, Uint32>*>(vx);
+  const std::pair<Uint32, Uint32>* y = static_cast<const std::pair<Uint32, Uint32>*>(vy);
+  if (x->first < y->first) return -1;
+  if (x->first > y->first) return +1;
+  return 0;
+}
+void Dbdict::get_fk_index_column_orders(ForeignKeyRecPtr fk_ptr,
+                                        Uint32 *parent_to_child,
+                                        Uint32 *child_to_parent) const
+{
+  jam();
+  if (parent_to_child)
+  {
+    if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_CHILD_OI) != 0)
+    {
+      jam();
+      /*
+       * For the ordered index in child table the constraint columns must
+       * be prefix of index with same column order.
+       */
+      memcpy(parent_to_child,
+             fk_ptr.p->m_parentColumns,
+             fk_ptr.p->m_columnCount * 4);
+    }
+    else
+    {
+      jam();
+      /*
+       * If primary key or unique index is used in child table they must
+       * have the same columns as the constraint has. But the column order
+       * will be the same order they occur in (child) table definition
+       * rather than the order defined in the constraint.
+       */
+      std::pair<Uint32, Uint32> map[MAX_ATTRIBUTES_IN_INDEX];
+      for (unsigned i = 0; i < fk_ptr.p->m_columnCount; i++)
+      {
+        map[i].first = fk_ptr.p->m_childColumns[i];
+        map[i].second = fk_ptr.p->m_parentColumns[i];
+      }
+      qsort(map, fk_ptr.p->m_columnCount, sizeof(map[0]), cmp_pair_first);
+      for (unsigned i = 0; i < fk_ptr.p->m_columnCount; i++)
+      {
+        parent_to_child[i] = map[i].second;
+      }
+    }
+  }
+  if (child_to_parent)
+  {
+    jam();
+    /*
+     * It is not supported to use an ordered index in parent table to
+     * maintain foreign key constraint.
+     */
+    ndbrequire((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0);
+    /*
+     * The primary key or unique index used in parent table must have the
+     * same columns as the constraint has. But the column order will be
+     * the same order they occur in (parent) table definition rather than
+     * the order defined in the constraint.
+     */
+    std::pair<Uint32, Uint32> map[MAX_ATTRIBUTES_IN_INDEX];
+    for (unsigned i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      map[i].first = fk_ptr.p->m_parentColumns[i];
+      map[i].second = fk_ptr.p->m_childColumns[i];
+    }
+    qsort(map, fk_ptr.p->m_columnCount, sizeof(map[0]), cmp_pair_first);
+    for (unsigned i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      child_to_parent[i] = map[i].second;
+    }
+  }
 }
 
 void
@@ -27888,61 +27967,16 @@ Dbdict::createFK_writeTableConf(Signal* signal,
    *  into access on a child row
    */
   Uint32 parent_to_child[MAX_ATTRIBUTES_IN_INDEX];
-  memcpy(parent_to_child, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
-  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_CHILD_OI) == 0)
-  {
-    jam();
-    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
-    memcpy(tmp, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
-    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
-    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
-    {
-      Uint32 col = tmp[i];
-      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
-      {
-        if (fk_ptr.p->m_childColumns[j] == col)
-        {
-          parent_to_child[i] = fk_ptr.p->m_parentColumns[j];
-          break;
-        }
-      }
-    }
-  }
-
   Uint32 child_to_parent[MAX_ATTRIBUTES_IN_INDEX];
-  memcpy(child_to_parent, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
-  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0)
-  {
-    jam();
-    /**
-     * PK/UI are stored in attribute id order...so sort child columns
-     *   in parent order...
-     */
-    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
-    memcpy(tmp, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
-    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
-    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
-    {
-      Uint32 col = tmp[i];
-      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
-      {
-        if (fk_ptr.p->m_parentColumns[j] == col)
-        {
-          child_to_parent[i] = fk_ptr.p->m_childColumns[j];
-          break;
-        }
-      }
-    }
-  }
+  get_fk_index_column_orders(fk_ptr, parent_to_child, child_to_parent);
 
-  BlockReference ref = DBTC_REF;
   LinearSectionPtr ptr[3];
   ptr[CreateFKImplReq::PARENT_COLUMNS].p = parent_to_child;
   ptr[CreateFKImplReq::PARENT_COLUMNS].sz = fk_ptr.p->m_columnCount;
 
   ptr[CreateFKImplReq::CHILD_COLUMNS].p = child_to_parent;
   ptr[CreateFKImplReq::CHILD_COLUMNS].sz = fk_ptr.p->m_columnCount;
-  sendSignal(ref, GSN_CREATE_FK_IMPL_REQ, signal,
+  sendSignal(DBTC_REF, GSN_CREATE_FK_IMPL_REQ, signal,
              CreateFKImplReq::SignalLength, JBB,
              ptr, 2);
 }
@@ -28311,13 +28345,37 @@ Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
   if (fk_ptr.p->m_parentIndexId == RNIL)
   {
     jam();
+    /*
+     * No parent index implies that primary key is used for lookup.
+     */
+    ndbrequire((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_UI) == 0);
+    ndbrequire((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0);
+
     TableRecordPtr parentPtr;
     ndbrequire(find_object(parentPtr, req->parentTableId));
     getIndexAttrList(parentPtr, parentColumns);
+#ifdef VM_TRACE
+    /*
+     * Check that index column order is strictly increasing which it should be
+     * for primary key.
+     */
+    Int64 last_id = -1;
+    for (unsigned i = 0; i < fk_ptr.p->m_columnCount; i++) {
+      ndbrequire(last_id < parentColumns.id[i]);
+      last_id = parentColumns.id[i];
+    }
+#endif
   }
   else
   {
     jam();
+    /*
+     * Index must be an unique index, ordered index are not supported for
+     * lookup foreign key constraint in parent table.
+     */
+    ndbrequire((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_UI) != 0);
+    ndbrequire((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0);
+
     /**
      * Unique index has key columns 0...N
      */
@@ -28328,10 +28386,18 @@ Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
       parentColumns.id[i] = i;
   }
 
+  /**
+   * TRIX will do a table scan in child table and lookup the foreign key
+   * constraint columns in parent table using either the primary key or an
+   * unique index.
+   */
+  Uint32 child_to_parent[MAX_ATTRIBUTES_IN_INDEX];
+  get_fk_index_column_orders(fk_ptr, NULL, child_to_parent);
+
   LinearSectionPtr ptr[3];
   ptr[0].p = parentColumns.id;
   ptr[0].sz = parentColumns.sz;
-  ptr[1].p = fk_ptr.p->m_childColumns;
+  ptr[1].p = child_to_parent;  // Used to access parent pk/uk
   ptr[1].sz = fk_ptr.p->m_columnCount;
 
   sendSignal(TRIX_REF, GSN_BUILD_FK_IMPL_REQ, signal,

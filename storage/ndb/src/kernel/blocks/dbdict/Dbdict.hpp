@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4713,6 +4713,10 @@ private:
   void masterRestart_checkSchemaStatusComplete(Signal*, Uint32, Uint32);
 
   void sendSchemaComplete(Signal*, Uint32 callbackData, Uint32);
+
+  void get_fk_index_column_orders(ForeignKeyRecPtr fk_ptr,
+                                  Uint32 *parent_to_child,
+                                  Uint32 *child_to_parent) const;
 
 public:
   void send_drop_file(Signal*, Uint32, Uint32, DropFileImplReq::RequestInfo);
