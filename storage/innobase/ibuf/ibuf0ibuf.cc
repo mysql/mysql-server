@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "sync0sync.h"
 
+#include <debug_sync.h>
 #include "my_dbug.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -2241,8 +2242,14 @@ static ulint ibuf_merge_pages(
 
   *n_pages = 0;
 
-  /* Check if there is enough reusable space in redo log files. */
-  log_free_check();
+  /* The buf_read_ibuf_merge_pages(sync,..) will result in changes being applied
+  to pages, which will generate redo log, so it is important to ensure redo log
+  has enough space, if sync=true. We don't call log_free_check() here because
+  during ibuf contraction, we are starting a nested mtr and, log_free_check()
+  should have been called *before* starting the parent mtr. Usual background
+  thread does not start under a parent mtr to do the page merges. It always
+  does async IO though */
+  ut_ad(mtr_t::is_this_thread_inside_mtr() || !sync);
 
   ibuf_mtr_start(&mtr);
 
@@ -2264,6 +2271,7 @@ static ulint ibuf_merge_pages(
     ut_ad(ibuf->empty);
     ut_ad(page_get_space_id(pcur.get_page()) == IBUF_SPACE_ID);
     ut_ad(page_get_page_no(pcur.get_page()) == FSP_IBUF_TREE_ROOT_PAGE_NO);
+    ut_ad(!mtr.has_any_log_record());
 
     ibuf_mtr_commit(&mtr);
     pcur.close();
@@ -2273,10 +2281,7 @@ static ulint ibuf_merge_pages(
 
   sum_sizes = ibuf_get_merge_page_nos(true, pcur.get_rec(), &mtr, space_ids,
                                       page_nos, n_pages);
-#if 0 /* defined UNIV_IBUF_DEBUG */
-  fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
-    sync, *n_pages, sum_sizes);
-#endif
+  ut_ad(!mtr.has_any_log_record());
   ibuf_mtr_commit(&mtr);
   pcur.close();
 
@@ -2379,7 +2384,7 @@ the issued reads to complete
 will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
 static ulint ibuf_contract(bool sync) {
   ulint n_pages;
-
+  DEBUG_SYNC_C("ibuf_contract_started");
   return (ibuf_merge_pages(&n_pages, sync));
 }
 
@@ -3016,7 +3021,7 @@ unique or clustered
     to insert */
 
 #ifdef UNIV_IBUF_DEBUG
-    fputs("Ibuf too big\n", stderr);
+    ib::info() << "Ibuf too big";
 #endif
     ibuf_contract(true);
 
