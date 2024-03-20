@@ -113,15 +113,6 @@ static void log_data_blocks_validate(os_offset_t offset, os_offset_t size);
 @return bit mask value (2^(bit-1)) */
 static Log_flags log_file_header_flag_bit(uint32_t bit);
 
-#ifndef _WIN32
-
-/** Fsyncs the given directory. Fails on assertion if the directory
-could not be opened.
-@param[in]  path  path to directory to fsync */
-static void log_flush_directory_low(const std::string &path);
-
-#endif /* !_WIN32 */
-
 /** Renames the log file.
 @param[in]  context        redo log files context
 @param[in]  old_file_path  path to the existing log file to rename
@@ -877,26 +868,6 @@ dberr_t log_list_existing_files(const Log_files_context &ctx,
 
 /** @{ */
 
-#ifndef _WIN32
-
-static void log_flush_directory_low(const std::string &path) {
-  const auto dir_path = 0 < path.length()
-                            ? path.back() == OS_PATH_SEPARATOR
-                                  ? path.substr(0, path.length() - 1)
-                                  : path
-                            : ".";
-
-  bool ret{false};
-  const auto dir =
-      os_file_create(innodb_log_file_key, dir_path.c_str(), OS_FILE_OPEN,
-                     OS_FILE_NORMAL, OS_LOG_FILE, true, &ret);
-  ut_a(ret);
-  os_file_flush(dir);
-  os_file_close(dir);
-}
-
-#endif /* !_WIN32 */
-
 static dberr_t log_rename_file_low(const Log_files_context &ctx
                                    [[maybe_unused]],
                                    const std::string &old_file_path,
@@ -904,15 +875,6 @@ static dberr_t log_rename_file_low(const Log_files_context &ctx
                                    int err_msg_id) {
   const bool success = os_file_rename(
       innodb_log_file_key, old_file_path.c_str(), new_file_path.c_str());
-
-  /* On Windows, os_file_rename() uses MoveFileEx
-  and provides MOVEFILE_WRITE_THROUGH. */
-
-#ifndef _WIN32
-  if (success) {
-    log_flush_directory_low(log_directory_path(ctx));
-  }
-#endif /* !_WIN32 */
 
   if (!success) {
     ib::error(err_msg_id, old_file_path.c_str(), new_file_path.c_str());
