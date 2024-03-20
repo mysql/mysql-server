@@ -1,0 +1,30 @@
+## This test-case was created for reproducing a fault that was visiable
+#  rarely by toggling connection_unixsocket.test, where cleanup of
+#  unixsocket was not executed
+
+--source include/have_debug.inc
+--source include/not_windows.inc
+--source include/xplugin_preamble.inc
+
+
+## Test Setup
+
+# Enable "xplugin_shutdown_unixsocket" synchronization points, which
+# execute code assigned to "initialization" thread and "shutdown" thread
+# in concrete sequence.
+#
+# The Bug #31686096, described the original issue which was detected by
+# x.connection_unixsocket test. This test makes the issue reproducable
+# in each execution.
+--echo
+--echo # 1. Resetart server with "sync points" enabled that reproduce the issue
+--let $wait_for_tcpsocket_status = no_wait
+--let $wait_for_unixsocket_status = no_wait
+--replace_regex /mysqlx-socket=.*sock/mysqlx-socket=SOCKET/
+--let $restart_parameters = restart: --debug=+d,xplugin_shutdown_unixsocket --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.sock
+--source include/restart_mysqld.inc
+
+--echo # 2. Restart the server with original cmd-args that MTR can do the post-check which detects the fault
+
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc

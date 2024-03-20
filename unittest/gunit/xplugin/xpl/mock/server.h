@@ -47,7 +47,7 @@ class Server : public iface::Server {
   MOCK_METHOD(bool, reset, (), (override));
   MOCK_METHOD(void, start_failed, (), (override));
   MOCK_METHOD(bool, prepare, (), (override));
-  MOCK_METHOD(void, start_tasks, (xpl::iface::Sql_session *), (override));
+  MOCK_METHOD(void, start_tasks, (), (override));
   MOCK_METHOD(void, stop, (), (override));
   MOCK_METHOD(void, gracefull_shutdown, (), (override));
 

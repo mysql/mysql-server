@@ -31,7 +31,7 @@
 
 --echo #
 --echo # Start our own server. Log to LOG_FILE1.
---exec_in_background $MYSQLD_CMD --port $MASTER_MYPORT --log-error=$LOG_FILE1 --log-timestamps=UTC --log-error-verbosity=1 --loose-mysqlx=0
+--exec_in_background $MYSQLD_CMD --port $MASTER_MYPORT --log-error=$LOG_FILE1 --log-timestamps=UTC --log-error-verbosity=1
 
 --echo #
 --echo # Connect to our own server.

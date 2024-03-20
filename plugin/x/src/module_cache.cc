@@ -48,9 +48,7 @@ static int audit_cache_clean_event_notify(MYSQL_THD thd,
                                           const void *event) {
   if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS) {
     auto server_obj_with_lock = modules::Module_mysqlx::get_instance_server();
-    if (server_obj_with_lock.container())
-      server_obj_with_lock->delayed_start_tasks();
-
+    if (server_obj_with_lock.container()) server_obj_with_lock->start_tasks();
     return 0;
   }
 
