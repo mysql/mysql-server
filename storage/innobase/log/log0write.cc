@@ -732,7 +732,8 @@ static void log_writer_write_failed(log_t &log, dberr_t err);
 
 /** Writes fragment of the log buffer, not further than up to provided lsn.
 Stops after the first call to log_data_blocks_write() or after producing
-a new log file. If some data was written, the log.write_lsn is advanced.
+a new log file or if it notices that some other thread has written to the
+redo log meanwhile. If some data was written, the log.write_lsn is advanced.
 For more details see @see log_write_buffer().
 @param[in]  log             redo log
 @param[in]  next_write_lsn  write up to this lsn value */
@@ -2182,6 +2183,17 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
 
   log_writer_wait_on_consumers(log, next_write_lsn);
   ut_ad(log_writer_mutex_own(log));
+  /* We do hold the log->writer_mutex now, but log_writer_wait_on_checkpoint(),
+  log_writer_wait_on_archiver(), or log_writer_wait_on_consumers() could have
+  released it for a moment. So, in case --innodb_log_writer_threads=OFF, another
+  thread could have already performed a write to the redo log, in which case we
+  should not even try to (over)write it again. In extreme case, the log buffer
+  already contains a different range of lsns, we might have moved to another
+  file, or even removed the old one, etc. If we detect that any write has
+  happened, we let the caller retry.*/
+  if (last_write_lsn != log.write_lsn.load()) {
+    return;
+  }
 
   DBUG_PRINT("ib_log",
              ("write " LSN_PF " to " LSN_PF, last_write_lsn, next_write_lsn));
