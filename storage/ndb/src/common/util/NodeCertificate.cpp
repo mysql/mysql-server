@@ -564,6 +564,11 @@ ASN1_STRING *SerialNumber::random(size_t length) {
   unsigned char buff[MaxLengthInBytes];
   if (length > MaxLengthInBytes) length = MaxLengthInBytes;
   if (RAND_bytes(buff, length) != 1) return nullptr;
+  /* The serial number must not be negative (RFC 5280 sec. 4.1.2.2) */
+  if (buff[0] == 0)
+    buff[0] = 1;
+  else
+    buff[0] = abs((char)buff[0]);
   ASN1_INTEGER *serial = ASN1_STRING_type_new(V_ASN1_INTEGER);
   ASN1_STRING_set(serial, buff, length);
   return serial;
@@ -630,7 +635,7 @@ int Certificate::get_signature_prefix(X509 *cert) {
 bool Certificate::write(STACK_OF(X509) * certs, FILE *fp) {
   int r = 1;
   for (int i = 0; i < sk_X509_num(certs) && r == 1; i++)
-    r = PEM_write_X509(fp, sk_X509_value(certs, i));
+    if (r == 1) r = PEM_write_X509(fp, sk_X509_value(certs, i));
   if (r != 1) handle_pem_error("PEM_writeX509");
   return r;
 }
@@ -735,7 +740,7 @@ static bool initClusterCertAuthority(X509 *cert, const char *ordinal) {
   /* Set a random ten byte serial number */
   ASN1_STRING *serial = SerialNumber::random();
   r1 = X509_set_serialNumber(cert, serial);
-  ASN1_STRING_free(serial);
+  SerialNumber::free(serial);
   if (r1 == 0) return false;
 
   /* Set subject name */
@@ -1223,11 +1228,13 @@ int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key) {
 
   /* Set serial number */
   ASN1_STRING *serial = SerialNumber::random();
-  X509_set_serialNumber(m_x509, serial);
+  int r1 = X509_set_serialNumber(m_x509, serial);
   SerialNumber::free(serial);
+  if (r1 == 0) return -50;
 
   /* Set issuer name */
-  X509_set_issuer_name(m_x509, X509_get_subject_name(CA_cert));
+  r1 = X509_set_issuer_name(m_x509, X509_get_subject_name(CA_cert));
+  if (r1 == 0) return -60;
 
   /* Set lifetime */
   set_cert_lifetime(m_x509);
