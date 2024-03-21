@@ -256,11 +256,11 @@ static bool SetIndexInfoInObject(
 
   unique_ptr<Json_array> key_columns(new (std::nothrow) Json_array());
   KEY_PART_INFO *kp = key.key_part;
-  for (uint i = 0; i < n_key_columns; i++, kp++) {
-    // If the index contains a hash field get_used_key_parts() may report the
-    // amount of columns in that hash field, which may run past the amount of
-    // KEY_PART_INFO in the KEY.
-    if (kp->field == nullptr) break;
+
+  // When the KEY is over a hash field get_used_key_parts() reports the amount
+  // of fields in the hash, while the hash field only corresponds to one
+  // KEY_PART_INFO.
+  for (uint i = 0; i < n_key_columns && i < key.actual_key_parts; i++, kp++) {
     error |= AddElementToArray<Json_string>(
         key_columns, get_field_name_or_expression(current_thd, kp->field));
   }
