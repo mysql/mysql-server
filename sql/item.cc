@@ -7865,6 +7865,7 @@ bool Item::clean_up_after_removal(uchar *arg) {
 
   if (reference_count() > 1) {
     (void)decrement_ref_count();
+    ctx->stop_at(this);
   }
   return false;
 }
