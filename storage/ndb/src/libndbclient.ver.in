@@ -28,6 +28,5 @@ libndbclient_${NDB_SHARED_LIB_VERSION}
     *;
   local:
     handle_options;
-    my_init;
     my_load_defaults;
 };
