@@ -487,10 +487,6 @@ DBLQH LONG SIGNAL TESTING
 DBTC TCINDXREQ TESTING
 ----------------------
 
-8100: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 1 (set by test case). Will block TCROLLBACKREP.
-
-8101: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 2 (set internally). Will release TCROLLBACKREP.
-
 8102: simulate out of memory (segments,attributes) in fk_scanFromChildTable
 8103: simulate out of memory in fk_constructAttrInfoUpdateCascade
 8104: simulate ZGET_DATAREC_ERROR (218) in fk_buildKeyInfo
