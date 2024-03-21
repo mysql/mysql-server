@@ -333,7 +333,11 @@ LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, const char *str,
 
 bool lex_string_strmake(MEM_ROOT *mem_root, LEX_STRING *lex_str,
                         const char *str, size_t length) {
-  if (!(lex_str->str = strmake_root(mem_root, str, length))) return true;
+  lex_str->str = strmake_root(mem_root, str, length);
+  if (lex_str->str == nullptr) {
+    lex_str->length = 0;
+    return true;
+  }
   lex_str->length = length;
   return false;
 }
