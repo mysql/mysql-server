@@ -180,8 +180,6 @@ ALTER TABLE parent ENGINE=InnoDB;
 ERROR HY000: Table 'child' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
 LOCK TABLES child WRITE, parent WRITE;
-Warnings:
-Warning	6136	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.parent and the InnoDB table test.child.
 ALTER TABLE parent ENGINE=InnoDB;
 UNLOCK TABLES;
 DROP TABLES child, parent;
