@@ -331,10 +331,6 @@ void Dbtc::execCONTINUEB(Signal *signal) {
   UintR Tdata1 = signal->theData[2];
   UintR Tdata2 = signal->theData[3];
   UintR Tdata3 = signal->theData[4];
-#ifdef ERROR_INSERT
-  UintR Tdata4 = signal->theData[5];
-  UintR Tdata5 = signal->theData[6];
-#endif
   switch (tcase) {
     case TcContinueB::ZSCAN_FOR_READ_BACKUP:
       jam();
