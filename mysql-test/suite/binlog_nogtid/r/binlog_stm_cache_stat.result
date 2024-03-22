@@ -29,6 +29,8 @@ commit;
 begin;
 insert into t1 values( 1 );
 insert into t2 values( 1 );
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 commit;
 **** Preparing the enviroment to check abort and its effect on the status variables.
 **** Expected: binlog_cache_use = 0, binlog_cache_disk_use = 0.
@@ -60,6 +62,8 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 begin;
 insert into t1 values( 1 );
 insert into t2 values( 1 );
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back

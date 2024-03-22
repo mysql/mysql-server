@@ -456,6 +456,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 common/rpl/mixing_engines.inc [commands=NT]
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 25 --> 1", tt_3.info= "new text 25 --> 1" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -473,6 +475,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 common/rpl/mixing_engines.inc [commands=NT-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (26, 1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_4.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -490,6 +494,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 common/rpl/mixing_engines.inc [commands=NT-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (27, 1, fc_i_tt_5_suc(27, 1));
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -507,6 +513,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 common/rpl/mixing_engines.inc [commands=TN]
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 28 --> 1", nt_4.info= "new text 28 --> 1" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_4.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -524,6 +532,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 common/rpl/mixing_engines.inc [commands=TN-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (29, 1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_3.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -541,6 +551,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 common/rpl/mixing_engines.inc [commands=TN-func]
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (30, 1, fc_i_nt_5_suc(30, 1));
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -3954,6 +3966,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (133, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -3990,6 +4004,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (134, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4028,6 +4044,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (135, 4);
 fc_i_nt_5_suc (135, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4106,6 +4124,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (137, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4142,6 +4162,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (138, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4180,6 +4202,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (139, 4);
 fc_i_nt_5_suc (139, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4260,6 +4284,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (141, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4298,6 +4324,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (142, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4338,6 +4366,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (143, 4);
 fc_i_nt_5_suc (143, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4418,6 +4448,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4456,6 +4488,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (146, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4496,6 +4530,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (147, 4);
 fc_i_nt_5_suc (147, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4593,6 +4629,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> eT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (149, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4623,6 +4661,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> Te << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (150, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4729,6 +4769,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (153, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4760,6 +4802,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (154, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4793,6 +4837,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (155, 4);
 fc_i_nt_5_suc (155, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4861,6 +4907,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (157, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4892,6 +4940,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (158, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4925,6 +4975,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (159, 4);
 fc_i_nt_5_suc (159, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -4995,6 +5047,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (161, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5028,6 +5082,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (162, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5063,6 +5119,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (163, 4);
 fc_i_nt_5_suc (163, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5133,6 +5191,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5164,6 +5224,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (166, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5197,6 +5259,8 @@ include/rpl/deprecated/show_binlog_events.inc
 SELECT fc_i_nt_5_suc (167, 4);
 fc_i_nt_5_suc (167, 4)
 fc_i_nt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5280,6 +5344,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> eT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (169, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5312,6 +5378,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> Te << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (170, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -5411,6 +5479,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (173, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5447,6 +5517,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (174, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5485,6 +5557,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (175, 4);
 fc_i_tt_5_suc (175, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5559,6 +5633,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (177, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5595,6 +5671,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (178, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5633,6 +5711,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (179, 4);
 fc_i_tt_5_suc (179, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5709,6 +5789,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (181, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5747,6 +5829,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (182, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5787,6 +5871,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (183, 4);
 fc_i_tt_5_suc (183, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5866,6 +5952,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (185, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5908,6 +5996,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (186, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5952,6 +6042,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (187, 4);
 fc_i_tt_5_suc (187, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6045,6 +6137,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (189, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6107,6 +6201,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (191, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6140,6 +6236,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (192, 4);
 fc_i_tt_5_suc (192, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6171,6 +6269,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (193, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6202,6 +6302,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (194, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6235,6 +6337,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (195, 4);
 fc_i_tt_5_suc (195, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6299,6 +6403,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (197, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6332,6 +6438,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (198, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6367,6 +6475,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (199, 4);
 fc_i_tt_5_suc (199, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6434,6 +6544,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (201, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6508,6 +6620,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (203, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6547,6 +6661,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 SELECT fc_i_tt_5_suc (204, 4);
 fc_i_tt_5_suc (204, 4)
 fc_i_tt_5_suc
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6592,6 +6708,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (205, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6654,6 +6772,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 207 --> 2", tt_3.info= "new text 207 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -6687,6 +6806,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (208, 2);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -6720,6 +6840,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (209, 2, fc_i_tt_5_suc(209, 2));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -6753,6 +6874,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 210 --> 2", nt_4.info= "new text 210 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -6786,6 +6908,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (211, 2);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -6819,6 +6942,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (212, 2, fc_i_nt_5_suc(212, 2));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -6871,6 +6995,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tNe << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (213, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7076,6 +7202,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (219, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7123,6 +7251,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 221 --> 2", tt_3.info= "new text 221 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7158,6 +7287,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (222, 2);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7193,6 +7323,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (223, 2, fc_i_tt_5_suc(223, 2));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7228,6 +7359,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 224 --> 2", nt_4.info= "new text 224 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7263,6 +7395,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (225, 2);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7298,6 +7431,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (226, 2, fc_i_nt_5_suc(226, 2));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7352,6 +7486,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tNe << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (227, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7548,6 +7684,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 233, 4, COUNT(*) FROM tt_1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7614,6 +7751,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 235 --> 4", tt_3.info= "new text 235 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7647,6 +7785,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (236, 4);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7680,6 +7819,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (237, 4, fc_i_tt_5_suc(237, 4));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7713,6 +7853,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 238 --> 4", nt_4.info= "new text 238 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7746,6 +7887,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (239, 4);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -7779,6 +7921,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (240, 4, fc_i_nt_5_suc(240, 4));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8022,6 +8165,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 247, 4, COUNT(*) FROM tt_1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8080,6 +8224,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 249 --> 4", tt_3.info= "new text 249 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8115,6 +8260,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (250, 4);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8150,6 +8296,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (251, 4, fc_i_tt_5_suc(251, 4));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8185,6 +8332,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 252 --> 4", nt_4.info= "new text 252 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8220,6 +8368,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (253, 4);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8255,6 +8404,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (254, 4, fc_i_nt_5_suc(254, 4));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8541,6 +8691,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (262, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -8574,6 +8726,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 263 --> 2", tt_3.info= "new text 263 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8612,6 +8765,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (264, 2);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8650,6 +8804,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (265, 2, fc_i_tt_5_suc(265, 2));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8688,6 +8843,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 266 --> 2", nt_4.info= "new text 266 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8726,6 +8882,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (267, 2);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8764,6 +8921,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (268, 2, fc_i_nt_5_suc(268, 2));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -8855,6 +9013,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nTe << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (270, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -9084,6 +9244,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (276, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -9112,6 +9274,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 277 --> 2", tt_3.info= "new text 277 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9152,6 +9315,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (278, 2);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9192,6 +9356,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (279, 2, fc_i_tt_5_suc(279, 2));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9232,6 +9397,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 280 --> 2", nt_4.info= "new text 280 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_4 and the InnoDB table test.tt_4.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9272,6 +9438,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (281, 2);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9312,6 +9479,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (282, 2, fc_i_nt_5_suc(282, 2));
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9407,6 +9575,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nTe << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (284, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -9646,6 +9816,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 290, 4, COUNT(*) FROM nt_1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9684,6 +9855,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 291 --> 4", tt_3.info= "new text 291 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9722,6 +9894,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (292, 4);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9760,6 +9933,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (293, 4, fc_i_tt_5_suc(293, 4));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9798,6 +9972,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 294 --> 4", nt_4.info= "new text 294 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9836,6 +10011,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (295, 4);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -9874,6 +10050,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (296, 4, fc_i_nt_5_suc(296, 4));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10187,6 +10364,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 304, 4, COUNT(*) FROM nt_1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10220,6 +10398,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 305 --> 4", tt_3.info= "new text 305 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10260,6 +10439,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_4(trans_id, stmt_id) VALUES (306, 4);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10300,6 +10480,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (307, 4, fc_i_tt_5_suc(307, 4));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> NT-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10340,6 +10521,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 308 --> 4", nt_4.info= "new text 308 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_4 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10380,6 +10562,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_3(trans_id, stmt_id) VALUES (309, 4);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-trig << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10420,6 +10603,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN-func << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (310, 4, fc_i_nt_5_suc(310, 4));
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> TN-func << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10739,6 +10923,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> Sn << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10787,6 +10973,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -10843,6 +11031,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> Sn << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_1 and the InnoDB table test.tt_1.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -11461,6 +11651,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_9 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
@@ -11558,6 +11749,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (342, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_xx_9.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11602,6 +11795,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (343, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_xx_9.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11670,6 +11865,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_10 and the InnoDB table test.tt_1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -11776,6 +11972,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (348, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_xx_10.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11820,6 +12018,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (349, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_xx_10.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12043,6 +12243,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12147,6 +12349,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_1 and the MyISAM table test.nt_1.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12226,6 +12430,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 common/rpl/mixing_engines.inc [commands=set-NT]
 -b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_3_tt_3_suc(365, 1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -12255,6 +12461,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_tt_5_suc(366, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12287,6 +12495,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_5_suc(367, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -12327,6 +12537,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_tt_5_suc(368, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_5 and the MyISAM table test.nt_5.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12354,6 +12566,8 @@ include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_5_suc(369, 4);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_5 and the InnoDB table test.tt_5.
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -12382,6 +12596,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_3_tt_3_suc(370, 2);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12419,6 +12634,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_3_tt_3_suc(371, 4);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12448,6 +12664,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_3_tt_3_suc(372, 2);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_3 and the MyISAM table test.nt_3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12487,6 +12704,7 @@ include/rpl/deprecated/show_binlog_events.inc
 -b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
 SET @var= fc_i_nt_3_tt_3_suc(373, 4);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_3 and the InnoDB table test.tt_5.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 include/rpl/deprecated/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-

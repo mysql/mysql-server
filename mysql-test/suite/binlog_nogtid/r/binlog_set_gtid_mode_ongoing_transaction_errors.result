@@ -32,6 +32,8 @@ COMMIT;
 BEGIN;
 INSERT INTO innodb VALUES (1);
 INSERT INTO myisam VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam and the InnoDB table test.innodb.
 [connection master1]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 Warnings:
@@ -49,6 +51,8 @@ SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 BEGIN;
 INSERT INTO innodb VALUES (1);
 INSERT INTO myisam VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam and the InnoDB table test.innodb.
 [connection master1]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 Warnings:
@@ -95,6 +99,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 INSERT INTO innodb VALUES (1);
 INSERT INTO myisam VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam and the InnoDB table test.innodb.
 [connection master1]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 Warnings:
@@ -113,6 +119,7 @@ BEGIN;
 INSERT INTO innodb VALUES (1);
 INSERT INTO myisam VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 [connection master1]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;

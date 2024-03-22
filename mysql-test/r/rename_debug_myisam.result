@@ -24,6 +24,8 @@ CREATE TABLE t0 (m INT) ENGINE=MyISAM;
 #      from the set of locked tables. Metadata locks on both
 #      old and new table names are kept.
 LOCK TABLES t1 WRITE, t2 WRITE, t0 WRITE;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t0 and the InnoDB table test.t1.
 SET @@debug='+d,injecting_fault_writing';
 RENAME TABLES t0 TO t00, t1 TO t01;
 ERROR HY000: Error writing file 'binlog' ((errno: #)
@@ -72,6 +74,8 @@ CREATE TABLE t1 (i INT) ENGINE=InnoDB;
 CREATE TABLE t0 (l INT) ENGINE=MyISAM;
 CREATE DATABASE mysqltest;
 LOCK TABLES t0 WRITE, t1 WRITE;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t0.
 SET @@debug='+d,injecting_fault_writing';
 RENAME TABLES t0 TO mysqltest.t0, t1 TO t01;
 ERROR HY000: Error writing file 'binlog' ((errno: #)

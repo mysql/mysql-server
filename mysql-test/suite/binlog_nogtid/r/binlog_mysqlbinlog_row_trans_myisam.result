@@ -71,6 +71,8 @@ DELETE FROM t1 WHERE c1 = 12;
 # Do some statements on the non-transactional table.
 #
 INSERT INTO t2 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 UPDATE t2 SET c1 = c1 + 10;
 DELETE FROM t2 WHERE c1 = 12;
 #
@@ -101,6 +103,8 @@ DELETE FROM t1 WHERE c1 = 12;
 # Do some statements on the non-transactional table.
 #
 INSERT INTO t2 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 UPDATE t2 SET c1 = c1 + 10;
 DELETE FROM t2 WHERE c1 = 12;
 #

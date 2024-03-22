@@ -103,12 +103,16 @@ RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 INSERT INTO t1 SET a=1;
 INSERT INTO tm SET a=2;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tm and the InnoDB table test.t1.
 COMMIT;
 include/include/rpl/assert_logical_timestamps.inc [0 1;1 2]
 RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 INSERT INTO t1 SET a=1;
 INSERT INTO tm SET a=2;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tm and the InnoDB table test.t1.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back

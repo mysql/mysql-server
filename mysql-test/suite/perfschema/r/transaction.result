@@ -410,6 +410,8 @@ ACTUAL	EXPECTED
 
 ## Now transactional. Transaction should be started.
 INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.nt1.
 
 ## Expect 1 transaction in events_transactions_current
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);

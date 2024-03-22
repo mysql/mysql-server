@@ -8,6 +8,7 @@ START TRANSACTION;
 INSERT INTO t2 VALUES (1);
 INSERT IGNORE INTO t1 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 COMMIT;
 INSERT INTO t1 VALUES (2);
@@ -15,6 +16,7 @@ START TRANSACTION;
 INSERT INTO t2 VALUES (2);
 UPDATE IGNORE t1 SET a=1 WHERE a=2;
 Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 COMMIT;
 DROP TABLE t1, t2;

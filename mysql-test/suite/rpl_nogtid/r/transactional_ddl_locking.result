@@ -871,6 +871,8 @@ CALL mtr.add_suppression('Unsafe statement written to the binary log using state
 --- connection master ---
 INSERT INTO t1innodb (c) VALUES (1);
 INSERT INTO t1myisam (c) VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t1myisam and the InnoDB table mtr.test_suppressions.
 COMMIT;
 BEGIN;
 UPDATE t1myisam, t1innodb SET t1myisam.c = 10, t1innodb.c = NULL;

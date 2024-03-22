@@ -77,6 +77,8 @@ MASTER_UUID	1	8
 BEGIN;
 INSERT INTO t2 VALUES(2);
 INSERT INTO t1 VALUES(1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 INSERT INTO t1 VALUES(2);
 COMMIT;
 #

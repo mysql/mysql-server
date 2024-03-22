@@ -103,6 +103,8 @@ SELECT * FROM t1;
 a	b
 1	init+con1
 # Switch to connection con2
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 SELECT * FROM t1;
 a	b
 1	init+con1+con2
@@ -130,6 +132,8 @@ SELECT * FROM t1;
 a	b
 2	init+con1
 # Switch to connection con2
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 SELECT * FROM t1;
 a	b
 2	init+con1

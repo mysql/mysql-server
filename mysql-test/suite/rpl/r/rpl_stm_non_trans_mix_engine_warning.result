@@ -1,0 +1,64 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+#
+# 1. Create Tables with engines InnoDB and MyISAM.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t4 (c1 INT) ENGINE=InnoDB;
+CREATE TABLE t5 (c1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t4 VALUES (1);
+INSERT INTO t5 VALUES (1);
+#
+# 2. Mix InnoDB and MyISAM and assert that a warning is emitted on the source and replica.
+#
+UPDATE t1,t2 SET t1.c1=2, t2.c1=2;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+include/assert_grep.inc [1 Warning Found on source error log]
+include/rpl/sync_to_replica.inc
+include/assert_grep.inc [1 Warning Found on replica error log]
+[connection master]
+#
+# 3. Test with triggers
+#
+CREATE TRIGGER before_trigger BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+UPDATE t2 SET t2.c1 = 3;
+END|
+CREATE TRIGGER after_trigger AFTER UPDATE ON t4 FOR EACH ROW
+BEGIN
+UPDATE t5 SET t5.c1 = 3;
+END|
+UPDATE t1 SET t1.c1 = 3;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+UPDATE t4 SET t4.c1 = 3;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t5 and the InnoDB table test.t4.
+#
+# 4. Test with stored procedure
+#
+CREATE PROCEDURE proc()
+BEGIN
+UPDATE t1,t3 SET t1.c1 = 4, t3.c1 = 4;
+END|
+CALL proc();
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t3 and the InnoDB table test.t1.
+#
+# 7. Cleanup
+#
+DROP TRIGGER IF EXISTS before_trigger;
+DROP TRIGGER IF EXISTS after_trigger;
+DROP PROCEDURE IF EXISTS proc;
+DROP TABLE t1,t2,t3,t4,t5;
+include/rpl/deinit.inc

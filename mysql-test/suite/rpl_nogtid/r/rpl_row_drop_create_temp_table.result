@@ -159,6 +159,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_tmp_1;
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-T-Temp N Drop-Temp-T-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -193,6 +195,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE nt_tmp_1;
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-N-Temp N Drop-Temp-N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -229,6 +233,8 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_xx_1;
 ERROR 42S02: Unknown table 'test.tt_xx_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_xx_1;
 ERROR 42S02: Unknown table 'test.tt_xx_1'
 COMMIT;
@@ -268,6 +274,8 @@ DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_xx_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_xx_1'
@@ -306,6 +314,8 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_2, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_tmp_1, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 COMMIT;
@@ -345,6 +355,8 @@ DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE IF EXISTS tt_tmp_1, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
@@ -383,6 +395,8 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_2, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE nt_tmp_1, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 COMMIT;
@@ -422,6 +436,8 @@ DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE IF EXISTS nt_tmp_1, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
@@ -458,6 +474,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_tmp_1, nt_tmp_1;
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TN-Temp N Drop-Temp-TN-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -492,6 +510,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-TT-Temp N Drop-Temp-TT-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
 include/rpl/deprecated/show_binlog_events.inc
@@ -525,6 +545,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
 include/rpl/deprecated/show_binlog_events.inc
@@ -544,6 +566,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 INSERT INTO nt_error_1() VALUES (1), (1);
 ERROR 23000: Duplicate entry '1' for key 'nt_error_1.PRIMARY'
 COMMIT;
@@ -569,6 +593,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 INSERT INTO tt_error_1() VALUES (1), (1);
 ERROR 23000: Duplicate entry '1' for key 'tt_error_1.PRIMARY'
 COMMIT;
@@ -590,6 +616,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 INSERT INTO nt_error_1() VALUES (2), (2);
 ERROR 23000: Duplicate entry '2' for key 'nt_error_1.PRIMARY'
 COMMIT;
@@ -630,6 +658,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_tmp_1;
 ROLLBACK;
 Warnings:
@@ -660,6 +690,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE nt_tmp_1;
 ROLLBACK;
 Warnings:
@@ -690,6 +722,8 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_xx_1;
 ERROR 42S02: Unknown table 'test.tt_xx_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_xx_1;
 ERROR 42S02: Unknown table 'test.tt_xx_1'
 ROLLBACK;
@@ -722,6 +756,8 @@ DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_xx_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE IF EXISTS tt_xx_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_xx_1'
@@ -753,6 +789,8 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_2, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_tmp_1, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 ROLLBACK;
@@ -787,6 +825,8 @@ DROP TEMPORARY TABLE IF EXISTS tt_tmp_2, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE IF EXISTS tt_tmp_1, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
@@ -819,6 +859,8 @@ INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_2, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE nt_tmp_1, tt_1;
 ERROR 42S02: Unknown table 'test.tt_1'
 ROLLBACK;
@@ -853,6 +895,8 @@ DROP TEMPORARY TABLE IF EXISTS nt_tmp_2, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE IF EXISTS nt_tmp_1, tt_1;
 Warnings:
 Note	1051	Unknown table 'test.tt_1'
@@ -885,6 +929,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_2, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 DROP TEMPORARY TABLE tt_tmp_1, nt_tmp_1;
 ROLLBACK;
 Warnings:
@@ -915,6 +961,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE tt_tmp_1, tt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -944,6 +992,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 ROLLBACK;
 Warnings:
 Warning	#	Some non-transactional changed tables couldn't be rolled back
@@ -962,6 +1012,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 INSERT INTO nt_error_1() VALUES (3), (3);
 ERROR 23000: Duplicate entry '3' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
@@ -986,6 +1038,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 INSERT INTO tt_error_1() VALUES (2), (2);
 ERROR 23000: Duplicate entry '2' for key 'tt_error_1.PRIMARY'
 ROLLBACK;
@@ -1006,6 +1060,8 @@ BEGIN;
 INSERT INTO tt_xx_1() VALUES (1);
 DROP TEMPORARY TABLE nt_tmp_1, nt_tmp_2;
 INSERT INTO nt_xx_1() VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.nt_xx_1 and the InnoDB table test.tt_xx_1.
 INSERT INTO nt_error_1() VALUES (4), (4);
 ERROR 23000: Duplicate entry '4' for key 'nt_error_1.PRIMARY'
 ROLLBACK;
@@ -1565,6 +1621,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM nt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-N-Temp N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1601,6 +1659,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-Temp T-SELECT-T-Temp N-Temp C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1617,6 +1677,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (9), (9);
 ERROR 23000: Duplicate entry '9' for key 'nt_error_1.PRIMARY'
@@ -1639,6 +1701,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_error_1() VALUES (5), (5);
 ERROR 23000: Duplicate entry '5' for key 'tt_error_1.PRIMARY'
@@ -1657,6 +1721,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (10), (10);
 ERROR 23000: Duplicate entry '10' for key 'nt_error_1.PRIMARY'
@@ -1706,6 +1772,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM nt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 ROLLBACK;
 Warnings:
@@ -1742,6 +1810,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 ROLLBACK;
 Warnings:
@@ -1760,6 +1830,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (11), (11);
 ERROR 23000: Duplicate entry '11' for key 'nt_error_1.PRIMARY'
@@ -1784,6 +1856,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_error_1() VALUES (6), (6);
 ERROR 23000: Duplicate entry '6' for key 'tt_error_1.PRIMARY'
@@ -1804,6 +1878,8 @@ BEGIN;
 INSERT INTO nt_xx_1() VALUES (1);
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO tt_xx_1 SELECT * FROM tt_tmp_xx_1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt_xx_1 and the MyISAM table test.nt_xx_1.
 INSERT INTO nt_tmp_xx_1() VALUES (1);
 INSERT INTO nt_error_1() VALUES (12), (12);
 ERROR 23000: Duplicate entry '12' for key 'nt_error_1.PRIMARY'

@@ -85,21 +85,29 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO tmyisam VALUES (27);
 INSERT INTO tinnodb VALUES (28);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 COMMIT;
 BEGIN;
 INSERT INTO tinnodb VALUES (29);
 INSERT INTO tmyisam VALUES (30);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 COMMIT;
 ---- rolled back with BEGIN ----
 BEGIN;
 INSERT INTO tmyisam VALUES (31);
 INSERT INTO tinnodb VALUES (32);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tinnodb VALUES (33);
 INSERT INTO tmyisam VALUES (34);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -107,18 +115,26 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET AUTOCOMMIT = 0;
 INSERT INTO tmyisam VALUES (35);
 INSERT INTO tinnodb VALUES (36);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 COMMIT;
 INSERT INTO tinnodb VALUES (37);
 INSERT INTO tmyisam VALUES (38);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 COMMIT;
 ---- rolled back with AUTOCOMMIT = 0 ----
 INSERT INTO tmyisam VALUES (39);
 INSERT INTO tinnodb VALUES (40);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tinnodb VALUES (41);
 INSERT INTO tmyisam VALUES (42);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -128,21 +144,29 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO tmyisam VALUES (43);
 INSERT INTO tndb VALUES (44);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 COMMIT;
 BEGIN;
 INSERT INTO tndb VALUES (45);
 INSERT INTO tmyisam VALUES (46);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 COMMIT;
 ---- rolled back with BEGIN ----
 BEGIN;
 INSERT INTO tmyisam VALUES (47);
 INSERT INTO tndb VALUES (48);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tndb VALUES (49);
 INSERT INTO tmyisam VALUES (50);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -150,18 +174,26 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET AUTOCOMMIT = 0;
 INSERT INTO tmyisam VALUES (51);
 INSERT INTO tndb VALUES (52);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 COMMIT;
 INSERT INTO tndb VALUES (53);
 INSERT INTO tmyisam VALUES (54);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 COMMIT;
 ---- rolled back with AUTOCOMMIT = 0 ----
 INSERT INTO tmyisam VALUES (55);
 INSERT INTO tndb VALUES (56);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tndb VALUES (57);
 INSERT INTO tmyisam VALUES (58);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -171,34 +203,50 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO tinnodb VALUES (59);
 INSERT INTO tndb VALUES (60);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 COMMIT;
 BEGIN;
 INSERT INTO tndb VALUES (61);
 INSERT INTO tinnodb VALUES (62);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 COMMIT;
 ---- rolled back with BEGIN ----
 BEGIN;
 INSERT INTO tinnodb VALUES (63);
 INSERT INTO tndb VALUES (64);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 ROLLBACK;
 BEGIN;
 INSERT INTO tndb VALUES (65);
 INSERT INTO tinnodb VALUES (66);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 ROLLBACK;
 ---- committed with AUTOCOMMIT = 0 ----
 SET AUTOCOMMIT = 0;
 INSERT INTO tinnodb VALUES (67);
 INSERT INTO tndb VALUES (68);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 COMMIT;
 INSERT INTO tndb VALUES (69);
 INSERT INTO tinnodb VALUES (70);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 COMMIT;
 ---- rolled back with AUTOCOMMIT = 0 ----
 INSERT INTO tinnodb VALUES (71);
 INSERT INTO tndb VALUES (72);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 ROLLBACK;
 INSERT INTO tndb VALUES (73);
 INSERT INTO tinnodb VALUES (74);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 ROLLBACK;
 SET AUTOCOMMIT = 1;
 ==== MyISAM + InnoDB + NDB ====
@@ -206,37 +254,51 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO tmyisam VALUES (75);
 INSERT INTO tinnodb VALUES (76);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 INSERT INTO tndb VALUES (77);
 COMMIT;
 BEGIN;
 INSERT INTO tmyisam VALUES (78);
 INSERT INTO tndb VALUES (79);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 INSERT INTO tinnodb VALUES (80);
 COMMIT;
 BEGIN;
 INSERT INTO tinnodb VALUES (81);
 INSERT INTO tmyisam VALUES (82);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 INSERT INTO tndb VALUES (83);
 COMMIT;
 BEGIN;
 INSERT INTO tinnodb VALUES (84);
 INSERT INTO tndb VALUES (85);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 INSERT INTO tmyisam VALUES (86);
 COMMIT;
 BEGIN;
 INSERT INTO tndb VALUES (87);
 INSERT INTO tmyisam VALUES (88);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 INSERT INTO tinnodb VALUES (89);
 COMMIT;
 BEGIN;
 INSERT INTO tndb VALUES (90);
 INSERT INTO tinnodb VALUES (91);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 INSERT INTO tmyisam VALUES (92);
 COMMIT;
 ---- rolled back with BEGIN ----
 BEGIN;
 INSERT INTO tmyisam VALUES (93);
 INSERT INTO tinnodb VALUES (94);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 INSERT INTO tndb VALUES (95);
 ROLLBACK;
 Warnings:
@@ -244,6 +306,8 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tmyisam VALUES (96);
 INSERT INTO tndb VALUES (97);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 INSERT INTO tinnodb VALUES (98);
 ROLLBACK;
 Warnings:
@@ -251,6 +315,8 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tinnodb VALUES (99);
 INSERT INTO tmyisam VALUES (100);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 INSERT INTO tndb VALUES (101);
 ROLLBACK;
 Warnings:
@@ -258,6 +324,8 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tinnodb VALUES (102);
 INSERT INTO tndb VALUES (103);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 INSERT INTO tmyisam VALUES (104);
 ROLLBACK;
 Warnings:
@@ -265,6 +333,8 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tndb VALUES (105);
 INSERT INTO tmyisam VALUES (106);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 INSERT INTO tinnodb VALUES (107);
 ROLLBACK;
 Warnings:
@@ -272,6 +342,8 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO tndb VALUES (108);
 INSERT INTO tinnodb VALUES (109);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 INSERT INTO tmyisam VALUES (110);
 ROLLBACK;
 Warnings:
@@ -280,61 +352,85 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET AUTOCOMMIT = 0;
 INSERT INTO tmyisam VALUES (111);
 INSERT INTO tinnodb VALUES (112);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 INSERT INTO tndb VALUES (113);
 COMMIT;
 INSERT INTO tmyisam VALUES (114);
 INSERT INTO tndb VALUES (115);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 INSERT INTO tinnodb VALUES (116);
 COMMIT;
 INSERT INTO tinnodb VALUES (117);
 INSERT INTO tmyisam VALUES (118);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 INSERT INTO tndb VALUES (119);
 COMMIT;
 INSERT INTO tinnodb VALUES (120);
 INSERT INTO tndb VALUES (121);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 INSERT INTO tmyisam VALUES (122);
 COMMIT;
 INSERT INTO tndb VALUES (123);
 INSERT INTO tmyisam VALUES (124);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 INSERT INTO tinnodb VALUES (125);
 COMMIT;
 INSERT INTO tndb VALUES (126);
 INSERT INTO tinnodb VALUES (127);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 INSERT INTO tmyisam VALUES (128);
 COMMIT;
 ---- rolled back with AUTOCOMMIT = 0 ----
 INSERT INTO tmyisam VALUES (129);
 INSERT INTO tinnodb VALUES (130);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the MyISAM table test.tmyisam.
 INSERT INTO tndb VALUES (131);
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tmyisam VALUES (132);
 INSERT INTO tndb VALUES (133);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 INSERT INTO tinnodb VALUES (134);
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tinnodb VALUES (135);
 INSERT INTO tmyisam VALUES (136);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the InnoDB table test.tinnodb.
 INSERT INTO tndb VALUES (137);
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tinnodb VALUES (138);
 INSERT INTO tndb VALUES (139);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 INSERT INTO tmyisam VALUES (140);
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tndb VALUES (141);
 INSERT INTO tmyisam VALUES (142);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 INSERT INTO tinnodb VALUES (143);
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO tndb VALUES (144);
 INSERT INTO tinnodb VALUES (145);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 INSERT INTO tmyisam VALUES (146);
 ROLLBACK;
 Warnings:
@@ -344,20 +440,28 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO tndb VALUES (147);
 INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.tinnodb and the ndbcluster table test.tndb.
 COMMIT;
 INSERT INTO tndb VALUES (148);
 BEGIN;
 INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
 INSERT INTO tndb VALUES (149);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the InnoDB table test.tinnodb.
 COMMIT;
 BEGIN;
 INSERT INTO tndb VALUES (150);
 INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.tmyisam and the ndbcluster table test.tndb.
 COMMIT;
 INSERT INTO tndb VALUES (151);
 BEGIN;
 INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
 INSERT INTO tndb VALUES (152);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table test.tndb and the MyISAM table test.tmyisam.
 COMMIT;
 ==== Verify the result ====
 SELECT * FROM tmyisam ORDER BY a;

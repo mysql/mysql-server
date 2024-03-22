@@ -8,6 +8,8 @@ create table t2 (a int, b int, unique(b)) engine=innodb;
 begin;
 insert into t1 values(1,1);
 insert into t2 values(1,1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and ndbcluster is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the ndbcluster table test.t1.
 rollback;
 select count(*) from t1;
 count(*)
@@ -24,6 +26,8 @@ count(*)
 begin;
 load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.t1 and the InnoDB table test.t2.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -44,6 +48,8 @@ delete from t2;
 begin;
 load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.t1 and the InnoDB table test.t2.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -64,6 +70,8 @@ delete from t2;
 begin;
 insert into t2 values(3,3),(4,4);
 insert into t1 values(3,3),(4,4);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and InnoDB is deprecated, but the statement or transaction updates both the ndbcluster table test.t1 and the InnoDB table test.t2.
 load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
 load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 rollback;

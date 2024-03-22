@@ -8,6 +8,7 @@ begin;
 insert into t1 values(1);
 insert into t2 select * from t1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 commit;
 include/rpl/deprecated/show_binlog_events.inc
@@ -23,6 +24,7 @@ begin;
 insert into t1 values(2);
 insert into t2 select * from t1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 rollback;
 Warnings:
@@ -42,6 +44,7 @@ savepoint my_savepoint;
 insert into t1 values(4);
 insert into t2 select * from t1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 rollback to savepoint my_savepoint;
 Warnings:
@@ -65,6 +68,7 @@ savepoint my_savepoint;
 insert into t1 values(6);
 insert into t2 select * from t1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 rollback to savepoint my_savepoint;
 Warnings:
@@ -95,6 +99,7 @@ begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 select get_lock("a",10);
 get_lock("a",10)
@@ -133,6 +138,8 @@ binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
 binlog.000001	#	Query	#	#	COMMIT
 insert into t1 values(11);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 commit;
 include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -222,6 +229,8 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 begin;
 select * from t1 for update;
 insert into t2 values (20);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select (@after:=unix_timestamp())*0;
 (@after:=unix_timestamp())*0
@@ -443,6 +452,7 @@ begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 select get_lock("a",10);
 get_lock("a",10)
@@ -471,6 +481,8 @@ begin;
 insert into ti values (1);
 insert into ti values (2) ;
 insert into tt select * from ti;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tt and the InnoDB table test.ti.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -733,6 +745,8 @@ begin;
 insert into ti values (1);
 insert into ti values (2) ;
 insert into tt select * from ti;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tt and the InnoDB table test.ti.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back

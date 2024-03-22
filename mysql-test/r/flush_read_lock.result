@@ -1540,6 +1540,8 @@ alter table t1_temp drop column c1;
 begin;
 insert into t1_base values (1);
 insert into t3_trans values (1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t3_trans and the MyISAM table test.t1_base.
 # Switching to connection 'con1'.
 # The below FTWRL should not be blocked by transaction in 'default'.
 flush tables with read lock;

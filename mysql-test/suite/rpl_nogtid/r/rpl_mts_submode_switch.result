@@ -51,11 +51,15 @@ FLUSH LOGS;
 BEGIN;
 INSERT INTO db2.t values (1),(2),(3);
 INSERT INTO db3.t values (1),(2),(3);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table db3.t and the MyISAM table db2.t.
 UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
 COMMIT;
 BEGIN;
 INSERT INTO db1.t values (1),(2),(3);
 INSERT INTO db4.t values (1),(2),(3);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table db4.t and the InnoDB table db1.t.
 UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
 COMMIT;
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';

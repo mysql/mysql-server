@@ -13,18 +13,21 @@ Warning	3748	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 COMMIT;
 BEGIN;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 INSERT INTO t1 VALUES (1);
 COMMIT;
 BEGIN;
 UPDATE t1, t2 SET t1.c1=2, t2.c1=1000;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 INSERT INTO t1 VALUES (1);

@@ -1,0 +1,145 @@
+#
+#  STEP 1 to 6 Binlog Enabled
+#
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Create Tables with engines InnoDB, MyISAM, BLACKHOLE, MERGE and Temporary table with engine InnoDB.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t4 (c1 INT) ENGINE=BLACKHOLE;
+CREATE TEMPORARY TABLE t5 (c1 INT);
+CREATE TABLE t6 (c1 INT) ENGINE=MERGE UNION=(t2,t3);
+CREATE TABLE t7 (c1 INT NOT NULL) ENGINE=CSV;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t4 VALUES (1);
+INSERT INTO t5 VALUES (1);
+INSERT INTO t7 VALUES (1);
+#
+# 2. Assert that no warning is emitted.
+#
+include/assert_grep.inc [No warning found]
+#
+# 3. Mixing CSV, MyISAM, InnoDB
+#
+BEGIN;
+UPDATE t7 SET t7.c1 = 2;
+UPDATE t2 SET t2.c1 = 2;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and CSV is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the CSV table test.t7.
+UPDATE t1 SET t1.c1 =2;
+COMMIT;
+UPDATE t7,t2 SET t7.c1=3, t2.c1=3;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and CSV is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the CSV table test.t7.
+#
+# 4. Assert that only one warning is emitted on the source error log
+#
+include/assert_grep.inc [1 Warning Found]
+#
+# 5. Sleep for 2 minutes and execute a transaction again
+#
+UPDATE t7, t2 SET t7.c1 = 4, t2.c1 =4;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and CSV is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the CSV table test.t7.
+#
+# 6. Assert that now two warnings are emitted in error log of source and on replica
+#
+include/assert_grep.inc [2 Warning Found on source error log]
+include/rpl/sync_to_replica.inc
+include/assert_grep.inc [2 Warning Found on replica error log]
+[connection master]
+#
+# Do steps 7 to 11 where first loop is for binlog enable , second loop is for binlog disable.
+#
+#
+# 7. Mixing InnoDB and Blackhole Engine and assert that no warning is emitted
+#
+UPDATE t1, t4 SET t1.c1=2, t4.c1=2;
+Warnings:
+Warning	1870	Row events are not logged for UPDATE statements that modify BLACKHOLE tables in row format. Table(s): 't4.'
+include/assert_grep.inc [No new warnings found]
+#
+# 8. Mixing InnoDB and Temporary Table with InnoDB engine and assert that no warning is emitted
+#
+UPDATE t1, t5 SET t1.c1=3, t5.c1=3;
+include/assert_grep.inc [No new warnings found]
+#
+# 9. Doing Transaction on MERGE + MyISAM engine and assert that no warning is emitted
+#
+BEGIN;
+UPDATE t3 SET t3.c1=2;
+DELETE FROM t6;
+COMMIT;
+include/assert_grep.inc [No new warnings found]
+#
+# 10. Mixing InnoDB and Performance_schema and assert that no warning is emitted
+#
+BEGIN;
+UPDATE t1 SET t1.c1=9;
+UPDATE performance_schema.setup_actors
+SET ENABLED = 'NO', HISTORY = 'NO' WHERE HOST = '%' AND USER = '%';
+COMMIT;
+include/assert_grep.inc [No new warnings found]
+UPDATE performance_schema.setup_actors
+SET ENABLED = 'YES', HISTORY = 'YES' WHERE HOST = '%' AND USER = '%';
+#
+# 11. Mix InnoDB and MyISAM, and assert that 1 warning is emitted.
+#
+UPDATE t1,t2 SET t1.c1=100, t2.c1=100;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+include/assert_grep.inc [1 new warning is found.]
+#
+# With Binlog Disabled
+#
+SET SQL_LOG_BIN = 0;
+#
+# 7. Mixing InnoDB and Blackhole Engine and assert that no warning is emitted
+#
+UPDATE t1, t4 SET t1.c1=2, t4.c1=2;
+include/assert_grep.inc [No new warnings found]
+#
+# 8. Mixing InnoDB and Temporary Table with InnoDB engine and assert that no warning is emitted
+#
+UPDATE t1, t5 SET t1.c1=3, t5.c1=3;
+include/assert_grep.inc [No new warnings found]
+#
+# 9. Doing Transaction on MERGE + MyISAM engine and assert that no warning is emitted
+#
+BEGIN;
+UPDATE t3 SET t3.c1=2;
+DELETE FROM t6;
+COMMIT;
+include/assert_grep.inc [No new warnings found]
+#
+# 10. Mixing InnoDB and Performance_schema and assert that no warning is emitted
+#
+BEGIN;
+UPDATE t1 SET t1.c1=9;
+UPDATE performance_schema.setup_actors
+SET ENABLED = 'NO', HISTORY = 'NO' WHERE HOST = '%' AND USER = '%';
+COMMIT;
+include/assert_grep.inc [No new warnings found]
+UPDATE performance_schema.setup_actors
+SET ENABLED = 'YES', HISTORY = 'YES' WHERE HOST = '%' AND USER = '%';
+#
+# 11. Mix InnoDB and MyISAM, and assert that 1 warning is emitted.
+#
+UPDATE t1,t2 SET t1.c1=100, t2.c1=100;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+include/assert_grep.inc [1 new warning is found.]
+SET SQL_LOG_BIN = 1;
+#
+# 12. Drop tables
+#
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+include/rpl/deinit.inc

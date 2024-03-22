@@ -140,6 +140,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -174,6 +176,8 @@ BEGIN; INSERT INTO innodb VALUES (1);
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
@@ -190,6 +194,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -347,6 +353,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -381,6 +389,8 @@ BEGIN; INSERT INTO innodb VALUES (1);
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -397,6 +407,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -448,6 +460,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -482,6 +496,8 @@ BEGIN; INSERT INTO innodb VALUES (1);
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
@@ -498,6 +514,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -655,6 +673,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -689,6 +709,8 @@ BEGIN; INSERT INTO innodb VALUES (1);
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -705,6 +727,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -756,6 +780,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -790,6 +816,8 @@ BEGIN; INSERT INTO innodb VALUES (1);
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
@@ -806,6 +834,8 @@ SET GTID_NEXT = 'ANONYMOUS';
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -2027,6 +2057,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2067,6 +2098,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2087,6 +2119,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2252,6 +2285,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2292,6 +2326,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2312,6 +2347,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2371,6 +2407,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2411,6 +2448,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2431,6 +2469,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2596,6 +2635,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2636,6 +2676,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2656,6 +2697,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2715,6 +2757,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2755,6 +2798,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO tmp_myisam1 VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
@@ -2775,6 +2819,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] INSERT INTO innodb VALUES (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tmp_myisam1 and the InnoDB table test.innodb.
 Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]

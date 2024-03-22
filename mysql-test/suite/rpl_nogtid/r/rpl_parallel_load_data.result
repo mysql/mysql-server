@@ -16,6 +16,8 @@ CREATE TABLE db2.tb2 (f1 int) ENGINE=InnoDB;
 CREATE TRIGGER db1.tr AFTER INSERT ON tb1 FOR EACH ROW INSERT INTO db2.tb2
 (f1) VALUES (new.f1);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/load_bug12982188.txt' INTO TABLE db1.tb1;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table db2.tb2 and the MyISAM table db1.tb1.
 SELECT COUNT(*) FROM db2.tb2;
 COUNT(*)
 10
