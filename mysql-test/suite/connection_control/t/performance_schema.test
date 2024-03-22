@@ -1,0 +1,40 @@
+# This test checks if when connection delay occurs the stage event
+# 'stage/conn_delay/Waiting in connection_control plugin'
+# lasts around @@global.connection_control_min_connection_delay,
+# so the user may get proper monitoring data.
+
+# The test will work only in debug mode
+--source include/have_debug.inc
+
+# Make sure that connection_control plugin can be loaded
+--source ../inc/have_connection_control_plugin.inc
+
+--echo # Setup
+--source ../inc/install_connection_control_plugin.inc
+
+# set connection_control variables
+SET @@global.connection_control_failed_connections_threshold = 1;
+SET @@global.connection_control_min_connection_delay = 1230;
+SET @@global.connection_control_max_connection_delay = 1230;
+
+# We don't need to use client side authentication plugin for this test.
+let $USE_AUTH_PLUGIN= 0;
+
+--echo # Not delayed connection
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con, localhost, u,,,,,);
+
+--echo # Delayed connection
+--replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(fail_con, localhost, u,,,,,);
+
+--echo # The stage event should be in the history, the timer wait must be slightly bigger
+--echo # than configured connection delay, assume not more than 1/10 sec is good approximation,
+--echo # so the below must be 0
+SELECT FLOOR((TIMER_WAIT/100000000000 - @@connection_control_min_connection_delay/100)) from performance_schema.events_stages_history_long WHERE EVENT_NAME LIKE 'stage/conn_delay/Waiting in connection_control plugin';
+
+--echo # Cleanup
+--echo # Uninstall connection_control plugin
+--source ../inc/uninstall_connection_control_plugin.inc
