@@ -66,11 +66,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <tchar.h>
 #include <codecvt>
 
-#else /* !_WIN32 */
-
-#include <filesystem>
-
-#endif /* !_WIN32 */
+#endif /* _WIN32 */
 
 #ifdef __linux__
 #include <sys/sendfile.h>
@@ -2876,17 +2872,29 @@ static int os_file_fsync_posix(os_file_t file) {
 
 /** fsync the parent directory of a path. Useful following rename, unlink, etc..
 @param[in]      path            path of file */
-static void os_parent_dir_fsync_posix(std::filesystem::path path) {
-  std::error_code ec;
-  auto parent = path.parent_path();
-  if (parent.empty()) {
-    parent = ".";
+static void os_parent_dir_fsync_posix(const char *path) {
+  ut_a(path[0] != '\0');
+
+  auto parent_in_path = os_file_get_parent_dir(path);
+  const char *parent_dir = parent_in_path;
+  if (parent_in_path == nullptr) {
+    /** if there is no parent dir in the path, then the real parent is
+    either the current directory, or the root directory */
+    if (path[0] == '/') {
+      parent_dir = "/";
+    } else {
+      parent_dir = ".";
+    }
   }
 
   /* Open the parent directory */
-  auto dir_fd = ::open(parent.c_str(), O_RDONLY);
+  auto dir_fd = ::open(parent_dir, O_RDONLY);
 
   ut_a(dir_fd != -1);
+
+  if (parent_in_path != nullptr) {
+    ut::free(parent_in_path);
+  }
 
   /** Using fsync even when --innodb_use_fdatasync=ON
   since this operation is not very frequent, but WSL1 does
