@@ -165,13 +165,8 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---enable_reconnect
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
@@ -220,13 +215,8 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---enable_reconnect
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
@@ -329,14 +319,7 @@ RESET MASTER;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---enable_reconnect
-
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
