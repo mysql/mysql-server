@@ -508,7 +508,11 @@ sub mtr_generate_xml_report($) {
       $tinfo->{'comment'} =~ s/</&gt;/g;
       print $xml_report_file "<testcase name=\"$tname\"$combination " .
         "status=\"$not_run_status\" " . "time=\"$test_time\" " .
-        "suitename=\"$tsuite\" " . "comment=\"$tinfo->{'comment'}\" />\n";
+        "suitename=\"$tsuite\">\n";
+          print $xml_report_file " " x 7;
+      print $xml_report_file "<$not_run_status message=\"$tinfo->{'comment'}\" />\n";
+      print $xml_report_file " " x 4;
+      print $xml_report_file "</testcase>\n";
     } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED') {
       print $xml_report_file " " x 4;
       print $xml_report_file "<testcase name=\"$tname\"$combination " .
