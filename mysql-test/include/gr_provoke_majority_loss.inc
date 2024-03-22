@@ -77,10 +77,8 @@ while ($itr > 0)
     --let $rpl_connection_name = $curr_server
     --source include/rpl_connection.inc
 
-    --enable_reconnect
-    --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.$itr.expect
-    --shutdown_server 0
-    --source include/wait_until_disconnected.inc
+    --let $no_wait_for_reconnect = 1
+    --source include/kill_and_restart_mysqld.inc
   }
 
   --dec $itr
@@ -95,6 +93,7 @@ while ($itr > 0)
     --let $rpl_connection_name = $curr_server
     --source include/rpl_connection.inc
 
+    --enable_reconnect
     --source include/wait_until_connected_again.inc
     --disable_reconnect
 

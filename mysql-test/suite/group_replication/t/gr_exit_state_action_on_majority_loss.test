@@ -75,21 +75,12 @@ SET SESSION sql_log_bin = 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
+
 # Crash server 3
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 --echo
 --echo #########################################################################
@@ -154,21 +145,11 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 # Crash server 2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 # Crash server 3
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/kill_and_restart_mysqld.inc
 
 --echo
 --echo #########################################################################
