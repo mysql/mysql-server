@@ -673,6 +673,14 @@ select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 drop table t1;
 
 #
+# Bug#36399271 Allow primary key on JSON datatype for external tables
+#
+create table t1 (t varchar(3073));
+--error ER_TOO_LONG_KEY
+alter table t1 add primary key (t(3073));
+drop table t1;
+
+#
 # Bug#6073 "ALTER table minor glich": ALTER TABLE complains that an index
 # without # prefix is not allowed for TEXT columns, while index
 # is defined with prefix.

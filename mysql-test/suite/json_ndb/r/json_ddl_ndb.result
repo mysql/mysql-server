@@ -32,6 +32,13 @@ Verify that JSON columns can be dropped
 ALTER TABLE t2 DROP COLUMN j1;
 ALTER TABLE t2 DROP COLUMN j2;
 DROP TABLE t2;
+Verify that JSON columns do not support primary key on alter table
+CREATE TABLE t3(j1 JSON, j2 JSON NOT NULL);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+ALTER TABLE t3 ADD PRIMARY KEY(j1);
+ERROR 42000: JSON column 'j1' supports indexing only via generated columns on a specified JSON path.
+DROP TABLE t3;
 CREATE TABLE json(json int);
 INSERT INTO json(json) VALUES (1);
 SELECT json FROM json;
