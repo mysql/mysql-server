@@ -49,6 +49,8 @@ update t1 set a=a+10;
 begin;
 update t1 set a=20 where a=2;
 insert into t2m values (2);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2m and the InnoDB table test.t1.
 update t1 set a=30 where a=3;
 commit;
 update t1 set a=21 where a=2;
@@ -111,6 +113,8 @@ insert into d1.t1 values (5),(6),(7);
 begin;
 update d1.t1 set a=20 where a=2;
 insert into d1.t2m values (2);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table d1.t2m and the InnoDB table d1.t1.
 update d1.t1 set a=30 where a=3;
 insert into d1.t1 values (4);
 begin;

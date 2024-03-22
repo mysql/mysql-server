@@ -9,8 +9,12 @@ create table t1 (a int primary key, b int) engine=myisam;
 create table t2 (a int primary key, b int) engine=ndb;
 insert into t1 values (1,1), (2,2);
 insert into t2 values (1,1), (2,2);
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table mysql.t2 and the MyISAM table mysql.t1.
 delete from t1;
 delete from t2;
+Warnings:
+Warning	6414	Combining the storage engines ndbcluster and MyISAM is deprecated, but the statement or transaction updates both the ndbcluster table mysql.t2 and the MyISAM table mysql.t1.
 use test;
 create table t3 (a int primary key, b int) engine=ndb;
 insert into t3 values (1,1), (2,2);

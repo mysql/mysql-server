@@ -19,6 +19,8 @@ commit;
 begin;
 insert into t1(a,b) values(1,5);
 insert into t2(a,b) values(2,5);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t1.
 insert into t2(a,b) values(2,6);
 insert into t1(a,b) values(1,7);
 commit;

@@ -16,6 +16,8 @@ START TRANSACTION;
 INSERT INTO nt VALUES (1);
 SAVEPOINT insert_statement;
 INSERT INTO tt VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.tt and the MyISAM table test.nt.
 # Connection master1
 # Sending:
 DROP TABLE tt;

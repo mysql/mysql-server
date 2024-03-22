@@ -12,6 +12,7 @@ begin;
 insert into ti set a=null;
 insert into tm set a=null;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tm and the InnoDB table test.ti.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
@@ -33,6 +34,7 @@ begin;
 insert into ti set a=null;
 insert into tm set a=null;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.tm and the InnoDB table test.ti.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
 include/rpl/wait_for_applier_error.inc [errno=13117,1756]
@@ -47,6 +49,8 @@ include/rpl/start_replica.inc
 set @@global.debug="+d,stop_replica_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.ti and the MyISAM table test.tm.
 include/rpl/wait_for_applier_error.inc [errno=13117,1756]
 include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [The max value for field 'a' is 2]

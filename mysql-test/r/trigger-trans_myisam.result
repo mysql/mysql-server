@@ -36,12 +36,16 @@ select get_lock("lock_bug26141_sync", 1000);
 get_lock("lock_bug26141_sync", 1000)
 1
 update t1 set c=3 where c=1;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t3 and the InnoDB table test.t1.
 select release_lock("lock_bug26141_sync");
 release_lock("lock_bug26141_sync")
 1
 select release_lock("lock_bug26141_wait");
 release_lock("lock_bug26141_wait")
 1
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 select * from t1;
 c
 2

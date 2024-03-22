@@ -33,6 +33,8 @@ CREATE TABLE t2 (j INT) ENGINE=InnoDB;
 CREATE TABLE t3 (k INT) ENGINE=InnoDB;
 CREATE TABLE t4 (l INT) ENGINE=InnoDB;
 LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t0 WRITE;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t0 and the InnoDB table test.t1.
 RENAME TABLES t0 TO t00, t1 TO t01, t2 TO t4;
 ERROR 42S01: Table 't4' already exists
 # Tables are available under old names.
@@ -151,6 +153,8 @@ UNLOCK TABLES;
 #      state of metadata locks too.
 # This part of the test resides in rename_myisam.test.
 LOCK TABLES t4 WRITE, t1 WRITE;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t4.
 RENAME TABLES t4 TO mysqltest.t4, t1 TO t3;
 ERROR 42S01: Table 't3' already exists
 # Tables are available under old names.

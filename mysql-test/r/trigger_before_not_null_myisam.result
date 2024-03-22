@@ -165,6 +165,8 @@ CREATE TRIGGER t2_bu BEFORE UPDATE ON t2
 FOR EACH ROW
 SET NEW.a1 = 20;
 UPDATE t1, t2 SET t1.a1 = NULL , t2.a1 = NULL;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 SELECT * FROM t1;
 a1	a2
 10	NULL

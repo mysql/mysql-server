@@ -201,8 +201,12 @@ ERROR HY000: You are not using binary logging
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');
 INSERT INTO t2 VALUES ('aaaaa');
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t4.
 DELETE FROM t4;
 DELETE FROM t2;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t4.
 DROP TABLE t5;
 ###################### TEST #11
 include/rpl/restart_server.inc [server_number=1]
@@ -212,8 +216,12 @@ RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');
 INSERT INTO t2 VALUES ('aaaaa');
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t4.
 DELETE FROM t4;
 DELETE FROM t2;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t4.
 DROP TABLE t5;
 include/rpl/restart_server.inc [server_number=1]
 ###################### TEST #12
@@ -223,8 +231,12 @@ RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');
 INSERT INTO t2 VALUES ('aaaaa');
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t4.
 DELETE FROM t4;
 DELETE FROM t2;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the MyISAM table test.t4.
 DROP TABLE t5;
 include/rpl/restart_server.inc [server_number=1]
 DROP TABLE t1, t2, t4;

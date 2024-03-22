@@ -8,10 +8,13 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c;
+Warnings:
+Warning	6414	Combining the storage engines BLACKHOLE and MyISAM is deprecated, but the statement or transaction updates both the BLACKHOLE table test.t2 and the MyISAM table test.t1.
 START TRANSACTION;
 INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and ndbcluster is deprecated, but the statement or transaction updates both the MyISAM table test.t1 and the ndbcluster table test.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
 COMMIT;

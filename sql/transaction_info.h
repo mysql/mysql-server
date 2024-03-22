@@ -30,7 +30,8 @@
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"                             // strmake_root
+#include "my_sys.h"  // strmake_root
+#include "sql/engine_combination_tracker.h"
 #include "sql/mdl.h"                            // MDL_savepoint
 #include "sql/rpl_transaction_ctx.h"            // Rpl_transaction_ctx
 #include "sql/rpl_transaction_write_set_ctx.h"  // Transaction_write_set_ctx
@@ -231,6 +232,13 @@ class Transaction_ctx {
     m_transaction_write_set_ctx.reset_state();
     trans_begin_hook_invoked = false;
     m_mem_root.ClearForReuse();
+
+    // Reset the flag indicating the warning of mixing transactional engine
+    // with non-transactional engine is always emitted per transaction
+    tracker.set_warning_already_emitted(false);
+
+    /// Clear the registered engine
+    tracker.clear_known_engine();
     return;
   }
 
@@ -381,6 +389,9 @@ class Transaction_ctx {
   Rpl_transaction_ctx m_rpl_transaction_ctx;
   Rpl_transaction_write_set_ctx m_transaction_write_set_ctx;
   bool trans_begin_hook_invoked;
+
+ public:
+  Engine_combination_tracker tracker;
 };
 
 /**

@@ -22,6 +22,7 @@ begin;
 insert into t1i values (4);
 insert into t2m values (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2m and the InnoDB table test.t1i.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 insert into t1i values (5);
 commit;

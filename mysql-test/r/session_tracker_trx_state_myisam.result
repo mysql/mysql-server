@@ -64,6 +64,8 @@ START TRANSACTION;
 INSERT INTO t1 VALUES (1);
 # resulting state should be "wW", both safe and unsafe writes happened:
 INSERT INTO t2 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 # resulting state should STILL be "wW"!
 INSERT INTO t1 VALUES (1);
 ROLLBACK;
@@ -74,6 +76,8 @@ START TRANSACTION;
 INSERT INTO t2 VALUES (1);
 # resulting state should be "wW", both safe and unsafe writes happened:
 INSERT INTO t1 VALUES (1);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 # resulting state should be  "RwW" (adding transactional read):
 SELECT f1 FROM t1;
 f1
@@ -135,6 +139,8 @@ CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
 CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
 BEGIN;
 COMMIT; INSERT INTO t2 VALUES (1); BEGIN; INSERT INTO t1 VALUES (99); |
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 COMMIT;
 DROP TABLE t1;
 DROP TABLE t2;
@@ -366,8 +372,12 @@ UNLOCK TABLES;
 
 SET autocommit=1;
 LOCK TABLE t1 WRITE, t2 WRITE;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 INSERT INTO t2 VALUES (3);
 INSERT INTO t1 VALUES (3);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t1 and the MyISAM table test.t2.
 SELECT f1 FROM t1 WHERE f1 > 2;
 f1
 3

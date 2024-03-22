@@ -1,0 +1,232 @@
+# ==== Purpose ====
+#
+# This test case checks if the warning is emitted when transaction
+# or statement write to tables of multiples engines having at least one
+# non-transactional engine or non-composable engine.
+#
+# ==== Implementation ====
+#
+#
+# STEP 1 to 6 BINLOG ENABLED
+# 1. Create Tables with engines InnoDB, MyISAM, BLACKHOLE, MERGE and Temporary table with engine InnoDB.
+# 2. Assert that no warning is emitted.
+# 3. Mixing CSV, MyISAM, InnoDB
+# 4. Assert that only one warning is emitted on the source error log
+# 5. Sleep for 2 minutes and execute a transactions again
+# 6. Assert that now two warnings are emitted in error log of source and on replica
+# Do steps 7 to 11 where in first loop binlog is enabled , and second loop where binlog is disabled.
+# 7. Mixing InnoDB and Blackhole Engine and assert that no warning is emitted
+# 8. Mixing InnoDB and Temporary Table with InnoDB engine and assert that no warning is emitted
+# 9. Doing Transaction on MERGE + MyISAM engine and assert that no warning is emitted
+# 10. Mixing InnoDB and Performance_schema and assert that no warning is emitted
+# 11. Mixing InnoDB and MyISAM and assert that a warnings is emitted.
+# 12. Drop tables
+#
+# ==== References ====
+# WL#10495 : Replication Usability: Deprecate writing multiple engines
+# when at least one is non-transactional or non-composable
+
+--source include/big_test.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo #  STEP 1 to 6 Binlog Enabled
+--echo #
+
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # 1. Create Tables with engines InnoDB, MyISAM, BLACKHOLE, MERGE and Temporary table with engine InnoDB.
+--echo #
+
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t4 (c1 INT) ENGINE=BLACKHOLE;
+CREATE TEMPORARY TABLE t5 (c1 INT);
+CREATE TABLE t6 (c1 INT) ENGINE=MERGE UNION=(t2,t3);
+CREATE TABLE t7 (c1 INT NOT NULL) ENGINE=CSV;
+
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t4 VALUES (1);
+INSERT INTO t5 VALUES (1);
+INSERT INTO t7 VALUES (1);
+
+--echo #
+--echo # 2. Assert that no warning is emitted.
+--echo #
+
+--let $assert_text = No warning found
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--echo #
+--echo # 3. Mixing CSV, MyISAM, InnoDB
+--echo #
+
+# Do transaction on CSV, MyISAM and InnoDB
+BEGIN;
+UPDATE t7 SET t7.c1 = 2;
+UPDATE t2 SET t2.c1 = 2;
+UPDATE t1 SET t1.c1 =2;
+COMMIT;
+
+# Do another transaction on same tables
+UPDATE t7,t2 SET t7.c1=3, t2.c1=3;
+
+--let $count = 1
+
+--echo #
+--echo # 4. Assert that only one warning is emitted on the source error log
+--echo #
+
+--let $assert_text = 1 Warning Found
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+--inc $count
+
+--echo #
+--echo # 5. Sleep for 2 minutes and execute a transaction again
+--echo #
+
+--sleep 120
+
+UPDATE t7, t2 SET t7.c1 = 4, t2.c1 =4;
+
+--echo #
+--echo # 6. Assert that now two warnings are emitted in error log of source and on replica
+--echo #
+
+#check warning on source
+--let $assert_text = 2 Warning Found on source error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+#Sync replica with source
+--source include/rpl/sync_to_replica.inc
+
+#check warning on replica
+--let $assert_text = 2 Warning Found on replica error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+--source include/rpl/connection_source.inc
+
+--echo #
+--echo # Do steps 7 to 11 where first loop is for binlog enable , second loop is for binlog disable.
+--echo #
+
+--let $i = 0
+while ($i < 2)
+{
+    # Disable binlog when i=1
+    if ($i == 1)
+    {
+        --echo #
+        --echo # With Binlog Disabled
+        --echo #
+
+        SET SQL_LOG_BIN = 0;
+    }
+
+# Sleep for 2 minutes
+--sleep 120
+
+--echo #
+--echo # 7. Mixing InnoDB and Blackhole Engine and assert that no warning is emitted
+--echo #
+
+UPDATE t1, t4 SET t1.c1=2, t4.c1=2;
+
+--let $assert_text =  No new warnings found
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+--echo #
+--echo # 8. Mixing InnoDB and Temporary Table with InnoDB engine and assert that no warning is emitted
+--echo #
+
+UPDATE t1, t5 SET t1.c1=3, t5.c1=3;
+
+--let $assert_text =  No new warnings found
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+--echo #
+--echo # 9. Doing Transaction on MERGE + MyISAM engine and assert that no warning is emitted
+--echo #
+
+BEGIN;
+UPDATE t3 SET t3.c1=2;
+DELETE FROM t6;
+COMMIT;
+
+--let $assert_text =  No new warnings found
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+--echo #
+--echo # 10. Mixing InnoDB and Performance_schema and assert that no warning is emitted
+--echo #
+
+BEGIN;
+UPDATE t1 SET t1.c1=9;
+UPDATE performance_schema.setup_actors
+SET ENABLED = 'NO', HISTORY = 'NO' WHERE HOST = '%' AND USER = '%';
+COMMIT;
+
+--let $assert_text =  No new warnings found
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+# Resetting performance_schema
+UPDATE performance_schema.setup_actors
+SET ENABLED = 'YES', HISTORY = 'YES' WHERE HOST = '%' AND USER = '%';
+
+--echo #
+--echo # 11. Mix InnoDB and MyISAM, and assert that 1 warning is emitted.
+--echo #
+
+--inc $count
+
+UPDATE t1,t2 SET t1.c1=100, t2.c1=100;
+
+# Assert that 1 warning is emitted in the error log
+
+--let $assert_text = 1 new warning is found.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Combining the storage engines
+--let $assert_count = $count
+--source include/assert_grep.inc
+
+--inc $i
+}
+
+SET SQL_LOG_BIN = 1;
+
+--echo #
+--echo # 12. Drop tables
+--echo #
+
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+--source include/rpl/deinit.inc

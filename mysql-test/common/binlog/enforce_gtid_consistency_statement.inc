@@ -81,6 +81,10 @@ if ($extra_warning_count == '')
 {
   --let $extra_warning_count= 0
 }
+if ($mix_engine_warning_count == '')
+{
+  --let $mix_engine_warning_count= 0
+}
 
 # $expected_status is 0 if the statement is ok, 1 if an error is expected,
 # 2 if a warning is expected.
@@ -159,11 +163,12 @@ if ($expected_status != 1)
 }
 
 # Check warnings / errors.
-
+--connection $auxiliary_connection
+--let $warning_index= `SELECT 1 + $mix_engine_warning_count`
 --connection $statement_connection
 --let $warning_count= `SHOW COUNT(*) WARNINGS`
---let $warning_message= query_get_value(SHOW WARNINGS, Message, 1)
---let $warning_level= query_get_value(SHOW WARNINGS, Level, 1)
+--let $warning_message= query_get_value(SHOW WARNINGS, Message, $warning_index)
+--let $warning_level= query_get_value(SHOW WARNINGS, Level, $warning_index)
 
 --connection $auxiliary_connection
 
@@ -182,7 +187,7 @@ if ($expected_status == 0)
 if ($expected_status == 1)
 {
   --let $assert_text= One warning/error should be generated.
-  --let $assert_cond= $warning_count = 1
+  --let $assert_cond= $warning_count = 1 + $mix_engine_warning_count
   --source include/assert.inc
 
   --let $assert_text= It should be an Error, not a Warning.

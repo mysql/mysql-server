@@ -68,6 +68,7 @@ INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p2()');
 BEGIN;
 CALL replicate_do_db.p2();
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 ROLLBACK;
 INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p2()');
@@ -115,6 +116,7 @@ USE replicate_do_db;
 INSERT INTO replicate_do_db.t1 VALUES(30);
 INSERT INTO replicate_do_db.t2 VALUES("in savepoint has_comment");
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 USE binlog_ignore_db;
 SavePoint mixed_cases;
@@ -204,6 +206,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t2 VALUES(1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 UPDATE t1 SET c2='INSERT INTO t2 VALUES(1)' WHERE c1= 1;
 COMMIT;
@@ -223,6 +226,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t2 SELECT 2;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 UPDATE t1 SET c2='INSERT INTO t2 SELECT 2' WHERE c1= 1;
 COMMIT;
@@ -242,6 +246,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 UPDATE t2 SET c1= 3;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 UPDATE t1 SET c2='UPDATE t2 SET c1= 3' WHERE c1= 1;
 COMMIT;
@@ -261,6 +266,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 UPDATE t2, t3 SET t2.c1=4, t3.c1= 4;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t1 SET c2='UPDATE t2, t3 SET t2.c1=4, t3.c1= 4' WHERE c1= 1;
 COMMIT;
@@ -280,6 +286,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 DELETE FROM t2;
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 UPDATE t1 SET c2='DELETE FROM t2' WHERE c1= 1;
 COMMIT;
@@ -370,6 +377,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t3 VALUES(f_insert());
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1;
 COMMIT;
@@ -390,6 +398,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t3 VALUES(f_insert());
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1;
 COMMIT;
@@ -410,6 +419,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t3 VALUES(f_update());
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_update())' WHERE c1= 1;
 COMMIT;
@@ -430,6 +440,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t3 VALUES(f_multi_update());
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_multi_update())' WHERE c1= 1;
 COMMIT;
@@ -450,6 +461,7 @@ BEGIN;
 INSERT INTO t3 VALUES(1);
 INSERT INTO t3 VALUES(f_delete());
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table replicate_do_db.t2 and the InnoDB table replicate_do_db.t3.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_delete())' WHERE c1= 1;
 COMMIT;

@@ -31,6 +31,8 @@ UPDATE t1 SET c2 = 2 WHERE c1 = 1;
 BEGIN;
 INSERT INTO t1 VALUES(2, 2);
 INSERT INTO t2 VALUES(1);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 UPDATE t1 SET c2 = 3 WHERE c1 = 1;
 COMMIT;
 [connection slave1]

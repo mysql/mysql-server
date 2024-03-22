@@ -1122,6 +1122,11 @@ class THD : public MDL_context_owner,
   */
   bool is_engine_ha_data_detached() const;
 
+  /// Iterates over the table and call check_and_registered_engine
+  /// and emits error for non-composable engines
+  /// @param[in] table_ref Tables involved in the query
+  void check_and_emit_warning_for_non_composable_engines(Table_ref *table_ref);
+
   void reset_for_next_command();
   /*
     Constant for THD::where initialization in the beginning of every query.

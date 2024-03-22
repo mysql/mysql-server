@@ -36,12 +36,18 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 include/diff_tables.inc [master:t1,slave:t1]
 ###### 3 - BEGIN - COMMIT ######
 TRUNCATE TABLE t1;
@@ -51,6 +57,8 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]
 ####### 4 - BEGIN - ROLLBACK  #######
@@ -61,6 +69,8 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -95,6 +105,8 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 ROLLBACK TO sv;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -105,11 +117,15 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
 BEGIN;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
 COMMIT;
 BEGIN;
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Got one of the listed errors
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]

@@ -914,6 +914,8 @@ create temporary table t24918_tmp (id int) engine=myisam;
 create table t24918_trans (id int) engine=innodb;
 create temporary table t24918_trans_tmp (id int) engine=innodb;
 lock table t24918 write, t24918_tmp write, t24918_trans write, t24918_trans_tmp write;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and MyISAM is deprecated, but the statement or transaction updates both the InnoDB table test.t24918_trans and the MyISAM table test.t24918.
 drop table t24918;
 select * from t24918_access;
 ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
@@ -1823,6 +1825,8 @@ SELECT * FROM t1;
 a	b
 1	init+con1
 # Switch to connection con2
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 SELECT * FROM t1;
 a	b
 1	init+con1+con2
@@ -1850,6 +1854,8 @@ SELECT * FROM t1;
 a	b
 2	init+con1
 # Switch to connection con2
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 SELECT * FROM t1;
 a	b
 2	init+con1

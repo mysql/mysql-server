@@ -846,4 +846,10 @@ extern int argc_cached;
 */
 extern char **argv_cached;
 
+/// Stores the last time the warning for non-composable engine is emitted
+extern std::atomic<time_t> last_mixed_non_transactional_engine_warning;
+/// The time period for which no warning for non-composable engines should
+/// be written to the error log after a similar warning was written
+
+const uint16_t mixed_non_transactional_engine_warning_period = 60 * 2;
 #endif /* MYSQLD_INCLUDED */
