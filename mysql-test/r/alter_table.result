@@ -969,6 +969,10 @@ select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 i	v
 4	3r4f
 drop table t1;
+create table t1 (t varchar(3073));
+alter table t1 add primary key (t(3073));
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+drop table t1;
 create table t1 (t varchar(255) default null, key t (t(80)))
 engine=myisam default charset=latin1;
 alter table t1 change t t text;
