@@ -953,6 +953,7 @@ static bool send_statement(THD *thd, const Prepared_statement *stmt,
       param_list.push_back(&item);
     }
     rc |= thd->send_result_metadata(param_list, Protocol::SEND_EOF);
+    assert(CountVisibleFields(param_list) == stmt->m_param_count);
   }
   if (rc) return true; /* purecov: inspected */
 
