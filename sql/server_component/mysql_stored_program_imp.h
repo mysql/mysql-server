@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define MYSQL_STORED_PROGRAM_IMP_H
 
 #include <cstdint>
+#include "mysql/components/services/mysql_string.h"
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/mysql_stored_program.h>
@@ -147,6 +148,14 @@ class mysql_stored_program_runtime_argument_string_imp {
                              size_t length));
 };
 
+class mysql_stored_program_runtime_argument_string_charset_imp {
+ public:
+  static DEFINE_BOOL_METHOD(set,
+                            (stored_program_runtime_context sp_runtime_context,
+                             uint16_t index, char const *string, size_t length,
+                             CHARSET_INFO_h charset));
+};
+
 class mysql_stored_program_runtime_argument_int_imp {
  public:
   static DEFINE_BOOL_METHOD(get,
@@ -230,6 +239,14 @@ class mysql_stored_program_return_value_string_imp {
   static DEFINE_BOOL_METHOD(set,
                             (stored_program_runtime_context sp_runtime_context,
                              char const *string, size_t length));
+};
+
+class mysql_stored_program_return_value_string_charset_imp {
+ public:
+  static DEFINE_BOOL_METHOD(set,
+                            (stored_program_runtime_context sp_runtime_context,
+                             char const *string, size_t length,
+                             CHARSET_INFO_h charset));
 };
 
 class mysql_stored_program_return_value_int_imp {

@@ -25,8 +25,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>    // strcmp
 #include "my_time.h"  // check_datetime_range
 #include "mysql/components/services/bits/stored_program_bits.h"  // stored_program_argument_type
+#include "mysql/components/services/mysql_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/current_thd.h"
+#include "sql/item.h"
 #include "sql/item_timefunc.h"  // Item_time_literal
 #include "sql/sp_cache.h"       // sp_cache
 #include "sql/sp_head.h"        // sp_head
@@ -858,7 +861,17 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::get,
 DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, char const *string, size_t length)) {
-  auto item = new Item_string(string, length, &my_charset_bin);
+  auto item = new Item_string(NAME_STRING(""), string, length,
+                              &my_charset_utf8mb4_0900_ai_ci);
+  return set_variable(sp_runtime_context, item, index);
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_stored_program_runtime_argument_string_charset_imp::set,
+    (stored_program_runtime_context sp_runtime_context, uint16_t index,
+     char const *string, size_t length, CHARSET_INFO_h charset)) {
+  const CHARSET_INFO *src_cs = reinterpret_cast<const CHARSET_INFO *>(charset);
+  auto item = new Item_string(NAME_STRING(""), string, length, src_cs);
   return set_variable(sp_runtime_context, item, index);
 }
 
@@ -1226,7 +1239,17 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_null_imp::set,
 DEFINE_BOOL_METHOD(mysql_stored_program_return_value_string_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     char const *string, size_t length)) {
-  auto item = new Item_string(string, length, &my_charset_bin);
+  auto item = new Item_string(NAME_STRING(""), string, length,
+                              &my_charset_utf8mb4_0900_ai_ci);
+  return set_return_value(sp_runtime_context, item);
+}
+
+DEFINE_BOOL_METHOD(mysql_stored_program_return_value_string_charset_imp::set,
+                   (stored_program_runtime_context sp_runtime_context,
+                    char const *string, size_t length,
+                    CHARSET_INFO_h charset)) {
+  const CHARSET_INFO *src_cs = reinterpret_cast<const CHARSET_INFO *>(charset);
+  auto item = new Item_string(NAME_STRING(""), string, length, src_cs);
   return set_return_value(sp_runtime_context, item);
 }
 
