@@ -971,10 +971,10 @@ MY_LOCALE my_locale_hu_HU(27, "hu_HU", "Hungarian - Hungary", false,
 
 /***** LOCALE BEGIN id_ID: Indonesian - Indonesia *****/
 static const char *my_locale_month_names_id_ID[13] = {
-    "Januari", "Pebruari",  "Maret",   "April",    "Mei",      "Juni", "Juli",
+    "Januari", "Februari",  "Maret",   "April",    "Mei",      "Juni", "Juli",
     "Agustus", "September", "Oktober", "November", "Desember", NullS};
 static const char *my_locale_ab_month_names_id_ID[13] = {
-    "Jan", "Peb", "Mar", "Apr", "Mei", "Jun", "Jul",
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul",
     "Agu", "Sep", "Okt", "Nov", "Des", NullS};
 static const char *my_locale_day_names_id_ID[8] = {
     "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu", NullS};
