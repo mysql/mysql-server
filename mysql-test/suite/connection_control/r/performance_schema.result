@@ -1,0 +1,22 @@
+# Setup
+INSTALL PLUGIN connection_control SONAME 'CONNECTION_CONTROL_LIB';
+INSTALL PLUGIN connection_control_failed_login_attempts SONAME 'CONNECTION_CONTROL_LIB';
+SET @@global.connection_control_failed_connections_threshold = 1;
+SET @@global.connection_control_min_connection_delay = 1230;
+SET @@global.connection_control_max_connection_delay = 1230;
+# Not delayed connection
+connect(localhost,u,,test,SOURCE_PORT,SOURCE_SOCKET);
+ERROR 28000: Access denied for user 'u'@'localhost' (using password: NO)
+# Delayed connection
+connect(localhost,u,,test,SOURCE_PORT,SOURCE_SOCKET);
+ERROR 28000: Access denied for user 'u'@'localhost' (using password: NO)
+# The stage event should be in the history, the timer wait must be slightly bigger
+# than configured connection delay, assume not more than 1/10 sec is good approximation,
+# so the below must be 0
+SELECT FLOOR((TIMER_WAIT/100000000000 - @@connection_control_min_connection_delay/100)) from performance_schema.events_stages_history_long WHERE EVENT_NAME LIKE 'stage/conn_delay/Waiting in connection_control plugin';
+FLOOR((TIMER_WAIT/100000000000 - @@connection_control_min_connection_delay/100))
+0
+# Cleanup
+# Uninstall connection_control plugin
+UNINSTALL PLUGIN connection_control;
+UNINSTALL PLUGIN connection_control_failed_login_attempts;
