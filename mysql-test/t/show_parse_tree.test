@@ -58,3 +58,14 @@ SHOW PARSE_TREE UPDATE tab SET O = 1;
 SHOW PARSE_TREE CREATE TABLE tab(id INT);
 --error ER_PARSE_ERROR
 SHOW PARSE_TREE CREATE TABLE tab(id INVALID_SYNTAX);
+
+--echo #
+--echo # Bug#35964157 mysql 8.1.0/8.2.0, mysqld got signal 11,
+--echo #              when send sql, show parse_tre
+--echo #
+
+--error ER_NOT_SUPPORTED_YET
+SHOW PARSE_TREE SET @b:=(SELECT a FROM t);
+
+--error ER_NOT_SUPPORTED_YET
+SHOW PARSE_TREE CREATE SCHEMA s1;

@@ -2577,3 +2577,11 @@ SHOW PARSE_TREE CREATE TABLE tab(id INT);
 ERROR 42000: This version of MySQL doesn't yet support 'Parse tree display of this statement'
 SHOW PARSE_TREE CREATE TABLE tab(id INVALID_SYNTAX);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID_SYNTAX)' at line 1
+#
+# Bug#35964157 mysql 8.1.0/8.2.0, mysqld got signal 11,
+#              when send sql, show parse_tre
+#
+SHOW PARSE_TREE SET @b:=(SELECT a FROM t);
+ERROR 42000: This version of MySQL doesn't yet support 'Parse tree display of this statement'
+SHOW PARSE_TREE CREATE SCHEMA s1;
+ERROR 42000: This version of MySQL doesn't yet support 'Parse tree display of this statement'

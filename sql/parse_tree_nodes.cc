@@ -4682,6 +4682,12 @@ Sql_cmd *PT_show_grants::make_cmd(THD *thd) {
 Sql_cmd *PT_show_parse_tree::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
 
+  // Several of the 'simple_statement:' do $$= nullptr;
+  if (m_parse_tree_stmt == nullptr) {
+    // my_error(ER_NOT_SUPPORTED_YET ....)
+    Parse_tree_root::get_printable_parse_tree(thd);
+    return nullptr;
+  }
   std::string parse_tree_str = m_parse_tree_stmt->get_printable_parse_tree(thd);
 
   if (parse_tree_str.empty()) return nullptr;
