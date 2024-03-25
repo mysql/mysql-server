@@ -2000,13 +2000,41 @@ type_conversion_status Item_func_current_user::save_in_field_inner(Field *field,
   return save_str_value_in_field(field, &str_value);
 }
 
+bool Item_func_current_user::resolve_type(THD *thd) {
+  if (super::resolve_type(thd)) {
+    return true;
+  }
+  if (context->security_ctx == nullptr) {
+    return false;
+  }
+
+  // If Name_resolution_context has a definer Security_context priv_user and
+  // priv_host from it are copied into the item since the
+  // Name_resolution_context may have been deallocated when val_str() gets
+  // called.
+  LEX_CSTRING pu = context->security_ctx->priv_user();
+  if (pu.str != nullptr) {
+    definer_priv_user = LexStringDupRoot(thd->mem_root, pu);
+    if (definer_priv_user.str == nullptr) return true;
+  }
+  LEX_CSTRING ph = context->security_ctx->priv_host();
+  if (ph.str != nullptr) {
+    definer_priv_host = LexStringDupRoot(thd->mem_root, ph);
+    if (definer_priv_host.str == nullptr) return true;
+  }
+  return false;
+}
+
 String *Item_func_current_user::val_str(String *) {
   assert(fixed);
   if (!m_evaluated) {
-    Security_context *const ctx = context->security_ctx
-                                      ? context->security_ctx
-                                      : current_thd->security_context();
-    if (evaluate(ctx->priv_user().str, ctx->priv_host().str)) return nullptr;
+    if (definer_priv_user.str != nullptr) {
+      if (evaluate(definer_priv_user.str, definer_priv_host.str))
+        return nullptr;
+    } else {
+      Security_context *const ctx = current_thd->security_context();
+      if (evaluate(ctx->priv_user().str, ctx->priv_host().str)) return nullptr;
+    }
   }
   return null_value ? nullptr : &str_value;
 }
