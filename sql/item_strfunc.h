@@ -676,11 +676,24 @@ class Item_func_user : public Item_func_sysconst {
 
 class Item_func_current_user : public Item_func_user {
   typedef Item_func_user super;
+  /*
+     Used to pass a security context to the resolver functions.
+     Only used for definer views. In all other contexts, the security context
+     passed here is nullptr and is instead looked up dynamically at run time
+     from the current THD.
+  */
+  Name_resolution_context *context = nullptr;
 
-  Name_resolution_context *context;
+  // Copied from context in fix_fields if definer Security_context
+  // is set in Name_resolution_context
+  LEX_CSTRING definer_priv_user = {};
+  LEX_CSTRING definer_priv_host = {};
 
  protected:
   type_conversion_status save_in_field_inner(Field *field, bool) override;
+
+  // Overridden to copy definer priv_user and priv_host
+  bool resolve_type(THD *) override;
 
  public:
   explicit Item_func_current_user(const POS &pos) : super(pos) {}
