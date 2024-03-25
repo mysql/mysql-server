@@ -5038,6 +5038,16 @@ static void get_metric_simple_integer(void *measurement_context,
                                       void *delivery_context) {
   assert(measurement_context != nullptr);
   assert(delivery != nullptr);
+
+  // InnoDB counter values must be refreshed explicitly, like done by "SHOW
+  // STATUS" SQL handler. To keep the performance reasonable, we only call the
+  // function that refreshes the data for 1st InnoDB metric being defined (tests
+  // show that its callback always gets called first). The same call will also
+  // refresh data for all other InnoDB metrics being called subsequentently.
+  if (measurement_context == &export_vars.innodb_dblwr_pages_written) {
+    srv_export_innodb_status();
+  }
+
   // OTEL only supports int64_t integer counters, clamp wider types
   const T measurement = *(T *)measurement_context;
   const int64_t value = ut::clamp<int64_t>(measurement);
