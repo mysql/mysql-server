@@ -1,0 +1,7 @@
+$CONNECTION_CONTROL_PLUGIN_OPT
+
+--performance-schema-instrument='stage/conn_delay/%=ON'
+--performance-schema-consumer-events-stages-current=ON
+--performance-schema-consumer-events-stages-history=ON
+--performance-schema-consumer-events-stages-history-long=ON
+--loose-debug='+d,delay_after_connection_delay,preserve_shared_objects_after_unload'
