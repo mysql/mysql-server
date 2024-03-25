@@ -10360,7 +10360,7 @@ ER_AUDIT_LOG_KEYRING_ID_TIMESTAMP_VALUE_IS_INVALID
   eng "Keyring ID timestamp value is invalid: '%s'"
 
 ER_AUDIT_LOG_FILE_NAME_TIMESTAMP_VALUE_IS_MISSING_OR_INVALID
-  eng "File name timestamp value is missing or invalid: '%s'"
+  eng "Cannot process audit log file. File name timestamp value is missing or invalid: '%s'"
 
 ER_AUDIT_LOG_FILE_NAME_DOES_NOT_HAVE_REQUIRED_FORMAT
   eng "Cannot process audit log file. File name does not have required format: '%s'"
