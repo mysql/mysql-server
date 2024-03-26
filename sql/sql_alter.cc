@@ -235,8 +235,8 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   */
   HA_CREATE_INFO create_info(*lex->create_info);
   Alter_info alter_info(*m_alter_info, thd->mem_root);
-  ulong priv = 0;
-  ulong priv_needed = ALTER_ACL;
+  Access_bitmask priv = 0;
+  Access_bitmask priv_needed = ALTER_ACL;
   bool result;
 
   DBUG_TRACE;

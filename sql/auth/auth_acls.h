@@ -23,6 +23,7 @@
 #ifndef AUTH_ACLS_INCLUDED
 #define AUTH_ACLS_INCLUDED
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -30,16 +31,18 @@
 /* Total Number of ACLs present in mysql.user */
 #define NUM_ACLS 31
 
-#define SELECT_ACL (1L << 0)
-#define INSERT_ACL (1L << 1)
-#define UPDATE_ACL (1L << 2)
-#define DELETE_ACL (1L << 3)
-#define CREATE_ACL (1L << 4)
-#define DROP_ACL (1L << 5)
-#define RELOAD_ACL (1L << 6)
-#define SHUTDOWN_ACL (1L << 7)
-#define PROCESS_ACL (1L << 8)
-#define FILE_ACL (1L << 9)
+typedef uint32_t Access_bitmask;
+
+#define SELECT_ACL ((Access_bitmask)1 << 0)
+#define INSERT_ACL ((Access_bitmask)1 << 1)
+#define UPDATE_ACL ((Access_bitmask)1 << 2)
+#define DELETE_ACL ((Access_bitmask)1 << 3)
+#define CREATE_ACL ((Access_bitmask)1 << 4)
+#define DROP_ACL ((Access_bitmask)1 << 5)
+#define RELOAD_ACL ((Access_bitmask)1 << 6)
+#define SHUTDOWN_ACL ((Access_bitmask)1 << 7)
+#define PROCESS_ACL ((Access_bitmask)1 << 8)
+#define FILE_ACL ((Access_bitmask)1 << 9)
 /** Set to true by both
   GRANT GRANT OPTION ... TO ...
 and
@@ -58,27 +61,27 @@ and
 
   @sa @ref LEX::grant_privilege
 */
-#define GRANT_ACL (1L << 10)
-#define REFERENCES_ACL (1L << 11)
-#define INDEX_ACL (1L << 12)
-#define ALTER_ACL (1L << 13)
-#define SHOW_DB_ACL (1L << 14)
-#define SUPER_ACL (1L << 15)
-#define CREATE_TMP_ACL (1L << 16)
-#define LOCK_TABLES_ACL (1L << 17)
-#define EXECUTE_ACL (1L << 18)
-#define REPL_SLAVE_ACL (1L << 19)
-#define REPL_CLIENT_ACL (1L << 20)
-#define CREATE_VIEW_ACL (1L << 21)
-#define SHOW_VIEW_ACL (1L << 22)
-#define CREATE_PROC_ACL (1L << 23)
-#define ALTER_PROC_ACL (1L << 24)
-#define CREATE_USER_ACL (1L << 25)
-#define EVENT_ACL (1L << 26)
-#define TRIGGER_ACL (1L << 27)
-#define CREATE_TABLESPACE_ACL (1L << 28)
-#define CREATE_ROLE_ACL (1L << 29)
-#define DROP_ROLE_ACL (1L << 30)
+#define GRANT_ACL ((Access_bitmask)1 << 10)
+#define REFERENCES_ACL ((Access_bitmask)1 << 11)
+#define INDEX_ACL ((Access_bitmask)1 << 12)
+#define ALTER_ACL ((Access_bitmask)1 << 13)
+#define SHOW_DB_ACL ((Access_bitmask)1 << 14)
+#define SUPER_ACL ((Access_bitmask)1 << 15)
+#define CREATE_TMP_ACL ((Access_bitmask)1 << 16)
+#define LOCK_TABLES_ACL ((Access_bitmask)1 << 17)
+#define EXECUTE_ACL ((Access_bitmask)1 << 18)
+#define REPL_SLAVE_ACL ((Access_bitmask)1 << 19)
+#define REPL_CLIENT_ACL ((Access_bitmask)1 << 20)
+#define CREATE_VIEW_ACL ((Access_bitmask)1 << 21)
+#define SHOW_VIEW_ACL ((Access_bitmask)1 << 22)
+#define CREATE_PROC_ACL ((Access_bitmask)1 << 23)
+#define ALTER_PROC_ACL ((Access_bitmask)1 << 24)
+#define CREATE_USER_ACL ((Access_bitmask)1 << 25)
+#define EVENT_ACL ((Access_bitmask)1 << 26)
+#define TRIGGER_ACL ((Access_bitmask)1 << 27)
+#define CREATE_TABLESPACE_ACL ((Access_bitmask)1 << 28)
+#define CREATE_ROLE_ACL ((Access_bitmask)1 << 29)
+#define DROP_ROLE_ACL ((Access_bitmask)1 << 30)
 /*
   don't forget to update
   1. static struct show_privileges_st sys_privileges[]
@@ -89,7 +92,8 @@ and
   6. global_privileges map and vector
 */
 
-#define NO_ACCESS (1L << 31)
+#define NO_ACCESS ((Access_bitmask)1 << NUM_ACLS)
+#define ALL_ACCESS (NO_ACCESS - 1)
 
 /**
   Privileges to perform database related operations.

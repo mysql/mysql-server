@@ -55,15 +55,15 @@ class Rewrite_params;
 typedef struct user_resources USER_RESOURCES;
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length);
-typedef std::map<std::string, unsigned long> Column_map;
+typedef std::map<std::string, Access_bitmask> Column_map;
 struct Grant_table_aggregate {
   Grant_table_aggregate() : table_access(0l), cols(0l) {}
-  ulong table_access;
-  ulong cols;
+  Access_bitmask table_access;
+  Access_bitmask cols;
   Column_map columns;
 };
-typedef std::map<std::string, unsigned long> SP_access_map;
-typedef std::map<std::string, unsigned long> Db_access_map;
+typedef std::map<std::string, Access_bitmask> SP_access_map;
+typedef std::map<std::string, Access_bitmask> Db_access_map;
 typedef std::map<std::string, Grant_table_aggregate> Table_access_map_storage;
 class Table_access_map {
  public:
@@ -95,7 +95,7 @@ std::string create_authid_str_from(const Auth_id_ref &user);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 Auth_id_ref create_authid_from(const ACL_USER *user);
 
-std::string get_one_priv(ulong &revoke_privs);
+std::string get_one_priv(Access_bitmask &revoke_privs);
 /* sql_authentication */
 class Rsa_authentication_keys;
 extern Rsa_authentication_keys *g_sha256_rsa_keys;
@@ -135,7 +135,7 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value);
 void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *ssl_cipher, const char *x509_issuer,
                      const char *x509_subject, USER_RESOURCES *mqh,
-                     ulong privileges, const LEX_CSTRING &plugin,
+                     Access_bitmask privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
@@ -145,7 +145,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
 void acl_users_add_one(const char *user, const char *host,
                        enum SSL_type ssl_type, const char *ssl_cipher,
                        const char *x509_issuer, const char *x509_subject,
-                       USER_RESOURCES *mqh, ulong privileges,
+                       USER_RESOURCES *mqh, Access_bitmask privileges,
                        const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
                        const LEX_CSTRING &second_auth,
                        const MYSQL_TIME &password_change_time,
@@ -156,7 +156,7 @@ void acl_users_add_one(const char *user, const char *host,
 void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type, const char *ssl_cipher,
                      const char *x509_issuer, const char *x509_subject,
-                     USER_RESOURCES *mqh, ulong privileges,
+                     USER_RESOURCES *mqh, Access_bitmask privileges,
                      const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
@@ -164,9 +164,9 @@ void acl_insert_user(THD *thd, const char *user, const char *host,
                      const I_multi_factor_auth *mfa);
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke);
 void acl_update_db(const char *user, const char *host, const char *db,
-                   ulong privileges);
+                   Access_bitmask privileges);
 void acl_insert_db(const char *user, const char *host, const char *db,
-                   ulong privileges);
+                   Access_bitmask privileges);
 bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
                        bool expired);
 
@@ -181,27 +181,29 @@ bool set_user_salt(ACL_USER *acl_user);
 void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str);
 
 /* sql_user_table */
-ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
+Access_bitmask get_access(TABLE *form, uint fieldnr, uint *next_field);
 int replace_db_table(THD *thd, TABLE *table, const char *db,
-                     const LEX_USER &combo, ulong rights, bool revoke_grant,
-                     bool all_current_privileges);
+                     const LEX_USER &combo, Access_bitmask rights,
+                     bool revoke_grant, bool all_current_privileges);
 int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                                const LEX_USER *proxied_user,
                                bool with_grant_arg, bool revoke_grant);
 int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
                          const LEX_USER &combo, List<LEX_COLUMN> &columns,
-                         const char *db, const char *table_name, ulong rights,
-                         bool revoke_grant);
+                         const char *db, const char *table_name,
+                         Access_bitmask rights, bool revoke_grant);
 int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
                         std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
                             *deleted_grant_table,
                         TABLE *table, const LEX_USER &combo, const char *db,
-                        const char *table_name, ulong rights, ulong col_rights,
-                        bool revoke_grant, bool all_current_privileges);
+                        const char *table_name, Access_bitmask rights,
+                        Access_bitmask col_rights, bool revoke_grant,
+                        bool all_current_privileges);
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const LEX_USER &combo, const char *db,
-                          const char *routine_name, bool is_proc, ulong rights,
-                          bool revoke_grant, bool all_current_privileges);
+                          const char *routine_name, bool is_proc,
+                          Access_bitmask rights, bool revoke_grant,
+                          bool all_current_privileges);
 int open_grant_tables(THD *thd, Table_ref *tables, bool *transactional_tables);
 void acl_tables_setup_for_read(Table_ref *tables);
 
@@ -277,8 +279,8 @@ typedef std::unordered_multimap<Role_id, Role_id, role_id_hash> Default_roles;
 typedef std::map<std::string, bool> Dynamic_privileges;
 
 void get_privilege_access_maps(
-    ACL_USER *acl_user, const List_of_auth_id_refs *using_roles, ulong *access,
-    Db_access_map *db_map, Db_access_map *db_wild_map,
+    ACL_USER *acl_user, const List_of_auth_id_refs *using_roles,
+    Access_bitmask *access, Db_access_map *db_map, Db_access_map *db_wild_map,
     Table_access_map *table_map, SP_access_map *sp_map, SP_access_map *func_map,
     List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
     Dynamic_privileges *dynamic_acl, Restrictions &restrictions);

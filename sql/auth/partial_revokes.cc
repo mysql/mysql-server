@@ -116,7 +116,7 @@ bool DB_restrictions::operator==(const DB_restrictions &restrictions) const {
   @param [in] revoke_privs Privileges to be restricted
 */
 void DB_restrictions::add(const std::string &db_name,
-                          const ulong revoke_privs) {
+                          const Access_bitmask revoke_privs) {
   auto restrictions = create_restrictions_if_needed();
   if (restrictions->find(db_name) != restrictions->end()) {
     /* Partial revokes already exists on this DB so update them */
@@ -171,7 +171,7 @@ bool DB_restrictions::add(const Json_object &json_object) {
         return true;
       const Json_string *db_string = nullptr;
       const Json_array *privs_array = nullptr;
-      ulong priv_mask;
+      Access_bitmask priv_mask;
 
       if (db_dom) {
         db_string = down_cast<const Json_string *>(db_dom);
@@ -201,7 +201,7 @@ bool DB_restrictions::add(const Json_object &json_object) {
   @param [in] revoke_privs List of privileges to remove
 */
 void DB_restrictions::remove(const std::string &db_name,
-                             const ulong revoke_privs) {
+                             const Access_bitmask revoke_privs) {
   if (m_restrictions != nullptr) {
     auto rest_itr = m_restrictions->find(db_name);
     if (rest_itr != m_restrictions->end()) {
@@ -219,7 +219,7 @@ void DB_restrictions::remove(const std::string &db_name,
 
   @param [in] revoke_privs Privileges to be removed
 */
-void DB_restrictions::remove(const ulong revoke_privs) {
+void DB_restrictions::remove(const Access_bitmask revoke_privs) {
   if (m_restrictions != nullptr) {
     for (auto rest_itr = m_restrictions->begin();
          rest_itr != m_restrictions->end();) {
@@ -238,9 +238,9 @@ void DB_restrictions::remove(const ulong revoke_privs) {
   @param [in]  remove_restrictions Restriction to be removed
   @param [out] restriction_mask    Resultant value to be returned
 */
-void DB_restrictions::remove(const ulong remove_restrictions,
-                             ulong &restriction_mask) const noexcept {
-  const ulong mask = restriction_mask ^ remove_restrictions;
+void DB_restrictions::remove(const Access_bitmask remove_restrictions,
+                             Access_bitmask &restriction_mask) const noexcept {
+  const Access_bitmask mask = restriction_mask ^ remove_restrictions;
   restriction_mask = restriction_mask & mask;
 }
 
@@ -254,7 +254,8 @@ void DB_restrictions::remove(const ulong remove_restrictions,
     @retval true  Entry found.
     @retval false Entry not found. Do not rely on access.
 */
-bool DB_restrictions::find(const std::string &db_name, ulong &access) const {
+bool DB_restrictions::find(const std::string &db_name,
+                           Access_bitmask &access) const {
   if (!is_empty()) {
     const auto &itr = m_restrictions->find(db_name);
     if (itr != m_restrictions->end()) {
@@ -298,7 +299,7 @@ void DB_restrictions::get_as_json(Json_array &restrictions_array) const {
     Json_object revocations_obj;
     Json_string db_name(revocations_itr.first.c_str());
     revocations_obj.add_clone(consts::Database, &db_name);
-    ulong revokes_mask = revocations_itr.second;
+    Access_bitmask revokes_mask = revocations_itr.second;
     while (revokes_mask != 0) {
       Json_string priv_str(get_one_priv(revokes_mask));
       privileges.append_clone(&priv_str);
@@ -319,16 +320,16 @@ void DB_restrictions::get_as_json(Json_array &restrictions_array) const {
     @retval true  Otherwise
 */
 bool DB_restrictions::has_more_restrictions(const DB_restrictions &other,
-                                            ulong access) const {
+                                            Access_bitmask access) const {
   if (other.size() == 0) return false;
   access = access & DB_ACLS;
   db_revocations other_revocations = other.get();
 
   for (const auto &entry : other_revocations) {
     /* We are only interested in privileges represented by access */
-    ulong other_mask = entry.second & access;
+    Access_bitmask other_mask = entry.second & access;
     if (other_mask) {
-      ulong self_restrictions;
+      Access_bitmask self_restrictions;
       /*
         If there exists a restriction that other list has but *this does not,
         it means, other list has at least one more restriction than *this.
@@ -373,7 +374,8 @@ bool DB_restrictions::has_more_restrictions(const DB_restrictions &other,
 */
 std::unique_ptr<Restrictions_aggregator>
 Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
-                                        const char *db, const ulong rights,
+                                        const char *db,
+                                        const Access_bitmask rights,
                                         bool is_grant_revoke_all_on_db) {
   std::unique_ptr<Restrictions_aggregator> aggregator = nullptr;
   /*
@@ -389,19 +391,20 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
   /* Fetch grantee Auth_id */
   const Auth_id grantee = fetch_grantee(acl_user);
   /* Fetch access information of grantor */
-  ulong grantor_global_access;
+  Access_bitmask grantor_global_access;
   Restrictions grantor_restrictions;
   fetch_grantor_access(security_context, db, grantor_global_access,
                        grantor_restrictions);
   /* Fetch access information of grantee */
-  ulong grantee_global_access;
+  Access_bitmask grantee_global_access;
   Restrictions grantee_restrictions;
   fetch_grantee_access(acl_user, grantee_global_access, grantee_restrictions);
   if (db) {
     /* Fetch DB privileges of grantor */
-    ulong grantor_db_access = fetch_grantor_db_access(thd, db);
+    Access_bitmask grantor_db_access = fetch_grantor_db_access(thd, db);
     /* Fetch DB privileges of grantee */
-    ulong grantee_db_access = fetch_grantee_db_access(thd, acl_user, db);
+    Access_bitmask grantee_db_access =
+        fetch_grantee_db_access(thd, acl_user, db);
     switch (command) {
       case SQLCOM_GRANT:
         aggregator.reset(new DB_restrictions_aggregator_db_grant(
@@ -452,10 +455,11 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
 
 std::unique_ptr<Restrictions_aggregator>
 Restrictions_aggregator_factory::create(
-    const Auth_id &grantor, const Auth_id &grantee, const ulong grantor_access,
-    const ulong grantee_access, const DB_restrictions &grantor_db_restrictions,
-    const DB_restrictions &grantee_db_restrictions, const ulong required_access,
-    Db_access_map *db_map) {
+    const Auth_id &grantor, const Auth_id &grantee,
+    const Access_bitmask grantor_access, const Access_bitmask grantee_access,
+    const DB_restrictions &grantor_db_restrictions,
+    const DB_restrictions &grantee_db_restrictions,
+    const Access_bitmask required_access, Db_access_map *db_map) {
   std::unique_ptr<Restrictions_aggregator> aggregator = nullptr;
   /* Create aggregator only if partial_revokes system variable is ON */
   if (mysqld_partial_revokes() == false) return aggregator;
@@ -509,8 +513,8 @@ Auth_id Restrictions_aggregator_factory::fetch_grantee(
 
   @returns privilege access to the grantor on the specified database
 */
-ulong Restrictions_aggregator_factory::fetch_grantor_db_access(THD *thd,
-                                                               const char *db) {
+Access_bitmask Restrictions_aggregator_factory::fetch_grantor_db_access(
+    THD *thd, const char *db) {
   LEX_CSTRING db_str;
   db_str.str = db;
   db_str.length = sizeof(db);
@@ -526,7 +530,7 @@ ulong Restrictions_aggregator_factory::fetch_grantor_db_access(THD *thd,
 
   @returns privilege access to the grantee on the specified database
 */
-ulong Restrictions_aggregator_factory::fetch_grantee_db_access(
+Access_bitmask Restrictions_aggregator_factory::fetch_grantee_db_access(
     THD *thd, const ACL_USER *acl_user, const char *db) {
   return acl_get(thd, acl_user->host.get_host(), acl_user->host.get_host(),
                  (acl_user->user ? acl_user->user : ""), db, false);
@@ -541,7 +545,7 @@ ulong Restrictions_aggregator_factory::fetch_grantee_db_access(
   @param  [out] restrictions  fetch grantor's restrictions
 */
 void Restrictions_aggregator_factory::fetch_grantor_access(
-    const Security_context *sctx, const char *db, ulong &global_access,
+    const Security_context *sctx, const char *db, Access_bitmask &global_access,
     Restrictions &restrictions) {
   /* Fetch global privileges of current user */
   global_access = sctx->master_access(db ? db : "");
@@ -550,7 +554,8 @@ void Restrictions_aggregator_factory::fetch_grantor_access(
 }
 
 void Restrictions_aggregator_factory::fetch_grantee_access(
-    const ACL_USER *grantee, ulong &global_access, Restrictions &restrictions) {
+    const ACL_USER *grantee, Access_bitmask &global_access,
+    Restrictions &restrictions) {
   assert(assert_acl_cache_read_lock(current_thd));
   global_access = grantee->access;
   restrictions = acl_restrictions->find_restrictions(grantee);
@@ -568,8 +573,9 @@ void Restrictions_aggregator_factory::fetch_grantee_access(
 */
 Restrictions_aggregator::Restrictions_aggregator(
     const Auth_id &grantor, const Auth_id grantee,
-    const ulong grantor_global_access, const ulong grantee_global_access,
-    const ulong requested_access)
+    const Access_bitmask grantor_global_access,
+    const Access_bitmask grantee_global_access,
+    const Access_bitmask requested_access)
     : m_grantor(grantor),
       m_grantee(grantee),
       m_grantor_global_access(grantor_global_access),
@@ -602,10 +608,11 @@ Restrictions_aggregator::~Restrictions_aggregator() = default;
 */
 DB_restrictions_aggregator::DB_restrictions_aggregator(
     const Auth_id &grantor, const Auth_id grantee,
-    const ulong grantor_global_access, const ulong grantee_global_access,
+    const Access_bitmask grantor_global_access,
+    const Access_bitmask grantee_global_access,
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
-    const ulong requested_access, const Security_context *sctx)
+    const Access_bitmask requested_access, const Security_context *sctx)
     : Restrictions_aggregator(grantor, grantee, grantor_global_access,
                               grantee_global_access, requested_access),
       m_grantor_rl(grantor_db_restrictions),
@@ -652,7 +659,7 @@ bool DB_restrictions_aggregator::generate(Abstract_restrictions &restrictions) {
                   nothing needs to be filtered
 */
 bool DB_restrictions_aggregator::find_if_require_next_level_operation(
-    ulong &rights) const {
+    Access_bitmask &rights) const {
   if (m_privs_not_processed) {
     rights = m_privs_not_processed;
     return true;
@@ -686,11 +693,12 @@ bool DB_restrictions_aggregator::find_if_require_next_level_operation(
     @retval true  Collision detected. Error raised.
 */
 bool DB_restrictions_aggregator::check_db_access_and_restrictions_collision(
-    const ulong grantee_db_access, const ulong grantee_restrictions,
+    const Access_bitmask grantee_db_access,
+    const Access_bitmask grantee_restrictions,
     const std::string &db_name) noexcept {
   if (grantee_db_access & grantee_restrictions) {
     // find out the least significant bit(lsb)
-    const ulong lsb = grantee_db_access & ~(grantee_db_access - 1);
+    const Access_bitmask lsb = grantee_db_access & ~(grantee_db_access - 1);
     // find out the position of the lsb
     size_t index = static_cast<size_t>(std::log2(lsb));
     my_error(ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS, MYF(0),
@@ -711,7 +719,8 @@ bool DB_restrictions_aggregator::check_db_access_and_restrictions_collision(
   @param [in] restrictions_mask Confirmed restrictions
 */
 void DB_restrictions_aggregator::set_if_db_level_operation(
-    const ulong requested_access, const ulong restrictions_mask) noexcept {
+    const Access_bitmask requested_access,
+    const Access_bitmask restrictions_mask) noexcept {
   /*
     DB level privilegss are filtered as following -
     1. If restriction_mask is 0 then there is nothing to filter from the
@@ -760,10 +769,10 @@ void DB_restrictions_aggregator::aggregate_restrictions(
       */
       restrictions = m_grantee_rl;
     } else {
-      ulong restrictions_mask;
+      Access_bitmask restrictions_mask;
       DB_restrictions grantee_rl = m_grantee_rl;
       for (const auto &grantor_rl_itr : m_grantor_rl()) {
-        ulong grantee_revokes;
+        Access_bitmask grantee_revokes;
         if (grantee_rl.find(grantor_rl_itr.first, grantee_revokes)) {
           /*
             If grantor and grantee both have restriction list then aggregration
@@ -775,10 +784,11 @@ void DB_restrictions_aggregator::aggregate_restrictions(
                as global privileges. Remaining restrictions after negation
                by Grantor and Grantee's global privileges.
           */
-          ulong rm1 = ((grantor_rl_itr.second & m_requested_access) &
-                       ~m_grantee_global_access);
-          ulong rm2 = (grantor_rl_itr.second & m_grantee_global_access &
-                       grantee_revokes & m_grantor_global_access);
+          Access_bitmask rm1 = ((grantor_rl_itr.second & m_requested_access) &
+                                ~m_grantee_global_access);
+          Access_bitmask rm2 =
+              (grantor_rl_itr.second & m_grantee_global_access &
+               grantee_revokes & m_grantor_global_access);
           restrictions_mask = rm1 | rm2;
 
           /*
@@ -789,7 +799,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
             the GRANT statement has only SELECT on db, then
             retain INSERT on db.
           */
-          ulong remove_mask = grantee_revokes & m_requested_access;
+          Access_bitmask remove_mask = grantee_revokes & m_requested_access;
           grantee_rl.remove(grantor_rl_itr.first, remove_mask);
           /* Remove the schemas without any restrictions remaining */
           grantee_rl.remove(0);
@@ -800,7 +810,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
           */
           restrictions_mask = grantor_rl_itr.second & m_requested_access;
 
-          ulong grantee_db_access = 0;
+          Access_bitmask grantee_db_access = 0;
           if (sql_op == SQL_OP::GLOBAL_GRANT) {
             grantee_db_access = get_grantee_db_access(grantor_rl_itr.first);
           } else if (sql_op == SQL_OP::SET_ROLE && db_map != nullptr) {
@@ -865,7 +875,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
                         access.
   @returns DB level access.
 */
-ulong DB_restrictions_aggregator::get_grantee_db_access(
+Access_bitmask DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name) const {
   return Security_context::check_db_level_access(
       current_thd, m_sctx, m_grantee.host().c_str(),
@@ -884,7 +894,7 @@ ulong DB_restrictions_aggregator::get_grantee_db_access(
   @param [out] access    Access on the specified DB.
 */
 void DB_restrictions_aggregator::get_grantee_db_access(
-    const std::string &db_name, ulong &access) const {
+    const std::string &db_name, Access_bitmask &access) const {
   if (m_sctx && m_sctx->get_num_active_roles() > 0) {
     const LEX_CSTRING db = {db_name.c_str(), db_name.length()};
     access = m_sctx->db_acl(db, false);
@@ -905,10 +915,11 @@ void DB_restrictions_aggregator::get_grantee_db_access(
 */
 DB_restrictions_aggregator_set_role::DB_restrictions_aggregator_set_role(
     const Auth_id &grantor, const Auth_id grantee,
-    const ulong grantor_global_access, const ulong grantee_global_access,
+    const Access_bitmask grantor_global_access,
+    const Access_bitmask grantee_global_access,
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
-    const ulong requested_access, Db_access_map *db_map)
+    const Access_bitmask requested_access, Db_access_map *db_map)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
@@ -963,7 +974,7 @@ void DB_restrictions_aggregator_set_role::aggregate(
       In other words remove grantee's restrictions and corresponding grantor's
       privilege.
     */
-    ulong restrictions, privileges;
+    Access_bitmask restrictions, privileges;
     for (auto it = m_db_map->begin(); it != m_db_map->end();) {
       privileges = it->second;
       if (m_grantee_rl.find(it->first, restrictions)) {
@@ -1001,10 +1012,11 @@ void DB_restrictions_aggregator_set_role::aggregate(
 DB_restrictions_aggregator_global_grant::
     DB_restrictions_aggregator_global_grant(
         const Auth_id &grantor, const Auth_id grantee,
-        const ulong grantor_global_access, const ulong grantee_global_access,
+        const Access_bitmask grantor_global_access,
+        const Access_bitmask grantee_global_access,
         const DB_restrictions &grantor_db_restrictions,
         const DB_restrictions &grantee_db_restrictions,
-        const ulong requested_access, const Security_context *sctx)
+        const Access_bitmask requested_access, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
@@ -1025,7 +1037,7 @@ Restrictions_aggregator::Status
 DB_restrictions_aggregator_global_grant::validate() {
   if (!m_grantee_rl.is_empty()) {
     for (auto &grantee_rl_itr : m_grantee_rl()) {
-      ulong grantee_db_access =
+      Access_bitmask grantee_db_access =
           get_grantee_db_access(grantee_rl_itr.first.c_str());
       /*
         Remove the restrictions from grantor's restrictions for which
@@ -1085,10 +1097,11 @@ void DB_restrictions_aggregator_global_grant::aggregate(
 DB_restrictions_aggregator_global_revoke::
     DB_restrictions_aggregator_global_revoke(
         const Auth_id &grantor, const Auth_id grantee,
-        const ulong grantor_global_access, const ulong grantee_global_access,
+        const Access_bitmask grantor_global_access,
+        const Access_bitmask grantee_global_access,
         const DB_restrictions &grantor_db_restrictions,
         const DB_restrictions &grantee_db_restrictions,
-        const ulong requested_access, const Security_context *sctx)
+        const Access_bitmask requested_access, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
@@ -1166,7 +1179,7 @@ void DB_restrictions_aggregator_global_revoke::aggregate(
 Restrictions_aggregator::Status
 DB_restrictions_aggregator_global_revoke::validate_if_grantee_rl_not_empty() {
   for (auto &grantee_rl_itr : m_grantee_rl.get()) {
-    ulong grantor_revokes;
+    Access_bitmask grantor_revokes;
     if (m_grantor_rl.find(grantee_rl_itr.first.c_str(), grantor_revokes)) {
       /*
         Grantor cannot revoke the requested privileges from grantee which are
@@ -1179,7 +1192,7 @@ DB_restrictions_aggregator_global_revoke::validate_if_grantee_rl_not_empty() {
         break;
       }
     }
-    ulong grantee_db_access =
+    Access_bitmask grantee_db_access =
         get_grantee_db_access(grantee_rl_itr.first.c_str());
     /*
       Check if grantee has same DB level privilege as well as
@@ -1210,10 +1223,11 @@ DB_restrictions_aggregator_global_revoke::validate_if_grantee_rl_not_empty() {
 DB_restrictions_aggregator_global_revoke_all::
     DB_restrictions_aggregator_global_revoke_all(
         const Auth_id &grantor, const Auth_id grantee,
-        const ulong grantor_global_access, const ulong grantee_global_access,
+        const Access_bitmask grantor_global_access,
+        const Access_bitmask grantee_global_access,
         const DB_restrictions &grantor_db_restrictions,
         const DB_restrictions &grantee_db_restrictions,
-        const ulong requested_access, const Security_context *sctx)
+        const Access_bitmask requested_access, const Security_context *sctx)
     : DB_restrictions_aggregator_global_revoke(
           grantor, grantee, grantor_global_access, grantee_global_access,
           grantor_db_restrictions, grantee_db_restrictions, requested_access,
@@ -1273,12 +1287,14 @@ void DB_restrictions_aggregator_global_revoke_all::aggregate(
 */
 DB_restrictions_aggregator_db_grant::DB_restrictions_aggregator_db_grant(
     const Auth_id &grantor, const Auth_id grantee,
-    const ulong grantor_global_access, const ulong grantee_global_access,
-    const ulong grantor_db_access, const ulong grantee_db_access,
+    const Access_bitmask grantor_global_access,
+    const Access_bitmask grantee_global_access,
+    const Access_bitmask grantor_db_access,
+    const Access_bitmask grantee_db_access,
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
-    const ulong requested_access, bool is_grant_all, const std::string &db_name,
-    const Security_context *sctx)
+    const Access_bitmask requested_access, bool is_grant_all,
+    const std::string &db_name, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
@@ -1291,9 +1307,9 @@ DB_restrictions_aggregator_db_grant::DB_restrictions_aggregator_db_grant(
 /** Validation function for database level grant statement. */
 Restrictions_aggregator::Status
 DB_restrictions_aggregator_db_grant::validate() {
-  ulong grantee_part_revokes = 0;
+  Access_bitmask grantee_part_revokes = 0;
   if (m_grantee_rl.find(m_db_name.c_str(), grantee_part_revokes)) {
-    ulong grantee_db_access = m_grantee_db_access;
+    Access_bitmask grantee_db_access = m_grantee_db_access;
     get_grantee_db_access(m_db_name, grantee_db_access);
     /*
       Same DB level privilege and partial revoke cannot co-exist.
@@ -1337,7 +1353,7 @@ void DB_restrictions_aggregator_db_grant::aggregate(
   */
   assert(m_status == Status::Validated);
   restrictions = m_grantee_rl;
-  ulong grantee_db_revokes = 0;
+  Access_bitmask grantee_db_revokes = 0;
 
   for (auto &entry : restrictions()) {
     if (m_db_name.compare(entry.first) == 0) {
@@ -1370,11 +1386,13 @@ void DB_restrictions_aggregator_db_grant::aggregate(
 */
 DB_restrictions_aggregator_db_revoke::DB_restrictions_aggregator_db_revoke(
     const Auth_id &grantor, const Auth_id grantee,
-    const ulong grantor_global_access, const ulong grantee_global_access,
-    const ulong grantor_db_access, const ulong grantee_db_access,
+    const Access_bitmask grantor_global_access,
+    const Access_bitmask grantee_global_access,
+    const Access_bitmask grantor_db_access,
+    const Access_bitmask grantee_db_access,
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
-    const ulong requested_access, bool is_revoke_all,
+    const Access_bitmask requested_access, bool is_revoke_all,
     const std::string &db_name, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
@@ -1388,9 +1406,9 @@ DB_restrictions_aggregator_db_revoke::DB_restrictions_aggregator_db_revoke(
 /**  Validation function for database level revoke statement. */
 Restrictions_aggregator::Status
 DB_restrictions_aggregator_db_revoke::validate() {
-  ulong grantee_part_revokes = 0;
+  Access_bitmask grantee_part_revokes = 0;
   if (m_grantee_rl.find(m_db_name.c_str(), grantee_part_revokes)) {
-    ulong grantee_db_access = m_grantee_db_access;
+    Access_bitmask grantee_db_access = m_grantee_db_access;
     get_grantee_db_access(m_db_name, grantee_db_access);
 
     /*
@@ -1435,7 +1453,7 @@ void DB_restrictions_aggregator_db_revoke::aggregate(
       Filter out the access for which grantee does not have DB level access but
       the Global level access.
     */
-    const ulong revoke_mask =
+    const Access_bitmask revoke_mask =
         (m_grantee_global_access &
          (m_requested_access & (m_requested_access ^ m_grantee_db_access)));
     if (revoke_mask)  // Create restrictions only if there is a restriction mask
@@ -1481,7 +1499,7 @@ Restrictions &Restrictions::operator=(Restrictions &&restrictions) {
 
 /* DB restrictions comparator */
 bool Restrictions::has_more_db_restrictions(const Restrictions &other,
-                                            ulong access) {
+                                            Access_bitmask access) {
   return m_db_restrictions.has_more_restrictions(other.db(), access);
 }
 

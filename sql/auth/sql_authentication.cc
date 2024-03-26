@@ -4327,7 +4327,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
     DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                         "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                        "Access: %lu  db: '%s'",
+                        "Access: %" PRIu32 "  db: '%s'",
                         thd->get_protocol()->get_client_capabilities(),
                         thd->max_client_packet_length, sctx->host_or_ip().str,
                         sctx->user().str, sctx->priv_user().str,

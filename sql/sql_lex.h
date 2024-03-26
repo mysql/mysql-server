@@ -1390,8 +1390,8 @@ class Query_block : public Query_term {
   auto visible_fields() const { return VisibleFields(fields); }
 
   /// Check privileges for views that are merged into query block
-  bool check_view_privileges(THD *thd, ulong want_privilege_first,
-                             ulong want_privilege_next);
+  bool check_view_privileges(THD *thd, Access_bitmask want_privilege_first,
+                             Access_bitmask want_privilege_next);
   /// Check privileges for all columns referenced from query block
   bool check_column_privileges(THD *thd);
 
@@ -3730,8 +3730,8 @@ class Lex_input_stream {
 class LEX_COLUMN {
  public:
   String column;
-  uint rights;
-  LEX_COLUMN(const String &x, const uint &y) : column(x), rights(y) {}
+  Access_bitmask rights;
+  LEX_COLUMN(const String &x, const Access_bitmask &y) : column(x), rights(y) {}
 };
 
 enum class role_enum;

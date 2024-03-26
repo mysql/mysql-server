@@ -40,7 +40,8 @@
 
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
-#include "mysql_com.h"  // USERNAME_LENGTH
+#include "mysql_com.h"           // USERNAME_LENGTH
+#include "sql/auth/auth_acls.h"  // Access_bitmask
 #include "template_utils.h"
 
 #include <openssl/rsa.h>
@@ -127,7 +128,7 @@ class ACL_internal_table_access {
       in save_priv.
   */
   virtual ACL_internal_access_result check(
-      ulong want_access, ulong *save_priv,
+      Access_bitmask want_access, Access_bitmask *save_priv,
       bool any_combination_will_do) const = 0;
 };
 
@@ -163,7 +164,7 @@ class ACL_internal_schema_access {
       in save_priv.
   */
   virtual ACL_internal_access_result check(
-      ulong want_access, ulong *save_priv,
+      Access_bitmask want_access, Access_bitmask *save_priv,
       bool any_combination_will_do) const = 0;
 
   /**
@@ -195,7 +196,8 @@ class IS_internal_schema_access : public ACL_internal_schema_access {
 
   ~IS_internal_schema_access() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+  ACL_internal_access_result check(Access_bitmask want_access,
+                                   Access_bitmask *save_priv,
                                    bool any_combination_will_do) const override;
 
   const ACL_internal_table_access *lookup(const char *name) const override;
@@ -759,8 +761,8 @@ bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked);
 bool grant_init(bool skip_grant_tables);
 void grant_free(void);
 bool reload_acl_caches(THD *thd, bool mdl_locked);
-ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
-              const char *db, bool db_is_pattern);
+Access_bitmask acl_get(THD *thd, const char *host, const char *ip,
+                       const char *user, const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
                  const char *host, const char *ip, const char *db);
@@ -777,37 +779,39 @@ bool mysql_set_active_role_none(THD *thd);
 bool mysql_set_role_default(THD *thd);
 bool mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users);
 bool mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list);
-bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
-                 bool revoke_grant, bool is_proxy,
+bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list,
+                 Access_bitmask rights, bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
                  bool grant_all_current_privileges, LEX_GRANT_AS *grant_as);
 bool mysql_routine_grant(THD *thd, Table_ref *table, bool is_proc,
-                         List<LEX_USER> &user_list, ulong rights, bool revoke,
-                         bool write_to_binlog, bool all_current_privileges);
+                         List<LEX_USER> &user_list, Access_bitmask rights,
+                         bool revoke, bool write_to_binlog,
+                         bool all_current_privileges);
 int mysql_table_grant(THD *thd, Table_ref *table, List<LEX_USER> &user_list,
-                      List<LEX_COLUMN> &column_list, ulong rights, bool revoke,
-                      bool all_current_privileges);
-bool check_grant(THD *thd, ulong want_access, Table_ref *tables,
+                      List<LEX_COLUMN> &column_list, Access_bitmask rights,
+                      bool revoke, bool all_current_privileges);
+bool check_grant(THD *thd, Access_bitmask want_access, Table_ref *tables,
                  bool any_combination_will_do, uint number, bool no_errors);
 bool check_grant_column(THD *thd, GRANT_INFO *grant, const char *db_name,
                         const char *table_name, const char *name, size_t length,
-                        Security_context *sctx, ulong want_privilege);
+                        Security_context *sctx, Access_bitmask want_privilege);
 bool check_column_grant_in_table_ref(THD *thd, Table_ref *table_ref,
                                      const char *name, size_t length,
-                                     ulong want_privilege);
-bool check_grant_all_columns(THD *thd, ulong want_access,
+                                     Access_bitmask want_privilege);
+bool check_grant_all_columns(THD *thd, Access_bitmask want_access,
                              Field_iterator_table_ref *fields);
-bool check_grant_routine(THD *thd, ulong want_access, Table_ref *procs,
+bool check_grant_routine(THD *thd, Access_bitmask want_access, Table_ref *procs,
                          bool is_proc, bool no_error);
 bool check_grant_db(THD *thd, const char *db,
                     const bool check_table_grant = false);
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
-void get_privilege_desc(char *to, uint max_length, ulong access);
+void get_privilege_desc(char *to, uint max_length, Access_bitmask access);
 void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc);
-ulong get_table_grant(THD *thd, Table_ref *table);
-ulong get_column_grant(THD *thd, GRANT_INFO *grant, const char *db_name,
-                       const char *table_name, const char *field_name);
+Access_bitmask get_table_grant(THD *thd, Table_ref *table);
+Access_bitmask get_column_grant(THD *thd, GRANT_INFO *grant,
+                                const char *db_name, const char *table_name,
+                                const char *field_name);
 bool mysql_show_grants(THD *, LEX_USER *, const List_of_auth_id_refs &, bool,
                        bool);
 bool mysql_show_create_user(THD *thd, LEX_USER *user, bool are_both_users_same);
@@ -837,21 +841,24 @@ void err_readonly(THD *thd);
 
 bool is_secure_transport(int vio_type);
 
-bool check_one_table_access(THD *thd, ulong privilege, Table_ref *tables);
-bool check_single_table_access(THD *thd, ulong privilege, Table_ref *tables,
-                               bool no_errors);
-bool check_routine_access(THD *thd, ulong want_access, const char *db,
+bool check_one_table_access(THD *thd, Access_bitmask privilege,
+                            Table_ref *tables);
+bool check_single_table_access(THD *thd, Access_bitmask privilege,
+                               Table_ref *tables, bool no_errors);
+bool check_routine_access(THD *thd, Access_bitmask want_access, const char *db,
                           char *name, bool is_proc, bool no_errors);
-bool check_some_access(THD *thd, ulong want_access, Table_ref *table);
+bool check_some_access(THD *thd, Access_bitmask want_access, Table_ref *table);
 bool has_full_view_routine_access(THD *thd, const char *db,
                                   const char *definer_user,
                                   const char *definer_host);
 bool has_partial_view_routine_access(THD *thd, const char *db,
                                      const char *routine_name, bool is_proc);
-bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
+bool check_access(THD *thd, Access_bitmask want_access, const char *db,
+                  Access_bitmask *save_priv,
                   GRANT_INTERNAL_INFO *grant_internal_info,
                   bool dont_check_global_grants, bool no_errors);
-bool check_table_access(THD *thd, ulong requirements, Table_ref *tables,
+bool check_table_access(THD *thd, Access_bitmask requirements,
+                        Table_ref *tables,
                         bool any_combination_of_privileges_will_do, uint number,
                         bool no_errors);
 bool check_table_encryption_admin_access(THD *thd);
@@ -861,7 +868,8 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
                        const List<LEX_USER> *roles);
 void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs &list);
 
-bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table);
+bool is_granted_table_access(THD *thd, Access_bitmask required_acl,
+                             Table_ref *table);
 
 bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                         const List<LEX_USER> *users,
@@ -879,7 +887,7 @@ bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                      LEX_CSTRING role_host);
 bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
                        bool *is_mandatory);
-bool check_global_access(THD *thd, ulong want_access);
+bool check_global_access(THD *thd, Access_bitmask want_access);
 
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
@@ -1036,7 +1044,7 @@ class Drop_temporary_dynamic_privileges {
 class Grant_temporary_static_privileges
     : public Grant_privileges<Grant_temporary_static_privileges> {
  public:
-  Grant_temporary_static_privileges(const THD *thd, const ulong privs);
+  Grant_temporary_static_privileges(const THD *thd, const Access_bitmask privs);
   bool precheck(Security_context *sctx);
   bool grant_privileges(Security_context *sctx);
 
@@ -1045,7 +1053,7 @@ class Grant_temporary_static_privileges
   const THD *m_thd;
 
   /** Privileges */
-  const ulong m_privs;
+  const Access_bitmask m_privs;
 };
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);

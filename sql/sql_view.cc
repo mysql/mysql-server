@@ -637,15 +637,16 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
        This will hold the intersection of the privileges on all columns in the
        view.
      */
-    uint final_priv = VIEW_ANY_ACL;
+    Access_bitmask final_priv = VIEW_ANY_ACL;
 
     for (sl = query_block; sl; sl = sl->next_query_block()) {
       assert(view->db); /* Must be set in the parser */
       for (Item *item : sl->visible_fields()) {
         Item_field *fld = item->field_for_view_update();
-        uint priv = (get_column_grant(thd, &view->grant, view->db,
-                                      view->table_name, item->item_name.ptr()) &
-                     VIEW_ANY_ACL);
+        Access_bitmask priv =
+            (get_column_grant(thd, &view->grant, view->db, view->table_name,
+                              item->item_name.ptr()) &
+             VIEW_ANY_ACL);
 
         if (fld && !fld->field->table->s->tmp_table) {
           final_priv &= fld->have_privileges;
@@ -1923,7 +1924,7 @@ bool check_key_in_view(THD *thd, Table_ref *view, const Table_ref *table_ref) {
     */
     enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
     thd->mark_used_columns = MARK_COLUMNS_NONE;
-    ulong want_privilege_saved = thd->want_privilege;
+    Access_bitmask want_privilege_saved = thd->want_privilege;
     thd->want_privilege = 0;
     for (Field_translator *fld = trans; fld < end_of_trans; fld++) {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
