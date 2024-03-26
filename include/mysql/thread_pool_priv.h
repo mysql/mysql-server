@@ -75,6 +75,8 @@ struct Connection_handler_functions {
 THD *create_thd(Channel_info *channel_info);
 /* destroy channel_info object */
 void destroy_channel_info(Channel_info *channel_info);
+/* Is the connection events loop aborted during shutdown. */
+bool connection_events_loop_aborted();
 /* Decrement connection counter */
 void dec_connection_count();
 /*
