@@ -23568,7 +23568,7 @@ static void test_bug34951115_run_one_ps(const char *stmt_text) {
   int rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
-  rc = mysql_stmt_bind_named_param(stmt, bind_params, 1, nullptr);
+  rc = mysql_stmt_bind_param(stmt, bind_params);
   check_execute(stmt, rc);
 
   rc = mysql_stmt_execute(stmt);
