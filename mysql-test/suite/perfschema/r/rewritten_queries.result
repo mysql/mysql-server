@@ -1,0 +1,466 @@
+
+# Connection 1
+
+CREATE TABLE test.t1(a int, b varchar(80));
+INSERT INTO test.t1 VALUES (1, "a"), (2, "b"), (3, "c");
+SELECT * FROM test.t1;
+a	b
+1	a
+2	b
+3	c
+BEGIN;
+SELECT * FROM test.t1 FOR UPDATE;
+a	b
+1	a
+2	b
+3	c
+
+# Regular query
+
+SELECT "This is not secret" as normal_query;
+normal_query
+This is not secret
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+
+# Regular query (in flight)
+
+INSERT INTO test.t1 VALUES (4, "This is not secret");;
+mark	PROCESSLIST_INFO
+thread	INSERT INTO test.t1 VALUES (4, "This is not secret")
+mark	INFO
+processlist	INSERT INTO test.t1 VALUES (4, "This is not secret")
+mark	INFO
+I_S.PROCESSLIST	INSERT INTO test.t1 VALUES (4, "This is not secret")
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+COMMIT;
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+
+# Sensitive query
+
+CREATE USER alice IDENTIFIED BY 'thisisapassword';
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+
+# Regular prepared statement (prepare)
+
+PREPARE stmt FROM "SELECT 'This is not a secret either' as prepared_query";
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+
+# Regular prepared statement (execute)
+
+EXECUTE stmt;
+prepared_query
+This is not a secret either
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+
+# Regular prepared statement (deallocate)
+
+DEALLOCATE PREPARE stmt;
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+BEGIN;
+SELECT * FROM test.t1 FOR UPDATE;
+a	b
+1	a
+2	b
+3	c
+4	This is not secret
+
+# Regular prepared statement (prepare)
+
+PREPARE stmt FROM "INSERT INTO test.t1 VALUES (5, 'This is not secret either')";
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+
+# Regular prepared statement (execute, in flight)
+
+EXECUTE stmt;;
+mark	PROCESSLIST_INFO
+thread	INSERT INTO test.t1 VALUES (5, 'This is not secret either')
+mark	INFO
+processlist	INSERT INTO test.t1 VALUES (5, 'This is not secret either')
+mark	INFO
+I_S.PROCESSLIST	INSERT INTO test.t1 VALUES (5, 'This is not secret either')
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+COMMIT;
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+
+# Regular prepared statement (deallocate)
+
+DEALLOCATE PREPARE stmt;
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+
+# Sensitive prepared statement (prepare)
+
+PREPARE stmt FROM "CREATE USER bob IDENTIFIED BY 'thisisapassword'";
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+
+# Sensitive prepared statement (execute)
+
+EXECUTE stmt;
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/execute_sql	CREATE USER 'bob'@'%' IDENTIFIED BY <secret>	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	CREATE USER 'bob'@'%' IDENTIFIED BY <secret>	EXECUTE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	CREATE USER 'bob'@'%' IDENTIFIED BY <secret>	EXECUTE `stmt`
+
+# Sensitive prepared statement (deallocate)
+
+DEALLOCATE PREPARE stmt;
+mark	PROCESSLIST_INFO
+thread	NULL
+mark	INFO
+processlist	NULL
+mark	INFO
+I_S.PROCESSLIST	NULL
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+current	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history	statement/sql/execute_sql	CREATE USER 'bob'@'%' IDENTIFIED BY <secret>	EXECUTE `stmt`
+history	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+mark	EVENT_NAME	SQL_TEXT	DIGEST_TEXT
+history_long	statement/sql/select	SELECT ps_current_thread_id()	SELECT `ps_current_thread_id` ( )
+history_long	statement/sql/select	SELECT connection_id()	SELECT `connection_id` ( )
+history_long	statement/sql/select	SELECT "This is not secret" as normal_query	SELECT ? AS `normal_query`
+history_long	statement/sql/insert	INSERT INTO test.t1 VALUES (4, "This is not secret")	INSERT INTO `test` . `t1` VALUES (...)
+history_long	statement/sql/create_user	CREATE USER 'alice'@'%' IDENTIFIED BY <secret>	CREATE SYSTEM_USER `alice` IDENTIFIED BY ?
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	EXECUTE stmt	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+history_long	statement/sql/prepare_sql	PREPARE stmt FROM ...	PREPARE `stmt` FROM ?
+history_long	statement/sql/execute_sql	CREATE USER 'bob'@'%' IDENTIFIED BY <secret>	EXECUTE `stmt`
+history_long	statement/sql/dealloc_sql	DEALLOCATE PREPARE stmt	DEALLOCATE PREPARE `stmt`
+DROP USER alice;
+DROP USER bob;
+DROP TABLE test.t1;

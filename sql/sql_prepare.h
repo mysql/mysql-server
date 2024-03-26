@@ -114,7 +114,7 @@ class Reprepare_observer final {
   static constexpr int MAX_REPREPARE_ATTEMPTS = 3;
 };
 
-void rewrite_query_if_needed(THD *thd);
+void rewrite_query(THD *thd);
 void log_execute_line(THD *thd);
 
 bool ask_to_reprepare(THD *thd);
