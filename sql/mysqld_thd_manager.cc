@@ -46,6 +46,7 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/thread_pool_priv.h"  // inc_thread_created
 #include "sql/sql_class.h"           // THD
 #include "thr_mutex.h"
@@ -278,6 +279,8 @@ void Global_THD_manager::wait_till_no_thd() {
   for (int i = 0; i < NUM_PARTITIONS; i++) {
     MUTEX_LOCK(lock, &LOCK_thd_list[i]);
     while (thd_list[i].size() > 0) {
+      LogErr(INFORMATION_LEVEL, ER_WAITING_FOR_NO_THDS, i, thd_list[i].size(),
+             get_thd_count());
       mysql_cond_wait(&COND_thd_list[i], &LOCK_thd_list[i]);
       DBUG_PRINT("quit", ("One thread died (count=%u)", get_thd_count()));
     }

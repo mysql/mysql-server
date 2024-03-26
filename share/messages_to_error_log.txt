@@ -12289,6 +12289,12 @@ ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST
 ER_USAGE_DEPRECATION_COUNTER
   eng "Deprecated '%s' used %s times, last time used '%s'."
 
+ER_WAITING_FOR_NO_CONNECTIONS
+  eng "Waiting for %u connections to be closed."
+
+ER_WAITING_FOR_NO_THDS
+  eng "Waiting for THDs in partition %u to be closed, %u still left. %u THDs left in total for all partitions."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #

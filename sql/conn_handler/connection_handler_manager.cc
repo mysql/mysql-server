@@ -37,6 +37,7 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_cond_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"                              // ER_*
 #include "sql/conn_handler/channel_info.h"             // Channel_info
@@ -203,6 +204,7 @@ bool Connection_handler_manager::init() {
 void Connection_handler_manager::wait_till_no_connection() {
   mysql_mutex_lock(&LOCK_connection_count);
   while (connection_count > 0) {
+    LogErr(INFORMATION_LEVEL, ER_WAITING_FOR_NO_CONNECTIONS, connection_count);
     mysql_cond_wait(&COND_connection_count, &LOCK_connection_count);
   }
   mysql_mutex_unlock(&LOCK_connection_count);
