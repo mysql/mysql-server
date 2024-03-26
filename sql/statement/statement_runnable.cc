@@ -107,11 +107,11 @@ bool Statement_runnable::execute_server_code(THD *thd) {
   thd->m_statement_psi = nullptr;
 
   /*
-    Rewrite first (if needed); execution might replace passwords
+    Rewrite first, execution might replace passwords
     with hashes in situ without flagging it, and then we'd make
     a hash of that hash.
   */
-  rewrite_query_if_needed(thd);
+  rewrite_query(thd);
   log_execute_line(thd);
 
   set_query_for_display(thd);

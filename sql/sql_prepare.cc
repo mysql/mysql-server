@@ -217,8 +217,7 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 ******************************************************************************/
 
 /**
-  Rewrite the current query (to obfuscate passwords etc.) if needed
-  (i.e. only if we'll be writing the query to any of our logs).
+  Rewrite the current query (to obfuscate passwords etc.).
 
   Side-effect: thd->rewritten_query() may be populated with a rewritten
                query.  If the query is not of a rewritable type,
@@ -226,24 +225,18 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 
   @param thd                thread handle
 */
-void rewrite_query_if_needed(THD *thd) {
-  bool general =
-      (opt_general_log && !(opt_general_log_raw || thd->slave_thread));
-
-  if ((thd->sp_runtime_ctx == nullptr) &&
-      (general || opt_slow_log || opt_bin_log)) {
-    /*
-      thd->m_rewritten_query may already contain "PREPARE stmt FROM ..."
-      at this point, so we reset it here so mysql_rewrite_query()
-      won't complain.
-    */
-    thd->reset_rewritten_query();
-    /*
-      Now replace the "PREPARE ..." with the obfuscated version of the
-      actual query were prepare.
-    */
-    mysql_rewrite_query(thd);
-  }
+void rewrite_query(THD *thd) {
+  /*
+    thd->m_rewritten_query may already contain "PREPARE stmt FROM ..."
+    at this point, so we reset it here so mysql_rewrite_query()
+    won't complain.
+  */
+  thd->reset_rewritten_query();
+  /*
+    Now replace the "PREPARE ..." with the obfuscated version of the
+    actual query were prepare.
+  */
+  mysql_rewrite_query(thd);
 }
 
 /**
@@ -2509,17 +2502,22 @@ bool Prepared_statement::prepare(THD *thd, const char *query_str,
 
   lex_end(m_lex);
 
-  rewrite_query_if_needed(thd);
+  rewrite_query(thd);
+
+  const char *display_query_string;
+  int display_query_length;
 
   if (thd->rewritten_query().length()) {
-    thd->set_query_for_display(thd->rewritten_query().ptr(),
-                               thd->rewritten_query().length());
-    MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->rewritten_query().ptr(),
-                      thd->rewritten_query().length());
+    display_query_string = thd->rewritten_query().ptr();
+    display_query_length = thd->rewritten_query().length();
   } else {
-    thd->set_query_for_display(thd->query().str, thd->query().length);
-    MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->query().str, thd->query().length);
+    display_query_string = thd->query().str;
+    display_query_length = thd->query().length;
   }
+
+  thd->set_query_for_display(display_query_string, display_query_length);
+  MYSQL_SET_PS_TEXT(m_prepared_stmt, display_query_string,
+                    display_query_length);
 
   cleanup_stmt(thd);
   stmt_backup.restore_thd(thd, this);
@@ -3512,12 +3510,25 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
     - Any passwords in the "Execute" line should be substituted with
       their hashes, or a notice.
 
-    Rewrite first (if needed); execution might replace passwords
+    Rewrite first, execution might replace passwords
     with hashes in situ without flagging it, and then we'd make
     a hash of that hash.
   */
-  rewrite_query_if_needed(thd);
+  rewrite_query(thd);
   log_execute_line(thd);
+
+  const char *display_query_string;
+  int display_query_length;
+
+  if (thd->rewritten_query().length()) {
+    display_query_string = thd->rewritten_query().ptr();
+    display_query_length = thd->rewritten_query().length();
+  } else {
+    display_query_string = thd->query().str;
+    display_query_length = thd->query().length;
+  }
+
+  mysql_thread_set_info(display_query_string, display_query_length);
 
   thd->binlog_need_explicit_defaults_ts =
       m_lex->binlog_need_explicit_defaults_ts;

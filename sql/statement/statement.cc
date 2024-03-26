@@ -355,7 +355,7 @@ class PFS_query_text_handler_raii {
       m_saved_rewritten_query.copy(
           thd->rewritten_query()); /* purecov: inspected */
     }
-    rewrite_query_if_needed(thd);
+    rewrite_query(thd);
 
     m_saved_safe_to_display = thd->safe_to_display();
     /*
