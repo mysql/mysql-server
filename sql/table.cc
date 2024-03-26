@@ -2592,7 +2592,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
                                   Query_arena::STMT_REGULAR_EXECUTION);
   thd->swap_query_arena(val_generator_arena, &save_arena);
   thd->stmt_arena = &val_generator_arena;
-  ulong save_old_privilege = thd->want_privilege;
+  Access_bitmask save_old_privilege = thd->want_privilege;
   thd->want_privilege = 0;
 
   const CHARSET_INFO *save_character_set_client =

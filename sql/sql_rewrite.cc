@@ -1322,7 +1322,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     rlb.append(STRING_WITH_LEN("ALL PRIVILEGES"));
   else {
     bool comma = false;
-    ulong priv;
+    Access_bitmask priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
       if (priv == GRANT_ACL && !lex->grant_privilege) continue;

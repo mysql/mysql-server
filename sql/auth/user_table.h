@@ -52,8 +52,9 @@ class Pod_user_what_to_update {
 };
 }  // namespace acl_table
 
-int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
-                       bool revoke_grant, bool can_create_user,
+int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
+                       Access_bitmask rights, bool revoke_grant,
+                       bool can_create_user,
                        acl_table::Pod_user_what_to_update &what_to_update,
                        Restrictions *restrictions = nullptr,
                        I_multi_factor_auth *mfa = nullptr);

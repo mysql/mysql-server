@@ -2413,7 +2413,7 @@ class Applier_security_context_guard {
             false, otherwise.
    */
   bool has_access(
-      std::vector<std::tuple<ulong, TABLE const *, Rows_log_event *>>
+      std::vector<std::tuple<Access_bitmask, TABLE const *, Rows_log_event *>>
           &extra_privileges) const;
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
@@ -2442,7 +2442,7 @@ class Applier_security_context_guard {
     @return true if the privileges are included in the security context and
             false, otherwise.
    */
-  bool has_access(std::initializer_list<ulong> extra_privileges) const;
+  bool has_access(std::initializer_list<Access_bitmask> extra_privileges) const;
 
   /**
     Returns the username for the user for which the security context was

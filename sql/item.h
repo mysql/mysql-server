@@ -57,6 +57,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql/auth/auth_acls.h"  // Access_bitmask
 #include "sql/enum_query_type.h"
 #include "sql/field.h"  // Derivation
 #include "sql/mem_root_array.h"
@@ -675,7 +676,8 @@ class Settable_routine_parameter {
                       MODE_OUT   - UPDATE_ACL
                       MODE_INOUT - SELECT_ACL | UPDATE_ACL
   */
-  virtual void set_required_privilege(ulong privilege [[maybe_unused]]) {}
+  virtual void set_required_privilege(Access_bitmask privilege
+                                      [[maybe_unused]]) {}
 
   /*
     Set parameter value.
@@ -4257,7 +4259,7 @@ class Item_field : public Item_ident {
     if any_privileges set to true then here real effective privileges will
     be stored
   */
-  uint have_privileges;
+  Access_bitmask have_privileges{0};
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
   /*
@@ -6561,7 +6563,8 @@ class Item_trigger_field final : public Item_field,
 
   Item_trigger_field(Name_resolution_context *context_arg,
                      enum_trigger_variable_type trigger_var_type_arg,
-                     const char *field_name_arg, ulong priv, const bool ro)
+                     const char *field_name_arg, Access_bitmask priv,
+                     const bool ro)
       : Item_field(context_arg, nullptr, nullptr, field_name_arg),
         trigger_var_type(trigger_var_type_arg),
         next_trig_field_list(nullptr),
@@ -6571,7 +6574,8 @@ class Item_trigger_field final : public Item_field,
         read_only(ro) {}
   Item_trigger_field(const POS &pos,
                      enum_trigger_variable_type trigger_var_type_arg,
-                     const char *field_name_arg, ulong priv, const bool ro)
+                     const char *field_name_arg, Access_bitmask priv,
+                     const bool ro)
       : Item_field(pos, nullptr, nullptr, field_name_arg),
         trigger_var_type(trigger_var_type_arg),
         field_idx((uint)-1),
@@ -6592,7 +6596,7 @@ class Item_trigger_field final : public Item_field,
   Item *copy_or_same(THD *) override { return this; }
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
   void cleanup() override;
-  void set_required_privilege(ulong privilege) override {
+  void set_required_privilege(Access_bitmask privilege) override {
     want_privilege = privilege;
   }
 
@@ -6633,7 +6637,7 @@ class Item_trigger_field final : public Item_field,
     set_required_privilege() is called to appropriately update
     want_privilege).
   */
-  ulong want_privilege;
+  Access_bitmask want_privilege;
   GRANT_INFO *table_grants;
   /*
     Trigger field is read-only unless it belongs to the NEW row in a

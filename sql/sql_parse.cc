@@ -5194,7 +5194,7 @@ void THD::reset_for_next_command() {
   thd->parsing_system_view = false;
 
   // Need explicit setting, else demand all privileges to a table.
-  thd->want_privilege = ~NO_ACCESS;
+  thd->want_privilege = ALL_ACCESS;
 
   thd->reset_skip_readonly_check();
   thd->tx_commit_pending = false;

@@ -241,7 +241,7 @@ bool Sql_cmd_show_schema_base::check_privileges(THD *thd) {
   assert(dst_db_name != nullptr);
 
   // Get user's global and db-level privileges.
-  ulong global_db_privs;
+  Access_bitmask global_db_privs;
   if (check_access(thd, SELECT_ACL, dst_db_name, &global_db_privs, nullptr,
                    false, false))
     return true;
@@ -403,7 +403,8 @@ bool Sql_cmd_show_create_table::execute_inner(THD *thd) {
       access is granted. We need to check if first_table->grant.privilege
       contains any table-specific privilege.
     */
-    DBUG_PRINT("debug", ("tbl->grant.privilege: %lx", tbl->grant.privilege));
+    DBUG_PRINT("debug",
+               ("tbl->grant.privilege: %" PRIx32, tbl->grant.privilege));
     if (check_some_access(thd, TABLE_OP_ACLS, tbl) ||
         (tbl->grant.privilege & TABLE_OP_ACLS) == 0) {
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "SHOW",
@@ -4768,7 +4769,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, Table_ref *table_list) {
     Query_block *sel = lex->current_query_block();
     Field_translator *transl;
 
-    ulonglong want_privilege_saved = thd->want_privilege;
+    const Access_bitmask want_privilege_saved = thd->want_privilege;
     thd->want_privilege = SELECT_ACL;
     enum enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
     thd->mark_used_columns = MARK_COLUMNS_READ;

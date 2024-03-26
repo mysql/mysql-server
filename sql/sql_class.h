@@ -966,7 +966,7 @@ class THD : public MDL_context_owner,
     call Item::check_column_privileges().
     After use, restore previous value as current value.
   */
-  ulong want_privilege;
+  Access_bitmask want_privilege;
 
  private:
   /**

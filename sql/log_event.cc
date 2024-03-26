@@ -9881,7 +9881,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     Applier_security_context_guard security_context{rli, thd};
     const char *privilege_missing = nullptr;
     if (!security_context.skip_priv_checks()) {
-      std::vector<std::tuple<ulong, const TABLE *, Rows_log_event *>> l;
+      std::vector<std::tuple<Access_bitmask, const TABLE *, Rows_log_event *>>
+          l;
       switch (get_general_type_code()) {
         case binary_log::WRITE_ROWS_EVENT: {
           l.push_back(std::make_tuple(INSERT_ACL, this->m_table, this));

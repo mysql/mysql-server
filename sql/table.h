@@ -45,6 +45,7 @@
 #include "my_table_map.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_table_bits.h"
+#include "sql/auth/auth_acls.h"        // Access_bitmask
 #include "sql/dd/types/foreign_key.h"  // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h"       // enum_query_type
 #include "sql/key.h"
@@ -390,7 +391,7 @@ struct GRANT_INFO {
 
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
-  ulong privilege{0};
+  Access_bitmask privilege{0};
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
 };
@@ -3468,7 +3469,9 @@ class Table_ref {
 
     @param privilege   Privileges granted for this table.
   */
-  void set_privileges(ulong privilege) { grant.privilege |= privilege; }
+  void set_privileges(Access_bitmask privilege) {
+    grant.privilege |= privilege;
+  }
 
   bool save_properties();
   void restore_properties();

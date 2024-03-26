@@ -231,7 +231,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   const bool check_privs = !thd->derived_tables_processing ||
                            master_query_expression()->item != nullptr;
   thd->mark_used_columns = check_privs ? MARK_COLUMNS_READ : MARK_COLUMNS_NONE;
-  ulonglong want_privilege_saved = thd->want_privilege;
+  Access_bitmask want_privilege_saved = thd->want_privilege;
   thd->want_privilege = check_privs ? SELECT_ACL : 0;
 
   /*
@@ -1126,9 +1126,10 @@ static Table_ref **make_leaf_tables(Table_ref **list, Table_ref *tables) {
   @returns false if success, true if error.
 */
 
-bool Query_block::check_view_privileges(THD *thd, ulong want_privilege_first,
-                                        ulong want_privilege_next) {
-  ulong want_privilege = want_privilege_first;
+bool Query_block::check_view_privileges(THD *thd,
+                                        Access_bitmask want_privilege_first,
+                                        Access_bitmask want_privilege_next) {
+  Access_bitmask want_privilege = want_privilege_first;
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, true, leaf_tables);
 

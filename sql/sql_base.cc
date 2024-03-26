@@ -7723,7 +7723,7 @@ Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
                                const char *name, size_t length,
                                const char *item_name, const char *db_name,
                                const char *table_name, Item **ref,
-                               ulong want_privilege, bool allow_rowid,
+                               Access_bitmask want_privilege, bool allow_rowid,
                                uint *field_index_ptr, bool register_tree_change,
                                Table_ref **actual_table) {
   Field *fld;
@@ -7907,7 +7907,8 @@ Field *find_field_in_table_sef(TABLE *table, const char *name) {
 Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
                             Table_ref *last_table, Item **ref,
                             find_item_error_report_type report_error,
-                            ulong want_privilege, bool register_tree_change) {
+                            Access_bitmask want_privilege,
+                            bool register_tree_change) {
   Field *found = nullptr;
   const char *db = item->db_name;
   const char *table_name = item->table_name;
@@ -8955,7 +8956,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex) {
         for update.
 */
 
-bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
+bool setup_fields(THD *thd, Access_bitmask want_privilege, bool allow_sum_func,
                   bool split_sum_funcs, bool column_update,
                   const mem_root_deque<Item *> *typed_items,
                   mem_root_deque<Item *> *fields,

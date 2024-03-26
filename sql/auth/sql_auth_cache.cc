@@ -910,7 +910,7 @@ bool hostname_requires_resolving(const char *hostname) {
   return false; /* all characters are either dots or digits. */
 }
 
-GRANT_COLUMN::GRANT_COLUMN(String &c, ulong y)
+GRANT_COLUMN::GRANT_COLUMN(String &c, Access_bitmask y)
     : rights(y), column(c.ptr(), c.length()) {}
 
 void GRANT_NAME::set_user_details(const char *h, const char *d, const char *u,
@@ -938,13 +938,13 @@ void GRANT_NAME::set_user_details(const char *h, const char *d, const char *u,
 }
 
 GRANT_NAME::GRANT_NAME(const char *h, const char *d, const char *u,
-                       const char *t, ulong p, bool is_routine)
+                       const char *t, Access_bitmask p, bool is_routine)
     : db(nullptr), tname(nullptr), privs(p) {
   set_user_details(h, d, u, t, is_routine);
 }
 
 GRANT_TABLE::GRANT_TABLE(const char *h, const char *d, const char *u,
-                         const char *t, ulong p, ulong c)
+                         const char *t, Access_bitmask p, Access_bitmask c)
     : GRANT_NAME(h, d, u, t, p, false),
       cols(c),
       hash_columns(system_charset_info, key_memory_acl_memex) {}
@@ -976,7 +976,8 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine) {
   hash_key.push_back('\0');
 
   if (form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV]) {
-    privs = (ulong)form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV]->val_int();
+    privs = (Access_bitmask)form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV]
+                ->val_int();
     privs = fix_rights_for_table(privs);
   }
 }
@@ -991,7 +992,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   }
 
   if (form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]) {
-    cols = (ulong)form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]->val_int();
+    cols = (Access_bitmask)form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]
+               ->val_int();
     cols = fix_rights_for_column(cols);
   } else
     cols = 0;
@@ -1051,7 +1053,8 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
       GRANT_COLUMN *mem_check;
       /* As column name is a string, we don't have to supply a buffer */
       res = col_privs->field[4]->val_str(&column_name);
-      ulong priv = (ulong)col_privs->field[6]->val_int();
+      const Access_bitmask priv =
+          (Access_bitmask)col_privs->field[6]->val_int();
       DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
       if (!(mem_check = new (*THR_MALLOC)
@@ -1338,9 +1341,9 @@ static void insert_entry_in_db_cache(THD *thd, acl_entry *entry) {
   @return Database ACL
 */
 
-ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
-              const char *db, bool db_is_pattern) {
-  ulong host_access = ~(ulong)0, db_access = 0;
+Access_bitmask acl_get(THD *thd, const char *host, const char *ip,
+                       const char *user, const char *db, bool db_is_pattern) {
+  Access_bitmask host_access = ~(Access_bitmask)0, db_access = 0;
   size_t key_length, copy_length;
   char key[ACL_KEY_LENGTH], *tmp_db, *end;
   acl_entry *entry;
@@ -1368,7 +1371,7 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
     const auto it = db_cache.find(std::string(key, key_length));
     if (it != db_cache.end()) {
       db_access = it->second->access;
-      DBUG_PRINT("exit", ("access: 0x%lx", db_access));
+      DBUG_PRINT("exit", ("access: 0x%" PRIx32, db_access));
       return db_access;
     }
   }
@@ -1409,7 +1412,7 @@ exit:
     acl_cache_lock.unlock();
     insert_entry_in_db_cache(thd, entry);
   }
-  DBUG_PRINT("exit", ("access: 0x%lx", db_access & host_access));
+  DBUG_PRINT("exit", ("access: 0x%" PRIx32, db_access & host_access));
   return db_access & host_access;
 }
 
@@ -1588,7 +1591,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
 
   if (acl_user && sctx->get_active_roles()->size() > 0) {
     sctx->checkout_access_maps();
-    ulong db_acl = db ? sctx->db_acl({db, strlen(db)}) : 0;
+    const Access_bitmask db_acl = db ? sctx->db_acl({db, strlen(db)}) : 0;
     sctx->cache_current_db_access(db_acl);
   }
   return res;
@@ -2722,7 +2725,7 @@ end:
 void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *ssl_cipher, const char *x509_issuer,
                      const char *x509_subject, USER_RESOURCES *mqh,
-                     ulong privileges, const LEX_CSTRING &plugin,
+                     Access_bitmask privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
@@ -2783,8 +2786,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           }
         }
         DBUG_PRINT("info",
-                   ("Updates global privilege for %s@%s to %lu", acl_user->user,
-                    acl_user->host.get_host(), privileges));
+                   ("Updates global privilege for %s@%s to %" PRIu32,
+                    acl_user->user, acl_user->host.get_host(), privileges));
         acl_user->access = privileges;
         if (what_to_update.m_what & USER_ATTRIBUTES &&
             (what_to_update.m_user_attributes &
@@ -2883,7 +2886,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
 void acl_users_add_one(const char *user, const char *host,
                        enum SSL_type ssl_type, const char *ssl_cipher,
                        const char *x509_issuer, const char *x509_subject,
-                       USER_RESOURCES *mqh, ulong privileges,
+                       USER_RESOURCES *mqh, Access_bitmask privileges,
                        const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
                        const LEX_CSTRING &second_auth,
                        const MYSQL_TIME &password_change_time,
@@ -2997,7 +3000,7 @@ void acl_insert_user(THD *thd [[maybe_unused]], const char *user,
                      const char *host, enum SSL_type ssl_type,
                      const char *ssl_cipher, const char *x509_issuer,
                      const char *x509_subject, USER_RESOURCES *mqh,
-                     ulong privileges, const LEX_CSTRING &plugin,
+                     Access_bitmask privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
@@ -3041,7 +3044,7 @@ void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke) {
 }
 
 void acl_update_db(const char *user, const char *host, const char *db,
-                   ulong privileges) {
+                   Access_bitmask privileges) {
   assert(assert_acl_cache_write_lock(current_thd));
 
   for (ACL_DB *acl_db = acl_dbs->begin(); acl_db < acl_dbs->end();) {
@@ -3080,7 +3083,7 @@ void acl_update_db(const char *user, const char *host, const char *db,
 */
 
 void acl_insert_db(const char *user, const char *host, const char *db,
-                   ulong privileges) {
+                   Access_bitmask privileges) {
   ACL_DB acl_db;
   assert(assert_acl_cache_write_lock(current_thd));
   acl_db.set_user(&global_acl_memory, user);
@@ -3281,7 +3284,7 @@ Acl_map &Acl_map::operator=(Acl_map &&map) {
 
 Acl_map &Acl_map::operator=(const Acl_map &) { return *this; }
 
-ulong Acl_map::global_acl() { return m_global_acl; }
+Access_bitmask Acl_map::global_acl() { return m_global_acl; }
 
 Db_access_map *Acl_map::db_acls() { return &m_db_acls; }
 

@@ -161,7 +161,7 @@ class ACL_ACCESS {
   ACL_ACCESS() : host(), sort(0), access(0) {}
   ACL_HOST_AND_IP host;
   ulong sort;
-  ulong access;
+  Access_bitmask access;
 };
 
 /**
@@ -431,16 +431,16 @@ class ACL_PROXY_USER : public ACL_ACCESS {
 
 class acl_entry {
  public:
-  ulong access;
+  Access_bitmask access;
   uint16 length;
   char key[1];  // Key will be stored here
 };
 
 class GRANT_COLUMN {
  public:
-  ulong rights;
+  Access_bitmask rights;
   std::string column;
-  GRANT_COLUMN(String &c, ulong y);
+  GRANT_COLUMN(String &c, Access_bitmask y);
 };
 
 class GRANT_NAME {
@@ -449,11 +449,11 @@ class GRANT_NAME {
   char *db;
   const char *user;
   char *tname;
-  ulong privs;
+  Access_bitmask privs;
   ulong sort;
   std::string hash_key;
   GRANT_NAME(const char *h, const char *d, const char *u, const char *t,
-             ulong p, bool is_routine);
+             Access_bitmask p, bool is_routine);
   GRANT_NAME(TABLE *form, bool is_routine);
   virtual ~GRANT_NAME() = default;
   virtual bool ok() { return privs != 0; }
@@ -463,13 +463,13 @@ class GRANT_NAME {
 
 class GRANT_TABLE : public GRANT_NAME {
  public:
-  ulong cols;
+  Access_bitmask cols;
   collation_unordered_multimap<std::string,
                                unique_ptr_destroy_only<GRANT_COLUMN>>
       hash_columns;
 
   GRANT_TABLE(const char *h, const char *d, const char *u, const char *t,
-              ulong p, ulong c);
+              Access_bitmask p, Access_bitmask c);
   explicit GRANT_TABLE(TABLE *form);
   bool init(TABLE *col_privs);
   ~GRANT_TABLE() override;
@@ -651,7 +651,7 @@ class Acl_map {
   void increase_reference_count();
   void decrease_reference_count();
 
-  ulong global_acl();
+  Access_bitmask global_acl();
   Db_access_map *db_acls();
   Db_access_map *db_wild_acls();
   Table_access_map *table_acls();
@@ -669,7 +669,7 @@ class Acl_map {
   Db_access_map m_db_acls;
   Db_access_map m_db_wild_acls;
   Table_access_map m_table_acls;
-  ulong m_global_acl;
+  Access_bitmask m_global_acl;
   SP_access_map m_sp_acls;
   SP_access_map m_func_acls;
   Grant_acl_set m_with_admin_acls;

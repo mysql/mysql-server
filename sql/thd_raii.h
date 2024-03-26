@@ -392,7 +392,7 @@ class Pushed_lex_guard {
 */
 class Column_privilege_tracker {
  public:
-  Column_privilege_tracker(THD *thd, ulong privilege)
+  Column_privilege_tracker(THD *thd, Access_bitmask privilege)
       : m_thd(thd), m_saved_privilege(thd->want_privilege) {
     thd->want_privilege = privilege;
   }
@@ -400,7 +400,7 @@ class Column_privilege_tracker {
 
  private:
   THD *const m_thd;
-  const ulong m_saved_privilege;
+  const Access_bitmask m_saved_privilege;
 };
 
 /**

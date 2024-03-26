@@ -163,7 +163,7 @@ bool Role_activation::activate_role_default() {
   }
   if (ret == 0) {
     m_sctx->checkout_access_maps();
-    ulong new_db_access = m_sctx->db_acl(m_thd->db());
+    Access_bitmask new_db_access = m_sctx->db_acl(m_thd->db());
     m_sctx->cache_current_db_access(new_db_access);
     /* Old memory in the backup list must now be freed. */
     for (auto &&role : backup_active_list) {
@@ -299,7 +299,7 @@ bool Role_activation::activate_role_name() {
 
   if (ret == 0) {
     m_sctx->checkout_access_maps();
-    ulong new_db_access = m_sctx->db_acl(m_thd->db());
+    const Access_bitmask new_db_access = m_sctx->db_acl(m_thd->db());
     m_sctx->cache_current_db_access(new_db_access);
     /* Drop backup */
     for (auto &&ref : backup_active_list) {

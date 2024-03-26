@@ -133,7 +133,8 @@ static std::map<const User_attribute_type, const std::string>
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
-                                         Auth_id &auth_id, ulong global_privs)
+                                         Auth_id &auth_id,
+                                         Access_bitmask global_privs)
     : m_mem_root(mem_root),
       m_read_restrictions(read_restrictions),
       m_auth_id(auth_id),
@@ -149,7 +150,7 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          Auth_id &auth_id,
                                          Restrictions *restrictions,
                                          I_multi_factor_auth *mfa)
-    : Acl_user_attributes(mem_root, read_restrictions, auth_id, ~NO_ACCESS) {
+    : Acl_user_attributes(mem_root, read_restrictions, auth_id, ALL_ACCESS) {
   if (restrictions) m_restrictions = *restrictions;
   m_mfa = mfa;
 }
@@ -176,16 +177,16 @@ bool Acl_user_attributes::consume_user_attributes_json(Json_dom_ptr json) {
 }
 
 void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
-    DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
+    DB_restrictions &db_restrictions, Access_bitmask mask, enum loglevel level,
     ulonglong errcode) {
   if (!db_restrictions.is_empty()) {
     for (auto &itr : db_restrictions()) {
-      ulong privs = itr.second;
+      Access_bitmask privs = itr.second;
       if (privs != (privs & mask)) {
         std::string invalid_privs;
         std::string separator(", ");
         bool second = false;
-        ulong filtered_privs = privs & ~mask;
+        Access_bitmask filtered_privs = privs & ~mask;
         if (filtered_privs)
           db_restrictions.remove(itr.first.c_str(), filtered_privs);
         while (filtered_privs != 0) {
@@ -461,8 +462,9 @@ Acl_table_user_writer_status::Acl_table_user_writer_status()
   methods
 */
 Acl_table_user_writer::Acl_table_user_writer(
-    THD *thd, TABLE *table, LEX_USER *combo, ulong rights, bool revoke_grant,
-    bool can_create_user, Pod_user_what_to_update what_to_update,
+    THD *thd, TABLE *table, LEX_USER *combo, Access_bitmask rights,
+    bool revoke_grant, bool can_create_user,
+    Pod_user_what_to_update what_to_update,
     Restrictions *restrictions = nullptr, I_multi_factor_auth *mfa = nullptr)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_INSERT),
       m_has_user_application_user_metadata(false),
@@ -858,7 +860,7 @@ bool Acl_table_user_writer::update_privileges(
     /* Update table columns with new privileges */
     char what = m_revoke_grant ? 'N' : 'Y';
     Field **tmp_field;
-    ulong priv;
+    Access_bitmask priv;
     for (tmp_field = m_table->field + 2, priv = SELECT_ACL;
          *tmp_field && (*tmp_field)->real_type() == MYSQL_TYPE_ENUM &&
          ((Field_enum *)(*tmp_field))->typelib->count == 2;
@@ -885,8 +887,8 @@ bool Acl_table_user_writer::update_privileges(
   }
 
   return_value.updated_rights = get_user_privileges();
-  DBUG_PRINT("info",
-             ("Privileges on disk are now %lu", return_value.updated_rights));
+  DBUG_PRINT("info", ("Privileges on disk are now %" PRIu32,
+                      return_value.updated_rights));
   DBUG_PRINT("info", ("table fields: %d", m_table->s->fields));
 
   return false;
@@ -1300,10 +1302,10 @@ bool Acl_table_user_writer::write_user_attributes_column(
 
   @returns Bitmask representing global privileges granted to given account
 */
-ulong Acl_table_user_writer::get_user_privileges() {
+Access_bitmask Acl_table_user_writer::get_user_privileges() {
   uint next_field;
   char *priv_str;
-  ulong rights =
+  Access_bitmask rights =
       get_access(m_table, m_table_schema->select_priv_idx(), &next_field);
   if (m_table->s->fields > m_table_schema->drop_role_priv_idx()) {
     priv_str =
@@ -2124,8 +2126,9 @@ Password_lock::Password_lock(Password_lock &&other) {
                   processing subsequent user specified in the ACL statement.
 */
 
-int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
-                       bool revoke_grant, bool can_create_user,
+int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
+                       Access_bitmask rights, bool revoke_grant,
+                       bool can_create_user,
                        acl_table::Pod_user_what_to_update &what_to_update,
                        Restrictions *restrictions /*= nullptr*/,
                        I_multi_factor_auth *mfa /*= nullptr*/) {

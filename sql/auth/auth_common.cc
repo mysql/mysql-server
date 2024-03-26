@@ -133,9 +133,9 @@ const std::string &Auth_id::host() const { return m_host; }
 
   @returns Name for the privilege represented by LSB
 */
-std::string get_one_priv(ulong &revoke_privs) {
+std::string get_one_priv(Access_bitmask &revoke_privs) {
   std::string priv;
-  ulong lsb;
+  Access_bitmask lsb;
   if (revoke_privs != 0) {
     // find out the least significant bit(lsb)
     lsb = revoke_privs & ~(revoke_privs - 1);

@@ -1472,7 +1472,7 @@ bool fix_partition_func(THD *thd, TABLE *table, bool is_create_table_ind) {
   partition_info *part_info = table->part_info;
   enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
   Partition_handler *part_handler;
-  const ulong save_want_privilege = thd->want_privilege;
+  const Access_bitmask save_want_privilege = thd->want_privilege;
   DBUG_TRACE;
 
   if (part_info->fixed) {

@@ -706,7 +706,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   if (select->setup_tables(thd, table_list, false))
     return true; /* purecov: inspected */
 
-  ulong want_privilege_saved = thd->want_privilege;
+  const Access_bitmask want_privilege_saved = thd->want_privilege;
   thd->want_privilege = SELECT_ACL;
   enum enum_mark_columns mark_used_columns_saved = thd->mark_used_columns;
   thd->mark_used_columns = MARK_COLUMNS_READ;

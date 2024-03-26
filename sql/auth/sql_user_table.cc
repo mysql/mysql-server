@@ -547,8 +547,8 @@ extern bool initialized;
     privilege mask
 */
 
-ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
-  ulong access_bits = 0, bit;
+Access_bitmask get_access(TABLE *form, uint fieldnr, uint *next_field) {
+  Access_bitmask access_bits = 0, bit;
   char buff[2];
   String res(buff, sizeof(buff), &my_charset_latin1);
   Field **pos;
@@ -814,9 +814,10 @@ void acl_print_ha_error(int handler_error) {
 */
 
 int replace_db_table(THD *thd, TABLE *table, const char *db,
-                     const LEX_USER &combo, ulong rights, bool revoke_grant) {
+                     const LEX_USER &combo, Access_bitmask rights,
+                     bool revoke_grant) {
   uint i;
-  ulong priv, store_rights;
+  Access_bitmask priv, store_rights;
   bool old_row_exists = false;
   int error;
   char what = (revoke_grant) ? 'N' : 'Y';
@@ -1111,8 +1112,8 @@ table_error:
 
 int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
                          const LEX_USER &combo, List<LEX_COLUMN> &columns,
-                         const char *db, const char *table_name, ulong rights,
-                         bool revoke_grant) {
+                         const char *db, const char *table_name,
+                         Access_bitmask rights, bool revoke_grant) {
   int result = 0;
   int error;
   uchar key[MAX_KEY_LENGTH];
@@ -1152,7 +1153,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
   }
 
   while ((column = iter++)) {
-    ulong privileges = column->rights;
+    Access_bitmask privileges = column->rights;
     bool old_row_exists = false;
     uchar user_key[MAX_KEY_LENGTH];
 
@@ -1191,7 +1192,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       table->field[4]->store(column->column.ptr(), column->column.length(),
                              system_charset_info);
     } else {
-      ulong tmp = (ulong)table->field[6]->val_int();
+      Access_bitmask tmp = (Access_bitmask)table->field[6]->val_int();
       tmp = fix_rights_for_column(tmp);
 
       if (revoke_grant)
@@ -1293,7 +1294,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
     /* Scan through all rows with the same host,db,user and table */
     do {
-      ulong privileges = (ulong)table->field[6]->val_int();
+      Access_bitmask privileges = (Access_bitmask)table->field[6]->val_int();
       privileges = fix_rights_for_column(privileges);
       store_record(table, record[1]);
 
@@ -1390,12 +1391,12 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
                         std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
                             *deleted_grant_table,
                         TABLE *table, const LEX_USER &combo, const char *db,
-                        const char *table_name, ulong rights, ulong col_rights,
-                        bool revoke_grant) {
+                        const char *table_name, Access_bitmask rights,
+                        Access_bitmask col_rights, bool revoke_grant) {
   char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
   int error = 0;
-  ulong store_table_rights, store_col_rights;
+  Access_bitmask store_table_rights, store_col_rights;
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
   DBUG_TRACE;
@@ -1454,10 +1455,10 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   store_table_rights = get_rights_for_table(rights);
   store_col_rights = get_rights_for_column(col_rights);
   if (old_row_exists) {
-    ulong j, k;
+    Access_bitmask j, k;
     store_record(table, record[1]);
-    j = (ulong)table->field[6]->val_int();
-    k = (ulong)table->field[7]->val_int();
+    j = (Access_bitmask)table->field[6]->val_int();
+    k = (Access_bitmask)table->field[7]->val_int();
 
     if (revoke_grant) {
       /* column rights are already fixed in mysql_table_grant */
@@ -1556,12 +1557,12 @@ table_error:
 
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const LEX_USER &combo, const char *db,
-                          const char *routine_name, bool is_proc, ulong rights,
-                          bool revoke_grant) {
+                          const char *routine_name, bool is_proc,
+                          Access_bitmask rights, bool revoke_grant) {
   char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
   int error = 0;
-  ulong store_proc_rights;
+  Access_bitmask store_proc_rights;
   Acl_table_intact table_intact(thd);
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_TRACE;
@@ -1625,9 +1626,9 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
 
   store_proc_rights = get_rights_for_procedure(rights);
   if (old_row_exists) {
-    ulong j;
+    Access_bitmask j;
     store_record(table, record[1]);
-    j = (ulong)table->field[6]->val_int();
+    j = (Access_bitmask)table->field[6]->val_int();
 
     if (revoke_grant) {
       /* column rights are already fixed in mysql_table_grant */

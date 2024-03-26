@@ -689,7 +689,7 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
   resolved item if resolving was successful else nullptr.
 */
 Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
-  ulong save_old_privilege = thd->want_privilege;
+  const Access_bitmask save_old_privilege = thd->want_privilege;
   thd->want_privilege = 0;
   Query_block *saved_current_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(query_block);

@@ -36,6 +36,7 @@
 #include "my_inttypes.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "prealloced_array.h"        // Prealloced_array
+#include "sql/auth/auth_acls.h"      // Access_bitmask
 #include "sql/locked_tables_list.h"  // enum_locked_tables_mode
 #include "sql/mdl.h"                 // MDL_savepoint
 #include "sql/sql_array.h"           // Bounds_checked_array
@@ -216,7 +217,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
                    const char *table_name, mem_root_deque<Item *> *fields,
                    mem_root_deque<Item *>::iterator *it, bool any_privileges);
-bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
+bool setup_fields(THD *thd, Access_bitmask want_privilege, bool allow_sum_func,
                   bool split_sum_funcs, bool column_update,
                   const mem_root_deque<Item *> *typed_items,
                   mem_root_deque<Item *> *fields,
@@ -246,12 +247,13 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table);
 Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
                             Table_ref *last_table, Item **ref,
                             find_item_error_report_type report_error,
-                            ulong want_privilege, bool register_tree_change);
+                            Access_bitmask want_privilege,
+                            bool register_tree_change);
 Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
                                const char *name, size_t length,
                                const char *item_name, const char *db_name,
                                const char *table_name, Item **ref,
-                               ulong want_privilege, bool allow_rowid,
+                               Access_bitmask want_privilege, bool allow_rowid,
                                uint *cached_field_index_ptr,
                                bool register_tree_change,
                                Table_ref **actual_table);

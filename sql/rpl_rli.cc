@@ -3442,7 +3442,7 @@ bool Applier_security_context_guard::skip_priv_checks() const {
 }
 
 bool Applier_security_context_guard::has_access(
-    std::initializer_list<ulong> extra_privileges) const {
+    std::initializer_list<Access_bitmask> extra_privileges) const {
   if (this->m_privilege_checks_none) return true;
   if (this->m_current == nullptr) return false;
 
@@ -3466,12 +3466,12 @@ bool Applier_security_context_guard::has_access(
 }
 
 bool Applier_security_context_guard::has_access(
-    std::vector<std::tuple<ulong, TABLE const *, Rows_log_event *>>
+    std::vector<std::tuple<Access_bitmask, TABLE const *, Rows_log_event *>>
         &extra_privileges) const {
   if (this->m_privilege_checks_none) return true;
   if (this->m_current == nullptr) return false;
 
-  ulong priv{0};
+  Access_bitmask priv{0};
   TABLE const *table{nullptr};
 
   if (this->m_thd->variables.binlog_row_image == BINLOG_ROW_IMAGE_FULL) {
