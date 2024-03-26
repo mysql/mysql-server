@@ -806,7 +806,7 @@ bool check_privileges_for_join(THD *thd, mem_root_deque<Table_ref *> *tables);
 
 /// Check privileges for all columns referenced from an expression list
 bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
-                               ulong privileges);
+                               Access_bitmask privileges);
 
 /** class to copying an field/item to a key struct */
 

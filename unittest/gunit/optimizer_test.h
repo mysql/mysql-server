@@ -182,7 +182,7 @@ inline void ResolveQueryBlock(
     tl->table = fake_table;
     tl->set_tableno(num_tables++);
     tl->set_updatable();
-    tl->grant.privilege = ~0UL;
+    tl->grant.privilege = ~(Access_bitmask)0;
   }
 
   // Find all Item_field objects, and resolve them to fields in the fake tables.

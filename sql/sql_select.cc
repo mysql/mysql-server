@@ -1115,8 +1115,9 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables) {
         If either of these privileges is present along with SELECT, access is
         granted.
       */
-      for (uint allowed_priv : {UPDATE_ACL, DELETE_ACL, LOCK_TABLES_ACL}) {
-        ulong priv = SELECT_ACL | allowed_priv;
+      for (Access_bitmask allowed_priv :
+           {UPDATE_ACL, DELETE_ACL, LOCK_TABLES_ACL}) {
+        Access_bitmask priv = SELECT_ACL | allowed_priv;
         if (!check_table_access(thd, priv, table_ref, false, 1, true)) {
           access_is_granted = true;
           // No need to check for other privileges for this table.
@@ -1218,7 +1219,7 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
     if (tr->is_internal())  // No privilege check required for internal tables
       continue;
     // Calculated wanted privilege based on how table/view is used:
-    ulong want_privilege = 0;
+    Access_bitmask want_privilege = 0;
     if (tr->is_inserted()) {
       want_privilege |= INSERT_ACL;
     }
@@ -2162,7 +2163,7 @@ bool check_privileges_for_join(THD *thd, mem_root_deque<Table_ref *> *tables) {
   @returns false if success, true if error (insufficient privileges)
 */
 bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
-                               ulong privileges) {
+                               Access_bitmask privileges) {
   thd->want_privilege = privileges;
   for (Item *item : items) {
     if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,

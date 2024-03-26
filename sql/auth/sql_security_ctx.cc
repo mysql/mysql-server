@@ -181,7 +181,7 @@ void Security_context::skip_grants(const char *user /*= "skip-grants user"*/,
   set_host_or_ip_ptr("", 0);
   assign_priv_user(user, strlen(user));
   assign_priv_host(host, strlen(host));
-  m_master_access = ~NO_ACCESS;
+  m_master_access = ALL_ACCESS;
   m_is_skip_grants_user = true;
 
   /*
@@ -319,7 +319,7 @@ bool Security_context::user_matches(Security_context *them) {
          !strcmp(m_user.ptr(), them_user);
 }
 
-bool Security_context::check_access(ulong want_access,
+bool Security_context::check_access(Access_bitmask want_access,
                                     const std::string &db_name /* = "" */,
                                     bool match_any) {
   DBUG_TRACE;
@@ -331,7 +331,8 @@ bool Security_context::check_access(ulong want_access,
                     : ((m_master_access & want_access) == want_access));
 }
 
-ulong Security_context::master_access(const std::string &db_name) const {
+Access_bitmask Security_context::master_access(
+    const std::string &db_name) const {
   return filter_access(m_master_access, db_name);
 }
 
@@ -409,7 +410,7 @@ void Security_context::checkout_access_maps(void) {
   if (m_acl_map != nullptr) {
     DBUG_PRINT("info",
                ("Roles are active and global access for %.*s@%.*s is set to"
-                " %lu",
+                " %" PRIu32,
                 (int)m_priv_user_length, m_priv_user, (int)m_priv_host_length,
                 m_priv_host, m_acl_map->global_acl()));
     set_master_access(m_acl_map->global_acl(), m_acl_map->restrictions());
@@ -500,7 +501,8 @@ void Security_context::get_active_roles(THD *thd, List<LEX_USER> &list) {
   @returns Access granted to user for given database
 */
 
-ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
+Access_bitmask Security_context::db_acl(LEX_CSTRING db,
+                                        bool use_pattern_scan) const {
   DBUG_TRACE;
   if (m_acl_map == nullptr || db.length == 0) return 0;
 
@@ -508,7 +510,7 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   Db_access_map::iterator found_acl_it = m_acl_map->db_acls()->find(key);
   if (found_acl_it == m_acl_map->db_acls()->end()) {
     Db_access_map::iterator it = m_acl_map->db_wild_acls()->begin();
-    ulong access = 0;
+    Access_bitmask access = 0;
     for (; it != m_acl_map->db_wild_acls()->end(); ++it) {
       /*
         Do the usual string comparison if partial_revokes is ON,
@@ -549,14 +551,14 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   @returns DB level privileges granted
 */
 
-ulong Security_context::check_db_level_access(
+Access_bitmask Security_context::check_db_level_access(
     THD *thd, const Security_context *sctx, const char *host, const char *ip,
     const char *user, const char *db, size_t db_len, bool db_is_pattern) {
-  ulong db_access;
+  Access_bitmask db_access;
   if (sctx && sctx->get_num_active_roles()) {
     db_access = sctx->db_acl({db, db_len}, db_is_pattern);
     DBUG_PRINT("info", ("check_access using db-level privilege for %s. "
-                        "ACL: %lu",
+                        "ACL: %" PRIu32,
                         db, db_access));
   } else {
     db_access = acl_get(thd, host, ip, user, db, db_is_pattern);
@@ -576,15 +578,14 @@ ulong Security_context::check_db_level_access(
   @returns DB level privileges granted
 */
 
-ulong Security_context::check_db_level_access(THD *thd, const char *db,
-                                              size_t db_len,
-                                              bool db_is_pattern) const {
+Access_bitmask Security_context::check_db_level_access(
+    THD *thd, const char *db, size_t db_len, bool db_is_pattern) const {
   return check_db_level_access(thd, this, m_host.ptr(), m_ip.ptr(), m_priv_user,
                                db, db_len, db_is_pattern);
 }
 
-ulong Security_context::procedure_acl(LEX_CSTRING db,
-                                      LEX_CSTRING procedure_name) {
+Access_bitmask Security_context::procedure_acl(LEX_CSTRING db,
+                                               LEX_CSTRING procedure_name) {
   if (m_acl_map == nullptr)
     return 0;
   else {
@@ -601,7 +602,8 @@ ulong Security_context::procedure_acl(LEX_CSTRING db,
   }
 }
 
-ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
+Access_bitmask Security_context::function_acl(LEX_CSTRING db,
+                                              LEX_CSTRING func_name) {
   if (m_acl_map == nullptr)
     return 0;
   else {
@@ -632,7 +634,7 @@ Grant_table_aggregate Security_context::table_and_column_acls(
   return it->second;
 }
 
-ulong Security_context::table_acl(LEX_CSTRING db, LEX_CSTRING table) {
+Access_bitmask Security_context::table_acl(LEX_CSTRING db, LEX_CSTRING table) {
   if (m_acl_map == nullptr) return 0;
   const Grant_table_aggregate aggr = table_and_column_acls(db, table);
   return filter_access(aggr.table_access, db.str ? db.str : "");
@@ -1163,8 +1165,8 @@ void Security_context::init_restrictions(const Restrictions &restrictions) {
 }
 
 bool Security_context::is_access_restricted_on_db(
-    ulong want_access, const std::string &db_name) const {
-  const ulong filtered_access = filter_access(want_access, db_name);
+    Access_bitmask want_access, const std::string &db_name) const {
+  const Access_bitmask filtered_access = filter_access(want_access, db_name);
   return (filtered_access != want_access);
 }
 
@@ -1177,12 +1179,12 @@ bool Security_context::is_access_restricted_on_db(
 
   @retval filtered access mask
 */
-ulong Security_context::filter_access(const ulong access,
-                                      const std::string &db_name) const {
-  ulong access_mask = access;
+Access_bitmask Security_context::filter_access(
+    const Access_bitmask access, const std::string &db_name) const {
+  Access_bitmask access_mask = access;
   auto &db_restrictions = m_restrictions.db();
   if (!db_restrictions.is_empty()) {
-    ulong restrictions_mask;
+    Access_bitmask restrictions_mask;
     if (db_restrictions.find(db_name, restrictions_mask))
       access_mask = (access_mask & restrictions_mask) ^ access;
   }
@@ -1240,7 +1242,8 @@ std::pair<bool, bool> Security_context::fetch_global_grant(
   @retval true Success
   @retval false Failure
  */
-bool Security_context::has_table_access(ulong priv, Table_ref *tables) {
+bool Security_context::has_table_access(Access_bitmask priv,
+                                        Table_ref *tables) {
   DBUG_TRACE;
   assert(tables != nullptr);
   TABLE const *table = tables->table;
@@ -1251,7 +1254,7 @@ bool Security_context::has_table_access(ulong priv, Table_ref *tables) {
   table_name.str = table->alias;
   table_name.length = strlen(table->alias);
 
-  ulong acls = master_access({db.str, db.length});
+  Access_bitmask acls = master_access({db.str, db.length});
   if (m_acl_map) {
     if (priv & acls) return true;
 
@@ -1284,7 +1287,8 @@ bool Security_context::has_table_access(ulong priv, Table_ref *tables) {
   @retval true Access to the table is blocked
   @retval false Access to the table is not blocked
  */
-bool Security_context::is_table_blocked(ulong priv, TABLE const *table) {
+bool Security_context::is_table_blocked(Access_bitmask priv,
+                                        TABLE const *table) {
   DBUG_TRACE;
   assert(table != nullptr);
   LEX_CSTRING db, table_name;
@@ -1317,7 +1321,8 @@ bool Security_context::is_table_blocked(ulong priv, TABLE const *table) {
   @retval true Success
   @retval false Failure
  */
-bool Security_context::has_column_access(ulong priv, TABLE const *table,
+bool Security_context::has_column_access(Access_bitmask priv,
+                                         TABLE const *table,
                                          std::vector<std::string> columns) {
   DBUG_TRACE;
   assert(table != nullptr);

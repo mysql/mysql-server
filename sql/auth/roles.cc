@@ -117,7 +117,7 @@ bool Role_activation::activate_role_none() {
     No roles are active now,
     checking if user is granted access to current db directly
   */
-  const ulong new_db_access =
+  const Access_bitmask new_db_access =
       acl_get(m_thd, m_sctx->host().str, m_sctx->ip().str,
               m_sctx->priv_user().str, m_thd->db().str, false);
   m_sctx->cache_current_db_access(new_db_access);
@@ -134,7 +134,7 @@ bool Role_activation::activate_role_none() {
 bool Role_activation::activate_role_default() {
   DBUG_TRACE;
   bool ret = false;
-  ulong new_db_access;
+  Access_bitmask new_db_access;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock(m_raise_error)) return true;
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
@@ -265,7 +265,7 @@ bool Role_activation::activate_role_all() {
       }
       if (ret == 0) {
         m_sctx->checkout_access_maps();
-        const ulong new_db_access = m_sctx->db_acl(m_thd->db(), false);
+        const Access_bitmask new_db_access = m_sctx->db_acl(m_thd->db(), false);
         m_sctx->cache_current_db_access(new_db_access);
         /* Drop backup */
         for (auto &&ref : backup_active_list) {
@@ -316,7 +316,7 @@ bool Role_activation::activate_role_name() {
 
   if (ret == 0) {
     m_sctx->checkout_access_maps();
-    const ulong new_db_access = m_sctx->db_acl(m_thd->db(), false);
+    const Access_bitmask new_db_access = m_sctx->db_acl(m_thd->db(), false);
     m_sctx->cache_current_db_access(new_db_access);
     /* Drop backup */
     for (auto &&ref : backup_active_list) {
