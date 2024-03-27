@@ -165,10 +165,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $rpl_connection_name= server3
 --source include/connection.inc
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_3
 --source include/connection.inc
@@ -216,10 +213,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $rpl_connection_name= server2
 --source include/connection.inc
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_2
 --source include/connection.inc
@@ -320,11 +314,7 @@ RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_2
 --source include/connection.inc

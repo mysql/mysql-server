@@ -65,20 +65,15 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ###
 
 #
-# We do kill the servers, using shutdown_server 0, and then
-# MTR will follow the expect file and restart the sever. We
-# wait for the server to start.
+# We do kill and restart the servers. We wait for the server to start.
 #
 # However, since the servers loose its GCS configuration they
 # will not rejoin the group.
 #
 --let $rpl_connection_name= server2
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
 
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 --let $rpl_connection_name= server_1
 --source include/connection.inc

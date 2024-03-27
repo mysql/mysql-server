@@ -34,6 +34,8 @@ include/start_group_replication.inc
 SET GLOBAL group_replication_autorejoin_tries = 1;
 SET @@GLOBAL.DEBUG='+d,recovery_thread_start_wait';
 include/gr_provoke_majority_loss.inc
+# Kill and restart
+# Kill and restart
 SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 include/rpl/reconnect.inc
 [connection server2]

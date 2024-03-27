@@ -11,7 +11,11 @@ include/start_group_replication.inc
 include/start_group_replication.inc
 # Crash two secondary members to cause majority loss.
 [connection server2]
+# Kill the server
 [connection server3]
+# Kill and restart
+[connection server2]
+# restart
 include/rpl/reconnect.inc
 include/rpl/reconnect.inc
 [connection server2]

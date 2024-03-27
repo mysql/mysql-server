@@ -51,13 +51,9 @@
 --let $group_replication_expected_uuid= $member1_uuid
 --source include/gr_wait_primary_member_uuid.inc
 
-# We do kill the servers, using shutdown_server 0, and then MTR will
-# follow the expect file and restart the server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+# We do kill and restart the servers.
+--source include/kill_and_restart_mysqld.inc
 
---source include/wait_until_connected_again.inc
 
 # reset the group_replication_id var
 --let $group_replication_member_id= $member2_uuid
