@@ -77,6 +77,8 @@ if (!$have_windows) {
      OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_ca'
      OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_cert'
      OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_key'
+     OR VARIABLE_NAME LIKE 'group_replication_communication_stack'
+     OR VARIABLE_NAME LIKE 'group_replication_paxos_single_leader'
      ORDER BY VARIABLE_NAME;
 
     # Ensure that next auto_increment values are consecutive.

@@ -184,6 +184,9 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_
 #GR with group_replication_ssl_mode = REQUIRED and MySQL Stack
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required_mysql --vardir=var-gr_ssl_mode_required_mysql --suite=group_replication  --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_ssl_mode=REQUIRED --mysqld=--loose-group_replication_communication_stack=MySQL
 
+#GR with MySQL Stack and Single Leader
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_mysql_single_leader --vardir=var-gr_mysql_single_leader --suite=group_replication  --big-test --testcase-timeout=60 --suite-timeout=360 --mysqld=--loose-group_replication_communication_stack=MySQL --mysqld=--loose-group_replication_paxos_single_leader=ON
+
 #
 # b) DEBUG
 #

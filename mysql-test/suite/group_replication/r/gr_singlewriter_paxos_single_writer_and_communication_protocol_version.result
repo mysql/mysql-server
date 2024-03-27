@@ -91,9 +91,9 @@ ERROR HY000: The function 'group_replication_set_communication_protocol' failed.
 # 10) Cleanup.
 ##
 [connection server3]
-SET GLOBAL group_replication_paxos_single_leader = "OFF";
+SET GLOBAL group_replication_paxos_single_leader = PAXOS_SINGLE_LEADER;
 [connection server2]
-SET GLOBAL group_replication_paxos_single_leader = "OFF";
+SET GLOBAL group_replication_paxos_single_leader = PAXOS_SINGLE_LEADER;
 [connection server1]
-SET GLOBAL group_replication_paxos_single_leader = "OFF";
+SET GLOBAL group_replication_paxos_single_leader = PAXOS_SINGLE_LEADER;
 include/group_replication_end.inc

@@ -27,9 +27,32 @@
 
 # 1. Start GR group with 3 servers
 --let $rpl_server_count = 3
+--let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
+--let $_group_replication_single_leader_s1= `SELECT @@GLOBAL.group_replication_paxos_single_leader`
+SET GLOBAL group_replication_paxos_single_leader = 0;
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--let $_group_replication_single_leader_s2= `SELECT @@GLOBAL.group_replication_paxos_single_leader`
+SET GLOBAL group_replication_paxos_single_leader = 0;
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+
+--let $_group_replication_single_leader_s3= `SELECT @@GLOBAL.group_replication_paxos_single_leader`
+SET GLOBAL group_replication_paxos_single_leader = 0;
+--source include/start_group_replication.inc
+
 # 2. Value of WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE is 0 on all servers.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
 --let $single_leader_capable = 0
 --source include/gr_assert_write_consensus_single_leader_capable.inc
 
@@ -168,22 +191,25 @@ SELECT group_replication_set_communication_protocol("8.0.27");
 
 # Cleanup
 
-# Change the value to 0 in all servers and restart GR.
+# Change the value to initial in all servers and restart GR.
 
 --let $rpl_connection_name= server3
 --source include/connection.inc
 --source include/stop_group_replication.inc
-SET GLOBAL group_replication_paxos_single_leader = 0;
+--replace_result $_group_replication_single_leader_s3 PAXOS_SINGLE_LEADER
+--eval SET GLOBAL group_replication_paxos_single_leader = $_group_replication_single_leader_s3
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
 --source include/stop_group_replication.inc
-SET GLOBAL group_replication_paxos_single_leader = 0;
+--replace_result $_group_replication_single_leader_s2 PAXOS_SINGLE_LEADER
+--eval SET GLOBAL group_replication_paxos_single_leader = $_group_replication_single_leader_s2
 
 --let $rpl_connection_name= server1
 --source include/connection.inc
 --source include/stop_group_replication.inc
-SET GLOBAL group_replication_paxos_single_leader = 0;
+--replace_result $_group_replication_single_leader_s1 PAXOS_SINGLE_LEADER
+--eval SET GLOBAL group_replication_paxos_single_leader = $_group_replication_single_leader_s1
 
 --let $rpl_group_replication_reset_persistent_vars= 1
 --source include/group_replication_end.inc

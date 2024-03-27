@@ -3,6 +3,15 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+include/start_group_replication.inc
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+include/start_group_replication.inc
+[connection server1]
 [connection server1]
 include/assert.inc [group_replication_paxos_single_leader must be disabled]
 [connection server2]
@@ -105,11 +114,11 @@ include/assert.inc [group_replication_paxos_single_leader must be enabled]
 include/assert.inc [group_replication_paxos_single_leader must be enabled]
 [connection server3]
 include/stop_group_replication.inc
-SET GLOBAL group_replication_paxos_single_leader = 0;
+SET GLOBAL group_replication_paxos_single_leader = PAXOS_SINGLE_LEADER;
 [connection server2]
 include/stop_group_replication.inc
-SET GLOBAL group_replication_paxos_single_leader = 0;
+SET GLOBAL group_replication_paxos_single_leader = PAXOS_SINGLE_LEADER;
 [connection server1]
 include/stop_group_replication.inc
-SET GLOBAL group_replication_paxos_single_leader = 0;
+SET GLOBAL group_replication_paxos_single_leader = PAXOS_SINGLE_LEADER;
 include/group_replication_end.inc

@@ -19,9 +19,8 @@
 --let $assert_cond= [SELECT @@GLOBAL.group_replication_single_primary_mode] = 0
 --source include/assert.inc
 
---let $assert_text= group_replication_enforce_update_everywhere_checks is ON
---let $assert_cond= [SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks] = "1"
---source include/assert.inc
+--let $wait_condition= SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks = '1'
+--source include/wait_condition_or_abort.inc
 
 --let $assert_text= 'No secondaries on the group'
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_role="SECONDARY"] = 0

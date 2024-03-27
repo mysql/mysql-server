@@ -290,7 +290,7 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo ############################################################
 --echo # 10. Clean up.
---let $rpl_connection_name= server2
+--let $rpl_connection_name= server1
 --source include/connection.inc
 --source include/stop_group_replication.inc
 
@@ -301,7 +301,7 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_channel_name=
 --let $rpl_multi_source=
 
---let $rpl_connection_name= server1
+--let $rpl_connection_name= server2
 --source include/connection.inc
 --source include/stop_group_replication.inc
 

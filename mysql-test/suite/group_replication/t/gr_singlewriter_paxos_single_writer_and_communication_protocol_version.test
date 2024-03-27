@@ -45,11 +45,15 @@ SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server1
 --source include/connection.inc
+
+--let $_group_replication_single_leader_s1= `SELECT @@GLOBAL.group_replication_paxos_single_leader`
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
+
+--let $_group_replication_single_leader_s2= `SELECT @@GLOBAL.group_replication_paxos_single_leader`
 --eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
 --source include/start_group_replication.inc
 
@@ -67,6 +71,9 @@ SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3
 --source include/connection.inc
+
+--let $_group_replication_single_leader_s3= `SELECT @@GLOBAL.group_replication_paxos_single_leader`
+
 --eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 # Verify that START fails for group_replication
@@ -181,14 +188,17 @@ START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server3
 --source include/connection.inc
---eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+--replace_result $_group_replication_single_leader_s3 PAXOS_SINGLE_LEADER
+--eval SET GLOBAL group_replication_paxos_single_leader = $_group_replication_single_leader_s3
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
---eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+--replace_result $_group_replication_single_leader_s2 PAXOS_SINGLE_LEADER
+--eval SET GLOBAL group_replication_paxos_single_leader = $_group_replication_single_leader_s2
 
 --let $rpl_connection_name= server1
 --source include/connection.inc
---eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+--replace_result $_group_replication_single_leader_s1 PAXOS_SINGLE_LEADER
+--eval SET GLOBAL group_replication_paxos_single_leader = $_group_replication_single_leader_s1
 
 --source include/group_replication_end.inc

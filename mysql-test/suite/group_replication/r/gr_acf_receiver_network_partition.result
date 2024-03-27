@@ -97,10 +97,10 @@ include/assert.inc ['The version of replication_asynchronous_connection_failover
 
 ############################################################
 # 10. Clean up.
-[connection server2]
+[connection server1]
 include/stop_group_replication.inc
 include/rpl/reset_replica.inc
-[connection server1]
+[connection server2]
 include/stop_group_replication.inc
 include/rpl/reset_replica.inc
 [connection server4]

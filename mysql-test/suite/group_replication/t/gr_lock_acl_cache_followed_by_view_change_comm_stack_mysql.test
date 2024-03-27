@@ -30,8 +30,14 @@
 #     so define event_sequence for assert_binlog_events.inc
 #  7. Verify that all members data is equal.
 #  8. Clean up.
+#
+#  NOTE: This test can't run with Single Leader enabled
+#        because the 3rd member will never be able to contact
+#        the leader to send messages on his behalf, due to the fact
+#        it is not accepting any MySQL client connections.
 ###########################################################
 
+--source include/have_group_replication_paxos_single_leader_disabled.inc
 --source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_group_replication_mysql_communication_stack.inc
