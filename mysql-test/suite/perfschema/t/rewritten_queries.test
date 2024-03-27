@@ -2,7 +2,6 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
-
 --echo
 --echo # Connection 1
 --echo
@@ -26,6 +25,15 @@ SELECT * FROM test.t1 FOR UPDATE;
 --connection con1
 SELECT "This is not secret" as normal_query;
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -34,12 +42,32 @@ SELECT "This is not secret" as normal_query;
 --connection con1
 --send INSERT INTO test.t1 VALUES (4, "This is not secret");
 --connection default
+
+# Wait for con1 to reach the INSERT code
+let $wait_condition=  select count(*) = 1
+   from performance_schema.metadata_locks
+   where
+   OBJECT_TYPE='TABLE' and
+   OBJECT_SCHEMA='test' and
+   OBJECT_NAME="t1" and
+   OWNER_THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 COMMIT;
 --connection con1
 --reap
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -48,8 +76,16 @@ COMMIT;
 --connection con1
 CREATE USER alice IDENTIFIED BY 'thisisapassword';
 --connection default
---source ../include/rewritten_queries.inc
 
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
+--source ../include/rewritten_queries.inc
 
 --echo
 --echo # Regular prepared statement (prepare)
@@ -57,6 +93,15 @@ CREATE USER alice IDENTIFIED BY 'thisisapassword';
 --connection con1
 PREPARE stmt FROM "SELECT 'This is not a secret either' as prepared_query";
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -65,6 +110,15 @@ PREPARE stmt FROM "SELECT 'This is not a secret either' as prepared_query";
 --connection con1
 EXECUTE stmt;
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -73,6 +127,15 @@ EXECUTE stmt;
 --connection con1
 DEALLOCATE PREPARE stmt;
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 BEGIN;
@@ -84,6 +147,15 @@ SELECT * FROM test.t1 FOR UPDATE;
 --connection con1
 PREPARE stmt FROM "INSERT INTO test.t1 VALUES (5, 'This is not secret either')";
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -92,12 +164,32 @@ PREPARE stmt FROM "INSERT INTO test.t1 VALUES (5, 'This is not secret either')";
 --connection con1
 --send EXECUTE stmt;
 --connection default
+
+# Wait for con1 to reach the EXECUTE code
+let $wait_condition=  select count(*) = 1
+   from performance_schema.metadata_locks
+   where
+   OBJECT_TYPE='TABLE' and
+   OBJECT_SCHEMA='test' and
+   OBJECT_NAME="t1" and
+   OWNER_THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 COMMIT;
 --connection con1
 --reap
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -106,6 +198,15 @@ COMMIT;
 --connection con1
 DEALLOCATE PREPARE stmt;
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -114,6 +215,15 @@ DEALLOCATE PREPARE stmt;
 --connection con1
 PREPARE stmt FROM "CREATE USER bob IDENTIFIED BY 'thisisapassword'";
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -122,6 +232,15 @@ PREPARE stmt FROM "CREATE USER bob IDENTIFIED BY 'thisisapassword'";
 --connection con1
 EXECUTE stmt;
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --echo
@@ -130,6 +249,15 @@ EXECUTE stmt;
 --connection con1
 DEALLOCATE PREPARE stmt;
 --connection default
+
+# Wait for con1 to complete cleanup after sending the OK packet.
+let $wait_condition=  select count(*) = 1
+  from performance_schema.threads
+  where
+  PROCESSLIST_INFO is NULL
+  AND THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
 --source ../include/rewritten_queries.inc
 
 --connection default
