@@ -56,6 +56,8 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 SET GLOBAL group_replication_autorejoin_tries = 1;
 include/gr_provoke_majority_loss.inc
+# Kill and restart
+# Kill and restart
 SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 
 ####

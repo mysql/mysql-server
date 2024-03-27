@@ -107,18 +107,15 @@ SET DEBUG_SYNC= 'RESET';
 --echo #  6. Check that it is *not* possible to modify the communication_protocol value via an ONLINE member when some member is in UNREACHABLE state.
 # Crash server2
 #
-# We kill the server, using shutdown_server 0, and then MTR will follow the
-# expect file and restart the server. We wait for the server to start.
+# We kill and restart the server. We wait for the server to start.
 #
 # However, since the server loses its GCS configuration they will not rejoin
 # the group.
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
 
---source include/wait_until_connected_again.inc
+
+--source include/kill_and_restart_mysqld.inc
 
 # Wait for the member state be unreachable.
 --let $rpl_connection_name= server_1
@@ -139,8 +136,7 @@ SELECT group_replication_get_communication_protocol();
 --echo #  8. Check that it is *not* possible to query the communication_protocol value via an ONLINE member when a majority of members are UNREACHABLE.
 # Crash server3
 #
-# We kill the server, using shutdown_server 0, and then MTR will follow the
-# expect file and restart the server. We wait for the server to start.
+# We kill and restart the server. We wait for the server to start.
 #
 # However, since the server loses its GCS configuration they will not rejoin
 # the group.
@@ -149,11 +145,7 @@ SELECT group_replication_get_communication_protocol();
 
 --let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
-
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 # Wait for the member state be unreachable.
 --let $rpl_connection_name= server_1

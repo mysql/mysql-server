@@ -73,17 +73,12 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 --let $rpl_connection_name= server2
 --source include/connection.inc
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
+
 # Crash server 3
 --let $rpl_connection_name= server3
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 --echo
 --echo #########################################################################
@@ -147,17 +142,11 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 # Crash server 2
 --let $rpl_connection_name= server2
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 # Crash server 3
 --let $rpl_connection_name= server3
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 --echo
 --echo #########################################################################

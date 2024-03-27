@@ -53,10 +53,8 @@ SET SESSION sql_log_bin= 1;
 --echo # 1. Crash server 2.
 --let $rpl_connection_name= server2
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
---source include/wait_until_connected_again.inc
+
+--source include/kill_and_restart_mysqld.inc
 --source include/rpl/reconnect.inc
 
 --let $rpl_connection_name= server1

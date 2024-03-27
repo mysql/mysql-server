@@ -29,7 +29,9 @@ SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
 #########################################################################
 
 [connection server2]
+# Kill and restart
 [connection server3]
+# Kill and restart
 
 #########################################################################
 # 1.1) Verify that member 1 went to ERROR state.
@@ -65,7 +67,9 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 #########################################################################
 
 [connection server2]
+# Kill and restart
 [connection server3]
+# Kill and restart
 
 #########################################################################
 # 4) Verify that member 1 aborted.

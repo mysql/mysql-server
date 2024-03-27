@@ -40,6 +40,8 @@ include/start_group_replication.inc
 SET GLOBAL group_replication_autorejoin_tries = 3;
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 include/gr_provoke_majority_loss.inc
+# Kill and restart
+# Kill and restart
 
 ####
 # 2) Verify that the member in the partitioned group will try to rejoin

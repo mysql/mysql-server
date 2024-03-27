@@ -12,7 +12,11 @@ include/start_group_replication.inc
 # Crash the two servers(1 primary + 1 secondary) out of 3 to cause a majority loss
 [connection server1]
 include/gr_wait_primary_member_uuid.inc
+# Kill the server
 [connection server3]
+# Kill and restart
+[connection server1]
+# restart
 include/rpl/reconnect.inc
 include/rpl/reconnect.inc
 [connection server1]

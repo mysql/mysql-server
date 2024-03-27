@@ -12,6 +12,7 @@ include/start_group_replication.inc
 # Crash the primary server
 [connection server1]
 include/gr_wait_primary_member_uuid.inc
+# Kill and restart
 include/rpl/reconnect.inc
 [connection server_2]
 # wait for number of alive members to be 2

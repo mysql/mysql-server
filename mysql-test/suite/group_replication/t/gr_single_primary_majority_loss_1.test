@@ -56,28 +56,29 @@
 
 # Crash the two secondary servers out of 3 to cause a majority loss
 --echo # Crash two secondary members to cause majority loss.
-# We do kill the servers, using shutdown_server 0, and then MTR will
-# follow the expect file and restart the sever, but we do not wait
-# for the server restart.
+# We do kill the servers almost simultaneously, only restarting them
+# after both have crashed.
 # Since the servers loose its GCS configuration them will not rejoin
 # the group.
 
 --let $rpl_connection_name= server2
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
+--let $server2_expect_file_name= $_expect_file_name
 
 --let $rpl_connection_name= server3
 --source include/connection.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_and_restart_mysqld.inc
 
---source include/wait_until_connected_again.inc
 
 # reset the group_replication_id var
 --let $group_replication_member_id= $member1_uuid
+
+# Start server 2 now after server 3 was killed.
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--let $_expect_file_name= $server2_expect_file_name
+--source include/start_mysqld.inc
 
 --let $rpl_server_number= 2
 --source include/rpl/reconnect.inc
