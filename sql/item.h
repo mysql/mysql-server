@@ -5592,9 +5592,6 @@ class Item_string : public Item_basic_constant {
   }
   bool set_str_with_copy(const char *str_arg, uint length_arg,
                          const CHARSET_INFO *from_cs);
-  /// Update collation of string value to be according to item's collation
-  void set_value_collation() { str_value.set_charset(collation.collation); }
-
   void set_repertoire_from_value() {
     collation.repertoire = my_string_repertoire(
         str_value.charset(), str_value.ptr(), str_value.length());
