@@ -135,7 +135,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       transaction_parser(
           Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER),
       group_relay_log_pos(0),
-      event_relay_log_number(0),
       event_relay_log_pos(0),
       group_source_log_seen_start_pos(false),
       group_source_log_start_pos(0),
@@ -2650,23 +2649,6 @@ ulong Relay_log_info::adapt_to_master_version_updown(ulong master_version,
   }
 
   return master_version;
-}
-
-void Relay_log_info::relay_log_number_to_name(uint number,
-                                              char name[FN_REFLEN + 1]) {
-  char *str = nullptr;
-  char relay_bin_channel[FN_REFLEN + 1];
-  const char *relay_log_basename_channel = add_channel_to_relay_log_name(
-      relay_bin_channel, FN_REFLEN + 1, relay_log_basename);
-
-  /* str points to closing null of relay log basename channel */
-  str = strmake(name, relay_log_basename_channel, FN_REFLEN + 1);
-  *str++ = '.';
-  sprintf(str, "%06u", number);
-}
-
-uint Relay_log_info::relay_log_name_to_number(const char *name) {
-  return static_cast<uint>(atoi(fn_ext(name) + 1));
 }
 
 bool is_mts_db_partitioned(Relay_log_info *rli) {

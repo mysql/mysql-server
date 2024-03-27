@@ -4542,8 +4542,9 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
 
     if (!exec_res && (ev->worker != rli)) {
       if (ev->worker) {
-        Slave_job_item item = {ev, rli->get_event_relay_log_number(),
-                               rli->get_event_start_pos()};
+        Slave_job_item item = {ev, rli->get_event_start_pos(), {'\0'}};
+        if (rli->get_event_relay_log_name())
+          strcpy(item.event_relay_log_name, rli->get_event_relay_log_name());
         Slave_job_item *job_item = &item;
         Slave_worker *w = (Slave_worker *)ev->worker;
         // specially marked group typically with OVER_MAX_DBS_IN_EVENT_MTS db:s
@@ -6770,7 +6771,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
   if (!rli->workers.empty()) {
     for (int i = static_cast<int>(rli->workers.size()) - 1; i >= 0; i--) {
       Slave_worker *w = rli->workers[i];
-      struct slave_job_item item = {nullptr, 0, 0};
+      struct slave_job_item item = {nullptr, 0, {'\0'}};
       struct slave_job_item *job_item = &item;
       mysql_mutex_lock(&w->jobs_lock);
 

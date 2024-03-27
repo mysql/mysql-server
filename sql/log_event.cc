@@ -2662,8 +2662,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
              !is_mts_db_partitioned(rli));
 
       if (is_s_event || is_gtid_event(this)) {
-        Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                   rli->get_event_start_pos()};
+        Slave_job_item job_item = {this, rli->get_event_start_pos(), {'\0'}};
+        if (rli->get_event_relay_log_name())
+          strcpy(job_item.event_relay_log_name,
+                 rli->get_event_relay_log_name());
         // B-event is appended to the Deferred Array associated with GCAP
         rli->curr_group_da.push_back(job_item);
 
@@ -2698,8 +2700,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
        TODO: Make GITD event as B-event that is starts_group() to
        return true.
       */
-      Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                 rli->get_event_relay_log_pos()};
+      Slave_job_item job_item = {this, rli->get_event_relay_log_pos(), {'\0'}};
+      if (rli->get_event_relay_log_name())
+        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
 
       // B-event is appended to the Deferred Array associated with GCAP
       rli->curr_group_da.push_back(job_item);
@@ -2727,8 +2730,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         rli, &rli->workers, this);
     if (ret_worker == nullptr) {
       /* get_least_occupied_worker may return NULL if the thread is killed */
-      Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                 rli->get_event_start_pos()};
+      Slave_job_item job_item = {this, rli->get_event_start_pos(), {'\0'}};
+      if (rli->get_event_relay_log_name())
+        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
       rli->curr_group_da.push_back(job_item);
 
       assert(thd->killed);
@@ -2878,8 +2882,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         Their association with relay-log physical coordinates is provided
         by the same mechanism that applies to a regular event.
       */
-      Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                 rli->get_event_start_pos()};
+      Slave_job_item job_item = {this, rli->get_event_start_pos(), {'\0'}};
+      if (rli->get_event_relay_log_name())
+        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
       rli->curr_group_da.push_back(job_item);
 
       assert(!ret_worker);

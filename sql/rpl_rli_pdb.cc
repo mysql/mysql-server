@@ -1851,10 +1851,10 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
   return std::make_tuple(false, silent, error);
 }
 
-bool Slave_worker::retry_transaction(uint start_relay_number,
-                                     my_off_t start_relay_pos,
-                                     uint end_relay_number,
-                                     my_off_t end_relay_pos) {
+bool Slave_worker::retry_transaction(my_off_t start_relay_pos,
+                                     const char *start_event_relay_log_name,
+                                     my_off_t end_relay_pos,
+                                     const char *end_event_relay_log_name) {
   THD *thd = info_thd;
   bool silent = false;
 
@@ -1927,37 +1927,36 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     clean_retry_context();
     worker_sleep(min<ulong>(trans_retries, MAX_SLAVE_RETRY_PAUSE));
 
-  } while (read_and_apply_events(start_relay_number, start_relay_pos,
-                                 end_relay_number, end_relay_pos));
+  } while (read_and_apply_events(start_relay_pos, start_event_relay_log_name,
+                                 end_relay_pos, end_event_relay_log_name));
   return false;
 }
 
 /**
   Read events from relay logs and apply them.
 
-  @param[in] start_relay_number The extension number of the relay log which
-               includes the first event of the transaction.
   @param[in] start_relay_pos The offset of the transaction's first event.
+  @param[in] start_event_relay_log_name The name of the relay log which
+               includes the first event of the transaction.
 
-  @param[in] end_relay_number The extension number of the relay log which
-               includes the last event it should retry.
   @param[in] end_relay_pos The offset of the last event it should retry.
+  @param[in] end_event_relay_log_name The name of the relay log which
+               includes the last event it should retry.
 
   @return false if succeeds, otherwise returns true.
 */
-bool Slave_worker::read_and_apply_events(uint start_relay_number,
-                                         my_off_t start_relay_pos,
-                                         uint end_relay_number,
-                                         my_off_t end_relay_pos) {
+bool Slave_worker::read_and_apply_events(my_off_t start_relay_pos,
+                                         const char *start_event_relay_log_name,
+                                         my_off_t end_relay_pos,
+                                         const char *end_event_relay_log_name) {
   DBUG_TRACE;
 
   Relay_log_info *rli = c_rli;
   char file_name[FN_REFLEN + 1];
-  uint file_number = start_relay_number;
   bool arrive_end = false;
   Relaylog_file_reader relaylog_file_reader(opt_replica_sql_verify_checksum);
 
-  relay_log_number_to_name(start_relay_number, file_name);
+  strcpy(file_name, start_event_relay_log_name);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_thread *thread = thd_get_psi(rli->info_thd);
@@ -1981,7 +1980,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
     /* If it is the last event, then set arrive_end as true */
     arrive_end = (relaylog_file_reader.position() == end_relay_pos &&
-                  file_number == end_relay_number);
+                  !(strcmp(file_name, end_event_relay_log_name)));
 
     ev = relaylog_file_reader.read_event_object();
     if (ev != nullptr) {
@@ -2035,8 +2034,6 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
         LogErr(ERROR_LEVEL, ER_RPL_WORKER_CANT_FIND_NEXT_RELAY_LOG, file_name);
         return true;
       }
-
-      file_number = relay_log_name_to_number(file_name);
 
       relaylog_file_reader.close();
       start_relay_pos = BIN_LOG_HEADER_SIZE;
@@ -2426,23 +2423,23 @@ void report_error_to_coordinator(Slave_worker *worker) {
          returns an error code.
  */
 int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
-  struct slave_job_item item = {nullptr, 0, 0};
+  struct slave_job_item item = {nullptr, 0, {'\0'}};
   struct slave_job_item *job_item = &item;
   THD *thd = worker->info_thd;
   bool seen_gtid = false;
   bool seen_begin = false;
   int error = 0;
   Log_event *ev = nullptr;
-  uint start_relay_number;
   my_off_t start_relay_pos;
+  char start_event_relay_log_name[FN_REFLEN + 1];
 
   DBUG_TRACE;
 
   if (unlikely(worker->trans_retries > 0)) worker->trans_retries = 0;
 
   job_item = pop_jobs_item(worker, job_item);
-  start_relay_number = job_item->relay_number;
   start_relay_pos = job_item->relay_pos;
+  strcpy(start_event_relay_log_name, job_item->event_relay_log_name);
 
   PSI_thread *thread = thd_get_psi(thd);
 
@@ -2511,9 +2508,9 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
         diff_timespec(&worker->ts_exec[1], &worker->ts_exec[0]);
     if (error || worker->found_commit_order_deadlock()) {
       worker->prepare_for_retry(*ev);
-      error = worker->retry_transaction(start_relay_number, start_relay_pos,
-                                        job_item->relay_number,
-                                        job_item->relay_pos);
+      error = worker->retry_transaction(
+          start_relay_pos, start_event_relay_log_name, job_item->relay_pos,
+          job_item->event_relay_log_name);
       if (error) goto err;
     }
     /*
