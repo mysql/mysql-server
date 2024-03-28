@@ -13,18 +13,6 @@ if (!$restart_parameters)
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "$restart_parameters" > $_expect_file_name
 
-# --let $expect_crash_on_start = [0|1]
-#    Whether or not a crash during start should be expected. If set to `1`,
-#    will wait for the expect file containing the `restart` parameters to
-#    be processed and will set it to "wait".
-#
-if ($expect_crash_on_start == 1) {
-  --let $expect_file_name = $_expect_file_name
-  --source include/wait_for_removed_expect_file.inc
-  --exec echo "wait" > $_expect_file_name
-}
-
-if ($expect_crash_on_start != 1) {
   # Call script that will poll the server waiting for it to be back online again
   # Allow for slow machines like Sparc
   --let $wait_counter= 6000
@@ -49,4 +37,3 @@ if ($expect_crash_on_start != 1) {
   {
     --source include/xplugin_wait_for_interfaces.inc
   }
-}
