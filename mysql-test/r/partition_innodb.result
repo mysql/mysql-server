@@ -1111,7 +1111,7 @@ CREATE TABLE t1(c1 INT,c2 CHAR (1),c3 DATE) ENGINE=InnoDB PARTITION BY HASH
 ALTER TABLE t1 ADD INDEX(c1);
 ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
 SELECT COUNT(*)FROM t1,t1 AS b WHERE t1.c1=''AND t1.c2=b.c1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 CREATE TABLE t2 (c1 int,c2 CHAR (1),c3 date,key(c1)) ENGINE=InnoDB
 PARTITION BY RANGE (TO_DAYS(c3))
 (
@@ -1121,7 +1121,7 @@ PARTITION p2 VALUES LESS THAN (TO_DAYS('1999-01-01'))
 );
 ALTER TABLE t2 DISCARD PARTITION p2 TABLESPACE;
 SELECT COUNT(*)FROM t2,t2 AS b WHERE t2.c1=''AND t2.c2=b.c1;
-ERROR HY000: Tablespace has been discarded for table 't2'
+ERROR HY000: Tablespace is discarded for table, 't2'
 DROP TABLE t1,t2;
 
 Bug #26034430    ASSERTION `PART_REC_BUF_PTR' FAILED.

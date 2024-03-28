@@ -149,7 +149,7 @@ ALTER TABLE t1 SECONDARY_ENGINE MOCK;
 ALTER TABLE t1 SECONDARY_LOAD PARTITION();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 ALTER TABLE t1 SECONDARY_UNLOAD PARTITION(p0);
-ERROR HY000: Table is not loaded on a secondary engine
+ERROR HY000: Table test.t1 is not loaded in secondary engine.
 ALTER TABLE t1 SECONDARY_LOAD PARTITION(p0,p1);
 ALTER TABLE t1 SECONDARY_UNLOAD PARTITION();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1

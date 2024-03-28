@@ -700,7 +700,7 @@ DROP TABLE emp;
 CREATE TABLE t1(c1 CHAR (1));
 ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 UNLOCK TABLES;
 DROP TABLE t1;
 #
@@ -710,7 +710,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT,c2 CHAR,c3 DATE)PARTITION BY HASH(DAYOFWEEK(c3));
 ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 UNLOCK TABLES;
 DROP TABLE t1;
 #

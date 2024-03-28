@@ -189,9 +189,9 @@ ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION DEBUG="-d,ib_crash_during_decrypt_page";
 INSERT INTO tde_db.t1 VALUES(7, "hhhhh");
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 DROP TABLE tde_db.t1;
 DROP DATABASE tde_db;
 #

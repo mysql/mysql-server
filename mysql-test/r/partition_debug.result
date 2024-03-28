@@ -144,7 +144,7 @@ CREATE TABLE t1(a int) PARTITION BY LIST (a) (PARTITION x1 VALUES IN
 (2),PARTITION x2 VALUES IN (3));
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT COUNT(*)FROM t1;
-ERROR HY000: Tablespace has been discarded for table 'test/t1#p#x1'
+ERROR HY000: Tablespace is discarded for table, 'test/t1#p#x1'
 DROP TABLE t1;
 #
 # Bug #31941543	EXCHANGE PARTITION ASSERT

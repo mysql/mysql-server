@@ -522,7 +522,7 @@ SET @@use_secondary_engine = FORCED;
 SELECT * FROM t1;
 a
 INSERT INTO t1 SELECT * FROM t2;
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t2].".
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
@@ -581,7 +581,7 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
 FLUSH STATUS;
 SELECT * FROM t1;
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t1].".
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
@@ -612,18 +612,18 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
 SELECT * FROM t2;
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t2].".
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
 SELECT * FROM t1,t2;
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t2].".
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
 SELECT * FROM t1,t2;
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t2].".
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
@@ -637,7 +637,7 @@ SET @@use_secondary_engine = FORCED;
 CREATE TEMPORARY TABLE t1 (a INT);
 FLUSH STATUS;
 SELECT * FROM t1;
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t1].".
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0

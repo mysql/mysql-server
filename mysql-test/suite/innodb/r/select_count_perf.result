@@ -1681,7 +1681,7 @@ COUNT(*)
 9
 ALTER TABLE t4 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM t4;
-ERROR HY000: Tablespace has been discarded for table 't4'
+ERROR HY000: Tablespace is discarded for table, 't4'
 #
 # Test the interaction of a repeatable read transaction
 # to changes that happen outside its view.

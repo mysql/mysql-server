@@ -307,16 +307,16 @@ CONCAT(':',product,':')	SUM(profit)	AVG(profit)
 NULL	7785	519.00000
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY CUBE (product, country_id, year);
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t1].".
 EXPLAIN SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY CUBE (product, country_id, year);
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t1].".
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY CUBE (product, country_id, year)
 UNION ALL
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY ROLLUP (product, country_id, year);
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t1].".
 drop table t1,t2;
 CREATE TABLE t1 (i int);
 INSERT INTO t1 VALUES(100);
@@ -2403,7 +2403,7 @@ FROM t1, LATERAL (SELECT f1 AS f2
 FROM v1
 GROUP BY CUBE(f2)) AS dt1
 GROUP BY CUBE(f2);
-ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+ERROR HY000: Secondary engine operation failed. Reason: "You have not defined the secondary engine for at least one of the query tables [test.t1].".
 DROP VIEW v1;
 DROP TABLE t1;
 #

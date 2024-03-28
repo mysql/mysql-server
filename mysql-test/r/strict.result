@@ -1407,7 +1407,7 @@ i int comment
  123456789*123456789*123456789*123456789*
  123456789*123456789*123456789*123456789*
  123456789*123456789*123456789*123456789*');
-ERROR HY000: Comment for field 'i' is too long (max = 1024)
+ERROR HY000: The maximum supported character limit for the field, 'i', has been exceeded (max = 1024)
 set @@sql_mode= @org_mode;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1
@@ -1440,7 +1440,7 @@ create table t1
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*');
 Warnings:
-Warning	1629	Comment for field 'i' is too long (max = 1024)
+Warning	1629	The maximum supported character limit for the field, 'i', has been exceeded (max = 1024)
 SET sql_mode = default;
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';

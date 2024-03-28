@@ -795,9 +795,9 @@ DROP table t2,t1;
 CREATE TABLE t(a int) engine=innodb;
 ALTER TABLE t DISCARD TABLESPACE;
 DELETE IGNORE FROM t ;
-ERROR HY000: Tablespace has been discarded for table 't'
+ERROR HY000: Tablespace is discarded for table, 't'
 DELETE IGNORE FROM t ORDER BY 0 + 1 ;
-ERROR HY000: Tablespace has been discarded for table 't'
+ERROR HY000: Tablespace is discarded for table, 't'
 DROP TABLE t;
 #
 # BUG#18526888 - STRICT MODE DOES NOT APPLY TO MULTI DELETE STATEMENT

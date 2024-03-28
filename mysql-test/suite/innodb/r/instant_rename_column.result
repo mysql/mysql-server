@@ -104,10 +104,10 @@ Table_Id_Changed
 1
 ALTER TABLE t1 RENAME COLUMN c2 to c3, algorithm=instant;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace is discarded for table, 't1'
 ALTER TABLE t1 RENAME COLUMN c3 to c2, algorithm=instant;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace is discarded for table, 't1'
 Drop TABLE t1;
 CREATE TABLE tpart (c1 INT, c2 INT AS (c1 + 1) VIRTUAL)
 PARTITION BY RANGE(c1) (
@@ -121,12 +121,12 @@ Table_Id_Changed
 1
 ALTER TABLE tpart RENAME COLUMN c2 TO c3, ALGORITHM=INSTANT;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
-Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+Warning	1814	InnoDB: Tablespace is discarded for table, 'tpart'
+Warning	1814	InnoDB: Tablespace is discarded for table, 'tpart'
 ALTER TABLE tpart RENAME COLUMN c3 TO c2, ALGORITHM=INSTANT;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
-Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+Warning	1814	InnoDB: Tablespace is discarded for table, 'tpart'
+Warning	1814	InnoDB: Tablespace is discarded for table, 'tpart'
 DROP TABLE tpart;
 # Scenario 7: Try to rename a column to an internal column name
 CREATE TABLE t1 (c1 INT, c2 INT);

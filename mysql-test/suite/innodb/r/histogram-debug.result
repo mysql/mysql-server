@@ -283,7 +283,7 @@ CREATE TABLE t1 (id int);
 ALTER TABLE t1 DISCARD TABLESPACE;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
 Table	Op	Msg_type	Msg_text
-test.t1	histogram	Error	Tablespace has been discarded for table 'test/t1'
+test.t1	histogram	Error	Tablespace is discarded for table, 'test/t1'
 DROP TABLE t1;
 #
 # Simulated error case where parallel read thread returns error

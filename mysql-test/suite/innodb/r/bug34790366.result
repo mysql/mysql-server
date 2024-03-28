@@ -89,19 +89,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -186,19 +186,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -283,19 +283,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -439,19 +439,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -513,19 +513,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -587,19 +587,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -661,19 +661,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -735,19 +735,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -809,19 +809,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -883,19 +883,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -957,19 +957,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1031,19 +1031,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1105,19 +1105,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1179,19 +1179,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1253,19 +1253,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1339,19 +1339,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1413,19 +1413,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1487,19 +1487,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1561,19 +1561,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1635,19 +1635,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1709,19 +1709,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1783,19 +1783,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1857,19 +1857,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -1931,19 +1931,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2017,19 +2017,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2091,19 +2091,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2165,19 +2165,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2239,19 +2239,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2313,19 +2313,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2387,19 +2387,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2461,19 +2461,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2535,19 +2535,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2621,19 +2621,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2707,19 +2707,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2781,19 +2781,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2855,19 +2855,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -2929,19 +2929,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -3003,19 +3003,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -3089,19 +3089,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;
@@ -3163,19 +3163,19 @@ test.t4	check	status	OK
 # Failed import check table reports corrupt
 check table t5;
 Table	Op	Msg_type	Msg_text
-test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	Error	Tablespace is discarded for table, 't5'
 test.t5	check	error	Corrupt
 check table t6;
 Table	Op	Msg_type	Msg_text
-test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	Error	Tablespace is discarded for table, 't6'
 test.t6	check	error	Corrupt
 check table t7;
 Table	Op	Msg_type	Msg_text
-test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	Error	Tablespace is discarded for table, 't7'
 test.t7	check	error	Corrupt
 check table t8;
 Table	Op	Msg_type	Msg_text
-test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	Error	Tablespace is discarded for table, 't8'
 test.t8	check	error	Corrupt
 # cleanup
 drop table t3;

@@ -140,7 +140,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB  ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 t1.cfg
 t1.ibd
@@ -178,7 +178,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB  ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 t1.cfg
 t1.ibd
@@ -216,7 +216,7 @@ c2 INT, INDEX(c2)) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -250,16 +250,16 @@ c2 INT, INDEX x(c2)) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Index x not found in tablespace meta-data file.)
 ALTER TABLE t1 DROP INDEX x;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace is discarded for table, 't1'
 ALTER TABLE t1 ADD INDEX idx(c2);
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -372,7 +372,7 @@ c2 INT) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 3 indexes)
@@ -386,7 +386,7 @@ c3 INT, INDEX idx(c2)) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Number of columns don't match, table has 6 columns but the tablespace meta-data file has 5 columns)
@@ -399,7 +399,7 @@ c2 BIGINT, INDEX idx(c2)) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Column c2 precise type mismatch.)
@@ -412,7 +412,7 @@ c2 INT, INDEX idx(c2)) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Table flags don't match)
@@ -425,7 +425,7 @@ c2 INT, INDEX idx(c2)) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;

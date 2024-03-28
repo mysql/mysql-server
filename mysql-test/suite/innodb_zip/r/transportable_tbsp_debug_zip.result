@@ -22,18 +22,18 @@ ROW_FORMAT=COMPRESSED;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_before_commit_crash";
 SELECT * FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 unlink: t1.ibd
 unlink: t1.cfg
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 unlink: t1.ibd
@@ -74,7 +74,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -87,7 +87,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -461,7 +461,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_1";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -474,7 +474,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,buf_page_import_corrupt_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -486,7 +486,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_2";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -499,7 +499,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_3";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -512,11 +512,11 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 SET SESSION debug="+d,ib_import_create_index_failure_1";
 ALTER TABLE test_wl5522.t1 ADD INDEX idx(c1);
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace is discarded for table, 't1'
 SET SESSION debug="-d,ib_import_create_index_failure_1";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -525,7 +525,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fil_space_create_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -538,7 +538,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -551,7 +551,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace is discarded for table, 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fsp_flags_is_valid_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;

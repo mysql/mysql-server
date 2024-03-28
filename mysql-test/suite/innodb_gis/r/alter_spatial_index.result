@@ -234,7 +234,7 @@ FLUSH TABLE tab FOR EXPORT;
 UNLOCK TABLES;
 ALTER TABLE tab DISCARD TABLESPACE;
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab;
-ERROR HY000: Tablespace has been discarded for table 'tab'
+ERROR HY000: Tablespace is discarded for table, 'tab'
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
