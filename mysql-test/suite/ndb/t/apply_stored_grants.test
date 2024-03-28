@@ -141,6 +141,7 @@ REVOKE SELECT ON nonexistent_table FROM R3;
 
 connection mysqld2;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+--enable_reconnect
 --source include/wait_until_connected_again.inc
 
 
