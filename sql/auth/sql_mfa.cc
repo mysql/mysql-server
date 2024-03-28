@@ -853,20 +853,22 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
   my_h_service h_reg_svc = nullptr;
   SERVICE_TYPE(mysql_authentication_registration) * mysql_auth_reg_service;
 
-  if (!srv_registry->acquire(service_name.c_str(), &h_reg_svc)) {
-    mysql_auth_reg_service =
-        reinterpret_cast<SERVICE_TYPE(mysql_authentication_registration) *>(
-            h_reg_svc);
+  if (srv_registry->acquire(service_name.c_str(), &h_reg_svc)) return true;
 
-    mysql_auth_reg_service->get_challenge_length(&plugin_buf_len);
-    /* buffer allocated by server before passing to component service */
-    plugin_buf = new unsigned char[plugin_buf_len];
-    if (mysql_auth_reg_service->init(&plugin_buf, plugin_buf_len)) {
-      delete[] plugin_buf;
-      srv_registry->release(h_reg_svc);
-      return true;
-    }
+  mysql_auth_reg_service =
+      reinterpret_cast<SERVICE_TYPE(mysql_authentication_registration) *>(
+          h_reg_svc);
+
+  mysql_auth_reg_service->get_challenge_length(&plugin_buf_len);
+  /* buffer allocated by server before passing to component service */
+  plugin_buf = new (std::nothrow) unsigned char[plugin_buf_len];
+  if (plugin_buf == nullptr) return true;
+  if (mysql_auth_reg_service->init(&plugin_buf, plugin_buf_len)) {
+    delete[] plugin_buf;
+    srv_registry->release(h_reg_svc);
+    return true;
   }
+
   srv_registry->release(h_reg_svc);
 
   /* `user name` + '@' + `host name` */
@@ -877,13 +879,17 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
 
   /* append user name to random challenge(32bit salt + RP id). */
   size_t buflen = plugin_buf_len + user_str_len + net_length_size(user_str_len);
-  unsigned char *buf = new unsigned char[buflen];
+  unsigned char *buf = new (std::nothrow) unsigned char[buflen];
+  if (buf == nullptr) {
+    delete[] plugin_buf;
+    return true;
+  }
   unsigned char *pos = buf;
 
   memcpy(pos, plugin_buf, plugin_buf_len);
   pos += plugin_buf_len;
 
-  if (plugin_buf) delete[] plugin_buf;
+  delete[] plugin_buf;
 
   pos = net_store_length(pos, user_str_len);
   memcpy(pos, user_str.c_str(), user_str_len);
