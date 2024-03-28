@@ -39,6 +39,16 @@ ALTER TABLE t2 DROP COLUMN j2;
 
 DROP TABLE t2;
 
+#
+# Bug#36399271 Allow primary key on JSON datatype for external tables
+#
+--echo Verify that JSON columns do not support primary key on alter table
+CREATE TABLE t3(j1 JSON, j2 JSON NOT NULL);
+--error ER_JSON_USED_AS_KEY
+ALTER TABLE t3 ADD PRIMARY KEY(j1);
+
+DROP TABLE t3;
+
 # JSON is a non-reserved keyword, so it should be possible to use it
 # as an identifier.
 CREATE TABLE json(json int);

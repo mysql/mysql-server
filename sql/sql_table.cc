@@ -4449,6 +4449,16 @@ static bool is_phony_blob(enum_field_types sql_type, uint decimals) {
          (((decimals << FIELDFLAG_DEC_SHIFT) & FIELDFLAG_BLOB) != 0);
 }
 
+/**
+  Helper function which checks if external table has primary key on JSON column
+*/
+static inline bool is_json_pk_on_external_table(
+    const uint32 flags, const keytype keytype,
+    const enum_field_types sql_type) {
+  return (Overlaps(flags, HTON_SUPPORTS_EXTERNAL_SOURCE) &&
+          keytype == KEYTYPE_PRIMARY && sql_type == MYSQL_TYPE_JSON);
+}
+
 static bool prepare_set_field(THD *thd, Create_field *sql_field) {
   DBUG_TRACE;
   assert(sql_field->sql_type == MYSQL_TYPE_SET);
@@ -4978,8 +4988,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     key_info->flags |= HA_VIRTUAL_GEN_KEY;
   }
 
-  // JSON columns cannot be used as keys.
-  if (sql_field->sql_type == MYSQL_TYPE_JSON) {
+  // JSON columns cannot be used as keys, except for primary keys on external
+  // tables.
+  if (sql_field->sql_type == MYSQL_TYPE_JSON &&
+      !is_json_pk_on_external_table(file->ht->flags, key->type,
+                                    sql_field->sql_type)) {
     my_error(ER_JSON_USED_AS_KEY, MYF(0), column->get_field_name());
     return true;
   }
@@ -5290,8 +5303,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
                key_part_length);
       return true;
     } else {
-      my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
-      if (thd->is_error()) return true;
+      if (!is_json_pk_on_external_table(file->ht->flags, key->type,
+                                        sql_field->sql_type)) {
+        my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
+        if (thd->is_error()) return true;
+      }
     }
   }
   key_part_info->length = static_cast<uint16>(key_part_length);
