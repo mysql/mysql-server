@@ -39,7 +39,7 @@
   my $pattern = $ENV{'_WFPIF_GREP_PATTERN'} or die "grep_pattern is not set";
   my $wait_timeout = $ENV{'_WFPIF_WAIT_TIMEOUT'};
   my $found = 0;
-  my $timeout = $wait_timeout * 2;
+  my $timeout = $wait_timeout;
   my $line = '';
   open(my $fd, "<", $file) or die("Unable to open $file: $!\n");
 
@@ -63,7 +63,7 @@
         }
         --$timeout;
       }
-      sleep 0.5;
+      sleep 1;
     }
   }
   close($fd) or die "Error closing $file: $!";

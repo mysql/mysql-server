@@ -39,7 +39,6 @@ if ($recovery_scenario == '') {
 
 --move_file $target_binlog_file_bak $target_binlog_file
 
---let $expect_crash_on_start =
 --let $restart_parameters =
 --source include/start_mysqld.inc
 

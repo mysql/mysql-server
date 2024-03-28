@@ -173,15 +173,13 @@ PROCEDURE
     --source common/xa_crash_safe/cleanup_connection.inc
 
     --let $debug_point = xa_recovery_error_$xa_error_lc,xa_recovery_error_reporting
-    --let $restart_parameters = restart: --debug=+d,$debug_point
-    --let $expect_crash_on_start = 1
-    --source include/start_mysqld.inc
+    --let $restart_parameters=--debug=+d,$debug_point
+    --source include/start_mysqld_expecting_crash.inc
 
     --let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
     --let $grep_pattern = .*Failed to $action transaction .* in InnoDB, with failure code $xa_error.*
     --source include/wait_for_pattern_in_file.inc
 
-    --let $expect_crash_on_start =
     --let $restart_parameters = restart:
     --source include/start_mysqld.inc
 
@@ -292,9 +290,8 @@ PROCEDURE
     --source common/xa_crash_safe/cleanup_connection.inc
 
     --let $debug_point = xa_recovery_error_$xa_error_lc,xa_recovery_error_reporting
-    --let $restart_parameters = restart: --debug=+d,$debug_point
-    --let $expect_crash_on_start = 1
-    --source include/start_mysqld.inc
+    --let $restart_parameters=--debug=+d,$debug_point
+    --source include/start_mysqld_expecting_crash.inc
 
     if ($_expected_recovery != 'none') {
       --let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -302,7 +299,6 @@ PROCEDURE
       --source include/wait_for_pattern_in_file.inc
     }
 
-    --let $expect_crash_on_start =
     --let $restart_parameters =
     --source include/start_mysqld.inc
 
