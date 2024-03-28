@@ -4818,6 +4818,18 @@ void NDB_SHARE::set_binlog_flags(Ndb_binlog_type ndb_binlog_type) {
       return;
   }
   flags &= ~NDB_SHARE::FLAG_NO_BINLOG;
+
+  // The ndb_apply_status table should always use WRITE format.
+  // NOTE! This is the second hardcoding complementing the one in
+  // read_replication_info(), that hardcoding forces use of FULL (which implies
+  // WRITE) when --ndb-log-apply-status=1. Although this setting will not have
+  // any effect unless --ndb-log-apply-status=1, it is hardcocded here again in
+  // order to make it possible to dynamically change --ndb-log-apply-status at
+  // runtime.
+  if (is_apply_status_table()) {
+    flags &= ~NDB_SHARE::FLAG_BINLOG_MODE_USE_UPDATE;
+    return;
+  }
 }
 
 /*
@@ -4835,19 +4847,17 @@ bool Ndb_binlog_client::read_replication_info(
     st_conflict_fn_arg *args, uint *num_args) {
   DBUG_TRACE;
 
-  /* Override for ndb_apply_status when logging */
-  if (opt_ndb_log_apply_status) {
-    if (Ndb_apply_status_table::is_apply_status_table(db, table_name)) {
-      // Ensure to get all columns from ndb_apply_status updates and that events
-      // are always logged as WRITES.
-      ndb_log_info(
-          "ndb-log-apply-status forcing 'mysql.ndb_apply_status' to FULL "
-          "USE_WRITE");
-      *binlog_flags = NBT_FULL;
-      *conflict_fn = nullptr;
-      *num_args = 0;
-      return false;
-    }
+  if (opt_ndb_log_apply_status &&
+      Ndb_apply_status_table::is_apply_status_table(db, table_name)) {
+    // ndb_apply_status can't be configured using ndb_replication settings.
+    // It should always receive all columns when ndb_apply_status is
+    // updated and those changes should be logged as WRITE to the binlog.
+    // NOTE! The table is always subscribed, but these updates are only written
+    // to binlog when --ndb-log-apply-status is ON.
+    *binlog_flags = NBT_FULL;
+    *conflict_fn = nullptr;
+    *num_args = 0;
+    return false;
   }
 
   Ndb_rep_tab_reader rep_tab_reader;

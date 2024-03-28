@@ -193,8 +193,11 @@ bool Ndb_apply_status_table::define_table_ndb(NdbDictionary::Table &new_table,
 }
 
 bool Ndb_apply_status_table::drop_events_in_NDB() const {
-  // Drop the default event
+  // The ndb_apply_status subscription will use either the default or full
+  // event depending on the settings of --ndb-log-apply-status. Thus both should
+  // be dropped.
   if (!drop_event_in_NDB("REPL$mysql/ndb_apply_status")) return false;
+  if (!drop_event_in_NDB("REPLF$mysql/ndb_apply_status")) return false;
   return true;
 }
 
