@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1]
+max_relay_log_size = 4096
+
+[mysqld.2]
+max_relay_log_size = 4096
