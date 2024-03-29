@@ -1,0 +1,103 @@
+################################################################################
+# This test proves that sequence number gap is not generated when certification
+# garbage collector runs during relay log rotation.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Add debug point to reduce certifier broadcast time to 1 second.
+#    Bootstrap M1 and join M2.
+#    Relay log file size has been reduced to 4096 in CNF file.
+# 2. Create a table t1 and insert several transactions.
+#    Each loop will ensure that all applier workers have assigned
+#    transactions and cause a relay log rotate, after a certification
+#    info garbage collection happened.
+# 3. Cleanup.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo #################################################################
+--echo # 1. Add debug point to reduce certifier broadcast time to 1 second.
+--echo #    Bootstrap M1 and join M2.
+--echo #    Relay log file size has been reduced to 4096 in CNF file.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_short_period';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_short_period';
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_garbage_collection_ran';
+
+--source include/start_group_replication.inc
+
+--echo #################################################################
+--echo # 2. Create a table t1 and insert several transactions.
+--echo #    Each loop will ensure that all applier workers have assigned
+--echo #    transactions and cause a relay log rotate, after a certification
+--echo #    info garbage collection happened.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+CREATE TABLE t1(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BLOB);
+
+--disable_query_log
+--let $relay_log_rotate=1
+while ($relay_log_rotate < 5)
+{
+  --connection server2
+  SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_certifier_garbage_collection_finished";
+
+  --connection server1
+  --let $i=1
+  while ($i < 10)
+  {
+    INSERT INTO t1 (c2) VALUES ('a');
+    --inc $i
+  }
+
+  --connection server2
+  SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_certifier_garbage_collection_finished";
+
+  --connection server1
+  INSERT INTO t1 (c2) VALUES (repeat('a',4096));
+
+  --inc $relay_log_rotate
+}
+--enable_query_log
+
+--echo #################################################################
+--echo # 3. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+DROP TABLE t1;
+--source include/rpl/sync.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_short_period';
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_garbage_collection_ran';
+SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_short_period';
+
+--source include/group_replication_end.inc

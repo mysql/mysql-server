@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+#################################################################
+# 1. Add debug point to reduce certifier broadcast time to 1 second.
+#    Bootstrap M1 and join M2.
+#    Relay log file size has been reduced to 4096 in CNF file.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_short_period';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_short_period';
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_garbage_collection_ran';
+include/start_group_replication.inc
+#################################################################
+# 2. Create a table t1 and insert several transactions.
+#    Each loop will ensure that all applier workers have assigned
+#    transactions and cause a relay log rotate, after a certification
+#    info garbage collection happened.
+[connection server1]
+CREATE TABLE t1(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BLOB);
+#################################################################
+# 3. Cleanup.
+[connection server1]
+DROP TABLE t1;
+include/rpl/sync.inc
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_short_period';
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_garbage_collection_ran';
+SET DEBUG_SYNC= 'RESET';
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_short_period';
+include/group_replication_end.inc

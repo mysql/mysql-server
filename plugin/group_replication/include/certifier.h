@@ -505,6 +505,11 @@ class Certifier : public Certifier_interface {
                       If true parallel_applier_last_committed_global
                       is updated to the current sequence number
                       (before update sequence number).
+    @param[in] increment_parallel_applier_sequence_number
+                      If false (during certification garbage collection)
+                      parallel_applier_last_committed_global is set to
+                      parallel_applier_last_sequence_number and
+                      parallel_applier_last_sequence_number is not updated
 
     Note: parallel_applier_last_committed_global should be updated
           on the following situations:
@@ -515,8 +520,9 @@ class Certifier : public Certifier_interface {
              do not know what write sets were purged, which may cause
              transactions last committed to be incorrectly computed.
   */
-  void increment_parallel_applier_sequence_number(
-      bool update_parallel_applier_last_committed_global);
+  void update_parallel_applier_indexes(
+      bool update_parallel_applier_last_committed_global,
+      bool increment_parallel_applier_sequence_number);
 
   /**
     Internal method to add the given gtid gno in the group_gtid_executed set.
@@ -688,6 +694,7 @@ class Certifier : public Certifier_interface {
   ulonglong positive_cert;
   ulonglong negative_cert;
   int64 parallel_applier_last_committed_global;
+  int64 parallel_applier_last_sequence_number;
   int64 parallel_applier_sequence_number;
 
 #if !defined(NDEBUG)
