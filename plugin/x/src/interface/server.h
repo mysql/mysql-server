@@ -35,7 +35,6 @@
 #include "plugin/x/src/interface/authentication_container.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/session.h"
-#include "plugin/x/src/interface/sql_session.h"
 
 namespace ngs {
 class Scheduler_dynamic;
@@ -58,7 +57,7 @@ class Server {
   virtual bool reset() = 0;
   virtual bool prepare() = 0;
   virtual void delayed_start_tasks() = 0;
-  virtual void start_tasks(xpl::iface::Sql_session *) = 0;
+  virtual void start_tasks() = 0;
   virtual void stop() = 0;
   virtual void gracefull_shutdown() = 0;
 

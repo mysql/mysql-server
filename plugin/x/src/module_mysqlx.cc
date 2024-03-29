@@ -131,6 +131,10 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
   xpl::plugin_handle = plugin_handle;
 
   try {
+    DBUG_EXECUTE_IF("xplugin_shutdown_unixsocket", {
+      XSYNC_POINT_ENABLE({"xacceptor_stop_wait", "xacceptor_pre_loop_wait",
+                          "xacceptor_post_loop_wait"});
+    });
     xpl::init_performance_schema();
 
     provide_udfs();

@@ -1,1 +1,1 @@
---innodb-stats-auto-recalc=OFF --loose-mysqlx=0
+--innodb-stats-auto-recalc=OFF

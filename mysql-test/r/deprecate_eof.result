@@ -25,7 +25,7 @@ SELECT * FROM t1 ORDER BY 1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 13
+-- 16
 
 CALL t1_sel();
 a
@@ -33,7 +33,7 @@ a
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 16
+-- 19
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -47,7 +47,7 @@ SELECT "session state sent as part of above SELECT" AS col_heading;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 17
+-- 20
 
 CALL t1_inssel();
 a
@@ -57,7 +57,7 @@ a
 4
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 21
+-- 24
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -72,7 +72,7 @@ SELECT "no session state exists" AS col_heading;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 23
+-- 26
 
 CALL t1_selins();
 a
@@ -82,7 +82,7 @@ a
 4
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 25
+-- 28
 
 col_heading
 no session state exists
@@ -95,7 +95,7 @@ SELECT MAX(2) FROM t1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 28
+-- 31
 
 session state sent for both SELECT statement
 CALL t2t1_sel();
@@ -103,7 +103,7 @@ MIN(a)
 1
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 31
+-- 34
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -125,7 +125,7 @@ SELECT "session state sent for SELECT inside t1_sel()" AS col_heading;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 34
+-- 37
 
 CALL t1_call();
 a
@@ -137,7 +137,7 @@ a
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 39
+-- 42
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -173,7 +173,7 @@ SELECT * FROM t2;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 41
+-- 44
 
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
@@ -188,7 +188,7 @@ a
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 55
+-- 58
 -- time_zone
 -- Europe/Moscow
 
@@ -210,7 +210,7 @@ SELECT @a,@b,@c,@d,@e,@f,@g,@h,@i,@j;
 20	test_1	12.34	567.891	2345	NULL	test_2	67.891	234.6789	6789
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 58
+-- 61
 
 
 #CASE2: SELECT FUNCTIONs
@@ -222,7 +222,7 @@ RETURN (SELECT COUNT(*) FROM t1);
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 59
+-- 62
 
 SELECT f1();
 f1()
@@ -235,7 +235,7 @@ f1()
 -- character_set_results
 -- big5
 -- statement_id
--- 60
+-- 63
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -243,7 +243,7 @@ f1()
 CREATE VIEW v1 AS SELECT f1();
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 63
+-- 66
 
 SELECT * FROM v1;
 f1()
@@ -256,7 +256,7 @@ f1()
 -- character_set_results
 -- big5
 -- statement_id
--- 64
+-- 67
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -267,7 +267,7 @@ SELECT MIN(a) INTO x FROM t1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 67
+-- 70
 
 CREATE FUNCTION f2() RETURNS int
 BEGIN
@@ -278,14 +278,14 @@ RETURN a;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 68
+-- 71
 
 SELECT f2();
 f2()
 1
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 69
+-- 72
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -302,14 +302,14 @@ RETURN a + b;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 75
+-- 78
 
 SELECT f3();
 f3()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 76
+-- 79
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -327,7 +327,7 @@ RETURN x;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 85
+-- 88
 
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -342,7 +342,7 @@ f4()
 -- character_set_results
 -- utf8mb3
 -- statement_id
--- 87
+-- 90
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -369,14 +369,14 @@ CLOSE cur1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 93
+-- 96
 
 CALL cursor1();
 v1
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 107
+-- 110
 -- transaction_isolation
 -- READ-COMMITTED
 
@@ -401,14 +401,14 @@ CLOSE c2;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 108
+-- 111
 
 CALL cursor2();
 (x+y)
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 115
+-- 118
 -- transaction_isolation
 -- READ-COMMITTED
 
@@ -420,7 +420,7 @@ session state sent as part of above SELECT
 DROP DATABASE wl7766;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 117
+-- 120
 
 -- Tracker : SESSION_TRACK_SCHEMA
 -- 
@@ -434,17 +434,17 @@ SET @@session.session_track_state_change=ON;
 -- session_track_state_change
 -- ON
 -- statement_id
--- 118
+-- 121
 
 CREATE DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 119
+-- 122
 
 USE bug19550875;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 120
+-- 123
 
 -- Tracker : SESSION_TRACK_SCHEMA
 -- bug19550875
@@ -455,12 +455,12 @@ USE bug19550875;
 CREATE TABLE t1 (a int);
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 121
+-- 124
 
 INSERT INTO t1 VALUES (1), (2);
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 122
+-- 125
 
 CREATE PROCEDURE t_cache()
 BEGIN
@@ -473,7 +473,7 @@ SELECT * FROM t1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 123
+-- 126
 
 CALL t_cache();
 a
@@ -481,7 +481,7 @@ a
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 126
+-- 129
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -505,7 +505,7 @@ SELECT * FROM t1 ORDER BY 1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 131
+-- 134
 
 CREATE PROCEDURE sel_with_no_session()
 BEGIN
@@ -513,13 +513,13 @@ SELECT * FROM t1 ORDER BY 1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 132
+-- 135
 
 #cleanup
 DROP DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 133
+-- 136
 
 -- Tracker : SESSION_TRACK_SCHEMA
 -- 

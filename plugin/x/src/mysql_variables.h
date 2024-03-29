@@ -33,13 +33,12 @@ struct CHARSET_INFO;
 
 namespace mysqld {
 
-// XXX temporary wrapper for server variables
-//    it should be removed after plugin correctly handles dynamic plugin macro
 bool is_terminating();
 bool get_initialize();
 const char *get_my_localhost();
 const CHARSET_INFO *get_default_charset();
 sigset_t get_mysqld_signal_mask();
+bool have_ssl();
 
 }  // namespace mysqld
 

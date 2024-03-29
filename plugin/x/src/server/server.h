@@ -90,7 +90,7 @@ class Server : public xpl::iface::Server {
   bool reset() override;
   bool prepare() override;
   void delayed_start_tasks() override;
-  void start_tasks(xpl::iface::Sql_session *) override;
+  void start_tasks() override;
   void start_failed() override;
   void stop() override;
   void gracefull_shutdown() override;
