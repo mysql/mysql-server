@@ -1130,7 +1130,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
 
     // 但是 log.buf 只是一个指针，还需要转发其指向的完整数据
     // TODO: 不太确定log.buf的大小，log.buf_size? buf_size_sn?
-    size_t log_buf_data_size = log.buf_size; // ut::INNODB_CACHE_LINE_SIZE;
+    size_t log_buf_data_size = ut::INNODB_CACHE_LINE_SIZE; // log.buf_size;
     byte *log_buf_data =
         (byte *)log.rdma_buffer_allocator->Alloc(log_buf_data_size);
     std::memcpy(log_buf_data, log.buf, log_buf_data_size);
