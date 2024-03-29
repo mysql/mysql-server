@@ -1076,6 +1076,27 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
    *
    */
 
+    // fix: 1.支持多线程并发写入状态层
+  //      2.支持每次只写入新的redolog
+  
+  // 状态层buffer和全局redo log buffer保持一致，根据remote_lsn写入log
+  // 计算节点需要存一些log buffer的元信息，同时需要和状态层同步
+  lsn_t remote_lsn = start_lsn;
+  if (log.qp_manager != nullptr){
+    node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
+    RCQP *qp = log.qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
+    MetaManager *meta_mgr = MetaManager::get_instance();
+  /** 分离逻辑
+   * 1.根据start_lsn预定状态层的内存地址
+   * 2.将str到str+len的日志数据通过rdma远程写到内存层
+   * 3.修改状态层的log buffer的元信息
+   */
+   alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_sn_t sn;
+   sn_t start_sn = log.sn.fetch_add(len);
+   meta_mgr->GetRedoLogCurrAddr();
+  }
+
+
   // TODO: 本来应该用trx->mysql_thd的，但是没办法用，
   // 把该线程内部的 RDMABufferAllocator 等直接移到log_t中
   // storage/innobase/include/log0sys.h
