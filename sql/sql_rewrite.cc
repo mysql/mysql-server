@@ -319,7 +319,7 @@ bool rewrite_query(THD *thd, Consumer_type type, const Rewrite_params *params,
 }  // anonymous namespace
 
 /**
-  Provides the default interface to rewrite the SQL statements to
+  Provides the default interface to rewrite the SQL statements
   to obfuscate passwords.
 
   The query aimed to be rewritten in the usual log files
