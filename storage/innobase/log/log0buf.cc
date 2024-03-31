@@ -1076,7 +1076,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
    *
    */
 
-    // fix: 1.支持多线程并发写入状态层
+  // fix: 1.支持多线程并发写入状态层
   //      2.支持每次只写入新的redolog
   
   // 状态层buffer和全局redo log buffer保持一致，根据remote_lsn写入log
@@ -1086,17 +1086,55 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
     node_id_t primary_node_id = MetaManager::get_instance()->GetPrimaryNodeID();
     RCQP *qp = log.qp_manager->GetRemoteLogBufQPWithNodeID(primary_node_id);
     MetaManager *meta_mgr = MetaManager::get_instance();
-  /** 分离逻辑
-   * 1.根据start_lsn预定状态层的内存地址
-   * 2.将str到str+len的日志数据通过rdma远程写到内存层
-   * 3.修改状态层的log buffer的元信息
-   */
-   alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_sn_t sn;
-   sn_t start_sn = log.sn.fetch_add(len);
-   meta_mgr->GetRedoLogCurrAddr();
+    /** 分离逻辑
+     * 0.更新状态层log buffer元信息
+     * 1.根据start_lsn预定状态层的内存地址
+     * 2.将str到str+len的日志数据通过rdma远程写到内存层
+    */
+
+    //0.更新状态层log buffer元信息
+    //可能不全
+    RedoLogItem *redo_log_remote_buf =
+        (RedoLogItem *)log.rdma_buffer_allocator->Alloc(sizeof(RedoLogItem));
+    meta_mgr->SetRedoLogSize(sizeof(RedoLogItem));
+
+    redo_log_remote_buf->buf = log.buf;
+    redo_log_remote_buf->buf_size = log.buf_size;
+    redo_log_remote_buf->current_ready_waiting_lsn =
+        log.current_ready_waiting_lsn;
+    redo_log_remote_buf->current_ready_waiting_sig_count =
+        log.current_ready_waiting_sig_count;
+
+    if (!log.coro_sched->RDMAWriteSync(0, qp, (char *)redo_log_remote_buf,
+                                      meta_mgr->GetRedoLogBaseAddr(), 
+                                      sizeof(RedoLogItem))) {
+      // Fail
+      std::cout << "failed to write redo_log_remote_buf\n";
+      assert(0);
+      return lsn;
+    }
+
+
+    byte *log_buf_data =
+        (byte *)log.rdma_buffer_allocator->Alloc(str_len);
+    std::memcpy(log_buf_data, str, str_len);
+    //1.预定状态层的内存地址
+    offset_t redo_log_curr_addr = meta_mgr->FetchAddRedoLogCurrAddr(str_len);
+    //2.将str到str+len的日志数据通过rdma远程写到内存层
+    if (!log.coro_sched->RDMAWriteSync(
+            0, qp, (char *)log_buf_data,
+            redo_log_curr_addr,
+            str_len)) {  
+      // Fail
+      std::cout << "failed to write log_buf_data\n";
+      assert(0);
+      return lsn;
+    }
   }
 
-
+  /*fix log separate
+   
+  
   // TODO: 本来应该用trx->mysql_thd的，但是没办法用，
   // 把该线程内部的 RDMABufferAllocator 等直接移到log_t中
   // storage/innobase/include/log0sys.h
@@ -1170,6 +1208,7 @@ lsn_t log_buffer_write(log_t &log, const byte *str, size_t str_len,
   }
 
   // 状态分离部分截止，下面为原有逻辑
+  */
 
   return lsn;
 }
