@@ -701,6 +701,17 @@ sub main {
     exit(0);
   }
 
+  if ($secondary_engine_support) {
+    # Enable mTLS in Heatwave-AutoML by setting up certificates and keys.
+    # - Paths are pre-set in the environment for accurate server initialization.
+    # - Certificates and keys are generated after the Python virtual environment
+    #   setup.
+    my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
+    if ($oci_instance_id) {
+      $ENV{'ML_CERTIFICATES'} = "$::opt_vardir/" . "hwaml_cert_files/";
+    }
+  }
+
   initialize_servers();
 
   # Run unit tests in parallel with the same number of workers as
@@ -758,6 +769,22 @@ sub main {
     secondary_engine_offload_count_report_init();
     # Create virtual environment
     find_ml_driver($bindir);
+
+    # Generate mTLS certificates & keys for Heatwave-AutoML post Python
+    # virtual environment setup and path pre-setting (referenced earlier).
+    my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
+    my $aws_key_store      = $ENV{'OLRAPID_KEYSTORE'} || "";
+    if ($oci_instance_id) {
+      if($aws_key_store)
+      {
+        extract_certs_from_pfx($aws_key_store, $ENV{'ML_CERTIFICATES'});
+      }
+      else
+      {
+        create_cert_keys($ENV{'ML_CERTIFICATES'});
+      }
+    }
+    
     reserve_secondary_ports();
   }
 
