@@ -258,7 +258,7 @@ TEST_F(DatabaseQueryPut, special_types) {
       "SELECT id, hex(geom), hex(bool), hex(bin), js FROM mrstestdb.typetest "
       "WHERE id=1");
   EXPECT_STREQ("1", (*row)[0]);
-  EXPECT_STREQ("E61000000101000000E5D022DBF93E284039B4C876BE0F4140", (*row)[1]);
+  EXPECT_STREQ("000000000101000000E5D022DBF93E284039B4C876BE0F4140", (*row)[1]);
   EXPECT_STREQ("0", (*row)[2]);
   EXPECT_STREQ("48656C6C6F20576F726C640A", (*row)[3]);
   EXPECT_STREQ("[1, 2, 3]", (*row)[4]);

@@ -383,7 +383,7 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   auto where = build_where(row_ownership);
   extend_where(where, fog);
 
-  JsonQueryBuilder qb(field_filter, false, false, false,
+  JsonQueryBuilder qb(field_filter, false, compute_etag_,
                       encode_bigints_as_strings_);
 
   qb.process_object(object_);
