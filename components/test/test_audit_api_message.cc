@@ -103,34 +103,91 @@ static long long message_user(UDF_INIT *init [[maybe_unused]],
   return 0;
 }
 
+/**
+  Implements test_audit_api_message_replace UDF. This function generates
+  AUDIT_API_MESSAGE_USER event of the AUDIT_API_MESSAGE_CLASS class.
+  The parameters of the event are hard coded but one of them may be
+  replaced by value provided by the UDF caller.
+
+  @param init       Unused.
+  @param args       Arguments provided by UDF caller:
+                    args->args[0] - id of the parameter, int in range 0-4
+                    args->args[1] - value of the parameter, text
+  @param null_value Unused.
+  @param error      Unused.
+
+  @retval 0  correct arguments provided and the replacement took place
+  @retval 1  incorrect arguments provided and the replacement doesn't took place
+*/
+static long long message_replace(UDF_INIT *init [[maybe_unused]],
+                                 UDF_ARGS *args,
+                                 unsigned char *null_value [[maybe_unused]],
+                                 unsigned char *error [[maybe_unused]]) {
+  mysql_event_message_key_value_t val;
+  long long result(0);
+
+  std::string emit_args[] = {
+      "test_audit_api_component", "test_audit_api_producer",
+      "test_audit_api_message", "test_audit_api_key", "test_audit_api_value"};
+
+  const size_t no_args = sizeof(emit_args) / sizeof(emit_args[0]);
+
+  if (args->arg_count == 2 && args->arg_type[0] == INT_RESULT &&
+      args->arg_type[1] == STRING_RESULT) {
+    size_t pos = *reinterpret_cast<size_t *>(args->args[0]);
+    if (pos < no_args)
+      emit_args[pos] = std::string(args->args[1]);
+    else
+      result = 1;
+  } else
+    result = 1;
+
+  lex_cstring_set(&val.key, emit_args[3].c_str());
+  val.value_type = MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR;
+  lex_cstring_set(&val.value.str, emit_args[4].c_str());
+
+  mysql_service_mysql_audit_api_message->emit(
+      MYSQL_AUDIT_MESSAGE_USER, emit_args[0].c_str(), emit_args[0].length(),
+      emit_args[1].c_str(), emit_args[1].length(), emit_args[2].c_str(),
+      emit_args[2].length(), &val, 1);
+
+  return result;
+}
+
+static Udf_func_any const udfs[] = {(Udf_func_any)message_internal,
+                                    (Udf_func_any)message_user,
+                                    (Udf_func_any)message_replace};
+
+static const char *const udf_names[] = {"test_audit_api_message_internal",
+                                        "test_audit_api_message_user",
+                                        "test_audit_api_message_replace"};
+
+static const size_t no_udfs(sizeof(udfs) / sizeof(udfs[0]));
+
 static mysql_service_status_t init() {
-  if (mysql_service_udf_registration->udf_register(
-          "test_audit_api_message_internal", INT_RESULT,
-          (Udf_func_any)message_internal, nullptr, nullptr))
-    return true;
+  bool result = false;
+  size_t i = 0;
+  for (; i < no_udfs; ++i)
+    if (mysql_service_udf_registration->udf_register(
+            udf_names[i], INT_RESULT, udfs[i], nullptr, nullptr)) {
+      result = true;
+      break;
+    }
 
-  if (mysql_service_udf_registration->udf_register(
-          "test_audit_api_message_user", INT_RESULT, (Udf_func_any)message_user,
-          nullptr, nullptr)) {
+  if (result && i > 0) {
     int was_present = 0;
-
-    mysql_service_udf_registration->udf_unregister(
-        "test_audit_api_message_internal", &was_present);
-
-    return true;
+    do {
+      mysql_service_udf_registration->udf_unregister(udf_names[--i],
+                                                     &was_present);
+    } while (i > 0);
   }
-
-  return false;
+  return result;
 }
 
 static mysql_service_status_t deinit() {
   int was_present = 0;
-
-  mysql_service_udf_registration->udf_unregister(
-      "test_audit_api_message_internal", &was_present);
-
-  mysql_service_udf_registration->udf_unregister("test_audit_api_message_user",
-                                                 &was_present);
+  for (size_t i = 0; i < no_udfs; ++i)
+    mysql_service_udf_registration->udf_unregister(udf_names[i], &was_present);
 
   return false;
 }
