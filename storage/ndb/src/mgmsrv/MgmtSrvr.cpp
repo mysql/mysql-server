@@ -438,9 +438,13 @@ bool MgmtSrvr::get_connection_config(const Config *config) {
     Uint32 requireCert = 0;
     Uint32 requireTls = 0;
 
-    if (openssl_version_ok) {
-      iter.get(CFG_MGM_REQUIRE_TLS, &requireTls);
-      iter.get(CFG_NODE_REQUIRE_CERT, &requireCert);
+    iter.get(CFG_MGM_REQUIRE_TLS, &requireTls);
+    iter.get(CFG_NODE_REQUIRE_CERT, &requireCert);
+
+    if ((requireTls || requireCert) && !openssl_version_ok) {
+      g_eventLogger->error(
+          "Unsupported OpenSSL 1.0.x. This server does not support TLS.");
+      DBUG_RETURN(false);
     }
     m_require_tls = requireTls;
     m_require_cert = requireCert;
@@ -545,7 +549,10 @@ bool MgmtSrvr::start() {
     TlsKeyManager stubKeyManager;
     stubKeyManager.init(m_tls_search_path, 0, NODE_TYPE_MGM);
     if (!stubKeyManager.ctx()) {
-      g_eventLogger->error("This node does not have a valid TLS certificate.");
+      g_eventLogger->error(
+          openssl_version_ok
+              ? "This node does not have a valid TLS certificate."
+              : "This version of OpenSSL is not supported.");
       DBUG_RETURN(false);
     }
   }

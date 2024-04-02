@@ -52,9 +52,6 @@
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
 
-static constexpr bool openssl_version_ok =
-    (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
-
 /****************************************************************************
  * Section names
  ****************************************************************************/
@@ -3962,9 +3959,7 @@ static bool add_a_connection(Vector<ConfigInfo::ConfigRuleSection> &sections,
     }
   }
 
-  if (openssl_version_ok) {
-    tmp->get("RequireTls", &reqTls1);
-  }
+  tmp->get("RequireTls", &reqTls1);
 
   require(ctx.m_config->get("Node", nodeId2, &tmp));
   tmp->get("HostName", &hostname2);
@@ -3986,9 +3981,7 @@ static bool add_a_connection(Vector<ConfigInfo::ConfigRuleSection> &sections,
     }
   }
 
-  if (openssl_version_ok) {
-    tmp->get("RequireTls", &reqTls2);
-  }
+  tmp->get("RequireTls", &reqTls2);
 
   char buf[16];
   s.m_sectionData = new Properties(true);
