@@ -92,7 +92,7 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
 void QueryRestTableSingleRow::build_query(
     std::shared_ptr<database::entry::Object> object,
     const PrimaryKeyColumnValues &pk, const std::string &url_route) {
-  JsonQueryBuilder qb(*field_filter_, false, false, false,
+  JsonQueryBuilder qb(*field_filter_, false, compute_etag_,
                       encode_bigints_as_string_);
   qb.process_object(object);
 

@@ -419,9 +419,12 @@ static mysqlrouter::sqlstring get_field_format(entry::ColumnType type,
 }
 
 void JsonQueryBuilder::add_field(std::shared_ptr<entry::ObjectField> field) {
-  if (!m_filter.is_included(m_path_prefix, field->name)) return;
-  if (!field->enabled) return;
-  if (for_checksum_ && field->no_check) return;
+  if (!for_checksum_) {
+    if (!m_filter.is_included(m_path_prefix, field->name)) return;
+    if (!field->enabled) return;
+  } else {
+    if (field->no_check) return;
+  }
 
   if (auto rfield = std::dynamic_pointer_cast<entry::ReferenceField>(field)) {
     log_debug("rfield->name:%s", rfield->name.c_str());

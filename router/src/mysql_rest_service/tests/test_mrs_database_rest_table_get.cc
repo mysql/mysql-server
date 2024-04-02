@@ -2307,7 +2307,7 @@ TEST_F(DatabaseQueryGet, etag) {
     EXPECT_EQ(1, json["items"][0]["actor_id"].GetInt());
     // should be unchanged despite the different field filter
     EXPECT_STREQ(
-        "F692F5B336012B56328C985C3DE5138BB8917F37AA6CC678AD7DACFC3F1BA61D",
+        "31F155BCEC8184E8879158E1315EA9CD9D957F0AA03685A7A8B34332605F5EE8",
         json["items"][0]["_metadata"]["etag"].GetString());
   }
   {

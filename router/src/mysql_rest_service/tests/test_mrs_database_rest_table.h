@@ -22,6 +22,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_TEST_MRS_DATABASE_REST_TABLE_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_TEST_MRS_DATABASE_REST_TABLE_H_
+
 #include <gtest/gtest.h>
 #include <map>
 #include <memory>
@@ -54,8 +57,9 @@ class DatabaseRestTableTest : public testing::Test {
 
   std::string next_auto_inc(const std::string &table) {
     m_->execute("ANALYZE TABLE mrstestdb." + table);
-    auto id = (*m_->query_one("SHOW TABLE STATUS FROM mrstestdb LIKE '" +
-                              table + "'"))[10];
+    auto row =
+        m_->query_one("SHOW TABLE STATUS FROM mrstestdb LIKE '" + table + "'");
+    auto id = (*row)[10];
     return id ? id : "1";
   }
 
@@ -73,3 +77,5 @@ class DatabaseRestTableTest : public testing::Test {
 #define EXPECT_ROWS_ADDED(table, num) EXPECT_EQ(num, num_rows_added(table))
 
 using mysql_harness::utility::string_format;
+
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_TEST_MRS_DATABASE_REST_TABLE_H_

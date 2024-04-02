@@ -381,12 +381,12 @@ class mem_root_deque {
       return *this;
     }
 
-    Iterator operator+(difference_type offset) {
+    Iterator operator+(difference_type offset) const {
       assert_not_invalidated();
       return Iterator{m_deque, m_physical_idx + offset};
     }
 
-    Iterator operator-(difference_type offset) {
+    Iterator operator-(difference_type offset) const {
       assert_not_invalidated();
       return Iterator{m_deque, m_physical_idx - offset};
     }
