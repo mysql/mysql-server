@@ -23138,18 +23138,18 @@ static void test_bug34951115_run_one_ps(const char *stmt_text) {
 
   bind_params[0].buffer_type = MYSQL_TYPE_LONG;
   bind_params[0].buffer = &param;
-  bind_params[0].length = NULL;
+  bind_params[0].length = nullptr;
   bind_params[0].buffer_length = sizeof(n);
-  bind_params[0].is_null = 0;
+  bind_params[0].is_null = nullptr;
 
   bind_fields[0].buffer_type = MYSQL_TYPE_LONG;
   bind_fields[0].buffer = &id;
   bind_fields[0].buffer_length = sizeof(id);
-  bind_fields[0].length = NULL;
+  bind_fields[0].length = nullptr;
   bind_fields[1].buffer_type = MYSQL_TYPE_LONG;
   bind_fields[1].buffer = &n;
   bind_fields[1].buffer_length = sizeof(n);
-  bind_fields[1].length = NULL;
+  bind_fields[1].length = nullptr;
 
   MYSQL_STMT *stmt = mysql_stmt_init(mysql);
 
