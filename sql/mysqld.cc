@@ -8760,17 +8760,19 @@ static void calculate_mysql_home_from_my_progname() {
   This helper class sets them temporarily by reading configurations
   and resets them in destructor.
 */
-class Plugin_and_data_dir_option_parser final {
+class Manifest_file_option_parser_helper final {
  public:
-  Plugin_and_data_dir_option_parser(int argc, char **argv)
+  Manifest_file_option_parser_helper(int argc, char **argv)
       : datadir_(nullptr),
         plugindir_(nullptr),
         save_homedir_{0},
         save_plugindir_{0},
         valid_(false) {
-    char *ptr, **res, *datadir = nullptr, *plugindir = nullptr;
+    char *ptr, **res, *datadir = nullptr, *plugindir = nullptr,
+                      *basedir = nullptr;
     char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0},
-         local_plugindir_buffer[FN_REFLEN] = {0};
+         local_plugindir_buffer[FN_REFLEN] = {0},
+         local_basedir_buffer[FN_REFLEN] = {0};
     const char *dirs = nullptr;
 
     my_option datadir_options[] = {
@@ -8778,6 +8780,8 @@ class Plugin_and_data_dir_option_parser final {
          0, nullptr, 0, nullptr},
         {"plugin_dir", 0, "", &plugindir, nullptr, nullptr, GET_STR, OPT_ARG, 0,
          0, 0, nullptr, 0, nullptr},
+        {"basedir", 0, "", &basedir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0,
+         0, nullptr, 0, nullptr},
         {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0,
          0, 0, nullptr, 0, nullptr}};
 
@@ -8802,6 +8806,8 @@ class Plugin_and_data_dir_option_parser final {
     }
     my_getopt_skip_unknown = false;
 
+    if (basedir) convert_dirname(local_basedir_buffer, basedir, NullS);
+
     if (!datadir) {
       /* mysql_real_data_home must be initialized at this point */
       assert(mysql_real_data_home[0]);
@@ -8810,7 +8816,13 @@ class Plugin_and_data_dir_option_parser final {
         See calculate_mysql_home_from_my_progname() for details
       */
       assert(mysql_home_ptr && mysql_home_ptr[0]);
-      convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
+      if (basedir)
+        convert_dirname(
+            local_datadir_buffer,
+            (std::string{local_basedir_buffer} + mysql_real_data_home).c_str(),
+            NullS);
+      else
+        convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
       (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
                          mysql_home_ptr);
       datadir = local_datadir_buffer;
@@ -8820,9 +8832,15 @@ class Plugin_and_data_dir_option_parser final {
     datadir_ = my_strdup(PSI_INSTRUMENT_ME, dir, MYF(0));
     memset(dir, 0, FN_REFLEN);
 
-    convert_dirname(local_plugindir_buffer,
-                    plugindir ? plugindir : get_relative_path(PLUGINDIR),
-                    NullS);
+    if (plugindir)
+      convert_dirname(local_plugindir_buffer, plugindir, NullS);
+    else if (basedir)
+      convert_dirname(
+          local_plugindir_buffer,
+          (std::string{basedir} + get_relative_path(PLUGINDIR)).c_str(), NullS);
+    else
+      convert_dirname(local_plugindir_buffer, get_relative_path(PLUGINDIR),
+                      NullS);
     (void)my_load_path(local_plugindir_buffer, local_plugindir_buffer,
                        mysql_home);
     plugindir_ = my_strdup(PSI_INSTRUMENT_ME, local_plugindir_buffer, MYF(0));
@@ -8843,7 +8861,7 @@ class Plugin_and_data_dir_option_parser final {
     valid_ = true;
   }
 
-  ~Plugin_and_data_dir_option_parser() {
+  ~Manifest_file_option_parser_helper() {
     valid_ = false;
     if (datadir_ != nullptr) {
       memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
@@ -9209,7 +9227,7 @@ int mysqld_main(int argc, char **argv)
   {
     /* Must be initialized early because it is required by dynamic loader */
     files_charset_info = &my_charset_utf8mb3_general_ci;
-    auto keyring_helper = std::make_unique<Plugin_and_data_dir_option_parser>(
+    auto keyring_helper = std::make_unique<Manifest_file_option_parser_helper>(
         remaining_argc, remaining_argv);
 
     if (keyring_helper->valid() == false) {
