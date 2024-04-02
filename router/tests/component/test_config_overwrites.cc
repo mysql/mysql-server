@@ -40,6 +40,10 @@ using namespace std::string_literals;
 using testing::StartsWith;
 
 class RouterConfigOwerwriteTest : public RouterComponentBootstrapTest {
+ public:
+  RouterConfigOwerwriteTest(bool use_new_bootstrap_exe)
+      : RouterComponentBootstrapTest(use_new_bootstrap_exe) {}
+
  protected:
   auto &launch_router(const std::vector<std::string> &params,
                       int expected_exit_code,
@@ -71,12 +75,26 @@ class RouterConfigOwerwriteTest : public RouterComponentBootstrapTest {
   TempDirectory conf_dir{"conf"};
 };
 
+class RouterConfigOwerwriteTestOldExe : public RouterConfigOwerwriteTest {
+ public:
+  RouterConfigOwerwriteTestOldExe() : RouterConfigOwerwriteTest(false) {}
+};
+
+struct LevelOkParameter {
+  std::string override_param;
+  bool use_new_executable;
+};
+
 class BootstrapDebugLevelOkTest
     : public RouterConfigOwerwriteTest,
-      public ::testing::WithParamInterface<std::string> {};
+      public ::testing::WithParamInterface<LevelOkParameter> {
+ public:
+  BootstrapDebugLevelOkTest()
+      : RouterConfigOwerwriteTest(GetParam().use_new_executable) {}
+};
 
 TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
-  const auto overwrite_param = GetParam();
+  const auto overwrite_param = GetParam().override_param;
   const std::string tracefile = "bootstrap_gr.js";
   TempDirectory bootstrap_dir;
   const std::string debug_level_output =
@@ -112,18 +130,36 @@ TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
                          ::testing::AnyOf("level=debug", "level=debug"))));
 }
 
-INSTANTIATE_TEST_SUITE_P(BootstrapDebugLevelOk, BootstrapDebugLevelOkTest,
-                         ::testing::Values("--logger.level=debug",
-                                           "--logger.level=DEBUG"));
+INSTANTIATE_TEST_SUITE_P(
+    BootstrapDebugLevelOk, BootstrapDebugLevelOkTest,
+    ::testing::Values(LevelOkParameter{"--logger.level=debug", false},
+                      LevelOkParameter{"--logger.level=DEBUG", false}));
 
 struct OverwriteErrorTestParam {
+  OverwriteErrorTestParam() {}
+  OverwriteErrorTestParam(const std::vector<std::string> &p1,
+                          const std::string &p2)
+      : overwrite_params{p1}, expected_error_msg{p2} {}
+
   std::vector<std::string> overwrite_params;
   std::string expected_error_msg;
 };
 
+struct OverwriteErrorExeTestParam : public OverwriteErrorTestParam {
+  OverwriteErrorExeTestParam() {}
+  OverwriteErrorExeTestParam(const std::vector<std::string> &p1,
+                             const std::string &p2, bool p3)
+      : OverwriteErrorTestParam(p1, p2), use_new_executable{p3} {}
+  bool use_new_executable;
+};
+
 class BootstrapOverwriteErrorTest
     : public RouterConfigOwerwriteTest,
-      public ::testing::WithParamInterface<OverwriteErrorTestParam> {};
+      public ::testing::WithParamInterface<OverwriteErrorExeTestParam> {
+ public:
+  BootstrapOverwriteErrorTest()
+      : RouterConfigOwerwriteTest(GetParam().use_new_executable) {}
+};
 
 TEST_P(BootstrapOverwriteErrorTest, BootstrapOverwriteError) {
   const auto param = GetParam();
@@ -151,28 +187,34 @@ TEST_P(BootstrapOverwriteErrorTest, BootstrapOverwriteError) {
 INSTANTIATE_TEST_SUITE_P(
     BootstrapOverwriteError, BootstrapOverwriteErrorTest,
     ::testing::Values(
-        OverwriteErrorTestParam{
+        OverwriteErrorExeTestParam{
             {"--logger.level", "DEBUG2"},
-            "Configuration error: Log level 'debug2' is not valid."},
-        OverwriteErrorTestParam{
+            "Configuration error: Log level 'debug2' is not valid.",
+            false},
+        OverwriteErrorExeTestParam{
             {"--logger.sinks", "filelog"},
             "Invalid argument '--logger.sinks'. Only "
             "'--logger.level' configuration option can be set with a command "
-            "line parameter when bootstrapping."},
-        OverwriteErrorTestParam{
+            "line parameter when bootstrapping.",
+            false},
+        OverwriteErrorExeTestParam{
             {"--DEFAULT.read_timeout", "30"},
             "Invalid argument '--DEFAULT.read_timeout'. Only "
             "'--logger.level' configuration option can be set with a command "
-            "line parameter when bootstrapping."},
-        OverwriteErrorTestParam{
+            "line parameter when bootstrapping.",
+            false},
+        OverwriteErrorExeTestParam{
             {"--abc.read_timeout", "30"},
             "Invalid argument '--abc.read_timeout'. Only "
             "'--logger.level' configuration option can be set with a command "
-            "line parameter when bootstrapping."}));
+            "line parameter when bootstrapping.",
+            false}));
 
 class OverwriteLogLevelTest
-    : public RouterConfigOwerwriteTest,
-      public ::testing::WithParamInterface<std::string> {};
+    : public RouterConfigOwerwriteTestOldExe,
+      public ::testing::WithParamInterface<std::string> {
+ public:
+};
 
 /* @test Verify that using --logger.level on top of --DEFAULT.logging_folder
  * overwrite works as expected */
@@ -216,7 +258,7 @@ INSTANTIATE_TEST_SUITE_P(
                       "--Logger.Level=DEBUG", "--LOGGER.LEVEL=DEBUG"));
 
 /* @test Verify that using --DEBUG.logging_folder overwrite works as expected */
-TEST_F(RouterConfigOwerwriteTest, OverwriteLoggingFolder) {
+TEST_F(RouterConfigOwerwriteTestOldExe, OverwriteLoggingFolder) {
   const std::string keepalive_section = get_keepalive_section();
 
   // create config file without logging_folder configured
@@ -255,7 +297,7 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteLoggingFolder) {
 
 /* @test Sunny-day scenario, we check that overwriting an option in the
  * configuration file with a command line parameter works */
-TEST_F(RouterConfigOwerwriteTest, OverwriteRoutingPort) {
+TEST_F(RouterConfigOwerwriteTestOldExe, OverwriteRoutingPort) {
   const auto router_port = port_pool_.get_next_available();
   const auto server_port = port_pool_.get_next_available();
   const auto router_port_overwrite = port_pool_.get_next_available();
@@ -279,7 +321,7 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteRoutingPort) {
 
 /* @test Check that overwriting an option that does not exist in the
  * configuration file adds this option to the configuration */
-TEST_F(RouterConfigOwerwriteTest, OverwriteOptionMissingInTheConfig) {
+TEST_F(RouterConfigOwerwriteTestOldExe, OverwriteOptionMissingInTheConfig) {
   const auto router_port = port_pool_.get_next_available();
   const auto server_port = port_pool_.get_next_available();
 
@@ -303,7 +345,7 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteOptionMissingInTheConfig) {
 }
 
 class OverwriteIgnoreUnknownOptionTest
-    : public RouterConfigOwerwriteTest,
+    : public RouterConfigOwerwriteTestOldExe,
       public ::testing::WithParamInterface<std::string> {};
 
 /* @test Non-existing option of a valid section is just ignored the same way it
@@ -338,7 +380,7 @@ INSTANTIATE_TEST_SUITE_P(
                       "--routing:main01.help=please", "--DEFAULT.help="));
 
 class OverwriteErrorTest
-    : public RouterConfigOwerwriteTest,
+    : public RouterConfigOwerwriteTestOldExe,
       public ::testing::WithParamInterface<OverwriteErrorTestParam> {};
 
 /* @test Check that overwritten option is validated properly if it is used and
@@ -417,7 +459,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 "Error: invalid argument '--a::::a=b"}));
 
 class UnknownSectionNameTest
-    : public RouterConfigOwerwriteTest,
+    : public RouterConfigOwerwriteTestOldExe,
       public ::testing::WithParamInterface<OverwriteErrorTestParam> {};
 
 /* @test Using invalid(unknown) section for parameter overwrite should
@@ -457,7 +499,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 "Error: Invalid argument '--DEFAULT:test'. Key "
                                 "not allowed on DEFAULT section"}));
 
-class MetadataConfigTest : public RouterConfigOwerwriteTest,
+class MetadataConfigTest : public RouterConfigOwerwriteTestOldExe,
                            public ::testing::WithParamInterface<std::string> {};
 
 TEST_P(MetadataConfigTest, MetadataConfig) {

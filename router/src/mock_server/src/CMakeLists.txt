@@ -182,6 +182,7 @@ TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/router/include
   ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include/
+  ${PROJECT_SOURCE_DIR}/src/http/tests/
   ${CMAKE_CURRENT_BINARY_DIR}
   )
 
@@ -191,6 +192,7 @@ add_harness_plugin(rest_mock_server
   REQUIRES mock_server;http_server)
 TARGET_INCLUDE_DIRECTORIES(rest_mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/http/include
+  ${PROJECT_SOURCE_DIR}/src/http/tests/
   )
 
 MYSQL_ADD_EXECUTABLE(mysql_server_mock
@@ -208,6 +210,7 @@ ADD_LIBRARY(mock_server_rest_client ${MOCK_SERVER_HTTP_CLIENT_SRCS})
 TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/http/include/
+  ${PROJECT_SOURCE_DIR}/src/http/tests/
   )
 TARGET_LINK_LIBRARIES(mock_server_rest_client http_client extra::rapidjson)
 ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)

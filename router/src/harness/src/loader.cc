@@ -67,6 +67,8 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_state.h"
+#include "mysql/harness/plugin_state_observer.h"
 #include "mysql/harness/process_state_component.h"
 #include "mysql/harness/sd_notify.h"
 #include "mysql/harness/stdx/monitor.h"
@@ -102,6 +104,44 @@ static std::atomic<size_t> num_of_non_ready_services{0};
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace mysql_harness {
+
+static std::string section_to_string(const ConfigSection *section) {
+  if (section->key.empty()) return section->name;
+
+  return section->name + ":" + section->key;
+}
+
+void on_service_ready(const std::string &name) {
+  PluginState::get_instance()->dispatch_startup(name);
+}
+
+void on_service_ready(PluginFuncEnv *plugin_env) {
+  on_service_ready(section_to_string(get_config_section(plugin_env)));
+}
+
+namespace observers {
+
+class DispatchSystemDaemonObserver : public PluginStateObserver {
+ public:
+  DispatchSystemDaemonObserver(Loader *loader) : loader_{loader} {}
+  void on_plugin_startup(const PluginState *,
+                         const std::string &name) override {
+    log_debug("  ready '%s'", name.c_str());
+    auto &waitable = loader_->waitable_services();
+    auto it = std::find(waitable.begin(), waitable.end(), name);
+
+    if (waitable.end() != it) {
+      if (--num_of_non_ready_services == 0) {
+        log_debug("Ready, signaling notify socket");
+        notify_ready();
+      }
+    }
+  }
+
+  Loader *loader_;
+};
+
+}  // namespace observers
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -314,6 +354,18 @@ void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+Loader::Loader(const std::string &program, LoaderConfig &config)
+    : config_(config), program_(program) {
+  auto plugin_state = PluginState::get_instance();
+
+  default_observers_.push_back(
+      std::make_shared<observers::DispatchSystemDaemonObserver>(this));
+
+  for (auto &ptr : default_observers_) {
+    plugin_state->push_back_observer(ptr);
+  }
+}
+
 Loader::~Loader() = default;
 
 Loader::PluginInfo::PluginInfo(const std::string &folder,
@@ -493,11 +545,11 @@ const Plugin *Loader::load(const std::string &plugin_name) {
   }
 
   if (!config_.has_any(plugin_name)) {
-    // if no section for the plugin exists, try to load it anyway with an empty
-    // key-less section
+    // if no section for the plugin exists, try to load it anyway with an
+    // empty key-less section
     //
-    // in case the plugin fails to load with bad_plugin, return bad_section to
-    // be consistent with existing behaviour
+    // in case the plugin fails to load with bad_plugin, return bad_section
+    // to be consistent with existing behaviour
     config_.add(plugin_name).add("library", plugin_name);
 
     try {
@@ -589,8 +641,8 @@ void Loader::load_all() {
 }
 
 void Loader::unload_all() {
-  // this stage has no implementation so far; however, we want to flag that we
-  // reached this stage
+  // this stage has no implementation so far; however, we want to flag that
+  // we reached this stage
   log_debug("Unloading all plugins.");
   // If that ever gets implemented make sure to not attempt unloading
   // built-in plugins
@@ -788,15 +840,12 @@ std::exception_ptr Loader::init_all() {
   return nullptr;
 }
 
-static std::string section_to_string(const ConfigSection *section) {
-  if (section->key.empty()) return section->name;
-
-  return section->name + ":" + section->key;
-}
+void register_plugin(const std::string &name);
 
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
   std::vector<std::string> startable_sections;
+  auto plugin_state = PluginState::get_instance();
 
   for (const ConfigSection *section : config_.sections()) {
     const auto &plugin = plugins_.at(section->name);
@@ -812,6 +861,7 @@ void Loader::start_all() {
 
       if (declares_readiness) {
         waitable_services_.push_back(section_name);
+        plugin_state->dispatch_register_waitable(section_name);
       }
     }
   }
@@ -863,6 +913,9 @@ void Loader::start_all() {
         call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
                              section->name.c_str(), section->key.c_str());
 
+        PluginState::get_instance()->dispatch_shutdown(
+            (section->name + ":" + section->key).c_str());
+
         // notify the signal-handler's cond-var about the plugin's exit-status
         ProcessStateComponent::get_instance()
             .shutdown_pending()
@@ -875,8 +928,8 @@ void Loader::start_all() {
       // we could combine the thread creation with emplace_back
       // but that sometimes leads to a crash on ASAN build (when the thread
       // limit is reached apparently sometimes half-baked thread object gets
-      // added to the vector and its destructor crashes later on when the vector
-      // gets destroyed)
+      // added to the vector and its destructor crashes later on when the
+      // vector gets destroyed)
       plugin_threads_.push_back(std::move(plugin_thread));
 
       // block until starter thread is started
@@ -917,12 +970,12 @@ std::exception_ptr Loader::main_loop() {
         // external shutdown
         if (pending.reason() == ShutdownPending::Reason::REQUESTED) return true;
 
-        // shutdown due to a fatal error originating from Loader and its callees
-        // (but NOT from plugins)
+        // shutdown due to a fatal error originating from Loader and its
+        // callees (but NOT from plugins)
         if (pending.reason() == ShutdownPending::Reason::FATAL_ERROR) {
           // there is a request to shut down due to a fatal error; generate an
-          // exception with requested message so that it bubbles up and ends up
-          // on the console as an error message
+          // exception with requested message so that it bubbles up and ends
+          // up on the console as an error message
           try {
             throw std::runtime_error(pending.message());
           } catch (const std::exception &) {
@@ -1193,18 +1246,6 @@ void Loader::expose_config_all(const bool initial) {
       plugin->expose_configuration(&env, section->key.c_str(), initial);
     }
   }
-}
-
-void on_service_ready(const std::string &name) {
-  log_debug("  ready '%s'", name.c_str());
-  if (--num_of_non_ready_services == 0) {
-    log_debug("Ready, signaling notify socket");
-    notify_ready();
-  }
-}
-
-void on_service_ready(PluginFuncEnv *plugin_env) {
-  return on_service_ready(section_to_string(get_config_section(plugin_env)));
 }
 
 }  // namespace mysql_harness

@@ -191,6 +191,10 @@ class ProcessManager {
         .with_core_dump(true);
   }
 
+  Spawner router_bootstrap_spawner() {
+    return spawner(mysqlrouter_bootstrap_exec_.str(), "mysqlrouter.log");
+  }
+
   /** @brief Gets path to the directory used as log output directory
    */
   Path get_logging_dir() const { return logging_dir_.name(); }
@@ -310,6 +314,33 @@ class ProcessManager {
    * @returns handle to the launched process
    */
   ProcessWrapper &launch_router(
+      const std::vector<std::string> &params, int expected_exit_code = 0,
+      bool catch_stderr = true, bool with_sudo = false,
+      std::chrono::milliseconds wait_for_notify_ready =
+          std::chrono::seconds(30),
+      OutputResponder output_responder = kEmptyResponder);
+
+  /** @brief Launches the MySQLRouter Bootstrap process.
+   *
+   * @param   params vector<string> containing command line parameters to pass
+   * to process
+   * @param expected_exit_code expected exit-code for ensure_clean_exit()
+   * @param   catch_stderr bool flag indicating if the process' error output
+   * stream should be included in the output caught from the process
+   * @param   with_sudo    bool flag indicating if the process' should be
+   * execute with sudo privileges
+   * @param wait_for_notify_ready
+   *        if >=0 the method should use the notification socket and the value
+   * is the time in milliseconds - how long the it should wait for the process
+   * to notify it is ready. if < 0 is should not use (open) the notification
+   * socket to wait for ready notification
+   * @param output_responder method to be called when the process outputs a line
+   * returning string that should be send back to the process input (if not
+   * empty)
+   *
+   * @returns handle to the launched process
+   */
+  ProcessWrapper &launch_router_bootstrap(
       const std::vector<std::string> &params, int expected_exit_code = 0,
       bool catch_stderr = true, bool with_sudo = false,
       std::chrono::milliseconds wait_for_notify_ready =
@@ -535,6 +566,13 @@ class ProcessManager {
     return mysqlserver_mock_exec_;
   }
 
+  const Path &get_mysqlrouter_bootstrap_exec() const {
+    return mysqlrouter_bootstrap_exec_;
+  }
+
+  void set_mysqlrouter_bootstrap_exec(const Path &path) {
+    mysqlrouter_bootstrap_exec_ = path;
+  }
   void set_mysqlrouter_exec(const Path &path) { mysqlrouter_exec_ = path; }
 
   std::string get_test_temp_dir_name() const { return test_dir_.name(); }
@@ -566,6 +604,7 @@ class ProcessManager {
   static Path data_dir_;
   static Path plugin_dir_;
   static Path mysqlrouter_exec_;
+  static Path mysqlrouter_bootstrap_exec_;
   static Path mysqlserver_mock_exec_;
 
   TempDirectory logging_dir_;

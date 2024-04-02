@@ -75,6 +75,7 @@ ADD_HARNESS_TEST_FILE(test_utils.cc
     test-helpers
   EXTRA_SOURCES
     ../src/utils.cc
+    ../src/common/utils_sqlstring.cc
   INCLUDE_DIRS
     $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})

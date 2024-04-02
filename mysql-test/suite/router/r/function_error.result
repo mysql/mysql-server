@@ -1,0 +1,172 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `func_schema` - created
+
+
+## I. Verify handling of singals generated inside function/GET HTTP Request
+#
+# 1. Signals with proper sql-state, still outside the range
+# 2. Signals with proper sql-state, still unsupported HTTP Status
+# 3. Singal inside the range, return JSON object with message
+#    and http-status coverted from mysql-error
+#
+## II. Verify handling of singals generated inside function/PUT HTTP Request
+#      that has format set to ITEM
+#
+# 1. Signals with proper sql-state, still outside the range
+# 2. Signals with proper sql-state, still unsupported HTTP Status
+# 3. Singal inside the range, return JSON object with message
+#    and http-status coverted from mysql-error
+#
+## III. Verify handling of singals generated inside function/PUT HTTP Request
+#      that has format set to MEDIA
+#
+# 1. Signals with proper sql-state, still outside the range
+# 2. Signals with proper sql-state, still unsupported HTTP Status
+# 3. Singal inside the range, return JSON object with message
+#    and http-status coverted from mysql-error
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/proc
+# Registred DB_OBJECT at path: /svc/proc/report_back1
+# Registred DB_OBJECT at path: /svc/proc/report_back2
+# Registred DB_OBJECT at path: /svc/proc/report_back_if
+# Registred DB_OBJECT at path: /svc/proc/nothing
+# Registred DB_OBJECT at path: /svc/proc/report_back1_media
+GET /svc/proc/nothing
+{
+    "result": 0
+}
+OK
+
+#
+# I.1
+GET /svc/proc/report_back1?mysql_error=5099
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+GET /svc/proc/report_back1?mysql_error=5600
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+
+#
+# I.2
+GET /svc/proc/report_back1?mysql_error=5599
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+
+#
+# I.3
+GET /svc/proc/report_back1?mysql_error=5201
+{
+    "message": "This stored procedure signaled an error."
+}
+OK
+GET /svc/proc/report_back1?mysql_error=5511
+{
+    "message": "This stored procedure signaled an error."
+}
+OK
+GET /svc/proc/report_back_if?error_out=1
+{
+    "message": "This stored procedured signaled an error."
+}
+OK
+
+#
+# II.1
+PUT /svc/proc/report_back1 (payload-size:20)
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+PUT /svc/proc/report_back1 (payload-size:20)
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+
+#
+# II.2
+PUT /svc/proc/report_back1?mysql_error=5599 (payload-size:20)
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+
+#
+# II.3
+PUT /svc/proc/report_back1 (payload-size:20)
+{
+    "message": "This stored procedure signaled an error."
+}
+OK
+PUT /svc/proc/report_back1 (payload-size:20)
+{
+    "message": "This stored procedure signaled an error."
+}
+OK
+
+#
+# III.1
+PUT /svc/proc/report_back1_media (payload-size:20)
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+PUT /svc/proc/report_back1_media (payload-size:20)
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+
+#
+# III.2
+PUT /svc/proc/report_back1_media?mysql_error=5599 (payload-size:20)
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+
+#
+# III.3
+PUT /svc/proc/report_back1_media (payload-size:20)
+{
+    "message": "This stored procedure signaled an error."
+}
+OK
+PUT /svc/proc/report_back1_media (payload-size:20)
+{
+    "message": "This stored procedure signaled an error."
+}
+OK
+DROP SCHEMA func_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

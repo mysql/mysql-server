@@ -1,0 +1,63 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+DROP TABLE IF EXISTS `test`.`user` ;
+Warnings:
+Note	1051	Unknown table 'test.user'
+CREATE TABLE IF NOT EXISTS `test`.`user` (
+`id` BINARY(16) NOT NULL,
+`nickname` VARCHAR(255) NOT NULL,
+`email` VARCHAR(255) NULL,
+PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+START TRANSACTION;
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred AUTH APP at path: /svc
+# Registred DB_OBJECT at path: /svc/basic/user
+COMMIT;
+GET /svc/basic/user
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+OK
+GET /svc/authentication/login
+
+OK
+GET /svc/basic/user
+{
+    "items": [],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/user/"
+        }
+    ]
+}
+OK
+PUT /svc/basic/user (payload-size:38)
+{
+    "email": "janusz",
+    "nickname": "nick1"
+}
+OK
+DROP TABLE `test`.`user`;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

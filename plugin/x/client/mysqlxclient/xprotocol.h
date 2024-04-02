@@ -904,7 +904,7 @@ class XProtocol {
     @param pass    MySQL Server accounts authentication string
     @param schema  schema which should be "used"
     @param method  X Protocol authentication method, for example:
-                  "PLAIN", "MYSQL41"
+                  "PLAIN", "MYSQL41", "SHA256_MEMORY"
 
     @return Error code with description
       @retval != true     OK

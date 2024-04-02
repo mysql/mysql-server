@@ -1,0 +1,328 @@
+# Verify mapping functionality between field-names and column-names.
+#
+--source include/have_router.inc
+
+# Set the router-id, to generate statistics
+# this way we can wait until router detects
+# changes to DB_OBJECTS.
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Show that files tested in next steps doesn't exist
+--echo #
+--echo # 1. request files on service level
+--echo # 2. request files on schema level
+--echo # 3. request files on object level
+--echo #
+--echo ## II. Modify option on service level
+--echo #
+--echo # 1. add files
+--echo # 2. add indexes
+--echo # 3. add redirect
+--echo # 4. remove all
+--echo #
+
+--echo
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc1"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+SET @service_id1=@service_id;
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/sch1
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/obj1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_service_path="/svc2"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/service/add.inc
+SET @service_id2=@service_id;
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/sch2
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/obj2
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+
+# Sync with newly created REST object
+# wait for the creation
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/obj2
+  --wait-until-found 60
+  --exclude-json-pointer '*'
+  --display none;
+
+--source ../include/mrs/changes/fetch_object.inc
+
+
+--echo
+--echo #
+--echo # I.1
+
+## Check directory indexes
+exec $MRS_CLIENT_ARGS
+  --path /svc2
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+--echo
+--echo #
+--echo # I.2
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/obj2/index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/obj2/other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/obj2/redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+
+--echo
+--echo #
+--echo # II.1
+
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}}'
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_object.inc
+
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/index.html
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/other.html
+  --response-type RAW;
+
+--echo
+--echo #
+--echo # II.2
+
+--echo ## Check Directory Index generation
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}, "directoryIndexDirective":["other.html"],"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_object.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/index.html
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/other.html
+  --response-type RAW;
+
+--echo
+--echo #
+--echo # II.3
+--echo ## Check Redirect generation
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}, "directoryIndexDirective":["other.html"],"defaultRedirects":{"redirect.html":"/svc1/sch1/obj1/1"}}'
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_object.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/
+  --response-type RAW;
+
+--replace_regex /^Date.*/Date -> %DATE%/
+exec $MRS_CLIENT_ARGS
+  --path /svc2/redirect.html
+  --display REQUEST,STATUS,HEADER
+  --expected-status 307
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/index.html
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/other.html
+  --response-type RAW;
+
+--echo
+--echo #
+--echo # II.4
+--echo ## Check that all files are removed
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options=NULL
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_object.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+  
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+## Check files
+exec $MRS_CLIENT_ARGS
+  --path /svc2/index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+  
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc2/sch2/other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

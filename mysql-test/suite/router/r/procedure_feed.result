@@ -1,0 +1,798 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `proc_schema` - created
+
+
+## I. Verify error messages while providing faulty configuration to rest procedure
+#
+# 1. POST request is not supported by object/procedures
+# 2. DELETE request is not supported by object/procedures
+# 3. PUT request is rejected when there is not payload proveided
+# 4. PUT request is rejected when the payload is not JSON object
+# 5. PUT request is rejected when the payloads, JSON object field
+#    doesn't match registred input parameters.
+# 6. GET request is rejected when the URL parameter name doesn'
+#    match registred input parameters.
+#
+#
+## II. Verify generated resultsets when procedure returns a resultset
+##     or output parameters.
+#
+# 1. Procedure with GET request returns empty "items" field when there is not resultset
+# 2. Procedure with GET request returns numeric resultset in "items" field
+# 3. Procedure with GET request returns numeric resultset in "itemsOut" field
+# 4. Procedure with GET request returns string resultset in "items" field
+# 5. Procedure with GET request returns string resultset in "itemsOut" field
+# 6. Procedure with POST request returns empty "items" field when there is not resultset
+# 7. Procedure with POST request returns numeric resultset in "items" field
+# 8. Procedure with POST request returns numeric resultset in "itemsOut" field
+# 9. Procedure with POST request returns string resultset in "items" field
+# 10. Procedure with POST request returns string resultset in "itemsOut" field
+# 11. Procedure with POST request receives strings and returns string resultset in "items" field
+# 12. Procedure with POST request receives strings and returns string resultset in "itemsOut" field
+#
+#
+## III. Verify handling of different MYSQL types as input and output of
+##      stored procedures, when they are transfered in GET requests
+#
+# 1. Verify if intput varchar value is the same at output of stored procedure
+# 2. Verify if intput DATE value is the same at output of stored procedure
+# 3. Verify if intput YEAR value is the same at output of stored procedure
+# 4. Verify if intput TIME value is the same at output of stored procedure
+# 5. Verify if intput BIT(1) value is the same at output of stored procedure
+# 6. Verify if intput TINYINT(1) value is the same at output of stored procedure
+# 7. Verify if intput TINYINT(8) value is the same at output of stored procedure
+# 8. Verify if intput DECIMAL value is the same at output of stored procedure
+# 9. Verify if intput FLOAT value is the same at output of stored procedure
+# 10. Verify if intput DOUBLE value is the same at output of stored procedure
+#
+#
+## IV. Verify handling of different MYSQL types as input and output of
+##      stored procedures, when they are transfered in POST requests
+#
+# 1. Verify if intput varchar value is the same at output of stored procedure
+# 2. Verify if intput DATE value is the same at output of stored procedure
+# 3. Verify if intput YEAR value is the same at output of stored procedure
+# 4. Verify if intput TIME value is the same at output of stored procedure
+# 5. Verify if intput BIT(1) value is the same at output of stored procedure
+# 6. Verify if intput TINYINT(1) value is the same at output of stored procedure
+# 7. Verify if intput TINYINT(8) value is the same at output of stored procedure
+# 8. Verify if intput DECIMAL value is the same at output of stored procedure
+# 9. Verify if intput FLOAT value is the same at output of stored procedure
+# 10. Verify if intput DOUBLE value is the same at output of stored procedure
+#
+## V. Verify handling of resultsets with several columns
+# 1. Verify presentation of resultset with different columns
+# 2. Verify presentation of resultsets with different columns
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/proc
+# Registred DB_OBJECT at path: /svc/proc/sum
+# Registred DB_OBJECT at path: /svc/proc/sum_out
+# Registred DB_OBJECT at path: /svc/proc/concat
+# Registred DB_OBJECT at path: /svc/proc/concat_out
+# Registred DB_OBJECT at path: /svc/proc/move_char
+# Registred DB_OBJECT at path: /svc/proc/move_date
+# Registred DB_OBJECT at path: /svc/proc/move_year
+# Registred DB_OBJECT at path: /svc/proc/move_time
+# Registred DB_OBJECT at path: /svc/proc/move_bit
+# Registred DB_OBJECT at path: /svc/proc/move_tinyint1
+# Registred DB_OBJECT at path: /svc/proc/move_tinyint8
+# Registred DB_OBJECT at path: /svc/proc/move_decimal
+# Registred DB_OBJECT at path: /svc/proc/move_float
+# Registred DB_OBJECT at path: /svc/proc/move_double
+# Registred DB_OBJECT at path: /svc/proc/nothing
+GET /svc/proc/nothing
+{
+    "items": []
+}
+OK
+
+#
+# I.1
+POST /svc/proc/nothing
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+
+#
+# I.2
+DELETE /svc/proc/nothing
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+
+#
+# I.3
+PUT /svc/proc/nothing
+{
+    "message": "Bad Request",
+    "status": 400
+}
+OK
+
+#
+# I.4
+PUT /svc/proc/nothing (payload-size:2)
+{
+    "message": "Bad Request",
+    "status": 400
+}
+OK
+
+#
+# I.5
+PUT /svc/proc/nothing (payload-size:25)
+{
+    "message": "Not allowed parameter:not-existing-param",
+    "status": 400
+}
+OK
+
+#
+# I.6
+GET /svc/proc/nothing?not-existing-param=10
+{
+    "message": "Not allowed parameter:not-existing-param",
+    "status": 400
+}
+OK
+
+#
+# II.1
+GET /svc/proc/nothing
+{
+    "items": []
+}
+OK
+
+#
+# II.2
+GET /svc/proc/sum?a=10&b=20
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.3
+GET /svc/proc/sum_out?a=10&b=20
+{
+    "items": [
+        {
+            "type": " proc_schema.proc_sum_outOut",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.4
+GET /svc/proc/concat?a=10&b=20
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "result": "1020"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "MEDIUMTEXT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.5
+GET /svc/proc/concat_out?a=10&b=20
+{
+    "items": [
+        {
+            "type": " proc_schema.proc_concat_outOut",
+            "items": [
+                {
+                    "result": "MTAyMA=="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BLOB"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.6
+PUT /svc/proc/nothing (payload-size:2)
+{
+    "items": []
+}
+OK
+
+#
+# II.7
+PUT /svc/proc/sum (payload-size:15)
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.8
+PUT /svc/proc/sum_out (payload-size:16)
+{
+    "items": [
+        {
+            "type": " proc_schema.proc_sum_outOut",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.9
+PUT /svc/proc/concat (payload-size:15)
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "result": "1020"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "MEDIUMTEXT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.10
+PUT /svc/proc/concat_out (payload-size:15)
+{
+    "items": [
+        {
+            "type": " proc_schema.proc_concat_outOut",
+            "items": [
+                {
+                    "result": "MTAyMA=="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BLOB"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.11
+PUT /svc/proc/concat (payload-size:19)
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "result": "1020"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "MEDIUMTEXT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.12
+PUT /svc/proc/concat_out (payload-size:19)
+{
+    "items": [
+        {
+            "type": " proc_schema.proc_concat_outOut",
+            "items": [
+                {
+                    "result": "MTAyMA=="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BLOB"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.1
+GET /svc/proc/move_char?a=10
+{
+    "items": [
+        {
+            "type": " proc_schema.move_charOut",
+            "items": [
+                {
+                    "result": "MTAgYXBwZW5kZWQ="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "VARCHAR(80)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.2
+DISABLED
+
+#
+# III.3
+DISABLED
+
+#
+# III.4
+DISABLED
+
+#
+# III.5
+GET /svc/proc/move_bit?a=1
+{
+    "items": [
+        {
+            "type": " proc_schema.move_bitOut",
+            "items": [
+                {
+                    "result": true
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.6
+GET /svc/proc/move_tinyint1?a=1
+{
+    "items": [
+        {
+            "type": " proc_schema.move_tinyint1Out",
+            "items": [
+                {
+                    "result": 2
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.7
+GET /svc/proc/move_tinyint8?a=10
+{
+    "items": [
+        {
+            "type": " proc_schema.move_tinyint8Out",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.8
+GET /svc/proc/move_decimal?a=10
+{
+    "items": [
+        {
+            "type": " proc_schema.move_decimalOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DECIMAL(0,0)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.9
+GET /svc/proc/move_float?a=10
+{
+    "items": [
+        {
+            "type": " proc_schema.move_floatOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "FLOAT(0,31)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# III.10
+GET /svc/proc/move_double?a=10
+{
+    "items": [
+        {
+            "type": " proc_schema.move_doubleOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DOUBLE(0,31)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.1
+PUT /svc/proc/move_char (payload-size:8)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_charOut",
+            "items": [
+                {
+                    "result": "MTAgYXBwZW5kZWQ="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "VARCHAR(80)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.2
+DISABLED
+
+#
+# IV.3
+DISABLED
+
+#
+# IV.4
+DISABLED
+
+#
+# IV.5
+PUT /svc/proc/move_bit (payload-size:7)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_bitOut",
+            "items": [
+                {
+                    "result": true
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.6
+PUT /svc/proc/move_tinyint1 (payload-size:7)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_tinyint1Out",
+            "items": [
+                {
+                    "result": 2
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.7
+PUT /svc/proc/move_tinyint8 (payload-size:8)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_tinyint8Out",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.8
+PUT /svc/proc/move_decimal (payload-size:8)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_decimalOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DECIMAL(0,0)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.9
+PUT /svc/proc/move_float (payload-size:8)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_floatOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "FLOAT(0,31)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# IV.10
+PUT /svc/proc/move_double (payload-size:8)
+{
+    "items": [
+        {
+            "type": " proc_schema.move_doubleOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DOUBLE(0,31)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+DROP SCHEMA proc_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

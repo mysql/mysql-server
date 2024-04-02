@@ -1,0 +1,212 @@
+# Verify mapping functionality between field-names and column-names.
+#
+--source include/have_router.inc
+
+# Set the router-id, to generate statistics
+# this way we can wait until router detects
+# changes to DB_OBJECTS.
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Show that files tested in next steps doesn't exist
+--echo #
+--echo # 1. request files on global level
+--echo #
+--echo ## II. Modify option on service level
+--echo #
+--echo # 1. add files
+--echo # 2. add indexes
+--echo # 3. add redirect
+--echo # 4. remove all
+--echo #
+
+UPDATE  `mysql_rest_service_metadata`.`config` SET data='{}';
+
+--let $mrs_add_service_path="/svc2"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/service/add.inc
+SET @service_id2=@service_id;
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/sch2
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/obj2
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+
+# Sync with newly created REST object
+# wait for the creation
+--source ../include/mrs/changes/fetch_object.inc
+--let $mrs_do_not_wait_at_fetch=1
+--source ../include/mrs/changes/fetch_files.inc
+
+
+--echo
+--echo #
+--echo # I.1
+
+## Check directory indexes
+exec $MRS_CLIENT_ARGS
+  --path /
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+
+--echo
+--echo #
+--echo # II.1
+
+UPDATE  `mysql_rest_service_metadata`.`config` SET data='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}}';
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options="{}"
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_files.inc
+
+
+exec $MRS_CLIENT_ARGS
+  --path /
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /index.html
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /other.html
+  --response-type RAW;
+
+--echo
+--echo #
+--echo # II.2
+
+--echo ## Check Directory Index generation
+UPDATE  `mysql_rest_service_metadata`.`config` SET data='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}, "directoryIndexDirective":["other.html"],"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}';
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options='{"invalid":""}'
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_files.inc
+
+# The index is not applied in this case 
+exec $MRS_CLIENT_ARGS
+  --path /
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /index.html
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /other.html
+  --response-type RAW;
+
+--echo
+--echo #
+--echo # II.3
+--echo ## Check Redirect generation
+UPDATE  `mysql_rest_service_metadata`.`config` SET data='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}, "directoryIndexDirective":["other.html"],"defaultRedirects":{"redirect.html":"/svc1/sch1/obj1/1"}}';
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options='{"aaa":1}'
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_files.inc
+
+
+exec $MRS_CLIENT_ARGS
+  --path /
+  --response-type RAW;
+
+--replace_regex /^Date.*/Date -> %DATE%/
+exec $MRS_CLIENT_ARGS
+  --path /redirect.html
+  --display REQUEST,STATUS,HEADER
+  --expected-status 307
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /index.html
+  --response-type RAW;
+
+exec $MRS_CLIENT_ARGS
+  --path /other.html
+  --response-type RAW;
+
+--echo
+--echo #
+--echo # II.4
+--echo ## Check that all files are removed
+UPDATE  `mysql_rest_service_metadata`.`config` SET data=NULL;
+--let $mrs_sql_id_variable=@service_id2
+--let $mrs_modify_options=NULL
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_files.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+
+## Check files
+exec $MRS_CLIENT_ARGS
+  --path /index.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /other.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+
+exec $MRS_CLIENT_ARGS
+  --path /redirect.html
+  --response-type RAW
+  --display REQUEST,STATUS
+  --expected-status NotFound;
+  
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

@@ -1,0 +1,691 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+
+
+## I. Verify JSON encoding of different times of data, returned in FEED response
+#
+# 1. Verify generation of JSON boolean from bit and bit(1)
+# 2. Verify generation of JSON string with base64 data from bit(10) and binary
+# 3. Verify generation of JSON string from TEXT, VARCHAR(X), SET, ENUM
+# 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+# 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+# 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+#
+#
+START TRANSACTION;
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/int
+# Registred DB_OBJECT at path: /svc/basic/varchar
+# Registred DB_OBJECT at path: /svc/basic/text
+# Registred DB_OBJECT at path: /svc/basic/datetime
+# Registred DB_OBJECT at path: /svc/basic/timestamp
+# Registred DB_OBJECT at path: /svc/basic/date
+# Registred DB_OBJECT at path: /svc/basic/time
+# Registred DB_OBJECT at path: /svc/basic/year
+# Registred DB_OBJECT at path: /svc/basic/smallint
+# Registred DB_OBJECT at path: /svc/basic/bigint
+# Registred DB_OBJECT at path: /svc/basic/bin
+# Registred DB_OBJECT at path: /svc/basic/float
+# Registred DB_OBJECT at path: /svc/basic/double
+# Registred DB_OBJECT at path: /svc/basic/decimal
+# Registred DB_OBJECT at path: /svc/basic/set
+# Registred DB_OBJECT at path: /svc/basic/enum
+# Registred DB_OBJECT at path: /svc/basic/bit
+# Registred DB_OBJECT at path: /svc/basic/bit1
+# Registred DB_OBJECT at path: /svc/basic/bit10
+# Registred DB_OBJECT at path: /svc/basic/tinyint
+# Registred DB_OBJECT at path: /svc/basic/mediumint
+# Registred DB_OBJECT at path: /svc/basic/blob
+COMMIT;
+
+#
+# I.1
+GET /svc/basic/bit
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": true
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cbit",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/bit1
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": true
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cbit",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.2
+GET /svc/basic/bit10
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cbit10": "AAA="
+                },
+                {
+                    "cbit10": "AAA="
+                },
+                {
+                    "cbit10": "A/8="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cbit10",
+                        "type": "BIT(10)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/bin
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cbin": "MAAA"
+                },
+                {
+                    "cbin": "MAAA"
+                },
+                {
+                    "cbin": "BwAA"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cbin",
+                        "type": "CHAR(3)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/blob
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cblob": ""
+                },
+                {
+                    "cblob": "MQ=="
+                },
+                {
+                    "cblob": "ABGrAAASIzM="
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cblob",
+                        "type": "BLOB"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.3
+GET /svc/basic/set
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cset": ""
+                },
+                {
+                    "cset": "value1"
+                },
+                {
+                    "cset": "value1,value2,value3"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cset",
+                        "type": "CHAR(20)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/enum
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cenum": "value1"
+                },
+                {
+                    "cenum": "value1"
+                },
+                {
+                    "cenum": "value3"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cenum",
+                        "type": "CHAR(6)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/varchar
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cvarchar": "first row"
+                },
+                {
+                    "cvarchar": "second row"
+                },
+                {
+                    "cvarchar": "thrid row"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cvarchar",
+                        "type": "VARCHAR(255)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/text
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "ctext": "numeric zeros"
+                },
+                {
+                    "ctext": "numeric min"
+                },
+                {
+                    "ctext": "numeric max"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "ctext",
+                        "type": "TEXT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.4
+GET /svc/basic/date
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cdate": "2020-12-01"
+                },
+                {
+                    "cdate": "2020-12-02"
+                },
+                {
+                    "cdate": "2020-12-03"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cdate",
+                        "type": "DATE"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/time
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "ctime": "12:01:50"
+                },
+                {
+                    "ctime": "12:02:50"
+                },
+                {
+                    "ctime": "12:03:50"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "ctime",
+                        "type": "TIME"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/year
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cyear": "2020"
+                },
+                {
+                    "cyear": "2021"
+                },
+                {
+                    "cyear": "2022"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cyear",
+                        "type": "YEAR"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/datetime
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cdatetime": "2020-12-01 12:01:50"
+                },
+                {
+                    "cdatetime": "2020-12-02 12:02:50"
+                },
+                {
+                    "cdatetime": "2020-12-03 12:03:50"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cdatetime",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/timestamp
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "ctimestamp": "2020-12-01 12:01:50"
+                },
+                {
+                    "ctimestamp": "2020-12-02 12:02:50"
+                },
+                {
+                    "ctimestamp": "2020-12-03 12:03:50"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "ctimestamp",
+                        "type": "TIMESTAMP"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.5
+GET /svc/basic/float
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cfloat": 0
+                },
+                {
+                    "cfloat": -1000
+                },
+                {
+                    "cfloat": 1000
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cfloat",
+                        "type": "FLOAT(0,31)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/double
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cdouble": 0
+                },
+                {
+                    "cdouble": -999.9999
+                },
+                {
+                    "cdouble": 999.9999
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cdouble",
+                        "type": "DOUBLE(0,31)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/decimal
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cdecimal": 0.0
+                },
+                {
+                    "cdecimal": -999.99
+                },
+                {
+                    "cdecimal": 999.99
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cdecimal",
+                        "type": "DECIMAL(0,2)"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.6
+GET /svc/basic/int
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "id": 1
+                },
+                {
+                    "id": 2
+                },
+                {
+                    "id": 3
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/bigint
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cbigint": 0
+                },
+                {
+                    "cbigint": -9223372036854775808
+                },
+                {
+                    "cbigint": 9223372036854775807
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cbigint",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/smallint
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "csmallint": 0
+                },
+                {
+                    "csmallint": -32768
+                },
+                {
+                    "csmallint": 32767
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "csmallint",
+                        "type": "SMALLINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/tinyint
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "ctinyint": 0
+                },
+                {
+                    "ctinyint": -128
+                },
+                {
+                    "ctinyint": 127
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "ctinyint",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/mediumint
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "cmediumint": 0
+                },
+                {
+                    "cmediumint": -8388608
+                },
+                {
+                    "cmediumint": 8388607
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "cmediumint",
+                        "type": "MEDIUMINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

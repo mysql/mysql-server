@@ -21,6 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+ADD_SUBDIRECTORY(bootstrap)
 ADD_SUBDIRECTORY(connection_pool)
 ADD_SUBDIRECTORY(destination_status)
 ADD_SUBDIRECTORY(harness)
@@ -38,6 +39,7 @@ ADD_SUBDIRECTORY(protobuf)
 ADD_SUBDIRECTORY(rest_api)
 ADD_SUBDIRECTORY(rest_connection_pool)
 ADD_SUBDIRECTORY(rest_metadata_cache)
+ADD_SUBDIRECTORY(mysql_rest_service)
 ADD_SUBDIRECTORY(rest_router)
 ADD_SUBDIRECTORY(rest_routing)
 ADD_SUBDIRECTORY(router)

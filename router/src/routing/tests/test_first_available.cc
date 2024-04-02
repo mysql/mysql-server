@@ -37,7 +37,7 @@ class FirstAvailableTest : public ::testing::Test {
   net::io_context io_ctx_;
 };
 
-bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
+bool operator==(const Destinations::value_type &a, const Destination &b) {
   return a->hostname() == b.hostname() && a->port() == b.port();
 }
 

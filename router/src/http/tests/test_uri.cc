@@ -79,6 +79,56 @@ INSTANTIATE_TEST_SUITE_P(
       return sanitise(std::get<0>(param_info.param));
     });
 
+struct QueryParam {
+  struct Element {
+    std::string k, v;
+  };
+  std::vector<Element> query_elements;
+  std::string result;
+};
+
+class UriEncodeTest : public ::testing::TestWithParam<QueryParam> {
+ public:
+};
+
+TEST_P(UriEncodeTest, encode_query) {
+  const auto &[k_query_elements, k_result] = GetParam();
+  http::base::Uri uri{};
+
+  auto &qe = uri.get_query_elements();
+  for (const auto &[k, v] : k_query_elements) {
+    qe[k] = v;
+  }
+
+  ASSERT_EQ(k_result, uri.join());
+}
+
+TEST_P(UriEncodeTest, encode_query_with_url) {
+  const auto &[k_query_elements, k_result] = GetParam();
+  const std::string k_starting_url{"http://www.not.existing/somepath"};
+  http::base::Uri uri{k_starting_url};
+
+  auto &qe = uri.get_query_elements();
+  for (const auto &[k, v] : k_query_elements) {
+    qe[k] = v;
+  }
+
+  std::string k_expected_url =
+      (k_result == "/" ? k_starting_url : k_starting_url + k_result);
+  ASSERT_EQ(k_expected_url, uri.join());
+}
+
+using QElements = std::vector<QueryParam::Element>;
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, UriEncodeTest,
+    ::testing::Values(
+        QueryParam{QElements{}, "/"},
+        QueryParam{QElements{{"first", "1"}}, "?first=1"},
+        QueryParam{
+            QElements{{"first", "https://www.mysql.com/not/existing.proc"}},
+            "?first=https%3a%2f%2fwww.mysql.com%2fnot%2fexisting.proc"}));
+
 struct UriStringParam {
   UriStringParam(const std::string &param_uri) : uri{param_uri} {}
   UriStringParam(const std::string &param_uri,

@@ -77,6 +77,9 @@ constexpr auto kTTL = 100ms;
 }  // namespace
 
 class StateFileTest : public RouterComponentBootstrapTest {
+ public:
+  StateFileTest() : RouterComponentBootstrapTest(false) {}
+
  protected:
   void SetUp() override {
     RouterComponentTest::SetUp();
@@ -1053,7 +1056,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{
       "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
-      temp_test_dir.name()};
+      temp_test_dir.name(), "--logger.level=debug"};
   auto &router = launch_router_for_bootstrap(router_cmdline, EXIT_SUCCESS);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
@@ -1113,6 +1116,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
                     {metadata_server_port});
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
+
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
                                           std::to_string(metadata_server_port)};
   auto &router = launch_router_for_bootstrap(router_cmdline, EXIT_SUCCESS);

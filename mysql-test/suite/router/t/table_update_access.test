@@ -1,0 +1,88 @@
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/t2
+#  --let $mrs_add_db_object_op=CREATE,READ,UPDATE,DELETE
+--let $mrs_add_db_object_op=READ
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify basic access handling for READ and UPDATE when first is enabled
+--echo #
+--echo # 1. Show that READ access is working
+--echo # 2. Show that UPDATE access doesn't work
+--echo #
+--echo #
+
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1 --wait-until-found=60
+
+--echo
+--echo #
+--echo # I.2
+exec $MRS_CLIENT_ARGS
+   --expected-status Forbidden
+   --path /svc/basic/t2 --request-type put
+   --payload '{"id":1,"comment":"something-new"}';
+
+--echo
+--echo
+--echo ## II. Verify basic access handling for READ and UPDATE when first is enabled
+--echo #
+--echo # 1. Show that full update is working
+--echo # 2. Show that partial update doesn't work
+--echo #
+--echo #
+
+--echo
+--echo #
+--echo # II.1
+
+--source ../include/mrs/changes/fetch_object.inc
+
+--let $mrs_add_db_object_op=READ,UPDATE
+--source ../include/mrs/db_object/modify_op.inc
+
+--source ../include/mrs/changes/wait_object.inc
+
+exec $MRS_CLIENT_ARGS
+   --path /svc/basic/t2/1 --request-type put
+   --payload '{"id":1,"comments":"something-new","date":"2017-1-1","name":"new name"}';
+
+--echo
+--echo #
+--echo # II.2
+
+exec $MRS_CLIENT_ARGS
+   --expected-status BadRequest
+   --path /svc/basic/t2/1 --request-type put
+   --payload '{"id":1,"comment":"something-new"}';
+
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

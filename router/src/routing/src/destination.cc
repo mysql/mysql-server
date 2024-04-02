@@ -99,6 +99,12 @@ void DestinationNodesStateNotifier::
   query_quarantined_destinations_callback_ = nullptr;
 }
 
+bool DestinationNodesStateNotifier::is_dynamic() { return false; }
+
+std::string DestinationNodesStateNotifier::get_dynamic_plugin_name() {
+  return {};
+}
+
 // class RouteDestination
 
 void RouteDestination::add(const TCPAddress dest) {

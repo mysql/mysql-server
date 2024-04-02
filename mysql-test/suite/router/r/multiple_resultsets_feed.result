@@ -1,0 +1,379 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `proc_schema` - created
+
+
+## I. Encode multiple resultsets into FEED response:
+#
+# 1. Verify response for SP that returns single resultset
+#    into "items" field.
+# 2. Verify response for SP that returns two resultsets
+#    into "items" and "items2" fields.
+# 3. Verify response for SP that returns three resultsets
+#    into "items","items2","items3" fields.
+#
+## II. Encode multiple resultsets with outparams into FEED response:
+#
+# 1. Verify response for SP that returns only output parameters
+#    encoded into "itemsOut" field.
+# 2. Verify response for SP that returns a resultset and output
+#    parameters encoded into "items" and "itemsOut" fields.
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/proc
+# Registred DB_OBJECT at path: /svc/proc/one
+# Registred DB_OBJECT at path: /svc/proc/two
+# Registred DB_OBJECT at path: /svc/proc/three
+# Registred DB_OBJECT at path: /svc/proc/out
+# Registred DB_OBJECT at path: /svc/proc/one_and_out
+
+#
+# I.1
+PUT /svc/proc/one (payload-size:2)
+{
+    "items": [
+        {
+            "items": [
+                {
+                    "name": "First row"
+                },
+                {
+                    "name": "Second row"
+                },
+                {
+                    "name": "Thrid row"
+                },
+                {
+                    "name": "4th row"
+                },
+                {
+                    "name": "5th row"
+                },
+                {
+                    "name": "6th row"
+                },
+                {
+                    "name": "7th row"
+                },
+                {
+                    "name": "8th row"
+                },
+                {
+                    "name": "9th row"
+                },
+                {
+                    "name": "10th row"
+                },
+                {
+                    "name": "11th row"
+                },
+                {
+                    "name": "12th row"
+                },
+                {
+                    "name": "13th row"
+                },
+                {
+                    "name": "14th row"
+                },
+                {
+                    "name": "15th row"
+                },
+                {
+                    "name": "16th row"
+                },
+                {
+                    "name": "17th row"
+                },
+                {
+                    "name": "18th row"
+                },
+                {
+                    "name": "19th row"
+                },
+                {
+                    "name": "20th row"
+                },
+                {
+                    "name": "21th row"
+                },
+                {
+                    "name": "22th row"
+                },
+                {
+                    "name": "23th row"
+                },
+                {
+                    "name": "24th row"
+                },
+                {
+                    "name": "25th row"
+                },
+                {
+                    "name": "26th row"
+                },
+                {
+                    "name": "27th row"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.2
+GET /svc/proc/two
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "id": 2,
+                    "name": "Second row",
+                    "comments": null,
+                    "date": "1977-01-21 00:00:00"
+                },
+                {
+                    "id": 3,
+                    "name": "Thrid row",
+                    "comments": null,
+                    "date": "1977-02-21 00:00:00"
+                },
+                {
+                    "id": 4,
+                    "name": "4th row",
+                    "comments": "This row was inserted as forth row.",
+                    "date": "1977-01-21 00:00:00"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "items1",
+            "items": [
+                {
+                    "count(*)": 27
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "count(*)",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.3
+GET /svc/proc/three
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "min(id)": 1
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "min(id)",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "items1",
+            "items": [
+                {
+                    "max(id)": 27
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "max(id)",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "items2",
+            "items": [
+                {
+                    "id": 27,
+                    "name": "27th row",
+                    "comments": "...",
+                    "date": "2023-11-12 00:00:00"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.1
+GET /svc/proc/out
+{
+    "items": [
+        {
+            "type": " proc_schema.no_resultset_out_paramOut",
+            "items": [
+                {
+                    "v": 1
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "v",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# II.2
+GET /svc/proc/one_and_out
+{
+    "items": [
+        {
+            "type": "items0",
+            "items": [
+                {
+                    "id": 27,
+                    "name": "27th row",
+                    "comments": "...",
+                    "date": "2023-11-12 00:00:00"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        },
+        {
+            "type": " proc_schema.one_resultset_out_paramOut",
+            "items": [
+                {
+                    "v": 1
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "v",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+DROP SCHEMA proc_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

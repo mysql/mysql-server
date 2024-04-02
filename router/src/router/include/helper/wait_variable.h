@@ -197,7 +197,7 @@ class WaitableVariable {
       return {result};
     }
 
-    return {stdx::unexpect, true};
+    return stdx::unexpected(true);
   }
 
  private:

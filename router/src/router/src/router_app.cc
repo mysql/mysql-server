@@ -42,12 +42,10 @@
 #include <system_error>
 #include <vector>
 
-#include "common.h"  // truncate_string
-#include "config_generator.h"
 #include "dim.h"
 #include "harness_assert.h"
-#include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
+#include "keyring_handler.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
@@ -61,6 +59,7 @@
 #include "mysql/harness/process_state_component.h"
 #include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/signal_handler.h"
+#include "mysql/harness/string_utils.h"
 #include "mysql/harness/supported_config_options.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
@@ -71,7 +70,7 @@
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/supported_router_options.h"
-#include "mysqlrouter/utils.h"  // substitute_envvar
+#include "mysqlrouter/utils.h"
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "scope_guard.h"
@@ -98,12 +97,10 @@ IMPORT_LOG_FUNCTIONS()
 using namespace std::string_literals;
 
 using mysql_harness::DIM;
-using mysql_harness::truncate_string;
 using mysql_harness::utility::string_format;
 using mysql_harness::utility::wrap_string;
 using mysqlrouter::SysUserOperationsBase;
 
-static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
 
 namespace {
@@ -197,7 +194,8 @@ MySQLRouter::MySQLRouter(const std::string &program_name,
       ,
       sys_user_operations_(sys_user_operations)
 #endif
-{
+      ,
+      bootstrapper_(keyring_.get_ki(), out_stream_, err_stream_) {
   signal_handler_.register_ignored_signals_handler();  // SIGPIPE
 
   init(program_name,
@@ -264,7 +262,7 @@ void MySQLRouter::init(const std::string &program_name,
   signal_handler_.register_ctrl_c_handler();
 #endif
 
-  const bool is_bootstrap = !bootstrap_uri_.empty();
+  const bool is_bootstrap = bootstrapper_.is_bootstrap();
   const auto config_overwrites = arg_handler_.get_config_overwrites();
   check_config_overwrites(config_overwrites,
                           is_bootstrap);  // throws std::runtime_error
@@ -278,7 +276,7 @@ void MySQLRouter::init(const std::string &program_name,
     // by the root user and not accessible by others, which is likely not what
     // was expected. The user still can use --user=root to force using
     // superuser.
-    bool user_option = this->bootstrap_options_.count("user") != 0;
+    bool user_option = bootstrapper_.bootstrap_options_.count("user") != 0;
     bool superuser = sys_user_operations_->geteuid() == 0;
 
     if (superuser && !user_option) {
@@ -313,12 +311,14 @@ void MySQLRouter::init(const std::string &program_name,
     // here we re-configure it with settings from config file)
     init_main_logger(config, true);  // true = raw logging mode
 
-    bootstrap(program_name, bootstrap_uri_,
-              get_plugin_folder_overwrite(
-                  config_overwrites));  // throws MySQLSession::Error,
-                                        // std::runtime_error,
-                                        // std::out_of_range,
-                                        // std::logic_error, ...?
+    bootstrapper_.bootstrap(program_name, origin_, false,
+                            get_plugin_folder_overwrite(config_overwrites)
+#ifndef _WIN32
+                                ,
+                            sys_user_operations_
+#endif
+    );  // throws MySQLSession::Error, std::runtime_error,
+        // std::out_of_range, std::logic_error, ...?
     return;
   }
 
@@ -342,6 +342,17 @@ uint32_t MySQLRouter::get_router_id(mysql_harness::Config &config) {
   return result;
 }
 
+static bool option_has_value(mysql_harness::ConfigSection *section,
+                             const std::string &key,
+                             const std::vector<std::string> &values) {
+  if (!section->has(key)) return false;
+
+  auto section_value = section->get(key);
+
+  return std::any_of(values.begin(), values.end(),
+                     [&section_value](auto &v) { return v == section_value; });
+}
+
 void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   bool needs_keyring = false;
 
@@ -354,17 +365,21 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
       }
     }
   }
-  if (needs_keyring) {
-    // Initialize keyring
-    keyring_info_.init(config);
 
-    if (keyring_info_.use_master_key_external_facility()) {
-      init_keyring_using_external_facility(config);
-    } else if (keyring_info_.use_master_key_file()) {
-      init_keyring_using_master_key_file();
-    } else {  // prompt password
-      init_keyring_using_prompted_password();
+  if (!needs_keyring && config.has_any("mysql_rest_service")) {
+    auto mysql_rest_service = config.get("mysql_rest_service");
+    for (auto &section : mysql_rest_service) {
+      if (section->has("mysql_user") ||
+          section->has("mysql_user_data_access") ||
+          option_has_value(section, "jwt_token", {"1", "true"})) {
+        needs_keyring = true;
+        break;
+      }
     }
+  }
+
+  if (needs_keyring) {
+    keyring_.init(config, false);
   }
 }
 
@@ -380,57 +395,6 @@ void MySQLRouter::init_dynamic_state(mysql_harness::Config &config) {
     // force object creation, the further code relies on it's existence
     DIM::instance().get_DynamicState();
   }
-}
-
-void MySQLRouter::init_keyring_using_external_facility(
-    mysql_harness::Config &config) {
-  keyring_info_.add_router_id_to_env(get_router_id(config));
-  if (!keyring_info_.read_master_key()) {
-    throw MasterKeyReadError(
-        "Cannot fetch master key using master key reader:" +
-        keyring_info_.get_master_key_reader());
-  }
-  keyring_info_.validate_master_key();
-  mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(),
-                                       keyring_info_.get_master_key(), false);
-}
-
-void MySQLRouter::init_keyring_using_master_key_file() {
-  mysql_harness::init_keyring(keyring_info_.get_keyring_file(),
-                              keyring_info_.get_master_key_file(), false);
-}
-
-void MySQLRouter::init_keyring_using_prompted_password() {
-#ifdef _WIN32
-  // When no master key file is provided, console interaction is required to
-  // provide a master password. Since console interaction is not available when
-  // run as service, throw an error to abort.
-  if (mysqlrouter::is_running_as_service()) {
-    std::string msg =
-        "Cannot run router in Windows a service without a master key file.";
-    mysqlrouter::write_windows_event_log(msg);
-    throw std::runtime_error(msg);
-  }
-#endif
-  std::string master_key =
-      mysqlrouter::prompt_password("Encryption key for router keyring");
-  if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
-    throw std::runtime_error("Encryption key is too long");
-  mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(),
-                                       master_key, false);
-}
-
-#if 0
-/*static*/
-std::map<std::string, std::string> MySQLRouter::get_default_paths(
-    const mysql_harness::Path &origin) {
-  return mysqlrouter::get_default_paths(origin);
-}
-#endif
-
-std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
-  return mysqlrouter::get_default_paths(
-      origin_);  // throws std::invalid_argument
 }
 
 /*static*/
@@ -541,7 +505,7 @@ void MySQLRouter::init_loader(mysql_harness::LoaderConfig &config) {
 }
 
 void MySQLRouter::start() {
-  if (showing_info_ || !bootstrap_uri_.empty()) {
+  if (showing_info_ || bootstrapper_.is_bootstrap()) {
     // when we are showing info like --help or --version, we do not throw
     return;
   }
@@ -562,7 +526,8 @@ void MySQLRouter::start() {
   DIM::instance().reset_Config();  // simplifies unit tests
   DIM::instance().set_Config(
       [this, &config_files]() {
-        return make_config(get_default_paths(), config_files);
+        return make_config(mysqlrouter::get_default_paths(origin_),
+                           config_files);
       },
       std::default_delete<mysql_harness::LoaderConfig>());
   mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
@@ -879,86 +844,16 @@ std::vector<std::string> MySQLRouter::check_config_files() {
   return res.value();
 }
 
-void MySQLRouter::save_bootstrap_option_not_empty(
-    const std::string &option_name, const std::string &save_name,
-    const std::string &option_value) {
-  if (option_value.empty())
-    throw std::runtime_error("Value for option '" + option_name +
-                             "' can't be empty.");
-
-  bootstrap_options_[save_name] = option_value;
-}
-
-void MySQLRouter::assert_bootstrap_mode(const std::string &option_name) const {
-  if (this->bootstrap_uri_.empty())
-    throw std::runtime_error("Option " + option_name +
-                             " can only be used together with -B/--bootstrap");
-}
-
 void MySQLRouter::assert_not_bootstrap_mode(
     const std::string &option_name) const {
-  if (!this->bootstrap_uri_.empty())
+  if (!this->bootstrapper_.bootstrap_uri_.empty())
     throw std::runtime_error("Option " + option_name +
                              " cannot be used together with -B/--bootstrap");
 }
 
-void MySQLRouter::assert_option_value_in_range(const std::string &value,
-                                               const int min,
-                                               const int max) const {
-  try {
-    std::size_t last_char = 0;
-    auto val = std::stoi(value, &last_char);
-    if (last_char != value.size())
-      throw std::invalid_argument{"invalid value: " + value};
-
-    if (val < min || val > max) {
-      throw std::out_of_range{std::string{"not in allowed range ["} +
-                              std::to_string(min) + ", " + std::to_string(max) +
-                              "]"};
-    }
-  } catch (const std::invalid_argument &) {
-    throw std::invalid_argument{"invalid value: " + value};
-  }
-}
-
-/**
- * upper-case a string.
- */
-static std::string make_upper(std::string s) {
-  std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-
-  return s;
-}
-
-/**
- * assert 'value' is one of the allowed values.
- *
- * value is compared case-insensitive
- *
- * @param key key name to report in case of failure
- * @param value value to check
- * @param allowed_values allowed values.
- *
- * @throws std::invalid_argument if value is not part of allowed_values.
- */
-static void assert_one_of_ci(
-    const std::string &key, const std::string &value,
-    std::initializer_list<const char *> allowed_values) {
-  const auto value_upper = make_upper(value);
-
-  const auto it = std::find_if(allowed_values.begin(), allowed_values.end(),
-                               [&value_upper](const auto &allowed_value) {
-                                 return value_upper == allowed_value;
-                               });
-
-  if (it == allowed_values.end()) {
-    throw std::invalid_argument("value '" + value + "' provided to " + key +
-                                " is not one of " +
-                                mysql_harness::join(allowed_values, ","));
-  }
-}
-
 void MySQLRouter::prepare_command_options() noexcept {
+  using OptionNames = CmdOption::OptionNames;
+
   // General guidelines for naming command line options:
   //
   // Option names that start with --conf are meant to affect
@@ -967,276 +862,8 @@ void MySQLRouter::prepare_command_options() noexcept {
   // omit the --conf prefix, even if it affects both the bootstrap
   // and the configuration.
 
-  using OptionNames = CmdOption::OptionNames;
-
   arg_handler_.clear_options();
-
-  arg_handler_.add_option(
-      OptionNames({"--account"}),
-      "Account (username) to be used by Router when talking to cluster."
-      " (bootstrap)",
-      CmdOptionValueReq::required, "account",
-      [this](const std::string &username) {
-        if (username.empty())
-          throw std::runtime_error(
-              "Value for --account option cannot be empty");
-        if (this->bootstrap_options_.count("account"))
-          throw std::runtime_error("Option --account can only be given once");
-        this->bootstrap_options_["account"] = username;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--account");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--account-create"}),
-      "Specifies account creation policy (useful for guarding against "
-      "accidentally bootstrapping using a wrong account). <mode> is one of:\n"
-      "  'always'        - bootstrap only if account doesn't exist\n"
-      "  'never'         - bootstrap only if account exists\n"
-      "  'if-not-exists' - bootstrap either way (default)\n"
-      "This option can only be used if option '--account' is also used.\n"
-      "Argument 'never' cannot be used together with option "
-      "'--account-host'\n"
-      "(bootstrap)",
-      CmdOptionValueReq::required, "mode",
-      [this](const std::string &create) {
-        if (create != "always" && create != "if-not-exists" &&
-            create != "never")
-          throw std::runtime_error(
-              "Invalid value for --account-create option.  Valid values: "
-              "always, if-not-exists, never");
-        if (this->bootstrap_options_.count("account-create"))
-          throw std::runtime_error(
-              "Option --account-create can only be given once");
-        this->bootstrap_options_["account-create"] = create;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--account-create");
-        if (!this->bootstrap_options_.count("account"))
-          throw std::runtime_error(
-              "Option --account-create can only be used together with "
-              "--account.");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--account-host"}),
-      "Host pattern to be used when creating Router's database user, "
-      "default='%'. "
-      "It can be used multiple times to provide multiple patterns. "
-      "(bootstrap)",
-      CmdOptionValueReq::required, "account-host",
-      [this](const std::string &host_pattern) {
-        std::vector<std::string> &hostnames =
-            this->bootstrap_multivalue_options_["account-host"];
-        hostnames.push_back(host_pattern);
-
-        // sort and eliminate any non-unique hostnames; we do this to ensure
-        // that CREATE USER does not get called twice for the same user@host
-        // later on in the ConfigGenerator
-        std::sort(hostnames.begin(), hostnames.end());
-        auto it = std::unique(hostnames.begin(), hostnames.end());
-        hostnames.resize(std::distance(hostnames.begin(), it));
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--account-host");
-        const auto it = this->bootstrap_options_.find("account-create");
-        if (it != this->bootstrap_options_.end() && it->second == "never")
-          throw std::runtime_error(
-              "Option '--account-create never' cannot be used together with "
-              "'--account-host <host>'");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"-B", "--bootstrap"}),
-      "Bootstrap and configure Router for operation with a MySQL InnoDB "
-      "cluster.",
-      CmdOptionValueReq::required, "server_url",
-      [this](const std::string &server_url) {
-        if (server_url.empty()) {
-          throw std::runtime_error("Invalid value for --bootstrap/-B option");
-        }
-        this->bootstrap_uri_ = server_url;
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--bootstrap-socket"}),
-      "Bootstrap and configure Router via a Unix socket",
-      CmdOptionValueReq::required, "socket_name",
-      [this](const std::string &socket_name) {
-        if (socket_name.empty()) {
-          throw std::runtime_error(
-              "Invalid value for --bootstrap-socket option");
-        }
-
-        this->save_bootstrap_option_not_empty("--bootstrap-socket",
-                                              "bootstrap_socket", socket_name);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--bootstrap-socket");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--client-ssl-cert"}),
-      "name of a PEM file containing a SSL certificate used "
-      "for accepting TLS connections between client and router",
-      CmdOptionValueReq::required, "path",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--client-ssl-cert",
-                                              "client_ssl_cert", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--client-ssl-cert");
-
-        if (!bootstrap_options_["client_ssl_cert"].empty() &&
-            bootstrap_options_["client_ssl_key"].empty()) {
-          throw std::runtime_error(
-              "If --client-ssl-cert is set, --client-ssl-key can't be empty.");
-        }
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--client-ssl-cipher"}),
-      "list of one or more colon separated cipher names used for accepting "
-      "TLS connections between client and router",
-      CmdOptionValueReq::required, "",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--client-ssl-cipher",
-                                              "client_ssl_cipher", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--client-ssl-cipher");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--client-ssl-curves"}),
-      "list of one or more colon separated elliptic curve names used for "
-      "accepting TLS connections between client and router",
-      CmdOptionValueReq::required, "",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--client-ssl-curves",
-                                              "client_ssl_curves", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--client-ssl-curves");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--client-ssl-key"}),
-      "name of a PEM file containing a SSL private key used "
-      "for accepting TLS connections between client and router",
-      CmdOptionValueReq::required, "path",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--client-ssl-key",
-                                              "client_ssl_key", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--client-ssl-key");
-
-        if (!bootstrap_options_["client_ssl_key"].empty() &&
-            bootstrap_options_["client_ssl_cert"].empty()) {
-          throw std::runtime_error(
-              "If --client-ssl-key is set, --client-ssl-cert can't be empty.");
-        }
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--client-ssl-mode"}),
-      "SSL mode for connections from client to router. One "
-      "of DISABLED, PREFERRED, REQUIRED or PASSTHROUGH.",
-      CmdOptionValueReq::required, "mode",
-      [this](const auto &value) {
-        assert_one_of_ci("--client-ssl-mode", value,
-                         {"DISABLED", "PREFERRED", "REQUIRED", "PASSTHROUGH"});
-
-        this->save_bootstrap_option_not_empty(
-            "--client-ssl-mode", "client_ssl_mode", make_upper(value));
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--client-ssl-mode");
-
-        if (bootstrap_options_["client_ssl_mode"] == "PASSTHROUGH") {
-          auto server_ssl_mode_it = bootstrap_options_.find("server_ssl_mode");
-          if (server_ssl_mode_it != bootstrap_options_.end()) {
-            if (server_ssl_mode_it->second != "AS_CLIENT") {
-              throw std::runtime_error(
-                  "--server-ssl-mode must be AS_CLIENT or not specified, if "
-                  "--client-ssl-mode is PASSTHROUGH.");
-            }
-          }
-        }
-      });
-  arg_handler_.add_option(
-      OptionNames({"--client-ssl-dh-params"}),
-      "name of a PEM file containing DH paramaters",
-      CmdOptionValueReq::required, "",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--client-ssl-dh-params",
-                                              "client_ssl_dh_params", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--client-ssl-dh-params");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-base-port"}),
-      "Base port to use for listening router ports. (bootstrap)",
-      CmdOptionValueReq::required, "port",
-      [this](const std::string &port) {
-        this->bootstrap_options_["base-port"] = port;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-base-port");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-bind-address"}),
-      "IP address of the interface to which router's listening sockets "
-      "should bind. (bootstrap)",
-      CmdOptionValueReq::required, "address",
-      [this](const std::string &address) {
-        this->bootstrap_options_["bind-address"] = address;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-bind-address");
-      });
-
-#ifndef _WIN32
-  arg_handler_.add_option(
-      OptionNames({"--conf-skip-tcp"}),
-      "Whether to disable binding of a TCP port for incoming connections. "
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const std::string &) {
-        this->bootstrap_options_["skip-tcp"] = "1";
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-skip-tcp");
-      });
-  arg_handler_.add_option(
-      OptionNames({"--conf-use-sockets"}),
-      "Whether to use Unix domain sockets. (bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const std::string &) {
-        this->bootstrap_options_["use-sockets"] = "1";
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-use-sockets");
-      });
-#endif
-
-  arg_handler_.add_option(OptionNames({"-c", "--config"}),
-                          "Only read configuration from given file.",
-                          CmdOptionValueReq::required, "path",
-                          [this](const std::string &value) {
-                            if (!config_files_.empty()) {
-                              throw std::runtime_error(
-                                  "Option -c/--config can only be used once; "
-                                  "use -a/--extra-config instead.");
-                            }
-
-                            check_and_add_conf(config_files_, value);
-                          });
+  bootstrapper_.prepare_command_options(arg_handler_);
 
   arg_handler_.add_option(
       OptionNames({"--core-file"}), "Write a core file if mysqlrouter dies.",
@@ -1250,197 +877,6 @@ void MySQLRouter::prepare_command_options() noexcept {
               "Value for parameter '--core-file' needs to be "
               "one of: ['0', '1']");
         }
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--connect-timeout"}),
-      "The time in seconds after which trying to connect to metadata server "
-      "should timeout. It is used when bootstrapping and also written to the "
-      "configuration file (bootstrap)",
-      CmdOptionValueReq::optional, "",
-      [this](const std::string &connect_timeout) {
-        this->bootstrap_options_["connect-timeout"] = connect_timeout;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--connect-timeout");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-use-gr-notifications"}),
-      "Whether to enable handling of cluster state change GR notifications.",
-      CmdOptionValueReq::optional, "",
-      [this](const std::string &value) {
-        if (value == "0" || value == "1") {
-          this->bootstrap_options_["use-gr-notifications"] = value;
-        } else if (value.empty()) {
-          this->bootstrap_options_["use-gr-notifications"] = "1";
-        } else {
-          throw std::runtime_error(
-              "Value for parameter '--conf-use-gr-notifications' needs to be "
-              "one of: ['0', '1']");
-        }
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-use-gr-notifications");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-target-cluster"}),
-      "Router's target Cluster from the ClusterSet('current' or 'primary').",
-      CmdOptionValueReq::required, "",
-      [this](const std::string &value) {
-        if (this->bootstrap_options_.count("target-cluster-by-name") > 0) {
-          throw std::runtime_error(
-              "Parameters '--conf-target-cluster' and "
-              "'--conf-target-cluster-by-name' are mutually exclusive and "
-              "can't be used together");
-        }
-
-        std::string value_lowercase{value};
-        std::transform(value_lowercase.begin(), value_lowercase.end(),
-                       value_lowercase.begin(), ::tolower);
-
-        if (value_lowercase != "primary" && value_lowercase != "current") {
-          throw std::runtime_error(
-              "Value for parameter '--conf-target-cluster' needs to be one of: "
-              "['primary', 'current']");
-        }
-
-        this->bootstrap_options_["target-cluster"] = value_lowercase;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-target-cluster");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--conf-target-cluster-by-name"}),
-      "Name of the target Cluster for the Router when bootstrapping against "
-      "the ClusterSet",
-      CmdOptionValueReq::required, "",
-      [this](const std::string &value) {
-        if (this->bootstrap_options_.count("target-cluster") > 0) {
-          throw std::runtime_error(
-              "Parameters '--conf-target-cluster' and "
-              "'--conf-target-cluster-by-name' are mutually exclusive and "
-              "can't be used together");
-        }
-        if (value.empty()) {
-          throw std::runtime_error(
-              "Value for parameter '--conf-target-cluster-by-name' can't be "
-              "empty");
-        }
-        this->bootstrap_options_["target-cluster-by-name"] = value;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-target-cluster-by-name");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"-d", "--directory"}),
-      "Creates a self-contained directory for a new instance of the Router. "
-      "(bootstrap)",
-      CmdOptionValueReq::required, "directory",
-      [this](const std::string &path) {
-        if (path.empty()) {
-          throw std::runtime_error("Invalid value for --directory option");
-        }
-        this->bootstrap_directory_ = path;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("-d/--directory");
-      });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"-a", "--extra-config"}),
-      "Read this file after configuration files are read from either "
-      "default locations or from files specified by the --config option.",
-      CmdOptionValueReq::required, "path", [this](const std::string &value) {
-        check_and_add_conf(extra_config_files_, value);
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--force"}),
-      "Force reconfiguration of a possibly existing instance of the router. "
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const std::string &) { this->bootstrap_options_["force"] = "1"; },
-      [this](const std::string &) { this->assert_bootstrap_mode("--force"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--force-password-validation"}),
-      "When autocreating database account do not use HASHED password - this is "
-      "the default behavior now, this parameter is not needed, it is kept for "
-      "backward compatibility."
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [](const std::string &) {
-        // this is now always assumed, so this parameter is ignored, kept for
-        // backward compatibility
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--force-password-validation");
-      });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"-?", "--help"}), "Display this help and exit.",
-      CmdOptionValueReq::none, "", [this](const std::string &) {
-        this->show_help();
-        this->showing_info_ = true;
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--master-key-reader"}),
-      "The tool that can be used to read master key, it has to be used "
-      "together with --master-key-writer. (bootstrap)",
-      CmdOptionValueReq::required, "",
-      [this](const std::string &master_key_reader) {
-        this->keyring_info_.set_master_key_reader(master_key_reader);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--master-key-reader");
-        if (this->keyring_info_.get_master_key_reader().empty() !=
-            this->keyring_info_.get_master_key_writer().empty())
-          throw std::runtime_error(
-              "Option --master-key-reader can only be used together with "
-              "--master-key-writer.");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--master-key-writer"}),
-      "The tool that can be used to store master key, it has to be used "
-      "together with --master-key-reader. (bootstrap)",
-      CmdOptionValueReq::required, "",
-      [this](const std::string &master_key_writer) {
-        this->keyring_info_.set_master_key_writer(master_key_writer);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--master-key-writer");
-        if (this->keyring_info_.get_master_key_reader().empty() !=
-            this->keyring_info_.get_master_key_writer().empty())
-          throw std::runtime_error(
-              "Option --master-key-writer can only be used together with "
-              "--master-key-reader.");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--name"}),
-      "Gives a symbolic name for the router instance. (bootstrap)",
-      CmdOptionValueReq::optional, "name",
-      [this](const std::string &name) {
-        this->bootstrap_options_["name"] = name;
-      },
-      [this](const std::string &) { this->assert_bootstrap_mode("--name"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--password-retries"}),
-      "Number of the retries for generating the router's user password. "
-      "(bootstrap)",
-      CmdOptionValueReq::optional, "password-retries",
-      [this](const std::string &retries) {
-        this->bootstrap_options_["password-retries"] = retries;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--password-retries");
       });
 
   arg_handler_.add_option(
@@ -1458,333 +894,6 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->assert_not_bootstrap_mode("--pid-file");
       });
 
-  arg_handler_.add_option(
-      OptionNames({"--read-timeout"}),
-      "The time in seconds after which reads from metadata server should "
-      "timeout. It is used when bootstrapping and is also written to "
-      "configuration file. (bootstrap)",
-      CmdOptionValueReq::optional, "",
-      [this](const std::string &read_timeout) {
-        this->bootstrap_options_["read-timeout"] = read_timeout;
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--read-timeout");
-      });
-  arg_handler_.add_option(
-      OptionNames({"--report-host"}),
-      "Host name of this computer (it will be queried from OS if not "
-      "provided). "
-      "It is used as suffix (the part after '@') in Router's database user "
-      "name; "
-      "should match host name as seen by the cluster nodes (bootstrap)",
-      CmdOptionValueReq::required, "report-host",
-      [this](const std::string &hostname) {
-        if (!mysql_harness::is_valid_hostname(hostname.c_str()))
-          throw std::runtime_error(
-              "Option --report-host has an invalid value.");
-
-        auto pr = this->bootstrap_options_.insert({"report-host", hostname});
-        if (pr.second == false)
-          throw std::runtime_error(
-              "Option --report-host can only be used once.");
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--report-host");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-ca"}),
-      "path name of the Certificate Authority (CA) certificate file in PEM "
-      "format. Used when forwarding a client connection from router to a "
-      "server.",
-      CmdOptionValueReq::required, "path",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--server-ssl-ca",
-                                              "server_ssl_ca", value);
-      },
-      [this](const auto &) { this->assert_bootstrap_mode("--server-ssl-ca"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-capath"}),
-      "path name of the directory that contains trusted SSL Certificate "
-      "Authority (CA) certificate files in PEM format. Used when forwarding "
-      "a client connection from router to a server.",
-      CmdOptionValueReq::required, "directory",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--server-ssl-capath",
-                                              "server_ssl_capath", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-capath");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-cipher"}),
-      "list of one or more colon separated cipher names. Used when "
-      "forwarding "
-      "client connection from router to a server.",
-      CmdOptionValueReq::required, "",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--server-ssl-cipher",
-                                              "server_ssl_cipher", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-cipher");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-crl"}),
-      "path name of the file containing certificate revocation lists in PEM "
-      "format. Used when forwarding a client connection from router to a "
-      "server.",
-      CmdOptionValueReq::required, "path",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--server-ssl-crl",
-                                              "server_ssl_crl", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-crl");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-crlpath"}),
-      "path name of the directory that contains certificate revocation-list "
-      "files in PEM format. Used when forwarding a client connection from "
-      "router to a server.",
-      CmdOptionValueReq::required, "directory",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--server-ssl-crlpath",
-                                              "server_ssl_crlpath", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-crlpath");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-curves"}),
-      "list of one or more colon separated elliptic curve names. Used when "
-      "forwarding a client connection from router to a server.",
-      CmdOptionValueReq::required, "",
-      [this](const auto &value) {
-        this->save_bootstrap_option_not_empty("--server-ssl-curves",
-                                              "server_ssl_curves", value);
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-curves");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-mode"}),
-      "SSL mode to use when forwarding a client connection from router to a "
-      "server. One of DISABLED, PREFERRED, REQUIRED or AS_CLIENT.",
-      CmdOptionValueReq::required, "ssl-mode",
-      [this](const auto &value) {
-        assert_one_of_ci("--server-ssl-mode", value,
-                         {"DISABLED", "PREFERRED", "REQUIRED", "AS_CLIENT"});
-
-        this->save_bootstrap_option_not_empty(
-            "--server-ssl-mode", "server_ssl_mode", make_upper(value));
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-mode");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--server-ssl-verify"}),
-      "verification mode when forwarding a client connection from router to "
-      "server. One of DISABLED, VERIFY_CA or VERIFY_IDENTITY.",
-      CmdOptionValueReq::required, "verify-mode",
-      [this](const auto &value) {
-        assert_one_of_ci("--server-ssl-verify", value,
-                         {"DISABLED", "VERIFY_CA", "VERIFY_IDENTITY"});
-
-        this->save_bootstrap_option_not_empty(
-            "--server-ssl-verify", "server_ssl_verify", make_upper(value));
-      },
-      [this](const auto &) {
-        this->assert_bootstrap_mode("--server-ssl-verify");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-ca"}),
-      "Path to SSL CA file to verify server's certificate against when "
-      "connecting to the metadata servers",
-      CmdOptionValueReq::required, "path",
-      [this](const std::string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-ca", "ssl_ca", path);
-      },
-      [this](const std::string &) { this->assert_bootstrap_mode("--ssl-ca"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-capath"}),
-      "Path to directory containing SSL CA files to verify server's "
-      "certificate against when connecting to the metadata servers.",
-      CmdOptionValueReq::required, "directory",
-      [this](const std::string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-capath", "ssl_capath",
-                                              path);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-capath");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-cert"}),
-      "Path to a SSL certificate, to be used if client certificate "
-      "verification is required when connecting to the metadata servers.",
-      CmdOptionValueReq::required, "path",
-      [this](const std::string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-cert", "ssl_cert", path);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-cert");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-cipher"}),
-      ": separated list of SSL ciphers to allow when connecting to the "
-      "metadata servers, if SSL is enabled.",
-      CmdOptionValueReq::required, "ciphers",
-      [this](const std::string &cipher) {
-        this->save_bootstrap_option_not_empty("--ssl-cipher", "ssl_cipher",
-                                              cipher);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-cipher");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-crl"}),
-      "Path to SSL CRL file to use when connecting to metadata-servers and "
-      "verifying their SSL certificate",
-      CmdOptionValueReq::required, "path",
-      [this](const std::string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-crl", "ssl_crl", path);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-crl");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-crlpath"}),
-      "Path to directory containing SSL CRL files to use when connecting to "
-      "metadata-servers and verifying their SSL certificate.",
-      CmdOptionValueReq::required, "directory",
-      [this](const std::string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath",
-                                              path);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-crlpath");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-key"}),
-      "Path to private key for client SSL certificate, to be used if client "
-      "certificate verification is required when connecting to "
-      "metadata-servers.",
-      CmdOptionValueReq::required, "path",
-      [this](const std::string &path) {
-        this->save_bootstrap_option_not_empty("--ssl-key", "ssl_key", path);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-key");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--disable-rw-split"}),
-      "Do not generate routing section for RW Split endpoint",
-      CmdOptionValueReq::none, "",
-      [this](const std::string &) {
-        this->bootstrap_options_["disable-rw-split"] = "1";
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--disable-rw-split");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--disable-rest"}),
-      "Disable REST web service for Router monitoring", CmdOptionValueReq::none,
-      "",
-      [this](const std::string &) {
-        this->bootstrap_options_["disable-rest"] = "1";
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--disable-rest");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--https-port"}),
-      "HTTPS port for Router monitoring REST web service",
-      CmdOptionValueReq::required, "https-port",
-      [this](const std::string &https_port) {
-        this->bootstrap_options_["https-port"] = https_port;
-      },
-      [this](const std::string &https_port) {
-        this->assert_bootstrap_mode("--https-port");
-        if (this->bootstrap_options_.count("disable-rest") != 0) {
-          throw std::runtime_error(
-              "Option --disable-rest is not allowed when using --https-port "
-              "option");
-        }
-        try {
-          assert_option_value_in_range(https_port, 1, 65535);
-        } catch (const std::exception &e) {
-          throw std::runtime_error{
-              std::string{"processing --https-port option failed, "} +
-              e.what()};
-        }
-      });
-
-  char ssl_mode_vals[128];
-  char ssl_mode_desc[384];
-  snprintf(ssl_mode_vals, sizeof(ssl_mode_vals), "%s|%s|%s|%s|%s",
-           mysqlrouter::MySQLSession::kSslModeDisabled,
-           mysqlrouter::MySQLSession::kSslModePreferred,
-           mysqlrouter::MySQLSession::kSslModeRequired,
-           mysqlrouter::MySQLSession::kSslModeVerifyCa,
-           mysqlrouter::MySQLSession::kSslModeVerifyIdentity);
-  snprintf(ssl_mode_desc, sizeof(ssl_mode_desc),
-           "SSL connection mode for use during bootstrap and normal operation, "
-           "when connecting to the metadata server. Analogous to --ssl-mode in "
-           "mysql client. One of %s. Default = %s. (bootstrap)",
-           ssl_mode_vals, mysqlrouter::MySQLSession::kSslModePreferred);
-
-  arg_handler_.add_option(
-      OptionNames({"--ssl-mode"}), ssl_mode_desc, CmdOptionValueReq::required,
-      "mode",
-      [this](const std::string &ssl_mode) {
-        try {
-          mysqlrouter::MySQLSession::parse_ssl_mode(
-              ssl_mode);  // we only care if this succeeds
-          bootstrap_options_["ssl_mode"] = ssl_mode;
-        } catch (const std::logic_error &) {
-          throw std::runtime_error("Invalid value for --ssl-mode option");
-        }
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--ssl-mode");
-      });
-
-  arg_handler_.add_option(
-      OptionNames({"--strict"}),
-      "Upgrades account verification failure warning into a fatal error. "
-      "(bootstrap)",
-      CmdOptionValueReq::none, "",
-      [this](const std::string &) { this->bootstrap_options_["strict"] = "1"; },
-      [this](const std::string &) { this->assert_bootstrap_mode("--strict"); });
-
-  arg_handler_.add_option(
-      OptionNames({"--tls-version"}),
-      ", separated list of TLS versions to request, if SSL is enabled.",
-      CmdOptionValueReq::required, "versions",
-      [this](const std::string &version) {
-        this->save_bootstrap_option_not_empty("--tls-version", "tls_version",
-                                              version);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--tls-version");
-      });
 #ifndef _WIN32
   arg_handler_.add_option(
       OptionNames({"-u", "--user"}),
@@ -1792,158 +901,45 @@ void MySQLRouter::prepare_command_options() noexcept {
       CmdOptionValueReq::required, "username",
       [this](const std::string &username) { this->username_ = username; },
       [this](const std::string &) {
-        if (this->bootstrap_uri_.empty()) {
+        if (!bootstrapper_.is_bootstrap()) {
           this->user_cmd_line_ = this->username_;
         } else {
           check_user(this->username_, true, this->sys_user_operations_);
-          this->bootstrap_options_["user"] = this->username_;
+          bootstrapper_.bootstrap_options_["user"] = this->username_;
         }
       });
 #endif
+  arg_handler_.add_option(OptionNames({"-c", "--config"}),
+                          "Only read configuration from given file.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const std::string &value) {
+                            if (!config_files_.empty()) {
+                              throw std::runtime_error(
+                                  "Option -c/--config can only be used once; "
+                                  "use -a/--extra-config instead.");
+                            }
+
+                            check_and_add_conf(config_files_, value);
+                          });
   arg_handler_.add_option(
-      CmdOption::OptionNames({"-V", "--version"}),
-      "Display version information and exit.", CmdOptionValueReq::none, "",
-      [this](const std::string &) {
+      OptionNames({"-a", "--extra-config"}),
+      "Read this file after configuration files are read from either "
+      "default locations or from files specified by the --config option.",
+      CmdOptionValueReq::required, "path", [this](const std::string &value) {
+        check_and_add_conf(extra_config_files_, value);
+      });
+  arg_handler_.add_option(
+      OptionNames({"-V", "--version"}), "Display version information and exit.",
+      CmdOptionValueReq::none, "", [this](const std::string &) {
         out_stream_ << this->get_version_line() << std::endl;
         this->showing_info_ = true;
       });
-
   arg_handler_.add_option(
-      OptionNames({"--conf-set-option"}),
-      "Allows forcing selected option in the configuration file when "
-      "bootstrapping (--conf-set-option=section_name.option_name=value)",
-      CmdOptionValueReq::required, "conf-set-option",
-      [this](const std::string &conf_option) {
-        std::vector<std::string> &conf_options =
-            this->bootstrap_multivalue_options_["conf-set-option"];
-        conf_options.push_back(conf_option);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--conf-set-option");
+      OptionNames({"-?", "--help"}), "Display this help and exit.",
+      CmdOptionValueReq::none, "", [this](const std::string &) {
+        this->show_help();
+        this->showing_info_ = true;
       });
-
-// These are additional Windows-specific options, added (at the time of writing)
-// in check_service_operations(). Grep after '--install-service' and you shall
-// find.
-#ifdef _WIN32
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--clear-all-credentials"}),
-      "Clear the vault, removing all the credentials stored on it",
-      CmdOptionValueReq::none, "", [](const std::string &) {
-        PasswordVault pv;
-        pv.clear_passwords();
-        log_info("Removed successfully all passwords from the vault.");
-        throw silent_exception();
-      });
-
-  // in this context we only want the service-related options to be known and
-  // displayed with --help; they are handled elsewhere (main-windows.cc)
-  add_service_options(arg_handler_);
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--remove-credentials-section"}),
-      "Removes the credentials for the given section",
-      CmdOptionValueReq::required, "section_name",
-      [](const std::string &value) {
-        PasswordVault pv;
-        pv.remove_password(value);
-        pv.store_passwords();
-        log_info("The password was removed successfully.");
-        throw silent_exception();
-      });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--update-credentials-section"}),
-      "Updates the credentials for the given section",
-      CmdOptionValueReq::required, "section_name",
-      [](const std::string &value) {
-        std::string prompt = string_format(
-            "Enter password for config section '%s'", value.c_str());
-        std::string pass = mysqlrouter::prompt_password(prompt);
-        PasswordVault pv;
-        pv.update_password(value, pass);
-        pv.store_passwords();
-        log_info("The password was stored in the vault successfully.");
-        throw silent_exception();
-      });
-#endif
-}
-
-// throws MySQLSession::Error, std::runtime_error, std::out_of_range,
-// std::logic_error, ... ?
-void MySQLRouter::bootstrap(const std::string &program_name,
-                            const std::string &server_url,
-                            const std::string &plugin_folder) {
-  mysqlrouter::ConfigGenerator config_gen(out_stream_, err_stream_
-#ifndef _WIN32
-                                          ,
-                                          sys_user_operations_
-#endif
-  );
-  config_gen.init(
-      server_url,
-      bootstrap_options_);  // throws MySQLSession::Error, std::runtime_error,
-                            // std::out_of_range, std::logic_error
-  config_gen.warn_on_no_ssl(bootstrap_options_);  // throws std::runtime_error
-  config_gen.set_plugin_folder(plugin_folder);
-
-#ifdef _WIN32
-  // Cannot run bootstrap mode as windows service since it requires console
-  // interaction.
-  if (mysqlrouter::is_running_as_service()) {
-    std::string msg = "Cannot run router in boostrap mode as Windows service.";
-    mysqlrouter::write_windows_event_log(msg);
-    throw std::runtime_error(msg);
-  }
-#endif
-
-  auto default_paths = get_default_paths();
-
-  if (bootstrap_directory_.empty()) {
-    std::string config_file_path =
-        mysql_harness::Path(default_paths.at("config_folder"s))
-            .join("mysqlrouter.conf"s)
-            .str();
-    std::string state_file_path =
-        mysql_harness::Path(default_paths.at("data_folder"s))
-            .join("state.json"s)
-            .str();
-    std::string master_key_path =
-        mysql_harness::Path(default_paths.at("config_folder"s))
-            .join("mysqlrouter.key"s)
-            .str();
-    std::string default_keyring_file = default_paths.at("data_folder"s);
-    mysql_harness::Path keyring_dir(default_keyring_file);
-    if (!keyring_dir.exists()) {
-      if (mysql_harness::mkdir(default_keyring_file,
-                               mysqlrouter::kStrictDirectoryPerm, true) < 0) {
-        log_error(
-            "Cannot create directory '%s': %s",
-            truncate_string(default_keyring_file).c_str(),
-            std::error_code{errno, std::generic_category()}.message().c_str());
-        throw std::runtime_error("Could not create keyring directory");
-      } else {
-        // sets the directory owner for the --user if provided
-        config_gen.set_file_owner(bootstrap_options_, default_keyring_file);
-        default_keyring_file = keyring_dir.real_path().str();
-      }
-    }
-    default_keyring_file.append("/").append(kDefaultKeyringFileName);
-
-    keyring_info_.set_keyring_file(default_keyring_file);
-    keyring_info_.set_master_key_file(master_key_path);
-    config_gen.set_keyring_info(keyring_info_);
-    config_gen.bootstrap_system_deployment(
-        program_name, config_file_path, state_file_path, bootstrap_options_,
-        bootstrap_multivalue_options_, default_paths);
-  } else {
-    keyring_info_.set_keyring_file(kDefaultKeyringFileName);
-    keyring_info_.set_master_key_file("mysqlrouter.key");
-    config_gen.set_keyring_info(keyring_info_);
-    config_gen.bootstrap_directory_deployment(
-        program_name, bootstrap_directory_, bootstrap_options_,
-        bootstrap_multivalue_options_, default_paths);
-  }
 }
 
 // format filename with indent
@@ -1982,7 +978,8 @@ void MySQLRouter::show_help() {
       markup_configfile(out_stream_, ini_filename);
     }
   }
-  const std::map<std::string, std::string> paths = get_default_paths();
+  const std::map<std::string, std::string> paths =
+      mysqlrouter::get_default_paths(origin_);
   out_stream_ << "Plugins Path:"
               << "\n"
               << "  " << paths.at("plugin_folder") << "\n\n";

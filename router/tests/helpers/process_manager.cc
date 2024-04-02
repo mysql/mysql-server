@@ -83,6 +83,7 @@ Path ProcessManager::origin_dir_;
 Path ProcessManager::data_dir_;
 Path ProcessManager::plugin_dir_;
 Path ProcessManager::mysqlrouter_exec_;
+Path ProcessManager::mysqlrouter_bootstrap_exec_;
 Path ProcessManager::mysqlserver_mock_exec_;
 
 using namespace std::chrono_literals;
@@ -423,6 +424,20 @@ ProcessWrapper &ProcessManager::launch_router(
     std::chrono::milliseconds wait_for_notify_ready /*= 30s*/,
     OutputResponder output_resp) {
   return router_spawner()
+      .with_sudo(with_sudo)
+      .catch_stderr(catch_stderr)
+      .expected_exit_code(expected_exit_code)
+      .wait_for_notify_ready(wait_for_notify_ready)
+      .output_responder(std::move(output_resp))
+      .spawn(params);
+}
+
+ProcessWrapper &ProcessManager::launch_router_bootstrap(
+    const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
+    bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/,
+    OutputResponder output_resp) {
+  return router_bootstrap_spawner()
       .with_sudo(with_sudo)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
@@ -818,6 +833,7 @@ void ProcessManager::set_origin(const Path &dir) {
   };
 
   mysqlrouter_exec_ = get_exe_path("mysqlrouter");
+  mysqlrouter_bootstrap_exec_ = get_exe_path("mysqlrouter_bootstrap");
   mysqlserver_mock_exec_ = get_exe_path("mysql_server_mock");
 
   data_dir_ = COMPONENT_TEST_DATA_DIR;

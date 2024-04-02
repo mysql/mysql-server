@@ -29,12 +29,14 @@
 #include "mysqlrouter/router_export.h"
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <mysql.h>  // enum mysql_ssl_mode
+#include <string.h>
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/log_filter.h"
@@ -154,8 +156,11 @@ class ROUTER_LIB_EXPORT MySQLSession {
  public:
   static constexpr int kDefaultConnectTimeout = 5;
   static constexpr int kDefaultReadTimeout = 30;
+  class ResultRow;
   typedef std::vector<const char *> Row;
   typedef std::function<bool(const Row &)> RowProcessor;
+  typedef std::function<bool(const ResultRow &)> ResultRowProcessor;
+
   typedef std::function<void(unsigned, MYSQL_FIELD *)> FieldValidator;
 
   // text representations of SSL modes
@@ -234,32 +239,47 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   class Transaction {
    public:
-    Transaction(MySQLSession *session) : session_(session) {
-      session_->execute("START TRANSACTION");
+    Transaction() {}
+    Transaction(Transaction &&other) : session_{other.session_} {
+      other.session_ = nullptr;
+    }
+
+    Transaction(MySQLSession *session, const bool consisten_snapshot = false)
+        : session_(session) {
+      session_->execute(consisten_snapshot
+                            ? "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+                            : "START TRANSACTION");
     }
 
     ~Transaction() {
-      if (session_) {
-        try {
-          session_->execute("ROLLBACK");
-        } catch (...) {
-          // ignore errors during rollback on d-tor
-        }
+      try {
+        rollback();
+      } catch (...) {
+        // ignore errors during rollback on d-tor
       }
     }
 
     void commit() {
-      session_->execute("COMMIT");
-      session_ = nullptr;
+      if (session_) {
+        session_->execute("COMMIT");
+        session_ = nullptr;
+      }
     }
 
     void rollback() {
-      session_->execute("ROLLBACK");
-      session_ = nullptr;
+      if (session_) {
+        session_->execute("ROLLBACK");
+        session_ = nullptr;
+      }
+    }
+
+    Transaction &operator=(Transaction &&other) {
+      std::swap(session_, other.session_);
+      return *this;
     }
 
    private:
-    MySQLSession *session_;
+    MySQLSession *session_{nullptr};
   };
 
   class Error : public std::runtime_error {
@@ -286,12 +306,33 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   class ResultRow {
    public:
+    class RowIt {
+     public:
+      RowIt(const ResultRow *parent, uint32_t idx = 0)
+          : idx_{idx}, parent_{parent} {}
+      const char *operator*() const { return (*parent_)[idx_]; }
+      void operator++() { ++idx_; }
+
+      bool operator!=(const RowIt &other) const {
+        if (parent_ != other.parent_) return false;
+        return idx_ != other.idx_;
+      }
+
+     private:
+      uint32_t idx_{0};
+      const ResultRow *parent_;
+    };
     ResultRow(Row row) : row_{std::move(row)} {}
     virtual ~ResultRow() = default;
     size_t size() const { return row_.size(); }
+    RowIt begin() const { return RowIt(this, 0); }
+    RowIt end() const { return RowIt(this, size()); }
     const char *&operator[](size_t i) { return row_[i]; }
+    const char *operator[](size_t i) const { return row_[i]; }
+    virtual size_t get_data_size(size_t i) const { return strlen(row_[i]); }
 
    private:
+    friend class MySQLSession;
     Row row_;
   };
 
@@ -403,9 +444,13 @@ class ROUTER_LIB_EXPORT MySQLSession {
                        const std::string &unix_socket,
                        const std::string &default_schema,
                        int connect_timeout = kDefaultConnectTimeout,
-                       int read_timeout = kDefaultReadTimeout);  // throws Error
+                       int read_timeout = kDefaultReadTimeout,
+                       unsigned long extra_client_flags = 0);  // throws Error
   virtual void disconnect();
 
+  virtual void change_user(const std::string &user, const std::string &password,
+                           const std::string &db);
+  virtual void reset();
   /**
    * Connect using the same settings and parameters that were used for the last
    * other.connect() using provided credentials.
@@ -413,24 +458,35 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual void connect(const MySQLSession &other, const std::string &username,
                        const std::string &password);
 
+  virtual uint64_t prepare(const std::string &query);
+  virtual void prepare_execute(
+      uint64_t ps_id, std::vector<enum_field_types> pt,
+      const ResultRowProcessor &processor,
+      const FieldValidator &validator /*= null_field_validator*/);
+  virtual void prepare_remove(uint64_t ps_id);
   virtual void execute(
       const std::string &query);  // throws Error, std::logic_error
   virtual void query(
-      const std::string &query, const RowProcessor &processor,
+      const std::string &query, const ResultRowProcessor &processor,
       const FieldValidator &validator);  // throws Error, std::logic_error
   virtual std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query,
       const FieldValidator &validator);  // throws Error
                                          //
+  void query(
+      const std::string &query, const RowProcessor &processor,
+      const FieldValidator &validator);  // throws Error, std::logic_error
   void query(const std::string &stmt, const RowProcessor &processor) {
     return query(stmt, processor, [](unsigned, MYSQL_FIELD *) {});
   }
 
-  std::unique_ptr<MySQLSession::ResultRow> query_one(const std::string &stmt) {
+  virtual std::unique_ptr<MySQLSession::ResultRow> query_one(
+      const std::string &stmt) {
     return query_one(stmt, [](unsigned, MYSQL_FIELD *) {});
   }
 
   virtual uint64_t last_insert_id() noexcept;
+  virtual uint64_t affected_rows() noexcept;
 
   virtual unsigned warning_count() noexcept;
 
@@ -439,10 +495,15 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual bool is_connected() noexcept { return connection_ && connected_; }
   const std::string &get_address() noexcept { return connection_address_; }
 
+  virtual const char *last_sqlstate();
   virtual const char *last_error();
   virtual unsigned int last_errno();
 
   virtual const char *ssl_cipher();
+  virtual bool ping();
+  virtual bool has_data_on_socket();
+  virtual std::vector<std::string> get_session_tracker_data(
+      enum enum_session_state_type type);
 
   virtual bool is_ssl_session_reused();
 
@@ -461,10 +522,13 @@ class ROUTER_LIB_EXPORT MySQLSession {
     std::string default_schema;
   } connect_params_;
 
+  uint64_t last_stmt_id{0};
+  std::map<uint64_t, MYSQL_STMT *> stmts_;
   MYSQL *connection_;
   bool connected_;
   std::string connection_address_;
   SQLLogFilter log_filter_;
+  unsigned long extra_client_flags_{0};
 
   class MYSQL_RES_Deleter {
    public:
@@ -494,6 +558,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
    */
   stdx::expected<mysql_result_type, MysqlError> logged_real_query(
       const std::string &q);
+  void throw_mysqlerror(MYSQL_STMT *stmt, uint64_t ps_id);
 };
 
 }  // namespace mysqlrouter

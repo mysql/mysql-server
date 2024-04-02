@@ -192,7 +192,7 @@ class socket_base {
   //
   // windows and posix have slight different msghdr struct layouts.
   class msg_hdr : public impl::socket::msghdr_base {
-    std::array<impl::socket::iovec_base, 16> iov_{};
+    std::array<impl::socket::iovec_base, 32> iov_{};
 
    public:
     template <class BufferSequence>
@@ -1264,7 +1264,6 @@ class basic_stream_socket : public basic_socket<Protocol> {
             compl_handler(ec, 0);
             return;
           }
-
           socket_base::msg_hdr msgs(buffers);
 
           const auto res = socket_service->sendmsg(native_handle, msgs, flags);

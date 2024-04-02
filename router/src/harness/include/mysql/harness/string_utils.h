@@ -90,6 +90,30 @@ HARNESS_EXPORT
 std::string limit_lines(const std::string &str, const size_t limit,
                         const std::string &replace_with = "");
 
+/**
+ * upper-case a string.
+ */
+HARNESS_EXPORT
+void upper(std::string &s);
+
+/**
+ * upper-case a string.
+ */
+HARNESS_EXPORT
+std::string make_upper(std::string s);
+
+/**
+ * lower-case a string.
+ */
+HARNESS_EXPORT
+void lower(std::string &s);
+
+/**
+ * lower-case a string.
+ */
+HARNESS_EXPORT
+std::string make_lower(std::string s);
+
 }  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_STRING_UTILS_INCLUDED */

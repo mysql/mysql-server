@@ -149,5 +149,16 @@
 
     <!--CPACK_WIX_INCLUDES -->
     @CPACK_WIX_INCLUDES@
+
+    <DirectoryRef Id='D.bin'>
+      <Component Id="mysql_router_path" Guid="EEF9C140-7916-4855-B70A-4ACE19BB0F82">
+        <Environment Id="PATH_mysql_router" Name="PATH" Value="[INSTALLDIR]bin" Permanent="no" Part="last" Action="set" System="yes" />
+        <CreateFolder/>
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="ROUTERPATHSETTING" Title="MySQL Router PATH setting" Level="1">
+      <ComponentRef Id="mysql_router_path"/>
+    </Feature>
   </Package>
 </Wix>

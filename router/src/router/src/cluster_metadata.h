@@ -56,6 +56,11 @@ struct ClusterInfo {
 
 using OptionsMap = std::map<std::string, std::string>;
 
+class metadata_missing : public std::runtime_error {
+ public:
+  explicit metadata_missing(const std::string &msg) : std::runtime_error(msg) {}
+};
+
 class ClusterMetadata {
  public:
   ClusterMetadata(const MetadataSchemaVersion &schema_version,

@@ -1,0 +1,315 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+CREATE TABLE IF NOT EXISTS test.type_boolean(id INT AUTO_INCREMENT NOT NULL,  name VARCHAR(5), is_active BOOL, PRIMARY KEY (id));
+CREATE TABLE IF NOT EXISTS test.type_tinyint1(id INT AUTO_INCREMENT NOT NULL, name VARCHAR(5), is_active TINYINT(1), PRIMARY KEY (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE IF NOT EXISTS test.type_bit1(id INT AUTO_INCREMENT NOT NULL,     name VARCHAR(5), is_active BIT(1), PRIMARY KEY (id));
+CREATE TABLE IF NOT EXISTS test.type_tinyint2(id INT AUTO_INCREMENT NOT NULL, name VARCHAR(5), is_active TINYINT(2), PRIMARY KEY (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE IF NOT EXISTS test.type_bit2(id INT AUTO_INCREMENT NOT NULL,     name VARCHAR(5), is_active BIT(2), PRIMARY KEY (id));
+INSERT INTO test.type_boolean(name, is_active)  VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_tinyint1(name, is_active) VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_bit1(name, is_active)     VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_tinyint2(name, is_active) VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+
+
+## I. Verify JSON encoding/decoding of MYSQL ALIAS BOOLEAN to JSON value
+# 1. Verify that MRS encodes MYSQL BOOLEAN type into JSON NUMERIC value in response docuemnts
+# 2. Verify that documents may be filtere on MYSQL BOOLEAN column/type using JSON NUMERIC value
+# 3. Verify that documents can't filtere on MYSQL BOOLEAN column/type using JSON BOOLEAN value
+#
+## II. Verify JSON encoding/decoding of MYSQL TINYINT(1) to JSON value
+# 1. Verify that MRS encodes MYSQL TINYINT(1) type into JSON NUMERIC value in response docuemnts
+# 2. Verify that documents may be filtere on MYSQL TINYINT(1) column/type using JSON NUMERIC value
+# 3. Verify that documents can't filtere on MYSQL TINYINT(1) column/type using JSON BOOLEAN value
+#
+## III. Verify JSON encoding/decoding of MYSQL BIT(1) to JSON value
+# 1. Verify that MRS encodes MYSQL BIT(1) type into JSON BOOLEAN value in response docuemnts
+# 2. Verify that documents may be filtere on MYSQL BIT(1) column/type using JSON NUMERIC value
+# 3. Verify that documents may filtere on MYSQL BIT(1) column/type using JSON BOOLEAN value
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/test
+# Registred DB_OBJECT at path: /svc/test/boolean
+# Registred DB_OBJECT at path: /svc/test/bit1
+# Registred DB_OBJECT at path: /svc/test/tinyint1
+
+#
+# I.1
+GET /svc/test/boolean
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": 0
+        },
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": 1
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": 1
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": 0
+        }
+    ]
+}
+OK
+
+#
+# I.2
+GET /svc/test/boolean?q={"is_active":0}
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": 0
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": 0
+        }
+    ]
+}
+OK
+GET /svc/test/boolean?q={"is_active":1}
+{
+    "items": [
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": 1
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": 1
+        }
+    ]
+}
+OK
+
+#
+# I.3
+GET /svc/test/boolean?q={"is_active":true}
+{
+    "message": "Not supported type.",
+    "status": 400
+}
+OK
+GET /svc/test/boolean?q={"is_active":false}
+{
+    "message": "Not supported type.",
+    "status": 400
+}
+OK
+
+#
+# II.1
+GET /svc/test/tinyint1
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": 0
+        },
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": 1
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": 1
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": 0
+        }
+    ]
+}
+OK
+
+#
+# II.2
+GET /svc/test/tinyint1?q={"is_active":0}
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": 0
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": 0
+        }
+    ]
+}
+OK
+GET /svc/test/tinyint1?q={"is_active":1}
+{
+    "items": [
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": 1
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": 1
+        }
+    ]
+}
+OK
+
+#
+# II.3
+GET /svc/test/tinyint1?q={"is_active":true}
+{
+    "message": "Not supported type.",
+    "status": 400
+}
+OK
+GET /svc/test/tinyint1?q={"is_active":false}
+{
+    "message": "Not supported type.",
+    "status": 400
+}
+OK
+
+#
+# III.1
+GET /svc/test/bit1
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": false
+        },
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": true
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": true
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": false
+        }
+    ]
+}
+OK
+
+#
+# III.2
+GET /svc/test/bit1?q={"is_active":0}
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": false
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": false
+        }
+    ]
+}
+OK
+GET /svc/test/bit1?q={"is_active":1}
+{
+    "items": [
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": true
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": true
+        }
+    ]
+}
+OK
+
+#
+# III.3
+GET /svc/test/bit1?q={"is_active":true}
+{
+    "items": [
+        {
+            "id": 2,
+            "name": "1",
+            "is_active": true
+        },
+        {
+            "id": 3,
+            "name": "TRUE",
+            "is_active": true
+        }
+    ]
+}
+OK
+GET /svc/test/bit1?q={"is_active":false}
+{
+    "items": [
+        {
+            "id": 1,
+            "name": "0",
+            "is_active": false
+        },
+        {
+            "id": 4,
+            "name": "FALSE",
+            "is_active": false
+        }
+    ]
+}
+OK
+DROP TABLE test.type_boolean;
+DROP TABLE test.type_tinyint1;
+DROP TABLE test.type_bit1;
+DROP TABLE test.type_tinyint2;
+DROP TABLE test.type_bit2;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

@@ -1,0 +1,156 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `paging_schema` - created
+
+
+## I. Verify the error message when "$between" operator has:
+#
+# 1. Non-array value
+# 2. Empty array value
+# 3. Array value with single element
+# 3. Array value with three elements
+#
+## II. Verify the returned object for valid "$between" operator:
+#
+# 1. Basic expression, "id" field has values between 1,10
+# 2. Complex expression, "id" field has values between 1,2 or
+#    "comment" column is set to "ome string"
+#
+
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/test_between
+# Registred DB_OBJECT at path: /svc/test_between/table
+
+#
+# I.1
+GET /svc/test_between/table?q={"id":{"$between":{}}}
+{
+    "message": "Between operator, requires an array field.",
+    "status": 400
+}
+OK
+
+#
+# I.2
+GET /svc/test_between/table?q={"id":{"$between":[]}}
+{
+    "message": "Between field, requires array with size of two.",
+    "status": 400
+}
+OK
+
+#
+# I.3
+GET /svc/test_between/table?q={"id":{"$between":[1]}}
+{
+    "message": "Between field, requires array with size of two.",
+    "status": 400
+}
+OK
+
+#
+# I.4
+GET /svc/test_between/table?q={"id":{"$between":[1,2,3]}}
+{
+    "message": "Between field, requires array with size of two.",
+    "status": 400
+}
+OK
+
+#
+# II.1
+GET /svc/test_between/table?q={"id":{"$between":[1,10]}}
+{
+    "items": [
+        {
+            "id": 1,
+            "comment": "This is so"
+        },
+        {
+            "id": 2,
+            "comment": "his is som"
+        },
+        {
+            "id": 3,
+            "comment": "is is some"
+        },
+        {
+            "id": 4,
+            "comment": "s is some "
+        },
+        {
+            "id": 5,
+            "comment": " is some s"
+        },
+        {
+            "id": 6,
+            "comment": "is some st"
+        },
+        {
+            "id": 7,
+            "comment": "s some str"
+        },
+        {
+            "id": 8,
+            "comment": " some stri"
+        },
+        {
+            "id": 9,
+            "comment": "some strin"
+        },
+        {
+            "id": 10,
+            "comment": "ome string"
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 10
+}
+OK
+
+#
+# II.2
+GET /svc/test_between/table?q={"$or":[{"id":{"$between":[1,2]}},{"comment":"ome string"}]}
+{
+    "items": [
+        {
+            "id": 1,
+            "comment": "This is so"
+        },
+        {
+            "id": 2,
+            "comment": "his is som"
+        },
+        {
+            "id": 10,
+            "comment": "ome string"
+        },
+        {
+            "id": 93,
+            "comment": "ome string"
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4
+}
+OK
+DROP SCHEMA paging_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

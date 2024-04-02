@@ -1,0 +1,60 @@
+--source include/have_router.inc
+
+# Set the router-id, to generate statistics
+# this way we can wait until router detects
+# changes to DB_OBJECTS.
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify that router detect addition of
+--echo #
+--echo # 1. SERVICE, SCHEMA, DB_OBJECT (only when there is
+--echo #    at lest one db-object assigned to the schema)
+--echo # 2. Addition of new fields to DB_OBJECT
+--echo #
+--echo #
+
+--echo
+--echo #
+--echo # I.1
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/t
+--let $mrs_add_db_object_table_filter=NOT (COLUMN_NAME like "name")
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+--let MRS_CLIENT_ARGS_404=$MRS_CLIENT_ARGS --expected-status 404 --response-type raw --display request,status
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t/1 --wait-until-found=60
+
+--echo
+--echo #
+--echo # I.2
+--source ../include/mrs/changes/fetch_object.inc
+
+--let $mrs_add_db_object_table_filter= (COLUMN_NAME like "name") 
+--let $mrs_add_db_object=table2
+--source ../include/mrs/db_object/add_table_columns.inc
+# By default waits until, number of changes is grater,
+# than it was checked last time
+--source ../include/mrs/changes/wait_object.inc
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t/1
+
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

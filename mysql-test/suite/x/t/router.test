@@ -1,0 +1,107 @@
+## generated
+## Ping
+--source include/have_router.inc
+
+
+let $router_base_port=;
+let EVENT_SHOW_METHOD=1;
+
+let ROUTER_PORT=`SELECT $MASTER_MYPORT + $MTR_ROUTER_PORT_OFFSET`;
+let ROUTER_HTTP=`SELECT $MASTER_MYPORT + $MTR_ROUTER_PORT_OFFSET + 1`;
+let ROUTER_REMOTE=127.0.0.1:$MASTER_MYPORT;
+mkdir $MYSQL_TMP_DIR/router/;
+#--source include/create_router_config_file.inc
+
+--perl
+use File::Basename;
+use File::Spec::Functions;
+my $tmpdir = $ENV{MYSQL_TMP_DIR} or die "Need MYSQL_TMP_DIR";
+my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
+my $router_port = $ENV{ROUTER_PORT} or die "Need ROUTER_PORT";
+my $router_http = $ENV{ROUTER_HTTP} or die "Need ROUTER_HTTP";
+my $router_remote = $ENV{ROUTER_REMOTE} or die "Need ROUTER_REMOTE";
+my $mtr_bindir = $ENV{MTR_BINDIR} or die "Need MTR_BINDIR";
+
+my $router_client_ssl_cert="$vardir/std_data/client-cert.pem";
+my $router_client_ssl_key="$vardir/std_data/client-key.pem";
+
+my $router_http_ssl_cert="$vardir/std_data/server-cert.pem";
+my $router_http_ssl_key="$vardir/std_data/server-key.pem";
+my $auth_filename="$tmpdir/router/http.auth";
+my $OPT_REST_ROUTER="require_realm=default_auth_realm";
+my $OPT_SSL=$ENV{OPT_SSL} or 0;
+
+if ($ENV{OPT_AUTH} == "0") {
+  $OPT_REST_ROUTER="";
+}
+
+
+
+my $message = <<PERL_HEREDOC;
+[DEFAULT]
+plugin_folder=$mtr_bindir/lib/plugin/
+logging_folder=$tmpdir/router/log
+runtime_folder=$tmpdir/router/run
+data_folder=$tmpdir/router/data
+connect_timeout=15
+read_timeout=30
+client_ssl_cert=$router_client_ssl_cert
+client_ssl_key=$router_client_ssl_key
+client_ssl_mode=PREFERRED
+server_ssl_mode=AS_CLIENT
+server_ssl_verify=DISABLED
+
+[logger]
+level = DEBUG
+
+[routing:test_rw]
+bind_address=0.0.0.0
+bind_port=$router_port
+destinations=$router_remote
+routing_strategy=round-robin
+protocol=classic
+
+[http_server]
+port=$router_http
+ssl=$OPT_SSL
+ssl_cert=$router_http_ssl_cert
+ssl_key=$router_http_ssl_key
+
+[http_auth_realm:default_auth_realm]
+backend=default_auth_backend
+method=basic
+name=default_realm
+
+[rest_router]
+$OPT_REST_ROUTER
+dummy=1
+
+[rest_api]
+[http_auth_backend:default_auth_backend]
+backend=file
+filename=$auth_filename
+
+[rest_routing]
+require_realm=default_auth_realm
+PERL_HEREDOC
+
+open(FILE, ">", "$tmpdir/router.cfg") or die;
+print FILE $message;
+close(FILE);
+
+# u/p: http/http
+my $auth_content = <<PERL_HEREDOC;
+http:\$5\$9Pb4LvNhc7oY.SpX\$CfZl6t0elWETgGR5T6qLcxSPMgbj3Z3E6dKu3p583R3
+PERL_HEREDOC
+
+open(FILE2, ">", $auth_filename) or die;
+print FILE2 $auth_content;
+close(FILE2);
+
+EOF
+
+echo MTR_BINDIR = $MTR_BINDIR;
+echo  $MYSQLROUTER --config=$MYSQL_TMP_DIR/router.cfg 2>&1;
+exec  $MYSQLROUTER --config=$MYSQL_TMP_DIR/router.cfg;
+# valgrind --tool=callgrind --callgrind-out-file=$MYSQL_TMP_DIR/router.out
+## Cleanup

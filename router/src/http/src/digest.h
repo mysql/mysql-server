@@ -99,6 +99,10 @@ class Digest {
     EVP_DigestUpdate(ctx_.get(), data.data(), data.length());
   }
 
+  void update(const char *data, size_t length) {
+    EVP_DigestUpdate(ctx_.get(), data, length);
+  }
+
   /**
    * finalize the digest and get digest value.
    *

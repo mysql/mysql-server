@@ -1,0 +1,32 @@
+--source include/have_router.inc
+
+--source ../include/innodb_cluster/initialize_schema.inc
+--source ../include/mrs/initialize_schema.inc
+--source ../include/innodb_cluster/fill_ar_single_node.inc
+
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+--let $mrs_schema_version=1,0,12
+--source ../include/test/bootstrap_mrs_schema_version.inc
+
+--let $mrs_schema_version=1,0,50
+--source ../include/test/bootstrap_mrs_schema_version.inc
+
+--let $mrs_schema_version=1,1,0
+--source ../include/test/bootstrap_mrs_schema_version.inc
+
+--let $mrs_schema_version=2,3,0
+--source ../include/test/bootstrap_mrs_schema_version.inc
+
+--let $mrs_schema_version=2,3,1
+--source ../include/test/bootstrap_mrs_schema_version.inc
+
+# Cleanup
+DROP USER 'admin'@'%';
+--force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
+
+--source ../include/mrs/bootstrap/drop_bootstraped_users.inc
+--source ../include/mrs/cleanup.inc
+--source ../include/innodb_cluster/cleanup.inc

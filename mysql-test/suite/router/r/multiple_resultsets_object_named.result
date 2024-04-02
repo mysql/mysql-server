@@ -1,0 +1,375 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `proc_schema` - created
+
+
+## I. Encode multiple resultsets into FEED response:
+#
+# 1. Verify response for SP that returns single resultset
+#    into "items" field.
+# 2. Verify response for SP that returns two resultsets
+#    into "items" and "items2" fields.
+# 3. Verify response for SP that returns three resultsets
+#    into "items","items2","items3" fields.
+#
+## II. Encode multiple resultsets with outparams into FEED response:
+#
+# 1. Verify response for SP that returns only output parameters
+#    encoded into "itemsOut" field.
+# 2. Verify response for SP that returns a resultset and output
+#    parameters encoded into "items" and "itemsOut" fields.
+#
+START TRANSACTION;
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/proc
+# Registred DB_OBJECT at path: /svc/proc/one
+# Registred DB_OBJECT at path: /svc/proc/two
+# Registred DB_OBJECT at path: /svc/proc/three
+COMMIT;
+
+#
+# I.1
+PUT /svc/proc/one (payload-size:2)
+{
+    "items": [
+        {
+            "my_id": 1,
+            "my_name": "First row",
+            "my_comments": "First comment",
+            "my_date": "1977-01-21 00:00:00"
+        },
+        {
+            "my_id": 2,
+            "my_name": "Second row",
+            "my_comments": null,
+            "my_date": "1977-01-21 00:00:00"
+        },
+        {
+            "my_id": 3,
+            "my_name": "Thrid row",
+            "my_comments": null,
+            "my_date": "1977-02-21 00:00:00"
+        },
+        {
+            "my_id": 4,
+            "my_name": "4th row",
+            "my_comments": "This row was inserted as forth row.",
+            "my_date": "1977-01-21 00:00:00"
+        },
+        {
+            "my_id": 5,
+            "my_name": "5th row",
+            "my_comments": "",
+            "my_date": "2021-03-01 00:00:00"
+        },
+        {
+            "my_id": 6,
+            "my_name": "6th row",
+            "my_comments": "",
+            "my_date": "2023-01-21 00:00:00"
+        },
+        {
+            "my_id": 7,
+            "my_name": "7th row",
+            "my_comments": "Not empty string",
+            "my_date": "2023-02-21 00:00:00"
+        },
+        {
+            "my_id": 8,
+            "my_name": "8th row",
+            "my_comments": "Next entry",
+            "my_date": "2023-03-21 00:00:00"
+        },
+        {
+            "my_id": 9,
+            "my_name": "9th row",
+            "my_comments": "",
+            "my_date": "2023-04-21 00:00:00"
+        },
+        {
+            "my_id": 10,
+            "my_name": "10th row",
+            "my_comments": "...",
+            "my_date": "2023-05-21 00:00:00"
+        },
+        {
+            "my_id": 11,
+            "my_name": "11th row",
+            "my_comments": "...",
+            "my_date": "2023-06-21 00:00:00"
+        },
+        {
+            "my_id": 12,
+            "my_name": "12th row",
+            "my_comments": "...",
+            "my_date": "2023-07-21 00:00:00"
+        },
+        {
+            "my_id": 13,
+            "my_name": "13th row",
+            "my_comments": "...",
+            "my_date": "2023-08-21 00:00:00"
+        },
+        {
+            "my_id": 14,
+            "my_name": "14th row",
+            "my_comments": "this is fourteenth row",
+            "my_date": "2023-09-21 00:00:00"
+        },
+        {
+            "my_id": 15,
+            "my_name": "15th row",
+            "my_comments": "...",
+            "my_date": "2023-10-21 00:00:00"
+        },
+        {
+            "my_id": 16,
+            "my_name": "16th row",
+            "my_comments": "New entry in this month",
+            "my_date": "2023-11-02 00:00:00"
+        },
+        {
+            "my_id": 17,
+            "my_name": "17th row",
+            "my_comments": "Second in this month",
+            "my_date": "2023-11-04 00:00:00"
+        },
+        {
+            "my_id": 18,
+            "my_name": "18th row",
+            "my_comments": "Next one",
+            "my_date": "2023-11-05 00:00:00"
+        },
+        {
+            "my_id": 19,
+            "my_name": "19th row",
+            "my_comments": "...",
+            "my_date": "2023-11-06 00:00:00"
+        },
+        {
+            "my_id": 20,
+            "my_name": "20th row",
+            "my_comments": "...",
+            "my_date": "2023-11-07 00:00:00"
+        },
+        {
+            "my_id": 21,
+            "my_name": "21th row",
+            "my_comments": "New customer",
+            "my_date": "2023-11-08 00:00:00"
+        },
+        {
+            "my_id": 22,
+            "my_name": "22th row",
+            "my_comments": "...",
+            "my_date": "2023-11-09 00:00:00"
+        },
+        {
+            "my_id": 23,
+            "my_name": "23th row",
+            "my_comments": "...",
+            "my_date": "2023-11-10 00:00:00"
+        },
+        {
+            "my_id": 24,
+            "my_name": "24th row",
+            "my_comments": "...",
+            "my_date": "2023-11-11 00:00:00"
+        },
+        {
+            "my_id": 25,
+            "my_name": "25th row",
+            "my_comments": "...",
+            "my_date": "2023-11-12 00:00:00"
+        },
+        {
+            "my_id": 26,
+            "my_name": "26th row",
+            "my_comments": "...",
+            "my_date": "2023-11-12 00:00:00"
+        },
+        {
+            "my_id": 27,
+            "my_name": "27th row",
+            "my_comments": "...",
+            "my_date": "2023-11-12 00:00:00"
+        }
+    ],
+    "_metadata": {
+        "columns": [
+            {
+                "name": "my_id",
+                "type": " INTEGER"
+            },
+            {
+                "name": "my_name",
+                "type": "VARCHAR(255)"
+            },
+            {
+                "name": "my_comments",
+                "type": "VARCHAR(512)"
+            },
+            {
+                "name": "my_date",
+                "type": "DATETIME"
+            }
+        ]
+    }
+}
+OK
+
+#
+# I.2
+GET /svc/proc/two
+{
+    "items": [
+        {
+            "type": "basicObjectSecond",
+            "items": [
+                {
+                    "my_id": 2,
+                    "my_name": "Second row",
+                    "my_comments": null,
+                    "my_date": "1977-01-21 00:00:00"
+                },
+                {
+                    "my_id": 3,
+                    "my_name": "Thrid row",
+                    "my_comments": null,
+                    "my_date": "1977-02-21 00:00:00"
+                },
+                {
+                    "my_id": 4,
+                    "my_name": "4th row",
+                    "my_comments": "This row was inserted as forth row.",
+                    "my_date": "1977-01-21 00:00:00"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "my_id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "my_name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "my_comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "my_date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "basicObjectFirst",
+            "items": [
+                {
+                    "numberOfItems": 27
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "numberOfItems",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.3
+GET /svc/proc/three
+{
+    "items": [
+        {
+            "type": "basicObjectSecond",
+            "items": [
+                {
+                    "first_id": 1
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "first_id",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "basicObjectFirst",
+            "items": [
+                {
+                    "last_id": 27
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "last_id",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "items2",
+            "items": [
+                {
+                    "id": 27,
+                    "name": "27th row",
+                    "comments": "...",
+                    "date": "2023-11-12 00:00:00"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        }
+    ]
+}
+OK
+DROP SCHEMA proc_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

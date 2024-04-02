@@ -1,0 +1,190 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/pk_types_schema.sql
+
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding of different times of data, returned in FEED response
+--echo #
+--echo # 1. Verify generation of JSON boolean from bit and bit(1)
+--echo # 2. Verify generation of JSON string with base64 data from bit(10) and binary
+--echo # 3. Verify generation of JSON string from VARCHAR(X), SET, ENUM
+--echo # 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+--echo # 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+--echo # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+--echo #
+--echo #
+
+# Primary keys not supported on TEXT and BLOB.
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=pk_types_schema
+--let $mrs_add_schema_path=/pk
+--let $mrs_add_schema_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=t_int
+--let $mrs_add_db_object_path=/int
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_tinyint
+--let $mrs_add_db_object_path=/tinyint
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_smallint
+--let $mrs_add_db_object_path=/smallint
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_mediumint
+--let $mrs_add_db_object_path=/mediumint
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_bigint
+--let $mrs_add_db_object_path=/bigint
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_decimal
+--let $mrs_add_db_object_path=/decimal
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_float
+--let $mrs_add_db_object_path=/float
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_double
+--let $mrs_add_db_object_path=/double
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_bit
+--let $mrs_add_db_object_path=/bit
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_bit1
+--let $mrs_add_db_object_path=/bit1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_bit8
+--let $mrs_add_db_object_path=/bit8
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_bin
+--let $mrs_add_db_object_path=/bin
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_varchar20
+--let $mrs_add_db_object_path=/varchar20
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_enum
+--let $mrs_add_db_object_path=/enum
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_set
+--let $mrs_add_db_object_path=/set
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_datetime
+--let $mrs_add_db_object_path=/datetime
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_timestamp
+--let $mrs_add_db_object_path=/timestamp
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_date
+--let $mrs_add_db_object_path=/date
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_time
+--let $mrs_add_db_object_path=/time
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=t_year
+--let $mrs_add_db_object_path=/year
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+let $MRS_CLIENT_EXC=$MRS_CLIENT_ARGS
+     --exclude-json-pointer /links,/hasMore,/limit,/offset,/items/*/links/*/rel;
+let $MRS_CLIENT_EXC1=$MRS_CLIENT_ARGS
+     --exclude-json-pointer /links/*/rel;
+--exec $MRS_CLIENT_ARGS --path /svc/pk/year --wait-until-found 60 --display none
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit/1
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit1/1
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit1/true
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit1/True
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit1/false
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit8/AA==
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bit8/AQ==
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bin/AAAA
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/bin/BwAA
+
+--echo
+--echo #
+--echo # I.3
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/set/value1
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/set/value1,value2,value3
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/enum/value1
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/enum/value3
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/varchar20/123456
+
+--echo
+--echo #
+--echo # I.4
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/date/2020-12-01
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/date/2020-12-03
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/time/12:01:50
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/time/12:01:51
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/time/12:01:51.0000
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/year/2020
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/year/2022
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/datetime/2020-12-01\ 12:01:50.000000
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/datetime/2020-12-01\ 12:01:50
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/datetime/2020-12-02\ 12:01:50
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/timestamp/2020-12-02\ 12:01:50.000000
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/timestamp/2020-12-03\ 12:01:50
+
+
+--echo
+--echo #
+--echo # I.5
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/float/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/double/-999.9999
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/decimal/-999.99
+
+--echo
+--echo #
+--echo # I.6
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/int/-2147483648
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/int/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/int/2147483647
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/smallint/-32768
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/smallint/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/smallint/32767
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/tinyint/-128
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/tinyint/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/tinyint/127
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/mediumint/-8388608
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/mediumint/0
+--exec $MRS_CLIENT_EXC1 --path /svc/pk/mediumint/8388607
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

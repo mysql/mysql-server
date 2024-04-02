@@ -1,0 +1,156 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+CREATE TABLE test.geo0(
+  id INTEGER AUTO_INCREMENT PRIMARY KEY,
+  g GEOMETRY SRID 0,
+  point POINT SRID 0,
+  l LINESTRING SRID 0,
+  poly POLYGON SRID 0);
+
+CREATE TABLE test.geo4326(
+  id INTEGER AUTO_INCREMENT PRIMARY KEY,
+  g GEOMETRY SRID 4326,
+  point POINT SRID 4326,
+  l LINESTRING SRID 4326,
+  poly POLYGON SRID 4326);
+
+
+INSERT INTO test.geo0(g)
+   VALUES(ST_GeomFromText('POINT(0 0)')),
+         (ST_GeomFromText('LINESTRING(110 100, 20 30)')),
+         (ST_GeomFromText('POLYGON((-110 100, 0 0, 0 100, -110 100))')),
+         (NULL);
+
+INSERT INTO test.geo0(point)
+   VALUES(ST_GeomFromText('POINT(1 1)')),
+         (ST_GeomFromText('POINT(-111 101)'));
+
+INSERT INTO test.geo0(l)
+   VALUES(ST_GeomFromText('LINESTRING(1 1, 10 0)')),
+         (ST_GeomFromText('LINESTRING(111 101, 10 0)'));
+
+INSERT INTO test.geo0(poly)
+   VALUES(ST_GeomFromText('POLYGON((1 1, 1 0, 0 0, 1 1))')),
+         (ST_GeomFromText('POLYGON((2 2, 0 2, 0 0, 2 2))'));
+
+INSERT INTO test.geo4326(g)
+   VALUES(ST_GeomFromText('POINT(0 0)',4326)),
+         (ST_GeomFromText('POINT(90 89)',4326)),
+         (ST_GeomFromText('POINT(-90 89)',4326)),
+         (NULL);
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding of different times of data, returned in FEED response
+--echo #
+--echo # 1. Verify generation of JSON boolean from bit and bit(1)
+--echo #
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=test
+--let $mrs_add_schema_path=/test
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=geo0
+--let $mrs_add_db_object_path=/geo0
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=geo4326
+--let $mrs_add_db_object_path=/geo4326
+--source ../include/mrs/db_object/add.inc
+
+
+
+--exec $MRS_CLIENT_ARGS --path /svc/test/geo0/1 --wait-until-found 60 --display none
+
+--let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/g,/items/*/id,/items/*/poly,/items/*/point,/items/*/l
+--let $MRS_CLIENT_ARGS_OBJ=$MRS_CLIENT_ARGS --json-pointer /g,/id,/l,/point,/poly
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo0/2
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0
+
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS_OBJ 
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload
+   '{"g":{"type":"LineString","coordinates":[[100,0],[0,0]]},"point":null,"l":null,"poly":null}';
+
+--echo
+--echo #
+--echo # I.4
+exec $MRS_CLIENT_ARGS_OBJ 
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload
+   '{"g":{"type":"Point", "coordinates":[100,0]},"point":null,"l":null,"poly":null}';
+
+--echo
+--echo #
+--echo # II.1
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":\"POINT\(100\ 0\)\"}
+
+
+--echo
+--echo #
+--echo # II.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":\"POINT\(0\ 0\)\"}
+
+
+--echo
+--echo #
+--echo # II.3
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":{\"type\":\"Point\",\"coordinates\":[0,0]}}
+
+
+--echo
+--echo #
+--echo # III.1
+--exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2
+
+--echo
+--echo #
+--echo # III.2
+--exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2 --request-type PUT --payload '{"g":{"type":"Point", "coordinates":[10,0]},"point":null,"l":null,"poly":null}'
+
+--echo
+--echo #
+--echo # III.3
+--exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2 --request-type PUT --payload '{"g":"POINT(11 0)","point":null,"l":null,"poly":null}'
+
+--echo
+--echo #
+--echo # IV.1
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":\"POINT\(11\ 0\)\"}
+
+
+--echo
+--echo #
+--echo # IV.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":\"POINT\(0\ 0\)\"}
+
+
+--echo
+--echo #
+--echo # IV.3
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":{\"type\":\"Point\",\"coordinates\":[0,0]}}
+
+
+# Cleanup
+DROP TABLE test.geo0;
+DROP TABLE test.geo4326;
+--source ../include/mrs/cleanup.inc

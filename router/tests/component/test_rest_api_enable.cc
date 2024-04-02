@@ -64,6 +64,8 @@ using mysql_harness::utility::string_format;
 
 class TestRestApiEnable : public RouterComponentBootstrapTest {
  public:
+  using RouterComponentBootstrapTest::RouterComponentBootstrapTest;
+
   void SetUp() override {
     RouterComponentBootstrapTest::SetUp();
 
@@ -525,6 +527,12 @@ iOhZnJao1ZvGZ6lJLf+SG69L5mFqASpxqriBbZasvg+k4yfKA1uN7IukMgWQ4gUl
 VeZwMK4Cb8EO7PzsnX2tD6AA5Ums6GhNgYsbJgdq4MdKb3x6YWZ8DpksSIX2
 -----END CERTIFICATE-----)"};
 
+class TestRestApiEnableParametric : public TestRestApiEnable,
+                                    public ::testing::WithParamInterface<bool> {
+ public:
+  TestRestApiEnableParametric() : TestRestApiEnable(GetParam()) {}
+};
+
 /**
  * @test
  * Verify --disable-rest disables REST support. 'mysqlrouter.conf' should not
@@ -534,7 +542,7 @@ VeZwMK4Cb8EO7PzsnX2tD6AA5Ums6GhNgYsbJgdq4MdKb3x6YWZ8DpksSIX2
  * WL13906:TS_FR01_01
  * WL13906:TS_FR06_01
  */
-TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
+TEST_P(TestRestApiEnableParametric, ensure_rest_is_disabled) {
   do_bootstrap({
       "--disable-rest",                    //
       "--client-ssl-mode", "PASSTHROUGH",  //
@@ -563,7 +571,7 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
  * WL13906:TS_FR03_01
  * WL13906:TS_FR05_01
  */
-TEST_F(TestRestApiEnable, ensure_rest_is_configured_by_default) {
+TEST_P(TestRestApiEnableParametric, ensure_rest_is_configured_by_default) {
   ASSERT_NO_FATAL_FAILURE(
       do_bootstrap({/*default command line arguments*/}, false));
 
@@ -580,7 +588,7 @@ TEST_F(TestRestApiEnable, ensure_rest_is_configured_by_default) {
  *
  * WL13906:TS_FR02_01
  */
-TEST_F(TestRestApiEnable, ensure_rest_works_on_custom_port) {
+TEST_P(TestRestApiEnableParametric, ensure_rest_works_on_custom_port) {
   do_bootstrap({"--https-port", std::to_string(custom_port)});
 
   EXPECT_TRUE(certificate_files_exists(
@@ -593,8 +601,17 @@ TEST_F(TestRestApiEnable, ensure_rest_works_on_custom_port) {
   assert_rest_works(custom_port);
 }
 
-class UseEdgeHttpsPortValues : public TestRestApiEnable,
-                               public ::testing::WithParamInterface<int> {};
+struct HttpsPortParam {
+  bool new_executable;
+  int port;
+};
+
+class UseEdgeHttpsPortValues
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<HttpsPortParam> {
+ public:
+  UseEdgeHttpsPortValues() : TestRestApiEnable(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -607,7 +624,7 @@ class UseEdgeHttpsPortValues : public TestRestApiEnable,
  */
 TEST_P(UseEdgeHttpsPortValues,
        ensure_bootstrap_works_for_edge_https_port_values) {
-  do_bootstrap({"--https-port", std::to_string(GetParam())}, false);
+  do_bootstrap({"--https-port", std::to_string(GetParam().port)}, false);
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -616,10 +633,17 @@ TEST_P(UseEdgeHttpsPortValues,
 }
 
 INSTANTIATE_TEST_SUITE_P(CheckEdgeHttpsPortValues, UseEdgeHttpsPortValues,
-                         ::testing::Values(1, 65535));
+                         ::testing::Values(HttpsPortParam(false, 1),
+                                           HttpsPortParam(false, 65535),
+                                           HttpsPortParam(true, 1),
+                                           HttpsPortParam(true, 65535)));
 
-class EnableWrongHttpsPort : public TestRestApiEnable,
-                             public ::testing::WithParamInterface<int> {};
+class EnableWrongHttpsPort
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<HttpsPortParam> {
+ public:
+  EnableWrongHttpsPort() : TestRestApiEnable(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -632,7 +656,8 @@ class EnableWrongHttpsPort : public TestRestApiEnable,
 TEST_P(EnableWrongHttpsPort, ensure_bootstrap_fails_for_invalid_https_port) {
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
-      "-d", temp_test_dir.name(), "--https-port", std::to_string(GetParam())};
+      "-d", temp_test_dir.name(), "--https-port",
+      std::to_string(GetParam().port)};
   auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
@@ -646,11 +671,23 @@ TEST_P(EnableWrongHttpsPort, ensure_bootstrap_fails_for_invalid_https_port) {
 }
 
 INSTANTIATE_TEST_SUITE_P(CheckWrongHttpsPort, EnableWrongHttpsPort,
-                         ::testing::Values(0, 65536));
+                         ::testing::Values(HttpsPortParam(false, 0),
+                                           HttpsPortParam(false, 65536),
+                                           HttpsPortParam(true, 0),
+                                           HttpsPortParam(true, 65536)));
+
+struct HttpsPortSourceParam {
+  using FieldPtr = uint16_t TestRestApiEnable::*;
+  bool new_executable;
+  FieldPtr field;
+};
 
 class OverlappingHttpsPort
     : public TestRestApiEnable,
-      public ::testing::WithParamInterface<uint16_t TestRestApiEnable::*> {};
+      public ::testing::WithParamInterface<HttpsPortSourceParam> {
+ public:
+  OverlappingHttpsPort() : TestRestApiEnable(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -662,7 +699,8 @@ class OverlappingHttpsPort
  */
 TEST_P(OverlappingHttpsPort,
        ensure_bootstrap_works_for_overlapping_https_port) {
-  do_bootstrap({"--https-port", std::to_string(this->*GetParam())}, false);
+  do_bootstrap({"--https-port", std::to_string(this->*GetParam().field)},
+               false);
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -672,8 +710,11 @@ TEST_P(OverlappingHttpsPort,
 
 INSTANTIATE_TEST_SUITE_P(
     CheckOverlappingHttpsPort, OverlappingHttpsPort,
-    ::testing::Values(&TestRestApiEnable::router_port_rw,
-                      &TestRestApiEnable::cluster_node_port));
+    ::testing::Values(
+        HttpsPortSourceParam(false, &TestRestApiEnable::router_port_rw),
+        HttpsPortSourceParam(false, &TestRestApiEnable::cluster_node_port),
+        HttpsPortSourceParam(true, &TestRestApiEnable::router_port_rw),
+        HttpsPortSourceParam(true, &TestRestApiEnable::cluster_node_port)));
 
 /**
  * @test
@@ -682,7 +723,7 @@ INSTANTIATE_TEST_SUITE_P(
  *
  * WL13906:TS_FailReq01_01
  */
-TEST_F(TestRestApiEnable, bootstrap_conflicting_options) {
+TEST_P(TestRestApiEnableParametric, bootstrap_conflicting_options) {
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d",
@@ -702,9 +743,18 @@ TEST_F(TestRestApiEnable, bootstrap_conflicting_options) {
        cert_file_t::k_router_cert}));
 }
 
+struct HttpCertFilesParameter {
+  bool new_executable;
+  std::vector<cert_file_t> cert_files;
+};
+
 class RestApiEnableUserCertificates
     : public TestRestApiEnable,
-      public ::testing::WithParamInterface<std::vector<cert_file_t>> {};
+      public ::testing::WithParamInterface<HttpCertFilesParameter> {
+ public:
+  RestApiEnableUserCertificates()
+      : TestRestApiEnable(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -716,7 +766,7 @@ class RestApiEnableUserCertificates
  * WL13906:TS_FR04_01
  */
 TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
-  create_cert_files(GetParam());
+  create_cert_files(GetParam().cert_files);
   auto &router_bootstrap =
       do_bootstrap({"--https-port", std::to_string(custom_port)});
   const auto expected_message =
@@ -728,7 +778,7 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_router_key, cert_file_t::k_router_cert}));
   assert_rest_config(config_path, true);
-  EXPECT_TRUE(certificate_files_not_changed(GetParam()));
+  EXPECT_TRUE(certificate_files_not_changed(GetParam().cert_files));
 
   ProcessManager::launch_router({"-c", config_path.str()});
 
@@ -737,22 +787,46 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
 
 INSTANTIATE_TEST_SUITE_P(
     CheckRestApiUserCertificates, RestApiEnableUserCertificates,
-    ::testing::Values(std::vector<cert_file_t>{cert_file_t::k_router_key,
-                                               cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_router_key,
-                                               cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_cert,
-                                               cert_file_t::k_router_key,
-                                               cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_ca_cert,
-                                               cert_file_t::k_router_key,
-                                               cert_file_t::k_router_cert}));
+    ::testing::Values(
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_router_key,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_router_key,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                            cert_file_t::k_router_key,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_ca_cert,
+                                            cert_file_t::k_router_key,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_router_key,
+                                           cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                           cert_file_t::k_router_key,
+                                           cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                           cert_file_t::k_router_key,
+                                           cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{
+                      cert_file_t::k_ca_key, cert_file_t::k_ca_cert,
+                      cert_file_t::k_router_key, cert_file_t::k_router_cert}}));
 
 class RestApiEnableNotEnoughFiles
     : public TestRestApiEnable,
-      public ::testing::WithParamInterface<std::vector<cert_file_t>> {};
+      public ::testing::WithParamInterface<HttpCertFilesParameter> {
+ public:
+  RestApiEnableNotEnoughFiles()
+      : TestRestApiEnable(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -763,14 +837,14 @@ class RestApiEnableNotEnoughFiles
  * WL13906:TS_FR04_01
  */
 TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
-  create_cert_files(GetParam());
+  create_cert_files(GetParam().cert_files);
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
   auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
-  const auto &files = GetParam();
+  const auto &files = GetParam().cert_files;
   auto has_file = [files](const cert_file_t &file) {
     return std::find(std::begin(files), std::end(files), file) !=
            std::end(files);
@@ -796,30 +870,82 @@ TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
 
 INSTANTIATE_TEST_SUITE_P(
     CheckRestApiEnableNotEnoughFiles, RestApiEnableNotEnoughFiles,
-    ::testing::Values(std::vector<cert_file_t>{cert_file_t::k_router_key},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_router_key},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_cert,
-                                               cert_file_t::k_router_key},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_ca_cert,
-                                               cert_file_t::k_router_key},
-                      std::vector<cert_file_t>{cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_cert,
-                                               cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_ca_cert,
-                                               cert_file_t::k_router_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_cert},
-                      std::vector<cert_file_t>{cert_file_t::k_ca_key,
-                                               cert_file_t::k_ca_cert}));
+    ::testing::Values(
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                            cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_ca_cert,
+                                            cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_ca_cert,
+                                            cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{false,
+                               std::vector<cert_file_t>{cert_file_t::k_ca_key}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_cert}},
+        HttpCertFilesParameter{
+            false, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                            cert_file_t::k_ca_cert}},
+
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                           cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                           cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                           cert_file_t::k_ca_cert,
+                                           cert_file_t::k_router_key}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                           cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_cert,
+                                           cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                           cert_file_t::k_ca_cert,
+                                           cert_file_t::k_router_cert}},
+        HttpCertFilesParameter{true,
+                               std::vector<cert_file_t>{cert_file_t::k_ca_key}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_cert}},
+        HttpCertFilesParameter{
+            true, std::vector<cert_file_t>{cert_file_t::k_ca_key,
+                                           cert_file_t::k_ca_cert}}));
+
+struct HttpCertParameter {
+  bool new_executable;
+  std::string cert;
+};
 
 class RestApiInvalidUserCerts
     : public TestRestApiEnable,
-      public ::testing::WithParamInterface<std::string> {};
+      public ::testing::WithParamInterface<HttpCertParameter> {
+ public:
+  RestApiInvalidUserCerts() : TestRestApiEnable(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -843,15 +969,15 @@ TEST_P(RestApiInvalidUserCerts,
 
   {
     std::ofstream ca_key_stream{datadir_path.join(ca_key_filename).str()};
-    ca_key_stream << GetParam();
+    ca_key_stream << GetParam().cert;
     std::ofstream ca_cert_stream{datadir_path.join(ca_cert_filename).str()};
-    ca_cert_stream << GetParam();
+    ca_cert_stream << GetParam().cert;
     std::ofstream router_key_stream{
         datadir_path.join(router_key_filename).str()};
-    router_key_stream << GetParam();
+    router_key_stream << GetParam().cert;
     std::ofstream router_cert_stream{
         datadir_path.join(router_cert_filename).str()};
-    router_cert_stream << GetParam();
+    router_cert_stream << GetParam().cert;
   }
 
   auto &router_bootstrap =
@@ -866,13 +992,13 @@ TEST_P(RestApiInvalidUserCerts,
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
   EXPECT_EQ(get_file_output(datadir_path.join(ca_key_filename).str()),
-            GetParam());
+            GetParam().cert);
   EXPECT_EQ(get_file_output(datadir_path.join(ca_cert_filename).str()),
-            GetParam());
+            GetParam().cert);
   EXPECT_EQ(get_file_output(datadir_path.join(router_key_filename).str()),
-            GetParam());
+            GetParam().cert);
   EXPECT_EQ(get_file_output(datadir_path.join(router_cert_filename).str()),
-            GetParam());
+            GetParam().cert);
   assert_rest_config(config_path, true);
 
   auto &router = launch_router({"-c", config_path.str()}, EXIT_FAILURE);
@@ -888,8 +1014,12 @@ TEST_P(RestApiInvalidUserCerts,
               ::testing::HasSubstr(log_error));
 }
 
-INSTANTIATE_TEST_SUITE_P(CheckRestApiInvalidUserCerts, RestApiInvalidUserCerts,
-                         ::testing::Values("", "this aint no certificate"));
+INSTANTIATE_TEST_SUITE_P(
+    CheckRestApiInvalidUserCerts, RestApiInvalidUserCerts,
+    ::testing::Values(HttpCertParameter{false, ""},
+                      HttpCertParameter{false, "this aint no certificate"},
+                      HttpCertParameter{true, ""},
+                      HttpCertParameter{true, "this aint no certificate"}));
 
 /**
  * @test
@@ -898,7 +1028,7 @@ INSTANTIATE_TEST_SUITE_P(CheckRestApiInvalidUserCerts, RestApiInvalidUserCerts,
  *
  * WL13906:TS_Extra_02
  */
-TEST_F(TestRestApiEnable, use_custom_datadir_relative_path) {
+TEST_P(TestRestApiEnableParametric, use_custom_datadir_relative_path) {
   auto odd_path = mysql_harness::Path{temp_test_dir.name()}.join(
       "Path with CAPS, punctuation, spaces and ¿ó¿-¿¿¿ii");
 
@@ -912,7 +1042,7 @@ TEST_F(TestRestApiEnable, use_custom_datadir_relative_path) {
  *
  * WL13906:TS_Extra_01
  */
-TEST_F(TestRestApiEnable, use_custom_datadir_absolute_path) {
+TEST_P(TestRestApiEnableParametric, use_custom_datadir_absolute_path) {
   auto odd_path = mysql_harness::Path{temp_test_dir.name()}.real_path().join(
       "Path with CAPS, punctuation, spaces and ¿ó¿-¿¿¿ii");
 
@@ -929,7 +1059,7 @@ TEST_F(TestRestApiEnable, use_custom_datadir_absolute_path) {
  *
  * WL13906:TS_Extra_03
  */
-TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
+TEST_P(TestRestApiEnableParametric, ensure_certificate_files_cleanup) {
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name(), "--strict"};
@@ -955,8 +1085,15 @@ TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
        cert_file_t::k_router_cert}));
 }
 
-class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
+INSTANTIATE_TEST_SUITE_P(CheckDifferentExecutables, TestRestApiEnableParametric,
+                         ::testing::Values(false, true));
+
+class TestRestApiEnableBootstrapFailover
+    : public TestRestApiEnable,
+      public ::testing::WithParamInterface<bool> {
  public:
+  TestRestApiEnableBootstrapFailover() : TestRestApiEnable(GetParam()) {}
+
   void SetUp() override {
     RouterComponentTest::SetUp();
     setup_paths();
@@ -1023,7 +1160,7 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
  *
  * WL13906:TS_Extra_04
  */
-TEST_F(TestRestApiEnableBootstrapFailover,
+TEST_P(TestRestApiEnableBootstrapFailover,
        ensure_rest_works_after_node_failover) {
   const bool successful_failover = true;
   setup_mocks(successful_failover);
@@ -1051,7 +1188,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
  *
  * WL13906:TS_Extra_05
  */
-TEST_F(TestRestApiEnableBootstrapFailover,
+TEST_P(TestRestApiEnableBootstrapFailover,
        ensure_certificate_files_cleanup_on_error) {
   const bool successful_failover = true;
   setup_mocks(successful_failover);
@@ -1079,7 +1216,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
  *
  * WL13906:TS_Extra_05
  */
-TEST_F(TestRestApiEnableBootstrapFailover,
+TEST_P(TestRestApiEnableBootstrapFailover,
        ensure_certificate_files_cleanup_on_failed_node_failover) {
   const bool successful_failover = false;
   setup_mocks(successful_failover);
@@ -1098,6 +1235,10 @@ TEST_F(TestRestApiEnableBootstrapFailover,
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
 }
+
+INSTANTIATE_TEST_SUITE_P(CheckDifferentExecutables,
+                         TestRestApiEnableBootstrapFailover,
+                         ::testing::Values(false, true));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

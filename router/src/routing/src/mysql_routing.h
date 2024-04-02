@@ -291,7 +291,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   MySQLRoutingConnectionBase *get_connection(const std::string &) override;
 
-  RouteDestination *destinations() { return destination_.get(); }
+  RouteDestination *destinations() override { return destination_.get(); }
 
   void disconnect_all();
 

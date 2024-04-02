@@ -620,6 +620,7 @@ end). Actions taken for each plugin function are as follows:
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_state_observer.h"
 
 #include "harness_export.h"
 
@@ -633,6 +634,7 @@ end). Actions taken for each plugin function are as follows:
 #include <istream>
 #include <list>
 #include <map>
+#include <memory>
 #include <queue>
 #include <set>
 #include <stdexcept>
@@ -753,20 +755,11 @@ class HARNESS_EXPORT Loader {
    * @param program Name of our program
    * @param config Router configuration
    */
-  Loader(std::string program, LoaderConfig &config)
-      : config_(config), program_(std::move(program)) {}
-
+  Loader(const std::string &program, LoaderConfig &config);
   Loader(const Loader &) = delete;
-  Loader &operator=(const Loader &) = delete;
-
-  /**
-   * Destructor.
-   *
-   * The destructor will call dlclose() on all unclosed shared
-   * libraries.
-   */
-
   ~Loader();
+
+  Loader &operator=(const Loader &) = delete;
 
   /**
    * Fetch available plugins.
@@ -1053,6 +1046,8 @@ class HARNESS_EXPORT Loader {
    * section of the configuration
    */
   void check_default_config_options_supported();
+
+  std::vector<std::shared_ptr<PluginStateObserver>> default_observers_;
 
   // service names that need to be waited on.
   //

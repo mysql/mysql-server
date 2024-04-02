@@ -1,0 +1,437 @@
+# Validate handling of procedures, configured to generate a FEED response.
+#
+# Check handling of invalid: URL parameters, methods, payloads.
+# Validate the handling of input/output parameters.
+#
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/procedures_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,BODY,RESULT
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify error messages while providing faulty configuration to rest procedure
+--echo #
+--echo # 1. POST request is not supported by object/procedures
+--echo # 2. DELETE request is not supported by object/procedures
+--echo # 3. PUT request is rejected when there is not payload proveided
+--echo # 4. PUT request is rejected when the payload is not JSON object
+--echo # 5. PUT request is rejected when the payloads, JSON object field
+--echo #    doesn't match registred input parameters.
+--echo # 6. GET request is rejected when the URL parameter name doesn'
+--echo #    match registred input parameters.
+--echo #
+--echo #
+--echo ## II. Verify generated resultsets when procedure returns a resultset
+--echo ##     or output parameters.
+--echo #
+--echo # 1. Procedure with GET request returns empty "items" field when there is not resultset
+--echo # 2. Procedure with GET request returns numeric resultset in "items" field
+--echo # 3. Procedure with GET request returns numeric resultset in "itemsOut" field
+--echo # 4. Procedure with GET request returns string resultset in "items" field
+--echo # 5. Procedure with GET request returns string resultset in "itemsOut" field
+--echo # 6. Procedure with POST request returns empty "items" field when there is not resultset
+--echo # 7. Procedure with POST request returns numeric resultset in "items" field
+--echo # 8. Procedure with POST request returns numeric resultset in "itemsOut" field
+--echo # 9. Procedure with POST request returns string resultset in "items" field
+--echo # 10. Procedure with POST request returns string resultset in "itemsOut" field
+--echo # 11. Procedure with POST request receives strings and returns string resultset in "items" field
+--echo # 12. Procedure with POST request receives strings and returns string resultset in "itemsOut" field
+--echo #
+--echo #
+--echo ## III. Verify handling of different MYSQL types as input and output of
+--echo ##      stored procedures, when they are transfered in GET requests
+--echo #
+--echo # 1. Verify if intput varchar value is the same at output of stored procedure
+--echo # 2. Verify if intput DATE value is the same at output of stored procedure
+--echo # 3. Verify if intput YEAR value is the same at output of stored procedure
+--echo # 4. Verify if intput TIME value is the same at output of stored procedure
+--echo # 5. Verify if intput BIT(1) value is the same at output of stored procedure
+--echo # 6. Verify if intput TINYINT(1) value is the same at output of stored procedure
+--echo # 7. Verify if intput TINYINT(8) value is the same at output of stored procedure
+--echo # 8. Verify if intput DECIMAL value is the same at output of stored procedure
+--echo # 9. Verify if intput FLOAT value is the same at output of stored procedure
+--echo # 10. Verify if intput DOUBLE value is the same at output of stored procedure
+--echo #
+--echo #
+--echo ## IV. Verify handling of different MYSQL types as input and output of
+--echo ##      stored procedures, when they are transfered in POST requests
+--echo #
+--echo # 1. Verify if intput varchar value is the same at output of stored procedure
+--echo # 2. Verify if intput DATE value is the same at output of stored procedure
+--echo # 3. Verify if intput YEAR value is the same at output of stored procedure
+--echo # 4. Verify if intput TIME value is the same at output of stored procedure
+--echo # 5. Verify if intput BIT(1) value is the same at output of stored procedure
+--echo # 6. Verify if intput TINYINT(1) value is the same at output of stored procedure
+--echo # 7. Verify if intput TINYINT(8) value is the same at output of stored procedure
+--echo # 8. Verify if intput DECIMAL value is the same at output of stored procedure
+--echo # 9. Verify if intput FLOAT value is the same at output of stored procedure
+--echo # 10. Verify if intput DOUBLE value is the same at output of stored procedure
+--echo #
+--echo ## V. Verify handling of resultsets with several columns
+--echo # 1. Verify presentation of resultset with different columns
+--echo # 2. Verify presentation of resultsets with different columns
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=proc_schema
+--let $mrs_add_schema_path=/proc
+--let $mrs_add_schema_items_on_page=NULL
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_sum
+--let $mrs_add_db_object_path=/sum
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_sum_out
+--let $mrs_add_db_object_path=/sum_out
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_concat
+--let $mrs_add_db_object_path=/concat
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_concat_out
+--let $mrs_add_db_object_path=/concat_out
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_char
+--let $mrs_add_db_object_path=/move_char
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_date
+--let $mrs_add_db_object_path=/move_date
+--source ../include/mrs/db_object/add.inc
+
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_year
+--let $mrs_add_db_object_path=/move_year
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_time
+--let $mrs_add_db_object_path=/move_time
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_bit
+--let $mrs_add_db_object_path=/move_bit
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_tinyint1
+--let $mrs_add_db_object_path=/move_tinyint1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_tinyint8
+--let $mrs_add_db_object_path=/move_tinyint8
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_decimal
+--let $mrs_add_db_object_path=/move_decimal
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_float
+--let $mrs_add_db_object_path=/move_float
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_double
+--let $mrs_add_db_object_path=/move_double
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_do_nothing
+--let $mrs_add_db_object_path=/nothing
+--source ../include/mrs/db_object/add.inc
+
+# Wait until MySQLRouter fetches db-object.
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing
+  --wait-until-found 60;
+
+--echo
+--echo #
+--echo # I.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t POST
+  --expected-status Forbidden;
+
+--echo
+--echo #
+--echo # I.2
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t DELETE
+  --expected-status Forbidden;
+
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t PUT
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.4
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t PUT
+  --payload 10
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.5
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t PUT
+  --payload '{"not-existing-param":20}'
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.6
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing?not-existing-param=10
+  --expected-status BadRequest;
+
+
+
+--echo
+--echo #
+--echo # II.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing;
+
+--echo
+--echo #
+--echo # II.2
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum?a=10\&b=20;
+
+--echo
+--echo #
+--echo # II.3
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum_out?a=10\&b=20;
+
+--echo
+--echo #
+--echo # II.4
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat?a=10\&b=20;
+
+--echo
+--echo #
+--echo # II.5
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat_out?a=10\&b=20;
+
+
+--echo
+--echo #
+--echo # II.6
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing
+  -t PUT --payload '{}';
+
+--echo
+--echo #
+--echo # II.7
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum
+  -t PUT --payload '{"a":10,"b":20}';
+
+--echo
+--echo #
+--echo # II.8
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum_out
+  -t PUT --payload '{"a":10, "b":20}';
+
+--echo
+--echo #
+--echo # II.9
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat
+  -t PUT --payload '{"a":10,"b":20}';
+
+--echo
+--echo #
+--echo # II.10
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat_out
+  -t PUT --payload '{"a":10,"b":20}';
+
+--echo
+--echo #
+--echo # II.11
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat
+  -t PUT --payload '{"a":"10","b":"20"}';
+
+--echo
+--echo #
+--echo # II.12
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat_out
+  -t PUT --payload '{"a":"10","b":"20"}';
+
+
+--echo
+--echo #
+--echo # III.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_char?a=10;
+
+--echo
+--echo #
+--echo # III.2
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_date?a="1920-12-11";
+#
+--echo
+--echo #
+--echo # III.3
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_year?a="1920-12-11";
+#
+--echo
+--echo #
+--echo # III.4
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_time?a="12:34:12";
+
+--echo
+--echo #
+--echo # III.5
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_bit?a=1;
+
+--echo
+--echo #
+--echo # III.6
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint1?a=1;
+
+--echo
+--echo #
+--echo # III.7
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint8?a=10;
+
+--echo
+--echo #
+--echo # III.8
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_decimal?a=10;
+
+--echo
+--echo #
+--echo # III.9
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_float?a=10;
+
+--echo
+--echo #
+--echo # III.10
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_double?a=10;
+
+
+--echo
+--echo #
+--echo # IV.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_char
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # IV.2
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_date
+#  -t PUT --payload '{"a":"1920-12-11"}';
+#
+--echo
+--echo #
+--echo # IV.3
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_year
+#  -t PUT --payload '{"a":"1920-12-11"}';
+#
+--echo
+--echo #
+--echo # IV.4
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_time
+#  -t PUT --payload '{"a":"12:34:12"}';
+
+--echo
+--echo #
+--echo # IV.5
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_bit
+  -t PUT --payload '{"a":1}';
+
+--echo
+--echo #
+--echo # IV.6
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint1
+  -t PUT --payload '{"a":1}';
+
+--echo
+--echo #
+--echo # IV.7
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint8
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # IV.8
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_decimal
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # IV.9
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_float
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # IV.10
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_double
+  -t PUT --payload '{"a":10}';
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

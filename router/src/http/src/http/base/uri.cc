@@ -38,6 +38,9 @@
 namespace http {
 namespace base {
 
+using QueryElements = Uri::QueryElements;
+using PathElements = Uri::PathElements;
+
 Uri::Uri() : uri_impl_{"", true, true, true, true} {}
 
 Uri::Uri(const std::string &uri) : uri_impl_{uri, true, true, true, true} {}
@@ -165,6 +168,14 @@ void Uri::set_fragment(const std::string &fragment) {
 }
 
 std::string Uri::get_query() const { return uri_impl_.get_query_as_string(); }
+
+const QueryElements &Uri::get_query_elements() const { return uri_impl_.query; }
+
+const PathElements &Uri::get_path_elements() const { return uri_impl_.path; }
+
+QueryElements &Uri::get_query_elements() { return uri_impl_.query; }
+
+PathElements &Uri::get_path_elements() { return uri_impl_.path; }
 
 bool Uri::set_query(const std::string &query) {
   uri_impl_.set_query_from_string(query);

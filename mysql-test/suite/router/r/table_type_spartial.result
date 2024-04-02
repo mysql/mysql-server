@@ -1,0 +1,512 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+CREATE TABLE test.geo0(
+id INTEGER AUTO_INCREMENT PRIMARY KEY,
+g GEOMETRY SRID 0,
+point POINT SRID 0,
+l LINESTRING SRID 0,
+poly POLYGON SRID 0);
+CREATE TABLE test.geo4326(
+id INTEGER AUTO_INCREMENT PRIMARY KEY,
+g GEOMETRY SRID 4326,
+point POINT SRID 4326,
+l LINESTRING SRID 4326,
+poly POLYGON SRID 4326);
+INSERT INTO test.geo0(g)
+VALUES(ST_GeomFromText('POINT(0 0)')),
+(ST_GeomFromText('LINESTRING(110 100, 20 30)')),
+(ST_GeomFromText('POLYGON((-110 100, 0 0, 0 100, -110 100))')),
+(NULL);
+INSERT INTO test.geo0(point)
+VALUES(ST_GeomFromText('POINT(1 1)')),
+(ST_GeomFromText('POINT(-111 101)'));
+INSERT INTO test.geo0(l)
+VALUES(ST_GeomFromText('LINESTRING(1 1, 10 0)')),
+(ST_GeomFromText('LINESTRING(111 101, 10 0)'));
+INSERT INTO test.geo0(poly)
+VALUES(ST_GeomFromText('POLYGON((1 1, 1 0, 0 0, 1 1))')),
+(ST_GeomFromText('POLYGON((2 2, 0 2, 0 0, 2 2))'));
+INSERT INTO test.geo4326(g)
+VALUES(ST_GeomFromText('POINT(0 0)',4326)),
+(ST_GeomFromText('POINT(90 89)',4326)),
+(ST_GeomFromText('POINT(-90 89)',4326)),
+(NULL);
+
+
+## I. Verify JSON encoding of different times of data, returned in FEED response
+#
+# 1. Verify generation of JSON boolean from bit and bit(1)
+#
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/test
+# Registred DB_OBJECT at path: /svc/test/geo0
+# Registred DB_OBJECT at path: /svc/test/geo4326
+
+#
+# I.1
+GET /svc/test/geo0/2
+{
+    "g": {
+        "type": "LineString",
+        "coordinates": [
+            [
+                110.0,
+                100.0
+            ],
+            [
+                20.0,
+                30.0
+            ]
+        ]
+    },
+    "l": null,
+    "id": 2,
+    "poly": null,
+    "point": null
+}
+OK
+
+#
+# I.2
+GET /svc/test/geo0
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "l": null,
+            "id": 1,
+            "poly": null,
+            "point": null
+        },
+        {
+            "g": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        110.0,
+                        100.0
+                    ],
+                    [
+                        20.0,
+                        30.0
+                    ]
+                ]
+            },
+            "l": null,
+            "id": 2,
+            "poly": null,
+            "point": null
+        },
+        {
+            "g": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -110.0,
+                            100.0
+                        ],
+                        [
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            100.0
+                        ],
+                        [
+                            -110.0,
+                            100.0
+                        ]
+                    ]
+                ]
+            },
+            "l": null,
+            "id": 3,
+            "poly": null,
+            "point": null
+        },
+        {
+            "g": null,
+            "l": null,
+            "id": 4,
+            "poly": null,
+            "point": null
+        },
+        {
+            "g": null,
+            "l": null,
+            "id": 5,
+            "poly": null,
+            "point": {
+                "type": "Point",
+                "coordinates": [
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        {
+            "g": null,
+            "l": null,
+            "id": 6,
+            "poly": null,
+            "point": {
+                "type": "Point",
+                "coordinates": [
+                    -111.0,
+                    101.0
+                ]
+            }
+        },
+        {
+            "g": null,
+            "l": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        1.0,
+                        1.0
+                    ],
+                    [
+                        10.0,
+                        0.0
+                    ]
+                ]
+            },
+            "id": 7,
+            "poly": null,
+            "point": null
+        },
+        {
+            "g": null,
+            "l": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        111.0,
+                        101.0
+                    ],
+                    [
+                        10.0,
+                        0.0
+                    ]
+                ]
+            },
+            "id": 8,
+            "poly": null,
+            "point": null
+        },
+        {
+            "g": null,
+            "l": null,
+            "id": 9,
+            "poly": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            1.0,
+                            1.0
+                        ],
+                        [
+                            1.0,
+                            0.0
+                        ],
+                        [
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            1.0,
+                            1.0
+                        ]
+                    ]
+                ]
+            },
+            "point": null
+        },
+        {
+            "g": null,
+            "l": null,
+            "id": 10,
+            "poly": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            2.0,
+                            2.0
+                        ],
+                        [
+                            0.0,
+                            2.0
+                        ],
+                        [
+                            0.0,
+                            0.0
+                        ],
+                        [
+                            2.0,
+                            2.0
+                        ]
+                    ]
+                ]
+            },
+            "point": null
+        }
+    ]
+}
+OK
+
+#
+# I.3
+PUT /svc/test/geo0/2 (payload-size:91)
+{
+    "g": {
+        "type": "LineString",
+        "coordinates": [
+            [
+                100.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0
+            ]
+        ]
+    },
+    "l": null,
+    "id": 2,
+    "poly": null,
+    "point": null
+}
+OK
+
+#
+# I.4
+PUT /svc/test/geo0/2 (payload-size:79)
+{
+    "g": {
+        "type": "Point",
+        "coordinates": [
+            100.0,
+            0.0
+        ]
+    },
+    "l": null,
+    "id": 2,
+    "poly": null,
+    "point": null
+}
+OK
+
+#
+# II.1
+GET /svc/test/geo0/?q={"g":"POINT(100 0)"}
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    100.0,
+                    0.0
+                ]
+            },
+            "l": null,
+            "id": 2,
+            "poly": null,
+            "point": null
+        }
+    ]
+}
+OK
+
+#
+# II.2
+GET /svc/test/geo0/?q={"g":"POINT(0 0)"}
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "l": null,
+            "id": 1,
+            "poly": null,
+            "point": null
+        }
+    ]
+}
+OK
+
+#
+# II.3
+GET /svc/test/geo0/?q={"g":{"type":"Point","coordinates":[0,0]}}
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "l": null,
+            "id": 1,
+            "poly": null,
+            "point": null
+        }
+    ]
+}
+OK
+
+#
+# III.1
+GET /svc/test/geo4326/2
+{
+    "g": {
+        "type": "Point",
+        "coordinates": [
+            89.0,
+            90.0
+        ]
+    },
+    "l": null,
+    "id": 2,
+    "poly": null,
+    "point": null
+}
+OK
+
+#
+# III.2
+PUT /svc/test/geo4326/2 (payload-size:78)
+{
+    "g": {
+        "type": "Point",
+        "coordinates": [
+            10.0,
+            0.0
+        ]
+    },
+    "l": null,
+    "id": 2,
+    "poly": null,
+    "point": null
+}
+OK
+
+#
+# III.3
+PUT /svc/test/geo4326/2 (payload-size:53)
+{
+    "g": {
+        "type": "Point",
+        "coordinates": [
+            0.0,
+            11.0
+        ]
+    },
+    "l": null,
+    "id": 2,
+    "poly": null,
+    "point": null
+}
+OK
+
+#
+# IV.1
+GET /svc/test/geo4326/?q={"g":"POINT(11 0)"}
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    11.0
+                ]
+            },
+            "l": null,
+            "id": 2,
+            "poly": null,
+            "point": null
+        }
+    ]
+}
+OK
+
+#
+# IV.2
+GET /svc/test/geo4326/?q={"g":"POINT(0 0)"}
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "l": null,
+            "id": 1,
+            "poly": null,
+            "point": null
+        }
+    ]
+}
+OK
+
+#
+# IV.3
+GET /svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,0]}}
+{
+    "items": [
+        {
+            "g": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "l": null,
+            "id": 1,
+            "poly": null,
+            "point": null
+        }
+    ]
+}
+OK
+DROP TABLE test.geo0;
+DROP TABLE test.geo4326;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

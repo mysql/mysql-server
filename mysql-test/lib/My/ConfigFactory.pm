@@ -400,6 +400,20 @@ my @cluster_config_rules = ({ 'mysqld'   => \&fix_host },
                             { 'ndbapi'   => \&fix_host },
                             { 'ndbd'     => \&fix_host },);
 
+# Rules to run for each router in the config
+#  - will be run in order listed here
+my @router_rules =
+  ({ '#host' => \&fix_host },
+   { 'port'  => \&fix_port },
+   { '#log-error'  => \&fix_log_error },
+   { 'pid-file' => \&fix_pidfile },
+   { 'tmpdir' => \&fix_tmpdir },
+   { 'std_data' => \&fix_std_data },
+   { 'client_ssl_mode' => "PREFERRED" },
+   { 'server_ssl_mode' => "PREFERRED" },
+);
+
+
 # Rules to run for [client] section
 #  - will be run in order listed here
 my @client_rules = ();
@@ -773,6 +787,8 @@ sub new_config {
   $self->run_section_rules($config, 'cluster_config.ndbd', @ndbd_rules);
 
   $self->run_section_rules($config, 'mysqld.', @mysqld_rules);
+
+  $self->run_section_rules($config, 'router.', @router_rules);
 
   # [mysqlbinlog] need additional settings
   $self->run_rules_for_group($config, $config->insert('mysqlbinlog'),

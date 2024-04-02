@@ -1,0 +1,30 @@
+--source include/have_router.inc
+--let $rpl_skip_group_replication_configuration=1
+--source include/have_group_replication_plugin.inc
+
+--let $extra_http_port=`SELECT $ROUTER_PORT + 1`
+
+--let $s1_uuid=8a94f357-aab4-11df-86ab-c80aa9429562
+--let $s1_port=`SELECT $extra_http_port+11`
+--let $s2_uuid=8a94f357-aab4-11df-86ab-c80aa9429563
+--let $s2_port=`SELECT $extra_http_port+12`
+--let $s3_uuid=8a94f357-aab4-11df-86ab-c80aa9429564
+--let $s3_port=`SELECT $extra_http_port+13`
+--let $dont_init_gr= 1
+--source ../include/predefined_setup/configure_router_mrs_root_with_gr_single.inc
+--source ../include/schema/basic_schema.sql
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+--sleep 5
+
+--replace_regex /restart: (.*\/)*/restart:/
+--let $restart_parameters= restart: $extra_append_router_config
+--source ../include/mysqlrouter_restart.inc
+
+# Cleanup
+--source ../include/innodb_cluster/cleanup.inc
+--source ../include/mrs/cleanup.inc

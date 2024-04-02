@@ -1,0 +1,94 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding of different times of data, returned in FEED response
+--echo #
+--echo # 1. Verify generation of JSON boolean from bit and bit(1)
+--echo # 2. Verify generation of JSON string with base64 data from bit(10) and binary, BLOB
+--echo # 3. Verify generation of JSON string from TEXT, VARCHAR(X), SET, ENUM
+--echo # 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+--echo # 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+--echo # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+--echo # 7. Verify generation of JSON object from sprtial types
+--echo #
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table3
+--let $mrs_add_db_object_path=/t3
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+let $MRS_CLIENT_EXC=$MRS_CLIENT_ARGS
+     --exclude-json-pointer /items/*/links,/links,/limit,/offset,/hasMore,/count;
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t3/1 --wait-until-found 60 --display none
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cbit
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cbit1
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cbit10
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cbin
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cblob
+
+--echo
+--echo #
+--echo # I.3
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cset
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cenum
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cvarchar
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=ctext
+
+--echo
+--echo #
+--echo # I.4
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cdate
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=ctime
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cyear
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cdatetime
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=ctimestamp
+
+--echo
+--echo #
+--echo # I.5
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cfloat
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cdouble
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cdecimal
+
+--echo
+--echo #
+--echo # I.6
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=id
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cbigint
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=csmallint
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=ctinyint
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cmediumint
+
+--echo
+--echo #
+--echo # I.7
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=geo0
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=geo4326
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

@@ -1,0 +1,98 @@
+# Check behavior of router when both "items_on_page" values are set to NULL.
+#
+# The test creates/sets the items_on_page to NULL in db_object and db_schema
+# resulting checking the default value of this parameter stored inside
+# MRS plugin.
+#
+# There are two ways, how the state can be achived:
+#
+# * by creating the schema/object, that already has the values configured to NULL
+# * by altering the either the shcema or object value to NULL, when the second
+#   already had the value configured.
+#
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/paging_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Achive the faulty state by altering valid object
+--echo #
+--echo # 1. Create db_schema (null in items_on_page), create db_object
+--echo #    assigned to the schema (2 in items_on_page). Validate that
+--echo #    the object returns two items in signle REST request.
+--echo # 2. Alter the db_objects items_on_page to contain null, this way
+--echo #    the object doesn't have any value and must use application
+--echo #    default. Validate that (application default is 25) the object
+--echo #    returns twenty five items in signle REST request.
+--echo #
+--echo ## II. Achive the faulty state at db_object creation
+--echo #
+--echo # 1. Create faulty object (items_on_page = null) on previous defined
+--echo #    schema and validate that application default is used.
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=paging_schema
+--let $mrs_add_schema_path=/paging
+--let $mrs_add_schema_items_on_page=NULL
+--source ../include/mrs/db_schema/add.inc
+
+
+--echo
+--echo #
+--echo # I.1
+--let $mrs_add_db_object=long101
+--let $mrs_add_db_object_path=/m2
+--let $mrs_add_db_object_items_on_page=2
+--source ../include/mrs/db_object/add.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/paging/m2
+  --wait-until-found 60
+  --json-pointer /limit,/offset,/count,/hasMore;
+
+
+--echo
+--echo #
+--echo # I.2
+# Update `items_per_page`, additionally rename the object
+# to be able to dectec when router fetches the change by
+# accessing the object by new name.
+UPDATE `mysql_rest_service_metadata`.`db_object`
+  SET request_path="/m25", items_per_page=NULL
+  WHERE request_path="/m2";
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/paging/m25
+  --wait-until-found 60
+  --json-pointer /limit,/offset,/count,/hasMore;
+
+
+--echo
+--echo #
+--echo # II.1
+--let $mrs_add_db_object=long101
+--let $mrs_add_db_object_path=/l101
+--let $mrs_add_db_object_items_on_page=NULL
+--source ../include/mrs/db_object/add.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/paging/l101
+  --wait-until-found 60
+  --json-pointer /limit,/offset,/count,/hasMore;
+
+
+# Cleanup
+--source ../include/mrs/cleanup.inc
