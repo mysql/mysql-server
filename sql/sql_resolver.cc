@@ -6123,7 +6123,6 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     context.table_list = tl;
     context.first_name_resolution_table = tl;
     assert(context.last_name_resolution_table == nullptr);
-    new_derived->context.init();
     new_derived->context.table_list = get_table_list();
     new_derived->context.query_block = new_derived;
     new_derived->context.outer_context = &context;

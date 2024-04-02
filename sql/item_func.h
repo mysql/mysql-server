@@ -3894,7 +3894,9 @@ class Item_func_sp final : public Item_func {
   typedef Item_func super;
 
  private:
-  Name_resolution_context *context{nullptr};
+  /// Holds the security definer context(if defined with SQL SECURITY DEFINER)
+  /// and the error the handler.
+  Name_resolution_context *m_name_resolution_ctx{nullptr};
   /// The name of the stored function
   sp_name *m_name{nullptr};
   /// Pointer to actual function instance (null when not resolved or executing)
@@ -3942,7 +3944,8 @@ class Item_func_sp final : public Item_func {
   bool val_json(Json_wrapper *result) override;
 
   bool change_context_processor(uchar *arg) override {
-    context = reinterpret_cast<Item_ident::Change_context *>(arg)->m_context;
+    m_name_resolution_ctx =
+        pointer_cast<Item_ident::Change_context *>(arg)->m_context;
     return false;
   }
 

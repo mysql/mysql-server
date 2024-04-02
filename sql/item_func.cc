@@ -8132,7 +8132,7 @@ bool Item_func_sp::do_itemize(Parse_context *pc, Item **res) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
 
-  context = lex->current_context();
+  m_name_resolution_ctx = lex->current_context();
   lex->safe_to_cache_query = false;
 
   if (m_name->m_db.str == nullptr) {
@@ -8223,7 +8223,8 @@ bool Item_func_sp::init_result_field(THD *thd) {
   assert(sp_result_field == nullptr);
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
-      thd, context->view_error_handler, context->view_error_handler_arg);
+      thd, m_name_resolution_ctx->view_error_handler,
+      m_name_resolution_ctx->view_error_handler_arg);
   m_sp = sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
                          &thd->sp_func_cache, true);
   if (m_sp == nullptr) {
@@ -8349,7 +8350,8 @@ bool Item_func_sp::execute() {
   THD *thd = current_thd;
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
-      thd, context->view_error_handler, context->view_error_handler_arg);
+      thd, m_name_resolution_ctx->view_error_handler,
+      m_name_resolution_ctx->view_error_handler_arg);
 
   // Bind to an instance of the stored function:
   if (m_sp == nullptr) {
@@ -8398,9 +8400,9 @@ bool Item_func_sp::execute_impl(THD *thd) {
 
   DBUG_TRACE;
 
-  if (context->security_ctx) {
+  if (m_name_resolution_ctx->security_ctx != nullptr) {
     /* Set view definer security context */
-    thd->set_security_context(context->security_ctx);
+    thd->set_security_context(m_name_resolution_ctx->security_ctx);
   }
   if (sp_check_access(thd)) goto error;
 
@@ -8505,9 +8507,9 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
    */
   if (!thd->lex->is_view_context_analysis() ||
       (thd->lex->sql_command == SQLCOM_CREATE_VIEW)) {
-    if (context->security_ctx) {
+    if (m_name_resolution_ctx->security_ctx != nullptr) {
       /* Set view definer security context */
-      thd->set_security_context(context->security_ctx);
+      thd->set_security_context(m_name_resolution_ctx->security_ctx);
     }
 
     /*
@@ -8515,7 +8517,8 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
      */
 
     Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
-        thd, context->view_error_handler, context->view_error_handler_arg);
+        thd, m_name_resolution_ctx->view_error_handler,
+        m_name_resolution_ctx->view_error_handler_arg);
 
     const bool res = check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
                                           m_name->m_name.str, false, false);

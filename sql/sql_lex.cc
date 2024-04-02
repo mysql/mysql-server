@@ -2271,7 +2271,6 @@ Query_block::Query_block(MEM_ROOT *mem_root, Item *where, Item *having)
 */
 
 bool Query_block::set_context(Name_resolution_context *outer_context) {
-  context.init();
   context.query_block = this;
   context.outer_context = outer_context;
   /*

@@ -6307,9 +6307,9 @@ void Query_block::set_lock_for_tables(thr_lock_type lock_type) {
 bool push_new_name_resolution_context(Parse_context *pc, Table_ref *left_op,
                                       Table_ref *right_op) {
   THD *thd = pc->thd;
-  Name_resolution_context *on_context;
-  if (!(on_context = new (thd->mem_root) Name_resolution_context)) return true;
-  on_context->init();
+  Name_resolution_context *on_context =
+      new (thd->mem_root) Name_resolution_context;
+  if (on_context == nullptr) return true;
   on_context->first_name_resolution_table =
       left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table =

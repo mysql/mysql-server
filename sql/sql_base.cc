@@ -8520,10 +8520,12 @@ static bool test_if_string_in_list(const char *find, List<String> *str_list) {
 
 static bool set_new_item_local_context(THD *thd, Item_ident *item,
                                        Table_ref *table_ref) {
-  Name_resolution_context *context;
-  if (!(context = new (thd->mem_root) Name_resolution_context))
-    return true; /* purecov: inspected */
-  context->init();
+  Name_resolution_context *context =
+      new (thd->mem_root) Name_resolution_context;
+  if (context == nullptr) {
+    /* purecov: inspected */
+    return true;
+  }
   context->first_name_resolution_table = context->last_name_resolution_table =
       table_ref;
   context->query_block = table_ref->query_block;

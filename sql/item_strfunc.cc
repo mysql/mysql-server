@@ -2004,7 +2004,7 @@ bool Item_func_current_user::resolve_type(THD *thd) {
   if (super::resolve_type(thd)) {
     return true;
   }
-  if (context->security_ctx == nullptr) {
+  if (m_name_resolution_ctx->security_ctx == nullptr) {
     return false;
   }
 
@@ -2012,15 +2012,15 @@ bool Item_func_current_user::resolve_type(THD *thd) {
   // priv_host from it are copied into the item since the
   // Name_resolution_context may have been deallocated when val_str() gets
   // called.
-  LEX_CSTRING pu = context->security_ctx->priv_user();
+  LEX_CSTRING pu = m_name_resolution_ctx->security_ctx->priv_user();
   if (pu.str != nullptr) {
-    definer_priv_user = LexStringDupRoot(thd->mem_root, pu);
-    if (definer_priv_user.str == nullptr) return true;
+    m_definer_priv_user = LexStringDupRoot(thd->mem_root, pu);
+    if (m_definer_priv_user.str == nullptr) return true;
   }
-  LEX_CSTRING ph = context->security_ctx->priv_host();
+  LEX_CSTRING ph = m_name_resolution_ctx->security_ctx->priv_host();
   if (ph.str != nullptr) {
-    definer_priv_host = LexStringDupRoot(thd->mem_root, ph);
-    if (definer_priv_host.str == nullptr) return true;
+    m_definer_priv_host = LexStringDupRoot(thd->mem_root, ph);
+    if (m_definer_priv_host.str == nullptr) return true;
   }
   return false;
 }
@@ -2028,8 +2028,8 @@ bool Item_func_current_user::resolve_type(THD *thd) {
 String *Item_func_current_user::val_str(String *) {
   assert(fixed);
   if (!m_evaluated) {
-    if (definer_priv_user.str != nullptr) {
-      if (evaluate(definer_priv_user.str, definer_priv_host.str))
+    if (m_definer_priv_user.str != nullptr) {
+      if (evaluate(m_definer_priv_user.str, m_definer_priv_host.str))
         return nullptr;
     } else {
       Security_context *const ctx = current_thd->security_context();
@@ -2081,7 +2081,7 @@ bool Item_func_current_user::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::do_itemize(pc, res)) return true;
 
-  context = pc->thd->lex->current_context();
+  m_name_resolution_ctx = pc->thd->lex->current_context();
   return false;
 }
 
