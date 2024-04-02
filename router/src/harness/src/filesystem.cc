@@ -40,6 +40,8 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
 
+const char *const Path::extension_separator = ".";
+
 Path::Path() noexcept : type_(FileType::EMPTY_PATH) {}
 
 // throws std::invalid_argument
@@ -85,6 +87,16 @@ Path Path::basename() const {
     return std::string(path_, pos + 1);
   else
     return Path(root_directory);
+}
+
+std::string Path::extension() const {
+  auto pos_dir = path_.find_last_of(directory_separator);
+  auto pos_ext = path_.find_last_of(extension_separator);
+
+  if (pos_ext == std::string::npos || pos_dir == std::string::npos) return {};
+  if (pos_ext < pos_dir) return {};
+
+  return std::string(path_, pos_ext);
 }
 
 Path Path::dirname() const {

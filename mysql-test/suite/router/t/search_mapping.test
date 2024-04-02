@@ -1,0 +1,107 @@
+# Verify mapping functionality between field-names and column-names.
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify the error message search was conducted on not existing/registred field
+--echo #
+--echo # 1. Use column name with "integer" type, instead of its field name, using "$between" operator
+--echo # 2. Use column name with "text" type, instead of its field name, using "\$like" operator
+--echo # 3. Use column name with "text" type, instead of its field name, using "=" operator
+--echo # 4. Use column name with "date" type, instead of its field name, using "$gt" operator
+--echo #
+--echo ## II. Verify the returned object for valid field name:
+--echo #
+--echo # 1. Filter field name with "integer" type, using "$between" operator
+--echo # 2. Filter field name with "text" type, using "\$like" operator
+--echo # 3. Filter field name with "text" type, using "=" operator
+--echo # 4. Filter field name with "date" type, using "$gt" operator
+--echo #
+
+--echo
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--let $mrs_add_schema_items_on_page=NULL
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/table
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_modify_columns=id, name, comments, date
+--let $mrs_modify_fields=my_id, my_name, my_comments, my_date
+--source ../include/mrs/db_object/modify_fields.inc
+
+# Sync with newly created REST object
+# wait for the creation
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table
+  --wait-until-found 60
+  --exclude-json-pointer '*'
+  --display none;
+
+
+--echo
+--echo #
+--echo # I.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"id\":{\"\$between\":[1,3]}}
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.2
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"name\":{\"\$like\":\"%th\ row%\"}}
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"comment\":\"...\"}
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.4
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"date\":{\"\$gt\":\"2000-01-01\"}}
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # II.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"my_id\":{\"\$between\":[1,3]}};
+
+--echo
+--echo #
+--echo # II.2
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"my_name\":{\"\$like\":\"%th\ row%\"}};
+
+--echo
+--echo #
+--echo # II.3
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"my_comments\":\"..\"};
+
+--echo
+--echo #
+--echo # II.4
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/table?q={\"my_date\":{\"\$gt\":{\"\$date\":\"2000-01-01\"}}};
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

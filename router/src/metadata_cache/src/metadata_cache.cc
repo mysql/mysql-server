@@ -120,9 +120,10 @@ void MetadataCache::refresh_thread() {
     if (refresh_ok) {
       if (!ready_announced_) {
         ready_announced_ = true;
+        const auto &name =
+            metadata_cache::MetadataCacheAPI::instance()->instance_name();
         mysql_harness::on_service_ready(
-            "metadata_cache:" +
-            metadata_cache::MetadataCacheAPI::instance()->instance_name());
+            name.empty() ? "metadata_cache" : "metadata_cache:" + name);
       }
       // update router attributes in the routers table once when we start
       if (attributes_upd) {

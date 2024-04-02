@@ -1,0 +1,334 @@
+# Validate handling of function, configured to generate a ITEM response.
+#
+# Check handling of invalid: URL parameters, methods, payloads.
+# Validate the handling of input/output parameters.
+#
+#
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+--let $extra_http_enable_ssl=0
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/functions_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url http://$mrs_host_and_port --display REQUEST,RESULT
+--let $mtr_file=$TEST_DIR/mtr_output_file.inc
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify error messages while providing faulty configuration to rest function
+--echo #
+--echo # 1. POST request is not supported by object/procedures
+--echo # 2. DELETE request is not supported by object/procedures
+--echo # 3. PUT request is rejected when there is not payload proveided
+--echo # 4. PUT request is rejected when there is invalid payload proveided
+--echo # 5. PUT request is rejected when there is invalid parameter proveided
+--echo # 6. GET request is rejected when there is invalid parameter proveided
+--echo #
+--echo ## II. Verify handling of function generating results as media.
+--echo #
+--echo # 1. GET request to function generating binary response, verify the response
+--echo # 2. PUT request to function generating binary response, verify the response
+--echo # 3. GET request to function generating image response, verify the response
+--echo # 4. PUT request to function generating image response, verify the response
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=func_schema
+--let $mrs_add_schema_path=/func
+--let $mrs_add_schema_items_on_page=NULL
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=return_media
+--let $mrs_add_db_object_path=/func_media
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=return_media
+--let $mrs_add_db_object_path=/func_media_auto
+--let $mrs_add_db_object_custom_fields=,auto_detect_media_type
+--let $mrs_add_db_object_custom_values=,1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_char
+--let $mrs_add_db_object_path=/move_char
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_date
+--let $mrs_add_db_object_path=/move_date
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_year
+--let $mrs_add_db_object_path=/move_year
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_time
+--let $mrs_add_db_object_path=/move_time
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_bit
+--let $mrs_add_db_object_path=/move_bit
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_tinyint1
+--let $mrs_add_db_object_path=/move_tinyint1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_tinyint8
+--let $mrs_add_db_object_path=/move_tinyint8
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_decimal
+--let $mrs_add_db_object_path=/move_decimal
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_float
+--let $mrs_add_db_object_path=/move_float
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_double
+--let $mrs_add_db_object_path=/move_double
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_json
+--let $mrs_add_db_object_path=/move_json
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_geo
+--let $mrs_add_db_object_path=/move_geo
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=MEDIA
+--let $mrs_add_db_object=move_line
+--let $mrs_add_db_object_path=/move_line
+--source ../include/mrs/db_object/add.inc
+
+
+# Wait until MySQLRouter fetches db-object.
+--source ../include/mrs/changes/fetch_object.inc
+
+--echo
+--echo #
+--echo # I.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media -t POST
+  --expected-status Forbidden;
+
+--echo
+--echo #
+--echo # I.2
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media -t DELETE
+  --expected-status Forbidden;
+
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media -t PUT
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.4
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media -t PUT
+  --payload 10
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.5
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media -t PUT
+  --payload '{"not-existing-param":20}'
+  --expected-status BadRequest;
+
+--echo
+--echo #
+--echo # I.6
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media?not-existing-param=10
+  --expected-status BadRequest;
+
+
+--let $hex=`SELECT HEX(return_media())`
+--echo
+--echo #
+--echo # II.1
+exec $MRS_CLIENT_ARGS
+  --content-type application/octet-stream
+  --response-type BINARY
+  --write-format mtr
+  --write-to-file  $mtr_file
+  --path /svc/func/func_media;
+--source $mtr_file
+--assert(`SELECT HEX(return_media())='$mrs_result'`)
+
+--echo
+--echo #
+--echo # II.2
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media
+  --content-type application/octet-stream
+  --response-type BINARY
+  --write-format mtr
+  --write-to-file  $mtr_file
+  -t PUT --payload '{}';
+--source $mtr_file
+--assert(`SELECT HEX(return_media())='$mrs_result'`)
+
+
+--echo
+--echo #
+--echo # II.3
+exec $MRS_CLIENT_ARGS
+  --content-type image/jpeg
+  --response-type BINARY
+  --write-format mtr
+  --write-to-file  $mtr_file
+  --path /svc/func/func_media_auto;
+--source $mtr_file
+--assert(`SELECT HEX(return_media())='$mrs_result'`)
+
+--echo
+--echo #
+--echo # II.4
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/func_media_auto
+  --content-type image/jpeg
+  --response-type BINARY
+  --write-format mtr
+  --write-to-file  $mtr_file
+  -t PUT --payload '{}';
+--source $mtr_file
+--assert(`SELECT HEX(return_media())='$mrs_result'`)
+
+
+--let $MRS_CLIENT_ARGS=$MRS_CLIENT_ARGS --display REQUEST,BODY,RESULT --content-type application/octet-stream --response-type RAW
+
+--echo
+--echo #
+--echo # III.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_char
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # III.2
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/func/move_date
+#  -t PUT --payload '{"a":"1920-12-11"}';
+#
+--echo
+--echo #
+--echo # III.3
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/func/move_year
+#  -t PUT --payload '{"a":"1920-12-11"}';
+#
+--echo
+--echo #
+--echo # III.4
+--echo DISABLED
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/func/move_time
+#  -t PUT --payload '{"a":"12:34:12"}';
+
+--echo
+--echo #
+--echo # III.5
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_bit
+  -t PUT --payload '{"a":1}';
+
+--echo
+--echo #
+--echo # III.6
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_tinyint1
+  -t PUT --payload '{"a":1}';
+
+--echo
+--echo #
+--echo # III.7
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_tinyint8
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # III.8
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_decimal
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # III.9
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_float
+  -t PUT --payload '{"a":10}';
+
+--echo
+--echo #
+--echo # III.10
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_double
+  -t PUT --payload '{"a":10}';
+  
+--echo
+--echo #
+--echo # III.10
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_json
+  -t PUT --payload '{"a":100}';
+
+--echo
+--echo #
+--echo # III.11
+exec $MRS_CLIENT_ARGS
+  --path /svc/func/move_json
+  -t PUT --payload '{"a":["aaaa",20,30,{"field1":"value1"}]}';
+
+
+# Cleanup
+--remove_file $mtr_file
+--source ../include/mrs/cleanup.inc

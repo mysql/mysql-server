@@ -1,0 +1,149 @@
+# Validate handling of procedures, configured to generate a FEED response.
+#
+# Check handling of invalid: URL parameters, methods, payloads.
+# Validate the handling of input/output parameters.
+#
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/procedures_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,BODY,RESULT
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify handling of singals generated inside SP/GET HTTP Request
+--echo #
+--echo # 1. Signals with proper sql-state, still outside the range
+--echo # 2. Signals with proper sql-state, still unsupported HTTP Status
+--echo # 3. Singal inside the range, return JSON object with message
+--echo #    and http-status coverted from mysql-error
+--echo #
+--echo ## II. Verify handling of singals generated inside SP/PUT HTTP Request
+--echo #
+--echo # 1. Signals with proper sql-state, still outside the range
+--echo # 2. Signals with proper sql-state, still unsupported HTTP Status
+--echo # 3. Singal inside the range, return JSON object with message
+--echo #    and http-status coverted from mysql-error
+--echo #
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=proc_schema
+--let $mrs_add_schema_path=/proc
+--let $mrs_add_schema_items_on_page=NULL
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=report_back_mysql_error1
+--let $mrs_add_db_object_path=/report_back1
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=report_back_mysql_error2
+--let $mrs_add_db_object_path=/report_back2
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=report_back_mysql_error_if
+--let $mrs_add_db_object_path=/report_back_if
+--source ../include/mrs/db_object/add.inc
+
+# Procedure just to sync to.
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_do_nothing
+--let $mrs_add_db_object_path=/nothing
+--source ../include/mrs/db_object/add.inc
+
+# Wait until MySQLRouter fetches db-object.
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing
+  --wait-until-found 60;
+
+--echo
+--echo #
+--echo # I.1
+exec $MRS_CLIENT_ARGS
+  --expected-status 500
+  --path /svc/proc/report_back1?mysql_error=5099;
+
+exec $MRS_CLIENT_ARGS
+  --expected-status 500
+  --path /svc/proc/report_back1?mysql_error=5600;
+
+--echo
+--echo #
+--echo # I.2
+exec $MRS_CLIENT_ARGS
+  --expected-status 500
+  --path /svc/proc/report_back1?mysql_error=5599;
+  
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS
+  --expected-status 201
+  --path /svc/proc/report_back1?mysql_error=5201;
+
+exec $MRS_CLIENT_ARGS
+  --expected-status 511
+  --path /svc/proc/report_back1?mysql_error=5511;
+
+#call `proc_schema`.`report_back_mysql_error_if`(1);
+#SHOW WARNINGS;
+
+exec $MRS_CLIENT_ARGS
+  --expected-status 511
+  --path /svc/proc/report_back_if?error_out=1;
+  
+
+--echo
+--echo #
+--echo # II.1
+exec $MRS_CLIENT_ARGS
+  --expected-status 500
+  --path /svc/proc/report_back1
+  --request-type PUT
+  --payload '{"mysql_error":5099}';
+
+exec $MRS_CLIENT_ARGS
+  --expected-status 500
+  --path /svc/proc/report_back1
+  --request-type PUT
+  --payload '{"mysql_error":5600}';
+
+--echo
+--echo #
+--echo # II.2
+exec $MRS_CLIENT_ARGS
+  --expected-status 500
+  --path /svc/proc/report_back1?mysql_error=5599
+  --request-type PUT
+  --payload '{"mysql_error":5599}';
+
+--echo
+--echo #
+--echo # II.3
+exec $MRS_CLIENT_ARGS
+  --expected-status 201
+  --path /svc/proc/report_back1
+  --request-type PUT
+  --payload '{"mysql_error":5201}';
+
+exec $MRS_CLIENT_ARGS
+  --expected-status 511
+  --path /svc/proc/report_back1
+  --request-type PUT
+  --payload '{"mysql_error":5511}';
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

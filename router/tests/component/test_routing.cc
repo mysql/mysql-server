@@ -79,6 +79,8 @@ using mysqlrouter::MySQLSession;
 
 class RouterRoutingTest : public RouterComponentBootstrapTest {
  public:
+  RouterRoutingTest() : RouterComponentBootstrapTest(false) {}
+
   std::string get_static_routing_section(
       const std::string &name, uint16_t bind_port, const std::string &socket,
       std::vector<uint16_t> dest_ports, const std::string &protocol,

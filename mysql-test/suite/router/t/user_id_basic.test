@@ -1,0 +1,67 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+DROP TABLE IF EXISTS `test`.`user` ;
+
+CREATE TABLE IF NOT EXISTS `test`.`user` (
+  `id` BINARY(16) NOT NULL,
+  `nickname` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+
+START TRANSACTION;
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=test
+--let $mrs_add_schema_path=/basic
+--let $mrs_add_schema_auth=TRUE
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_auth_app=default authentication
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/svc
+--source ../include/mrs/add_auth_app.inc
+
+--let $mrs_add_db_object=user
+--let $mrs_add_db_object_path=/user
+--let $mrs_add_db_object_custom_fields=,row_user_ownership_enforced,row_user_ownership_column
+--let $mrs_add_db_object_custom_values=,true,"id"
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+COMMIT;
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/user
+  --wait-until-found=60
+   --expected-status Unauthorized;
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u root
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/user
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/basic/user
+  --request-type PUT
+  --exclude-json-pointer /id,/links,/_metadata
+  --session-file $MYSQL_TMP_DIR/user1_session.dat
+  --payload "{\"nickname\":\"nick1\", \"email\":\"janusz\"}"; 
+
+
+# Cleanup
+remove_file $MYSQL_TMP_DIR/user1_session.dat;
+DROP TABLE `test`.`user`;
+--source ../include/mrs/cleanup.inc

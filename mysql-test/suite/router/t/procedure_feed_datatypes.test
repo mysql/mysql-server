@@ -1,0 +1,195 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding of different times of data, returned in FEED response
+--echo #
+--echo # 1. Verify generation of JSON boolean from bit and bit(1)
+--echo # 2. Verify generation of JSON string with base64 data from bit(10) and binary
+--echo # 3. Verify generation of JSON string from TEXT, VARCHAR(X), SET, ENUM
+--echo # 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+--echo # 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+--echo # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+--echo #
+--echo #
+
+START TRANSACTION;
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=proc_int
+--let $mrs_add_db_object_path=/int
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_varchar
+--let $mrs_add_db_object_path=/varchar
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_text
+--let $mrs_add_db_object_path=/text
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_datetime
+--let $mrs_add_db_object_path=/datetime
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_timestamp
+--let $mrs_add_db_object_path=/timestamp
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_date
+--let $mrs_add_db_object_path=/date
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_time
+--let $mrs_add_db_object_path=/time
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_year
+--let $mrs_add_db_object_path=/year
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_smallint
+--let $mrs_add_db_object_path=/smallint
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_bigint
+--let $mrs_add_db_object_path=/bigint
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_bin
+--let $mrs_add_db_object_path=/bin
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_float
+--let $mrs_add_db_object_path=/float
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_double
+--let $mrs_add_db_object_path=/double
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_decimal
+--let $mrs_add_db_object_path=/decimal
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_set
+--let $mrs_add_db_object_path=/set
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_enum
+--let $mrs_add_db_object_path=/enum
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_bit
+--let $mrs_add_db_object_path=/bit
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_bit1
+--let $mrs_add_db_object_path=/bit1
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_bit10
+--let $mrs_add_db_object_path=/bit10
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_tinyint
+--let $mrs_add_db_object_path=/tinyint
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_mediumint
+--let $mrs_add_db_object_path=/mediumint
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=proc_blob
+--let $mrs_add_db_object_path=/blob
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+COMMIT;
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+let $MRS_CLIENT_EXC=$MRS_CLIENT_ARGS;
+--exec $MRS_CLIENT_ARGS --path /svc/basic/bit --wait-until-found 60 --display none
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_EXC --path /svc/basic/bit
+--exec $MRS_CLIENT_EXC --path /svc/basic/bit1
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_EXC --path /svc/basic/bit10
+--exec $MRS_CLIENT_EXC --path /svc/basic/bin
+--exec $MRS_CLIENT_EXC --path /svc/basic/blob
+
+
+--echo
+--echo #
+--echo # I.3
+--exec $MRS_CLIENT_EXC --path /svc/basic/set
+--exec $MRS_CLIENT_EXC --path /svc/basic/enum
+--exec $MRS_CLIENT_EXC --path /svc/basic/varchar
+--exec $MRS_CLIENT_EXC --path /svc/basic/text
+
+--echo
+--echo #
+--echo # I.4
+--exec $MRS_CLIENT_EXC --path /svc/basic/date
+--exec $MRS_CLIENT_EXC --path /svc/basic/time
+--exec $MRS_CLIENT_EXC --path /svc/basic/year
+--exec $MRS_CLIENT_EXC --path /svc/basic/datetime
+--exec $MRS_CLIENT_EXC --path /svc/basic/timestamp
+
+--echo
+--echo #
+--echo # I.5
+--exec $MRS_CLIENT_EXC --path /svc/basic/float
+--exec $MRS_CLIENT_EXC --path /svc/basic/double
+--exec $MRS_CLIENT_EXC --path /svc/basic/decimal
+
+--echo
+--echo #
+--echo # I.6
+--exec $MRS_CLIENT_EXC --path /svc/basic/int
+--exec $MRS_CLIENT_EXC --path /svc/basic/bigint
+--exec $MRS_CLIENT_EXC --path /svc/basic/smallint
+--exec $MRS_CLIENT_EXC --path /svc/basic/tinyint
+--exec $MRS_CLIENT_EXC --path /svc/basic/mediumint
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

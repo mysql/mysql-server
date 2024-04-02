@@ -117,6 +117,9 @@ class DestMetadataCacheGroup final
 
   routing::RoutingStrategy get_strategy() override { return routing_strategy_; }
 
+  bool is_dynamic() override { return true; }
+  std::string get_dynamic_plugin_name() override;
+
  private:
   /** @brief The Metadata Cache to use
    *

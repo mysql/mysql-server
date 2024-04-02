@@ -32,7 +32,9 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <string>
+#include <vector>
 
 namespace mysql_harness {
 
@@ -514,7 +516,7 @@ struct Plugin {
  * @see Plugin
  */
 
-const uint32_t PLUGIN_ABI_VERSION = 0x0200;
+const uint32_t PLUGIN_ABI_VERSION = 0x0201;
 
 /**
  * Default architecture descriptor.
@@ -557,8 +559,23 @@ const char *const ARCHITECTURE_DESCRIPTOR =
 #define ABI_VERSION_MAJOR(VER) (((VER) >> 8) & 0xFF)
 #define ABI_VERSION_MINOR(VER) ((VER)&0xFF)
 
+using OnPluginReadyFunction = void (*)(PluginFuncEnv *);
+using OnPluginReadyHandler = std::function<void (PluginFuncEnv *)>;
+
+// On some GCC compilers setting attribute on function with pointer return type
+// causes a compilation error. For example, this is going to fail:
+//
+//      const char** HARNESS_EXPORT get_ready_services();
+//
+// As workaround for those compilers, lets create a typedef for it. 
+typedef const char** RawCStringArray;
+RawCStringArray HARNESS_EXPORT get_ready_services();
+
 void HARNESS_EXPORT on_service_ready(const std::string &name);
 void HARNESS_EXPORT on_service_ready(PluginFuncEnv *plugin_env);
+uint32_t HARNESS_EXPORT
+register_on_service_ready_handler(OnPluginReadyHandler plugin_read_callback);
+void HARNESS_EXPORT unregister_on_service_ready_handler(const uint32_t handler_id);
 
 }  // namespace mysql_harness
 

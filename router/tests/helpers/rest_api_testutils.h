@@ -221,6 +221,9 @@ struct RestApiTestParams {
 
 class RestApiComponentTest : public RouterComponentBootstrapTest {
  public:
+  RestApiComponentTest() : RouterComponentBootstrapTest(false) {}
+
+ public:
   std::string create_password_file();
 
   std::vector<std::string> get_restapi_config(

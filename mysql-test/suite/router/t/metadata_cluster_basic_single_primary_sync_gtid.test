@@ -1,0 +1,27 @@
+--source include/have_router.inc
+--source include/have_group_replication_plugin.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root_with_gr_single.inc
+--source ../include/schema/basic_schema.sql
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--echo
+--echo #
+--echo ## 1. GTID synchronization using SELECT WAIT_FOR..
+--let $test_schema=basic
+--let $test_options='{"query":{"wait":5}}'
+--let $test_obj1=t1
+--let $test_obj2=t2
+--source ../include/test_metadata_cluster_basic_single_primary_gtid.inc
+
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/gtid.inc
+--source ../include/innodb_cluster/cleanup.inc
+--source ../include/mrs/cleanup.inc
+--source include/rpl/sync.inc
+--source include/group_replication_end.inc

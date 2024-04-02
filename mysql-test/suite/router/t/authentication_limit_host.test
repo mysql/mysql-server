@@ -1,0 +1,158 @@
+# Verify authentication support per service where user session is identified
+# by cookie.
+#
+# The test assigns "authentication application", to a service and
+# checks if default permissions allow to access all object under
+# the service that require autnetication.
+#
+#
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+CREATE USER 'u1'@'%' IDENTIFIED BY 'p1';
+CREATE USER 'u2'@'%' IDENTIFIED BY 'p2';
+CREATE USER 'u3'@'%' IDENTIFIED BY 'p3';
+CREATE USER 'u4'@'%' IDENTIFIED BY 'p4';
+CREATE USER 'u5'@'%' IDENTIFIED BY 'p5';
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Create servcices that have basic-mysql authentication:
+--echo #
+--echo ## II. Limit the hosts 
+--echo #
+
+--echo
+--echo #
+--echo # I.1
+START TRANSACTION;
+--let $mrs_add_service_path="/svc1"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/service/add.inc
+
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic1
+--let $mrs_add_schema_auth=TRUE
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/o1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_auth_app=default authentication
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/svc1
+--source ../include/mrs/add_auth_app.inc
+
+UPDATE  `mysql_rest_service_metadata`.`config` SET data=
+  '{"authentication":{"throttling":{"perHost":{"minimumTimeBetweenRequestsInMs":2000,"maximumAttemptsPerMinute":5}}}}'; 
+
+COMMIT;
+
+
+--echo
+--echo #
+--echo # II.1
+--source ../include/mrs/changes/fetch_object.inc
+
+exec $MRS_CLIENT_ARGS
+  --expected-status Unauthorized
+  --path /svc1/basic1/o1;
+
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u1
+  -p p1
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# Missing waiting between requests, because of that the authentication
+# is going to fails wiht status 429.
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u2
+  -p p2
+  --expected-status 429
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+# Waiting 3 seconds removed the 2s limit
+--sleep 3
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u2
+  -p p2
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+# Waiting 3 seconds removed the 2s limit
+--sleep 3
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u3
+  -p p3
+  --session-file $MYSQL_TMP_DIR/user3_session.dat;
+  
+# Waiting 3 seconds removed the 2s limit
+--sleep 3
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u4
+  -p p4
+  --session-file $MYSQL_TMP_DIR/user4_session.dat;
+
+# Waiting 3 seconds removed the 2s limit
+# still in this case we have reached the max limit which is 5.
+--sleep 3
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u5
+  -p p5
+  --expected-status 429
+  --session-file $MYSQL_TMP_DIR/user5_session.dat;
+  
+# The host has been blocked, we need to wait 60 seconds
+--sleep 6
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u5
+  -p p5
+  --expected-status 429
+  --session-file $MYSQL_TMP_DIR/user5_session.dat;
+
+# The host has been unblocked
+--sleep 55
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc1/authentication/login
+  -u u5
+  -p p5
+  --session-file $MYSQL_TMP_DIR/user5_session.dat;
+
+
+# Cleanup
+DROP USER 'u1'@'%';
+DROP USER 'u2'@'%';
+DROP USER 'u3'@'%';
+DROP USER 'u4'@'%';
+DROP USER 'u5'@'%';
+
+
+remove_file $MYSQL_TMP_DIR/user1_session.dat;
+remove_file $MYSQL_TMP_DIR/user2_session.dat;
+remove_file $MYSQL_TMP_DIR/user3_session.dat;
+remove_file $MYSQL_TMP_DIR/user4_session.dat;
+remove_file $MYSQL_TMP_DIR/user5_session.dat;
+--source ../include/mrs/cleanup.inc

@@ -220,6 +220,16 @@ class HARNESS_EXPORT Path {
   Path basename() const;
 
   /**
+   * Get the extention of the file.
+   *
+   * The returned extension consists of last `dot` and the extension shortcut.
+   * In case of file name that doesn't contain extension, then result is empty.
+   *
+   * @returns an string containing the extension.
+   */
+  std::string extension() const;
+
+  /**
    * Append a path component to the current path.
    *
    * This function will append a path component to the path using the
@@ -287,6 +297,11 @@ class HARNESS_EXPORT Path {
    * source file.
    */
   static const char *const root_directory;
+
+  /**
+   * Extension separator string.
+   */
+  static const char *const extension_separator;
 
   operator bool() const noexcept { return is_set(); }
 

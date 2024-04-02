@@ -1,0 +1,171 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t2
+UPDATE `mysql_rest_service_metadata`.`object_field` SET enabled=(name="id" or name="cenum" or name="ctext");
+# Registred DB_OBJECT at path: /svc/basic/t1
+GET /svc/basic/t1/1
+{
+    "id": 1,
+    "cbin": "MAAA",
+    "cbit": false,
+    "cset": "",
+    "geo0": {
+        "type": "Point",
+        "coordinates": [
+            0.0,
+            0.0
+        ]
+    },
+    "cbit1": false,
+    "cblob": "",
+    "cdate": "2020-12-01",
+    "cenum": "value1",
+    "ctext": "numeric zeros",
+    "ctime": "12:01:50.000000",
+    "cyear": 2020,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t1/1"
+        }
+    ],
+    "cbit10": "AAA=",
+    "cfloat": 0.0,
+    "cbigint": 0,
+    "cdouble": 0.0,
+    "geo4326": {
+        "type": "Point",
+        "coordinates": [
+            0.0,
+            0.0
+        ]
+    },
+    "cdecimal": 0.0,
+    "ctinyint": 0,
+    "cvarchar": "first row",
+    "cdatetime": "2020-12-01 12:01:50.000000",
+    "csmallint": 0,
+    "cmediumint": 0,
+    "ctimestamp": "2020-12-01 12:01:50.000000",
+    "_metadata": {
+        "etag": "1A368D774543CB646E0C0BC21270596327BC5C029AEE18D3EBD3DC8B342C2970"
+    }
+}
+OK
+GET /svc/basic/t1/1?f=id,cyear
+{
+    "id": 1,
+    "cyear": 2020,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t1/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "9234207861A58D35406CFF5307987EE49D4B34092CAB6E3C26959F3FE8DA7C26"
+    }
+}
+OK
+GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
+{
+    "id": 3,
+    "cbit": true,
+    "geo0": {
+        "type": "Point",
+        "coordinates": [
+            110.0,
+            100.0
+        ]
+    },
+    "cbit1": true,
+    "cblob": "ABGrAAASIzM=",
+    "cyear": 2022,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t1/3"
+        }
+    ],
+    "cbit10": "A/8=",
+    "cbigint": 9223372036854775807,
+    "geo4326": {
+        "type": "Point",
+        "coordinates": [
+            90.0,
+            90.0
+        ]
+    },
+    "cdecimal": 999.99,
+    "ctinyint": 127,
+    "cvarchar": "thrid row",
+    "csmallint": 32767,
+    "cmediumint": 8388607,
+    "_metadata": {
+        "etag": "7A2B6D831C10706B68D90215D06062B7730E4A1FE76D732228CAB5D8B8A849FA"
+    }
+}
+OK
+GET /svc/basic/t2/1
+{
+    "id": 1,
+    "cenum": "value1",
+    "ctext": "numeric zeros",
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t2/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "BA73ED4EE553DAC78D636CB7D1520782AA62F0954DF3EC62E66B2E3567EC8C29"
+    }
+}
+OK
+GET /svc/basic/t2/1?f=id,cyear
+{
+    "id": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t2/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
+    }
+}
+OK
+GET /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
+{
+    "id": 3,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t2/3"
+        }
+    ],
+    "_metadata": {
+        "etag": "3308B8BA3A14BE440EB8C18F0037A1F39DFC14F4684C71D8DC7308DD3BB52030"
+    }
+}
+OK
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

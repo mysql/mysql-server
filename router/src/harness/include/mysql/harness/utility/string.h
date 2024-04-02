@@ -28,6 +28,7 @@
 
 #include "harness_export.h"
 
+#include <map>
 #include <numeric>  // accumulate
 #include <string>
 #include <vector>

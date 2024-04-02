@@ -66,6 +66,11 @@ ADD_HARNESS_TEST_FILE(test_utils.cc
   LIB_DEPENDS
     test-helpers
     router_utils
+  EXTRA_SOURCES
+    ../src/utils.cc
+    ../src/common/utils_sqlstring.cc
+  INCLUDE_DIRS
+    $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 
 ADD_HARNESS_TEST_FILE(test_mysqlrouter_utils.cc

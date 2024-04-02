@@ -136,6 +136,10 @@ class MySQLRoutingContext {
    */
   TlsServerContext *source_ssl_ctx() const { return client_ssl_ctx_; }
 
+  DestinationTlsContext *destination_ssl_config() const {
+    return destination_tls_context_;
+  }
+
   /**
    * get the SSL context for the server side of the route.
    *

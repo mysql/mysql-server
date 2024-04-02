@@ -1,0 +1,668 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+
+
+## I. Verify JSON encoding of different times of data, returned in FEED response
+#
+# 1. Verify generation of JSON boolean from bit and bit(1)
+# 2. Verify generation of JSON string with base64 data from bit(10) and binary, BLOB
+# 3. Verify generation of JSON string from TEXT, VARCHAR(X), SET, ENUM
+# 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+# 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+# 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+# 7. Verify generation of JSON object from sprtial types
+#
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t3
+
+#
+# I.1
+GET /svc/basic/t3?f=cbit
+{
+    "items": [
+        {
+            "cbit": false,
+            "_metadata": {
+                "etag": "48FE5C2AE681D44775934165EACAD58F607721BDCC85FC7D8D002E8AB1C60D8C"
+            }
+        },
+        {
+            "cbit": false,
+            "_metadata": {
+                "etag": "48FE5C2AE681D44775934165EACAD58F607721BDCC85FC7D8D002E8AB1C60D8C"
+            }
+        },
+        {
+            "cbit": true,
+            "_metadata": {
+                "etag": "85F3776A8E848FDD84DF58F36F29D9126BDBE3678E61AA8FE13D4F80C50D1138"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cbit1
+{
+    "items": [
+        {
+            "cbit1": false,
+            "_metadata": {
+                "etag": "FA5AB0D13644E5C595CE3FB78FF45FC6622AD7E404B6173A599A8A1A7102145D"
+            }
+        },
+        {
+            "cbit1": false,
+            "_metadata": {
+                "etag": "FA5AB0D13644E5C595CE3FB78FF45FC6622AD7E404B6173A599A8A1A7102145D"
+            }
+        },
+        {
+            "cbit1": true,
+            "_metadata": {
+                "etag": "D9538E66B788499E3175F965DF6D640AFB9A5B7522509FCBBF4ABB04EFFCA571"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.2
+GET /svc/basic/t3?f=cbit10
+{
+    "items": [
+        {
+            "cbit10": "AAA=",
+            "_metadata": {
+                "etag": "B7B7DD8CBBF678387E0104AF48E2A20FA152A18E850DC75A2F707C238010E43F"
+            }
+        },
+        {
+            "cbit10": "AAA=",
+            "_metadata": {
+                "etag": "B7B7DD8CBBF678387E0104AF48E2A20FA152A18E850DC75A2F707C238010E43F"
+            }
+        },
+        {
+            "cbit10": "A/8=",
+            "_metadata": {
+                "etag": "13EA8C0183C70EA4F3678FDA5E915753B14CAD7B235112CA9ADE18CBC98F8917"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cbin
+{
+    "items": [
+        {
+            "cbin": "MAAA",
+            "_metadata": {
+                "etag": "F833CD11BBC15F023A5573CA116F579BCA1422F48890B9F8DFBE9A66949D75E2"
+            }
+        },
+        {
+            "cbin": "MAAA",
+            "_metadata": {
+                "etag": "F833CD11BBC15F023A5573CA116F579BCA1422F48890B9F8DFBE9A66949D75E2"
+            }
+        },
+        {
+            "cbin": "BwAA",
+            "_metadata": {
+                "etag": "72BF36D29AF7C64FE73E7EAB3F6D9036F33C584D73E3A7E4E8456D16B1C80EE0"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cblob
+{
+    "items": [
+        {
+            "cblob": "",
+            "_metadata": {
+                "etag": "C08EBA710530C39226E0E2A9E5657C30E8DBB54EC36332F5492CE3C79E86463F"
+            }
+        },
+        {
+            "cblob": "MQ==",
+            "_metadata": {
+                "etag": "6AC1E4B1596F073C5ACCB9DE309BE354E7AE6D61A62BF1ADFB700E4E2F72C34D"
+            }
+        },
+        {
+            "cblob": "ABGrAAASIzM=",
+            "_metadata": {
+                "etag": "DBB535A4A56DF56887571B887E11319A1CD8C2B3555C625CF4C91D05D93861E6"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.3
+GET /svc/basic/t3?f=cset
+{
+    "items": [
+        {
+            "cset": "",
+            "_metadata": {
+                "etag": "B482ED965DD59D542A27705545BBDF2D2668CC6B6DE1CD7B1692D749DCDF6D34"
+            }
+        },
+        {
+            "cset": "value1",
+            "_metadata": {
+                "etag": "8F2C1E81D7D7E05DBE9F591170FD46D1480F5CC8D13893B2C27EF06ED31DA412"
+            }
+        },
+        {
+            "cset": "value1,value2,value3",
+            "_metadata": {
+                "etag": "F2511E7C4DA55D685D91A3E32C8DC7B9C3340CBBDBDDD2A62D305330737E0F46"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cenum
+{
+    "items": [
+        {
+            "cenum": "value1",
+            "_metadata": {
+                "etag": "D20B78772E81A6A04EBD3C211A443CF47FC7A925B58678A4099BA9D3AE3F8017"
+            }
+        },
+        {
+            "cenum": "value1",
+            "_metadata": {
+                "etag": "D20B78772E81A6A04EBD3C211A443CF47FC7A925B58678A4099BA9D3AE3F8017"
+            }
+        },
+        {
+            "cenum": "value3",
+            "_metadata": {
+                "etag": "313057D4959E0EF47D18A95E48EDA6147DED65BB018B1ED00780D17DC2BFF525"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cvarchar
+{
+    "items": [
+        {
+            "cvarchar": "first row",
+            "_metadata": {
+                "etag": "583E4627F3A6149EFAF0FB3CE47031C71F6851D7834CC3BAE339CD4B54CDE97A"
+            }
+        },
+        {
+            "cvarchar": "second row",
+            "_metadata": {
+                "etag": "BE6086F1C3466552F96B6CDDC32F0B2744079C21B76970B680BD6DF6ABDE36E6"
+            }
+        },
+        {
+            "cvarchar": "thrid row",
+            "_metadata": {
+                "etag": "50CB1633C2882C8934CD60A8F777BFB683A83986644C4F45AC1720AFE1EB2FB3"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=ctext
+{
+    "items": [
+        {
+            "ctext": "numeric zeros",
+            "_metadata": {
+                "etag": "3E5E5A01705D6D661882E00FB223BC1EA57FC7593DF0A3FEA4A13F926EA1E44F"
+            }
+        },
+        {
+            "ctext": "numeric min",
+            "_metadata": {
+                "etag": "2DEF1184719AEF828957BF2E8D08922D6229F669697371102EE3F8B93091D26F"
+            }
+        },
+        {
+            "ctext": "numeric max",
+            "_metadata": {
+                "etag": "290E0E8D0640BDAB4095CEF5CD5691993E0DAF1CCB8DF699238B3682E7630014"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.4
+GET /svc/basic/t3?f=cdate
+{
+    "items": [
+        {
+            "cdate": "2020-12-01",
+            "_metadata": {
+                "etag": "B34FE25E9828205AB27163A6FB1EBF10DFD928613016834283D0A5149822E08A"
+            }
+        },
+        {
+            "cdate": "2020-12-02",
+            "_metadata": {
+                "etag": "1C5E832DD17DC7301EB55621990CE85F0828418EBDA9627F5BBFF63460153502"
+            }
+        },
+        {
+            "cdate": "2020-12-03",
+            "_metadata": {
+                "etag": "7393E3C1A34202FBFD056957AE0E89DE493E3D180A8F8C4AB9651F841D1E3A23"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=ctime
+{
+    "items": [
+        {
+            "ctime": "12:01:50.000000",
+            "_metadata": {
+                "etag": "0D5BDAB2A06AF7667E298EA68E4B009609F0EE1EE21E3A65DAF36C5B5181EEDA"
+            }
+        },
+        {
+            "ctime": "12:02:50.000000",
+            "_metadata": {
+                "etag": "E6B158B831F23BC93DAA5B68910C7969E5A3334E1B616F0CC450EFD9A697F86C"
+            }
+        },
+        {
+            "ctime": "12:03:50.000000",
+            "_metadata": {
+                "etag": "1E370D28647FDA3A666942CB63195B233F42DF65705DB205BFA2B51FC5B1952B"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cyear
+{
+    "items": [
+        {
+            "cyear": 2020,
+            "_metadata": {
+                "etag": "DD4B1D30D6D33D97B3BADF1988B58C6DE90B536A9A4C8022D68F0626037491E1"
+            }
+        },
+        {
+            "cyear": 2021,
+            "_metadata": {
+                "etag": "A89356038DC04A8B249FE8C41AC1C1C5141F8D54E80968F504E5905056D3C267"
+            }
+        },
+        {
+            "cyear": 2022,
+            "_metadata": {
+                "etag": "8D00E4B281B69CDBAD8AF09247E855ADDA2E8644D6C2ADE91A588E4F00CA2F16"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cdatetime
+{
+    "items": [
+        {
+            "cdatetime": "2020-12-01 12:01:50.000000",
+            "_metadata": {
+                "etag": "05C9E901ECD2A0AB33AF0E3B91FD962E1A8596E42FCE1CE4926FCB1B9CD976E8"
+            }
+        },
+        {
+            "cdatetime": "2020-12-02 12:02:50.000000",
+            "_metadata": {
+                "etag": "76B17304ECCD92A9062816AC993FD860938AACC28C3B0D21824C432153773239"
+            }
+        },
+        {
+            "cdatetime": "2020-12-03 12:03:50.000000",
+            "_metadata": {
+                "etag": "65BCB560346717F1BFD010E674B869A5D0A435C04FD30F6F184917A3697BC3AA"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=ctimestamp
+{
+    "items": [
+        {
+            "ctimestamp": "2020-12-01 12:01:50.000000",
+            "_metadata": {
+                "etag": "582A911146BD57CF7F30B5498A31A384497D8F09A81CCF335C0D5D1124E65255"
+            }
+        },
+        {
+            "ctimestamp": "2020-12-02 12:02:50.000000",
+            "_metadata": {
+                "etag": "CB5CE88E2390F59D9DA6D49488F5094224A99FE689AEE0516B93D321DF278162"
+            }
+        },
+        {
+            "ctimestamp": "2020-12-03 12:03:50.000000",
+            "_metadata": {
+                "etag": "161C7342EA43B5C7F817E08E82E0D30492C7DD234E805157F3497E162200AD86"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.5
+GET /svc/basic/t3?f=cfloat
+{
+    "items": [
+        {
+            "cfloat": 0.0,
+            "_metadata": {
+                "etag": "17570E76666B58D419CA7174B217DBB318F47E688D0D2AB7D363FCCCA778455C"
+            }
+        },
+        {
+            "cfloat": -999.9998779296876,
+            "_metadata": {
+                "etag": "2BADCDB2BCF0D603D405D99BDDC4C73F9572C540D59F8FB7C6CC22A5ADA95602"
+            }
+        },
+        {
+            "cfloat": 999.9998779296876,
+            "_metadata": {
+                "etag": "50CE2E49A28256EC9897CF7763E6A0198BADE92C8562CE4D48137D7EF8BE8DB1"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cdouble
+{
+    "items": [
+        {
+            "cdouble": 0.0,
+            "_metadata": {
+                "etag": "4ED526202EAC25BB41547BCB5B0AAA1900B08A474532D586FE69913C886D7F31"
+            }
+        },
+        {
+            "cdouble": -999.9999,
+            "_metadata": {
+                "etag": "2C42EC9B00F710DBDAE5824371523A28873FFF067B1752B6A5E9D999EDF09482"
+            }
+        },
+        {
+            "cdouble": 999.9999,
+            "_metadata": {
+                "etag": "05187573349D78E5D7C5647F7DFB71C7895820275EEE54374682403835979E76"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cdecimal
+{
+    "items": [
+        {
+            "cdecimal": 0.0,
+            "_metadata": {
+                "etag": "6C59C7CA904CC5B624F62DDCF5516D7353F954CA265CB7B423FEB8CE0D51FBBE"
+            }
+        },
+        {
+            "cdecimal": -999.99,
+            "_metadata": {
+                "etag": "1AE557BC7500791844DF674BCE7A88B7DF5D78082E59AFA35FBC1FC1FCD802DC"
+            }
+        },
+        {
+            "cdecimal": 999.99,
+            "_metadata": {
+                "etag": "4BB3497EA08FA26D21969BDFCBC26E455DCE196B25D12BCF670A96E1CC0BC642"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.6
+GET /svc/basic/t3?f=id
+{
+    "items": [
+        {
+            "id": 1,
+            "_metadata": {
+                "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
+            }
+        },
+        {
+            "id": 2,
+            "_metadata": {
+                "etag": "B25A771FB8C3EEA48C4FCDD7F1637F494FEC04D9BB60648D06D83CB93EB013F7"
+            }
+        },
+        {
+            "id": 3,
+            "_metadata": {
+                "etag": "3308B8BA3A14BE440EB8C18F0037A1F39DFC14F4684C71D8DC7308DD3BB52030"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cbigint
+{
+    "items": [
+        {
+            "cbigint": 0,
+            "_metadata": {
+                "etag": "5ACF777BF34FBE6F09396531A29A4A8A0D3FCE224B7DB7637DF7545C86711FCA"
+            }
+        },
+        {
+            "cbigint": -9223372036854775808,
+            "_metadata": {
+                "etag": "BF5B840392949DE0A7F5A9F83D872552671242E0E1FAD3AA1412194782E3F8B9"
+            }
+        },
+        {
+            "cbigint": 9223372036854775807,
+            "_metadata": {
+                "etag": "664A7EAFDF7E909A1139FE95FA7D94C2D8298A23B877E71737BE999055D30E95"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=csmallint
+{
+    "items": [
+        {
+            "csmallint": 0,
+            "_metadata": {
+                "etag": "43F88B1427FD9CFA7E2C22F08A8371DCD23AD6E271A57EC90750847301FEF40A"
+            }
+        },
+        {
+            "csmallint": -32768,
+            "_metadata": {
+                "etag": "89ADD68B8606DF82655D98A1C25AE74CF385715E1BFB59704E962DA4DE56DC50"
+            }
+        },
+        {
+            "csmallint": 32767,
+            "_metadata": {
+                "etag": "69AA1F03BA244FB867C668EF178AD11DFE406696ED1FE118FCE582223F2B4F80"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=ctinyint
+{
+    "items": [
+        {
+            "ctinyint": 0,
+            "_metadata": {
+                "etag": "3901DE267CA9921D5001B592AF9E2C7A121F0A8C3A38E0291F571B000FCFE60F"
+            }
+        },
+        {
+            "ctinyint": -128,
+            "_metadata": {
+                "etag": "C37083A331DC5C9549D1BFC94033BCADDD2F9155F4D58DFEED221FDBC79D7552"
+            }
+        },
+        {
+            "ctinyint": 127,
+            "_metadata": {
+                "etag": "0FDC8BCA08D2AE882B24A31AF0195AA93E534A3A4643FAE4FF6FD39D7702DCE1"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=cmediumint
+{
+    "items": [
+        {
+            "cmediumint": 0,
+            "_metadata": {
+                "etag": "C12472ED3C62E2DBDADFCC863C95D053C73CE940EA5D4BF30D996741E268E044"
+            }
+        },
+        {
+            "cmediumint": -8388608,
+            "_metadata": {
+                "etag": "34EA58DE817049BCDB76D73697BA894DED29F5BB538172C1DAF7BF4D72D67612"
+            }
+        },
+        {
+            "cmediumint": 8388607,
+            "_metadata": {
+                "etag": "0BCF68933D57C4C2DEF402E429E151630F5A4106D1C6031D7C8F349AD744BD22"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.7
+GET /svc/basic/t3?f=geo0
+{
+    "items": [
+        {
+            "geo0": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "_metadata": {
+                "etag": "02580FE265FCFD3ED60A8BD22050191F056F4BF87D9D0CC695728F90044C1725"
+            }
+        },
+        {
+            "geo0": {
+                "type": "Point",
+                "coordinates": [
+                    -100.0,
+                    -110.0
+                ]
+            },
+            "_metadata": {
+                "etag": "23EB97C6820820FBB61342CC4DF370A75919C6976BEABBCE61D8702ECB020617"
+            }
+        },
+        {
+            "geo0": {
+                "type": "Point",
+                "coordinates": [
+                    110.0,
+                    100.0
+                ]
+            },
+            "_metadata": {
+                "etag": "D61AD6C6C4BD4FAA25634E87C5F321291500484F4237C2DF23B8F5F12AE26826"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=geo4326
+{
+    "items": [
+        {
+            "geo4326": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "_metadata": {
+                "etag": "E8652121A793A5A62D4F9874168C6C2DECBED784F942FB5D81598ACCF0DD2B67"
+            }
+        },
+        {
+            "geo4326": {
+                "type": "Point",
+                "coordinates": [
+                    -90.0,
+                    -90.0
+                ]
+            },
+            "_metadata": {
+                "etag": "DEDB859D3FC64B7FC044189FD6A0992092092A4F3CCDF29484E7AD624756FCF4"
+            }
+        },
+        {
+            "geo4326": {
+                "type": "Point",
+                "coordinates": [
+                    90.0,
+                    90.0
+                ]
+            },
+            "_metadata": {
+                "etag": "C7BB805300E17AD6DCAB7C290B4E63E5608455841044F0DC2B835AE3E22EC559"
+            }
+        }
+    ]
+}
+OK
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

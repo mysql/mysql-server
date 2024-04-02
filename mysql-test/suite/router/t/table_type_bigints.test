@@ -1,0 +1,172 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+CREATE TABLE test.num(
+  id INTEGER,
+  b BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ub BIGINT UNSIGNED,
+  d DECIMAL);
+
+INSERT INTO test.num(id,b,ub,d) VALUES(-10,-10, 0, -15922.638440778302);
+INSERT INTO test.num(id,b,ub,d) VALUES(0, 0, 0, 0.0);
+INSERT INTO test.num(id,b,ub,d) VALUES(10, 10, 10, 10.1);
+INSERT INTO test.num(id,b,ub,d) VALUES(2147483647, 9223372036854775807, 18446744073709551615, 15922.638440778302);
+
+--let $sch_asjson_file=$MYSQL_TMP_DIR/test_num_as_json.sch
+--write_file $sch_asjson_file
+{
+  "type":"object",
+  "required":["id", "b", "ub", "d"],
+  "properties": {
+     "id" : { "type" : "number"},
+     "b" : { "type" : "number"},
+     "ub" : { "type" : "number"},
+     "d" : { "type" : "number"}
+  }
+}
+EOF
+
+--let $sch_asojson_file=$MYSQL_TMP_DIR/test_num_as_o_json.sch
+--write_file $sch_asojson_file
+{
+  "type":"object",
+  "required":["items"],
+  "properties": {
+     "items" : { 
+        "type" : "array",
+        "items": {
+           "type": "object",
+           "required":["id", "b", "ub", "d"],
+           "properties": {
+               "id" : { "type" : "number"},
+               "b" : { "type" : "number"},
+               "ub" : { "type" : "number"},
+               "d" : { "type" : "number"}
+            }
+         }
+     }
+  }
+}
+EOF
+
+--let $sch_asjson_js_file=$MYSQL_TMP_DIR/test_num_as_js_json.sch
+--write_file $sch_asjson_js_file
+{
+  "type":"object",
+  "required":["id", "b", "ub", "d"],
+  "properties": {
+     "id" : { "type" : "number"},
+     "b" : { "type" : "string"},
+     "ub" : { "type" : "string"},
+     "d" : { "type" : "string"}
+  }
+}
+EOF
+
+--let $sch_asojson_js_file=$MYSQL_TMP_DIR/test_num_as_o_js_json.sch
+--write_file $sch_asojson_js_file
+{
+  "type":"object",
+  "required":["items"],
+  "properties": {
+     "items" : { 
+        "type" : "array",
+        "items": {
+           "type": "object",
+           "required":["id", "b", "ub", "d"],
+           "properties": {
+               "id" : { "type" : "number"},
+               "b" : { "type" : "string"},
+               "ub" : { "type" : "string"},
+               "d" : { "type" : "string"}
+            }
+         }
+     }
+  }
+}
+EOF
+
+
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding of different times of data, returned in FEED response
+--echo #
+--echo # 1. Verify generation of JSON boolean from bit and bit(1)
+--echo #
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=test
+--let $mrs_add_schema_path=/test
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=num
+--let $mrs_add_db_object_path=/num
+--source ../include/mrs/db_object/add.inc
+
+--exec $MRS_CLIENT_ARGS --path /svc/test/num/1 --wait-until-found 60 --display none
+
+--let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS  --json-schema $sch_asojson_file
+--let $MRS_CLIENT_ARGS_OBJ=$MRS_CLIENT_ARGS  --json-schema $sch_asjson_file
+
+--let $MRS_CLIENT_ARGS_JS_LIST=$MRS_CLIENT_ARGS  --json-schema $sch_asojson_js_file
+--let $MRS_CLIENT_ARGS_JS_OBJ=$MRS_CLIENT_ARGS  --json-schema $sch_asjson_js_file
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_ARGS_OBJ  --path /svc/test/num/9223372036854775807
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/num
+
+--echo
+--echo #
+--echo # II.1
+--exec $MRS_CLIENT_ARGS_JS_OBJ  --path /svc/test/num/-10 --accept "application/x.ieee754.client+json"
+
+--echo
+--echo #
+--echo # II.2
+--exec $MRS_CLIENT_ARGS_JS_LIST --path /svc/test/num --accept "application/x.ieee754.client+json"
+
+--echo
+--echo #
+--echo # III.1
+--exec $MRS_CLIENT_ARGS_OBJ  --path /svc/test/num/-10 --accept "application/*"
+
+--echo
+--echo #
+--echo # III.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/num --accept "application/*"
+
+--echo
+--echo #
+--echo # III.3
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/num --accept "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+
+--echo
+--echo #
+--echo # IV.1
+--exec $MRS_CLIENT_ARGS_OBJ  --path /svc/test/num/-10 --accept "application/x.ieee754.client+json, application/json"
+
+--echo
+--echo #
+--echo # IV.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/num  --accept "application/x.ieee754.client+json, application/json"
+
+
+
+
+# Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.sch
+DROP TABLE test.num;
+--source ../include/mrs/cleanup.inc

@@ -1,0 +1,630 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `pk_types_schema` - created
+
+
+## I. Verify JSON encoding of different times of data, returned in FEED response
+#
+# 1. Verify generation of JSON boolean from bit and bit(1)
+# 2. Verify generation of JSON string with base64 data from bit(10) and binary
+# 3. Verify generation of JSON string from VARCHAR(X), SET, ENUM
+# 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+# 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+# 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+#
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/pk
+# Registred DB_OBJECT at path: /svc/pk/int
+# Registred DB_OBJECT at path: /svc/pk/tinyint
+# Registred DB_OBJECT at path: /svc/pk/smallint
+# Registred DB_OBJECT at path: /svc/pk/mediumint
+# Registred DB_OBJECT at path: /svc/pk/bigint
+# Registred DB_OBJECT at path: /svc/pk/decimal
+# Registred DB_OBJECT at path: /svc/pk/float
+# Registred DB_OBJECT at path: /svc/pk/double
+# Registred DB_OBJECT at path: /svc/pk/bit
+# Registred DB_OBJECT at path: /svc/pk/bit1
+# Registred DB_OBJECT at path: /svc/pk/bit8
+# Registred DB_OBJECT at path: /svc/pk/bin
+# Registred DB_OBJECT at path: /svc/pk/varchar20
+# Registred DB_OBJECT at path: /svc/pk/enum
+# Registred DB_OBJECT at path: /svc/pk/set
+# Registred DB_OBJECT at path: /svc/pk/datetime
+# Registred DB_OBJECT at path: /svc/pk/timestamp
+# Registred DB_OBJECT at path: /svc/pk/date
+# Registred DB_OBJECT at path: /svc/pk/time
+# Registred DB_OBJECT at path: /svc/pk/year
+
+#
+# I.1
+GET /svc/pk/bit/0
+{
+    "id": false,
+    "links": [
+        {
+            "href": "/svc/pk/bit/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "C08CDAC2BFD0231AA5DDF99BD808A8E88378772954218EE841771E21259BD4FD"
+    }
+}
+OK
+GET /svc/pk/bit/1
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "9F391E5C3A1FB729A36C8B9DE42B8511EDBDFEACFAD65741295815A8C3746B83"
+    }
+}
+OK
+GET /svc/pk/bit/0
+{
+    "id": false,
+    "links": [
+        {
+            "href": "/svc/pk/bit/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "C08CDAC2BFD0231AA5DDF99BD808A8E88378772954218EE841771E21259BD4FD"
+    }
+}
+OK
+GET /svc/pk/bit1/1
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "9F391E5C3A1FB729A36C8B9DE42B8511EDBDFEACFAD65741295815A8C3746B83"
+    }
+}
+OK
+GET /svc/pk/bit1/true
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "9F391E5C3A1FB729A36C8B9DE42B8511EDBDFEACFAD65741295815A8C3746B83"
+    }
+}
+OK
+GET /svc/pk/bit1/True
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "9F391E5C3A1FB729A36C8B9DE42B8511EDBDFEACFAD65741295815A8C3746B83"
+    }
+}
+OK
+GET /svc/pk/bit1/false
+{
+    "id": false,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "C08CDAC2BFD0231AA5DDF99BD808A8E88378772954218EE841771E21259BD4FD"
+    }
+}
+OK
+
+#
+# I.2
+GET /svc/pk/bit8/AA==
+{
+    "id": "AA==",
+    "links": [
+        {
+            "href": "/svc/pk/bit8/AA=="
+        }
+    ],
+    "_metadata": {
+        "etag": "6AA65A7629F6B718D0EDF929D9DC6395EAA345F32B85270F60BED289938325D6"
+    }
+}
+OK
+GET /svc/pk/bit8/AQ==
+{
+    "id": "AQ==",
+    "links": [
+        {
+            "href": "/svc/pk/bit8/AQ=="
+        }
+    ],
+    "_metadata": {
+        "etag": "3A3DDD81F37D9A9A36E171DB66F7C3E5FBF1FE5876AAA59EF9DCAE29B4AF12C3"
+    }
+}
+OK
+GET /svc/pk/bin/AAAA
+{
+    "id": "AAAA",
+    "links": [
+        {
+            "href": "/svc/pk/bin/AAAA"
+        }
+    ],
+    "_metadata": {
+        "etag": "C9A46340F566BD79D2A506036DB9A2FF2494B80C2F16D43E8976E726066EE18F"
+    }
+}
+OK
+GET /svc/pk/bin/BwAA
+{
+    "id": "BwAA",
+    "links": [
+        {
+            "href": "/svc/pk/bin/BwAA"
+        }
+    ],
+    "_metadata": {
+        "etag": "8BF6EB911EBFDA0B7B7476F760E5E91075BB3B973315F09B39DE5FD2C0ECC46E"
+    }
+}
+OK
+
+#
+# I.3
+GET /svc/pk/set/value1
+{
+    "id": "value1",
+    "links": [
+        {
+            "href": "/svc/pk/set/value1"
+        }
+    ],
+    "_metadata": {
+        "etag": "65E1604D84CE9B0484009F38F72D786D1526EAF0B600D21855C33083A433748F"
+    }
+}
+OK
+GET /svc/pk/set/value1,value2,value3
+{
+    "id": "value1,value2,value3",
+    "links": [
+        {
+            "href": "/svc/pk/set/value1,value2,value3"
+        }
+    ],
+    "_metadata": {
+        "etag": "228B3F3193C92A6AA5275EBFB6B84240A6D650F62C1ACF50FAD13271D538DEB3"
+    }
+}
+OK
+GET /svc/pk/enum/value1
+{
+    "id": "value1",
+    "links": [
+        {
+            "href": "/svc/pk/enum/value1"
+        }
+    ],
+    "_metadata": {
+        "etag": "65E1604D84CE9B0484009F38F72D786D1526EAF0B600D21855C33083A433748F"
+    }
+}
+OK
+GET /svc/pk/enum/value3
+{
+    "id": "value3",
+    "links": [
+        {
+            "href": "/svc/pk/enum/value3"
+        }
+    ],
+    "_metadata": {
+        "etag": "9EAF9001F8A5696739E332F38933E09E1A7649B5ADF2BC488DF6CFFADA2D7551"
+    }
+}
+OK
+GET /svc/pk/varchar20/123456
+{
+    "id": "123456",
+    "links": [
+        {
+            "href": "/svc/pk/varchar20/123456"
+        }
+    ],
+    "_metadata": {
+        "etag": "6225978DD587D4B349F48B2580A2A87B2AC0FF7D5BD1A256F329C19115AD9B8C"
+    }
+}
+OK
+
+#
+# I.4
+GET /svc/pk/date/2020-12-01
+{
+    "id": "2020-12-01",
+    "links": [
+        {
+            "href": "/svc/pk/date/2020-12-01"
+        }
+    ],
+    "_metadata": {
+        "etag": "0E821552D625A56B04D8DC26D9BFC134064D354EE8947532E63BDECD49C46CDF"
+    }
+}
+OK
+GET /svc/pk/date/2020-12-03
+{
+    "id": "2020-12-03",
+    "links": [
+        {
+            "href": "/svc/pk/date/2020-12-03"
+        }
+    ],
+    "_metadata": {
+        "etag": "7FA088296DA2056E1E24359686E793F11C63B78813324CA29397F21741B6B02A"
+    }
+}
+OK
+GET /svc/pk/time/12:01:50
+{
+    "id": "12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/time/12:01:50"
+        }
+    ],
+    "_metadata": {
+        "etag": "E4102B558FA3E329F61137F442CAEE4F27A9AFE80E977241CA42BC700DCAF801"
+    }
+}
+OK
+GET /svc/pk/time/12:01:51
+{
+    "id": "12:01:51.000000",
+    "links": [
+        {
+            "href": "/svc/pk/time/12:01:51"
+        }
+    ],
+    "_metadata": {
+        "etag": "E43B864780179871CC228315F233325ECCA10576BA8E2C77F4B33B290CE9D641"
+    }
+}
+OK
+GET /svc/pk/time/12:01:51.0000
+{
+    "id": "12:01:51.000000",
+    "links": [
+        {
+            "href": "/svc/pk/time/12:01:51.0000"
+        }
+    ],
+    "_metadata": {
+        "etag": "E43B864780179871CC228315F233325ECCA10576BA8E2C77F4B33B290CE9D641"
+    }
+}
+OK
+GET /svc/pk/year/2020
+{
+    "id": 2020,
+    "links": [
+        {
+            "href": "/svc/pk/year/2020"
+        }
+    ],
+    "_metadata": {
+        "etag": "2E3ABD7F9E22DF5CAE2EAF7AAD0AE3701E37968F6E95D1C24B791918BBD36B6A"
+    }
+}
+OK
+GET /svc/pk/year/2022
+{
+    "id": 2022,
+    "links": [
+        {
+            "href": "/svc/pk/year/2022"
+        }
+    ],
+    "_metadata": {
+        "etag": "2A4D34F834D9F4DBE2DF015E4B14C049F064A7A4955D60654D8F723AE1A808D7"
+    }
+}
+OK
+GET /svc/pk/datetime/2020-12-01 12:01:50.000000
+{
+    "id": "2020-12-01 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/datetime/2020-12-01 12:01:50.000000"
+        }
+    ],
+    "_metadata": {
+        "etag": "4E99195B60AF4C7BCAA77E4BBCC9952549DE71DC931E70B6B42D9C5AC0206B41"
+    }
+}
+OK
+GET /svc/pk/datetime/2020-12-01 12:01:50
+{
+    "id": "2020-12-01 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/datetime/2020-12-01 12:01:50"
+        }
+    ],
+    "_metadata": {
+        "etag": "4E99195B60AF4C7BCAA77E4BBCC9952549DE71DC931E70B6B42D9C5AC0206B41"
+    }
+}
+OK
+GET /svc/pk/datetime/2020-12-02 12:01:50
+{
+    "id": "2020-12-02 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/datetime/2020-12-02 12:01:50"
+        }
+    ],
+    "_metadata": {
+        "etag": "26AF4526E6BA4B3EF8FB7D1D8D3F5B05AB16EC1F45094FDB959B99671E3B859E"
+    }
+}
+OK
+GET /svc/pk/timestamp/2020-12-02 12:01:50.000000
+{
+    "id": "2020-12-02 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/timestamp/2020-12-02 12:01:50.000000"
+        }
+    ],
+    "_metadata": {
+        "etag": "26AF4526E6BA4B3EF8FB7D1D8D3F5B05AB16EC1F45094FDB959B99671E3B859E"
+    }
+}
+OK
+GET /svc/pk/timestamp/2020-12-03 12:01:50
+{
+    "id": "2020-12-03 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/timestamp/2020-12-03 12:01:50"
+        }
+    ],
+    "_metadata": {
+        "etag": "B50C947F281B1B726E0E50979BFCD4DA6AA8DF6D0637CD0FA6428F8F0353281C"
+    }
+}
+OK
+
+#
+# I.5
+GET /svc/pk/float/0
+{
+    "id": 0.0,
+    "links": [
+        {
+            "href": "/svc/pk/float/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "AFBBC54AF5AE2AC7EBA7533AA284E56655FC3BF6D1AD61EC2276F8743908101C"
+    }
+}
+OK
+GET /svc/pk/double/-999.9999
+{
+    "id": -999.9999,
+    "links": [
+        {
+            "href": "/svc/pk/double/-999.9999"
+        }
+    ],
+    "_metadata": {
+        "etag": "DDA657984CC681DA436E4E0F2FA1C89BB7D501C3DDE3593BF99D7A7534C084BC"
+    }
+}
+OK
+GET /svc/pk/decimal/-999.99
+{
+    "id": -999.99,
+    "links": [
+        {
+            "href": "/svc/pk/decimal/-999.99"
+        }
+    ],
+    "_metadata": {
+        "etag": "C8D3DFA2DC5481D1C89D8A2B8ADBC6764604C041CAAE50BA104A3B31C8E743A7"
+    }
+}
+OK
+
+#
+# I.6
+GET /svc/pk/int/-2147483648
+{
+    "id": -2147483648,
+    "links": [
+        {
+            "href": "/svc/pk/int/-2147483648"
+        }
+    ],
+    "_metadata": {
+        "etag": "CE94F9F5D4A7517682A8C8FDBEF75345967D0D2B02ECF05E237B423D81EA65B7"
+    }
+}
+OK
+GET /svc/pk/int/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/int/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "D8EF27668D99CD17CDE336F3365C684D00310742904D466983A625D9537B2EA0"
+    }
+}
+OK
+GET /svc/pk/int/2147483647
+{
+    "id": 2147483647,
+    "links": [
+        {
+            "href": "/svc/pk/int/2147483647"
+        }
+    ],
+    "_metadata": {
+        "etag": "B6807B1D285AE676968EA3B2CB0449BB5DEAC6B95078590C51440F9DD547394A"
+    }
+}
+OK
+GET /svc/pk/smallint/-32768
+{
+    "id": -32768,
+    "links": [
+        {
+            "href": "/svc/pk/smallint/-32768"
+        }
+    ],
+    "_metadata": {
+        "etag": "9BC1FE91FF250C9FB4E3CDC790E7420D32762E45D24269626C94EB7E68528ECA"
+    }
+}
+OK
+GET /svc/pk/smallint/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/smallint/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "D8EF27668D99CD17CDE336F3365C684D00310742904D466983A625D9537B2EA0"
+    }
+}
+OK
+GET /svc/pk/smallint/32767
+{
+    "id": 32767,
+    "links": [
+        {
+            "href": "/svc/pk/smallint/32767"
+        }
+    ],
+    "_metadata": {
+        "etag": "233E1C0AA4C0F7F31A758587B0EF76BFA79B1690AFA58515F2D6A43DF0193774"
+    }
+}
+OK
+GET /svc/pk/tinyint/-128
+{
+    "id": -128,
+    "links": [
+        {
+            "href": "/svc/pk/tinyint/-128"
+        }
+    ],
+    "_metadata": {
+        "etag": "FA806A5D457819DBDC4CD136F3884F0F132F2AAA3DF657EF5A0E6BAD99996328"
+    }
+}
+OK
+GET /svc/pk/tinyint/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/tinyint/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "D8EF27668D99CD17CDE336F3365C684D00310742904D466983A625D9537B2EA0"
+    }
+}
+OK
+GET /svc/pk/tinyint/127
+{
+    "id": 127,
+    "links": [
+        {
+            "href": "/svc/pk/tinyint/127"
+        }
+    ],
+    "_metadata": {
+        "etag": "5D44B799AA30A8E90673D845580E0CA0CFA011902AE268AF637A9E741AEA45ED"
+    }
+}
+OK
+GET /svc/pk/mediumint/-8388608
+{
+    "id": -8388608,
+    "links": [
+        {
+            "href": "/svc/pk/mediumint/-8388608"
+        }
+    ],
+    "_metadata": {
+        "etag": "B9B3F4807F1CC2511800FB56B9E05C25D1050599BF31075FFA1D745DDD1AA131"
+    }
+}
+OK
+GET /svc/pk/mediumint/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/mediumint/0"
+        }
+    ],
+    "_metadata": {
+        "etag": "D8EF27668D99CD17CDE336F3365C684D00310742904D466983A625D9537B2EA0"
+    }
+}
+OK
+GET /svc/pk/mediumint/8388607
+{
+    "id": 8388607,
+    "links": [
+        {
+            "href": "/svc/pk/mediumint/8388607"
+        }
+    ],
+    "_metadata": {
+        "etag": "3F392BACB173B285C58ED3E7D7DE747FD4B2652F0AFE9DE81E2BA7CC3E9B8631"
+    }
+}
+OK
+DROP SCHEMA pk_types_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

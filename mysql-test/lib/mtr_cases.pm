@@ -32,7 +32,7 @@ use strict;
 
 use base qw(Exporter);
 our @EXPORT = qw(collect_option collect_test_cases init_pattern
-  $do_test $group_replication);
+  $do_test $group_replication $router_test);
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
@@ -84,6 +84,7 @@ our $start_from;
 our $default_myisam = 0;
 
 our $group_replication;
+our $router_test;
 
 sub collect_option {
   my ($opt, $value) = @_;
@@ -1527,6 +1528,12 @@ sub collect_one_test_case {
 
   # Check for group replication tests
   $group_replication = 1 if ($tinfo->{'grp_rpl_test'});
+  
+  # Check for router tests
+  $router_test = 1 if ($tinfo->{'router_test'});
+
+  # Check for router tests
+  $router_test = 1 if ($tinfo->{'router_test'});
 
   if ($tinfo->{'not_windows'} && IS_WINDOWS) {
     skip_test($tinfo, "Test not supported on Windows");
@@ -1654,9 +1661,13 @@ my @tags = (
   # Tests with below .inc file are considered to be group replication tests
   [ "have_group_replication_plugin_base.inc", "grp_rpl_test", 1 ],
   [ "have_group_replication_plugin.inc",      "grp_rpl_test", 1 ],
+  
+  [ "have_router.inc",      "router_test", 1 ],
+  
 
   [ "include/not_asan.inc", "not_asan", 1 ],
   [ "include/not_ubsan.inc", "not_ubsan", 1 ],
+  [ "have_router.inc",      "router_test", 1 ],
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.

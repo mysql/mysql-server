@@ -177,7 +177,9 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
 
   /** Launches the child process, and makes pipes available for read/write.
    */
-  void start();
+  void start(bool use_std_io_handlers = false);
+
+  void start(bool use_stdout_handler, bool use_stdin_handler);
 
   /**
    * Read up to a 'count' bytes from the stdout of the child process.

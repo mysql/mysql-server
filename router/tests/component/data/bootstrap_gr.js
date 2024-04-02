@@ -160,7 +160,8 @@ var router_store_config_defaults_gr_cluster =
       mysqld.global.upd_attr_config_defaults_and_schema_json = res[1];
       return router_store_config_defaults_gr_cluster;
     } else {
-      return common_stmts.unknown_statement_response(stmt);
+      return common_stmts.unknown_statement_response("'" + mysqld.global.router_version + "' " + stmt);
+      //return common_stmts.unknown_statement_response(stmt);
     }
   }
 })

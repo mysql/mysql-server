@@ -26,6 +26,7 @@
 #include "mysql/harness/string_utils.h"
 
 #include <algorithm>
+#include <cctype>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -70,6 +71,26 @@ void right_trim(std::string &str) {
 void trim(std::string &str) {
   left_trim(str);
   right_trim(str);
+}
+
+void upper(std::string &s) {
+  std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+}
+
+std::string make_upper(std::string s) {
+  upper(s);
+
+  return s;
+}
+
+void lower(std::string &s) {
+  std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+}
+
+std::string make_lower(std::string s) {
+  lower(s);
+
+  return s;
 }
 
 namespace {

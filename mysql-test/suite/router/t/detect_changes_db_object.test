@@ -1,0 +1,132 @@
+--source include/have_router.inc
+
+# Set the router-id, to generate statistics
+# this way we can wait until router detects
+# changes to DB_OBJECTS.
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify that router detect changes in
+--echo #
+--echo # 1. DB_OBJECT
+--echo # 2. DB_SCHEMA
+--echo # 3. OBJECT_FIELD
+--echo # 3. OBJECT_REFERENCE
+--echo #
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_sql_id_variable=@db_obj1
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_sql_id_variable=@db_obj2
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/t2
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_sql_id_variable=@db_obj4
+--let $mrs_add_db_object=table4
+--let $mrs_add_db_object_path=/t4
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_sql_id_variable_db_object=@db_obj4
+--let $mrs_add_db_object_join_schema=basic_schema
+--let $mrs_add_db_object_join_table=table2
+--let $mrs_add_db_object_join_subobj=t2
+--let $mrs_add_db_object_join_on_base=table2_id
+--let $mrs_add_db_object_join_on_other=id
+--source ../include/mrs/db_object/add_join_subobj.inc
+
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+--let MRS_CLIENT_ARGS_404=$MRS_CLIENT_ARGS --expected-status 404 --response-type raw --display request,status
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1 --wait-until-found=60
+
+--echo
+--echo #
+--echo # I.1
+--source ../include/mrs/changes/fetch_object.inc
+
+--let $mrs_sql_id_variable=@db_obj2
+--let $mrs_modify_path=/t2_new
+--source ../include/mrs/db_object/modify_path.inc
+
+# By default waits until, number of changes is grater,
+# than it was checked last time
+--source ../include/mrs/changes/wait_object.inc
+
+# Show that `t2` is not accessable.
+--exec $MRS_CLIENT_ARGS_404 --path /svc/basic/t2/1
+# Show that `t2` has a new name now.
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2_new/1
+# Show that `t1` is not impacted.
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1
+
+--echo
+--echo #
+--echo # I.2
+
+--let $mrs_modify_path=/basic_new
+--source ../include/mrs/db_schema/modify_path.inc
+
+# By default waits until, number of changes is grater,
+# than it was checked last time
+--source ../include/mrs/changes/wait_object.inc
+
+# Show that `t2_new` is not accessable on the old schema.
+--exec $MRS_CLIENT_ARGS_404 --path /svc/basic/t2_new/1
+# Show that `t1` is not accessable on the old schema.
+--exec $MRS_CLIENT_ARGS_404 --path /svc/basic/t1/1
+
+# Show that `basic` schema has a new name now.
+--exec $MRS_CLIENT_ARGS --path /svc/basic_new/t1/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic_new/t2_new/1
+
+--echo
+--echo #
+--echo # I.3
+
+--let $mrs_sql_id_variable=@db_obj2
+--let $mrs_modify_columns=id, name, comments, date
+--let $mrs_modify_fields=my_id, my_name, my_comments, my_date
+--source ../include/mrs/db_object/modify_fields.inc
+
+
+# By default waits until, number of changes is grater,
+# than it was checked last time
+--source ../include/mrs/changes/wait_object.inc
+--exec $MRS_CLIENT_ARGS --path /svc/basic_new/t2_new/1
+
+
+
+--echo
+--echo #
+--echo # I.4
+--exec $MRS_CLIENT_ARGS --path /svc/basic_new/t4/2
+
+--source ../include/mrs/db_object/modify_join_to_flat.inc
+
+# By default waits until, number of changes is grater,
+# than it was checked last time
+--source ../include/mrs/changes/wait_object.inc
+--exec $MRS_CLIENT_ARGS --path /svc/basic_new/t4/2
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

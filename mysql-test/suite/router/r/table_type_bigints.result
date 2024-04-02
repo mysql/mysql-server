@@ -1,0 +1,518 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+CREATE TABLE test.num(
+id INTEGER,
+b BIGINT AUTO_INCREMENT PRIMARY KEY,
+ub BIGINT UNSIGNED,
+d DECIMAL);
+INSERT INTO test.num(id,b,ub,d) VALUES(-10,-10, 0, -15922.638440778302);
+Warnings:
+Note	1265	Data truncated for column 'd' at row 1
+INSERT INTO test.num(id,b,ub,d) VALUES(0, 0, 0, 0.0);
+INSERT INTO test.num(id,b,ub,d) VALUES(10, 10, 10, 10.1);
+Warnings:
+Note	1265	Data truncated for column 'd' at row 1
+INSERT INTO test.num(id,b,ub,d) VALUES(2147483647, 9223372036854775807, 18446744073709551615, 15922.638440778302);
+Warnings:
+Note	1265	Data truncated for column 'd' at row 1
+
+
+## I. Verify JSON encoding of different times of data, returned in FEED response
+#
+# 1. Verify generation of JSON boolean from bit and bit(1)
+#
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/test
+# Registred DB_OBJECT at path: /svc/test/num
+
+#
+# I.1
+GET /svc/test/num/9223372036854775807
+{
+    "b": 9223372036854775807,
+    "d": 15923,
+    "id": 2147483647,
+    "ub": 18446744073709551615,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/9223372036854775807"
+        }
+    ],
+    "_metadata": {
+        "etag": "9B6C20A70526991EEE59F376A97060534EC98C4CBA524FD3C864071BBCA12C31"
+    }
+}
+OK
+
+#
+# I.2
+GET /svc/test/num
+{
+    "items": [
+        {
+            "b": -10,
+            "d": -15923,
+            "id": -10,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/-10"
+                }
+            ],
+            "_metadata": {
+                "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+            }
+        },
+        {
+            "b": 1,
+            "d": 0,
+            "id": 0,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "5DD0A16A9D4E386ECA2700732A8DED0CFE0AD0EBBB45F5EEBDDECF6A99A05E12"
+            }
+        },
+        {
+            "b": 10,
+            "d": 10,
+            "id": 10,
+            "ub": 10,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/10"
+                }
+            ],
+            "_metadata": {
+                "etag": "E3AFC46F9A38692CCE34ABA118988EB4A735C0B79A74D6B1AC0F7217421F57C3"
+            }
+        },
+        {
+            "b": 9223372036854775807,
+            "d": 15923,
+            "id": 2147483647,
+            "ub": 18446744073709551615,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/9223372036854775807"
+                }
+            ],
+            "_metadata": {
+                "etag": "9B6C20A70526991EEE59F376A97060534EC98C4CBA524FD3C864071BBCA12C31"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/"
+        }
+    ]
+}
+OK
+
+#
+# II.1
+GET /svc/test/num/-10
+{
+    "b": "-10",
+    "d": "-15923",
+    "id": -10,
+    "ub": "0",
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/-10"
+        }
+    ],
+    "_metadata": {
+        "etag": "8486B5BBC8F05B67F9E25E841C20F8A6BBEE140BF0D0012281966E0290038713"
+    }
+}
+OK
+
+#
+# II.2
+GET /svc/test/num
+{
+    "items": [
+        {
+            "b": "-10",
+            "d": "-15923",
+            "id": -10,
+            "ub": "0",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/-10"
+                }
+            ],
+            "_metadata": {
+                "etag": "8486B5BBC8F05B67F9E25E841C20F8A6BBEE140BF0D0012281966E0290038713"
+            }
+        },
+        {
+            "b": "1",
+            "d": "0",
+            "id": 0,
+            "ub": "0",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "77060A313B4B138B1F7DFB4CFC5BE478A4EC6E2FCF39B33C6482B6C1AB54F821"
+            }
+        },
+        {
+            "b": "10",
+            "d": "10",
+            "id": 10,
+            "ub": "10",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/10"
+                }
+            ],
+            "_metadata": {
+                "etag": "7C596B88846C7AE4190184DF21B0A9A23D263B2DA24D6579032ACD63576D42D4"
+            }
+        },
+        {
+            "b": "9223372036854775807",
+            "d": "15923",
+            "id": 2147483647,
+            "ub": "18446744073709551615",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/9223372036854775807"
+                }
+            ],
+            "_metadata": {
+                "etag": "48B06822AC2FDE018E0D693A8955B7E5C6ED181CB22F37694B2FD87E61A62CF0"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/"
+        }
+    ]
+}
+OK
+
+#
+# III.1
+GET /svc/test/num/-10
+{
+    "b": -10,
+    "d": -15923,
+    "id": -10,
+    "ub": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/-10"
+        }
+    ],
+    "_metadata": {
+        "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+    }
+}
+OK
+
+#
+# III.2
+GET /svc/test/num
+{
+    "items": [
+        {
+            "b": -10,
+            "d": -15923,
+            "id": -10,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/-10"
+                }
+            ],
+            "_metadata": {
+                "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+            }
+        },
+        {
+            "b": 1,
+            "d": 0,
+            "id": 0,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "5DD0A16A9D4E386ECA2700732A8DED0CFE0AD0EBBB45F5EEBDDECF6A99A05E12"
+            }
+        },
+        {
+            "b": 10,
+            "d": 10,
+            "id": 10,
+            "ub": 10,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/10"
+                }
+            ],
+            "_metadata": {
+                "etag": "E3AFC46F9A38692CCE34ABA118988EB4A735C0B79A74D6B1AC0F7217421F57C3"
+            }
+        },
+        {
+            "b": 9223372036854775807,
+            "d": 15923,
+            "id": 2147483647,
+            "ub": 18446744073709551615,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/9223372036854775807"
+                }
+            ],
+            "_metadata": {
+                "etag": "9B6C20A70526991EEE59F376A97060534EC98C4CBA524FD3C864071BBCA12C31"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/"
+        }
+    ]
+}
+OK
+
+#
+# III.3
+GET /svc/test/num
+{
+    "items": [
+        {
+            "b": -10,
+            "d": -15923,
+            "id": -10,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/-10"
+                }
+            ],
+            "_metadata": {
+                "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+            }
+        },
+        {
+            "b": 1,
+            "d": 0,
+            "id": 0,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "5DD0A16A9D4E386ECA2700732A8DED0CFE0AD0EBBB45F5EEBDDECF6A99A05E12"
+            }
+        },
+        {
+            "b": 10,
+            "d": 10,
+            "id": 10,
+            "ub": 10,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/10"
+                }
+            ],
+            "_metadata": {
+                "etag": "E3AFC46F9A38692CCE34ABA118988EB4A735C0B79A74D6B1AC0F7217421F57C3"
+            }
+        },
+        {
+            "b": 9223372036854775807,
+            "d": 15923,
+            "id": 2147483647,
+            "ub": 18446744073709551615,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/9223372036854775807"
+                }
+            ],
+            "_metadata": {
+                "etag": "9B6C20A70526991EEE59F376A97060534EC98C4CBA524FD3C864071BBCA12C31"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/"
+        }
+    ]
+}
+OK
+
+#
+# IV.1
+GET /svc/test/num/-10
+{
+    "b": -10,
+    "d": -15923,
+    "id": -10,
+    "ub": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/-10"
+        }
+    ],
+    "_metadata": {
+        "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+    }
+}
+OK
+
+#
+# IV.2
+GET /svc/test/num
+{
+    "items": [
+        {
+            "b": -10,
+            "d": -15923,
+            "id": -10,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/-10"
+                }
+            ],
+            "_metadata": {
+                "etag": "2181B8B504D6F5F859E36F9249185EE93E0587FF42416A8F84979886803CB39E"
+            }
+        },
+        {
+            "b": 1,
+            "d": 0,
+            "id": 0,
+            "ub": 0,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "5DD0A16A9D4E386ECA2700732A8DED0CFE0AD0EBBB45F5EEBDDECF6A99A05E12"
+            }
+        },
+        {
+            "b": 10,
+            "d": 10,
+            "id": 10,
+            "ub": 10,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/10"
+                }
+            ],
+            "_metadata": {
+                "etag": "E3AFC46F9A38692CCE34ABA118988EB4A735C0B79A74D6B1AC0F7217421F57C3"
+            }
+        },
+        {
+            "b": 9223372036854775807,
+            "d": 15923,
+            "id": 2147483647,
+            "ub": 18446744073709551615,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/num/9223372036854775807"
+                }
+            ],
+            "_metadata": {
+                "etag": "9B6C20A70526991EEE59F376A97060534EC98C4CBA524FD3C864071BBCA12C31"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/num/"
+        }
+    ]
+}
+OK
+DROP TABLE test.num;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

@@ -1,0 +1,40 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table3
+--let $mrs_add_db_object_path=/t2
+--source ../include/mrs/db_object/add.inc
+
+UPDATE `mysql_rest_service_metadata`.`object_field` SET enabled=(name="id" or name="cenum" or name="ctext");
+
+--let $mrs_add_db_object=table3
+--let $mrs_add_db_object_path=/t1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1 --wait-until-found 60 --display none
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1?f=id,cyear
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1?f=id,cyear
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

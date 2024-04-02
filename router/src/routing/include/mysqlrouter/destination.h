@@ -26,6 +26,8 @@
 #ifndef MYSQLROUTER_DESTINATION_INCLUDED
 #define MYSQLROUTER_DESTINATION_INCLUDED
 
+#include "mysqlrouter/routing_export.h"
+
 #include <cstddef>       // uint16_t
 #include <list>          // list
 #include <memory>        // unique_ptr
@@ -40,7 +42,7 @@
  *
  * It is used between the RouteDestination implementations and MySQLRouting
  */
-class Destination {
+class ROUTING_EXPORT Destination {
  public:
   Destination(std::string id, std::string hostname, uint16_t port)
       : id_{std::move(id)}, hostname_{std::move(hostname)}, port_{port} {}
@@ -104,9 +106,9 @@ class Destination {
  *
  * @see RouteDestination::refresh_destinations()
  */
-class Destinations {
+class ROUTING_EXPORT Destinations {
  public:
-  using value_type = std::unique_ptr<Destination>;
+  using value_type = std::shared_ptr<Destination>;
   using container_type = std::list<value_type>;
   using iterator = typename container_type::iterator;
   using const_iterator = typename container_type::const_iterator;

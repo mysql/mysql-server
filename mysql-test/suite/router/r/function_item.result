@@ -1,0 +1,369 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `func_schema` - created
+
+
+## I. Verify error messages while providing faulty configuration to rest function
+#
+# 1. POST request is not supported by object/procedures
+# 2. DELETE request is not supported by object/procedures
+# 3. PUT request is rejected when there is not payload proveided
+# 4. PUT request is rejected when the payload is not JSON object
+# 5. PUT request is rejected when the payloads, JSON object field
+#    doesn't match registred input parameters.
+# 6. GET request is rejected when the URL parameter name doesn'
+#    match registred input parameters.
+#
+
+## II. Verify valid rest request to rest function
+#
+# 1. GET request, no arguments
+# 2. POST request, no arguments
+# 3. GET request, multiple arguments
+# 4. POST request, multiple arguments
+## III. Verify handling of different MYSQL types as input and result of
+##      function, when they are transfered in GET requests
+#
+# 1. Verify if input varchar value is the same at output of function
+# 2. Verify if input DATE value is the same at output of function
+# 3. Verify if input YEAR value is the same at output of function
+# 4. Verify if input TIME value is the same at output of function
+# 5. Verify if input BIT(1) value is the same at output of function
+# 6. Verify if input TINYINT(1) value is the same at output of function
+# 7. Verify if input TINYINT(8) value is the same at output of function
+# 8. Verify if input DECIMAL value is the same at output of function
+# 9. Verify if input FLOAT value is the same at output of function
+# 10. Verify if input DOUBLE value is the same at output of function
+# 11. Verify if input JSON simple value is the same at output of function
+# 11. Verify if input JSON complex value is the same at output of function
+## IV. Verify handling of different MYSQL types as input and result of
+##      function, when they are transfered in POST requests
+#
+# 1. Verify if input varchar value is the same at output of function
+# 2. Verify if input DATE value is the same at output of function
+# 3. Verify if input YEAR value is the same at output of function
+# 4. Verify if input TIME value is the same at output of function
+# 5. Verify if input BIT(1) value is the same at output of function
+# 6. Verify if input TINYINT(1) value is the same at output of function
+# 7. Verify if input TINYINT(8) value is the same at output of function
+# 8. Verify if input DECIMAL value is the same at output of function
+# 9. Verify if input FLOAT value is the same at output of function
+# 10. Verify if input DOUBLE value is the same at output of function
+# 11. Verify if input JSON simple value is the same at output of function
+# 11. Verify if input JSON complex value is the same at output of function
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/func
+# Registred DB_OBJECT at path: /svc/func/sum
+# Registred DB_OBJECT at path: /svc/func/move_char
+# Registred DB_OBJECT at path: /svc/func/move_date
+# Registred DB_OBJECT at path: /svc/func/move_year
+# Registred DB_OBJECT at path: /svc/func/move_time
+# Registred DB_OBJECT at path: /svc/func/move_bit
+# Registred DB_OBJECT at path: /svc/func/move_tinyint1
+# Registred DB_OBJECT at path: /svc/func/move_tinyint8
+# Registred DB_OBJECT at path: /svc/func/move_decimal
+# Registred DB_OBJECT at path: /svc/func/move_float
+# Registred DB_OBJECT at path: /svc/func/move_double
+# Registred DB_OBJECT at path: /svc/func/move_json
+# Registred DB_OBJECT at path: /svc/func/move_geo
+# Registred DB_OBJECT at path: /svc/func/move_line
+# Registred DB_OBJECT at path: /svc/func/nothing
+
+#
+# I.1
+POST /svc/func/nothing
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+
+#
+# I.2
+DELETE /svc/func/nothing
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+
+#
+# I.3
+PUT /svc/func/nothing
+{
+    "message": "Can't parse requests payload. I must be an Json object.",
+    "status": 400
+}
+OK
+
+#
+# I.4
+PUT /svc/func/nothing (payload-size:2)
+{
+    "message": "Parameters must be encoded as fields in Json object.",
+    "status": 400
+}
+OK
+
+#
+# I.5
+PUT /svc/func/nothing (payload-size:25)
+{
+    "message": "Not allowed object_field:not-existing-param",
+    "status": 400
+}
+OK
+
+#
+# I.6
+GET /svc/func/nothing?not-existing-param=10
+{
+    "message": "Not allowed object_field:not-existing-param",
+    "status": 400
+}
+OK
+
+#
+# II.1
+GET /svc/func/nothing
+{
+    "result": 0
+}
+OK
+
+#
+# II.2
+PUT /svc/func/nothing (payload-size:2)
+{
+    "result": 0
+}
+OK
+
+#
+# II.3
+GET /svc/func/sum?a=10&b=20
+{
+    "result": 30
+}
+OK
+
+#
+# II.4
+PUT /svc/func/sum (payload-size:15)
+{
+    "result": 30
+}
+OK
+
+#
+# III.1
+GET /svc/func/move_char?a=10
+{
+    "result": "10 appended"
+}
+OK
+
+#
+# III.2
+DISABLED
+
+#
+# III.3
+DISABLED
+
+#
+# III.4
+DISABLED
+
+#
+# III.5
+GET /svc/func/move_bit?a=1
+{
+    "result": true
+}
+OK
+
+#
+# III.6
+GET /svc/func/move_tinyint1?a=1
+{
+    "result": 2
+}
+OK
+
+#
+# III.7
+GET /svc/func/move_tinyint8?a=10
+{
+    "result": 11
+}
+OK
+
+#
+# III.8
+GET /svc/func/move_decimal?a=10
+{
+    "result": 11
+}
+OK
+
+#
+# III.9
+GET /svc/func/move_float?a=10
+{
+    "result": 11
+}
+OK
+
+#
+# III.10
+GET /svc/func/move_double?a=10
+{
+    "result": 11
+}
+OK
+
+#
+# III.11
+GET /svc/func/move_json?a=100
+{
+    "result": 100
+}
+OK
+
+#
+# III.12
+GET /svc/func/move_json?a=["aaaa",20,30,{"field1":"value1"}]
+{
+    "result": [
+        "aaaa",
+        20,
+        30,
+        {
+            "field1": "value1"
+        }
+    ]
+}
+OK
+
+#
+# IV.1
+PUT /svc/func/move_char (payload-size:8)
+{
+    "result": "10 appended"
+}
+OK
+
+#
+# IV.2
+DISABLED
+
+#
+# IV.3
+DISABLED
+
+#
+# IV.4
+DISABLED
+
+#
+# IV.5
+PUT /svc/func/move_bit (payload-size:7)
+{
+    "result": true
+}
+OK
+
+#
+# IV.6
+PUT /svc/func/move_tinyint1 (payload-size:7)
+{
+    "result": 2
+}
+OK
+
+#
+# IV.7
+PUT /svc/func/move_tinyint8 (payload-size:8)
+{
+    "result": 11
+}
+OK
+
+#
+# IV.8
+PUT /svc/func/move_decimal (payload-size:8)
+{
+    "result": 11
+}
+OK
+
+#
+# IV.9
+PUT /svc/func/move_float (payload-size:8)
+{
+    "result": 11
+}
+OK
+
+#
+# IV.10
+PUT /svc/func/move_double (payload-size:8)
+{
+    "result": 11
+}
+OK
+
+#
+# IV.10
+PUT /svc/func/move_json (payload-size:9)
+{
+    "result": 100
+}
+OK
+
+#
+# IV.11
+PUT /svc/func/move_json (payload-size:40)
+{
+    "result": [
+        "aaaa",
+        20,
+        30,
+        {
+            "field1": "value1"
+        }
+    ]
+}
+OK
+
+#
+# IV.12
+# TODO(lkotula): wrong data are generated
+PUT /svc/func/move_geo (payload-size:44)
+{
+    "result": "æ\u0010\u0000\u0000\u0001\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000$@\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+}
+OK
+# TODO(lkotula): wrong data are generated
+PUT /svc/func/move_geo (payload-size:57)
+{
+    "result": "æ\u0010\u0000\u0000\u0001\u0002\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000Y@\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+}
+OK
+DROP SCHEMA func_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

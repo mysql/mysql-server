@@ -1,0 +1,270 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+
+
+## I. Verify the error message search was conducted on not existing/registred field
+#
+# 1. Use column name with "integer" type, instead of its field name, using "" operator
+# 2. Use column name with "text" type, instead of its field name, using "$like" operator
+# 3. Use column name with "text" type, instead of its field name, using "=" operator
+# 4. Use column name with "date" type, instead of its field name, using "" operator
+#
+## II. Verify the returned object for valid field name:
+#
+# 1. Filter field name with "integer" type, using "" operator
+# 2. Filter field name with "text" type, using "$like" operator
+# 3. Filter field name with "text" type, using "=" operator
+# 4. Filter field name with "date" type, using "" operator
+#
+
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/table
+
+#
+# I.1
+GET /svc/basic/table?q={"id":{"$between":[1,3]}}
+{
+    "message": "Cannot filter on field id",
+    "status": 400
+}
+OK
+
+#
+# I.2
+GET /svc/basic/table?q={"name":{"$like":"%th row%"}}
+{
+    "message": "Cannot filter on field name",
+    "status": 400
+}
+OK
+
+#
+# I.3
+GET /svc/basic/table?q={"comment":"..."}
+{
+    "message": "Cannot filter on field comment",
+    "status": 400
+}
+OK
+
+#
+# I.4
+GET /svc/basic/table?q={"date":{"$gt":"2000-01-01"}}
+{
+    "message": "Cannot filter on field date",
+    "status": 400
+}
+OK
+
+#
+# II.1
+GET /svc/basic/table?q={"my_id":{"$between":[1,3]}}
+{
+    "items": [
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/1"
+                }
+            ],
+            "my_id": 1,
+            "my_date": "1977-01-21 00:00:00.000000",
+            "my_name": "First row",
+            "my_comments": "First comment",
+            "_metadata": {
+                "etag": "7466E75E86D6786E8769B414A65808A9B12687C22B2A24061E5A0A33B63D1173"
+            }
+        },
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/2"
+                }
+            ],
+            "my_id": 2,
+            "my_date": "1977-01-21 00:00:00.000000",
+            "my_name": "Second row",
+            "my_comments": null,
+            "_metadata": {
+                "etag": "46EFE6B79FD245C90143D906436747F2EDC0773019EF9D381E200E9EAF2EA4F9"
+            }
+        },
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/3"
+                }
+            ],
+            "my_id": 3,
+            "my_date": "1977-02-21 00:00:00.000000",
+            "my_name": "Thrid row",
+            "my_comments": null,
+            "_metadata": {
+                "etag": "794D40DBA3918C78DD4986A02EA1F2358630F193E3EC8833626B22A84D18F531"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 3,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/table/"
+        }
+    ]
+}
+OK
+
+#
+# II.2
+GET /svc/basic/table?q={"my_name":{"$like":"%th row%"}}
+{
+    "items": [
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/4"
+                }
+            ],
+            "my_id": 4,
+            "my_date": "1977-01-21 00:00:00.000000",
+            "my_name": "4th row",
+            "my_comments": "This row was inserted as forth row.",
+            "_metadata": {
+                "etag": "84BAC0AE483E46465233AF89D22F5D2C4C1B8C7B16166198A08C196F713A9AEA"
+            }
+        },
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/5"
+                }
+            ],
+            "my_id": 5,
+            "my_date": "2021-03-01 00:00:00.000000",
+            "my_name": "5th row",
+            "my_comments": "",
+            "_metadata": {
+                "etag": "151AD09072695FAACAD4DAD5E0ED1D10B12C625BC17016856FEFB7E6F750AAB4"
+            }
+        },
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/6"
+                }
+            ],
+            "my_id": 6,
+            "my_date": "2023-01-21 00:00:00.000000",
+            "my_name": "6th row",
+            "my_comments": "...",
+            "_metadata": {
+                "etag": "7381F16EFF9E224D55D06055EEECB3B2EF4DD0435AC79EFD4B5FC53178E47904"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 3,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/table/"
+        }
+    ]
+}
+OK
+
+#
+# II.3
+GET /svc/basic/table?q={"my_comments":".."}
+{
+    "items": [],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/table/"
+        }
+    ]
+}
+OK
+
+#
+# II.4
+GET /svc/basic/table?q={"my_date":{"$gt":{"$date":"2000-01-01"}}}
+{
+    "items": [
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/5"
+                }
+            ],
+            "my_id": 5,
+            "my_date": "2021-03-01 00:00:00.000000",
+            "my_name": "5th row",
+            "my_comments": "",
+            "_metadata": {
+                "etag": "151AD09072695FAACAD4DAD5E0ED1D10B12C625BC17016856FEFB7E6F750AAB4"
+            }
+        },
+        {
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/table/6"
+                }
+            ],
+            "my_id": 6,
+            "my_date": "2023-01-21 00:00:00.000000",
+            "my_name": "6th row",
+            "my_comments": "...",
+            "_metadata": {
+                "etag": "7381F16EFF9E224D55D06055EEECB3B2EF4DD0435AC79EFD4B5FC53178E47904"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 2,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/table/"
+        }
+    ]
+}
+OK
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

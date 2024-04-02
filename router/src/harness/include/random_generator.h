@@ -55,7 +55,7 @@ class HARNESS_EXPORT RandomGeneratorInterface {
    *
    */
   virtual std::string generate_identifier(
-      unsigned length, unsigned alphabet_mask = AlphabetAll) = 0;
+      unsigned length, unsigned alphabet_mask = AlphabetAll) const = 0;
 
   /** @brief Generates a random password that adheres to the STRONG password
    * requirements:
@@ -85,14 +85,14 @@ class HARNESS_EXPORT RandomGenerator : public RandomGeneratorInterface {
  public:
   RandomGenerator() : urng(std::random_device().operator()()) {}
   std::string generate_identifier(
-      unsigned length, unsigned alphabet_mask = AlphabetAll) override;
+      unsigned length, unsigned alphabet_mask = AlphabetAll) const override;
   std::string generate_strong_password(unsigned length) override;
 };
 
 class HARNESS_EXPORT FakeRandomGenerator : public RandomGeneratorInterface {
  public:
   // returns "012345678901234567890123...", truncated to password_length
-  std::string generate_identifier(unsigned length, unsigned) override;
+  std::string generate_identifier(unsigned length, unsigned) const override;
   // returns "012345678901234567890123...", truncated to password_length
   std::string generate_strong_password(unsigned length) override;
 };

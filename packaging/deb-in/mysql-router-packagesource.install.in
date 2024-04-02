@@ -22,7 +22,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 usr/bin/mysqlrouter
+usr/bin/mysqlrouter_bootstrap
 usr/bin/mysqlrouter_keyring
+usr/bin/mysqlrouter_mrs_client
 usr/bin/mysqlrouter_plugin_info
 usr/bin/mysqlrouter_passwd
 usr/lib/mysqlrouter/plugin/connection_pool.so
@@ -41,9 +43,12 @@ usr/lib/mysqlrouter/plugin/rest_connection_pool.so
 usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
+usr/lib/mysqlrouter/plugin/mysql_rest_service.so
+
 # private shared libraries
 usr/lib/mysqlrouter/private/libprotobuf.so.24.4.0
 usr/lib/mysqlrouter/private/libabsl_*.so
+usr/lib/mysqlrouter/private/libhttp_client.so.1
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1

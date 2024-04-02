@@ -1,0 +1,183 @@
+# MySQL InnoDB Cluster schema created.
+# MySQL Rest Service schema created.
+# InnDBCluster `AR Single node setup` - created 
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+# Checking that version=1,0,12 is incompatible for bootstrap
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW
+mysql_rest_service_metadata.schema_version (major, minor, patch)
+AS SELECT 1,0,12;
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
+
+- Creating account(s) (only those that are needed, if any)
+- Verifying account (using it to run SQL queries that would be run by Router)
+- Storing account in keyring
+- Adjusting permissions of generated files
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+    $ mysqlrouter -c .../mysqlrouter.conf
+
+InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+Error: Unsupported MRS metadata version (1.0.12)
+# Checking that version=1,0,50 is incompatible for bootstrap
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW
+mysql_rest_service_metadata.schema_version (major, minor, patch)
+AS SELECT 1,0,50;
+# Reconfiguring MySQL Router instance at 'DIRECTORY'...
+
+- Fetching password for current account (mysql_router1_RANDOM) from keyring
+- Creating account(s) (only those that are needed, if any)
+-Using existing certificates from the 'TEMP_DIRECTORY' directory
+- Verifying account (using it to run SQL queries that would be run by Router)
+- Storing account in keyring
+- Adjusting permissions of generated files
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+    $ mysqlrouter -c .../mysqlrouter.conf
+
+InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+Error: Unsupported MRS metadata version (1.0.50)
+# Checking that version=1,1,0 is incompatible for bootstrap
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW
+mysql_rest_service_metadata.schema_version (major, minor, patch)
+AS SELECT 1,1,0;
+# Reconfiguring MySQL Router instance at 'DIRECTORY'...
+
+- Fetching password for current account (mysql_router1_RANDOM) from keyring
+- Creating account(s) (only those that are needed, if any)
+-Using existing certificates from the 'TEMP_DIRECTORY' directory
+- Verifying account (using it to run SQL queries that would be run by Router)
+- Storing account in keyring
+- Adjusting permissions of generated files
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+    $ mysqlrouter -c .../mysqlrouter.conf
+
+InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+Error: Unsupported MRS metadata version (1.1.0)
+# Checking that version=2,3,0 is incompatible for bootstrap
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW
+mysql_rest_service_metadata.schema_version (major, minor, patch)
+AS SELECT 2,3,0;
+# Reconfiguring MySQL Router instance at 'DIRECTORY'...
+
+- Fetching password for current account (mysql_router1_RANDOM) from keyring
+- Creating account(s) (only those that are needed, if any)
+-Using existing certificates from the 'TEMP_DIRECTORY' directory
+- Verifying account (using it to run SQL queries that would be run by Router)
+- Storing account in keyring
+- Adjusting permissions of generated files
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+    $ mysqlrouter -c .../mysqlrouter.conf
+
+InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+Error: Unsupported MRS metadata version (2.3.0)
+# Checking that version=2,3,1 is incompatible for bootstrap
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW
+mysql_rest_service_metadata.schema_version (major, minor, patch)
+AS SELECT 2,3,1;
+# Reconfiguring MySQL Router instance at 'DIRECTORY'...
+
+- Fetching password for current account (mysql_router1_RANDOM) from keyring
+- Creating account(s) (only those that are needed, if any)
+-Using existing certificates from the 'TEMP_DIRECTORY' directory
+- Verifying account (using it to run SQL queries that would be run by Router)
+- Storing account in keyring
+- Adjusting permissions of generated files
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+    $ mysqlrouter -c .../mysqlrouter.conf
+
+InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+Error: Unsupported MRS metadata version (2.3.1)
+DROP USER 'admin'@'%';
+# Removed bootstraped users: 1
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+DROP SCHEMA mysql_innodb_cluster_metadata;

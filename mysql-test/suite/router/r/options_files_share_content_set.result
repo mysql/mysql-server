@@ -1,0 +1,156 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+
+
+## I. Show that files tested in next steps doesn't exist
+#
+# 1. request files on service level
+# 2. request files on schema level
+# 3. request files on object level
+#
+## II. Modify option on schema level
+#
+# 1. add files
+# 2. add indexes
+# 3. add redirect
+# 4. remove all
+#
+
+# Registred SERVICE at path: /svc1
+# Registred CONTENT_SET at path: /svc1/sch1
+SET @schema_id1=@content_set_id;
+# Registred CONTENT_FILE at path: /svc1/sch1/obj1
+# Registred SERVICE at path: /svc2
+SET @service_id2=@service_id;
+# Registred CONTENT_SET at path: /svc2/sch2
+SET @schema_id2=@content_set_id;
+# Registred CONTENT_FILE at path: /svc2/sch2/obj2
+
+#
+# I.1
+GET /svc2
+Not Found(404)
+GET /svc2/
+Not Found(404)
+GET /svc2/index.html
+Not Found(404)
+GET /svc2/other.html
+Not Found(404)
+GET /svc2/redirect.html
+Not Found(404)
+
+#
+# I.2
+GET /svc2/sch2
+Not Found(404)
+GET /svc2/sch2/
+Not Found(404)
+GET /svc2/sch2/index.html
+Not Found(404)
+GET /svc2/sch2/other.html
+Not Found(404)
+GET /svc2/sch2/redirect.html
+Not Found(404)
+
+#
+# I.3
+GET /svc2/sch2/obj2/index.html
+Not Found(404)
+GET /svc2/sch2/obj2/other.html
+Not Found(404)
+GET /svc2/sch2/obj2/redirect.html
+Not Found(404)
+
+#
+# II.1
+GET /svc2/sch2
+Not Found(404)
+GET /svc2/sch2/
+Not Found(404)
+GET /svc2/sch2/redirect.html
+Not Found(404)
+GET /svc2/sch2/index.html
+first page
+OK
+GET /svc2/sch2/other.html
+second page
+OK
+
+#
+# II.2
+## Check Directory Index generation
+GET /svc2/sch2
+second page
+OK
+GET /svc2/sch2/
+second page
+OK
+GET /svc2/sch2/redirect.html
+Not Found(404)
+GET /svc2/sch2/index.html
+first page
+OK
+GET /svc2/sch2/other.html
+second page
+OK
+
+#
+# II.3
+## Check Redirect generation
+GET /svc2/sch2
+second page
+OK
+GET /svc2/sch2/
+second page
+OK
+GET /svc2/sch2/redirect.html
+Temporary Redirect(307)
+Date -> %DATE%
+Content-Type  ->  text/html; charset=ISO-8859-1
+Location  ->  /svc1/sch1/obj1/1
+Content-Length  ->  0
+GET /svc2/sch2/index.html
+first page
+OK
+GET /svc2/sch2/other.html
+second page
+OK
+
+#
+# II.4
+## Check that all files are removed
+GET /svc2
+Not Found(404)
+GET /svc2/
+Not Found(404)
+GET /svc2/sch2
+Not Found(404)
+GET /svc2/sch2/
+Not Found(404)
+GET /svc2/index.html
+Not Found(404)
+GET /svc2/other.html
+Not Found(404)
+GET /svc2/redirect.html
+Not Found(404)
+GET /svc2/sch2/index.html
+Not Found(404)
+GET /svc2/sch2/other.html
+Not Found(404)
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

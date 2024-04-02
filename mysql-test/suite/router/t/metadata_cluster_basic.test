@@ -1,0 +1,59 @@
+--source include/have_router.inc
+--source include/have_group_replication_plugin.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root_with_gr.inc
+--source ../include/schema/basic_schema.sql
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/t2
+--source ../include/mrs/db_object/add.inc
+
+--source include/rpl/sync.inc
+
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
+
+#TODO investigate, change of behavior from NULL to existing object.
+#--exec $MRS_CLIENT_ARGS --path /svc/basic/t1 --wait-until-found=60  --request-type post --payload '{"id":1010}'
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1 --wait-until-found=60
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/2 --expected-status 404
+exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
+  --request-type delete
+  --exclude-json-pointer /_metadata/gtid;
+--source include/rpl/sync.inc
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20 --expected-status 404
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/200 --expected-status 404
+exec $MRS_CLIENT_ARGS --path /svc/basic/t2
+  --request-type post
+  --exclude-json-pointer /_metadata/gtid
+  --payload '{"id":3000, "name":"PUT item", "date":"1920-12-1"}';
+--source include/rpl/sync.inc
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3000
+
+# Cleanup
+--source ../include/innodb_cluster/cleanup.inc
+--source ../include/mrs/cleanup.inc
+--source include/rpl/sync.inc
+--source include/group_replication_end.inc

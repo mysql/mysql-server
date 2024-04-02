@@ -1,0 +1,120 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+CREATE TABLE IF NOT EXISTS test.type_boolean(id INT AUTO_INCREMENT NOT NULL,  name VARCHAR(5), is_active BOOL, PRIMARY KEY (id));
+CREATE TABLE IF NOT EXISTS test.type_tinyint1(id INT AUTO_INCREMENT NOT NULL, name VARCHAR(5), is_active TINYINT(1), PRIMARY KEY (id));
+CREATE TABLE IF NOT EXISTS test.type_bit1(id INT AUTO_INCREMENT NOT NULL,     name VARCHAR(5), is_active BIT(1), PRIMARY KEY (id));
+CREATE TABLE IF NOT EXISTS test.type_tinyint2(id INT AUTO_INCREMENT NOT NULL, name VARCHAR(5), is_active TINYINT(2), PRIMARY KEY (id));
+CREATE TABLE IF NOT EXISTS test.type_bit2(id INT AUTO_INCREMENT NOT NULL,     name VARCHAR(5), is_active BIT(2), PRIMARY KEY (id));
+
+INSERT INTO test.type_boolean(name, is_active)  VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_tinyint1(name, is_active) VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_bit1(name, is_active)     VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_tinyint2(name, is_active) VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", TRUE), ("FALSE", FALSE);
+
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding/decoding of MYSQL ALIAS BOOLEAN to JSON value
+--echo # 1. Verify that MRS encodes MYSQL BOOLEAN type into JSON NUMERIC value in response docuemnts
+--echo # 2. Verify that documents may be filtere on MYSQL BOOLEAN column/type using JSON NUMERIC value
+--echo # 3. Verify that documents can't filtere on MYSQL BOOLEAN column/type using JSON BOOLEAN value
+--echo #
+--echo ## II. Verify JSON encoding/decoding of MYSQL TINYINT(1) to JSON value
+--echo # 1. Verify that MRS encodes MYSQL TINYINT(1) type into JSON NUMERIC value in response docuemnts
+--echo # 2. Verify that documents may be filtere on MYSQL TINYINT(1) column/type using JSON NUMERIC value
+--echo # 3. Verify that documents can't filtere on MYSQL TINYINT(1) column/type using JSON BOOLEAN value
+--echo #
+--echo ## III. Verify JSON encoding/decoding of MYSQL BIT(1) to JSON value
+--echo # 1. Verify that MRS encodes MYSQL BIT(1) type into JSON BOOLEAN value in response docuemnts
+--echo # 2. Verify that documents may be filtere on MYSQL BIT(1) column/type using JSON NUMERIC value
+--echo # 3. Verify that documents may filtere on MYSQL BIT(1) column/type using JSON BOOLEAN value
+--echo #
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=test
+--let $mrs_add_schema_path=/test
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=type_boolean
+--let $mrs_add_db_object_path=/boolean
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=type_bit1
+--let $mrs_add_db_object_path=/bit1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=type_tinyint1
+--let $mrs_add_db_object_path=/tinyint1
+--source ../include/mrs/db_object/add.inc
+
+
+--exec $MRS_CLIENT_ARGS --path /svc/test/boolean/1 --wait-until-found 60 --display none
+
+--let $MRS_CLIENT_ARGS_EXCLUDE=$MRS_CLIENT_ARGS --exclude-json-pointer /items/*/links,/items/*/_metadata,/links,/limit,/offset,/hasMore,/count
+
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/boolean 
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/boolean?q={\"is_active\":0}
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/boolean?q={\"is_active\":1}
+--echo
+--echo #
+--echo # I.3
+--exec $MRS_CLIENT_ARGS --path /svc/test/boolean?q={\"is_active\":true} --expected-status 400
+--exec $MRS_CLIENT_ARGS --path /svc/test/boolean?q={\"is_active\":false} --expected-status 400
+
+--echo
+--echo #
+--echo # II.1
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/tinyint1 
+
+--echo
+--echo #
+--echo # II.2
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/tinyint1?q={\"is_active\":0}
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/tinyint1?q={\"is_active\":1}
+--echo
+--echo #
+--echo # II.3
+--exec $MRS_CLIENT_ARGS --path /svc/test/tinyint1?q={\"is_active\":true} --expected-status 400
+--exec $MRS_CLIENT_ARGS --path /svc/test/tinyint1?q={\"is_active\":false} --expected-status 400
+
+
+--echo
+--echo #
+--echo # III.1
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1 
+
+--echo
+--echo #
+--echo # III.2
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":0}
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":1}
+--echo
+--echo #
+--echo # III.3
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":true} 
+--exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":false} 
+
+# Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.sch
+DROP TABLE test.type_boolean;
+DROP TABLE test.type_tinyint1;
+DROP TABLE test.type_bit1;
+DROP TABLE test.type_tinyint2;
+DROP TABLE test.type_bit2;
+--source ../include/mrs/cleanup.inc

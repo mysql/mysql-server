@@ -1253,7 +1253,7 @@ function get_response(stmt_key, options) {
         stmt_regex:
             "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
             options["router_version"] +
-            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_gr_clusters where cluster_id = '.*'",
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_gr_clusters where cluster_id = \".*\"",
         result: {
           columns: [{
             "type": "LONGLONG",
@@ -1267,7 +1267,7 @@ function get_response(stmt_key, options) {
         stmt_regex:
             "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
             options["router_version"] +
-            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_ar_clusters where cluster_id = '.*'",
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_ar_clusters where cluster_id = \".*\"",
         result: {
           columns: [{
             "type": "LONGLONG",
@@ -1281,7 +1281,7 @@ function get_response(stmt_key, options) {
         stmt_regex:
             "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
             options["router_version"] +
-            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = '.*'",
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = \".*\"",
         result: {
           columns: [{
             "type": "LONGLONG",

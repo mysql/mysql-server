@@ -26,6 +26,7 @@
 #include "mysqlrouter/mysql_session.h"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <functional>
 #include <map>
@@ -33,7 +34,8 @@
 #include <sstream>
 #include <string>
 
-#include <mysql.h>
+#include "mysql.h"
+#include "violite.h"
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
@@ -117,6 +119,10 @@ class SSLSessionsCache {
 
   static constexpr size_t kMaxEntriesPerEndpoint{2};
 };
+
+using MysqlSessionTrackGet = int (*)(MYSQL *mysql,
+                                     enum enum_session_state_type type,
+                                     const char **data, size_t *length);
 
 }  // namespace
 
@@ -344,7 +350,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
                            const std::string &password,
                            const std::string &unix_socket,
                            const std::string &default_schema,
-                           int connect_timeout, int read_timeout) {
+                           int connect_timeout, int read_timeout,
+                           unsigned long extra_client_flags) {
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   connected_ = false;
 
@@ -364,7 +371,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
 
   const unsigned long client_flags =
       (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
-       CLIENT_MULTI_RESULTS);
+       CLIENT_MULTI_RESULTS | extra_client_flags);
   std::string endpoint_str =
       !unix_socket.empty() ? unix_socket : host + ":" + std::to_string(port);
 
@@ -415,7 +422,31 @@ void MySQLSession::connect(const MySQLSession &other,
   connect(other.connect_params_.host, other.connect_params_.port, username,
           password, other.connect_params_.unix_socket,
           other.connect_params_.unix_socket, other.connect_timeout(),
-          other.read_timeout());
+          other.read_timeout(), 0);
+}
+
+void MySQLSession::reset() {
+  if (mysql_reset_connection(connection_)) {
+    std::stringstream ss;
+    ss << "Error while resetting session, MySQL server at "
+       << connection_address_;
+    ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
+       << ")";
+    throw Error(ss.str(), mysql_errno(connection_));
+  }
+}
+
+void MySQLSession::change_user(const std::string &user,
+                               const std::string &password,
+                               const std::string &db) {
+  if (mysql_change_user(connection_, user.c_str(), password.c_str(),
+                        db.c_str())) {
+    std::stringstream ss;
+    ss << "Error while changing user, MySQL server at " << connection_address_;
+    ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
+       << ")";
+    throw Error(ss.str(), mysql_errno(connection_));
+  }
 }
 
 void MySQLSession::disconnect() {
@@ -476,6 +507,8 @@ stdx::expected<MySQLSession::mysql_result_type, MysqlError>
 MySQLSession::logged_real_query(const std::string &q) {
   using clock_type = std::chrono::steady_clock;
 
+  if (!logging_strategy_) return real_query(q);
+
   auto start = clock_type::now();
   auto query_res = real_query(q);
   auto dur = clock_type::now() - start;
@@ -499,6 +532,163 @@ MySQLSession::logged_real_query(const std::string &q) {
   logging_strategy_->log(msg);
 
   return query_res;
+}
+
+uint64_t MySQLSession::prepare(const std::string &query) {
+  auto current = last_stmt_id++;
+  auto stmt = stmts_[current] = mysql_stmt_init(connection_);
+  if (mysql_stmt_prepare(stmt, query.c_str(), query.length())) {
+    // non zero is an error.
+    auto err_no = mysql_stmt_errno(stmt);
+    auto err_msg = mysql_stmt_error(stmt);
+    std::stringstream ss;
+    ss << "Error preparing MySQL query \"" << log_filter_.filter(query);
+    ss << "\": " << err_msg << " (" << err_no << ")";
+    prepare_remove(current);
+    throw Error(ss.str(), err_no, err_msg);
+  }
+
+  return current;
+}
+
+char *allocate_buffer(MYSQL_BIND *bind) {
+  const int k_string_size = 1000;
+  char *buffer = nullptr;
+  switch (bind->buffer_type) {
+    case MYSQL_TYPE_STRING:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * k_string_size];
+      break;
+
+    case MYSQL_TYPE_LONGLONG:
+      bind->buffer = buffer =
+          new char[bind->buffer_length = 2 * sizeof(long long)];
+      break;
+
+    case MYSQL_TYPE_DOUBLE:
+      bind->buffer = buffer =
+          new char[bind->buffer_length = 2 * sizeof(double)];
+      break;
+    case MYSQL_TYPE_BOOL:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * sizeof(int)];
+      break;
+    case MYSQL_TYPE_LONG:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * sizeof(long)];
+      break;
+    case MYSQL_TYPE_TIMESTAMP:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * k_string_size];
+      break;
+
+    default:
+      assert(nullptr && "should not happen");
+  }
+  return buffer;
+}
+
+class StmtResultRow : public MySQLSession::ResultRow {
+ public:
+  StmtResultRow(MySQLSession::Row row, unsigned long *sizes)
+      : ResultRow(row), sizes_{sizes} {}
+  virtual size_t get_data_size(size_t i) const override { return sizes_[i]; }
+
+ private:
+  unsigned long *sizes_;
+};
+
+void MySQLSession::throw_mysqlerror(MYSQL_STMT *stmt, uint64_t ps_id) {
+  // non zero is an error.
+  auto err_no = mysql_stmt_errno(stmt);
+  auto err_msg = mysql_stmt_error(stmt);
+  std::stringstream ss;
+  ss << "Error executing prepared statement with id:" << ps_id;
+  ss << "\": " << err_msg << " (" << err_no << ")";
+  throw Error(ss.str(), err_no, err_msg);
+}
+
+void MySQLSession::prepare_execute(uint64_t ps_id,
+                                   std::vector<enum_field_types> pt,
+                                   const ResultRowProcessor &processor,
+                                   const FieldValidator &validator) {
+  std::vector<std::unique_ptr<char[]>> buffers;
+  std::unique_ptr<MYSQL_BIND[]> ps_params{new MYSQL_BIND[pt.size() + 1]};
+  auto bind = ps_params.get();
+  auto stmt = stmts_[ps_id];
+
+  memset(ps_params.get(), 0, sizeof(MYSQL_BIND) * pt.size());
+
+  for (auto type : pt) {
+    bind->buffer_type = type;
+    buffers.emplace_back(allocate_buffer(bind));
+    ++bind;
+  }
+
+  if (mysql_stmt_bind_param(stmt, ps_params.get())) {
+    // non zero is an error.
+    auto err_no = mysql_stmt_errno(stmt);
+    auto err_msg = mysql_stmt_error(stmt);
+    std::stringstream ss;
+    ss << "Binding output-parameters for stmt id:" << ps_id;
+    ss << "\": " << err_msg << " (" << err_no << ")";
+    throw Error(ss.str(), err_no, err_msg);
+  }
+
+  // non zero is an error.
+  if (mysql_stmt_execute(stmt)) {
+    throw_mysqlerror(stmt, ps_id);
+  }
+
+  int status;
+  do {
+    unsigned int nfields = mysql_stmt_field_count(stmt);
+    MYSQL_RES *rs_metadata = mysql_stmt_result_metadata(stmt);
+    MYSQL_FIELD *fields =
+        rs_metadata ? mysql_fetch_fields(rs_metadata) : nullptr;
+    std::unique_ptr<MYSQL_BIND[]> my_bind{new MYSQL_BIND[nfields]};
+    std::unique_ptr<unsigned long[]> length{new unsigned long[nfields]};
+    std::unique_ptr<bool[]> is_null{new bool[nfields]};
+    memset(my_bind.get(), 0, sizeof(MYSQL_BIND) * nfields);
+
+    validator(nfields, fields);
+    for (unsigned int i = 0; i < nfields; ++i) {
+      size_t max_length =
+          std::max<unsigned long>(fields[i].max_length + 1, 1000);
+      my_bind[i].buffer_type = MYSQL_TYPE_STRING;
+      my_bind[i].buffer = new char[max_length];
+      my_bind[i].buffer_length = static_cast<unsigned long>(max_length);
+      my_bind[i].is_null = &is_null[i];
+      my_bind[i].length = &length[i];
+    }
+
+    mysql_stmt_bind_result(stmt, my_bind.get());
+
+    std::vector<const char *> outrow;
+    outrow.resize(nfields);
+    while (true) {
+      status = mysql_stmt_fetch(stmt);
+      if (status == 1 || status == MYSQL_NO_DATA) break;
+      for (unsigned int i = 0; i < nfields; i++) {
+        outrow[i] = *my_bind[i].is_null
+                        ? nullptr
+                        : reinterpret_cast<const char *>(my_bind[i].buffer);
+      }
+      StmtResultRow stmt_result{outrow, length.get()};
+      if (!processor(stmt_result)) break;
+    }
+    mysql_free_result(rs_metadata);
+    for (unsigned int i = 0; i < nfields; ++i) {
+      delete[] reinterpret_cast<char *>(my_bind[i].buffer);
+    }
+    status = mysql_stmt_next_result(stmt);
+  } while (status == 0);
+
+  if (status == MYSQL_NO_DATA) return;
+  if (status == CR_NO_RESULT_SET) return;
+
+  throw_mysqlerror(stmt, ps_id);
+}
+
+void MySQLSession::prepare_remove(uint64_t ps_id) {
+  mysql_stmt_close(stmts_[ps_id]);
+  stmts_.erase(ps_id);
 }
 
 void MySQLSession::execute(const std::string &q) {
@@ -529,6 +719,33 @@ void MySQLSession::execute(const std::string &q) {
 void MySQLSession::query(
     const std::string &q, const RowProcessor &processor,
     const FieldValidator &validator /*=null_field_validator*/) {
+  ResultRowProcessor callback = [&processor](const ResultRow &rr) {
+    return processor(rr.row_);
+  };
+  query(q, callback, validator);
+}
+
+class RealResultRow : public MySQLSession::ResultRow {
+ public:
+  RealResultRow(MySQLSession::Row row, MYSQL_RES *res, bool delete_res = true)
+      : ResultRow(std::move(row)), res_(res), delete_res_{delete_res} {}
+
+  ~RealResultRow() override {
+    if (delete_res_) mysql_free_result(res_);
+  }
+  size_t get_data_size(size_t i) const override {
+    log_debug("Session::get_data_size");
+    return mysql_fetch_lengths(res_)[i];
+  }
+
+ private:
+  MYSQL_RES *res_;
+  bool delete_res_;
+};
+
+void MySQLSession::query(const std::string &q,
+                         const ResultRowProcessor &processor,
+                         const FieldValidator &validator) {
   auto query_res = logged_real_query(q);
 
   if (!query_res) {
@@ -558,20 +775,10 @@ void MySQLSession::query(
     for (unsigned int i = 0; i < nfields; i++) {
       outrow[i] = row[i];
     }
-    if (!processor(outrow)) break;
+    RealResultRow result{outrow, res, false};
+    if (!processor(result)) break;
   }
 }
-
-class RealResultRow : public MySQLSession::ResultRow {
- public:
-  RealResultRow(MySQLSession::Row row, MYSQL_RES *res)
-      : ResultRow(std::move(row)), res_(res) {}
-
-  ~RealResultRow() override { mysql_free_result(res_); }
-
- private:
-  MYSQL_RES *res_;
-};
 
 std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
     const std::string &q,
@@ -617,6 +824,32 @@ uint64_t MySQLSession::last_insert_id() noexcept {
   return mysql_insert_id(connection_);
 }
 
+uint64_t MySQLSession::affected_rows() noexcept {
+  return mysql_affected_rows(connection_);
+}
+
+bool MySQLSession::ping() { return 0 == mysql_ping(connection_); }
+
+bool MySQLSession::has_data_on_socket() {
+  return 0 < vio_io_wait(connection_->net.vio, VIO_IO_EVENT_READ, 0);
+}
+
+std::vector<std::string> MySQLSession::get_session_tracker_data(
+    enum enum_session_state_type type) {
+  std::vector<std::string> result;
+  const char *data;
+  size_t data_length;
+
+  MysqlSessionTrackGet st_get = mysql_session_track_get_first;
+
+  while (!st_get(connection_, type, &data, &data_length)) {
+    result.emplace_back(data, data_length);
+    st_get = mysql_session_track_get_next;
+  }
+
+  return result;
+}
+
 unsigned MySQLSession::warning_count() noexcept {
   return mysql_warning_count(connection_);
 }
@@ -632,6 +865,9 @@ std::string MySQLSession::quote(const std::string &s, char qchar) const {
   return r;
 }
 
+const char *MySQLSession::last_sqlstate() {
+  return connection_ ? mysql_sqlstate(connection_) : nullptr;
+}
 const char *MySQLSession::last_error() {
   return connection_ ? mysql_error(connection_) : nullptr;
 }

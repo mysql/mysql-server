@@ -60,6 +60,8 @@ struct ClusterInfo;
 
 class ConfigGenerator {
  public:
+  enum class TargetType { InnoDBCluster, Standalone };
+
   ConfigGenerator(
       std::ostream &out_stream = std::cout, std::ostream &err_stream = std::cerr
 #ifndef _WIN32
@@ -74,44 +76,52 @@ class ConfigGenerator {
    * This function does a lot of initialisation before bootstrap starts making
    * changes.
    *
-   * @param server_url server to bootstrap from
-   * @param bootstrap_options bootstrap options
-   *
    * @throws std::runtime_error
    */
-  void init(const std::string &server_url,
-            const std::map<std::string, std::string> &bootstrap_options);
+  void init(const std::map<std::string, std::string> &bootstrap_options,
+            const mysqlrouter::URI &uri, mysqlrouter::MySQLSession *session,
+            int connect_timeout, int read_timeout);
 
-  /** @brief logs warning and returns false if SSL mode is set to PREFERRED and
-   *         SSL is not being used, true otherwise
+  bool check_target(const std::map<std::string, std::string> &bootstrap_options,
+                    bool allow_no_metadata = false);
+
+  /** @brief logs warning and returns false if SSL mode is set to PREFERRED
+   * and SSL is not being used, true otherwise
    *
    * @param options map of commandline options
    *
-   * @returns false if SSL mode is set to PREFERRED and SSL is not being used,
-   *          true otherwise
+   * @returns false if SSL mode is set to PREFERRED and SSL is not being
+   * used, true otherwise
    *
    * @throws std::runtime_error
    */
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options);
+
+  std::string config_file_path_for_directory(const std::string &directory);
+  bool needs_bootstrap(const std::string &config_file_path);
 
   void bootstrap_system_deployment(
       const std::string &program_name, const std::string &config_file_path,
       const std::string &state_file_path,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
-      const std::map<std::string, std::string> &default_paths);
+      const std::map<std::string, std::string> &default_paths,
+      bool standalone = false);
 
   void bootstrap_directory_deployment(
       const std::string &program_name, const std::string &directory,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
-      const std::map<std::string, std::string> &default_paths);
+      const std::map<std::string, std::string> &default_paths,
+      bool standalone = false);
 
   void set_keyring_info(const KeyringInfo &keyring_info) {
     keyring_info_ = keyring_info;
   }
 
   void set_plugin_folder(const std::string &val) { plugin_folder_ = val; }
+
+  bool is_standalone_target() const { return standalone_target_; }
 
   struct Options {
     struct Endpoint {
@@ -191,23 +201,6 @@ class ConfigGenerator {
    */
   void parse_bootstrap_options(
       const std::map<std::string, std::string> &bootstrap_options);
-
-  /**
-   * init() calls this to validate and extract metadata server info from server
-   * URI, including user credentials.  It will also:
-   * - set user name to "root" if not provided in the URI
-   * - prompt for user password if not provided in the URI
-   *
-   * @param server_uri server URI (--bootstrap|-B argument)
-   * @param bootstrap_socket bootstrap (unix) socket (--bootstrap-socket
-   * argumenent)
-   *
-   * @returns URI with required information
-   *
-   * @throws std::runtime_error on an invalid data
-   */
-  URI parse_server_uri(const std::string &server_uri,
-                       const std::string &bootstrap_socket);
 
   /**
    * init() calls this to connect to metadata server; sets mysql_ (connection)
@@ -451,9 +444,6 @@ class ConfigGenerator {
 
   void init_keyring_file(uint32_t router_id, bool create_if_needed = true);
 
-  static void set_ssl_options(
-      MySQLSession *sess, const std::map<std::string, std::string> &options);
-
   void ensure_router_id_is_ours(uint32_t &router_id,
                                 const std::string &hostname_override);
 
@@ -499,10 +489,14 @@ class ConfigGenerator {
       const mysql_harness::Directory &dir) const;
 
  private:
-  std::unique_ptr<MySQLSession> mysql_;
+  URI target_uri_;
+  std::string bootstrap_socket_;
+
+  MySQLSession *mysql_ = nullptr;
   std::unique_ptr<ClusterMetadata> metadata_;
   int connect_timeout_;
   int read_timeout_;
+  bool standalone_target_ = false;
 
   // For GR cluster Group Replication ID, for AR cluster cluster_id from the
   // metadata, for ClusterSet clusterset_id

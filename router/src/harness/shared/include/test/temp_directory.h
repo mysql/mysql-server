@@ -35,10 +35,12 @@ class TempDirectory {
   explicit TempDirectory(const std::string &prefix = "router")
       : name_{mysql_harness::get_tmp_dir(prefix)} {}
 
-  ~TempDirectory() { mysql_harness::delete_dir_recursive(name_); }
+  ~TempDirectory() {
+    //    mysql_harness::delete_dir_recursive(name_);
+  }
 
   void reset(const std::string &name) {
-    mysql_harness::delete_dir_recursive(name_);
+    //    mysql_harness::delete_dir_recursive(name_);
     name_ = name;
   }
   std::string name() const { return name_; }

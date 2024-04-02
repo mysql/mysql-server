@@ -1,0 +1,119 @@
+# Validate the resulting REST objects for multiple results with out parameters
+#
+# The test creates stored procedures that return multiple resultsets and output
+# parameters. Those resultsets are translated into json-object which each resultset
+# is enclosed inside "items","items2".... fields, output parameters must be enclosed
+# inside "itemsOut". 
+#
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/procedures_schema.sql
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Encode multiple resultsets into FEED response:
+--echo #
+--echo # 1. Verify response for SP that returns single resultset
+--echo #    into "items" field.
+--echo # 2. Verify response for SP that returns two resultsets
+--echo #    into "items" and "items2" fields.
+--echo # 3. Verify response for SP that returns three resultsets
+--echo #    into "items","items2","items3" fields.
+--echo #
+--echo ## II. Encode multiple resultsets with outparams into FEED response:
+--echo #
+--echo # 1. Verify response for SP that returns only output parameters
+--echo #    encoded into "itemsOut" field.
+--echo # 2. Verify response for SP that returns a resultset and output
+--echo #    parameters encoded into "items" and "itemsOut" fields.
+--echo #
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=proc_schema
+--let $mrs_add_schema_path=/proc
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=one_resultset
+--let $mrs_add_db_object_path=/one
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=two_resultsets
+--let $mrs_add_db_object_path=/two
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=three_resultsets
+--let $mrs_add_db_object_path=/three
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=no_resultset_out_param
+--let $mrs_add_db_object_path=/out
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=one_resultset_out_param
+--let $mrs_add_db_object_path=/one_and_out
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--echo
+--echo #
+--echo # I.1
+# Wait until the DB_OBJECTS are fetched by router.
+# Print more important fields, which values should be verified by
+# "result" file. The general verification of the response is done by
+# JSON schema.
+exec $MRS_CLIENT_ARGS
+  --wait-until-found 60 -t PUT --payload "{}"
+  --json-pointer /items/*/items/*/name,/items/*/_metadata
+  --json-schema $SCHEMA_DIR/items_not_empty_unlimited.sch
+  --path /svc/proc/one;
+
+--echo
+--echo #
+--echo # I.2
+# Print more important fields, which values should be verified by
+# "result" file. The general verification of the response is done by
+# JSON schema.
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/two;
+  
+  --echo
+--echo #
+--echo # I.3
+# Print more important fields, which values should be verified by
+# "result" file. The general verification of the response is done by
+# JSON schema.
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/three;
+
+
+--echo
+--echo #
+--echo # II.1
+# Print more important fields, which values should be verified by
+# "result" file. The general verification of the response is done by
+# JSON schema.
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/out;
+
+--echo
+--echo #
+--echo # II.2
+# Print more important fields, which values should be verified by
+# "result" file. The general verification of the response is done by
+# JSON schema.
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/one_and_out;
+
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

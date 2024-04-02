@@ -1,0 +1,76 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `paging_schema` - created
+
+
+## I. Achive the faulty state by altering valid object
+#
+# 1. Create db_schema (null in items_on_page), create db_object
+#    assigned to the schema (2 in items_on_page). Validate that
+#    the object returns two items in signle REST request.
+# 2. Alter the db_objects items_on_page to contain null, this way
+#    the object doesn't have any value and must use application
+#    default. Validate that (application default is 25) the object
+#    returns twenty five items in signle REST request.
+#
+## II. Achive the faulty state at db_object creation
+#
+# 1. Create faulty object (items_on_page = null) on previous defined
+#    schema and validate that application default is used.
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/paging
+
+#
+# I.1
+# Registred DB_OBJECT at path: /svc/paging/m2
+GET /svc/paging/m2
+{
+    "limit": 2,
+    "offset": 0,
+    "hasMore": true,
+    "count": 2
+}
+OK
+
+#
+# I.2
+UPDATE `mysql_rest_service_metadata`.`db_object`
+  SET request_path="/m25", items_per_page=NULL
+WHERE request_path="/m2";
+GET /svc/paging/m25
+{
+    "limit": 25,
+    "offset": 0,
+    "hasMore": true,
+    "count": 25
+}
+OK
+
+#
+# II.1
+# Registred DB_OBJECT at path: /svc/paging/l101
+GET /svc/paging/l101
+{
+    "limit": 25,
+    "offset": 0,
+    "hasMore": true,
+    "count": 25
+}
+OK
+DROP SCHEMA paging_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

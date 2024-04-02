@@ -1,0 +1,34 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t1
+GET /svc/basic/t1/1
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+GET /svc/basic/t1?limit=2
+{
+    "message": "Internal Error",
+    "status": 500
+}
+OK
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

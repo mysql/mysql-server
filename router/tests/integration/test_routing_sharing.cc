@@ -48,6 +48,7 @@
 
 #include <rapidjson/pointer.h>
 
+#include "helper/mysql_server_test_env.h"
 #include "hexify.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -73,7 +74,6 @@
 #include "scope_guard.h"
 #include "shared_server.h"
 #include "stdx_expected_no_error.h"
-#include "tcp_port_pool.h"
 #include "test/temp_directory.h"
 
 using namespace std::string_literals;
@@ -690,85 +690,7 @@ class SharedRestartableRouter {
   bool is_running_{false};
 };
 
-/* test environment.
- *
- * spawns servers for the tests.
- */
-class TestEnv : public ::testing::Environment {
- public:
-  void SetUp() override {
-    auto account = SharedServer::admin_account();
-
-    for (auto [ndx, s] : stdx::views::enumerate(shared_servers_)) {
-      if (s != nullptr) continue;
-      s = new SharedServer(port_pool_);
-      s->prepare_datadir();
-      s->spawn_server();
-
-      if (s->mysqld_failed_to_start()) {
-        GTEST_SKIP() << "mysql-server failed to start.";
-      }
-      s->setup_mysqld_accounts();
-
-      auto cli = new MysqlClient;
-
-      cli->username(account.username);
-      cli->password(account.password);
-
-      auto connect_res = cli->connect(s->server_host(), s->server_port());
-      ASSERT_NO_ERROR(connect_res);
-
-      admin_clis_[ndx] = cli;
-    }
-
-    run_slow_tests_ = std::getenv("RUN_SLOW_TESTS") != nullptr;
-  }
-
-  std::array<SharedServer *, 4> servers() { return shared_servers_; }
-  std::array<MysqlClient *, 4> admin_clis() { return admin_clis_; }
-
-  TcpPortPool &port_pool() { return port_pool_; }
-
-  [[nodiscard]] bool run_slow_tests() const { return run_slow_tests_; }
-
-  void TearDown() override {
-    for (auto &cli : admin_clis_) {
-      if (cli == nullptr) continue;
-
-      delete cli;
-
-      cli = nullptr;
-    }
-
-    for (auto &s : shared_servers_) {
-      if (s == nullptr || s->mysqld_failed_to_start()) continue;
-
-      EXPECT_NO_ERROR(s->shutdown());
-    }
-
-    for (auto &s : shared_servers_) {
-      if (s == nullptr || s->mysqld_failed_to_start()) continue;
-
-      EXPECT_NO_ERROR(s->process_manager().wait_for_exit());
-    }
-
-    for (auto &s : shared_servers_) {
-      if (s != nullptr) delete s;
-
-      s = nullptr;
-    }
-
-    SharedServer::destroy_statics();
-  }
-
- protected:
-  TcpPortPool port_pool_;
-
-  std::array<SharedServer *, 4> shared_servers_{};
-  std::array<MysqlClient *, 4> admin_clis_{};
-
-  bool run_slow_tests_{false};
-};
+using TestEnv = MySQLServerTestEnv<4, SharedServer>;
 
 TestEnv *test_env{};
 
@@ -850,7 +772,7 @@ class ShareConnectionTestBase : public RouterComponentTest {
     for (auto [ndx, s] : stdx::views::enumerate(test_env->servers())) {
       if (ndx >= kNumServers) break;
 
-      o[ndx] = s;
+      o[ndx] = s.get();
     }
 
     return o;
@@ -863,7 +785,7 @@ class ShareConnectionTestBase : public RouterComponentTest {
     for (auto [ndx, s] : stdx::views::enumerate(test_env->admin_clis())) {
       if (ndx >= kNumServers) break;
 
-      o[ndx] = s;
+      o[ndx] = s.get();
     }
 
     return o;
