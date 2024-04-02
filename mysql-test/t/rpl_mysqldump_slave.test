@@ -15,9 +15,15 @@ use test;
 
 connection slave;
 
+--source include/rpl/save_binlog_file_position.inc
+
 # Execute mysqldump with --dump-replica
 --replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=BINLOG_START/
 --exec $MYSQL_DUMP_SLAVE --compact --dump-replica test
+
+--echo # Bug #35665076: there should be no binlog events
+--let $event_sequence= ()
+--source include/rpl/assert_binlog_events.inc
 
 # Execute mysqldump with --dump-replica and --apply-replica-statements 
 --replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=BINLOG_START/
