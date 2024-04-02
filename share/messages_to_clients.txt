@@ -10488,6 +10488,9 @@ ER_EXPLAIN_ANALYZE_JSON_FORMAT_VERSION_NOT_SUPPORTED 0A000
 ER_NON_DML_DYNAMIC_PARAMETERS
   eng "Dynamic parameters can only be used in DML statements."
 
+ER_TP_CANNOT_DISABLE_MTL_WITH_DL
+  eng "The variable thread_pool_max_transactions_limit cannot be set to 0 when thread_pool_dedicated_listernes is ON."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
