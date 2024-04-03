@@ -13,7 +13,7 @@
 #################################################
 
 call mtr.add_suppression("Replica: Unknown table 'test.t6' Error_code: 1051");
-call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("Replica SQL.*Column [0-9] .* of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo **** Diff Table Def Start ****

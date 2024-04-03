@@ -65,9 +65,9 @@ include/rpl/start_replica.inc
 include/suppress_messages.inc
 # Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 1 columns,>.
 # Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 4 columns>.
-# Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Column 2 of table 'test.t1' cannot be converted from type>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Column 3 .* of table 'test.t1' cannot be converted from type>.
 # Connection 2 suppresses message <The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state>.
 # Connection 2 suppresses message <Replica SQL for channel .*: Failed to apply row event with 1 columns, originating from a server of version 8.0.28>.
 # Connection 2 suppresses message <Replica SQL for channel .*: Failed to apply row event with 4 columns, originating from a server of version unknown>.
-# Connection 2 suppresses message <Replica SQL for channel .*: Column 2 of table 'test.t1' cannot be converted from type>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Column 3 .* of table 'test.t1' cannot be converted from type>.
 include/rpl/deinit.inc

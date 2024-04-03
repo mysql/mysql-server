@@ -29,7 +29,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
 SET SESSION sql_log_bin= 1;
 --source include/rpl/sync_to_replica.inc
-CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
+CALL mtr.add_suppression(".*Column 2 .* of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 FLUSH LOGS;
 --source include/rpl/connection_source.inc

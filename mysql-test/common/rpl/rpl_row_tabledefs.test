@@ -146,7 +146,7 @@ connection master;
 INSERT INTO t4 VALUES (4);
 connection slave;
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column [012] type mismatch.* Error_code: MY-001535");
-call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("Replica SQL.*Column [0-9] .* of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $slave_skip_counter= 2

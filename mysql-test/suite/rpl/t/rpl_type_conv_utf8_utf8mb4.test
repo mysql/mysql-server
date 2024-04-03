@@ -55,8 +55,8 @@ INSERT INTO t1 VALUES ('a');
 --let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
 --source include/rpl/wait_for_applier_error.inc
 
-# Error msg before: Column 0 of table 'test.t1' cannot be converted from type 'varchar(3)' to type 'varchar(1)'
-# Error msg after : Column 0 of table 'test.t1' cannot be converted from type 'varchar(3(bytes))' to type 'varchar(4(bytes) utf8mb4)'
+# Error msg before: Column 1 (counting the first column as number 1) of table 'test.t1' cannot be converted from type 'varchar(3)' to type 'varchar(1)'
+# Error msg after : Column 1 (counting the first column as number 1) of table 'test.t1' cannot be converted from type 'varchar(3(bytes))' to type 'varchar(4(bytes) utf8mb4)'
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
 --let $grep_pattern=\'varchar\(3\(bytes\)\)\' to type \'varchar\(4\(bytes\) utf8mb4\)\'
@@ -88,8 +88,8 @@ INSERT INTO t1 VALUES ('a');
 --let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
 --source include/rpl/wait_for_applier_error.inc
 
-# Error msg before: Column 0 of table 'test.t1' cannot be converted from type  'char(0)' to type 'char(1)'
-# Error msg after : Column 0 of table 'test.t1' cannot be converted from type  'char(3(bytes))' to type 'char(4(bytes) utf8mb4)'
+# Error msg before: Column 1 (counting the first column as number 1) of table 'test.t1' cannot be converted from type  'char(0)' to type 'char(1)'
+# Error msg after : Column 1 (counting the first column as number 1) of table 'test.t1' cannot be converted from type  'char(3(bytes))' to type 'char(4(bytes) utf8mb4)'
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
 --let $grep_pattern=\'char\(3\(bytes\)\)\' to type \'char\(4\(bytes\) utf8mb4\)\'
@@ -121,8 +121,8 @@ INSERT INTO t1 VALUES ('a');
 --let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED);
 --source include/rpl/wait_for_applier_error.inc
 
-# Error msg before: Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
-# Error msg after : Column 0 of table 'test.t1' cannot be converted from type 'longblob' to type 'tinyblob'
+# Error msg before: Column 1 (counting the first column as number 1) of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
+# Error msg after : Column 1 (counting the first column as number 1) of table 'test.t1' cannot be converted from type 'longblob' to type 'tinyblob'
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/ s/Worker .* end_log_pos [0-9]*; //
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/slave.err
 --let $grep_pattern=\'longblob\' to type \'tinyblob\'

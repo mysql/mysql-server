@@ -119,7 +119,7 @@ include/rpl/assert_replica_running.inc
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column [012] type mismatch.* Error_code: MY-001535");
-call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("Replica SQL.*Column [0-9] .* of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/rpl/wait_for_applier_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (5);

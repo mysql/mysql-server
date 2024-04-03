@@ -623,7 +623,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       if (report_level != INFORMATION_LEVEL)
         rli->report(report_level, ER_SERVER_REPLICA_CONVERSION_FAILED,
                     ER_THD(thd, ER_SERVER_REPLICA_CONVERSION_FAILED),
-                    static_cast<int>(col), db_name, tbl_name,
+                    (static_cast<int>(col)) + 1, db_name, tbl_name,
                     source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
     }

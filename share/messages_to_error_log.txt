@@ -9496,7 +9496,7 @@ ER_SERVER_REPLICA_INIT_QUERY_FAILED
   eng "Replica SQL thread aborted. Can't execute init_replica query, MY-%06d - '%s'"
 
 ER_SERVER_REPLICA_CONVERSION_FAILED
-  eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
+  eng "Column %d (counting the first column as number 1) of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
 
 ER_SERVER_REPLICA_IGNORED_TABLE
   eng "Replica SQL thread ignored the query because of replicate-*-table rules"

@@ -541,7 +541,7 @@ include/diff_tables.inc [master:t2, slave:t2]
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 1 size mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
-call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
+call mtr.add_suppression("Replica SQL.*Column 2 .* of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/rpl/reset.inc
 [expecting slave to replicate correctly]

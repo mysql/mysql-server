@@ -129,7 +129,7 @@ call mtr.add_suppression("Replica SQL.*Table definition on source and replica do
 call mtr.add_suppression("Replica.*Can.t DROP .c7.; check that column.key exists.* Error_code: MY-001091");
 call mtr.add_suppression("Replica.*Unknown column .c7. in .t15.* Error_code: MY-001054");
 call mtr.add_suppression("Replica.*Key column .c6. doesn.t exist in table.* Error_code: MY-001072");
-call mtr.add_suppression("Replica SQL.*Column 2 of table .test.t1.. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("Replica SQL.*Column 3 .* of table .test.t1.. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_query_log
 
