@@ -7,7 +7,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # New --dump-replica, --apply-replica-statements functionality
 #
 use test;
+include/rpl/save_binlog_file_position.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=BINLOG_START;
+# Bug #35665076: there should be no binlog events
+include/rpl/assert_binlog_events.inc [()]
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=BINLOG_START;
 START REPLICA;
