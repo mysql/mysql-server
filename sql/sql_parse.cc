@@ -5623,6 +5623,10 @@ static bool reparse_common_table_expr(THD *thd, const char *text,
   // This is saved and restored by caller:
   thd->lex->reparse_common_table_expr_at = text_offset;
 
+  sp_head *const old_sp = thd->lex->sphead;
+  // To avoid premature cleanup of parser heap if we see errors during this
+  // nested parse, cf. THD::cleanup_after_parse_error
+  thd->lex->sphead = nullptr;
   /*
     As this function is called during parsing only, it can and should use the
     current Query_arena, character_set_client, etc.
@@ -5632,6 +5636,7 @@ static bool reparse_common_table_expr(THD *thd, const char *text,
   */
   const bool mysql_parse_status = thd->sql_parser();
   thd->m_parser_state = old;
+  thd->lex->sphead = old_sp;
   if (mysql_parse_status) return true; /* purecov: inspected */
 
   *node = parser_state.result;
