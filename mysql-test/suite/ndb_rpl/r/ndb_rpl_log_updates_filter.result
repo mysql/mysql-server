@@ -32,19 +32,19 @@ include/rpl/connect.inc [creating replica.7]
 [connection source.1]
 CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
 INSERT INTO t1 VALUES (1, 'a');
-# Wait for ndb_binlog thread...
+# Sync the replication topology (propagates the table to all clusters)
+include/rpl/sync.inc
 [connection source.2]
 INSERT INTO t1 VALUES (2, 'b');
-# Wait for ndb_binlog thread...
 [connection source.4]
 SET sql_log_bin= OFF;
 INSERT INTO t1 VALUES (3, 'c');
 SET sql_log_bin= ON;
 INSERT INTO t1 VALUES (4, 'd');
-# Wait for ndb_binlog thread...
 [connection source.5]
 INSERT INTO t1 VALUES (5, 'e');
-# Wait for ndb_binlog thread...
+# Sync the replication topology (propagates the data changes)
+include/rpl/sync.inc
 [connection replica.3]
 SELECT * FROM t1 ORDER BY k;
 k	c

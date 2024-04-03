@@ -45,12 +45,14 @@
 --source include/connection.inc
 CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
 INSERT INTO t1 VALUES (1, 'a');
---source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+
+--echo # Sync the replication topology (propagates the table to all clusters)
+--let $use_gtids=0
+--source include/rpl/sync.inc
 
 --let $rpl_connection_name= source.2
 --source include/connection.inc
 INSERT INTO t1 VALUES (2, 'b');
---source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 
 --let $rpl_connection_name= source.4
 --source include/connection.inc
@@ -58,12 +60,14 @@ SET sql_log_bin= OFF;
 INSERT INTO t1 VALUES (3, 'c');
 SET sql_log_bin= ON;
 INSERT INTO t1 VALUES (4, 'd');
---source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 
 --let $rpl_connection_name= source.5
 --source include/connection.inc
 INSERT INTO t1 VALUES (5, 'e');
---source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+
+--echo # Sync the replication topology (propagates the data changes)
+--let $use_gtids=0
+--source include/rpl/sync.inc
 
 # Verify replica.3
 --let $rpl_connection_name= replica.3
