@@ -5,6 +5,9 @@
 ## need to skip test on windows as it uses xargs and kill
 --source include/not_windows.inc
 
+## need to skip test with valgrind due to timeout
+--source include/not_valgrind.inc
+
 INSTALL COMPONENT "file://component_test_mysql_signal_handler";
 
 --disable_query_log
