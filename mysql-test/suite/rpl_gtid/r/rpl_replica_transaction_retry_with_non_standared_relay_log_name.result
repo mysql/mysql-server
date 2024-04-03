@@ -1,0 +1,39 @@
+include/only_with_option.inc [GLOBAL.replica_transaction_retries > 1]
+#
+# 1. Create source-replica topology
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this replica has connected to the source.*');
+#
+# 2. Copy test relay-log files to replica data directory
+#
+# 3. Create a new channel on replica
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=4, SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'PITR';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+#
+# 4. Add a debug point to simulate replica retry transaction
+# Adding debug point 'simulate_error_ha_delete_row_lock_wait_timeout' to @@GLOBAL.debug
+#
+# 5. Start replica
+include/rpl/start_replica.inc [FOR CHANNEL 'PITR']
+include/rpl/assert_replica_running.inc [FOR CHANNEL 'PITR']
+include/rpl/assert_replica_no_error.inc [FOR CHANNEL 'PITR']
+#
+# 6. Wait till replica apply all txns successfully
+include/rpl/wait_for_replica_status.inc [Replica_SQL_Running_State FOR CHANNEL 'PITR']
+#
+# 7. Verify that there is a retry transaction warning
+include/assert_grep.inc [Found error message regarding retry transaction]
+#
+# 8. Cleanup
+# Removing debug point 'simulate_error_ha_delete_row_lock_wait_timeout' from @@GLOBAL.debug
+include/rpl/stop_replica.inc [FOR CHANNEL 'PITR']
+RESET REPLICA ALL FOR CHANNEL 'PITR';
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

@@ -8113,6 +8113,10 @@ int handler::ha_delete_row(const uchar *buf) {
   */
   assert(buf == table->record[0] || buf == table->record[1]);
   DBUG_EXECUTE_IF("inject_error_ha_delete_row", return HA_ERR_INTERNAL_ERROR;);
+  DBUG_EXECUTE_IF("simulate_error_ha_delete_row_lock_wait_timeout", {
+    DBUG_SET("-d,simulate_error_ha_delete_row_lock_wait_timeout");
+    return HA_ERR_LOCK_WAIT_TIMEOUT;
+  });
 
   DBUG_EXECUTE_IF(
       "handler_crashed_table_on_usage",

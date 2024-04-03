@@ -1,0 +1,95 @@
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that, when an issue occurs in the
+# applier and it identifies the transaction can be retried, applier uses
+# relay log file name mentioned in the index file instead of calculating
+# the file name based on the configured server option(--relay-log).
+#
+# ==== Requirement ====
+# When an issue occurs in the applier and it identifies the transaction can
+# be retired, the applier should use the relaylog file name mentioned in the
+# index file instead of calculating the file name from the configured
+# server option.
+#
+# ==== Implementation ====
+# 1. Create source-replica topology
+# 2. Copy test relay-log files to replica data directory
+# 3. Create a new channel on replica
+# 4. Add a debug point to simulate replica retry transaction
+# 5. Start replica
+# 6. Wait till replica apply all txns successfully
+# 7. Verify that there is a retry transaction warning
+# 8. Clean up
+#
+# ==== References ====
+# BUG#36395631:Replica applier retries ignore the relay log index file
+###############################################################################
+
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $option_name = replica_transaction_retries
+--let $option_operator = >
+--let $option_value = 1
+--source include/only_with_option.inc
+
+--echo #
+--echo # 1. Create source-replica topology
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this replica has connected to the source.*');
+
+--echo #
+--echo # 2. Copy test relay-log files to replica data directory
+--let $datadir= `SELECT @@datadir`
+--copy_file $MYSQL_TEST_DIR/std_data/replicated-bin.000001 $datadir/replicate-relay-bin.000001
+--copy_file $MYSQL_TEST_DIR/std_data/replicated-bin.000002 $datadir/replicate-relay-bin.000002
+--copy_file $MYSQL_TEST_DIR/std_data/replicated-bin.index $datadir/slave-relay-bin-pitr.index
+
+--echo #
+--echo # 3. Create a new channel on replica
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='replicate-relay-bin.000001', RELAY_LOG_POS=4, SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'PITR'
+
+--echo #
+--echo # 4. Add a debug point to simulate replica retry transaction
+--let $debug_point= simulate_error_ha_delete_row_lock_wait_timeout
+--source include/add_debug_point.inc
+
+--echo #
+--echo # 5. Start replica
+--let $rpl_channel_name= 'PITR'
+--source include/rpl/start_replica.inc
+--source include/rpl/assert_replica_running.inc
+--source include/rpl/assert_replica_no_error.inc
+
+--echo #
+--echo # 6. Wait till replica apply all txns successfully
+--let $slave_param= Replica_SQL_Running_State
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
+--source include/rpl/wait_for_replica_status.inc
+
+--echo #
+--echo # 7. Verify that there is a retry transaction warning
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_match= Error 'Lock wait timeout exceeded; try restarting transaction' on query
+--let $assert_select= Replica SQL
+--let $assert_text= Found error message regarding retry transaction
+--source include/assert_grep.inc
+
+--echo #
+--echo # 8. Cleanup
+--let $debug_point= simulate_error_ha_delete_row_lock_wait_timeout
+--source include/remove_debug_point.inc
+
+--let $rpl_channel_name= 'PITR'
+--source include/rpl/stop_replica.inc
+
+RESET REPLICA ALL FOR CHANNEL 'PITR';
+
+--let $rpl_channel_name=
+source include/rpl/start_replica.inc;
+
+--source include/rpl/deinit.inc
