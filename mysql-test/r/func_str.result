@@ -5769,8 +5769,6 @@ ORDER BY SPACE( LAST_INSERT_ID() );
 field5
 0
 0
-Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 DROP VIEW v1;
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
