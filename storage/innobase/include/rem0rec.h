@@ -176,23 +176,11 @@ static inline void rec_old_set_versioned(rec_t *rec, bool flag);
 [[nodiscard]] static inline bool rec_get_node_ptr_flag(
     const rec_t *rec); /*!< in: physical record */
 
-/** The following function is used to get the order number of an old-style
-record in the heap of the index page.
-@param[in]      rec     physical record
-@return heap order number */
-[[nodiscard]] static inline ulint rec_get_heap_no_old(const rec_t *rec);
-
 /** The following function is used to set the heap number field in an old-style
 record.
 @param[in]      rec     physical record
 @param[in]      heap_no the heap number */
 static inline void rec_set_heap_no_old(rec_t *rec, ulint heap_no);
-
-/** The following function is used to get the order number of a new-style
-record in the heap of the index page.
-@param[in]      rec     physical record
-@return heap order number */
-[[nodiscard]] static inline ulint rec_get_heap_no_new(const rec_t *rec);
 
 /** The following function is used to set the heap number field in a new-style
 record.

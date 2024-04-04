@@ -4,7 +4,7 @@ Field	Type	Null	Key	Default	Extra
 trx_id	bigint unsigned	NO			
 trx_state	varchar(13)	NO			
 trx_started	datetime	NO			
-trx_requested_lock_id	varchar(105)	YES			
+trx_requested_lock_id	varchar(126)	YES			
 trx_wait_started	datetime	YES			
 trx_weight	bigint unsigned	NO			
 trx_mysql_thread_id	bigint unsigned	NO			

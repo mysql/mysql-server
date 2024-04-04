@@ -65,6 +65,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
+#include "ut0math.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 ulong srv_max_purge_lag = 0;
@@ -2102,8 +2103,7 @@ std::size_t Purge_groups_t::find_smallest_group() {
 
 std::ostream &Purge_groups_t::print(std::ostream &out) const {
   const std::size_t n_purge_threads = m_groups.size();
-  const std::size_t max_n =
-      (m_total_rec + n_purge_threads - 1) / n_purge_threads;
+  const std::size_t max_n = ut::div_ceil(m_total_rec, n_purge_threads);
   const std::size_t min_n =
       (max_n > n_purge_threads) ? max_n - n_purge_threads : 0;
 
@@ -2122,8 +2122,7 @@ std::ostream &Purge_groups_t::print(std::ostream &out) const {
 #ifdef UNIV_DEBUG
 bool Purge_groups_t::is_grouping_uniform() const {
   const std::size_t n_purge_threads = m_groups.size();
-  const std::size_t max_n =
-      (m_total_rec + n_purge_threads - 1) / n_purge_threads;
+  const std::size_t max_n = ut::div_ceil(m_total_rec, n_purge_threads);
   const std::size_t min_n =
       (max_n > n_purge_threads) ? max_n - n_purge_threads : 0;
   bool result = true;
@@ -2140,8 +2139,7 @@ bool Purge_groups_t::is_grouping_uniform() const {
 
 void Purge_groups_t::distribute() {
   const std::size_t n_purge_threads = m_groups.size();
-  const std::size_t max_n =
-      (m_total_rec + n_purge_threads - 1) / n_purge_threads;
+  const std::size_t max_n = ut::div_ceil(m_total_rec, n_purge_threads);
 
   for (std::size_t i = 0; i < 2; ++i) {
     bool need_second_pass = false;

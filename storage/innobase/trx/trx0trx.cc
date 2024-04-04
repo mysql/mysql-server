@@ -245,6 +245,10 @@ static void trx_init(trx_t *trx) {
   ++trx->version;
 }
 
+trx_guid_t::trx_guid_t(const trx_t &trx)
+    : m_immutable_id(reinterpret_cast<uint64_t>(&trx)),
+      m_version(trx.version) {}
+
 /** For managing the life-cycle of the trx_t instance that we get
 from the pool. */
 struct TrxFactory {

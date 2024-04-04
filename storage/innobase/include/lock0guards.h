@@ -99,6 +99,9 @@ class Shard_naked_latch_guard : private ut::Non_copyable {
   explicit Shard_naked_latch_guard(ut::Location location,
                                    const page_id_t &page_id);
 
+  explicit Shard_naked_latch_guard(ut::Location location,
+                                   hash_table_t *hash_table, uint64_t cell_id);
+
   ~Shard_naked_latch_guard();
 
  private:

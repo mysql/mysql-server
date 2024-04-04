@@ -405,7 +405,14 @@ struct multi_value_data {
   If current data array is for INSERT and DELETE, this can(should) be
   nullptr since all values in current array should be handled in these
   two cases. */
-  Bitset *bitset;
+  Bitset<> *bitset;
+
+#ifdef UNIV_DEBUG
+  /** The size of bitmap buffer in bytes. The bitset might point into
+  some prefix of it, and be later made shorter or longer, but not longer
+  than this length of underlying buffer. */
+  size_t bitmap_bytes{};
+#endif
 
   /** Allocate specified number of elements for all arrays and initialize
   the structure accordingly
@@ -510,7 +517,12 @@ struct multi_value_data {
            sizeof(*conv_buf) * multi_value->num_v);
     if (multi_value->bitset != nullptr) {
       ut_ad(bitset != nullptr);
-      *bitset = *multi_value->bitset;
+      ut_ad_le(multi_value->bitset->size_bytes(), bitmap_bytes);
+      /* adjust the size to match that of multi_value, but keep pointing to the
+      old buffer */
+      *bitset = Bitset<>(bitset->data(), multi_value->bitset->size_bytes());
+      /* copy the actual data into the buffer from multi_value's buffer */
+      bitset->copy_from(multi_value->bitset->data());
     }
     num_v = multi_value->num_v;
   }

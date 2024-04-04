@@ -45,13 +45,14 @@ SET(TESTS
   os0thread-create
   srv0conc
   sync0rw
+  ut0bitset
   ut0crc32
   ut0lock_free_hash
   ut0math
   ut0mem
   ut0new
-  ut0rnd
   ut0object_cache
+  ut0rnd
 )
 
 ADD_COMPILE_FLAGS(

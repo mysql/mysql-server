@@ -1285,7 +1285,7 @@ retry_page_get:
       rw_lock_s_lock(&block->lock, UT_LOCATION_HERE);
     }
 
-    lock_prdt_lock(block, &prdt, index, LOCK_S, LOCK_PREDICATE, cursor->thr);
+    lock_prdt_lock(block, &prdt, index, cursor->thr);
 
     if (rw_latch == RW_NO_LATCH && height != 0) {
       rw_lock_s_unlock(&(block->lock));
@@ -4520,7 +4520,7 @@ bool btr_cur_compress_if_useful(
     }
 
     /* Check whether page lock prevents the compression */
-    if (!lock_test_prdt_page_lock(trx, page_get_page_id(page))) {
+    if (lock_other_has_prdt_page_lock(trx, page_get_page_id(page))) {
       return (false);
     }
   }

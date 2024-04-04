@@ -24,6 +24,7 @@
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
 #include <gtest/gtest.h>
+#include <cstdint>
 #include "unittest/gunit/benchmark.h"
 
 #include "storage/innobase/include/ut0rnd.h"
@@ -31,6 +32,16 @@
 namespace innodb_ut0math_unittest {
 
 /* Correctness test for math functions. */
+
+TEST(ut0math, div_ceil) {
+  ASSERT_EQ(ut::div_ceil(7, 3), 3);
+  ASSERT_EQ(ut::div_ceil(7, -3), -2);
+  ASSERT_EQ(ut::div_ceil(-7, 3), -2);
+  ASSERT_EQ(ut::div_ceil(-7, -3), 3);
+  ASSERT_EQ(ut::div_ceil(uint8_t{247}, uint8_t{10}), uint8_t{25});
+  ASSERT_EQ(ut::div_ceil(uint8_t{255}, uint8_t{1}), uint8_t{255});
+  ASSERT_EQ(ut::div_ceil(int8_t{-128}, int8_t{1}), int8_t{-128});
+}
 
 void test_multiply_uint64(uint64_t x, uint64_t y) {
   const auto xy = x * y;

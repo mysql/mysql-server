@@ -1,0 +1,28 @@
+CREATE TABLE t1 (
+id INT PRIMARY KEY
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3);
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+id
+1
+2
+3
+SET DEBUG_SYNC =
+'all_locks_iterator_found_record_lock SIGNAL found WAIT_FOR resized';
+SELECT COUNT(1) FROM performance_schema.data_locks
+WHERE object_name='t1'
+     AND engine='INNODB'
+     AND lock_mode='X'
+     AND lock_data='1'
+     AND lock_status='GRANTED';
+SET DEBUG_SYNC = 'now WAIT_FOR found';
+set global innodb_adaptive_hash_index=ON;
+select @@innodb_buffer_pool_size;
+@@innodb_buffer_pool_size
+8388608
+set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size*3;
+SET DEBUG_SYNC = 'now SIGNAL resized';
+COUNT(1)
+1
+DROP TABLE t1;

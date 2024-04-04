@@ -45,6 +45,7 @@ those functions in lock/ */
 #include "hash0hash.h"
 #include "trx0types.h"
 #include "univ.i"
+#include "ut0bitset.h"
 
 #include <scope_guard.h>
 #include <utility>
@@ -227,7 +228,7 @@ struct lock_t {
 
   /** Get lock hash table
   @return lock hash table */
-  hash_table_t *hash_table() const { return (lock_hash_get(type_mode)); }
+  Locks_hashtable &hash_table() const { return lock_hash_get(type_mode); }
 
   /** @return the transaction's query thread state. */
   trx_que_t trx_que_state() const { return (trx->lock.que_state); }
@@ -251,6 +252,36 @@ struct lock_t {
       default:
         ut_error;
     }
+  }
+  /** @overload */
+  Bitset<const byte> bitset() const {
+    ut_ad(is_record_lock());
+    static_assert(alignof(uint64_t) <= alignof(lock_t),
+                  "lock_t and thus the bitmap after lock_t should be aligned "
+                  "for efficient 64-bit access");
+    const byte *bitmap = (const byte *)&this[1];
+    /* static_assert verified the theory, but the actual allocation algorithm
+    used could assign a wrong address in practice */
+    ut_ad(reinterpret_cast<uintptr_t>(bitmap) % 8 == 0);
+    ut_ad(rec_lock.n_bits % 8 == 0);
+    return {bitmap, rec_lock.n_bits / 8};
+  }
+  /** Gets access to the LOCK_REC's bitmap, which indicates heap_no-s, which are
+  the subject of this lock request. This should be used directly only in the
+  lock-sys code. Use lock_rec_bitmap_reset(), lock_rec_reset_nth_bit(),
+  lock_rec_set_nth_bit(), and lock_rec_get_nth_bit() wrappers instead. In
+  particular this bitset might be shorter than actual number of heap_no-s on the
+  page! */
+  Bitset<byte> bitset() {
+    auto immutable = const_cast<const ib_lock_t *>(this)->bitset();
+    return {const_cast<byte *>(immutable.data()), immutable.size_bytes()};
+  }
+};
+
+struct TableLockGetNode {
+  /** Functor for accessing the embedded node within a table lock. */
+  static const ut_list_node<lock_t> &get_node(const lock_t &lock) {
+    return lock.tab_lock.locks;
   }
 };
 
@@ -883,12 +914,6 @@ static const ulint lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
  @return LOCK_TABLE or LOCK_REC */
 static inline uint32_t lock_get_type_low(const lock_t *lock); /*!< in: lock */
 
-/** Gets the previous record lock set on a record.
- @return previous lock on the same record, NULL if none exists */
-const lock_t *lock_rec_get_prev(
-    const lock_t *in_lock, /*!< in: record lock */
-    ulint heap_no);        /*!< in: heap number of the record */
-
 /** Cancels a waiting lock request and releases possible other transactions
 waiting behind it.
 @param[in,out]  trx    The transaction waiting for a lock */
@@ -913,11 +938,6 @@ index.
 [[nodiscard]] static inline trx_id_t lock_clust_rec_some_has_impl(
     const rec_t *rec, const dict_index_t *index, const ulint *offsets);
 
-/** Gets the first or next record lock on a page.
- @return next lock, NULL if none exists */
-static inline const lock_t *lock_rec_get_next_on_page_const(
-    const lock_t *lock); /*!< in: a record lock */
-
 /** Gets the number of bits in a record lock bitmap.
 @param[in]  lock  The record lock
 @return number of bits */
@@ -927,49 +947,6 @@ static inline uint32_t lock_rec_get_n_bits(const lock_t *lock);
 @param[in]      lock    record lock
 @param[in]      i       index of the bit */
 static inline void lock_rec_set_nth_bit(lock_t *lock, ulint i);
-
-/** Gets the first or next record lock on a page.
- @return next lock, NULL if none exists */
-static inline lock_t *lock_rec_get_next_on_page(
-    lock_t *lock); /*!< in: a record lock */
-
-/** Gets the first record lock on a page, where the page is identified by its
-file address.
-@param[in]      lock_hash       lock hash table
-@param[in]      page_id         specifies space id and page number of the page
-@return first lock, NULL if none exists */
-static inline lock_t *lock_rec_get_first_on_page_addr(hash_table_t *lock_hash,
-                                                      const page_id_t &page_id);
-
-/** Gets the first record lock on a page, where the page is identified by a
-pointer to it.
-@param[in]      lock_hash       lock hash table
-@param[in]      block           buffer block
-@return first lock, NULL if none exists */
-static inline lock_t *lock_rec_get_first_on_page(hash_table_t *lock_hash,
-                                                 const buf_block_t *block);
-
-/** Gets the next explicit lock request on a record.
-@param[in]      heap_no heap number of the record
-@param[in]      lock    lock
-@return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
-static inline lock_t *lock_rec_get_next(ulint heap_no, lock_t *lock);
-
-/** Gets the next explicit lock request on a record.
-@param[in]      heap_no heap number of the record
-@param[in]      lock    lock
-@return next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
-static inline const lock_t *lock_rec_get_next_const(ulint heap_no,
-                                                    const lock_t *lock);
-
-/** Gets the first explicit lock request on a record.
-@param[in]      hash    hash chain the lock on
-@param[in]      block   block containing the record
-@param[in]      heap_no heap number of the record
-@return first lock, NULL if none exists */
-static inline lock_t *lock_rec_get_first(hash_table_t *hash,
-                                         const buf_block_t *block,
-                                         ulint heap_no);
 
 /** Gets the mode of a lock.
  @return mode */
@@ -1026,73 +1003,6 @@ void lock_notify_about_deadlock(const ut::vector<const trx_t *> &trxs_on_cycle,
                                 const trx_t *victim_trx);
 
 #include "lock0priv.ic"
-
-/** Iterate over record locks matching <space, page_no, heap_no> */
-struct Lock_iter {
-  /* First is the previous lock, and second is the current lock. */
-  /** Gets the next record lock on a page.
-  @param[in]    rec_id          The record ID
-  @param[in]    lock            The current lock
-  @return matching lock or nullptr if end of list */
-  static lock_t *advance(const RecID &rec_id, lock_t *lock) {
-    ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
-    ut_ad(lock->is_record_lock());
-
-    while ((lock = static_cast<lock_t *>(lock->hash)) != nullptr) {
-      ut_ad(lock->is_record_lock());
-
-      if (rec_id.matches(lock)) {
-        return (lock);
-      }
-    }
-
-    ut_ad(lock == nullptr);
-    return (nullptr);
-  }
-
-  /** Gets the first explicit lock request on a record.
-  @param[in]    list            Record hash
-  @param[in]    rec_id          Record ID
-  @return       first lock, nullptr if none exists */
-  static lock_t *first(hash_cell_t *list, const RecID &rec_id) {
-    ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
-
-    auto lock = static_cast<lock_t *>(list->node);
-
-    ut_ad(lock == nullptr || lock->is_record_lock());
-
-    if (lock != nullptr && !rec_id.matches(lock)) {
-      lock = advance(rec_id, lock);
-    }
-
-    return (lock);
-  }
-
-  /** Iterate over all the locks on a specific row
-  @param[in]    rec_id          Iterate over locks on this row
-  @param[in]    f               Function to call for each entry
-  @param[in]    hash_table      The hash table to iterate over
-  @return lock where the callback returned false */
-  template <typename F>
-  static const lock_t *for_each(const RecID &rec_id, F &&f,
-                                hash_table_t *hash_table = lock_sys->rec_hash) {
-    ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
-
-    auto list = hash_get_nth_cell(
-        hash_table, hash_calc_cell_id(rec_id.m_hash_value, hash_table));
-
-    for (auto lock = first(list, rec_id); lock != nullptr;
-         lock = advance(rec_id, lock)) {
-      ut_ad(lock->is_record_lock());
-
-      if (!std::forward<F>(f)(lock)) {
-        return (lock);
-      }
-    }
-
-    return (nullptr);
-  }
-};
 
 namespace locksys {
 class Unsafe_global_latch_manipulator {
@@ -1210,4 +1120,55 @@ void run_if_waiting(const TrxVersion trx_version, F &&f) {
 }
 }  // namespace locksys
 
+template <typename F>
+lock_t *Locks_hashtable::find_in_cell(size_t cell_id, F &&f) {
+  lock_t *lock = (lock_t *)hash_get_first(ht.get(), cell_id);
+  while (lock != nullptr) {
+    ut_ad(locksys::owns_lock_shard(lock));
+    // f(lock) might remove the lock from list, so we must save the next pointer
+    lock_t *next = lock->hash;
+    if (std::forward<F>(f)(lock)) {
+      return lock;
+    }
+    lock = next;
+  }
+  return nullptr;
+}
+
+template <typename F>
+lock_t *Locks_hashtable::find_on_page(page_id_t page_id, F &&f) {
+  ut_ad(locksys::owns_page_shard(page_id));
+  return find_in_cell(hash_calc_cell_id(lock_rec_hash_value(page_id), ht.get()),
+                      [&](lock_t *lock) {
+                        return (lock->rec_lock.page_id == page_id) &&
+                               std::forward<F>(f)(lock);
+                      });
+}
+
+template <typename F>
+lock_t *Locks_hashtable::find_on_block(const buf_block_t *block, F &&f) {
+  return find_on_page(block->get_page_id(), std::forward<F>(f));
+}
+
+template <typename F>
+lock_t *Locks_hashtable::find_on_record(const struct RecID &rec_id, F &&f) {
+  return find_in_cell(hash_calc_cell_id(rec_id.hash_value(), ht.get()),
+                      [&](lock_t *lock) {
+                        return rec_id.matches(lock) && std::forward<F>(f)(lock);
+                      });
+}
+#ifdef UNIV_DEBUG
+template <typename F>
+lock_t *Locks_hashtable::find(F &&f) {
+  ut_ad(locksys::owns_exclusive_global_latch());
+  for (size_t cell_id = lock_sys->rec_hash.get_n_cells(); cell_id--;) {
+    if (auto lock =
+            lock_sys->rec_hash.find_in_cell(cell_id, std::forward<F>(f));
+        lock != nullptr) {
+      return lock;
+    }
+  }
+  return nullptr;
+}
+#endif /*UNIV_DEBUG*/
 #endif /* lock0priv_h */

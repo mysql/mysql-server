@@ -334,9 +334,8 @@ class PSI_engine_data_lock_iterator {
     @param engine_lock_id The lock id to search
     @param engine_lock_id_length Lock id length
     @param with_lock_data True if column LOCK_DATA is required.
-    @return true if the iterator is done
   */
-  virtual bool fetch(PSI_server_data_lock_container *container,
+  virtual void fetch(PSI_server_data_lock_container *container,
                      const char *engine_lock_id, size_t engine_lock_id_length,
                      bool with_lock_data) = 0;
 };
@@ -360,9 +359,8 @@ class PSI_engine_data_lock_wait_iterator {
     @param requesting_engine_lock_id_length The requesting lock id length
     @param blocking_engine_lock_id The blocking lock id to search
     @param blocking_engine_lock_id_length The blocking lock id length
-    @return true if the iterator is done
   */
-  virtual bool fetch(PSI_server_data_lock_wait_container *container,
+  virtual void fetch(PSI_server_data_lock_wait_container *container,
                      const char *requesting_engine_lock_id,
                      size_t requesting_engine_lock_id_length,
                      const char *blocking_engine_lock_id,

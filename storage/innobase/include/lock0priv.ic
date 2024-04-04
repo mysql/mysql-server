@@ -66,101 +66,11 @@ static inline uint32_t lock_rec_get_n_bits(const lock_t *lock) {
 static inline void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
                                         ulint i) /*!< in: index of the bit */
 {
-  ulint byte_index;
-  ulint bit_index;
-
   ut_ad(lock);
-  ut_ad(lock_get_type_low(lock) == LOCK_REC);
-  ut_ad(i < lock->rec_lock.n_bits);
-
-  byte_index = i / 8;
-  bit_index = i % 8;
-  byte *const the_byte = ((byte *)&lock[1]) + byte_index;
-  ut_ad(!(*the_byte & (1 << bit_index)));
-  *the_byte |= 1 << bit_index;
-
+  auto bitset = lock->bitset();
+  ut_ad(!bitset.test(i));
+  bitset.set(i);
   lock->trx->lock.n_rec_locks.fetch_add(1, std::memory_order_relaxed);
-}
-
-/** Gets the first or next record lock on a page.
- @return        next lock, NULL if none exists */
-static inline lock_t *lock_rec_get_next_on_page(
-    lock_t *lock) /*!< in: a record lock */
-{
-  return ((lock_t *)lock_rec_get_next_on_page_const(lock));
-}
-
-static inline lock_t *lock_rec_get_first_on_page_addr(
-    hash_table_t *lock_hash, const page_id_t &page_id) {
-  ut_ad(locksys::owns_page_shard(page_id));
-
-  for (lock_t *lock = static_cast<lock_t *>(hash_get_first(
-           lock_hash,
-           hash_calc_cell_id(lock_rec_hash_value(page_id), lock_hash)));
-       lock != nullptr;
-       lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
-    if (page_id == lock->rec_lock.page_id) {
-      return (lock);
-    }
-  }
-
-  return (nullptr);
-}
-
-/** Gets the first record lock on a page, where the page is identified by a
- pointer to it.
- @return        first lock, NULL if none exists */
-static inline lock_t *lock_rec_get_first_on_page(
-    hash_table_t *lock_hash,  /*!< in: lock hash table */
-    const buf_block_t *block) /*!< in: buffer block */
-{
-  return lock_rec_get_first_on_page_addr(lock_hash, block->page.id);
-}
-
-/** Gets the next explicit lock request on a record.
- @return        next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
- */
-static inline lock_t *lock_rec_get_next(
-    ulint heap_no, /*!< in: heap number of the record */
-    lock_t *lock)  /*!< in: lock */
-{
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
-
-  do {
-    ut_ad(lock_get_type_low(lock) == LOCK_REC);
-    lock = lock_rec_get_next_on_page(lock);
-  } while (lock != nullptr && !lock_rec_get_nth_bit(lock, heap_no));
-
-  return (lock);
-}
-
-/** Gets the next explicit lock request on a record.
- @return        next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
- */
-static inline const lock_t *lock_rec_get_next_const(
-    ulint heap_no,      /*!< in: heap number of the record */
-    const lock_t *lock) /*!< in: lock */
-{
-  return (lock_rec_get_next(heap_no, (lock_t *)lock));
-}
-
-/** Gets the first explicit lock request on a record.
- @return        first lock, NULL if none exists */
-static inline lock_t *lock_rec_get_first(
-    hash_table_t *hash,       /*!< in: hash chain the lock on */
-    const buf_block_t *block, /*!< in: block containing the record */
-    ulint heap_no)            /*!< in: heap number of the record */
-{
-  ut_ad(locksys::owns_page_shard(block->get_page_id()));
-
-  for (lock_t *lock = lock_rec_get_first_on_page(hash, block); lock;
-       lock = lock_rec_get_next_on_page(lock)) {
-    if (lock_rec_get_nth_bit(lock, heap_no)) {
-      return (lock);
-    }
-  }
-
-  return (nullptr);
 }
 
 /** Gets the nth bit of a record lock.
@@ -168,37 +78,15 @@ static inline lock_t *lock_rec_get_first(
 @param[in]      i               Index of the bit to check
 @return true if bit set also if i == ULINT_UNDEFINED return false */
 static inline bool lock_rec_get_nth_bit(const lock_t *lock, ulint i) {
-  const byte *b;
-
   ut_ad(lock);
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
-
+  /* When allocating the bitmap we've chosen size good enough at that moment,
+  to fit all heap_no's on the page, plus some margin, but the page can allocate
+  new heap_no's over time, and we should treat bits at these positions as 0 */
   if (i >= lock->rec_lock.n_bits) {
     return (false);
   }
-
-  b = ((const byte *)&lock[1]) + (i / 8);
-
-  return (true & *b >> (i % 8));
-}
-
-/** Gets the first or next record lock on a page.
- @return next lock, NULL if none exists */
-static inline const lock_t *lock_rec_get_next_on_page_const(
-    const lock_t *lock) /*!< in: a record lock */
-{
-  ut_ad(lock_get_type_low(lock) == LOCK_REC);
-  const auto page_id = lock->rec_lock.page_id;
-  ut_ad(locksys::owns_page_shard(page_id));
-
-  while ((lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) !=
-         nullptr) {
-    if (page_id == lock->rec_lock.page_id) {
-      return (lock);
-    }
-  }
-
-  return (nullptr);
+  return lock->bitset().test(i);
 }
 
 /** Gets the mode of a lock.

@@ -66,13 +66,13 @@ static inline ulint lock_get_min_heap_no(
 }
 
 /** Get the lock hash table */
-static inline hash_table_t *lock_hash_get(ulint mode) /*!< in: lock mode */
+static inline Locks_hashtable &lock_hash_get(ulint mode) /*!< in: lock mode */
 {
   if (mode & LOCK_PREDICATE) {
-    return (lock_sys->prdt_hash);
+    return lock_sys->prdt_hash;
   } else if (mode & LOCK_PRDT_PAGE) {
-    return (lock_sys->prdt_page_hash);
+    return lock_sys->prdt_page_hash;
   } else {
-    return (lock_sys->rec_hash);
+    return lock_sys->rec_hash;
   }
 }
