@@ -2422,8 +2422,10 @@ sub create_manifest_file {
   my $exe_mysqld = find_mysqld($basedir);
   my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
   my $manifest_file_path = $path.$exename.$manifest_file_ext;
-  open(my $mh, "> $manifest_file_path") or die;
-  print $mh $config_content or die;
+  open(my $mh, "> $manifest_file_path") or
+    die "Could not create manifest file $manifest_file_path";
+  print $mh $config_content or
+    die "Could not write manifest file $manifest_file_path";
   close($mh);
 }
 
@@ -2445,8 +2447,10 @@ sub create_one_config($$) {
   my $config_content = "{ \"read_local_config\": true }";
   my $config_file_ext = ".cnf";
   my $config_file_path = $location."\/".$component.$config_file_ext;
-  open(my $mh, "> $config_file_path") or die;
-  print $mh $config_content or die;
+  open(my $mh, "> $config_file_path") or
+    die "Could not create config file $config_file_path";
+  print $mh $config_content or
+    die "Could not write config file $config_file_path";
   close($mh);
 }
 
