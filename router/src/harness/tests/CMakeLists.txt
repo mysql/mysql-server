@@ -173,26 +173,40 @@ SET(TEST_FILES
   )
 COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data "${TEST_FILES}")
 
-MYSQL_ADD_EXECUTABLE(net_ts_netifs net_ts_netifs.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(net_ts_netifs harness_net_ts)
-ADD_DEPENDENCIES(mysqlrouter_all net_ts_netifs)
+MYSQL_ADD_EXECUTABLE(net_ts_netifs net_ts_netifs.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  LINK_LIBRARIES harness_net_ts
+  )
 
-MYSQL_ADD_EXECUTABLE(net_ts_connect net_ts_connect.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(net_ts_connect harness_net_ts)
-ADD_DEPENDENCIES(mysqlrouter_all net_ts_connect)
+MYSQL_ADD_EXECUTABLE(net_ts_connect net_ts_connect.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  LINK_LIBRARIES harness_net_ts
+  )
 
-MYSQL_ADD_EXECUTABLE(net_ts_accept net_ts_accept.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(net_ts_accept harness_net_ts)
-ADD_DEPENDENCIES(mysqlrouter_all net_ts_accept)
+MYSQL_ADD_EXECUTABLE(net_ts_accept net_ts_accept.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  LINK_LIBRARIES harness_net_ts
+  )
 
-MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(net_ts_forward harness_net_ts)
-ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)
+MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  LINK_LIBRARIES harness_net_ts
+  )
 
-MYSQL_ADD_EXECUTABLE(acl_cli acl_cli.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(acl_cli harness-library)
-ADD_DEPENDENCIES(mysqlrouter_all acl_cli)
+MYSQL_ADD_EXECUTABLE(acl_cli acl_cli.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  LINK_LIBRARIES
+  harness-library
+  )
 
-MYSQL_ADD_EXECUTABLE(linux_timestamping linux_timestamping.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(linux_timestamping harness_net_ts harness_stdx)
-ADD_DEPENDENCIES(mysqlrouter_all linux_timestamping)
+MYSQL_ADD_EXECUTABLE(linux_timestamping linux_timestamping.cc 
+  COMPONENT Router
+  SKIP_INSTALL
+  LINK_LIBRARIES
+  harness_net_ts harness_stdx
+  )

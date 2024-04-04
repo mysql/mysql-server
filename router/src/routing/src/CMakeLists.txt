@@ -56,40 +56,19 @@ PUBLIC
 )
 
 ## routing_connections is used by "routing" and "connection_pool"
-ADD_LIBRARY(routing_connections SHARED
+ROUTER_ADD_SHARED_LIBRARY(routing_connections
   channel.cc
-  )
-TARGET_LINK_LIBRARIES(routing_connections
+
+  OUTPUT_NAME "mysqlrouter_routing_connections"
+
+  LINK_LIBRARIES
   PUBLIC
   harness_stdx
   harness_tls
   mysql_protocol
   )
-TARGET_INCLUDE_DIRECTORIES(routing_connections
-  PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-SET_TARGET_PROPERTIES(routing_connections PROPERTIES
-  OUTPUT_NAME "mysqlrouter_routing_connections"
-  SOVERSION 1
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-INSTALL(TARGETS routing_connections
-  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
-  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  NAMELINK_SKIP
-  )
-ADD_INSTALL_RPATH_FOR_OPENSSL(routing_connections)
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(routing_connections)
 
-GENERATE_EXPORT_HEADER(routing_connections
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_connections_export.h)
-
-ADD_LIBRARY(routing SHARED
+ROUTER_ADD_SHARED_LIBRARY(routing
   mysql_routing.cc
   destination.cc
   destination_error.cc
@@ -177,9 +156,12 @@ ADD_LIBRARY(routing SHARED
   router_require.cc
 
   openssl_msg.cc
-)
 
-TARGET_LINK_LIBRARIES(routing
+  OUTPUT_NAME "mysqlrouter_routing"
+
+  DEPENDENCIES GenLiteProtos
+
+  LINK_LIBRARIES
   PUBLIC
   harness_stdx
   harness_tls
@@ -194,38 +176,15 @@ TARGET_LINK_LIBRARIES(routing
   destination_status
   sql_lexer
   )
+
 IF(SOLARIS)
   TARGET_LINK_LIBRARIES(routing
     PRIVATE -lnsl
     PRIVATE -lsocket)
 ENDIF()
 
-TARGET_INCLUDE_DIRECTORIES(routing
-  PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-SET_TARGET_PROPERTIES(routing PROPERTIES
-  OUTPUT_NAME "mysqlrouter_routing"
-  SOVERSION 1
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-INSTALL(TARGETS routing
-  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
-  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  NAMELINK_SKIP
-  )
-ADD_DEPENDENCIES(routing GenLiteProtos)
 DOWNGRADE_STRINGOP_WARNINGS(routing)
 
-ADD_INSTALL_RPATH_FOR_OPENSSL(routing)
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(routing)
-
-GENERATE_EXPORT_HEADER(routing
-  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_export.h)
 TARGET_COMPILE_DEFINITIONS(routing PRIVATE
   MYSQL_ROUTER_LOG_DOMAIN="routing")
 

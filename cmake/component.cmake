@@ -73,7 +73,7 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
     MESSAGE(FATAL_ERROR "Unknown component type ${target}")
   ENDIF()
 
-  ADD_VERSION_INFO(${target} ${kind} SOURCES)
+  ADD_VERSION_INFO(${target} ${kind} SOURCES "")
   ADD_LIBRARY(${target} ${kind} ${SOURCES})
 
   TARGET_COMPILE_DEFINITIONS(${target} PUBLIC MYSQL_COMPONENT)

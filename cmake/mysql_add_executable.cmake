@@ -123,7 +123,11 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
       ${CMAKE_BINARY_DIR}/runtime_output_directory)
   ENDIF()
 
-  ADD_VERSION_INFO(${target} EXECUTABLE sources)
+  IF(ARG_COMPONENT)
+    ADD_VERSION_INFO(${target} EXECUTABLE sources "${ARG_COMPONENT}")
+  ELSE()
+    ADD_VERSION_INFO(${target} EXECUTABLE sources "")
+  ENDIF()
 
   ADD_EXECUTABLE(${target} ${sources})
   TARGET_COMPILE_FEATURES(${target} PUBLIC cxx_std_20)

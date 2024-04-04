@@ -23,37 +23,18 @@
 
 INCLUDE(GenerateExportHeader)
 
-ADD_LIBRARY(io_component
-  SHARED
+ROUTER_ADD_SHARED_LIBRARY(io_component
   io_backend.cc
   io_component.cc
   io_thread.cc
   thread_affinity.cc
-  )
-TARGET_INCLUDE_DIRECTORIES(io_component
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/../include/
-)
-TARGET_LINK_LIBRARIES(io_component PUBLIC harness_net_ts;harness-library)
 
-
-SET_TARGET_PROPERTIES(io_component PROPERTIES
   OUTPUT_NAME "mysqlrouter_io_component"
-  SOVERSION 1
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
-  )
 
-INSTALL(TARGETS io_component
-  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
-  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  NAMELINK_SKIP
-  )
-
-GENERATE_EXPORT_HEADER(io_component
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/io_component_export.h
+  LINK_LIBRARIES
+  PUBLIC
+  harness_net_ts
+  harness-library
   )
 
 ADD_HARNESS_PLUGIN(io
@@ -71,8 +52,3 @@ TARGET_INCLUDE_DIRECTORIES(io
     )
 GENERATE_EXPORT_HEADER(io
   EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/io_export.h)
-
-
-
-ADD_INSTALL_RPATH_FOR_OPENSSL(io_component)
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(io_component)

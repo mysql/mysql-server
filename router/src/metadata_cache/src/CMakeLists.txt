@@ -23,8 +23,7 @@
 
 INCLUDE(GenerateExportHeader)
 
-ADD_LIBRARY(metadata_cache
-  SHARED
+ROUTER_ADD_SHARED_LIBRARY(metadata_cache
   metadata_factory.cc
   cluster_metadata.cc
   cluster_metadata_ar.cc
@@ -37,44 +36,21 @@ ADD_LIBRARY(metadata_cache
   gr_notifications_listener.cc
   log_suppressor.cc
   router_options.cc
-)
-TARGET_COMPILE_FEATURES(metadata_cache PUBLIC cxx_std_20)
-TARGET_LINK_LIBRARIES(metadata_cache
+
+  LINK_LIBRARIES
   PUBLIC
   harness_stdx
   router_lib
   mysqlxclient_lite
   router_mysqlxmessages
   PRIVATE
-    extra::rapidjson
-  )
-TARGET_INCLUDE_DIRECTORIES(metadata_cache
-  PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-GENERATE_EXPORT_HEADER(metadata_cache
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/metadata_cache_export.h
-  )
-TARGET_COMPILE_DEFINITIONS(metadata_cache PRIVATE
-  MYSQL_ROUTER_LOG_DOMAIN="metadata_cache")
+  extra::rapidjson
 
-SET_TARGET_PROPERTIES(metadata_cache PROPERTIES
   OUTPUT_NAME "mysqlrouter_metadata_cache"
-  SOVERSION 1
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-INSTALL(TARGETS metadata_cache
-  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
-  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  NAMELINK_SKIP
+
+  COMPILE_DEFINITIONS
+  MYSQL_ROUTER_LOG_DOMAIN="metadata_cache"
   )
-ADD_INSTALL_RPATH_FOR_OPENSSL(metadata_cache)
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(metadata_cache)
 
 
 add_harness_plugin(metadata_cache_plugin

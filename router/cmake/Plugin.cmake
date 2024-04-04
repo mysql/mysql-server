@@ -78,6 +78,10 @@ FUNCTION(add_harness_plugin NAME)
     SET(_option_LOG_DOMAIN "\"${NAME}\"")
   ENDIF()
 
+  IF(NOT _option_NO_INSTALL)
+    ADD_VERSION_INFO(${NAME} SHARED _option_SOURCES Router)
+  ENDIF()
+
   # Add the library and ensure that the name is good for the plugin
   # system (no "lib" before). We are using SHARED libraries since we
   # intend to link against it, which is something that MODULE does not
@@ -169,3 +173,115 @@ FUNCTION(add_harness_plugin NAME)
     ENDIF()
   ENDIF()
 ENDFUNCTION(add_harness_plugin)
+
+#
+# ROUTER_ADD_SHARED_LIBRARY(target sources [opts])
+#
+# @param target  targetname of the created shared library.
+# @param sources source files of the shared library target.
+# @param opts    extra options
+#
+# - creates a shared library "target"
+# - with OUTPUT_NAME (default target-name)
+# - installs into $ROUTER_INSTALL_LIBDIR (if SKIP_INSTALL is not specified)
+# - generates a export-header in bindir/../include/mysqlrouter/{target}_export.h
+#
+# Options
+# =======
+#
+# All options of ADD_SHARED_LIBRARY() are supported.
+#
+# Additionally,
+#
+# NO_EXPORT_HEADER
+# :  do not generate a export-headers for the shared library.
+#    default: generate a export-header
+#
+# PREFIX
+# :  PREFIX of the shared library name (cmake property)
+#
+# OUTPUT_NAME
+# :  OUTPUT_NAME of the shared library (cmake property)
+#    default: targetname
+#
+# SOVERSION
+# :  SOVERSION of the shared library (cmake property)
+#    default: 1
+#
+# DESTINATION
+# :  DESTINATION of the shared library (see MYSQL_INSTALL_TARGET)
+#    default: $ROUTER_INSTALL_BINDIR on windows, $ROUTER_INSTALL_LIBDIR otherwise
+
+
+FUNCTION(ROUTER_ADD_SHARED_LIBRARY TARGET)
+  SET(_options
+    NO_EXPORT_HEADER
+    )
+  SET(_single_value
+    COMPONENT
+    DESTINATION
+    PREFIX
+    SOVERSION
+    )
+  SET(_multi_value
+    INCLUDE_DIRECTORIES
+    )
+  CMAKE_PARSE_ARGUMENTS(_option
+    "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
+
+  SET(ARGS ${_option_UNPARSED_ARGUMENTS})
+  IF(NOT DEFINED _option_SOVERSION)
+    LIST(APPEND ARGS SOVERSION 1)
+  ELSE()
+    LIST(APPEND ARGS SOVERSION ${_option_SOVERSION})
+  ENDIF()
+  IF(NOT DEFINED _option_COMPONENT)
+    LIST(APPEND ARGS COMPONENT Router)
+  ELSE()
+    LIST(APPEND ARGS COMPONENT ${_option_COMPONENT})
+  ENDIF()
+  IF(NOT DEFINED _option_INCLUDE_DIRECTORIES)
+    LIST(APPEND ARGS INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+  ELSE()
+    LIST(APPEND ARGS INCLUDE_DIRECTORIES ${_option_INCLUDE_DIRECTORIES})
+  ENDIF()
+  IF(NOT DEFINED _option_DESTINATION)
+    # ADD_SHARED_LIBRARY calls MYSQL_INSTALL_TARGET which only knows
+    # about a single DESTINATIONS, but we want
+    # - .dll's in the BINDIR and
+    # - .so in the LIBDIR.
+    IF(WIN32)
+      LIST(APPEND ARGS DESTINATION ${ROUTER_INSTALL_BINDIR})
+    ELSE()
+      LIST(APPEND ARGS DESTINATION ${ROUTER_INSTALL_LIBDIR})
+    ENDIF()
+  ELSE()
+    LIST(APPEND ARGS DESTINATION ${_option_DESTINATION})
+  ENDIF()
+
+  ADD_SHARED_LIBRARY(${TARGET} ${ARGS}
+    NAMELINK_SKIP
+    )
+
+  ADD_INSTALL_RPATH_FOR_OPENSSL(${TARGET})
+  SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${TARGET})
+
+  IF(_option_PREFIX)
+    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+      PREFIX "${_option_PREFIX}"
+    )
+  ENDIF()
+
+  IF(NOT _option_NO_EXPORT_HEADER)
+    TARGET_INCLUDE_DIRECTORIES(${TARGET}
+      PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+      ${CMAKE_CURRENT_BINARY_DIR}/../include/
+      )
+    GENERATE_EXPORT_HEADER(${TARGET}
+      EXPORT_FILE_NAME
+      ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/${TARGET}_export.h
+      )
+  ENDIF()
+
+ENDFUNCTION()

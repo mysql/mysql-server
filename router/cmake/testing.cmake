@@ -119,6 +119,7 @@ FUNCTION(_ADD_TEST_FILE FILE)
   SET(test_name "${test_target}")
   MYSQL_ADD_EXECUTABLE(${test_target}
     ${FILE} ${TEST_EXTRA_SOURCES}
+    COMPONENT Router
     ADD_TEST ${test_name})
 
   ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
@@ -261,7 +262,9 @@ FUNCTION(STATICLIB_FROM_TARGET TO FROM)
 
   SET(_LIB_SOURCES)
   FOREACH(F ${_SOURCES})
-    LIST(APPEND _LIB_SOURCES ${_SOURCE_DIR}/${F})
+    IF(NOT ${F} MATCHES ".*\\.rc")
+      LIST(APPEND _LIB_SOURCES ${_SOURCE_DIR}/${F})
+    ENDIF()
   ENDFOREACH()
 
   ADD_LIBRARY(${TO}

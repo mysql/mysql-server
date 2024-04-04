@@ -25,41 +25,16 @@ INCLUDE(GenerateExportHeader)
 
 # destination status library
 
-ADD_LIBRARY(destination_status SHARED
+ROUTER_ADD_SHARED_LIBRARY(destination_status
   unreachable_destinations_quarantine.cc
   destination_status_component.cc
-  )
-TARGET_LINK_LIBRARIES(destination_status
+
+  LINK_LIBRARIES
   PUBLIC
   harness_stdx
   router_lib
-  )
 
-TARGET_INCLUDE_DIRECTORIES(destination_status PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/
-  )
-GENERATE_EXPORT_HEADER(destination_status
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/destination_status_export.h
-  )
-
-SET_TARGET_PROPERTIES(destination_status PROPERTIES
   OUTPUT_NAME "mysqlrouter_destination_status"
-  SOVERSION 1
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-
-#ADD_INSTALL_RPATH_FOR_OPENSSL(destination_status)
-#SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(destination_status)
-
-INSTALL(TARGETS destination_status
-  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
-  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-  NAMELINK_SKIP
   )
 
 # destination status plugin
