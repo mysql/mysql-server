@@ -40,6 +40,60 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0seq_lock.h"
 
 namespace ut {
+/** Portable replacement for std::countr_zero(uint64_t) from C++20
+@param x  the number you wish to count least significant zeros of
+@return number of least significant zeros, which can be between 0 and 64
+inclusive. */
+static inline int countr_zero(uint64_t x) {
+  /*  ~  changes trailing 0s to 1s, and the least significant 1 to 0
+     +1  causes 1s to flip to 0s again, but carry over changes 0 to 1
+     x&  will not match anywhere except that least significant 1
+  Note: it could be entirely missing if x==0, which is fine. */
+  x &= ~x + 1;
+  /* The bit sequence of this constant is such, that each 6-bit window
+  of it (with wrap-around) is different. It is an Euler's cycle in the
+  graph with 32 5-bit nodes, and 64 1-bit edges, found by:
+     void dfs(int n){
+       for(int i=0;i<2;++i){
+         if(!passed[n][i]){
+           passed[n][i]=true;
+           dfs(((n<<1)|i)&31); // add i to node label, drop highest bit
+           backtrack.push_back(i); // edge label
+         }
+       }
+     }
+  Of all rotations of such cycle we pick starting with 6 zeros. This
+  way each shift of this constant has a different topmost 6 bits. */
+  constexpr uint64_t de_brujin_sequence = 151050438420815295u;
+  /* should fit one cache line in data section */
+  constexpr static uint8_t ans[64] = {
+      0,  1,  2,  7,  3,  13, 8,  19, 4,  25, 14, 28, 9,  34, 20, 40,
+      5,  17, 26, 38, 15, 46, 29, 48, 10, 31, 35, 54, 21, 50, 41, 57,
+      63, 6,  12, 18, 24, 27, 33, 39, 16, 37, 45, 47, 30, 53, 49, 56,
+      62, 11, 23, 32, 36, 44, 52, 55, 61, 22, 43, 51, 60, 42, 59, 58,
+  };
+  return x == 0 ? 64 : ans[(x * de_brujin_sequence >> (64 - 6)) & 63];
+}
+
+/** Computes the result of division rounded towards positive infinity.
+@param[in] numerator     The number you want to be divided
+@param[in] denominator   The number you want to divide by
+@return ceil(numerator/denominator). */
+template <typename T>
+constexpr T div_ceil(T numerator, T denominator) {
+  static_assert(std::is_integral_v<T>, "div_ceil<T> needs integral T");
+  /* see https://gist.github.com/Eisenwave/2a7d7a4e74e99bbb513984107a6c63ef
+  for list of common pitfalls, and this beautiful solution which compiles to
+  - branchless code with one division operation for unsigned ints,
+  - branchless (but longer) code with one division operation for signed ints,
+  - branchless code with just shifts and adds for constant d=constexpr 2^k,
+  - branchless code with multiplication instead of division for constexpr d
+  All that correctly handling negative numerators, denominators, and values
+  close to or equal to the max() or min(). */
+  const bool quotient_not_negative{(numerator < 0) == (denominator < 0)};
+  return numerator / denominator +
+         (quotient_not_negative && numerator % denominator != 0);
+}
 
 /** Calculates the 128bit result of multiplication of the two specified 64bit
 integers. May use CPU native instructions for speed of standard uint64_t
@@ -242,7 +296,7 @@ class mt_fast_modulo_t : private Non_copyable {
   /* This class can be made copyable, but this requires additional constructors.
    */
 
-  fast_modulo_t load() {
+  fast_modulo_t load() const {
     return m_data.read([](const data_t &stored_data) {
       return fast_modulo_t{stored_data.m_mod.load(std::memory_order_relaxed),
                            stored_data.m_inv.load(std::memory_order_relaxed)};

@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #endif /* __STDC_LIMIT_MACROS */
 
 #include <stdint.h>
+#include <bitset>
 
 /** Possible status values for "mon_status" in "struct monitor_value" */
 enum monitor_running_status {
@@ -570,28 +571,19 @@ enum mon_option_t {
 };
 
 #ifndef UNIV_HOTBACKUP
-/** Number of bit in a ulint datatype */
-#define NUM_BITS_ULINT (sizeof(ulint) * CHAR_BIT)
 
 /** This "monitor_set_tbl" is a bitmap records whether a particular monitor
 counter has been turned on or off */
-extern ulint
-    monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT - 1) / NUM_BITS_ULINT];
+extern std::bitset<NUM_MONITOR> monitor_set_tbl;
 
 /** Macros to turn on/off the control bit in monitor_set_tbl for a monitor
 counter option. */
-#define MONITOR_ON(monitor)                     \
-  (monitor_set_tbl[monitor / NUM_BITS_ULINT] |= \
-   ((ulint)1 << (monitor % NUM_BITS_ULINT)))
+#define MONITOR_ON(monitor) monitor_set_tbl.set(monitor)
 
-#define MONITOR_OFF(monitor)                    \
-  (monitor_set_tbl[monitor / NUM_BITS_ULINT] &= \
-   ~((ulint)1 << (monitor % NUM_BITS_ULINT)))
+#define MONITOR_OFF(monitor) monitor_set_tbl.reset(monitor)
 
 /** Check whether the requested monitor is turned on/off */
-#define MONITOR_IS_ON(monitor)                 \
-  (monitor_set_tbl[monitor / NUM_BITS_ULINT] & \
-   ((ulint)1 << (monitor % NUM_BITS_ULINT)))
+#define MONITOR_IS_ON(monitor) monitor_set_tbl.test(monitor)
 
 /** The actual monitor counter array that records each monitor counter
 value */

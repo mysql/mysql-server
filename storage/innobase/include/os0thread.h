@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sstream>
 #include <thread>
 #include "ut0dbg.h"
+#include "ut0math.h"
 
 class IB_thread {
  public:
@@ -129,7 +130,7 @@ class Atomic_xor_of_things {
 
  private:
   static constexpr size_t digits_count =
-      (sizeof(T_thing) + sizeof(T_digit) - 1) / sizeof(T_digit);
+      ut::div_ceil(sizeof(T_thing), sizeof(T_digit));
   /* initial value must be all zeros, as opposed to the representation of
   thing{}, because we care about "neutral element of the XOR operation", and not
   "default value of a thing". */

@@ -77,6 +77,14 @@ Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
     : Shard_naked_latch_guard{
           location, lock_sys->latches.page_shards.get_mutex(page_id)} {}
 
+// Please note, that the hash_table argument is ignored, but differentiates this
+// overload from the one for table_id_t which is uint64_t as well.
+Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
+                                                 hash_table_t *,
+                                                 uint64_t cell_id)
+    : Shard_naked_latch_guard{
+          location, lock_sys->latches.page_shards.get_mutex(cell_id)} {}
+
 Shard_naked_latch_guard::~Shard_naked_latch_guard() {
   mutex_exit(&m_shard_mutex);
 }

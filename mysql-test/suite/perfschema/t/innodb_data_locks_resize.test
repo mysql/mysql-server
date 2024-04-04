@@ -1,0 +1,78 @@
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+
+# This test was useful when developing
+# Bug #29024344  QUERY ON PERFORMANCE_SCHEMA.DATA_LOCKS CAUSES REPLICATION ISSUES
+# I realize it is fragile as it depends on the hash function we use to assign
+# pages to hash table cells - the test hopes that the resizing of the buffer
+# pool will cause resizing of lock sys and further that it will map the page
+# with locks to a cell with larger id than before.
+# Feel free to entirely remove this test if it causes any trouble to maintain.
+# It did it's job already.
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),(2),(3);
+
+--connect (con1,localhost,root,,)
+  BEGIN;
+  SELECT * FROM t1 FOR UPDATE;
+  SET DEBUG_SYNC =
+     'all_locks_iterator_found_record_lock SIGNAL found WAIT_FOR resized';
+  # We expect that there should be exactly one lock of a given mode for this
+  # transaction on a particular row. However as soon as first lock is reported
+  # we will resize the lock sys causing reshuffling of the hash table used to
+  # store locks, which might confuse a buggy implementation, and cause it to
+  # report the same locks twice.
+  --send
+  SELECT COUNT(1) FROM performance_schema.data_locks
+     WHERE object_name='t1'
+     AND engine='INNODB'
+     AND lock_mode='X'
+     AND lock_data='1'
+     AND lock_status='GRANTED';
+
+--connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR found';
+
+  let $wait_timeout = 180;
+  let $wait_condition =
+    SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+    FROM performance_schema.global_status
+    WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+
+  --disable_query_log
+  set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+  set @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+  --enable_query_log
+
+  set global innodb_adaptive_hash_index=ON;
+
+  select @@innodb_buffer_pool_size;
+
+  # Expand buffer pool, more than twice to trigger lock_sys_resize()
+  set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size*3;
+
+  --source include/wait_condition.inc
+
+  SET DEBUG_SYNC = 'now SIGNAL resized';
+
+
+--connection con1
+  --reap
+
+--connection default
+--disconnect con1
+
+--disable_query_log
+set global innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+--enable_query_log
+--source include/wait_condition.inc
+
+DROP TABLE t1;
+
+
+

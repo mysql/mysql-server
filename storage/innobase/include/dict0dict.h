@@ -289,6 +289,10 @@ in constraints which reference it */
 be accessed by the caller afterwards */
 void dict_index_remove_from_cache(dict_table_t *table, dict_index_t *index);
 
+/** Gathers ids of all tables in cache at the moment.
+@return ids of all tables */
+std::vector<table_id_t> dict_get_all_table_ids();
+
 /** Change the id of a table object in the dictionary cache. This is used in
  DISCARD TABLESPACE. */
 void dict_table_change_id_in_cache(

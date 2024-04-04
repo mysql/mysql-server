@@ -88,28 +88,9 @@ string based columns */
 
 /** This structure represents INFORMATION_SCHEMA.innodb_locks row */
 struct i_s_locks_row_t {
-  uint64_t lock_trx_immutable_id; /*!< transaction address as integer. We need
-                          an id which is unique and does not change over time.
-                          Unfortunately trx->id is initially equal to 0 for
-                          all trxs which still appear to be read only, and it
-                          changes to non-zero, once trx needs to perform write.
-                          For this reason trx->id is not good enough for our
-                          purpose. */
-  uint64_t lock_immutable_id; /*!< lock address as integer. We need to identify
-                      the lock in unique way. Specifying space, page and heap_no
-                      and trx is not enough, because there could be locks with
-                      different modes. Using mode as part of id is not good,
-                      because we sometimes change the mode of the lock (for
-                      example when granting the lock we drop LOCK_WAITING flag
-                      and in lock_trx_release_read_locks we add LOCK_REC_NOT_GAP
-                      flag). The only permanent thing is then the address.
-                      We use both lock_immutable_id and lock_trx_immutable_id
-                      even though lock_immutable_id is unique, because we need
-                      to be able to locate the row in PERFORMANCE_SCHEMA based
-                      on the id, and we need a way to verify that the
-                      lock_immutable_id is safe to dereference. Simplest way to
-                      do that is to check that trx still has the lock on its
-                      list of locks.     */
+  /** The unique identifier of this lock, which does not change over time for a
+  single lock request and no two lock requests ever have the same guid. */
+  lock_guid_t lock_guid;
 
   /** Information for record locks.  All these are
   ULINT_UNDEFINED for table locks. */
@@ -242,19 +223,22 @@ bool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache);
 
 /** The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating NUL.
-"%lu:%lu:%lu:%lu:%lu" -> 20*5+4 chars */
-constexpr uint32_t TRX_I_S_LOCK_ID_MAX_LEN = 20 * 5 + 4;
+"%lu:%lu:%lu:%lu:%lu:%lu" -> 20*6+5 chars */
+constexpr uint32_t TRX_I_S_LOCK_ID_MAX_LEN = 20 * 6 + 5;
 
 /** Crafts a lock id string from a i_s_locks_row_t object. Returns its
  second argument. This function aborts if there is not enough space in
  lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
  want to be 100% sure that it will not abort.
+ @param[in]     row
+                    The description of the lock sufficient to populate a row
+ @param[out]    lock_id
+                    The buffer to store the resulting lock_id
+ @param[in]     lock_id_size
+                    The size of the lock_id buffer
  @return resulting lock id */
-char *trx_i_s_create_lock_id(
-    const i_s_locks_row_t *row, /*!< in: innodb_locks row */
-    char *lock_id,              /*!< out: resulting lock_id */
-    ulint lock_id_size);        /*!< in: size of the lock id
-                          buffer */
+char *trx_i_s_create_lock_id(const i_s_locks_row_t &row, char *lock_id,
+                             size_t lock_id_size);
 
 /** Fill performance schema lock data.
 Create a string that represents the LOCK_DATA

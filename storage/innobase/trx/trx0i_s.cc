@@ -350,8 +350,8 @@ static void *table_cache_create_empty_row(
 static bool i_s_locks_row_validate(
     const i_s_locks_row_t *row) /*!< in: row to validate */
 {
-  ut_ad(row->lock_immutable_id != 0);
-  ut_ad(row->lock_trx_immutable_id != 0);
+  ut_ad(row->lock_guid);
+  ut_ad(row->lock_guid.m_trx_guid);
   ut_ad(row->lock_table_id != 0);
 
   if (row->lock_space == SPACE_UNKNOWN) {
@@ -622,6 +622,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   page = reinterpret_cast<const page_t *>(buf_block_get_frame(block));
 
   rec = page_find_rec_with_heap_no(page, heap_no);
+  ut_a(rec != nullptr);
 
   index = lock_rec_get_index(lock);
 
@@ -646,8 +647,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 }
 
 void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
-  row->lock_immutable_id = lock_get_immutable_id(lock);
-  row->lock_trx_immutable_id = lock_get_trx_immutable_id(lock);
+  row->lock_guid = lock_guid_t(*lock);
   switch (lock_get_type(lock)) {
     case LOCK_REC: {
       const auto page_id = lock_rec_get_page_id(lock);
@@ -724,10 +724,8 @@ static bool add_trx_relevant_locks_to_cache(
   /* If transaction is waiting we add the wait lock and all locks
   from another transactions that are blocking the wait lock. */
   if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-    const lock_t *curr_lock;
     ulint wait_lock_heap_no;
     i_s_locks_row_t *blocking_lock_row;
-    lock_queue_iterator_t iter;
     const lock_t *wait_lock = trx->lock.wait_lock;
     ut_a(wait_lock != nullptr);
 
@@ -741,29 +739,24 @@ static bool add_trx_relevant_locks_to_cache(
     if (*requested_lock_row == nullptr) {
       return false;
     }
-
+    bool out_of_memory = false;
     /* then iterate over the locks before the wait lock and
     add the ones that are blocking it */
+    locksys::find_blockers(*wait_lock, [&](const lock_t &curr_lock) {
+      blocking_lock_row = add_lock_to_cache(cache, &curr_lock,
+                                            /* heap_no is the same
+                                            for the wait and waited
+                                            locks */
+                                            wait_lock_heap_no);
 
-    lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
-    locksys::Trx_locks_cache wait_lock_cache{};
-    for (curr_lock = lock_queue_iterator_get_prev(&iter); curr_lock != nullptr;
-         curr_lock = lock_queue_iterator_get_prev(&iter)) {
-      if (locksys::has_to_wait(wait_lock, curr_lock, wait_lock_cache)) {
-        /* add the lock that is
-        blocking trx->lock.wait_lock */
-        blocking_lock_row = add_lock_to_cache(cache, curr_lock,
-                                              /* heap_no is the same
-                                              for the wait and waited
-                                              locks */
-                                              wait_lock_heap_no);
-
-        /* memory could not be allocated */
-        if (blocking_lock_row == nullptr) {
-          return false;
-        }
+      /* memory could not be allocated */
+      if (blocking_lock_row == nullptr) {
+        out_of_memory = true;
+        return true;  // stop iterating
       }
-    }
+      return false;
+    });
+    return !out_of_memory;
   } else {
     *requested_lock_row = nullptr;
   }
@@ -1081,52 +1074,59 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 
   return (row);
 }
-constexpr const char *LOCK_RECORD_ID_FORMAT =
-    UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
-constexpr const char *LOCK_TABLE_ID_FORMAT = UINT64PF ":" UINT64PF ":" UINT64PF;
-/** Crafts a lock id string from a i_s_locks_row_t object. Returns its
- second argument. This function aborts if there is not enough space in
- lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
- want to be 100% sure that it will not abort.
- @return resulting lock id */
-char *trx_i_s_create_lock_id(
-    const i_s_locks_row_t *row, /*!< in: innodb_locks row */
-    char *lock_id,              /*!< out: resulting lock_id */
-    ulint lock_id_size)         /*!< in: size of the lock id
-                           buffer */
-{
+constexpr const char *LOCK_RECORD_ID_FORMAT = UINT64PF
+    ":" UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
+constexpr const int LOCK_RECORD_ID_FORMAT_PARTS = 6;
+constexpr const char *LOCK_TABLE_ID_FORMAT =
+    UINT64PF ":" UINT64PF ":" UINT64PF ":" UINT64PF;
+constexpr const int LOCK_TABLE_ID_FORMAT_PARTS = 4;
+
+char *trx_i_s_create_lock_id(const i_s_locks_row_t &row, char *lock_id,
+                             size_t lock_id_size) {
   int res_len;
 
-  /* please adjust TRX_I_S_LOCK_ID_MAX_LEN if you change this */
+  /* Please adjust TRX_I_S_LOCK_ID_MAX_LEN if you change this.
+  The reason lock_guid.* fields are not being printed next to each other,
+  and thus the reason why printing them is not a member function of lock_guit_t,
+  is that we want the natural lexicographic order on LOCK_ENGINE_ID to be useful
+  for humans and it is much more useful if the rows are sorted by space, page
+  and heap_no, or by table, rather than by immutable id. */
 
-  if (row->lock_space != SPACE_UNKNOWN) {
+  if (row.lock_space != SPACE_UNKNOWN) {
     /* record lock */
-    res_len = snprintf(lock_id, lock_id_size, LOCK_RECORD_ID_FORMAT,
-                       row->lock_trx_immutable_id, row->lock_space,
-                       row->lock_page, row->lock_rec, row->lock_immutable_id);
+    res_len =
+        snprintf(lock_id, lock_id_size, LOCK_RECORD_ID_FORMAT,
+                 row.lock_guid.m_trx_guid.m_immutable_id,
+                 row.lock_guid.m_trx_guid.m_version, row.lock_space,
+                 row.lock_page, row.lock_rec, row.lock_guid.m_immutable_id);
   } else {
     /* table lock */
     res_len = snprintf(lock_id, lock_id_size, LOCK_TABLE_ID_FORMAT,
-                       row->lock_trx_immutable_id, row->lock_table_id,
-                       row->lock_immutable_id);
+                       row.lock_guid.m_trx_guid.m_immutable_id,
+                       row.lock_guid.m_trx_guid.m_version, row.lock_table_id,
+                       row.lock_guid.m_immutable_id);
   }
 
   /* the typecast is safe because snprintf(3) never returns
   negative result */
   ut_a(res_len >= 0);
-  ut_a((ulint)res_len < lock_id_size);
+  ut_a((size_t)res_len < lock_id_size);
 
-  return (lock_id);
+  return lock_id;
 }
 
 int trx_i_s_parse_lock_id(const char *lock_id, i_s_locks_row_t *row) {
-  if (sscanf(lock_id, LOCK_RECORD_ID_FORMAT, &row->lock_trx_immutable_id,
-             &row->lock_space, &row->lock_page, &row->lock_rec,
-             &row->lock_immutable_id) == 5) {
+  if (sscanf(lock_id, LOCK_RECORD_ID_FORMAT,
+             &row->lock_guid.m_trx_guid.m_immutable_id,
+             &row->lock_guid.m_trx_guid.m_version, &row->lock_space,
+             &row->lock_page, &row->lock_rec,
+             &row->lock_guid.m_immutable_id) == LOCK_RECORD_ID_FORMAT_PARTS) {
     return LOCK_REC;
   }
-  if (sscanf(lock_id, LOCK_TABLE_ID_FORMAT, &row->lock_trx_immutable_id,
-             &row->lock_table_id, &row->lock_immutable_id) == 3) {
+  if (sscanf(lock_id, LOCK_TABLE_ID_FORMAT,
+             &row->lock_guid.m_trx_guid.m_immutable_id,
+             &row->lock_guid.m_trx_guid.m_version, &row->lock_table_id,
+             &row->lock_guid.m_immutable_id) == LOCK_TABLE_ID_FORMAT_PARTS) {
     return LOCK_TABLE;
   }
   static_assert(LOCK_TABLE != 0 && LOCK_REC != 0);

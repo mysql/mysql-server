@@ -2724,6 +2724,21 @@ void dict_index_remove_from_cache(dict_table_t *table, /*!< in/out: table */
   dict_index_remove_from_cache_low(table, index, false);
 }
 
+std::vector<table_id_t> dict_get_all_table_ids() {
+  std::vector<table_id_t> ids;
+  mutex_enter(&dict_sys->mutex);
+  ids.reserve(dict_sys->table_LRU.get_length() +
+              dict_sys->table_non_LRU.get_length());
+  for (dict_table_t *table : dict_sys->table_LRU) {
+    ids.push_back(table->id);
+  }
+  for (dict_table_t *table : dict_sys->table_non_LRU) {
+    ids.push_back(table->id);
+  }
+  mutex_exit(&dict_sys->mutex);
+  return ids;
+}
+
 /** Duplicate a virtual column information
 @param[in]      v_col   virtual column information to duplicate
 @param[in,out]  heap    memory heap

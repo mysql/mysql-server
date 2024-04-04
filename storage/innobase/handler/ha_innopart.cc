@@ -1134,7 +1134,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     return HA_ERR_OUT_OF_MEM;
   }
 
-  m_sql_stat_start_parts.init(m_bitset, UT_BITS_IN_BYTES(m_tot_parts));
+  m_sql_stat_start_parts = {m_bitset, UT_BITS_IN_BYTES(m_tot_parts)};
   m_reuse_mysql_template = false;
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
