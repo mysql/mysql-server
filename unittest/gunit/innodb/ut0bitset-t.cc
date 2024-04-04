@@ -43,7 +43,7 @@ TEST(ut0bitset, find_set_handles_misaligned_ranges) {
           if (q <= b) {
             ASSERT_EQ(found, b);
           } else {
-            ASSERT_EQ(found, std::numeric_limits<size_t>::max());
+            ASSERT_EQ(found, bs.NOT_FOUND);
           }
         }
         base_data[a + b / 8] ^= 1U << b % 8;

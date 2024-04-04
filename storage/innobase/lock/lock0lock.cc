@@ -693,8 +693,9 @@ bool lock_has_to_wait(const lock_t *lock1, const lock_t *lock2) {
 /*============== RECORD LOCK BASIC FUNCTIONS ============================*/
 
 ulint lock_rec_find_set_bit(const lock_t *lock) {
-  const size_t i = lock->bitset().find_set(0);
-  return i == std::numeric_limits<size_t>::max() ? ULINT_UNDEFINED : i;
+  const auto bs = lock->bitset();
+  const size_t i = bs.find_set(0);
+  return i == bs.NOT_FOUND ? ULINT_UNDEFINED : i;
 }
 
 /** Looks for the next set bit in the record lock bitmap.
@@ -704,8 +705,9 @@ ulint lock_rec_find_set_bit(const lock_t *lock) {
 if none found */
 ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no) {
   ut_ad(heap_no != ULINT_UNDEFINED);
-  const size_t i = lock->bitset().find_set(heap_no + 1);
-  return i == std::numeric_limits<size_t>::max() ? ULINT_UNDEFINED : i;
+  const auto bs = lock->bitset();
+  const size_t i = bs.find_set(heap_no + 1);
+  return i == bs.NOT_FOUND ? ULINT_UNDEFINED : i;
 }
 
 /** Reset the nth bit of a record lock.

@@ -39,6 +39,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <limits>
 #include "univ.i"
 #include "ut0dbg.h"
+#include "ut0math.h"
+
 /** A simple bitset wrapper class, which lets you access an existing range of
 bytes (not owned by it!) as if it was a <tt>std::bitset</tt> or
 <tt>std::vector<bool></tt>.
@@ -112,11 +114,14 @@ class Bitset {
     memcpy(bytes, m_data, m_size_bytes);
     return to_uint64(bytes);
   }
+  /** Value used by find_set to indicate it could not find a bit set to 1.
+  It is guaranteed to be larger than the size of the vector. */
+  constexpr static size_t NOT_FOUND = std::numeric_limits<size_t>::max();
 
   /** Finds the smallest position which is set and is not smaller than start_pos
   @param[in]     start_pos   The position from which to start the search.
   @return Smallest pos for which test(pos)==true and start_pos<=pos. In case
-  there's no such pos, returns "infinity" */
+  there's no such pos, returns NOT_FOUND */
   size_t find_set(size_t start_pos) const {
     /* The reason this function is so complicated is because it is meant to be
     fast for long sparse bitsets, so it's main part is to iterate over whole
@@ -124,7 +129,7 @@ class Bitset {
     doesn't have to be aligned to word boundary, neither m_bitse + m_size must
     end at word boundary, worse still m_size could be below 8. Thus we consider
     following cases:
-    a) start_pos out of bounds -> return "infinity"
+    a) start_pos out of bounds -> return NOT_FOUND
     b) m_size <=8 -> convert the few bytes into uint64_t and use countr_zero
     c) m_bitset aligned -> iter over whole words, handle unfinished word
     recursively (a or b)
@@ -132,7 +137,7 @@ class Bitset {
     aligned rest recursively (a, b or c).
     Note that in most important usages of this class m_bitset is aligned. */
     if (m_size_bytes * 8 <= start_pos) {
-      return std::numeric_limits<size_t>::max();
+      return NOT_FOUND;
     }
     if (m_size_bytes <= 8) {
       const uint64_t all = to_uint64();
@@ -141,15 +146,14 @@ class Bitset {
       if (unseen) {
         return std::countr_zero(unseen);
       }
-      return std::numeric_limits<size_t>::max();
+      return NOT_FOUND;
     }
     const auto start_addr = reinterpret_cast<uintptr_t>(m_data);
     const size_t start_word_byte_idx =
         ut::div_ceil(start_addr, uintptr_t{8}) * 8 - start_addr;
     const auto translate_result = [&start_pos, this](size_t offset) {
       auto found = bytes_subspan(offset / 8).find_set(start_pos - offset);
-      return found == std::numeric_limits<uint64_t>::max() ? found
-                                                           : found + offset;
+      return found == NOT_FOUND ? found : found + offset;
     };
     if (start_word_byte_idx == 0) {
       // the middle of the m_bitset consists of uint64_t elements
@@ -179,7 +183,7 @@ class Bitset {
     if (start_pos < start_word_byte_idx * 8) {
       const auto found =
           bytes_subspan(0, start_word_byte_idx).find_set(start_pos);
-      if (found < std::numeric_limits<uint64_t>::max()) {
+      if (found < NOT_FOUND) {
         return found;
       }
       start_pos = start_word_byte_idx * 8;

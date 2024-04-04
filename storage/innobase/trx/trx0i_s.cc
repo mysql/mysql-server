@@ -625,6 +625,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   page = reinterpret_cast<const page_t *>(buf_block_get_frame(block));
 
   rec = page_find_rec_with_heap_no(page, heap_no);
+  ut_a(rec != nullptr);
 
   index = lock_rec_get_index(lock);
 

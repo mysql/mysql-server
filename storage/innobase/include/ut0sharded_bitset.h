@@ -71,7 +71,7 @@ class Sharded_bitset {
   But, they are allocated as one big array, so instead of indirect pointers,
   we can just compute where each shard starts or ends, @see get_shard() */
   ut::vector<uint64_t> words;
-  using words_allocator = decltype(words)::allocator_type;
+  using words_allocator = typename decltype(words)::allocator_type;
 
   /** How many words are devoted to each shard in words[]. All shards get equal
   fragment of words[], even if n is not divisible by SHARDS_COUNT, and thus the
@@ -120,11 +120,9 @@ class Sharded_bitset {
   bit set matching these criteria can be found, returns "infinity" */
   size_t find_set_in_this_shard(size_t start_pos) {
     const size_t shard_id = start_pos % SHARDS_COUNT;
-    const size_t found = get_shard(shard_id).find_set(start_pos / SHARDS_COUNT);
-    if (found == std::numeric_limits<uint64_t>::max()) {
-      return found;
-    }
-    return found * SHARDS_COUNT + shard_id;
+    const auto bs = get_shard(shard_id);
+    const size_t found = bs.find_set(start_pos / SHARDS_COUNT);
+    return found == bs.NOT_FOUND ? found : found * SHARDS_COUNT + shard_id;
   }
 };
 }  // namespace ut

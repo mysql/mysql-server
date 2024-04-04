@@ -52,8 +52,8 @@ SET(TESTS
   ut0mem
   ut0new
   ut0object_cache
-  ut0rnd
   ut0rbt
+  ut0rnd
 )
 
 ADD_COMPILE_FLAGS(
