@@ -19,7 +19,7 @@ include/rpl_connect.inc [creating replica.7]
 CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
 INSERT INTO t1 VALUES (1, 'a');
 # Sync the replication topology (propagates the table to all clusters)
-include/rpl/sync.inc
+include/rpl_sync.inc
 [connection source.2]
 INSERT INTO t1 VALUES (2, 'b');
 [connection source.4]
@@ -30,7 +30,7 @@ INSERT INTO t1 VALUES (4, 'd');
 [connection source.5]
 INSERT INTO t1 VALUES (5, 'e');
 # Sync the replication topology (propagates the data changes)
-include/rpl/sync.inc
+include/rpl_sync.inc
 [connection replica.3]
 SELECT * FROM t1 ORDER BY k;
 k	c
