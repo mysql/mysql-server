@@ -82,7 +82,7 @@ CREATE DATABASE db1;
 --remove_file $dump_file
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
---let $logical_timestamps= 0 0;0 0;0 0;0 0;4 5;5 6;6 7;7 8;8 9;9 10
+--let $logical_timestamps= 0 0;0 0;0 0;1 2;2 3;3 4;4 5;5 6;6 7
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc

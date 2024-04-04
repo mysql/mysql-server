@@ -53,7 +53,7 @@ CREATE TABLE t5 (c1 INT NOT NULL) AS SELECT * FROM t1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $binlog_file= server-relay-log-group_replication_applier.000002
---let $logical_timestamps= 0 0;0 0;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10
+--let $logical_timestamps= 0 0;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc

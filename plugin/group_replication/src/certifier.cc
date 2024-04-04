@@ -51,6 +51,8 @@ Certifier_broadcast_thread::Certifier_broadcast_thread()
       broadcast_gtid_executed_period(BROADCAST_GTID_EXECUTED_PERIOD) {
   DBUG_EXECUTE_IF("group_replication_certifier_broadcast_thread_big_period",
                   { broadcast_gtid_executed_period = 600; });
+  DBUG_EXECUTE_IF("group_replication_certifier_broadcast_thread_short_period",
+                  { broadcast_gtid_executed_period = 1; });
 
   mysql_mutex_init(key_GR_LOCK_cert_broadcast_run, &broadcast_run_lock,
                    MY_MUTEX_INIT_FAST);
@@ -255,6 +257,7 @@ Certifier::Certifier()
       positive_cert(0),
       negative_cert(0),
       parallel_applier_last_committed_global(1),
+      parallel_applier_last_sequence_number(1),
       parallel_applier_sequence_number(2),
       certifying_already_applied_transactions(false),
       gtid_assignment_block_size(1),
@@ -638,17 +641,36 @@ int Certifier::terminate() {
   return error;
 }
 
-void Certifier::increment_parallel_applier_sequence_number(
-    bool update_parallel_applier_last_committed_global) {
+void Certifier::update_parallel_applier_indexes(
+    bool update_parallel_applier_last_committed_global,
+    bool increment_parallel_applier_sequence_number) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
 
   assert(parallel_applier_last_committed_global <
          parallel_applier_sequence_number);
-  if (update_parallel_applier_last_committed_global)
-    parallel_applier_last_committed_global = parallel_applier_sequence_number;
+  assert(parallel_applier_last_sequence_number <
+         parallel_applier_sequence_number);
+  assert(parallel_applier_last_committed_global <=
+         parallel_applier_last_sequence_number);
 
-  parallel_applier_sequence_number++;
+  if (update_parallel_applier_last_committed_global) {
+    parallel_applier_last_committed_global =
+        (increment_parallel_applier_sequence_number
+             ? parallel_applier_sequence_number
+             : parallel_applier_last_sequence_number);
+  }
+
+  if (increment_parallel_applier_sequence_number) {
+    parallel_applier_last_sequence_number = parallel_applier_sequence_number++;
+  }
+
+  assert(parallel_applier_last_committed_global <
+         parallel_applier_sequence_number);
+  assert(parallel_applier_last_sequence_number <
+         parallel_applier_sequence_number);
+  assert(parallel_applier_last_committed_global <=
+         parallel_applier_last_sequence_number);
 }
 
 rpl_gno Certifier::certify(Gtid_set *snapshot_version,
@@ -914,8 +936,8 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     assert(gle->sequence_number > 0);
     assert(gle->last_committed < gle->sequence_number);
 
-    increment_parallel_applier_sequence_number(
-        !has_write_set || update_parallel_applier_last_committed_global);
+    update_parallel_applier_indexes(
+        !has_write_set || update_parallel_applier_last_committed_global, true);
   }
 
 end:
@@ -1267,7 +1289,7 @@ void Certifier::garbage_collect() {
     what write sets were purged, which may cause transactions
     last committed to be incorrectly computed.
   */
-  increment_parallel_applier_sequence_number(true);
+  update_parallel_applier_indexes(true, false);
 
 #if !defined(NDEBUG)
   /*
@@ -1281,6 +1303,13 @@ void Certifier::garbage_collect() {
     // my_sleep expects a given number of microseconds.
     my_sleep(broadcast_thread->BROADCAST_GTID_EXECUTED_PERIOD * 1500000);
   }
+
+  DBUG_EXECUTE_IF("group_replication_certifier_garbage_collection_ran", {
+    const char act[] =
+        "now signal "
+        "signal.group_replication_certifier_garbage_collection_finished";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 #endif
 
   mysql_mutex_unlock(&LOCK_certification_info);
