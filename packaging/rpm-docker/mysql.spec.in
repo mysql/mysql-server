@@ -247,13 +247,9 @@ mkdir release
 %if 0%{?pgo}
 (
   # Run some MTR load to generate profile data
-  [ -d profile-data ] && rm -rf profile-data
-  pushd release/mysql-test
-  ./mtr \
-    --mem --parallel=auto --force --retry=0 \
-    --mysqld=--binlog-format=row \
-    --clean-vardir --suite=main || true
-  rm -r $(readlink var)
+  pushd release
+  make run-profile-suite
+  rm -r $(readlink mysql-test/var)
   popd
 
   # Build again with profile data present
@@ -425,8 +421,7 @@ rm -rf %{buildroot}%{_libdir}/mysql/libndbclient.so
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
-export CTEST_OUTPUT_ON_FAILURE=1
-make test || true
+make test-unit || true
 %endif
 %if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto

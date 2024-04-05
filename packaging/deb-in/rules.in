@@ -69,9 +69,8 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	@echo "RULES.$@"
-	export CTEST_OUTPUT_ON_FAILURE=1
 	cd release && \
-	make test || true
+	make test-unit || true
 	touch $@
 
 @DEB_RULES_STRIP@
