@@ -542,3 +542,267 @@ drop table db3.t5, db3.t4;
 # cleanup
 drop table db3.t6, db3.t7, db3.t8, db3.t9;
 drop database db3;
+#
+# Bug#36345882 Fix column ordering in Dbdict::buildFK_prepare
+#
+use test;
+create table t1 (
+b1 int as (b) stored not null,
+c1 int as (c) stored not null,
+a1 int as (a) stored not null,
+b2 int as (b) stored not null,
+c2 int as (c) stored not null,
+a2 int as (a) stored not null,
+a int default 0,
+b int default 0,
+c int default 0,
+primary key pk1 (a1,b1,c1) using hash,
+unique key uk2 (a2,b2,c2) using hash
+) engine=ndbcluster;
+create table t2 (
+a int default 0,
+b int default 0,
+c int default 0,
+d int default 0,
+e int default 0,
+f int default 0,
+b1 int as (b) stored not null,
+c1 int as (c) stored not null,
+a1 int as (a) stored not null,
+b2 int as (b) stored not null,
+c2 int as (c) stored not null,
+a2 int as (a) stored not null,
+b3 int as (b) stored not null,
+c3 int as (c) stored not null,
+a3 int as (a) stored not null,
+primary key pk1 (a1,b1,c1) using hash,
+unique key uk2 (a2,b2,c2) using hash,
+key ok3 (a3,b3,c3),
+key ok3def (c3,b3,a3,d,e,f),
+constraint fk11 foreign key (c1,b1,a1) references t1 (c1,b1,a1),
+constraint fk21 foreign key (c2,b2,a2) references t1 (c1,b1,a1),
+constraint fk31 foreign key (c3,b3,a3) references t1 (c1,b1,a1),
+constraint fk12 foreign key (c1,b1,a1) references t1 (c2,b2,a2),
+constraint fk22 foreign key (c2,b2,a2) references t1 (c2,b2,a2),
+constraint fk32 foreign key (c3,b3,a3) references t1 (c2,b2,a2)
+) engine=ndbcluster;
+alter table t2 drop index ok3;
+alter table t2 drop index fk12;
+alter table t2 drop index fk22;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 9
+Number of primary keys: 3
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+b1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+a1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b2 Int NOT NULL AT=FIXED ST=MEMORY
+c2 Int NOT NULL AT=FIXED ST=MEMORY
+a2 Int NOT NULL AT=FIXED ST=MEMORY
+a Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+c Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+-- Indexes -- 
+PRIMARY KEY(b1, c1, a1) - UniqueHashIndex
+uk2$unique(b2, c2, a2) - UniqueHashIndex
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 15
+Number of primary keys: 3
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+c Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+d Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+e Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+f Int NULL AT=FIXED ST=MEMORY DEFAULT 0
+b1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+a1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b2 Int NOT NULL AT=FIXED ST=MEMORY
+c2 Int NOT NULL AT=FIXED ST=MEMORY
+a2 Int NOT NULL AT=FIXED ST=MEMORY
+b3 Int NOT NULL AT=FIXED ST=MEMORY
+c3 Int NOT NULL AT=FIXED ST=MEMORY
+a3 Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(b1, c1, a1) - UniqueHashIndex
+uk2$unique(b2, c2, a2) - UniqueHashIndex
+ok3def(c3, b3, a3, d, e, f) - OrderedIndex
+-- ForeignKeys --
+XX/XX/fk11 PRIMARY KEY (c1, b1, a1) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction
+XX/XX/fk21 uk2$unique (c2, b2, a2) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction
+XX/XX/fk31 ok3def (c3, b3, a3) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction
+XX/XX/fk12 PRIMARY KEY (c1, b1, a1) REFERENCES test.t1/uk2$unique () on update noaction on delete noaction
+XX/XX/fk22 uk2$unique (c2, b2, a2) REFERENCES test.t1/uk2$unique () on update noaction on delete noaction
+XX/XX/fk32 ok3def (c3, b3, a3) REFERENCES test.t1/uk2$unique () on update noaction on delete noaction
+insert into t1 (a, b, c) values (11, 12, 13);
+insert into t2 (a, b, c) values (11, 12, 13);
+insert into t2 (a,b,c) values (101, 102, 103);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk11` FOREIGN KEY (`c1`,`b1`,`a1`) REFERENCES `t1` (`c1`,`b1`,`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# show meta
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int DEFAULT '0',
+  `b` int DEFAULT '0',
+  `c` int DEFAULT '0',
+  `d` int DEFAULT '0',
+  `e` int DEFAULT '0',
+  `f` int DEFAULT '0',
+  `b1` int GENERATED ALWAYS AS (`b`) STORED NOT NULL,
+  `c1` int GENERATED ALWAYS AS (`c`) STORED NOT NULL,
+  `a1` int GENERATED ALWAYS AS (`a`) STORED NOT NULL,
+  `b2` int GENERATED ALWAYS AS (`b`) STORED NOT NULL,
+  `c2` int GENERATED ALWAYS AS (`c`) STORED NOT NULL,
+  `a2` int GENERATED ALWAYS AS (`a`) STORED NOT NULL,
+  `b3` int GENERATED ALWAYS AS (`b`) STORED NOT NULL,
+  `c3` int GENERATED ALWAYS AS (`c`) STORED NOT NULL,
+  `a3` int GENERATED ALWAYS AS (`a`) STORED NOT NULL,
+  PRIMARY KEY (`a1`,`b1`,`c1`) USING HASH,
+  UNIQUE KEY `uk2` (`a2`,`b2`,`c2`) USING HASH,
+  KEY `ok3def` (`c3`,`b3`,`a3`,`d`,`e`,`f`),
+  CONSTRAINT `fk11` FOREIGN KEY (`c1`, `b1`, `a1`) REFERENCES `t1` (`c1`, `b1`, `a1`),
+  CONSTRAINT `fk12` FOREIGN KEY (`c1`, `b1`, `a1`) REFERENCES `t1` (`c2`, `b2`, `a2`),
+  CONSTRAINT `fk21` FOREIGN KEY (`c2`, `b2`, `a2`) REFERENCES `t1` (`c1`, `b1`, `a1`),
+  CONSTRAINT `fk22` FOREIGN KEY (`c2`, `b2`, `a2`) REFERENCES `t1` (`c2`, `b2`, `a2`),
+  CONSTRAINT `fk31` FOREIGN KEY (`c3`, `b3`, `a3`) REFERENCES `t1` (`c1`, `b1`, `a1`),
+  CONSTRAINT `fk32` FOREIGN KEY (`c3`, `b3`, `a3`) REFERENCES `t1` (`c2`, `b2`, `a2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select type,name from ndb_show_tables_results
+where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
+type	name
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'ForeignKey'	'XX/XX/fk11'
+'ForeignKey'	'XX/XX/fk12'
+'ForeignKey'	'XX/XX/fk21'
+'ForeignKey'	'XX/XX/fk22'
+'ForeignKey'	'XX/XX/fk31'
+'ForeignKey'	'XX/XX/fk32'
+# show counts
+select count(*) from t1;
+count(*)
+1
+select count(*) from t2;
+count(*)
+1
+# run backup
+# drop tables
+drop table t2, t1;
+# restore meta (disable indexes)
+# restore data (disable indexes)
+# rebuild indexes
+# show meta
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int DEFAULT '0',
+  `b` int DEFAULT '0',
+  `c` int DEFAULT '0',
+  `d` int DEFAULT '0',
+  `e` int DEFAULT '0',
+  `f` int DEFAULT '0',
+  `b1` int GENERATED ALWAYS AS (`b`) STORED NOT NULL,
+  `c1` int GENERATED ALWAYS AS (`c`) STORED NOT NULL,
+  `a1` int GENERATED ALWAYS AS (`a`) STORED NOT NULL,
+  `b2` int GENERATED ALWAYS AS (`b`) STORED NOT NULL,
+  `c2` int GENERATED ALWAYS AS (`c`) STORED NOT NULL,
+  `a2` int GENERATED ALWAYS AS (`a`) STORED NOT NULL,
+  `b3` int GENERATED ALWAYS AS (`b`) STORED NOT NULL,
+  `c3` int GENERATED ALWAYS AS (`c`) STORED NOT NULL,
+  `a3` int GENERATED ALWAYS AS (`a`) STORED NOT NULL,
+  PRIMARY KEY (`a1`,`b1`,`c1`) USING HASH,
+  UNIQUE KEY `uk2` (`a2`,`b2`,`c2`) USING HASH,
+  KEY `ok3def` (`c3`,`b3`,`a3`,`d`,`e`,`f`),
+  CONSTRAINT `fk11` FOREIGN KEY (`c1`, `b1`, `a1`) REFERENCES `t1` (`c1`, `b1`, `a1`),
+  CONSTRAINT `fk12` FOREIGN KEY (`c1`, `b1`, `a1`) REFERENCES `t1` (`c2`, `b2`, `a2`),
+  CONSTRAINT `fk21` FOREIGN KEY (`c2`, `b2`, `a2`) REFERENCES `t1` (`c1`, `b1`, `a1`),
+  CONSTRAINT `fk22` FOREIGN KEY (`c2`, `b2`, `a2`) REFERENCES `t1` (`c2`, `b2`, `a2`),
+  CONSTRAINT `fk31` FOREIGN KEY (`c3`, `b3`, `a3`) REFERENCES `t1` (`c1`, `b1`, `a1`),
+  CONSTRAINT `fk32` FOREIGN KEY (`c3`, `b3`, `a3`) REFERENCES `t1` (`c2`, `b2`, `a2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select type,name from ndb_show_tables_results
+where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
+type	name
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
+'ForeignKey'	'XX/XX/fk11'
+'ForeignKey'	'XX/XX/fk12'
+'ForeignKey'	'XX/XX/fk21'
+'ForeignKey'	'XX/XX/fk22'
+'ForeignKey'	'XX/XX/fk31'
+'ForeignKey'	'XX/XX/fk32'
+# show counts
+select count(*) from t1;
+count(*)
+1
+select count(*) from t2;
+count(*)
+1
+select * from t1;
+b1	c1	a1	b2	c2	a2	a	b	c
+12	13	11	12	13	11	11	12	13
+select * from t2;
+a	b	c	d	e	f	b1	c1	a1	b2	c2	a2	b3	c3	a3
+11	12	13	0	0	0	12	13	11	12	13	11	12	13	11
+drop table t2,t1;
