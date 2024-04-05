@@ -31,9 +31,17 @@ IF (CORES EQUAL 0)
   SET(CORES 1)
 ENDIF()
 
+FIND_PROGRAM(CTEST_EXECUTABLE NAMES ctest3 ctest)
+
+# 'man ctest' is confusing: --timeout vs. --test-timeout?
+# The latter affects BUILD AND TEST MODE.
 ADD_CUSTOM_TARGET(
   test-unit
-  COMMAND ctest --progress --parallel ${CORES} --output-on-failure --timeout=300
+  COMMAND ${CTEST_EXECUTABLE}
+  --output-on-failure
+  --parallel ${CORES}
+  --progress
+  --timeout 300
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   USES_TERMINAL
 )

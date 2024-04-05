@@ -625,9 +625,7 @@ fi
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
-export CTEST_OUTPUT_ON_FAILURE=1
-export CTEST_PARALLEL_LEVEL=$(expr $(nproc) / 2)
-ctest --test-timeout 120 || true
+make test-unit || true
 %endif
 %if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto
