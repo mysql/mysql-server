@@ -290,5 +290,84 @@ drop table db3.t5, db3.t4;
 drop table db3.t6, db3.t7, db3.t8, db3.t9;
 drop database db3;
 
+-- echo #
+-- echo # Bug#36345882 Fix column ordering in Dbdict::buildFK_prepare
+-- echo #
+
+# Check ndb_restore rebuild indexes for multi column foreign key constraints.
+
+use test;
+
+let $using_hash=using hash;
+
+eval create table t1 (
+  b1 int as (b) stored not null,
+  c1 int as (c) stored not null,
+  a1 int as (a) stored not null,
+  b2 int as (b) stored not null,
+  c2 int as (c) stored not null,
+  a2 int as (a) stored not null,
+  a int default 0,
+  b int default 0,
+  c int default 0,
+  primary key pk1 (a1,b1,c1) $using_hash,
+  unique key uk2 (a2,b2,c2) $using_hash
+) engine=ndbcluster;
+
+eval create table t2 (
+  a int default 0,
+  b int default 0,
+  c int default 0,
+  d int default 0,
+  e int default 0,
+  f int default 0,
+  b1 int as (b) stored not null,
+  c1 int as (c) stored not null,
+  a1 int as (a) stored not null,
+  b2 int as (b) stored not null,
+  c2 int as (c) stored not null,
+  a2 int as (a) stored not null,
+  b3 int as (b) stored not null,
+  c3 int as (c) stored not null,
+  a3 int as (a) stored not null,
+  primary key pk1 (a1,b1,c1) $using_hash,
+  unique key uk2 (a2,b2,c2) $using_hash,
+  key ok3 (a3,b3,c3),
+  key ok3def (c3,b3,a3,d,e,f),
+  constraint fk11 foreign key (c1,b1,a1) references t1 (c1,b1,a1),
+  constraint fk21 foreign key (c2,b2,a2) references t1 (c1,b1,a1),
+  constraint fk31 foreign key (c3,b3,a3) references t1 (c1,b1,a1),
+  constraint fk12 foreign key (c1,b1,a1) references t1 (c2,b2,a2),
+  constraint fk22 foreign key (c2,b2,a2) references t1 (c2,b2,a2),
+  constraint fk32 foreign key (c3,b3,a3) references t1 (c2,b2,a2)
+) engine=ndbcluster;
+
+# ok3 index could not be used for fk31 and fk32 since column order did not
+# match. Instead ok3def is used since it has a matching prefix.
+alter table t2 drop index ok3;
+# pk1 is used for constraint fk12 instead of implicitly created fk12.
+alter table t2 drop index fk12;
+# uk2 is used for constraint fk22 instead of implicitly created fk22.
+alter table t2 drop index fk22;
+
+let $ndb_desc_opts= -d test t1 t2;
+source suite/ndb/include/ndb_desc_print.inc;
+
+# Add parent row, use different values for the different columns.
+insert into t1 (a, b, c) values (11, 12, 13);
+# Add valid child row.
+insert into t2 (a, b, c) values (11, 12, 13);
+
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 (a,b,c) values (101, 102, 103);
+
+let $rebuild_indexes= 1;
+source ndb_fk_restore.inc;
+
+select * from t1;
+select * from t2;
+
+drop table t2,t1;
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
