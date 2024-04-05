@@ -21,6 +21,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+INCLUDE(ProcessorCount)
+
 # Skip -- Up-to-date messages in case of multiple 'make install'.
 # This works for CMAKE 3.1.3 and up
 SET(CMAKE_INSTALL_MESSAGE LAZY)
@@ -116,6 +118,44 @@ ADD_CUSTOM_TARGET(test-mtr
   COMMAND perl ./mysql-test-run.pl --force --parallel=4 --suite=main
           ${VS_CONFIG} ${DEBUG_SERVER} ${EXP}
 )
+
+SET(MTR_TESTS_FOR_PROFILING
+  auth_sec
+  binlog
+  connection_control
+  encryption
+  gcol
+  gis
+  innodb
+  json
+  main
+  sysschema
+  thread_pool
+  x
+  )
+STRING(REPLACE ";" "," MTR_SUITE_STRING "${MTR_TESTS_FOR_PROFILING}")
+
+PROCESSORCOUNT(NPROC)
+IF(NPROC EQUAL 0)
+  SET(NPROC 8)
+ENDIF()
+
+ADD_CUSTOM_TARGET(run-profile-suite
+  COMMAND perl ./mysql-test-run.pl
+  --accept-test-fail
+  --clean-vardir
+  --force
+  --max-test-fail=10
+  --mem
+  --mysqld=--binlog-format=row
+  --parallel=${NPROC}
+  --retry=0
+  --skip-rpl
+  --suite=${MTR_SUITE_STRING}
+
+  USES_TERMINAL # So that Ninja will show progress, rather than buffer output.
+  VERBATIM
+  )
 
 ## We could do something like this, but the 'test' target generated
 ## by cmake is really for unit testing: all output is muted by default,

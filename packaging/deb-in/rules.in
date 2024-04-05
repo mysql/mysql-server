@@ -68,10 +68,8 @@ override_dh_auto_build:
 # timeout in seconds
 override_dh_auto_test:
 	@echo "RULES.$@"
-	export CTEST_OUTPUT_ON_FAILURE=1
-	export CTEST_PARALLEL_LEVEL=$(expr $(nproc) / 2)
 	cd release && \
-	ctest --test-timeout 120 || true
+	make test-unit || true
 	touch $@
 
 @DEB_RULES_STRIP@
