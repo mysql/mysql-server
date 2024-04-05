@@ -15,7 +15,9 @@ perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --su
 # If no Ndb support, no tests will be attempted.
 perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only
 # with security features in ndb cluster: encrypted backup, TDE, TLS.
-perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-sec  --vardir=var-ndb-sec  --report-features --no-skip --with-ndb-only --defaults-extra-file=suite/ndb/secure.cnf
+# on el7 and solaris no support for NDB TLS
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-sec  --vardir=var-ndb-sec  --report-features --no-skip --with-ndb-only --defaults-extra-file=suite/ndb/secure.cnf
+perl mysql-test-run.pl --platform=_el7-|_solaris11- --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-sec-notls  --vardir=var-ndb-sec-notls  --report-features --no-skip --with-ndb-only --defaults-extra-file=suite/ndb/secure-notls.cnf
 
 ############END OF SECTION1(DEFAULT SUITES) ######################
 
