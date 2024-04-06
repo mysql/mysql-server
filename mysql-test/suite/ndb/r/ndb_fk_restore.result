@@ -733,7 +733,7 @@ NDBT_ProgramExit: 0 - OK
 insert into t1 (a, b, c) values (11, 12, 13);
 insert into t2 (a, b, c) values (11, 12, 13);
 insert into t2 (a,b,c) values (101, 102, 103);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk11` FOREIGN KEY (`c1`,`b1`,`a1`) REFERENCES `t1` (`c1`,`b1`,`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 # show meta
 show create table t2;
 Table	Create Table
