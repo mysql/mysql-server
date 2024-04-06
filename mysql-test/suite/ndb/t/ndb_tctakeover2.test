@@ -1,0 +1,104 @@
+--source include/have_ndb.inc
+
+--echo Create table with non standard partitioning
+--echo allowing colocation of operations in a single LDM
+create table t1 (a int, b int, c int, primary key(a,b)) engine=ndb partition by key(a);
+
+--echo Insert some rows
+--echo All will be on the same partition, LDM instance, nodes
+insert into t1 values (1,1,1);
+insert into t1 select 1, b+1, 1 from t1;
+insert into t1 select 1, b+2, 1 from t1;
+insert into t1 select 1, b+4, 1 from t1;
+insert into t1 select 1, b+8, 1 from t1;
+insert into t1 select 1, b+16, 1 from t1;
+insert into t1 select 1, b+32, 1 from t1;
+insert into t1 select 1, b+64, 1 from t1;
+insert into t1 select 1, b+128, 1 from t1;
+insert into t1 select 1, b+256, 1 from t1;
+
+--echo Check LQH operation entry size and records per page.
+--echo Usable words on page are 32768 - 128
+let $rpp = query_get_value("select floor((32768-128)/entry_size) as recs_per_page from ndbinfo.ndb\\\$pools where pool_name='LQH Operation Record' LIMIT 1", recs_per_page, 1);
+#--echo rpp is $rpp
+
+let $extra_pages=0;
+
+while ($extra_pages < 2)
+{
+  --echo Extra pages is $extra_pages
+
+  --echo Start a transaction with a number of operations
+  --echo 100 ops makes it easier to identify in case of noise
+  begin;
+  update t1 set c=c+1 limit 100;
+
+  --echo Determine TC
+  let $tcnode= query_get_value('select node_id from ndbinfo.cluster_transactions where count_operations=100', node_id, 1);
+  #--echo tcnode is $tcnode
+
+  --echo Determine other node
+  let $survnode= query_get_value('select distinct(node_id) from ndbinfo.cluster_operations where node_id!=$tcnode', node_id, 1);
+  #--echo Non TC node with operations is $survnode
+
+  --echo Determine target number of ops
+  --echo as multiple of records per page
+  --echo With optional extra pages to test dynamic sub pool limit
+  let $targetops= query_get_value("select max(total), $extra_pages * $rpp, $rpp * ($extra_pages + floor((max(total) + $rpp - 1) / $rpp)) as target from ndbinfo.ndb\\\$pools where pool_name='LQH Operation Record' and node_id=$survnode", target, 1);
+  #--echo Target operations $targetops
+
+  --echo Check targetops not too small
+  --disable_query_log
+  --eval select $targetops > 200 as enoughTargetOps;
+  --enable_query_log
+
+  --echo Subtract 200 ops
+  --echo 100 for those already created
+  --echo 100 reserved for DBUTIL usage
+  let $extraops = query_get_value("select $targetops - 200 as extraops", extraops, 1);
+
+  #--echo ExtraOps is $extraops
+
+  --echo Consume ops up to target
+
+  --disable_query_log
+  while ($extraops > 0)
+  {
+    update t1 set c=c+1 limit 1;
+    dec $extraops;
+  }
+  --enable_query_log
+
+  #select node_id, block_instance, count(1) from ndbinfo.cluster_operations group by node_id, block_instance;
+  #select * from ndbinfo.ndb$pools where pool_name like "LQH Operation Records";
+  #select node_id, block_instance, min(user_ptr), max(user_ptr) from ndbinfo.ndb$acc_operations group by node_id, block_instance; 
+
+  --echo Restart TC node
+  exec $NDB_MGM -e "$tcnode restart -a -n" >> $NDB_TOOLS_OUTPUT;
+
+  --echo Wait for not started state
+  exec $NDB_WAITER --not-started -w $tcnode >> $NDB_TOOLS_OUTPUT;
+
+  --echo Check no operations from failed TC remain (must be none)
+  --eval select * from ndbinfo.cluster_operations where tc_node_id=$tcnode;
+
+  --echo Start TC node
+  exec $NDB_MGM -e "$tcnode start" >> $NDB_TOOLS_OUTPUT;
+
+  --echo Wait for all started
+  exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT;
+
+  --echo OK
+
+  --error 1297
+  rollback;
+
+  --inc $extra_pages
+}
+
+drop table t1;
+
+remove_file $NDB_TOOLS_OUTPUT;
+
+
+
