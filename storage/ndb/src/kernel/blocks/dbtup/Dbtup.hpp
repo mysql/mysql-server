@@ -3911,8 +3911,6 @@ class Dbtup : public SimulatedBlock {
 
  private:
   void release_c_free_scan_lock();
-  bool getNextTcConRec(Uint32 &next, OperationrecPtr &opPtr, Uint32 max_loops);
-
   void checkPoolShrinkNeed(Uint32 pool_index,
                            const TransientFastSlotPool &pool);
   void sendPoolShrink(Uint32 pool_index);
