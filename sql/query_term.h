@@ -605,7 +605,7 @@ class Query_terms {
     Query_term_iterator() = default;
 
     Query_term_iterator &operator++() {
-      assert(m_current != nullptr);
+      if (m_current == nullptr) return *this;
       while (m_current != nullptr) {
         uint children = m_current->child_count();
         if constexpr (visit_order == QTC_PRE_ORDER) {
