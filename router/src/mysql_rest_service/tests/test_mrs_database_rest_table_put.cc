@@ -524,8 +524,8 @@ TEST_F(DatabaseQueryPut, nested_11_owned_child_autoinc) {
     EXPECT_ROWS_ADDED("country", 1);
 
     city = get_one(root, {{"city_id", "40"}});
-    EXPECT_EQ("New Test City", city["city"]);
-    EXPECT_EQ("New Testland", city["country"]["country"]);
+    EXPECT_EQ("New Test City", city["city"].GetString());
+    EXPECT_EQ("New Testland", city["country"]["country"].GetString());
   }
 }
 

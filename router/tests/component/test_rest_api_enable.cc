@@ -633,10 +633,10 @@ TEST_P(UseEdgeHttpsPortValues,
 }
 
 INSTANTIATE_TEST_SUITE_P(CheckEdgeHttpsPortValues, UseEdgeHttpsPortValues,
-                         ::testing::Values(HttpsPortParam(false, 1),
-                                           HttpsPortParam(false, 65535),
-                                           HttpsPortParam(true, 1),
-                                           HttpsPortParam(true, 65535)));
+                         ::testing::Values(HttpsPortParam{false, 1},
+                                           HttpsPortParam{false, 65535},
+                                           HttpsPortParam{true, 1},
+                                           HttpsPortParam{true, 65535}));
 
 class EnableWrongHttpsPort
     : public TestRestApiEnable,
@@ -671,10 +671,10 @@ TEST_P(EnableWrongHttpsPort, ensure_bootstrap_fails_for_invalid_https_port) {
 }
 
 INSTANTIATE_TEST_SUITE_P(CheckWrongHttpsPort, EnableWrongHttpsPort,
-                         ::testing::Values(HttpsPortParam(false, 0),
-                                           HttpsPortParam(false, 65536),
-                                           HttpsPortParam(true, 0),
-                                           HttpsPortParam(true, 65536)));
+                         ::testing::Values(HttpsPortParam{false, 0},
+                                           HttpsPortParam{false, 65536},
+                                           HttpsPortParam{true, 0},
+                                           HttpsPortParam{true, 65536}));
 
 struct HttpsPortSourceParam {
   using FieldPtr = uint16_t TestRestApiEnable::*;
@@ -711,10 +711,10 @@ TEST_P(OverlappingHttpsPort,
 INSTANTIATE_TEST_SUITE_P(
     CheckOverlappingHttpsPort, OverlappingHttpsPort,
     ::testing::Values(
-        HttpsPortSourceParam(false, &TestRestApiEnable::router_port_rw),
-        HttpsPortSourceParam(false, &TestRestApiEnable::cluster_node_port),
-        HttpsPortSourceParam(true, &TestRestApiEnable::router_port_rw),
-        HttpsPortSourceParam(true, &TestRestApiEnable::cluster_node_port)));
+        HttpsPortSourceParam{false, &TestRestApiEnable::router_port_rw},
+        HttpsPortSourceParam{false, &TestRestApiEnable::cluster_node_port},
+        HttpsPortSourceParam{true, &TestRestApiEnable::router_port_rw},
+        HttpsPortSourceParam{true, &TestRestApiEnable::cluster_node_port}));
 
 /**
  * @test
