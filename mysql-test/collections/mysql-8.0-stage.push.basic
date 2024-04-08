@@ -7,7 +7,8 @@
 perl mysql-test-run.pl --force --timer   --comment=all-default  --vardir=var-all-default  --report-features --unit-tests-report --no-skip --skip-ndb
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer   --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only
+perl mysql-test-run.pl --force --timer   --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer   --comment=ndb_tls  --vardir=var-ndb-tls  --report-features --no-skip --suite=ndb_tls
 
 # Run the suites that are not part of the default
 # funcs_1, funcs_2, stress, jp, nist, GR

@@ -8,13 +8,15 @@
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --comment=all-default-big  --vardir=var-all-default-big  --report-features --unit-tests-report --no-skip --skip-ndb
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --comment=all-ndb  --vardir=var-ndb-big  --report-features --no-skip --with-ndb-only
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90    --comment=all-ndb  --vardir=var-ndb-big  --report-features --no-skip --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer  --big-test --testcase-timeout=90    --comment=ndb_tls  --vardir=var-ndb-tls-big  --report-features --no-skip --suite=ndb_tls
 
 # Run all default suites with ps-protocol
 perl mysql-test-run.pl --force --timer    --comment=ps --vardir=var-ps --ps-protocol --no-skip --skip-ndb
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer    --comment=ndb-ps --vardir=var-ndb-ps --ps-protocol --no-skip --with-ndb-only
+perl mysql-test-run.pl --force --timer    --comment=ndb-ps --vardir=var-ndb-ps --ps-protocol --no-skip --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer    --comment=ndb_tls-ps --vardir=var-ndb-tls-ps --ps-protocol --no-skip --suite=ndb_tls
 
 # Run innodb suites with different pagesizes
 perl mysql-test-run.pl --timer  --force  --comment=innodb_4k --vardir=var-innodb-4k  --suite=innodb_undo,innodb_zip,innodb --initialize=--innodb-page-size=4k --no-skip --max-test-fail=30
