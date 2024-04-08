@@ -362,11 +362,6 @@ static void ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
     return;
   }
 
-  if (thd_slave_thread(thd)) {
-    // Applier thread purging relay logs
-    return;
-  }
-
   ndb_log_info("Purging binlog file: '%s'", filename);
   ndb_binlog_purger.submit_purge_binlog_file(thd, filename);
 }
