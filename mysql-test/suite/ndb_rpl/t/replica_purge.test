@@ -1,0 +1,111 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+#
+# The applier will write to binlog directly when applying DDL and
+# as part of that the binlog might rotate and purge.
+# This is a special case and contrasts itself to how DML's are
+# handle by just writing the change to NDB, those changes will then
+# be picked up by the binlog MySQL servers which will write the change to
+# binlog asynchrounously.
+#
+# This test configures the replica with small binlog size and thresholds
+# for purge, then perform a number of DDL's in order for the applier
+# to trigger rotate and purge. After test there should be no
+# rows without corresponding binlog files (ie. orphan) in
+# the ndb_binlog_index table.
+#
+
+
+# Configure replication and start replicating
+--source suite/ndb_rpl/ndb_rpl_init_source_replica.inc
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY
+) engine=ndb;
+
+
+# Run DDL and DML on the source, do a large number of DDL to make it very likely
+# that the binlog will rotate and purge when replica applies the DDL.
+# The DML are there to make sure that rows are inserted into ndb_binlog_index
+# as such rows are only written when when a change is written by the
+# binlog thread.
+let $i = 0;
+let $COLUMNS = 100;
+while($i < $COLUMNS)
+{
+  eval INSERT INTO t1 (a) VALUES ($i);
+  --eval ALTER TABLE t1 ADD COLUMN c$i INT COLUMN_FORMAT DYNAMIC
+  inc $i;
+}
+
+--source include/rpl/sync_to_replica.inc
+
+--echo # Show replica settings
+--echo # - small binlog, auto purge on and purge after one second
+let $max_binlog_size=
+`SELECT VARIABLE_VALUE
+   FROM performance_schema.global_variables
+   WHERE VARIABLE_NAME = 'max_binlog_size'`;
+echo max_binlog_size: $max_binlog_size;
+
+let $auto_purge=
+`SELECT VARIABLE_VALUE
+  FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME = 'binlog_expire_logs_auto_purge'`;
+echo auto_purge: $auto_purge;
+
+let $expire_seconds=
+`SELECT VARIABLE_VALUE
+   FROM performance_schema.global_variables
+   WHERE VARIABLE_NAME = 'binlog_expire_logs_seconds'`;
+echo expire_seconds: $expire_seconds;
+
+
+--echo # Check that there are no rows in ndb_binlog_index without
+--echo # corresponding binlog, this is in two steps by first building a
+--echo # table from the output of SHOW BINARY LOGS and then comparing
+--echo # that table with ndb_binlog_index
+# Basically these two queries should match
+# SELECT File, COUNT(*) FROM mysql.ndb_binlog_index GROUP BY File;
+# SHOW BINARY LOGS;
+
+--echo # 1. Build binlogs table from output of SHOW BINARY LOGS
+CREATE TEMPORARY TABLE binlogs(
+  num INT PRIMARY KEY AUTO_INCREMENT,
+  name varchar(512) NOT NULL
+);
+--let $row = 1
+--let $file = query_get_value(SHOW BINARY LOGS, Log_name, $row)
+while ($file != 'No such row')
+{
+  --disable_query_log ONCE
+  eval INSERT INTO binlogs VALUES($row, '$file');
+  --inc $row
+  --let $file = query_get_value(SHOW BINARY LOGS, Log_name, $row)
+}
+--echo # 2. Compare binlogs table with ndb_binlog_index to check
+--echo # that no orphan rows exist, the query should return no rows.
+if (`SELECT COUNT(*) FROM mysql.ndb_binlog_index
+       WHERE SUBSTRING(File, LOCATE('slave-bin', File))
+         NOT IN (SELECT name FROM binlogs)`)
+{
+  --echo # Found orphan rows, dumping content of tables
+  SHOW BINARY LOGS;
+  SELECT name FROM binlogs;
+  SELECT * FROM mysql.ndb_binlog_index;
+  SELECT File,
+         LOCATE('slave-bin', File),
+         SUBSTRING(File, LOCATE('slave-bin', File))
+    FROM mysql.ndb_binlog_index;
+  SELECT * FROM mysql.ndb_binlog_index
+    WHERE SUBSTRING(File, LOCATE('slave-bin', File))
+      NOT IN (SELECT name FROM binlogs);
+  --die Orphan rows found in mysql_ndb_binlog_index table
+}
+
+# Cleanup
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

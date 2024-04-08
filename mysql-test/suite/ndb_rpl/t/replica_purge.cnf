@@ -1,0 +1,7 @@
+!include suite/ndb_rpl/my.cnf
+
+[mysqld.1.slave]
+# Smallest binlog size
+max-binlog-size=4096
+# Purge binlog as quick as possible
+binlog-expire-logs-seconds=1
