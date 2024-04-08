@@ -188,6 +188,7 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
+my $tmpdir_path_updated= 0;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
@@ -812,6 +813,7 @@ sub main {
       if ($opt_parallel > 1) {
         set_vardir("$opt_vardir/$child_num");
         $opt_tmpdir = "$opt_tmpdir/$child_num";
+        $tmpdir_path_updated = 1;
       }
 
       init_timers();
@@ -2102,7 +2104,7 @@ sub command_line_setup {
     $opt_tmpdir = "$opt_vardir/tmp" unless $opt_tmpdir;
 
     my $res =
-      check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel);
+      check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel, $tmpdir_path_updated);
 
     if ($res) {
       mtr_report("Too long tmpdir path '$opt_tmpdir'",
@@ -3616,7 +3618,7 @@ sub setup_vardir() {
   # UNIX domain socket's path far below PATH_MAX. Don't allow that
   # to happen.
   my $res =
-    check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel);
+    check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel, $tmpdir_path_updated);
   if ($res) {
     mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
               "truncated and thus not possible to use for connection to ",
