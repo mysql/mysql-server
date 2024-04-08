@@ -2087,12 +2087,12 @@ longlong Item_func::val_int_from_real() {
     if (res < 0 || res >= ULLONG_MAX_DOUBLE) {
       return raise_integer_overflow();
     } else
-      return (longlong)double2ulonglong(res);
+      return static_cast<longlong>(double2ulonglong(res));
   } else {
     if (res <= LLONG_MIN || res > LLONG_MAX_DOUBLE) {
       return raise_integer_overflow();
     } else
-      return (longlong)res;
+      return static_cast<longlong>(rint(res));
   }
 }
 

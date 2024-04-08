@@ -1170,3 +1170,24 @@ SELECT 1 FROM t WHERE CAST(a AS UNSIGNED INTEGER) = 1
 
 SELECT 1 FROM t WHERE CAST(a AS UNSIGNED INTEGER) = 1 AND a = IF(TRUE, NULL, 1);
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36481397 CAST from DOUBLE to INTEGER
+--echo #              sometimes returns 1, sometimes 2
+--echo #
+
+# Casting the DOUBLE 1.9 to signed INTEGER
+SELECT CAST(CAST(1.9 AS DOUBLE) AS SIGNED);
+
+# Should return the same, using a DOUBLE column
+CREATE TABLE k(a DOUBLE);
+INSERT INTO k VALUES (1.9);
+SELECT * FROM k;
+SELECT CAST(a AS SIGNED) FROM k;
+
+# Should return the same, using a DOUBLE literal
+SELECT CAST(1.9e0 AS SIGNED) FROM k;
+# And here a DOUBLE column of a derived table
+SELECT CAST(y AS SIGNED) FROM (SELECT CAST(1.9 AS DOUBLE)) AS der(y);
+
+DROP TABLE k;
