@@ -592,9 +592,9 @@ class Query_terms {
       Query_block::next_query_block chain
       @param root the node to start iteration from
      */
-    Query_term_iterator(Query_term *root) {
-      m_current = root;
-      m_child_idx = 0;
+    explicit Query_term_iterator(Query_term *root)
+        : m_current(root), m_child_idx(0) {
+      if (root == nullptr) return;
       if constexpr (visit_order == QTC_POST_ORDER) {
         // start at left-most leaf node
         dive_to_leftmost_leaf_of_child();
@@ -605,7 +605,7 @@ class Query_terms {
     Query_term_iterator() = default;
 
     Query_term_iterator &operator++() {
-      if (m_current == nullptr) return *this;
+      assert(m_current != nullptr);
       while (m_current != nullptr) {
         uint children = m_current->child_count();
         if constexpr (visit_order == QTC_PRE_ORDER) {
