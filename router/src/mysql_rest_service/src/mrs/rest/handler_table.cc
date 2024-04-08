@@ -283,7 +283,8 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
         rest.query_entries(
             query_retry.get_session(), object, field_filter, offset, limit,
             route_->get_rest_url(), route_->get_on_page() == limit,
-            row_ownership_info(ctxt, object), query_retry.get_fog(), true);
+            row_ownership_info(ctxt, object), query_retry.get_fog(),
+            !field_filter.is_filter_configured());
       } while (query_retry.should_retry(rest.items));
 
       Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
