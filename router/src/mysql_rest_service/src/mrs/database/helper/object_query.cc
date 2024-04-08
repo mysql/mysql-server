@@ -572,5 +572,9 @@ bool ObjectFieldFilter::is_included(std::string_view prefix,
   }
 }
 
+bool ObjectFieldFilter::is_filter_configured() const {
+  return m_filter.size() != 0;
+}
+
 }  // namespace database
 }  // namespace mrs

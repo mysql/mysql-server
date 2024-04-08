@@ -74,6 +74,7 @@ class ObjectFieldFilter {
   static ObjectFieldFilter from_object(const entry::Object &object);
 
   bool is_included(std::string_view prefix, std::string_view field) const;
+  bool is_filter_configured() const;
 
  private:
   std::set<std::string, std::less<>> m_filter;

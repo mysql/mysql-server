@@ -75,7 +75,7 @@ GET /svc/basic/t1/1?f=id,cyear
         }
     ],
     "_metadata": {
-        "etag": "9234207861A58D35406CFF5307987EE49D4B34092CAB6E3C26959F3FE8DA7C26"
+        "etag": "1A368D774543CB646E0C0BC21270596327BC5C029AEE18D3EBD3DC8B342C2970"
     }
 }
 OK
@@ -114,7 +114,7 @@ GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
     "csmallint": 32767,
     "cmediumint": 8388607,
     "_metadata": {
-        "etag": "7A2B6D831C10706B68D90215D06062B7730E4A1FE76D732228CAB5D8B8A849FA"
+        "etag": "FE235C3F35991A586E5043D6FACAFFEEF9A64094E1F68D71F0DB492196FC4A06"
     }
 }
 OK
@@ -130,7 +130,7 @@ GET /svc/basic/t2/1
         }
     ],
     "_metadata": {
-        "etag": "BA73ED4EE553DAC78D636CB7D1520782AA62F0954DF3EC62E66B2E3567EC8C29"
+        "etag": "1A368D774543CB646E0C0BC21270596327BC5C029AEE18D3EBD3DC8B342C2970"
     }
 }
 OK
@@ -144,7 +144,7 @@ GET /svc/basic/t2/1?f=id,cyear
         }
     ],
     "_metadata": {
-        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
+        "etag": "1A368D774543CB646E0C0BC21270596327BC5C029AEE18D3EBD3DC8B342C2970"
     }
 }
 OK
@@ -158,7 +158,7 @@ GET /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
         }
     ],
     "_metadata": {
-        "etag": "3308B8BA3A14BE440EB8C18F0037A1F39DFC14F4684C71D8DC7308DD3BB52030"
+        "etag": "FE235C3F35991A586E5043D6FACAFFEEF9A64094E1F68D71F0DB492196FC4A06"
     }
 }
 OK
