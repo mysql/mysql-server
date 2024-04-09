@@ -608,6 +608,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_resultset_metadata_imp::field_info,
         get_collation_name(column->charsetnr);
   } else if (strcmp(name, "flags") == 0) {
     *reinterpret_cast<uint *>(value) = column->flags;
+  } else if (strcmp(name, "length") == 0) {
+    *reinterpret_cast<ulong *>(value) = column->length;
   } else if (strcmp(name, "decimals") == 0) {
     *reinterpret_cast<uint *>(value) = column->decimals;
   } else if (strcmp(name, "is_unsigned") == 0) {
@@ -621,7 +623,6 @@ DEFINE_BOOL_METHOD(mysql_stmt_resultset_metadata_imp::field_info,
     if (enum_type == MYSQL_SP_ARG_TYPE_INVALID) return MYSQL_FAILURE;
     *reinterpret_cast<uint64_t *>(value) = enum_type;
   } else {
-    assert(false);
     return MYSQL_FAILURE;
   }
   return MYSQL_SUCCESS;
