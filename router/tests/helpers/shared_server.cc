@@ -209,8 +209,8 @@ void SharedServer::spawn_server_with_datadir(
       "--enforce_gtid_consistency=ON",    //
       "--relay-log=relay-log",
       "--require-secure-transport=OFF",  // for testing server_ssl_mode=DISABLED
-      "--enable-mysql-native-password=ON",  // For testing legacy
-                                            // mysql_native_password
+      "--mysql-native-password=ON",      // For testing legacy
+                                         // mysql_native_password
   };
 
   for (const auto &arg : extra_args) {
