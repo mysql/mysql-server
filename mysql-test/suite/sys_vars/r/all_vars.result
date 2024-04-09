@@ -30,6 +30,8 @@ default_collation_for_utf8mb4
 default_collation_for_utf8mb4
 disabled_storage_engines
 disabled_storage_engines
+enable_mysql_native_password
+enable_mysql_native_password
 explain_format
 explain_format
 generated_random_password_length

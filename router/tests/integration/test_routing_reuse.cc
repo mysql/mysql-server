@@ -324,8 +324,7 @@ class SharedServer {
                                            static_cast<int>(0xc000013a)})
 #endif
             .spawn({
-                "--no-defaults",
-                "--lc-messages-dir=" + lc_messages_dir.str(),
+                "--no-defaults", "--lc-messages-dir=" + lc_messages_dir.str(),
                 "--datadir=" + mysqld_dir_name(),
                 "--log-error=" + mysqld_dir_name() +
                     mysql_harness::Path::directory_separator + "mysqld.err",
@@ -337,8 +336,9 @@ class SharedServer {
                 "--mysqlx-socket=" +
                     Path(mysqld_dir_name()).join("mysqlx.sock").str(),
                 // disable LOAD DATA/SELECT INTO on the server
-                "--secure-file-priv=NULL",
-                "--require-secure-transport=OFF",
+                "--secure-file-priv=NULL", "--require-secure-transport=OFF",
+                "--enable-mysql-native-password=ON",  // For testing legacy
+                                                      // mysql_native_password
             });
     proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     if (!proc.wait_for_sync_point_result()) mysqld_failed_to_start_ = true;
