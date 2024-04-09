@@ -137,8 +137,8 @@ class JsonSchemaDefaultErrorHandler final : public JsonSchemaErrorHandler {
   void InvalidJsonText(size_t arg_no, const char *wrong_string,
                        size_t offset) const override;
   void InvalidJsonType() const override;
-  virtual void HandleStdExceptions() const override;
-  virtual void NotSupported() const override;
+  void HandleStdExceptions() const override;
+  void NotSupported() const override;
 
  private:
   /// Used for error reporting and holds the name of the function.
