@@ -44,8 +44,6 @@ class QueryEntryDbObject : protected Query {
    * Fetch from database the list of all defined object/path entries
    *
    * Except fetching the list, it also tries to fetch matching `audit_log.id`.
-   *
-   * @returns a `audit_log.id`
    */
   virtual void query_entries(MySQLSession *session);
 

@@ -45,6 +45,24 @@ using namespace helper::json::sql;
 using Url = helper::http::Url;
 using ColumnType = mrs::database::entry::ColumnType;
 using Column = mrs::database::entry::Column;
+using ObjectField = database::entry::ObjectField;
+using ObjectFieldPtr = std::shared_ptr<ObjectField>;
+
+namespace {
+
+// CLANG doesn't allow capture, already captured variable.
+// Instead using lambda let use class (llvm-issue #48582).
+class CompareFieldName {
+ public:
+  CompareFieldName(const std::string &k) : key_{k} {}
+
+  bool operator()(const ObjectFieldPtr &of) const { return of->name == key_; }
+
+ private:
+  const std::string &key_;
+};
+
+}  // namespace
 
 ColumnValues create_function_argument_list(
     const entry::Object *object, const std::vector<uint8_t> &json_document,
@@ -159,10 +177,10 @@ ColumnValues create_function_argument_list(
   auto &object_fields = object->fields;
 
   for (auto &[key, _] : url_query) {
-    std::shared_ptr<database::entry::ObjectField> object_field;
-    if (!helper::container::get_if(
-            object_fields, [key](auto &v) { return v->name == key; },
-            &object_field)) {
+    std::shared_ptr<ObjectField> object_field;
+
+    CompareFieldName search_for{key};
+    if (!helper::container::get_if(object_fields, search_for, &object_field)) {
       throw std::invalid_argument("Not allowed object_field:"s + key);
     }
   }

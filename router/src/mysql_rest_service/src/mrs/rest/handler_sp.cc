@@ -48,6 +48,24 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
+namespace {
+
+// CLANG doesn't allow capture, already captured variable.
+// Instead using lambda let use class (llvm-issue #48582).
+class CompareFieldName {
+ public:
+  CompareFieldName(const std::string &k) : key_{k} {}
+
+  bool operator()(const mrs::database::entry::Field &f) const {
+    return f.name == key_;
+  }
+
+ private:
+  const std::string &key_;
+};
+
+}  // namespace
+
 using HttpResult = mrs::rest::Handler::HttpResult;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 using Url = helper::http::Url;
@@ -287,8 +305,8 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   auto &pf = p.input_parameters.fields;
   for (const auto &[key, _] : query_kv) {
     const database::entry::Field *param;
-    if (!helper::container::get_ptr_if(
-            pf, [key](auto &v) { return v.name == key; }, &param)) {
+    CompareFieldName search_for(key);
+    if (!helper::container::get_ptr_if(pf, search_for, &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not allowed parameter:"s + key);
     }

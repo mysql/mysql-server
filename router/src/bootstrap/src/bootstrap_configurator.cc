@@ -256,7 +256,7 @@ void BootstrapConfigurator::init(int argc, char **argv) {
 
     DIM::instance().reset_Config();  // simplifies unit tests
     DIM::instance().set_Config(
-        [this, &config_files]() { return make_config({}, config_files); },
+        [&config_files]() { return make_config({}, config_files); },
         std::default_delete<mysql_harness::LoaderConfig>());
     auto &config = DIM::instance().get_Config();
     try {

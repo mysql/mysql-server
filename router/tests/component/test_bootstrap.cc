@@ -1236,7 +1236,15 @@ INSTANTIATE_TEST_SUITE_P(
 
 class TestMetadataSchemaVersion : public mysqlrouter::MetadataSchemaVersion {
  public:
-  bool new_executable{false};
+  TestMetadataSchemaVersion(unsigned int pmajor, unsigned int pminor,
+                            unsigned int ppatch, bool new_exe = false)
+      : new_executable{new_exe} {
+    major = pmajor;
+    minor = pminor;
+    patch = ppatch;
+  }
+
+  bool new_executable;
 };
 
 static std::string to_string(const TestMetadataSchemaVersion &version) {

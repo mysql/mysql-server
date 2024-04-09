@@ -602,6 +602,9 @@ TEST_P(TestRestApiEnableParametric, ensure_rest_works_on_custom_port) {
 }
 
 struct HttpsPortParam {
+  HttpsPortParam(bool pnew_executable, int pport)
+      : new_executable{pnew_executable}, port{pport} {}
+
   bool new_executable;
   int port;
 };
@@ -678,6 +681,9 @@ INSTANTIATE_TEST_SUITE_P(CheckWrongHttpsPort, EnableWrongHttpsPort,
 
 struct HttpsPortSourceParam {
   using FieldPtr = uint16_t TestRestApiEnable::*;
+  HttpsPortSourceParam(bool pnew_executable, FieldPtr pfield)
+      : new_executable{pnew_executable}, field{pfield} {}
+
   bool new_executable;
   FieldPtr field;
 };
