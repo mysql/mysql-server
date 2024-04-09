@@ -102,7 +102,7 @@
   "   documentation.  The authors of MySQL hereby grant you an additional\n"  \
   "   permission to link the program and your derivative works with the\n"    \
   "   separately licensed software that they have either included with\n"     \
-  "   the program or referenced in the documentation.\n"	              \
+  "   the program or referenced in the documentation.\n"                      \
   "\n"                                                                        \
   "   Without limiting anything contained in the foregoing, this file,\n"     \
   "   which is part of C Driver for MySQL (Connector/C), is also subject to " \
