@@ -595,7 +595,7 @@ void MySQLRouterConf::prepare_command_options(
       "backward compatibility."
       "(bootstrap)",
       CmdOptionValueReq::none, "",
-      [this](const std::string &) {
+      [](const std::string &) {
         // this is now always assumed, so this parameter is ignored, kept for
         // backward compatibility
       },
