@@ -332,8 +332,6 @@ The following options may be given as the first argument:
  before storage engine initialization, where each plugin
  is identified as name=library, where name is the plugin
  name and library is the plugin library in plugin_dir.
- --enable-mysql-native-password
- Force enable deprecated mysql_native_password plugin.
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -1680,7 +1678,6 @@ delayed-queue-size 1000
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 div-precision-increment 4
-enable-mysql-native-password FALSE
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200

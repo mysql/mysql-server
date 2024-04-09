@@ -337,8 +337,8 @@ class SharedServer {
                     Path(mysqld_dir_name()).join("mysqlx.sock").str(),
                 // disable LOAD DATA/SELECT INTO on the server
                 "--secure-file-priv=NULL", "--require-secure-transport=OFF",
-                "--enable-mysql-native-password=ON",  // For testing legacy
-                                                      // mysql_native_password
+                "--mysql-native-password=ON",  // For testing legacy
+                                               // mysql_native_password
             });
     proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     if (!proc.wait_for_sync_point_result()) mysqld_failed_to_start_ = true;
