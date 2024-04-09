@@ -1391,10 +1391,19 @@ SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ COUNT(*)
 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE
 WHERE t1.a IN (SELECT * FROM (SELECT DISTINCT t2.a) AS t3);
 
+# This query is quite slow to execute, since it executes the lateral
+# derived table once per row in the t1×t2 Cartesian product. (Which is
+# why the graph simplifier wanted to join in the derived table with t1
+# before the t1-t2 join.) To speed it up, we only EXPLAIN it, which is
+# sufficient to show the bug. We don't care which plan it chooses,
+# only that it is able to find one, which it wasn't able to before.
+--disable_result_log
+EXPLAIN FORMAT=TREE
 SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ COUNT(*)
 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE,
      LATERAL (SELECT DISTINCT t2.a FROM t) AS t3
 WHERE t1.a = t3.a;
+--enable_result_log
 
 SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ COUNT(*)
 FROM t AS t1 LEFT JOIN t AS t2 ON 1,
