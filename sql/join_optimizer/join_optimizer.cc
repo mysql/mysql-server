@@ -6843,8 +6843,6 @@ AccessPathArray ApplyOrderBy(THD *thd, const CostingReceiver &receiver,
   assert(join->order.order != nullptr);
   assert(!root_candidates.empty());
 
-  Mem_root_array<TABLE *> tables =
-      CollectTables(thd, root_candidates[0]);  // Should be same for all paths.
   if (TraceStarted(thd)) {
     Trace(thd) << "Applying sort for ORDER BY\n";
   }
@@ -7665,7 +7663,6 @@ bool ApplyAggregation(
         continue;
       }
 
-      Mem_root_array<TABLE *> tables = CollectTables(thd, root_path);
       AccessPath *sort_path = new (thd->mem_root) AccessPath;
       sort_path->type = AccessPath::SORT;
       sort_path->count_examined_rows = false;
