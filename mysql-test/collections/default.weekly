@@ -24,19 +24,21 @@
 perl mysql-test-run.pl --debug-server --force --timer  --big-test --testcase-timeout=90    --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip --skip-ndb
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --debug-server --force --timer  --big-test --testcase-timeout=90    --comment=ndb-big  --vardir=var-ndb-big  --report-features  --no-skip --with-ndb-only
+perl mysql-test-run.pl --debug-server --force --timer  --big-test --testcase-timeout=90    --comment=ndb-big  --vardir=var-ndb-big  --report-features  --no-skip --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --debug-server --force --timer  --big-test --testcase-timeout=90    --comment=ndb_tls-big  --vardir=var-ndb-tls-big  --report-features  --no-skip --suite=ndb_tls
 
 # Run default suites with ps protocol
 perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90   --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-ndb
 # Run all ndb tests with ps protocol separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90   --comment=ndb-ps-debug-big  --vardir=var-ndb-ps-debug-big  --ps-protocol --with-ndb-only
+perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90   --comment=ndb-ps-debug-big  --vardir=var-ndb-ps-debug-big  --ps-protocol --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --debug-server --force --timer --big-test --testcase-timeout=90   --comment=ndb_tls-ps-debug-big --vardir=var-ndb-tls-ps-debug-big  --ps-protocol --suite=ndb_tls
 
 # Run default suites with hypergraph optimizer
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=hypergraph-debug-big --vardir=var-hyp-default-big --hypergraph --no-skip --skip-ndb
 # Run all ndb tests with hypergraph optimizer only on el7 separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=ndb-hypergraph-debug-big --vardir=var-ndb-hyp-default-big --hypergraph --platform=el7-x86-64bit --no-skip --with-ndb-only
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=ndb-hypergraph-debug-big --vardir=var-ndb-hyp-default-big --hypergraph --platform=el7-x86-64bit --no-skip --with-ndb-only --skip-suite=ndb_tls
 
 ############END OF SECTION1(DEFAULT SUITES) ######################
 

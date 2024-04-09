@@ -4,7 +4,8 @@
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server --skip-ndb
 # Run all ndb tests with debug server separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-debug   --vardir=var-ndb-debug --skip-rpl --report-features --debug-server --with-ndb-only
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-debug   --vardir=var-ndb-debug --skip-rpl --report-features --debug-server --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb_tls-debug   --vardir=var-ndb-tls-debug --skip-rpl --report-features --debug-server --suite=ndb_tls
 
 # Non-Windows platforms:
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report --exclude-platform=windows --skip-ndb
@@ -13,7 +14,8 @@ perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600
 perl mysql-test-run.pl --timer --testcase-timeout=60 --suite-timeout=600 --force --parallel=8 --comment=normal-rpl --vardir=var-normal-rpl --suite=rpl,rpl_gtid,rpl_nogtid --platform=windows --skip-ndb
 # Run all ndb tests with normal server separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-normal   --vardir=var-ndb-normal --report-features --with-ndb-only
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb-normal   --vardir=var-ndb-normal --report-features --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb_tls-normal   --vardir=var-ndb-tls-normal --report-features --suite=ndb_tls
 
 
 #

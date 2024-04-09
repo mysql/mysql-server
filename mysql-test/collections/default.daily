@@ -25,12 +25,14 @@
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=all-default-big --vardir=var-all-default-big --report-features --unit-tests-report --no-skip --exclude-platform=windows --skip-ndb
 # Run all ndb tests separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=ndb-default-big --vardir=var-ndb-default-big --report-features --no-skip --with-ndb-only
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90  --comment=ndb-default-big --vardir=var-ndb-default-big --report-features --no-skip --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer --big-test --testcase-timeout=90  --comment=ndb_tls-big --vardir=var-ndb-tls-big --report-features --no-skip --suite=ndb_tls
 # Run default suites with ps protocol
 perl mysql-test-run.pl --force --timer  --comment=ps --vardir=var-ps --ps-protocol --exclude-platform=windows --skip-ndb
 # Run all ndb tests with ps protocol separately.
 # If no Ndb support, no tests will be attempted.
-perl mysql-test-run.pl --force --timer  --comment=ndb-ps --vardir=var-ndb-ps --ps-protocol --with-ndb-only
+perl mysql-test-run.pl --force --timer  --comment=ndb-ps --vardir=var-ndb-ps --ps-protocol --with-ndb-only --skip-suite=ndb_tls
+perl mysql-test-run.pl --exclude-platform=_el7-|_solaris11- --force --timer  --comment=ndb_tls-ps --vardir=var-ndb-tls-ps --ps-protocol --suite=ndb_tls
 #
 # Windows - run RPL separately with 8 threads
 #
