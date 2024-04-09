@@ -1687,6 +1687,8 @@ static int remaining_argc;
  * handle_options().*/
 static char **remaining_argv;
 
+static MEM_ROOT remaining_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
+
 void unregister_server_metric_sources();
 
 /**
@@ -10304,6 +10306,27 @@ static void process_bootstrap() {
   Handle start options
 ******************************************************************************/
 
+static void handle_mysql_native_password_option() {
+  if (opt_enable_mysql_native_password) return;
+
+  Prealloced_array<char *, 1> my_args(PSI_NOT_INSTRUMENTED);
+
+  std::string additional_arg{"--loose_mysql_native_password=OFF"};
+  char *tmp = strdup_root(&remaining_argv_alloc, additional_arg.c_str());
+  if (tmp == nullptr) return;
+  my_args.push_back(tmp);
+
+  char **res =
+      new (&remaining_argv_alloc) char *[my_args.size() + remaining_argc + 1];
+  if (res == nullptr) return;
+  memset(res, 0, (sizeof(char *) * (my_args.size() + remaining_argc + 1)));
+  memcpy((uchar *)(res), (char *)(remaining_argv),
+         (remaining_argc) * sizeof(char *));
+  memcpy((res + remaining_argc), &my_args[0], my_args.size() * sizeof(char *));
+  res[remaining_argc + my_args.size()] = nullptr;
+  set_remaining_args(remaining_argc + my_args.size(), res);
+}
+
 /**
   Process command line options flagged as 'early'.
   Some components needs to be initialized as early as possible,
@@ -10344,6 +10367,8 @@ static int handle_early_options() {
     remaining_argv--;
 
     if (opt_initialize_insecure) opt_initialize = true;
+
+    handle_mysql_native_password_option();
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.

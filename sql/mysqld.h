@@ -732,6 +732,8 @@ extern sigset_t mysqld_signal_mask;
 typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;
 
+extern bool opt_enable_mysql_native_password;
+
 int *get_remaining_argc();
 char ***get_remaining_argv();
 

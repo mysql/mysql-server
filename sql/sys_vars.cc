@@ -7519,3 +7519,11 @@ Sys_var_bool Sys_restrict_fk_on_non_standard_key(
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
 }  // namespace
+
+bool opt_enable_mysql_native_password{false};
+static Sys_var_bool Sys_enable_mysql_native_password(
+    "enable_mysql_native_password",
+    "Force enable deprecated mysql_native_password plugin.",
+    READ_ONLY GLOBAL_VAR(opt_enable_mysql_native_password), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), ON_READ(nullptr), sys_var::PARSE_EARLY);
