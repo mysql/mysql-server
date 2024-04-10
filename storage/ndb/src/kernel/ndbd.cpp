@@ -1051,27 +1051,32 @@ void ndbd_run(bool foreground, int report_fd, const char *connect_str,
 
   theConfig->setupConfiguration();
 
+  /* Find TLS key and certificate */
   globalTransporterRegistry.init_tls(tls_search_path, NODE_TYPE_DB,
                                      opt_mgm_tls);
 
+  /* Check TLS configuration */
   const ndb_mgm_configuration_iterator *p =
       globalEmulatorData.theConfiguration->getOwnConfigIterator();
   require(p != nullptr);
 
-  if (openssl_version_ok) {
-    Uint32 require_cert = 0, require_tls = 0;
-    ndb_mgm_get_int_parameter(p, CFG_NODE_REQUIRE_CERT, &require_cert);
-    ndb_mgm_get_int_parameter(p, CFG_DB_REQUIRE_TLS, &require_tls);
-    if ((require_cert || require_tls) &&
-        !globalTransporterRegistry.hasTlsCert()) {
+  Uint32 requireCert = 0, requireTls = 0;
+  ndb_mgm_get_int_parameter(p, CFG_NODE_REQUIRE_CERT, &requireCert);
+  ndb_mgm_get_int_parameter(p, CFG_DB_REQUIRE_TLS, &requireTls);
+
+  if ((requireCert || requireTls) && !globalTransporterRegistry.hasTlsCert()) {
+    if (openssl_version_ok)
       g_eventLogger->error(
           "Shutting down. This node does not have a valid TLS certificate.");
-      stop_async_log_func(log_threadvar, thread_args);
-      ndbd_exit(-1);
-    }
-    if (require_tls) {
-      g_eventLogger->info("This node will require TLS for all connections.");
-    }
+    else
+      g_eventLogger->error(
+          "Shutting down. This version of OpenSSL is not supported.");
+    stop_async_log_func(log_threadvar, thread_args);
+    ndbd_exit(-1);
+  }
+
+  if (requireTls) {
+    g_eventLogger->info("This node will require TLS for all connections.");
   }
 
   /**
