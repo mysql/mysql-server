@@ -1418,3 +1418,31 @@ CAST(v AS FLOAT)
 2007570000
 2007570000
 DROP TABLE t1;
+#
+# Bug#36496160 Incorrect results when using distinct and order by and derived table
+#
+CREATE TABLE tt (
+id BIGINT UNSIGNED NOT NULL,
+name VARCHAR(20),
+time VARCHAR(20),
+PRIMARY KEY (id)
+);
+INSERT INTO tt VALUES (0, 'kk', '20230312'),
+(1, 'kk', '20230309'),
+(2, 'kk', '20230314'),
+(3, 'kk', '20230320'),
+(4, 'ss', '20230305'),
+(5, 'ss', '20230304'),
+(6, 'ss', '20230320');
+SELECT DISTINCT t0.name, STR_TO_DATE(t0.time,'%Y%m%d')
+FROM (SELECT * FROM tt) AS t0
+ORDER BY t0.name, STR_TO_DATE(t0.time,'%Y%m%d');
+name	STR_TO_DATE(t0.time,'%Y%m%d')
+kk	2023-03-09
+kk	2023-03-12
+kk	2023-03-14
+kk	2023-03-20
+ss	2023-03-04
+ss	2023-03-05
+ss	2023-03-20
+DROP TABLE tt;

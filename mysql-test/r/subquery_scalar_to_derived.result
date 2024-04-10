@@ -2862,6 +2862,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.login' of SELECT #4 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.login' of SELECT #5 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on((`derived_1_2`.`login` = `test`.`t1`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on((`derived_1_3`.`login` = `test`.`t1`.`login`)) where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` order by ((`test`.`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) limit 5
 DROP TABLE tbl1, tbl2;
 Bug 2

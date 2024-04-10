@@ -4197,6 +4197,25 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     order->in_field_list = true;
     return false;
   }
+
+  if (order_item->type() == Item::FUNC_ITEM) {
+    // TODO: streamline. This is a bit ad hoc, but works and should be safe.
+    // Resolve before attempting to find an expression in select list, else we
+    // cannot match argument fields, e.g. in
+    //
+    //    SELECT foo(a, 3) FROM ..  ORDER BY foo(a, 3)
+    //
+    // 'a' in the order by would not be resolved so find_item_in_list below
+    // would fail.
+    const bool saved_group_fix_field =
+        thd->lex->current_query_block()->group_fix_field;
+    if (is_group_field) thd->lex->current_query_block()->group_fix_field = true;
+    if ((!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
+                                (order_item = *order->item)->check_cols(1))))
+      return true;
+    thd->lex->current_query_block()->group_fix_field = saved_group_fix_field;
+  }
+
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   if (find_item_in_list(thd, order_item, fields, &select_item, &counter,
                         &resolution)) {

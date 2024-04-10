@@ -995,3 +995,27 @@ SELECT SQL_SMALL_RESULT DISTINCT CAST(v AS FLOAT) FROM t1;
 SELECT SQL_BIG_RESULT DISTINCT CAST(v AS FLOAT) FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36496160 Incorrect results when using distinct and order by and derived table
+--echo #
+CREATE TABLE tt (
+  id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(20),
+  time VARCHAR(20),
+  PRIMARY KEY (id)
+);
+
+INSERT INTO tt VALUES (0, 'kk', '20230312'),
+                      (1, 'kk', '20230309'),
+                      (2, 'kk', '20230314'),
+                      (3, 'kk', '20230320'),
+                      (4, 'ss', '20230305'),
+                      (5, 'ss', '20230304'),
+                      (6, 'ss', '20230320');
+
+SELECT DISTINCT t0.name, STR_TO_DATE(t0.time,'%Y%m%d')
+FROM (SELECT * FROM tt) AS t0
+ORDER BY t0.name, STR_TO_DATE(t0.time,'%Y%m%d');
+
+DROP TABLE tt;

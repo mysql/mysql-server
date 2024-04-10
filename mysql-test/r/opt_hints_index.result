@@ -266,7 +266,7 @@ FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
 WHERE MATCH (x) AGAINST ('abc')
 ORDER BY MATCH (x) AGAINST ('abc') DESC;
 EXPLAIN
--> Sort row IDs: (match t.x against ('abc')) DESC  (rows=4)
+-> Sort row IDs: m DESC  (rows=4)
     -> Filter: (match t.x against ('abc'))  (rows=4)
         -> Table scan on t  (rows=4)
 
