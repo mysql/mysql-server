@@ -333,5 +333,5 @@ mysql_declare_plugin(mysql_native_password){
     nullptr,                           /* status variables */
     nullptr,                           /* system variables */
     nullptr,                           /* config options   */
-    0,                                 /* flags            */
+    PLUGIN_OPT_DEFAULT_OFF,            /* flags            */
 } mysql_declare_plugin_end;
