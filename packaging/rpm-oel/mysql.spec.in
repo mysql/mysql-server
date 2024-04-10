@@ -1916,7 +1916,7 @@ fi
 %{_tmpfilesdir}/mysqlrouter.conf
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
-%{_libdir}/mysqlrouter/private/libhttp_client.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_client.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_connection_pool.so.*

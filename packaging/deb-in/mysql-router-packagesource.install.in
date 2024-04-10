@@ -48,7 +48,7 @@ usr/lib/mysqlrouter/plugin/mysql_rest_service.so
 # private shared libraries
 usr/lib/mysqlrouter/private/libprotobuf-lite.so.24.4.0
 usr/lib/mysqlrouter/private/libabsl_*.so
-usr/lib/mysqlrouter/private/libhttp_client.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http_client.so.1
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
