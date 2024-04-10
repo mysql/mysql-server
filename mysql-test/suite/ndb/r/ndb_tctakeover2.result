@@ -1,0 +1,72 @@
+Create table with non standard partitioning
+allowing colocation of operations in a single LDM
+create table t1 (a int, b int, c int, primary key(a,b)) engine=ndb partition by key(a);
+Insert some rows
+All will be on the same partition, LDM instance, nodes
+insert into t1 values (1,1,1);
+insert into t1 select 1, b+1, 1 from t1;
+insert into t1 select 1, b+2, 1 from t1;
+insert into t1 select 1, b+4, 1 from t1;
+insert into t1 select 1, b+8, 1 from t1;
+insert into t1 select 1, b+16, 1 from t1;
+insert into t1 select 1, b+32, 1 from t1;
+insert into t1 select 1, b+64, 1 from t1;
+insert into t1 select 1, b+128, 1 from t1;
+insert into t1 select 1, b+256, 1 from t1;
+Check LQH operation entry size and records per page.
+Usable words on page are 32768 - 128
+Extra pages is 0
+Start a transaction with a number of operations
+100 ops makes it easier to identify in case of noise
+begin;
+update t1 set c=c+1 limit 100;
+Determine TC
+Determine other node
+Determine target number of ops
+as multiple of records per page
+With optional extra pages to test dynamic sub pool limit
+Check targetops not too small
+enoughTargetOps
+1
+Subtract 200 ops
+100 for those already created
+100 reserved for DBUTIL usage
+Consume ops up to target
+Restart TC node
+Wait for not started state
+Check no operations from failed TC remain (must be none)
+select * from ndbinfo.cluster_operations where tc_node_id=2;;
+node_id	block_instance	transid	operation_type	state	tableid	fragmentid	client_node_id	client_block_ref	tc_node_id	tc_block_no	tc_block_instance
+Start TC node
+Wait for all started
+OK
+rollback;
+ERROR HY000: Got temporary error 4025 'Node failure caused abort of transaction' from NDBCLUSTER
+Extra pages is 1
+Start a transaction with a number of operations
+100 ops makes it easier to identify in case of noise
+begin;
+update t1 set c=c+1 limit 100;
+Determine TC
+Determine other node
+Determine target number of ops
+as multiple of records per page
+With optional extra pages to test dynamic sub pool limit
+Check targetops not too small
+enoughTargetOps
+1
+Subtract 200 ops
+100 for those already created
+100 reserved for DBUTIL usage
+Consume ops up to target
+Restart TC node
+Wait for not started state
+Check no operations from failed TC remain (must be none)
+select * from ndbinfo.cluster_operations where tc_node_id=1;;
+node_id	block_instance	transid	operation_type	state	tableid	fragmentid	client_node_id	client_block_ref	tc_node_id	tc_block_no	tc_block_instance
+Start TC node
+Wait for all started
+OK
+rollback;
+ERROR HY000: Got temporary error 4025 'Node failure caused abort of transaction' from NDBCLUSTER
+drop table t1;

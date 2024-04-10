@@ -241,7 +241,8 @@ inline void ComposedSlotPool<Pool1, Pool2>::init(Uint32 type_id,
   const Uint32 req_recs = *min_recs;
   Uint32 pool1_recs = req_recs;
   m_pool1.init(type_id, slot_size, &pool1_recs, pool_ctx);
-  Uint32 pool2_recs = req_recs - pool1_recs;
+  // If pool1 failed to allocate all, spill remaining to pool2
+  Uint32 pool2_recs = (pool1_recs < req_recs) ? req_recs - pool1_recs : 0;
   m_pool2.init(type_id, slot_size, &pool2_recs, pool_ctx);
   *min_recs = pool1_recs + pool2_recs;
 
