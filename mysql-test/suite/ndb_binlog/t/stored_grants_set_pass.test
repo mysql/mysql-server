@@ -1,0 +1,6 @@
+#
+# This version of the test runs with log-bin=1 and ndb-log-bin=1
+#
+--source include/have_ndb.inc
+--source suite/ndb/t/stored_grants_set_pass.test
+
