@@ -4034,6 +4034,14 @@ enum Item_result Item_func_json_value::result_type() const {
   return json_cast_result_type(m_cast_target);
 }
 
+Json_on_response_type Item_func_json_value::on_empty_response_type() const {
+  return m_on_empty;
+}
+
+Json_on_response_type Item_func_json_value::on_error_response_type() const {
+  return m_on_error;
+}
+
 bool Item_func_json_value::resolve_type(THD *) {
   // The path must be a character literal, so it's never NULL.
   assert(!args[1]->is_nullable());

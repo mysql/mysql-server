@@ -1880,7 +1880,6 @@ bool Json_wrapper::get_boolean() const {
   return m_value.type() == json_binary::Value::LITERAL_TRUE;
 }
 
-#ifdef MYSQL_SERVER
 Json_path Json_dom::get_location() const {
   if (m_parent == nullptr) {
     Json_path result(key_memory_JSON);
@@ -1908,7 +1907,6 @@ Json_path Json_dom::get_location() const {
   return result;
 }
 
-#endif  // ifdef MYSQL_SERVER
 bool Json_dom::seek(const Json_seekable_path &path, size_t legs,
                     Json_dom_vector *hits, bool auto_wrap, bool only_need_one) {
   const auto begin = path.begin();

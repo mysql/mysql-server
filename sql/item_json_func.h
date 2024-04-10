@@ -323,6 +323,7 @@ class Item_func_json_valid final : public Item_int_func {
   Item_func_json_valid(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
   const char *func_name() const override { return "json_valid"; }
+  enum Functype functype() const override { return JSON_VALID_FUNC; }
 
   bool is_bool_func() const override { return true; }
 
@@ -442,6 +443,7 @@ class Item_func_json_contains_path final : public Item_int_func {
         m_path_cache(thd, arg_count) {}
 
   const char *func_name() const override { return "json_contains_path"; }
+  enum Functype functype() const override { return JSON_CONTAINS_PATH_FUNC; }
 
   bool is_bool_func() const override { return true; }
 
@@ -473,6 +475,7 @@ class Item_func_json_type : public Item_str_func {
   Item_func_json_type(const POS &pos, Item *a) : Item_str_func(pos, a) {}
 
   const char *func_name() const override { return "json_type"; }
+  enum Functype functype() const override { return JSON_TYPE_FUNC; }
 
   bool resolve_type(THD *) override;
 
@@ -788,6 +791,8 @@ class Item_func_json_search : public Item_json_func {
 
   const char *func_name() const override { return "json_search"; }
 
+  enum Functype functype() const override { return JSON_SEARCH_FUNC; }
+
   bool val_json(Json_wrapper *wr) override;
 
   /**
@@ -890,6 +895,8 @@ class Item_func_json_quote : public Item_str_func {
 
   const char *func_name() const override { return "json_quote"; }
 
+  enum Functype functype() const override { return JSON_QUOTE_FUNC; }
+
   bool resolve_type(THD *thd) override {
     if (reject_vector_args()) return true;
     if (param_type_is_default(thd, 0, -1)) return true;
@@ -944,6 +951,8 @@ class Item_func_json_pretty final : public Item_str_func {
 
   const char *func_name() const override { return "json_pretty"; }
 
+  enum Functype functype() const override { return JSON_PRETTY_FUNC; }
+
   bool resolve_type(THD *thd) override {
     if (reject_vector_args()) return true;
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
@@ -962,6 +971,7 @@ class Item_func_json_storage_size final : public Item_int_func {
   Item_func_json_storage_size(const POS &pos, Item *a)
       : Item_int_func(pos, a) {}
   const char *func_name() const override { return "json_storage_size"; }
+  enum Functype functype() const override { return JSON_STORAGE_SIZE_FUNC; }
 
   bool resolve_type(THD *thd) override {
     if (reject_vector_args()) return true;
@@ -982,6 +992,7 @@ class Item_func_json_storage_free final : public Item_int_func {
   Item_func_json_storage_free(const POS &pos, Item *a)
       : Item_int_func(pos, a) {}
   const char *func_name() const override { return "json_storage_free"; }
+  enum Functype functype() const override { return JSON_STORAGE_FREE_FUNC; }
 
   bool resolve_type(THD *thd) override {
     if (reject_vector_args()) return true;
@@ -1121,6 +1132,7 @@ class Item_func_json_value final : public Item_func {
                        Item *on_error_default);
   ~Item_func_json_value() override;
   const char *func_name() const override { return "json_value"; }
+  enum Functype functype() const override { return JSON_VALUE_FUNC; }
   enum Item_result result_type() const override;
   bool resolve_type(THD *) override;
   bool fix_fields(THD *thd, Item **ref) override;
@@ -1134,6 +1146,8 @@ class Item_func_json_value final : public Item_func {
   my_decimal *val_decimal(my_decimal *value) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t flags) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  Json_on_response_type on_empty_response_type() const;
+  Json_on_response_type on_error_response_type() const;
 
  private:
   /// Represents a default value given in JSON_VALUE's DEFAULT xxx ON EMPTY or
