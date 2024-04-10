@@ -195,7 +195,7 @@ TARGET_INCLUDE_DIRECTORIES(http_client PUBLIC
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_client)
 
 SET_TARGET_PROPERTIES(http_client PROPERTIES
-  OUTPUT_NAME "http_client"
+  OUTPUT_NAME "mysqlrouter_http_client"
   SOVERSION 1
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
