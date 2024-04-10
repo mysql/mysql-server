@@ -108,6 +108,7 @@ ConfigObject *ConfigObject::copy_current(ConfigSection *curr_section) const {
   if (new_cs == nullptr) {
     DEB_MALLOC(("delete(%u) => %p", __LINE__, new_co));
     delete new_co;
+    return nullptr;
   }
   new_co->m_cfg_sections.push_back(new_cs);
   new_co->m_num_sections = 1;
@@ -164,6 +165,8 @@ ConfigObject *ConfigObject::copy_current(ConfigSection *curr_section) const {
       break;
     }
     default: {
+      DEB_MALLOC(("delete(%u) => %p", __LINE__, new_co));
+      delete new_co;
       return nullptr;
     }
   }
