@@ -1185,9 +1185,12 @@ SELECT a FROM t1 x2 WHERE x2.b IN
   (SELECT a FROM t1 x1 WHERE x1.b IN (SELECT a FROM t1 x0));
 
 # The exact figures are platform dependent, so check that they are within a
-# certain range.
-SELECT ABS(LENGTH(TRACE) - 15638) < 100 trace_length_ok,
-  ABS(MISSING_BYTES_BEYOND_MAX_MEM_SIZE - 15728) < 100 excess_length_ok
+# certain range. It is also possible that more optimizer trace is added in
+# later patches, and that the expected length has to be changed accordingly.
+SELECT
+  CAST(LENGTH(TRACE) AS DOUBLE) / @@optimizer_trace_max_mem_size
+  BETWEEN 0.9 AND 1.1 AS trace_length_ok,
+  MISSING_BYTES_BEYOND_MAX_MEM_SIZE BETWEEN 10000 AND 20000 AS excess_length_ok
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SET SESSION optimizer_trace_max_mem_size=@old_optimizer_trace_max_mem_size;
