@@ -1120,6 +1120,20 @@ eval EXPLAIN $query;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#36487526 MDS Crash in X plugin protocol encoder
+--echo #
+
+--echo # Simplified repro
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+let $query=
+SELECT COUNT(*)+(SELECT COUNT(*) FROM t1 WHERE t1.f1 = t2.f1) FROM t1 AS t2 GROUP BY f2;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql

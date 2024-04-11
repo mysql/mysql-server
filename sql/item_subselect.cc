@@ -3065,6 +3065,7 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
     Item *coa = new (mem_root) Item_func_coalesce(result, zero_or_if);
     if (coa == nullptr) return nullptr;
     if (coa->fix_fields(current_thd, &coa)) return nullptr;
+    coa->hidden = result->hidden;
     result = coa;
   }
   return result;
