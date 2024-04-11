@@ -877,6 +877,6 @@ do (is_ipv4_mapped(bin_to_uuid(@a:=34)))
 <=>
    (json_objectagg('key2',42 ) and rtrim(""));
 
---echo #
---echo # End of tests
---echo #
+--echo # Bug#36400256: Assertion failed: nullptr != dynamic_cast<Target>(arg)
+
+DO LEAST(0x00, NAME_CONST('a', _tis620 '1'));

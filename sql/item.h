@@ -980,7 +980,8 @@ class Item : public Parse_tree_node {
     ROUTINE_FIELD_ITEM,  ///< A variable inside a routine (proc, func, trigger)
     TRIGGER_FIELD_ITEM,  ///< An OLD or NEW field, used in trigger definitions.
     XPATH_NODESET_ITEM,  ///< Used in XPATH expressions.
-    VALUES_COLUMN_ITEM   ///< A value from a VALUES clause.
+    VALUES_COLUMN_ITEM,  ///< A value from a VALUES clause.
+    NAME_CONST_ITEM      ///< A NAME_CONST expression
   };
 
   enum cond_result { COND_UNDEF, COND_OK, COND_TRUE, COND_FALSE };
@@ -4038,7 +4039,7 @@ class Item_name_const final : public Item {
   bool do_itemize(Parse_context *pc, Item **res) override;
   bool fix_fields(THD *, Item **) override;
 
-  enum Type type() const override;
+  enum Type type() const override { return NAME_CONST_ITEM; }
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *sp) override;
@@ -5575,6 +5576,9 @@ class Item_string : public Item_basic_constant {
   }
   bool set_str_with_copy(const char *str_arg, uint length_arg,
                          const CHARSET_INFO *from_cs);
+  /// Update collation of string value to be according to item's collation
+  void set_value_collation() { str_value.set_charset(collation.collation); }
+
   void set_repertoire_from_value() {
     collation.repertoire = my_string_repertoire(
         str_value.charset(), str_value.ptr(), str_value.length());

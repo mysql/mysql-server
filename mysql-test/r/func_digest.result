@@ -1500,7 +1500,7 @@ FROM information_schema.columns
 WHERE table_name = 'events_statements_history' AND column_name = 'digest';
 ERROR HY000: Could not parse argument to digest function.
 SELECT statement_digest( point(1, 2) ) IS NULL;
-ERROR HY000: Could not parse argument to digest function.
+ERROR HY000: The function statement_digest does not support the character set 'binary'.
 # Make sure that UTF-8 content is not printed in the error message
 # without being converted.
 SET NAMES latin1;
@@ -1523,8 +1523,6 @@ SELECT statement_digest( statement_digest( '' ) );
 ERROR HY000: Could not parse argument to digest function: "Query was empty".
 SELECT statement_digest( statement_digest( '\0' ) );
 ERROR HY000: Could not parse argument to digest function: "Query was empty".
-SELECT statement_digest( statement_digest( 'SELECT 1, 2, 3' ) );
-ERROR HY000: Could not parse argument to digest function.
 # Prepared statement syntax is not supported...
 SELECT statement_digest( 'SELECT ?' );
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
@@ -1536,7 +1534,7 @@ SET sql_mode = '';
 CREATE TABLE t1 ( g GEOMETRY NOT NULL );
 INSERT INTO t1 VALUES ( POINT(1,2) );
 SELECT concat( statement_digest(g), 'x' ) FROM t1;
-ERROR HY000: Could not parse argument to digest function.
+ERROR HY000: The function statement_digest does not support the character set 'binary'.
 SET sql_mode = DEFAULT;
 DROP TABLE t1;
 # Let's check that warnings in the parser are silenced.
@@ -1677,7 +1675,7 @@ FROM information_schema.columns
 WHERE table_name = 'events_statements_history' AND column_name = 'digest';
 ERROR HY000: Could not parse argument to digest function.
 SELECT statement_digest_text( point(1, 2) ) IS NULL;
-ERROR HY000: Could not parse argument to digest function.
+ERROR HY000: The function statement_digest_text does not support the character set 'binary'.
 # Make sure that UTF-8 content is not printed in the error message
 # without being converted.
 SET NAMES latin1;
@@ -1700,8 +1698,6 @@ SELECT statement_digest_text( statement_digest_text( '' ) );
 ERROR HY000: Could not parse argument to digest function: "Query was empty".
 SELECT statement_digest_text( statement_digest_text( '\0' ) );
 ERROR HY000: Could not parse argument to digest function: "Query was empty".
-SELECT statement_digest_text( statement_digest_text( 'SELECT 1, 2, 3' ) );
-ERROR HY000: Could not parse argument to digest function.
 # Prepared statement syntax is not supported...
 SELECT statement_digest_text( 'SELECT ?' );
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
@@ -1713,7 +1709,7 @@ SET sql_mode = '';
 CREATE TABLE t1 ( g GEOMETRY NOT NULL );
 INSERT INTO t1 VALUES ( POINT(1,2) );
 SELECT concat( statement_digest_text(g), 'x' ) FROM t1;
-ERROR HY000: Could not parse argument to digest function.
+ERROR HY000: The function statement_digest_text does not support the character set 'binary'.
 SET sql_mode = DEFAULT;
 DROP TABLE t1;
 # Let's check that warnings in the parser are silenced.

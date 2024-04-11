@@ -2746,3 +2746,21 @@ FROM t
 GROUP BY DATE_FORMAT(NULL ,-112982309.91);
 
 DROP TABLE t;
+
+--echo # Bug#36364619: Assertion 'src != dst || cs->casedn_multiply == 1'
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  ct TIME,
+  cd DATE,
+  PRIMARY KEY(pk));
+
+INSERT INTO t1 VALUES (1, '12:16:22', '2018-06-07');
+
+SELECT pk
+FROM t1
+WHERE CONCAT_WS('string',
+                CONCAT(CONCAT('08:50:27', cd COLLATE utf8mb4_turkish_ci),
+                       LOWER(ct))) <> 'xyz';
+
+DROP TABLE t1;

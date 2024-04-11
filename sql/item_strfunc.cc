@@ -1041,7 +1041,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
     THD *thd = current_thd;
     const Thd_parse_modifier thd_mod(thd, m_token_buffer);
     const CHARSET_INFO *cs = statement_string->charset();
-    if (!is_supported_parser_charset(cs)) {
+    if (!is_supported_parser_charset(cs) || cs == &my_charset_bin) {
       my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
                cs->m_coll_name);
       return error_str();
@@ -1078,7 +1078,7 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
   THD *thd = current_thd;
   const Thd_parse_modifier thd_mod(thd, m_token_buffer);
   const CHARSET_INFO *cs = statement_string->charset();
-  if (!is_supported_parser_charset(cs)) {
+  if (!is_supported_parser_charset(cs) || cs == &my_charset_bin) {
     my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
              cs->m_coll_name);
     return error_str();
