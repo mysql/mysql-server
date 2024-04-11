@@ -4157,14 +4157,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   uint counter;
   enum_resolution_type resolution;
 
-  /*
-    Local SP variables may be int but are expressions, not positions.
-    (And they can't be used before fix_fields is called for them).
-  */
-  if (order_item->type() == Item::INT_ITEM &&
-      order_item->basic_const_item()) { /* Order by position */
+  if (order_item->type() == Item::INT_ITEM) { /* Order by position */
     uint count = (uint)order_item->val_int();
-    if (!count || count > CountVisibleFields(*fields)) {
+    if (count == 0 || count > CountVisibleFields(*fields)) {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), order_item->full_name(), thd->where);
       return true;
     }

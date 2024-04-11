@@ -6261,7 +6261,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
   */
   Item **arg, **arg_end;
   for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
-    if ((*arg)->type() == Item::INT_ITEM && (*arg)->basic_const_item()) {
+    if ((*arg)->type() == Item::INT_ITEM) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "GROUPING function");
       return true;
     }

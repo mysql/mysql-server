@@ -877,20 +877,19 @@ void Item::print_item_w_name(const THD *thd, String *str,
 void Item::print_for_order(const THD *thd, String *str,
                            enum_query_type query_type,
                            const char *used_alias) const {
-  if ((query_type & QT_NORMALIZED_FORMAT) != 0)
+  if ((query_type & QT_NORMALIZED_FORMAT) != 0) {
     str->append("?");
-  else if (used_alias != nullptr) {
+  } else if (used_alias != nullptr) {
     // In the clause, user has referenced expression using an alias; we use it
     append_identifier(thd, str, used_alias, strlen(used_alias));
+  } else if (type() == Item::INT_ITEM) {
+    /*
+      "ORDER BY N" means "order by the N-th element". To avoid such
+      interpretation we write "ORDER BY ''", which is equivalent.
+    */
+    str->append("''");
   } else {
-    if (type() == Item::INT_ITEM && basic_const_item()) {
-      /*
-        "ORDER BY N" means "order by the N-th element". To avoid such
-        interpretation we write "ORDER BY ''", which is equivalent.
-      */
-      str->append("''");
-    } else
-      print(thd, str, query_type);
+    print(thd, str, query_type);
   }
 }
 
@@ -1641,8 +1640,7 @@ Item *Item_static_string_func::safe_charset_converter(
 }
 
 bool Item_string::eq(const Item *item) const {
-  if (type() == item->type() && item->basic_const_item()) {
-    // Should be OK for a basic constant.
+  if (type() == item->type()) {
     Item *arg = const_cast<Item *>(item);
     String str;
     return (collation.collation == arg->collation.collation &&
@@ -3553,7 +3551,7 @@ void Item_decimal::print(const THD *, String *str,
 }
 
 bool Item_decimal::eq(const Item *item) const {
-  if (type() == item->type() && item->basic_const_item()) {
+  if (type() == item->type()) {
     /*
       We need to cast off const to call val_decimal(). This should
       be OK for a basic constant. Additionally, we can pass nullptr as
@@ -7098,7 +7096,7 @@ type_conversion_status Item_decimal::save_in_field_inner(Field *field, bool) {
 
 bool Item_int::eq(const Item *arg) const {
   // No need to check for null value as integer constant can't be NULL
-  if (arg->basic_const_item() && arg->type() == type()) {
+  if (arg->type() == type()) {
     /*
       We need to cast off const to call val_int(). This should be OK for
       a basic constant.
@@ -7248,7 +7246,7 @@ void Item_float::print(const THD *, String *str,
 */
 
 bool Item_float::eq(const Item *arg) const {
-  if (arg->basic_const_item() && arg->type() == type()) {
+  if (arg->type() == type()) {
     /*
       We need to cast off const to call val_int(). This should be OK for
       a basic constant.
@@ -7436,8 +7434,7 @@ void Item_hex_string::print(const THD *, String *str,
 }
 
 bool Item_hex_string::eq(const Item *item) const {
-  if (item->basic_const_item() && item->type() == type()) {
-    // Should be OK for a basic constant.
+  if (item->type() == type()) {
     Item *arg = const_cast<Item *>(item);
     String str;
     return !sortcmp(&str_value, arg->val_str(&str), collation.collation);

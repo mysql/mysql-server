@@ -685,7 +685,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
     Item *oi = *order->item;
 
     /* Order by position is not allowed for windows: legacy SQL 1992 only */
-    if (oi->type() == Item::INT_ITEM && oi->basic_const_item()) {
+    if (oi->type() == Item::INT_ITEM) {
       my_error(ER_WINDOW_ILLEGAL_ORDER_BY, MYF(0), printable_name());
       return true;
     }

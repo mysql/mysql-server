@@ -2244,8 +2244,7 @@ bool Item_func_date_format::eq_specific(const Item *item) const {
     format modifiers with different case, for example %m and %M,
     have different meanings.
   */
-  if (!args[1]->basic_const_item() || !item_func->args[1]->basic_const_item() ||
-      args[1]->type() != STRING_ITEM ||
+  if (args[1]->type() != STRING_ITEM ||
       item_func->args[1]->type() != STRING_ITEM) {
     return true;
   }
