@@ -10427,6 +10427,25 @@ ER_TO_VECTOR_CONVERSION
 OBSOLETE_ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM
   eng "This storage engine ignores the %s index algorithm."
 
+#
+# End of 8.1+ (server-to-client) error messages.
+#
+
+
+################################################################################
+# Error numbers starting at 6400: server-to-client messages 9.x
+################################################################################
+
+# Do NOT add messages intended for the error log here;
+# they belong in a separate file, messages_to_error_log.txt.
+#
+# Do NOT add messages to clients for server versions < 9 here;
+# they have their own sections above.
+#
+# See the FAQ at the end of the file for more information.
+
+start-error-number 6400
+
 ER_SERVER_OFFLINE_MODE_REASON
   eng "The server is currently in offline mode since %s, reason: %s"
 
@@ -10434,8 +10453,7 @@ ER_SERVER_OFFLINE_MODE_USER
   eng "The server is currently in offline mode since %s, set by user %s"
 
 #
-#  End of 8.1+ error messages (server-to-client).
-#  Do NOT add messages intended for the error log above!
+#  End of 9.x error messages (server-to-client).
 #
 
 ################################################################################

@@ -14,7 +14,7 @@ INSTALL COMPONENT "file://component_test_sys_var_service";
 # I. Offline mode - rejects with username and timestamp.
 #
 SET GLOBAL offline_mode=ON;
-Application terminated with expected error: The server is currently in offline mode since DATE, set by user root (code 6141)
+Application terminated with expected error: The server is currently in offline mode since DATE, set by user root (code 6401)
 ok
 
 #
@@ -26,7 +26,7 @@ test_set_system_variable_string(0, NULL, "offline_mode", "on", "GLOBAL")
 SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request");
 test_set_global_variable_attributes(NULL, "offline_mode", "when", "today", "reason", "API request")
 0
-Application terminated with expected error: The server is currently in offline mode since DATE, reason: API request (code 6140)
+Application terminated with expected error: The server is currently in offline mode since DATE, reason: API request (code 6400)
 ok
 
 #
