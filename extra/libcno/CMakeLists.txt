@@ -30,7 +30,6 @@ MYSQL_ADD_EXECUTABLE(
   cno_huffman_generator
   cno_huffman_generator.cc
   SKIP_INSTALL
-  EXCLUDE_FROM_ALL
   )
 ADD_CUSTOM_COMMAND(
   OUTPUT "${LIBCNO_GENERATE_DIR}/hpack-data.h"

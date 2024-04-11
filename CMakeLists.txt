@@ -1650,6 +1650,21 @@ IF(APPLE)
   OPTION(WITH_DEVELOPER_ENTITLEMENTS "Add developer entitlements" OFF)
 ENDIF()
 
+# Utility target to build every executable tagged with ADD_TEST.
+ADD_CUSTOM_TARGET(unittest_all)
+
+# Utility target to build every target added with MYSQL_ADD_PLUGIN.
+ADD_CUSTOM_TARGET(plugin_all)
+
+# Utility target to build every target added with MYSQL_ADD_COMPONENT.
+ADD_CUSTOM_TARGET(component_all)
+
+# Utility target to generate all sources from .proto files.
+ADD_CUSTOM_TARGET(protobuf_generated_all)
+
+# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
+ADD_CUSTOM_TARGET(executable_all)
+
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded.
 # RapidJSON is also excluded, since the latest released version does not
@@ -2147,21 +2162,6 @@ OPTION(WITH_SHOW_PARSE_TREE
   "Allow showing the parse tree"
   ${WITH_SHOW_PARSE_TREE_DEFAULT}
   )
-
-# Utility target to build every executable tagged with ADD_TEST.
-ADD_CUSTOM_TARGET(unittest_all)
-
-# Utility target to build every target added with MYSQL_ADD_PLUGIN.
-ADD_CUSTOM_TARGET(plugin_all)
-
-# Utility target to build every target added with MYSQL_ADD_COMPONENT.
-ADD_CUSTOM_TARGET(component_all)
-
-# Utility target to generate all sources from .proto files.
-ADD_CUSTOM_TARGET(protobuf_generated_all)
-
-# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
-ADD_CUSTOM_TARGET(executable_all)
 
 # We may run clang-tidy on individual .h files. Tell clang to treat them as C++.
 # To generate entries for header files in compile_commands.json:
