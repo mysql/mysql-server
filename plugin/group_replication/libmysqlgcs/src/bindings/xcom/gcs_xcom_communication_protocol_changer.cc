@@ -303,9 +303,36 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
   auto const *node = xcom_nodes.get_node(node_id);
 
   if (!node) {
-    MYSQL_GCS_LOG_INFO(
-        "Not able to decrement number of packets in transit. Non-existing node "
-        "from incoming packet.");
+    std::ostringstream node_and_nodes;
+    node_and_nodes << " requested node_id = " << node_id;
+    node_and_nodes << " provided config members:";
+    for (const Gcs_xcom_node_information &xcom_node : xcom_nodes.get_nodes()) {
+      node_and_nodes << " node_no[" << xcom_node.get_node_no();
+      node_and_nodes << "]="
+                     << xcom_node.get_member_id().get_member_id().c_str();
+    }
+
+    if (!is_protocol_change_ongoing()) {
+      std::string log_message(
+          "Received a network packet from an unrecognised sender. "
+          "Will ignore this message. No need to take any further "
+          "action. If this behaviour persists, consider restarting "
+          "the group at the next convenient time. Details:");
+      log_message.append(node_and_nodes.str().c_str());
+      MYSQL_GCS_LOG_WARN(log_message.c_str());
+    } else {
+      std::string log_message(
+          "There is an ongoing Protocol Change and we were not able to "
+          "decrement the number of packets in transit due to unrecognised "
+          "sender "
+          "from an incoming packet. This node will block sending messages. "
+          "Consider restarting the group at the next convenient time to fix "
+          "it. "
+          "Details:");
+      log_message.append(node_and_nodes.str().c_str());
+      MYSQL_GCS_LOG_ERROR(log_message.c_str());
+    }
+    return;
   }
 
   const Gcs_member_identifier origin_member_id = node->get_member_id();
