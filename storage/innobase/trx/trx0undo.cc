@@ -493,7 +493,7 @@ static ulint trx_undo_header_create(
     page_t *undo_page, /*!< in/out: undo log segment
                        header page, x-latched; it is
                        assumed that there is
-                       TRX_UNDO_LOG_HDR_SIZE bytes
+                       TRX_UNDO_LOG_GTID_XA_HDR_SIZE bytes
                        free space on it */
     trx_id_t trx_id,   /*!< in: transaction id */
     mtr_t *mtr)        /*!< in: mtr */
