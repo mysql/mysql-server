@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2024, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -1447,6 +1447,7 @@ int main(int argc, const char** argv)
   testMgmd.setCreateTable(false);
   testMgmd.setRunAllTables(true);
   testMgmd.setConnectCluster(false);
+  testMgmd.setCheckErrorInsert(false);
 
 #ifdef NDB_USE_GET_ENV
   char buf1[255], buf2[255];

@@ -420,6 +420,9 @@ public:
   void setDriverType(NDBT_DriverType type) { m_driverType= type; }
   NDBT_DriverType getDriverType() const { return m_driverType; }
 
+  void setCheckErrorInsert(bool val);
+  bool getCheckErrorInsert() const;
+
 private:
   int executeOne(Ndb_cluster_connection&,
 		 const char* _tabname, const char* testname = NULL);
@@ -459,6 +462,7 @@ private:
   NDBT_DriverType m_driverType;
   bool m_noddl;
   bool m_forceShort;
+  bool m_checkErrorInsert;
 };
 
 
