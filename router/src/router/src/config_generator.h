@@ -278,7 +278,8 @@ class ConfigGenerator {
       const Options &options,
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &config_overwrites,
-      const std::string &state_file_name, const bool full);
+      const std::string &state_file_name, const bool full,
+      AutoCleaner &auto_clean);
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);

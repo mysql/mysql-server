@@ -1428,7 +1428,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     create_config(conf_stream, state_stream, conf_options.router_id,
                   router_name, system_username, cluster_info, username, options,
                   default_paths, get_config_cmdln_options(multivalue_options),
-                  state_file_path.str(), full);
+                  state_file_path.str(), full, auto_clean);
 
     mysql_harness::LoaderConfig config{mysql_harness::Config::allow_keys};
     config.read(conf_stream);
@@ -1503,7 +1503,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     create_config(config_file, state_file, conf_options.router_id, router_name,
                   system_username, cluster_info, conf_options.username, options,
                   default_paths, get_config_cmdln_options(multivalue_options),
-                  state_file_path.str(), false);
+                  state_file_path.str(), false, auto_clean);
   }
 
   // return bootstrap report (several lines of human-readable text)
@@ -2257,6 +2257,10 @@ void add_direct_routing_section(
                           routing_supported_options);
   ADD_CONFIG_LINE_CHECKED(routing_section, "protocol", protocol,
                           routing_supported_options);
+  if (!is_classic)
+    ADD_CONFIG_LINE_CHECKED(routing_section,
+                            routing::options::kRouterRequireEnforce, "0",
+                            routing_supported_options);
 }
 
 void add_metadata_cache_routing_section(
@@ -2343,7 +2347,8 @@ static void add_http_auth_backend_section(
     std::ostream &config_file, const mysql_harness::Path &datadir,
     const std::string_view auth_backend_name,
     const mysqlrouter::MetadataSchemaVersion schema_version,
-    const std::map<std::string, std::string> &config_cmdln_options) {
+    const std::map<std::string, std::string> &config_cmdln_options,
+    AutoCleaner &auto_cleaner) {
   ConfigSectionPrinter http_backend_section{
       config_file, config_cmdln_options,
       "http_auth_backend:" + std::string(auth_backend_name)};
@@ -2361,6 +2366,7 @@ static void add_http_auth_backend_section(
                   auth_backend_passwd_file.c_str(),
                   open_res.error().message().c_str());
     }
+    auto_cleaner.add_file_delete(auth_backend_passwd_file);
     ADD_CONFIG_LINE_CHECKED(http_backend_section, "backend", "file",
                             http_backend_supported_options);
     ADD_CONFIG_LINE_CHECKED(http_backend_section, "filename",
@@ -2374,7 +2380,8 @@ void add_rest_section(
     const std::map<std::string, std::string> &default_paths,
     const std::map<std::string, std::string> &config_cmdln_options,
     const std::string &ssl_cert, const std::string &ssl_key,
-    const mysqlrouter::MetadataSchemaVersion &schema_version) {
+    const mysqlrouter::MetadataSchemaVersion &schema_version,
+    AutoCleaner &auto_clean) {
   std::stringstream config;
 
   mysql_harness::Path datadir_path;
@@ -2428,7 +2435,7 @@ void add_rest_section(
 
   add_http_auth_backend_section(config_file, datadir_path,
                                 kHttpDefaultAuthBackendName, schema_version,
-                                config_cmdln_options);
+                                config_cmdln_options, auto_clean);
 
   {
     ConfigSectionPrinter rest_routing_section(config_file, config_cmdln_options,
@@ -2479,7 +2486,8 @@ void ConfigGenerator::create_config(
     const Options &options,
     const std::map<std::string, std::string> &default_paths,
     const std::map<std::string, std::string> &config_cmdln_options,
-    const std::string &state_file_name, const bool full) {
+    const std::string &state_file_name, const bool full,
+    AutoCleaner &auto_clean) {
   config_file << "# File automatically generated during MySQL Router bootstrap"
               << "\n";
 
@@ -2718,7 +2726,7 @@ void ConfigGenerator::create_config(
   if (!options.disable_rest || full) {
     add_rest_section(config_file, options, default_paths, config_cmdln_options,
                      tls_filenames_.router_cert, tls_filenames_.router_key,
-                     schema_version_);
+                     schema_version_, auto_clean);
   }
 
   ConfigSectionPrinter::add_remaining_sections(config_file,
