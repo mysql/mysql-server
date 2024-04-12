@@ -1245,6 +1245,7 @@ ENDIF()
 # You need to install the 'lld' RPM/DEB package.
 # LTO build fails with lld, so turn it off by default.
 IF(LINUX AND NOT ALTERNATIVE_LD AND
+    NOT ${CMAKE_LINKER} MATCHES "ld\.lld" AND
     NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
