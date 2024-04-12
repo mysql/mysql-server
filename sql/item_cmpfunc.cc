@@ -3286,11 +3286,13 @@ Field *Item_func_ifnull::tmp_table_field(TABLE *table) {
 double Item_func_ifnull::real_op() {
   assert(fixed == 1);
   double value = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
   if (!args[0]->null_value) {
     null_value = false;
     return value;
   }
   value = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
   if ((null_value = args[1]->null_value)) return 0.0;
   return value;
 }
@@ -3298,11 +3300,13 @@ double Item_func_ifnull::real_op() {
 longlong Item_func_ifnull::int_op() {
   assert(fixed == 1);
   longlong value = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   if (!args[0]->null_value) {
     null_value = false;
     return value;
   }
   value = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   if ((null_value = args[1]->null_value)) return 0;
   return value;
 }
@@ -3310,11 +3314,13 @@ longlong Item_func_ifnull::int_op() {
 my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value) {
   assert(fixed == 1);
   my_decimal *value = args[0]->val_decimal(decimal_value);
+  if (current_thd->is_error()) return error_decimal(decimal_value);
   if (!args[0]->null_value) {
     null_value = false;
     return value;
   }
   value = args[1]->val_decimal(decimal_value);
+  if (current_thd->is_error()) return error_decimal(decimal_value);
   if ((null_value = args[1]->null_value)) return nullptr;
   return value;
 }
@@ -3349,12 +3355,15 @@ bool Item_func_ifnull::time_op(MYSQL_TIME *ltime) {
 String *Item_func_ifnull::str_op(String *str) {
   assert(fixed == 1);
   String *res = args[0]->val_str(str);
+  if (current_thd->is_error()) return error_str();
   if (!args[0]->null_value) {
     null_value = false;
     res->set_charset(collation.collation);
     return res;
   }
   res = args[1]->val_str(str);
+  if (current_thd->is_error()) return error_str();
+
   if ((null_value = args[1]->null_value)) return nullptr;
   res->set_charset(collation.collation);
   return res;
@@ -4101,8 +4110,9 @@ String *Item_func_coalesce::str_op(String *str) {
   assert(fixed == 1);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
-    String *res;
-    if ((res = args[i]->val_str(str))) return res;
+    String *res = args[i]->val_str(str);
+    if (current_thd->is_error()) return error_str();
+    if (res != nullptr) return res;
   }
   null_value = true;
   return nullptr;
@@ -4127,6 +4137,7 @@ longlong Item_func_coalesce::int_op() {
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     longlong res = args[i]->val_int();
+    if (current_thd->is_error()) return error_int();
     if (!args[i]->null_value) return res;
   }
   null_value = true;
@@ -4138,6 +4149,7 @@ double Item_func_coalesce::real_op() {
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     double res = args[i]->val_real();
+    if (current_thd->is_error()) return error_int();
     if (!args[i]->null_value) return res;
   }
   null_value = true;
@@ -4149,6 +4161,7 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value) {
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     my_decimal *res = args[i]->val_decimal(decimal_value);
+    if (current_thd->is_error()) return error_decimal(decimal_value);
     if (!args[i]->null_value) return res;
   }
   null_value = true;

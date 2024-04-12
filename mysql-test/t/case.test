@@ -375,3 +375,22 @@ DROP TABLE t1;
 --error ER_WRONG_ARGUMENTS
 DO GROUP_CONCAT(DISTINCT NULLIF(1, PERIOD_ADD(0x6f09c5f8 ,'7451-01-27')));
 
+--echo # Bug#35513196: Assertion failed: this_type != enum_json_type::J_ERROR
+
+--error ER_WRONG_ARGUMENTS
+DO IFNULL(multipolygon(
+              multilinestring(
+                  linestring(point(8117,-31186), point(31282,20992)),
+                  linestring(point(-10280,-15814), point(13662,-12122),
+                             point(12677,16556)))),
+          benchmark(2, version() >> (NOT json_objectagg('{"ab":2}',
+                          '[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]'))));
+
+--error ER_WRONG_ARGUMENTS
+DO COALESCE(multipolygon(
+                multilinestring(
+                    linestring(point(8117,-31186), point(31282,20992)),
+                    linestring(point(-10280,-15814), point(13662,-12122),
+                               point(12677,16556)))),
+            benchmark(2, version() >> (NOT json_objectagg('{"ab":2}',
+                          '[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]'))));

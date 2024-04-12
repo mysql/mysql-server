@@ -3008,9 +3008,11 @@ template <bool to_left>
 longlong Item_func_shift::eval_int_op() {
   assert(fixed);
   ulonglong res = args[0]->val_uint();
+  if (current_thd->is_error()) return error_int();
   if (args[0]->null_value) return error_int();
 
   ulonglong shift = args[1]->val_uint();
+  if (current_thd->is_error()) return error_int();
   if (args[1]->null_value) return error_int();
 
   null_value = false;
@@ -3034,11 +3036,13 @@ String *Item_func_shift::eval_str_op(String *) {
 
   String tmp_str;
   String *arg = args[0]->val_str(&tmp_str);
-  if (!arg || args[0]->null_value) return error_str();
+  if (current_thd->is_error()) return error_str();
+  if (args[0]->null_value) return error_str();
 
   ssize_t arg_length = arg->length();
   size_t shift =
       min(args[1]->val_uint(), static_cast<ulonglong>(arg_length) * 8);
+  if (current_thd->is_error()) return error_str();
   if (args[1]->null_value) return error_str();
 
   if (tmp_value.alloc(arg->length())) return error_str();
