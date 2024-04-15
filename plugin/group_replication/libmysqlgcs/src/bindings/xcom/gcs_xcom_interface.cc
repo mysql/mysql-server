@@ -1359,6 +1359,44 @@ void cb_xcom_receive_data(synode_no message_id, synode_no origin,
   assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
+  // Check if the origin node still exists in Gcs_xcom_nodes for the provided
+  // site.
+  // If it does not exist, then drop this message and dump all necessary
+  // information about this message
+  auto const *node = xcom_nodes->get_node(origin.node);
+
+  if (!node) {
+    std::ostringstream log_message;
+
+    log_message << "Received a network packet from an unrecognised sender. "
+                   "Will ignore this message. No need to take any further "
+                   "action. If this behaviour persists, consider restarting "
+                   "the group at the next convenient time and reporting a "
+                   "bug containing the details presented next. Details: "
+                << "xcom_unique_id = " << get_my_xcom_id()
+                << ", node_id = " << xcom_nodes->get_node_no()
+                << ", message_id.group = " << message_id.group_id
+                << ", message_id.msgno = " << message_id.msgno
+                << ", message_id.node = " << message_id.node
+                << ", origin.group = " << origin.group_id
+                << ", origin.msgno = " << origin.msgno
+                << ", origin.node = " << origin.node
+                << ", start.group = " << site->start.group_id
+                << ", start.msgno = " << site->start.msgno
+                << ", start.node = " << site->start.node
+                << ", site.nodes_list_len= " << site->nodes.node_list_len;
+
+    log_message << ", site.nodes.addresses={";
+    for (u_int i = 0; i < site->nodes.node_list_len; i++) {
+      log_message << " node id[" << i
+                  << "]=" << site->nodes.node_list_val[i].address;
+    }
+    log_message << " }";
+    MYSQL_GCS_LOG_WARN(log_message.str().c_str());
+
+    return;
+  }
+
   Gcs_xcom_notification *notification =
       new Data_notification(do_cb_xcom_receive_data, message_id, origin,
                             xcom_nodes, last_removed, size, data);
