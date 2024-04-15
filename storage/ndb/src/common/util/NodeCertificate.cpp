@@ -1063,9 +1063,11 @@ bool CertLifetime::set_exact_duration(time_t duration) {
   return (bool)gmtime_r(&expires, &m_notAfter);
 }
 
-void CertLifetime::set_cert_lifetime(X509 *cert) const {
-  X509_gmtime_adj(X509_getm_notBefore(cert), 0);
-  X509_gmtime_adj(X509_getm_notAfter(cert), m_duration);
+bool CertLifetime::set_cert_lifetime(X509 *cert) const {
+  time_t time1 = timegm(&m_notBefore);
+  time_t time2 = timegm(&m_notAfter);
+  return (ASN1_TIME_set(X509_getm_notBefore(cert), time1) &&
+          ASN1_TIME_set(X509_getm_notAfter(cert), time2));
 }
 
 time_t CertLifetime::expire_time(struct tm **tptr) const {
@@ -1237,7 +1239,7 @@ int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key) {
   if (r1 == 0) return -60;
 
   /* Set lifetime */
-  set_cert_lifetime(m_x509);
+  if (!set_cert_lifetime(m_x509)) return -70;
 
   /* Sign the certificate */
   if (CA_key) {
@@ -1420,7 +1422,7 @@ static int cert_lifetime_test() {
   /* Write lifetime to certificate */
   EVP_PKEY *key = PrivateKey::create("P-256");
   X509 *cert = Certificate::create(key);
-  c2.set_cert_lifetime(cert);
+  if (!c2.set_cert_lifetime(cert)) return 13;
 
   /* Read lifetime from certificate and compare to original */
   CertLifetime c3(cert);
