@@ -75,10 +75,9 @@ class Cyclic_iterator {
 template <class Compressor_tp>
 class PayloadEventBufferStreamTest {
  public:
-  using Managed_buffer_t =
-      mysql::binlog::event::compression::buffer::Managed_buffer<>;
+  using Managed_buffer_t = mysql::containers::buffers::Managed_buffer<>;
   using Managed_Buffer_sequence_t =
-      mysql::binlog::event::compression::buffer::Managed_buffer_sequence<>;
+      mysql::containers::buffers::Managed_buffer_sequence<>;
   using Compressor_t = Compressor_tp;
   using Compress_status_t = mysql::binlog::event::compression::Compress_status;
   using Decompress_status_t =

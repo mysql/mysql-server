@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CONSTRAINT_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CONSTRAINT_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_GROW_CONSTRAINT_H
+#define MYSQL_CONTAINERS_BUFFERS_GROW_CONSTRAINT_H
 
 #include "mysql/utils/nodiscard.h"  // NODISCARD
 
@@ -33,10 +33,10 @@
 #include <sstream>  // std::stringstream
 #endif
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Description of a heuristic to determine how much memory to allocate.
 ///
@@ -179,8 +179,8 @@ class Grow_constraint {
   Size_t m_block_size{default_block_size};
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif /* MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CONSTRAINT_H */
+#endif /* MYSQL_CONTAINERS_BUFFERS_GROW_CONSTRAINT_H */

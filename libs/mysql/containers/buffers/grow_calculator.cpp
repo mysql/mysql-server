@@ -21,13 +21,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/binlog/event/compression/buffer/grow_calculator.h"
+#include "mysql/containers/buffers/grow_calculator.h"
 #include "mysql/binlog/event/math/math.h"          // add_bounded
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
 #include <cassert>
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 Grow_calculator::Grow_calculator() {
   set_max_size(default_max_size);
@@ -68,4 +68,4 @@ Grow_calculator::Result_t Grow_calculator::compute_new_size(
   return Result_t(false, new_size);
 }
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers

@@ -27,8 +27,8 @@
 /// caller.  This is intended for capturing the output from
 /// compressors.
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_RW_BUFFER_SEQUENCE_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_RW_BUFFER_SEQUENCE_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_RW_BUFFER_SEQUENCE_H
+#define MYSQL_CONTAINERS_BUFFERS_RW_BUFFER_SEQUENCE_H
 
 #include <algorithm>  // std::min
 #include <cassert>    // assert
@@ -40,18 +40,18 @@
 #include <vector>  // std::vector
 #include "mysql/allocators/allocator.h"
 
-#include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"  // buffer::Buffer_sequence_view
-#include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view
-#include "mysql/binlog/event/compression/buffer/grow_calculator.h"  // buffer::Grow_calculator
-#include "mysql/binlog/event/compression/buffer/grow_status.h"  // buffer::Grow_status
-#include "mysql/utils/nodiscard.h"                              // NODISCARD
+#include "mysql/containers/buffers/buffer_sequence_view.h"  // Buffer_sequence_view
+#include "mysql/containers/buffers/buffer_view.h"           // Buffer_view
+#include "mysql/containers/buffers/grow_calculator.h"       // Grow_calculator
+#include "mysql/containers/buffers/grow_status.h"           // Grow_status
+#include "mysql/utils/nodiscard.h"                          // NODISCARD
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Non-owning manager for a fixed sequence of memory buffers, which
 /// is split into a read part and a write part, with a movable split
@@ -488,8 +488,8 @@ class Rw_buffer_sequence {
   Buffer_sequence_view_t m_write_part;
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_RW_BUFFER_SEQUENCE_H
+#endif  // MYSQL_CONTAINERS_BUFFERS_RW_BUFFER_SEQUENCE_H

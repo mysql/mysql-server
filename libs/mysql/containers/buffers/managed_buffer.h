@@ -28,24 +28,24 @@
 ///
 /// The growth rate is determined by a Grow_calculator.
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_MANAGED_BUFFER_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_MANAGED_BUFFER_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_MANAGED_BUFFER_H
+#define MYSQL_CONTAINERS_BUFFERS_MANAGED_BUFFER_H
 
 #include <limits>
 
-#include "grow_calculator.h"                   // buffer::Grow_calculator
-#include "grow_status.h"                       // buffer::Grow_status
+#include "grow_calculator.h"                   // Grow_calculator
+#include "grow_status.h"                       // Grow_status
 #include "mysql/allocators/allocator.h"        // Allocator
 #include "mysql/allocators/memory_resource.h"  // Memory_resource
 #include "mysql/utils/nodiscard.h"             // NODISCARD
-#include "rw_buffer.h"                         // buffer::Rw_buffer
+#include "rw_buffer.h"                         // Rw_buffer
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Owned, growable, contiguous memory buffer.
 ///
@@ -106,7 +106,7 @@ namespace mysql::binlog::event::compression::buffer {
 ///
 /// @tparam Char_tp The char type; usually char or unsigned char.
 template <class Char_tp = unsigned char>
-class Managed_buffer : public buffer::Rw_buffer<Char_tp> {
+class Managed_buffer : public Rw_buffer<Char_tp> {
  public:
   using Char_t = Char_tp;
   using Buffer_view_t = Buffer_view<Char_t>;
@@ -371,8 +371,8 @@ class Preallocated_managed_buffer : public Managed_buffer<Char_t> {
   Char_t m_preallocated_buffer[preallocated_size == 0 ? 1 : preallocated_size];
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_MANAGED_BUFFER_H
+#endif  // MYSQL_CONTAINERS_BUFFERS_MANAGED_BUFFER_H

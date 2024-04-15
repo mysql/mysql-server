@@ -26,17 +26,17 @@
 /// Non-owning manager for a fixed memory buffer, which is split into
 /// a read part and a write part, with a movable split position.
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_RW_BUFFER_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_RW_BUFFER_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_RW_BUFFER_H
+#define MYSQL_CONTAINERS_BUFFERS_RW_BUFFER_H
 
 #include <cassert>
 
 #include "buffer_view.h"
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Non-owning read/write memory buffer manager with a fixed size.
 ///
@@ -64,8 +64,7 @@ class Rw_buffer {
   using Difference_t = std::ptrdiff_t;
   using Iterator_t = Char_t *;
   using Const_iterator_t = const Char_t *;
-  using Buffer_view_t =
-      mysql::binlog::event::compression::buffer::Buffer_view<Char_t>;
+  using Buffer_view_t = mysql::containers::buffers::Buffer_view<Char_t>;
 
   Rw_buffer() = default;
 
@@ -173,8 +172,8 @@ class Rw_buffer {
   Buffer_view_t m_write_part;
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_RW_BUFFER_H
+#endif  // MYSQL_CONTAINERS_BUFFERS_RW_BUFFER_H

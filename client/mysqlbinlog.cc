@@ -176,7 +176,7 @@ class Database_rewrite {
       using Compress_status_t =
           mysql::binlog::event::compression::Compress_status;
       using Managed_buffer_sequence_t =
-          mysql::binlog::event::compression::buffer::Managed_buffer_sequence<>;
+          mysql::containers::buffers::Managed_buffer_sequence<>;
       using Char_t = Managed_buffer_sequence_t::Char_t;
       Managed_buffer_sequence_t managed_buffer_sequence;
       auto compressor =

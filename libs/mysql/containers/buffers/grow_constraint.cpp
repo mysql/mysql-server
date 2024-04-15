@@ -21,33 +21,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/binlog/event/compression/buffer/grow_status.h"
+#include "mysql/containers/buffers/grow_constraint.h"
 
 #include <cassert>
-#include <string>
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
-const std::string invalid_grow_status_string = "invalid";
+void Grow_constraint::set_max_size(Size_t max_size) { m_max_size = max_size; }
 
-std::string debug_string(Grow_status status) {
-  switch (status) {
-    case Grow_status::success:
-      return "success";
-    case Grow_status::out_of_memory:
-      return "out_of_memory";
-    case Grow_status::exceeds_max_size:
-      return "exceeds_max_size";
-    default:
-      break;
-  }
-  assert(0);
-  return invalid_grow_status_string;
+Grow_constraint::Size_t Grow_constraint::get_max_size() const {
+  return m_max_size;
 }
 
-std::ostream &operator<<(std::ostream &stream, Grow_status status) {
-  stream << debug_string(status);
-  return stream;
+void Grow_constraint::set_grow_factor(double grow_factor) {
+  assert(grow_factor >= 1.0);
+  m_grow_factor = grow_factor;
 }
 
-}  // namespace mysql::binlog::event::compression::buffer
+double Grow_constraint::get_grow_factor() const { return m_grow_factor; }
+
+void Grow_constraint::set_grow_increment(Size_t grow_increment) {
+  assert(grow_increment > 0);
+  m_grow_increment = grow_increment;
+}
+
+Grow_constraint::Size_t Grow_constraint::get_grow_increment() const {
+  return m_grow_increment;
+}
+
+void Grow_constraint::set_block_size(Size_t block_size) {
+  m_block_size = block_size;
+}
+
+Grow_constraint::Size_t Grow_constraint::get_block_size() const {
+  return m_block_size;
+}
+
+}  // namespace mysql::containers::buffers

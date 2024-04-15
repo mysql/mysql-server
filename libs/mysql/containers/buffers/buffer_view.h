@@ -26,8 +26,8 @@
 /// Class that groups a pointer+size as one object, without managing
 /// the memory for it.
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_VIEW_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_VIEW_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_BUFFER_VIEW_H
+#define MYSQL_CONTAINERS_BUFFERS_BUFFER_VIEW_H
 
 #include <cassert>  // assert
 #include <string>   // std::string
@@ -35,10 +35,10 @@
 #include <sstream>  // std::ostringstream
 #endif
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Non-owning view of a memory buffer with a fixed size.
 ///
@@ -51,7 +51,7 @@ class Buffer_view {
  public:
   using Char_t = Char_tp;
   /// The 'size' type.  Keep this equal to
-  /// buffer::Grow_calculator::Size_t
+  /// Grow_calculator::Size_t
   using Size_t = std::size_t;
   using Iterator_t = Char_t *;
   using Const_iterator_t = const Char_t *;
@@ -152,8 +152,8 @@ class Buffer_view {
   Size_t m_size{0};
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_VIEW_H
+#endif  // MYSQL_CONTAINERS_BUFFERS_BUFFER_VIEW_H

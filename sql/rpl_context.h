@@ -261,8 +261,7 @@ class Last_used_gtid_tracker_ctx {
 
 class Transaction_compression_ctx {
   using Compressor_t = mysql::binlog::event::compression::Compressor;
-  using Grow_calculator_t =
-      mysql::binlog::event::compression::buffer::Grow_calculator;
+  using Grow_calculator_t = mysql::containers::buffers::Grow_calculator;
   using Factory_t = mysql::binlog::event::compression::Factory;
 
  public:

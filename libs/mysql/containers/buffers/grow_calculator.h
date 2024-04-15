@@ -23,10 +23,10 @@
 
 /// @file grow_calculator.h
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CALCULATOR_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CALCULATOR_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_GROW_CALCULATOR_H
+#define MYSQL_CONTAINERS_BUFFERS_GROW_CALCULATOR_H
 
-#include "mysql/binlog/event/compression/buffer/grow_constraint.h"  // Grow_constraint
+#include "mysql/containers/buffers/grow_constraint.h"  // Grow_constraint
 
 #include <algorithm>  // std::min
 #include <limits>     // std::numeric_limits
@@ -35,10 +35,10 @@
 #include <sstream>  // std::stringstream
 #endif
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Description of a heuristic to determine how much memory to allocate.
 ///
@@ -115,8 +115,8 @@ class Grow_calculator : public Grow_constraint {
   Result_t compute_new_size(Size_t old_size, Size_t requested_size) const;
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif /* MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_CALCULATOR_H */
+#endif /* MYSQL_CONTAINERS_BUFFERS_GROW_CALCULATOR_H */

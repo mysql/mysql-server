@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql/binlog/event/compression/buffer/managed_buffer.h"
+#include "mysql/containers/buffers/managed_buffer.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -34,16 +34,14 @@
 
 using mysql::utils::concat;
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 namespace managed_buffer::unittest {
 
-using Grow_calculator_t =
-    mysql::binlog::event::compression::buffer::Grow_calculator;
-using Grow_status_t = mysql::binlog::event::compression::buffer::Grow_status;
-using Size_t = mysql::binlog::event::compression::buffer::Buffer_view<>::Size_t;
+using Grow_calculator_t = mysql::containers::buffers::Grow_calculator;
+using Grow_status_t = mysql::containers::buffers::Grow_status;
+using Size_t = mysql::containers::buffers::Buffer_view<>::Size_t;
 using Debug_function = const std::function<std::string(std::string)>;
-using Difference_t =
-    mysql::binlog::event::compression::buffer::Rw_buffer<>::Difference_t;
+using Difference_t = mysql::containers::buffers::Rw_buffer<>::Difference_t;
 
 // Return the current file and line as a string delimited and ended by
 // colons.
@@ -127,8 +125,8 @@ static bool _shall_stop_after_assertion = false;
 template <class Char_t>
 class Grow_tester {
  public:
-  using Managed_buffer_t = buffer::Managed_buffer<Char_t>;
-  using Rw_buffer_t = buffer::Rw_buffer<Char_t>;
+  using Managed_buffer_t = Managed_buffer<Char_t>;
+  using Rw_buffer_t = Rw_buffer<Char_t>;
 
   int m_scenario_count = 0;
 
@@ -361,4 +359,4 @@ TEST(ManagedBufferTest, CombinatorialGrowTestUchar) {
 }
 
 }  // namespace managed_buffer::unittest
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers

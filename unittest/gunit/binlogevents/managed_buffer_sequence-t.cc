@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql/binlog/event/compression/buffer/managed_buffer_sequence.h"
+#include "mysql/containers/buffers/managed_buffer_sequence.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -34,7 +34,7 @@
 
 using mysql::utils::concat;
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 namespace managed_buffer_sequence::unittest {
 
 /// "Token" used for the template argument for Accessor.  In case
@@ -43,8 +43,8 @@ namespace managed_buffer_sequence::unittest {
 class Grow_test_access_token {};
 
 template <>
-class Accessor<mysql::binlog::event::compression::buffer::
-                   managed_buffer_sequence::unittest::Grow_test_access_token> {
+class Accessor<mysql::containers::buffers::managed_buffer_sequence::unittest::
+                   Grow_test_access_token> {
  public:
   /// Export Grow_buffer_sequence::get_boundaries
   template <class MBS, class BS>
@@ -61,15 +61,14 @@ class Accessor<mysql::binlog::event::compression::buffer::
   }
 };
 
-using Access =
-    Accessor<mysql::binlog::event::compression::buffer::
-                 managed_buffer_sequence::unittest::Grow_test_access_token>;
+using Access = Accessor<mysql::containers::buffers::managed_buffer_sequence::
+                            unittest::Grow_test_access_token>;
 
-using Grow_status_t = mysql::binlog::event::compression::buffer::Grow_status;
-using Size_t = mysql::binlog::event::compression::buffer::Buffer_view<>::Size_t;
+using Grow_status_t = mysql::containers::buffers::Grow_status;
+using Size_t = mysql::containers::buffers::Buffer_view<>::Size_t;
 using Debug_function = const std::function<std::string(std::string)>;
-using Difference_t = mysql::binlog::event::compression::buffer::
-    Rw_buffer_sequence<>::Difference_t;
+using Difference_t =
+    mysql::containers::buffers::Rw_buffer_sequence<>::Difference_t;
 
 // Return the current file and line as a string delimited and ended by
 // colons.
@@ -154,8 +153,8 @@ template <class Char_t, template <class E, class A> class Container_t>
 class Grow_tester {
  public:
   using Managed_buffer_sequence_t =
-      buffer::Managed_buffer_sequence<Char_t, Container_t>;
-  using Rw_buffer_sequence_t = buffer::Rw_buffer_sequence<Char_t, Container_t>;
+      Managed_buffer_sequence<Char_t, Container_t>;
+  using Rw_buffer_sequence_t = Rw_buffer_sequence<Char_t, Container_t>;
 
   // Execute "grow_test" in many configurations.
   //
@@ -504,4 +503,4 @@ TEST(ManagedBufferSequenceTest, CombinatorialGrowTestUcharList) {
 }
 
 }  // namespace managed_buffer_sequence::unittest
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers

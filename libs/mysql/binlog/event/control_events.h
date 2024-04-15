@@ -42,7 +42,7 @@
 
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/compression/base.h"  // mysql::binlog::event::compression::type
-#include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"  // Buffer_sequence_view
+#include "mysql/containers/buffers/buffer_sequence_view.h"  // Buffer_sequence_view
 #include "mysql/gtid/gtid_constants.h"
 #include "mysql/gtid/tsid.h"
 #include "mysql/gtid/uuid.h"
@@ -735,7 +735,7 @@ struct gtid_info {
 class Transaction_payload_event : public Binary_log_event {
  public:
   using Buffer_sequence_view_t =
-      mysql::binlog::event::compression::buffer::Buffer_sequence_view<>;
+      mysql::containers::buffers::Buffer_sequence_view<>;
 
  private:
   Transaction_payload_event &operator=(const Transaction_payload_event &) =

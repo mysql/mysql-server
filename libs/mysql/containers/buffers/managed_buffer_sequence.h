@@ -26,8 +26,8 @@
 /// @brief Container class that provides a sequence of buffers to
 /// the caller.
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_MANAGED_BUFFER_SEQUENCE_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_MANAGED_BUFFER_SEQUENCE_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_MANAGED_BUFFER_SEQUENCE_H
+#define MYSQL_CONTAINERS_BUFFERS_MANAGED_BUFFER_SEQUENCE_H
 
 #include <algorithm>  // std::min
 #include <cassert>    // assert
@@ -35,20 +35,20 @@
 #include <limits>     // std::numeric_limits
 #include <vector>     // std::vector
 
-#include "mysql/allocators/allocator.h"        // Allocator
-#include "mysql/allocators/memory_resource.h"  // Memory_resource
-#include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view
-#include "mysql/binlog/event/compression/buffer/grow_calculator.h"  // buffer::Grow_calculator
-#include "mysql/binlog/event/compression/buffer/grow_status.h"  // buffer::Grow_status
-#include "mysql/binlog/event/compression/buffer/rw_buffer_sequence.h"  // buffer::Rw_buffer_sequence
-#include "mysql/utils/nodiscard.h"  // NODISCARD
+#include "mysql/allocators/allocator.h"                   // Allocator
+#include "mysql/allocators/memory_resource.h"             // Memory_resource
+#include "mysql/containers/buffers/buffer_view.h"         // Buffer_view
+#include "mysql/containers/buffers/grow_calculator.h"     // Grow_calculator
+#include "mysql/containers/buffers/grow_status.h"         // Grow_status
+#include "mysql/containers/buffers/rw_buffer_sequence.h"  // Rw_buffer_sequence
+#include "mysql/utils/nodiscard.h"                        // NODISCARD
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 // Forward declare Accessor so we can make it a friend
 namespace managed_buffer_sequence::unittest {
@@ -541,7 +541,7 @@ class Managed_buffer_sequence
   /// define the helper class:
   /// @code
   /// namespace
-  /// mysql::binlog::event::compression::buffer::managed_buffer_sequence::unittest
+  /// mysql::containers::buffers::managed_buffer_sequence::unittest
   /// { template<> class Accessor<SomeTest> {
   ///   static int &m(Managed_buffer_sequence &rbs) { return rbs.m; }
   /// };
@@ -551,8 +551,8 @@ class Managed_buffer_sequence
   friend class managed_buffer_sequence::unittest::Accessor;
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_MANAGED_BUFFER_SEQUENCE_H
+#endif  // MYSQL_CONTAINERS_BUFFERS_MANAGED_BUFFER_SEQUENCE_H

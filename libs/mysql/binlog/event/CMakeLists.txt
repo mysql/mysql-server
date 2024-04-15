@@ -24,6 +24,7 @@
 SET(LINK_LIBRARIES
   ext::zstd
   ext::zlib
+  mysql_containers
   mysql_gtid
   mysql_serialization
 )
@@ -78,9 +79,6 @@ SET(TARGET_SRCS
   compression/payload_event_buffer_istream.cpp
   compression/zstd_comp.cpp
   compression/zstd_dec.cpp
-  compression/buffer/grow_calculator.cpp
-  compression/buffer/grow_constraint.cpp
-  compression/buffer/grow_status.cpp
 )
 
 ADD_WSHADOW_WARNING()

@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql/binlog/event/compression/buffer/rw_buffer_sequence.h"
+#include "mysql/containers/buffers/rw_buffer_sequence.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -31,7 +31,7 @@
 
 using mysql::utils::concat;
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 namespace rw_buffer_sequence::unittest {
 
 template <class Rw_buffer_sequence_tp>
@@ -150,4 +150,4 @@ TEST(RwBufferSequenceTest, CombinatorialRepositionTestUcharList) {
 }
 
 }  // namespace rw_buffer_sequence::unittest
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers

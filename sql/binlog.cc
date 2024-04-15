@@ -72,7 +72,6 @@
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"  // my_safe_print_system_time
 #include "my_thread_local.h"
-#include "mysql/binlog/event/compression/buffer/grow_calculator.h"
 #include "mysql/binlog/event/compression/compressor.h"
 #include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
 #include "mysql/binlog/event/compression/zstd_comp.h"
@@ -82,6 +81,7 @@
 #include "mysql/binlog/event/statement_events.h"
 #include "mysql/binlog/event/table_id.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/containers/buffers/grow_calculator.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
@@ -2124,7 +2124,7 @@ class Binlog_cache_compressor {
   ///
   /// @return true on error, false on success.
   [[NODISCARD]] bool setup_buffer_sequence() {
-    mysql::binlog::event::compression::buffer::Grow_calculator grow_calculator;
+    mysql::containers::buffers::Grow_calculator grow_calculator;
     grow_calculator.set_max_size(
         mysql::binlog::event::Transaction_payload_event::max_payload_length);
     DBUG_EXECUTE_IF("binlog_transaction_compression_max_size_800",

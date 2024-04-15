@@ -23,16 +23,16 @@
 
 /// @file grow_status.h
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_STATUS_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_STATUS_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_GROW_STATUS_H
+#define MYSQL_CONTAINERS_BUFFERS_GROW_STATUS_H
 
 #include <ostream>
 #include <string>
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Error statuses for classes that use Grow_calculator.
 enum class Grow_status {
@@ -57,8 +57,8 @@ std::string debug_string(Grow_status status);
 /// Write a string that describes the enumeration value to the stream.
 std::ostream &operator<<(std::ostream &stream, Grow_status status);
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif /* MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_GROW_STATUS_H */
+#endif /* MYSQL_CONTAINERS_BUFFERS_GROW_STATUS_H */

@@ -26,8 +26,8 @@
 /// Container class that provides a sequence of buffers to the caller.
 /// This is intended for capturing the output from compressors.
 
-#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_SEQUENCE_VIEW_H
-#define MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_SEQUENCE_VIEW_H
+#ifndef MYSQL_CONTAINERS_BUFFERS_BUFFER_SEQUENCE_VIEW_H
+#define MYSQL_CONTAINERS_BUFFERS_BUFFER_SEQUENCE_VIEW_H
 
 #include <algorithm>                     // std::min
 #include <cassert>                       // assert
@@ -38,17 +38,17 @@
 #include <vector>                        // std::vector
 #include "mysql/allocators/allocator.h"  // mysql::allocators::Allocator
 
-#include "mysql/binlog/event/compression/buffer/buffer_view.h"  // buffer::Buffer_view
-#include "mysql/binlog/event/compression/buffer/grow_calculator.h"  // buffer::Grow_calculator
-#include "mysql/binlog/event/compression/buffer/grow_status.h"  // buffer::Grow_status
-#include "mysql/utils/nodiscard.h"                              // NODISCARD
+#include "mysql/containers/buffers/buffer_view.h"      // Buffer_view
+#include "mysql/containers/buffers/grow_calculator.h"  // Grow_calculator
+#include "mysql/containers/buffers/grow_status.h"      // Grow_status
+#include "mysql/utils/nodiscard.h"                     // NODISCARD
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlContainers
 /// @{
 
-namespace mysql::binlog::event::compression::buffer {
+namespace mysql::containers::buffers {
 
 /// Sequence of memory buffers.
 ///
@@ -231,8 +231,8 @@ class Buffer_sequence_view {
   mutable Size_t m_size;
 };
 
-}  // namespace mysql::binlog::event::compression::buffer
+}  // namespace mysql::containers::buffers
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BUFFER_BUFFER_SEQUENCE_VIEW_H
+#endif  // MYSQL_CONTAINERS_BUFFERS_BUFFER_SEQUENCE_VIEW_H

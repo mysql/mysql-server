@@ -27,12 +27,12 @@
 #include <memory>
 #include <string>
 
-#include "mysql/binlog/event/compression/buffer/managed_buffer.h"  // mysql::binlog::event::compression::buffer::Managed_buffer
 #include "mysql/binlog/event/compression/decompressor.h"  // mysqlns::compression::Decompressor
 #include "mysql/binlog/event/compression/factory.h"  // mysqlns::compression::Factory
 #include "mysql/binlog/event/control_events.h"  // Transaction_payload_event
 #include "mysql/binlog/event/event_reader.h"    // Event_reader
-#include "mysql/utils/nodiscard.h"              // NODISCARD
+#include "mysql/containers/buffers/managed_buffer.h"  // mysql::containers::buffers::Managed_buffer
+#include "mysql/utils/nodiscard.h"  // NODISCARD
 
 /// @addtogroup GroupLibsMysqlBinlogEvent
 /// @{
@@ -59,12 +59,9 @@ namespace mysql::binlog::event::compression {
 class Payload_event_buffer_istream {
  public:
   using Char_t = unsigned char;
-  using Size_t =
-      mysql::binlog::event::compression::buffer::Buffer_view<Char_t>::Size_t;
-  using Grow_calculator_t =
-      mysql::binlog::event::compression::buffer::Grow_calculator;
-  using Managed_buffer_t =
-      mysql::binlog::event::compression::buffer::Managed_buffer<Char_t>;
+  using Size_t = mysql::containers::buffers::Buffer_view<Char_t>::Size_t;
+  using Grow_calculator_t = mysql::containers::buffers::Grow_calculator;
+  using Managed_buffer_t = mysql::containers::buffers::Managed_buffer<Char_t>;
   using Decompressor_t = Decompressor;
   using Status_t = Decompress_status;
   using Factory_t = Factory;

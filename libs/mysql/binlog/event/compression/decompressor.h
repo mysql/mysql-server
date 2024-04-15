@@ -24,11 +24,11 @@
 #ifndef MYSQL_BINLOG_EVENT_COMPRESSION_DECOMPRESSOR_H
 #define MYSQL_BINLOG_EVENT_COMPRESSION_DECOMPRESSOR_H
 
-#include "mysql/binlog/event/compression/base.h"                    // type
-#include "mysql/binlog/event/compression/buffer/grow_constraint.h"  // Grow_constraint
-#include "mysql/binlog/event/compression/buffer/managed_buffer.h"  // Managed_buffer
+#include "mysql/binlog/event/compression/base.h"               // type
 #include "mysql/binlog/event/compression/decompress_status.h"  // Decompress_status
-#include "mysql/utils/nodiscard.h"                             // NODISCARD
+#include "mysql/containers/buffers/grow_constraint.h"  // Grow_constraint
+#include "mysql/containers/buffers/managed_buffer.h"   // Managed_buffer
+#include "mysql/utils/nodiscard.h"                     // NODISCARD
 
 namespace mysql::binlog::event::compression {
 
@@ -57,15 +57,12 @@ namespace mysql::binlog::event::compression {
 class Decompressor {
  public:
   using Char_t = unsigned char;
-  using Size_t =
-      mysql::binlog::event::compression::buffer::Buffer_view<Char_t>::Size_t;
-  using Managed_buffer_t =
-      mysql::binlog::event::compression::buffer::Managed_buffer<Char_t>;
-  using Grow_constraint_t =
-      mysql::binlog::event::compression::buffer::Grow_constraint;
+  using Size_t = mysql::containers::buffers::Buffer_view<Char_t>::Size_t;
+  using Managed_buffer_t = mysql::containers::buffers::Managed_buffer<Char_t>;
+  using Grow_constraint_t = mysql::containers::buffers::Grow_constraint;
 
  private:
-  using Grow_status_t = mysql::binlog::event::compression::buffer::Grow_status;
+  using Grow_status_t = mysql::containers::buffers::Grow_status;
 
  public:
   Decompressor() = default;

@@ -211,6 +211,7 @@ MYSQL_ADD_PLUGIN(group_replication
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
   extra::rapidjson
+  mysql_containers
   mysql_gtid
   MODULE_ONLY
   MODULE_OUTPUT_NAME "group_replication"

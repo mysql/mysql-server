@@ -24,9 +24,9 @@
 #ifndef GROUP_REPLICATION_COMPRESSION_INCLUDE
 #define GROUP_REPLICATION_COMPRESSION_INCLUDE
 
-#include "mysql/binlog/event/compression/buffer/managed_buffer.h"
 #include "mysql/binlog/event/compression/compressor.h"
 #include "mysql/binlog/event/compression/factory.h"
+#include "mysql/containers/buffers/managed_buffer.h"
 
 /*
   Implements Compressor.
@@ -34,10 +34,9 @@
 class GR_compress {
  public:
   using Compressor_t = mysql::binlog::event::compression::Compressor;
-  using Compress_status_t =
-      mysql::binlog::event::compression::buffer::Grow_status;
+  using Compress_status_t = mysql::containers::buffers::Grow_status;
   using Managed_buffer_sequence_t =
-      mysql::binlog::event::compression::buffer::Managed_buffer_sequence<>;
+      mysql::containers::buffers::Managed_buffer_sequence<>;
   using Char_t = Managed_buffer_sequence_t::Char_t;
 
   /**
