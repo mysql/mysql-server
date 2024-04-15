@@ -112,7 +112,7 @@ sub posix_path {
 }
 
 sub check_socket_path_length {
-  my ($path, $parallel) = @_;
+  my ($path, $parallel, $tmpdir_path_updated) = @_;
 
   return 0 if IS_WINDOWS;
 
@@ -121,10 +121,12 @@ sub check_socket_path_length {
   my $truncated = undef;
 
   # Append extra chars if --parallel because $opt_tmpdir will be longer
-  if ($parallel > 9 || $parallel eq "auto") {
-    $path = $path . "xxx";
-  } elsif ($parallel > 1) {
-    $path = $path . "xx";
+  if (! $tmpdir_path_updated) {
+    if ($parallel > 9 || $parallel eq "auto") {
+      $path = $path . "xxx";
+    } elsif ($parallel > 1) {
+      $path = $path . "xx";
+    }
   }
 
   # Create a tempfile name with same length as "path"
