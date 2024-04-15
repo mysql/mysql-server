@@ -27,7 +27,7 @@
 ####################################################################
 #   Displaying default value                                       #
 ####################################################################
-SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered');
 --echo 1 Expected
 
 
@@ -40,7 +40,7 @@ SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
 SET @@GLOBAL.innodb_flush_method=1;
 --echo Expected error 'Read only variable'
 
-SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered');
 --echo 1 Expected
 
 
@@ -58,7 +58,7 @@ WHERE VARIABLE_NAME='innodb_flush_method';
 --enable_warnings
 --echo 1 Expected
 
-SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered');
 --echo 1 Expected
 
 --disable_warnings
