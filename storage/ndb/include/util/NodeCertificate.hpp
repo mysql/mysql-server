@@ -263,8 +263,8 @@ class CertLifetime {
   /* Set lifetime based on notValidBefore and notValidAfter in X509 */
   bool set_lifetime(struct x509_st *);
 
-  /* Set the lifetime in the X509 certificate */
-  void set_cert_lifetime(struct x509_st *) const;
+  /* Set the lifetime in the X509 certificate. Returns true on success. */
+  bool set_cert_lifetime(struct x509_st *) const;
 
   /* Returns the expiration time, and sets tp (if non-null) to point to it */
   time_t expire_time(struct tm **tp) const;
