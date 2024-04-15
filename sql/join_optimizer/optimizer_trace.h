@@ -81,9 +81,13 @@ class TraceBuffer final : public std::streambuf {
 
     while (!m_segments.empty()) {
       for (char &ch : m_segments.front()) {
-        if (&ch == pptr()) {
+        // If the last segment is allocated directly before another segment,
+        // then last_segment.end() == other_segment.begin(). For that reason,
+        // we need to check if m_segments.size() == 1 to know that we are on
+        // the last segment. Otherwise, we get pptr()==other_segment.begin()
+        // if the the total trace volume is a multiple of kSegmentSize.
+        if (m_segments.size() == 1 && &ch == pptr()) {
           setp(nullptr, nullptr);
-          assert(m_segments.size() == 1);
           break;
         }
         sink(ch);
@@ -105,9 +109,11 @@ class TraceBuffer final : public std::streambuf {
   std::string ToString() const {
     std::string result;
 
-    for (const Segment &segment : m_segments) {
-      for (const char &ch : segment) {
-        if (&ch == pptr()) {
+    for (auto segment = m_segments.cbegin(); segment < m_segments.cend();
+         segment++) {
+      for (const char &ch : *segment) {
+        // See Consume().
+        if (segment + 1 == m_segments.cend() && &ch == pptr()) {
           break;
         }
         result += ch;

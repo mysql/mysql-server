@@ -6661,6 +6661,14 @@ TEST_F(MakeHypergraphTest, TraceBuffer) {
       EXPECT_THAT(trace_str, testing::Each('X'));
     }
   }
+
+  size_t consumed_chars{0};
+  trace.contents().Consume([&](char ch) {
+    EXPECT_EQ(ch, 'X');
+    consumed_chars++;
+  });
+
+  EXPECT_EQ(consumed_chars, TraceBuffer::kSegmentSize * 2);
 }
 
 /// Test that we count the right amount of truncated optimizer trace.

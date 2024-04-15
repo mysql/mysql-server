@@ -135,7 +135,7 @@ class TraceGuard final {
     m_context->end();
   }
 
-  const TraceBuffer &contents() {
+  TraceBuffer &contents() {
     return m_context->unstructured_trace()->contents();
   }
 
