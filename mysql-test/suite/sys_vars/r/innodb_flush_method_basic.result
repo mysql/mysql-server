@@ -1,14 +1,14 @@
 '#---------------------BS_STVARS_029_01----------------------#'
-SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
-@@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered')
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered');
+@@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered')
 1
 1 Expected
 '#---------------------BS_STVARS_029_02----------------------#'
 SET @@GLOBAL.innodb_flush_method=1;
 ERROR HY000: Variable 'innodb_flush_method' is a read only variable
 Expected error 'Read only variable'
-SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
-@@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered')
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered');
+@@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered')
 1
 1 Expected
 '#---------------------BS_STVARS_029_03----------------------#'
@@ -18,8 +18,8 @@ WHERE VARIABLE_NAME='innodb_flush_method';
 @@GLOBAL.innodb_flush_method = VARIABLE_VALUE
 1
 1 Expected
-SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered');
-@@GLOBAL.innodb_flush_method IN ('fsync', 'unbuffered')
+SELECT @@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered');
+@@GLOBAL.innodb_flush_method IN ('fsync', 'O_DIRECT', 'unbuffered')
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
