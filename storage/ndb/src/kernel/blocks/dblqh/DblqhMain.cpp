@@ -13046,14 +13046,11 @@ void Dblqh::lqhTransNextLab(Signal *signal, TcNodeFailRecordPtr tcNodeFailPtr) {
          */
 #ifdef ERROR_INSERT
         if (ERROR_INSERTED(5061)) {
-          CLEAR_ERROR_INSERT_VALUE;
           for (Uint32 i = 0; i < cnoOfNodes; i++) {
             Uint32 node = cnodeData[i];
-            if (node != getOwnNodeId() && cnodeStatus[i] == ZNODE_UP) {
+            if (cnodeStatus[i] == ZNODE_UP) {
               g_eventLogger->info("clearing ERROR_INSERT in LQH:%u", node);
-              signal->theData[0] = 0;
-              sendSignal(numberToRef(getDBLQH(), node), GSN_NDB_TAMPER, signal,
-                         1, JBB);
+              CLEAR_ERROR_INSERT_VALUE3(signal, node, getDBLQH());
             }
           }
 

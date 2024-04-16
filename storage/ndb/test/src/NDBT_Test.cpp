@@ -651,7 +651,8 @@ int NDBT_TestCase::execute(NDBT_Context *ctx) {
   // Always run finalizer to clean up db
   runFinal(ctx);  // TODO: check the runFinal ret value too?
 
-  if (res == NDBT_OK && !runCheckNoErrorInserted(ctx)) {
+  const bool check_errorinsert = ctx->suite->getCheckErrorInsert();
+  if (res == NDBT_OK && check_errorinsert && !runCheckNoErrorInserted(ctx)) {
     ndbout << "runCheckNoErrorInserted failed, error injections found after"
               " running the test case."
            << endl;
@@ -803,6 +804,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char *pname)
   m_noddl = false;
   m_forceShort = false;
   m_ensureIndexStatTables = true;
+  m_checkErrorInsert = true;
 }
 
 NDBT_TestSuite::~NDBT_TestSuite() {
@@ -838,6 +840,10 @@ bool NDBT_TestSuite::getForceShort() const { return m_forceShort; }
 void NDBT_TestSuite::setEnsureIndexStatTables(bool val) {
   m_ensureIndexStatTables = val;
 }
+
+void NDBT_TestSuite::setCheckErrorInsert(bool val) { m_checkErrorInsert = val; }
+
+bool NDBT_TestSuite::getCheckErrorInsert() const { return m_checkErrorInsert; }
 
 bool NDBT_TestSuite::timerIsOn() { return (timer != 0); }
 
