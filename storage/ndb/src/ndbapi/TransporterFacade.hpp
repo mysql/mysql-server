@@ -337,7 +337,6 @@ class TransporterFacade : public TransporterCallback,
   volatile bool m_check_connections;
 
   TransporterRegistry *theTransporterRegistry;
-  SocketServer m_socket_server;
   int sendPerformedLastInterval;
   TrpId theOwnTrpId;
   NodeId theOwnId;

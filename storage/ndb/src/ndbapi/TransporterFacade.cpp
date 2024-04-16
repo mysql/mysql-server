@@ -476,10 +476,6 @@ int TransporterFacade::start_instance(NodeId nodeId,
     DBUG_RETURN(-1);
   }
 
-  if (!theTransporterRegistry->start_service(m_socket_server)) {
-    DBUG_RETURN(-1);
-  }
-
   theReceiveThread = NdbThread_Create(runReceiveResponse_C, (void **)this,
                                       0,  // Use default stack size
                                       "ndb_receive", NDB_THREAD_PRIO_LOW);
@@ -979,7 +975,6 @@ void TransporterFacade::threadMainSend(void) {
     exit(0);
   }
 
-  m_socket_server.startServer();
   raise_thread_prio(theSendThread);
 
   NDB_TICKS lastActivityCheck = NdbTick_getCurrentTicks();
@@ -1044,9 +1039,6 @@ void TransporterFacade::threadMainSend(void) {
     }
   }
   theTransporterRegistry->stopSending();
-
-  m_socket_server.stopServer();
-  m_socket_server.stopSessions(true);
 
   theTransporterRegistry->stop_clients();
 }
