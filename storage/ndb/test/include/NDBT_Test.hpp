@@ -419,6 +419,9 @@ class NDBT_TestSuite {
   void setDriverType(NDBT_DriverType type) { m_driverType = type; }
   NDBT_DriverType getDriverType() const { return m_driverType; }
 
+  void setCheckErrorInsert(bool val);
+  bool getCheckErrorInsert() const;
+
  private:
   int executeOne(Ndb_cluster_connection &, const char *_tabname,
                  const char *testname = NULL);
@@ -458,6 +461,7 @@ class NDBT_TestSuite {
   bool m_noddl;
   bool m_forceShort;
   bool m_ensureIndexStatTables;
+  bool m_checkErrorInsert;
 };
 
 #define NDBT_TESTSUITE(suitname)                \

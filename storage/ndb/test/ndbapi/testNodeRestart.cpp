@@ -4616,7 +4616,6 @@ int runBug58453(NDBT_Context *ctx, NDBT_Step *step) {
     CHK_NDB_READY(pNdb);
     hugoOps.clearTable(pNdb);
   }
-
   return NDBT_OK;
 }
 

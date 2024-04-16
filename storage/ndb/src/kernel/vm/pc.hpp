@@ -223,6 +223,11 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
     cerrorInsert = 0;            \
     c_error_insert_extra = 0;    \
   } while (0)
+#define CLEAR_ERROR_INSERT_VALUE3(signal, node, block)                    \
+  do {                                                                    \
+    signal->theData[0] = 0;                                               \
+    sendSignal(numberToRef(block, node), GSN_NDB_TAMPER, signal, 1, JBB); \
+  } while (0)
 #define CLEAR_ERROR_INSERT_EXTRA c_error_insert_extra = 0
 #else
 #define ERROR_INSERT_VARIABLE \
