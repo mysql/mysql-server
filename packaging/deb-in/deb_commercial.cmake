@@ -23,3 +23,28 @@
 
 SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DMYSQL_SERVER_SUFFIX=\"-commercial\"")
 SET (DEB_CONTROL_BDEPS_COMMERCIAL ", libcurl4-openssl-dev, libkrb5-dev, libsasl2-modules-gssapi-mit")
+
+SET (DEB_RULES_PROFILE_GENERATE
+"
+	if [ -n \"$(PROFILE)\" ]; then \\
+          mkdir release && cd release && \\
+          cmake .. \\
+                -DFPROFILE_GENERATE=1 \\
+                -DBUILD_CONFIG=mysql_release \\
+                -DCMAKE_INSTALL_PREFIX=/usr \\
+                -DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \\
+                -DSYSCONFDIR=/etc/mysql \\
+                -DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \\
+                -DWITH_MECAB=system \\
+                -DWITH_NUMA=ON \\
+                -DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} - ${DEB_LICENSENAME}\" \\
+                -DCOMPILATION_COMMENT_SERVER=\"MySQL ${DEB_PRODUCTNAMEC} Server - ${DEB_LICENSENAME}\" \\
+                -DINSTALL_LAYOUT=DEB \\
+                -DREPRODUCIBLE_BUILD=OFF \\
+                -DDEB_PRODUCT=${DEB_PRODUCT} \\
+                ${DEB_CMAKE_EXTRAS} && \\
+          make $(JOBS) VERBOSE=1 && \\
+          make run-profile-suite && \\
+          cd .. && rm -rf release ; \\
+        fi
+")
