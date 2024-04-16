@@ -2143,25 +2143,26 @@ ENDIF()
 
 # The hypergraph optimizer is default on only for debug builds.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
-  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT ON)
+  OPTION(WITH_HYPERGRAPH_OPTIMIZER
+    "Allow use of the hypergraph join optimizer" ON)
+ELSEIF(BUILD_IS_SINGLE_CONFIG)
+  OPTION(WITH_HYPERGRAPH_OPTIMIZER
+    "Allow use of the hypergraph join optimizer" OFF)
 ELSE()
-  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT OFF)
+  # Do not initialize the option, set it ON for $<CONFIG:Debug>
+  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
 ENDIF()
-OPTION(WITH_HYPERGRAPH_OPTIMIZER
-  "Allow use of the hypergraph join optimizer"
-  ${WITH_HYPERGRAPH_OPTIMIZER_DEFAULT}
-  )
 
 # Allow SHOW PARSE_TREE on debug build by default.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
-  SET(WITH_SHOW_PARSE_TREE_DEFAULT ON)
+  OPTION(WITH_SHOW_PARSE_TREE "Allow showing the parse tree" ON)
+ELSEIF(BUILD_IS_SINGLE_CONFIG)
+  OPTION(WITH_SHOW_PARSE_TREE "Allow showing the parse tree" OFF)
 ELSE()
-  SET(WITH_SHOW_PARSE_TREE_DEFAULT OFF)
+  SET(WITH_SHOW_PARSE_TREE_DEFAULT "default")
+  # Do not initialize the option, set it ON for $<CONFIG:Debug>
+  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
 ENDIF()
-OPTION(WITH_SHOW_PARSE_TREE
-  "Allow showing the parse tree"
-  ${WITH_SHOW_PARSE_TREE_DEFAULT}
-  )
 
 # We may run clang-tidy on individual .h files. Tell clang to treat them as C++.
 # To generate entries for header files in compile_commands.json:
