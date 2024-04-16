@@ -267,7 +267,7 @@ class RestRequestHandler : public ::http::base::RequestHandler {
 
     auto origin = ih.find_cstr("Origin");
 
-    if (!origin) {
+    if (origin) {
       using AO = mrs::interface::Options::AllowedOrigins;
 
       auto &ao = rest_handler_->get_options().allowed_origins;

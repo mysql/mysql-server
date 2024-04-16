@@ -598,7 +598,7 @@ void DatabaseRestTableTest::snapshot() {
         atoi((*m_->query_one("SELECT COUNT(*) FROM mrstestdb." + t.first))[0]);
   }
 
-  auto row = m_->query_one("SHOW MASTER STATUS");
+  auto row = m_->query_one("SHOW BINARY LOG STATUS");
   initial_binlog_file_ = (*row)[0];
   initial_binlog_position_ = std::stoull((*row)[1]);
 }
