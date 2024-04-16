@@ -365,6 +365,20 @@ enum Log_event_type {
   ENUM_END_EVENT /* end marker */
 };
 
+/// @brief Event type helpers, enclosed in the structure
+struct Log_event_type_helper {
+  /// @brief Helps to identify known GTID event - returns true
+  /// for GTID_LOG_EVENT and GTID_TAGGED_LOG_EVENT
+  inline static bool is_assigned_gtid_event(const Log_event_type &type) {
+    return type == GTID_LOG_EVENT;
+  }
+  /// @brief Helps to identify any GTID event - returns true
+  /// for GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT and ANONYMOUS_GTID_LOG_EVENT
+  inline static bool is_any_gtid_event(const Log_event_type &type) {
+    return is_assigned_gtid_event(type) || type == ANONYMOUS_GTID_LOG_EVENT;
+  }
+};
+
 /**
   Struct to pass basic information about a event: type, query, is it ignorable
 */

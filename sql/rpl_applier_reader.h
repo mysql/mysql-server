@@ -108,10 +108,18 @@ class Rpl_applier_reader {
      When reaching the end of current relay log file, close it and open next
      relay log. purge old relay logs if necessary.
 
+     @param force_purge This function rarely purges the current log before
+     moving to the next. Sometimes, we need to enforce this purge, e.g. when
+     receiver is waiting for available relay log space. The 'force_purge'
+     will enable an aggressive relay log purge.
+     Beware that 'move_to_next_log' with force_purge enabled, will ignore that
+     current group position is lower than required and will reset it. Therefore,
+     make sure that workers finished executing ALL scheduled jobs.
+
      @retval    false     Success
      @retval    true      Error
   */
-  bool move_to_next_log();
+  bool move_to_next_log(bool force_purge);
   /**
      It reads the coordinates up to which the receiver thread has written and
      check whether there is any event to be read.
@@ -160,8 +168,6 @@ class Rpl_applier_reader {
 
   /* reset seconds_behind_master when starting to wait for events coming */
   void reset_seconds_behind_master();
-  /* relay_log_space_limit should be disabled temporarily in some cases. */
-  void disable_relay_log_space_limit_if_needed();
 #ifndef NDEBUG
   void debug_print_next_event_positions();
 #endif

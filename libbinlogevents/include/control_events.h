@@ -1172,6 +1172,9 @@ class Gtid_event : public Binary_log_event {
     transaction_length = transaction_length_arg;
   }
 
+  /// @return The value of the `transaction_length` field.
+  unsigned long long get_trx_length() const { return transaction_length; }
+
   /** The version of the server where the transaction was originally executed */
   uint32_t original_server_version;
   /** The version of the immediate server */
