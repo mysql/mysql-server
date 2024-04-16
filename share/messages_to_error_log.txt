@@ -12787,6 +12787,15 @@ ER_IB_DELETE_SCHEMA_DIR
 ER_IB_INSERT_DELETE_SCHEMA_DIRECTORY_DDL_LOG
   eng "%s"
 
+ER_IMDS_OCI_INFO
+  eng "%s"
+
+ER_IMDS_OCI_WARNING
+  eng "%s"
+
+ER_IMDS_OCI_ERROR
+  eng "%s"
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.
