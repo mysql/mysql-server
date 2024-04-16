@@ -28,6 +28,12 @@
 
 export DH_VERBOSE=1
 
+ifeq (,$(WITH_PGO))
+	PROFILE=
+else
+	PROFILE=-DFPROFILE_USE=1
+endif
+
 ifeq (,$(MYSQL_BUILD_MAKE_JFLAG))
 	JOBS=-j8
 else
@@ -40,8 +46,11 @@ override_dh_auto_configure:
 
 	@DEB_RULES_DEBUG_CMAKE@
 
+	@DEB_RULES_PROFILE_GENERATE@
+
 	mkdir release && cd release && \
 	cmake .. \
+		$(PROFILE) \
 		-DBUILD_CONFIG=mysql_release \
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
