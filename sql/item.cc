@@ -9602,6 +9602,7 @@ void Item_cache::cleanup() {
   */
   if (example != nullptr) clear();
   Item::cleanup();
+  example = nullptr;
 }
 
 bool Item_cache_int::cache_value() {
