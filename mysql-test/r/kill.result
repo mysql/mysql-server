@@ -25,6 +25,22 @@ SELECT 4;
 4
 KILL (SELECT COUNT(*) FROM mysql.user);
 ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+SET DEBUG_SYNC= 'before_do_command_net_read SIGNAL con1_read WAIT_FOR kill';
+SET DEBUG_SYNC= 'now WAIT_FOR con1_read';
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+SET DEBUG_SYNC = 'RESET';
+SELECT 1;
+Got one of the listed errors
+SELECT 1;
+1
+1
+SELECT @id != CONNECTION_ID();
+@id != CONNECTION_ID()
+1
+SELECT 4;
+4
+4
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE t2 (id INT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES
@@ -69,6 +85,27 @@ SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
 KILL QUERY @id;
 SET DEBUG_SYNC= 'now SIGNAL continue';
 ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC = 'RESET';
+#
+# Bug#19723: kill of active connection yields different error code
+# depending on platform.
+#
+
+# Connection: con1.
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+KILL @id;
+ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+# ER_SERVER_SHUTDOWN, CR_SERVER_GONE_ERROR, CR_SERVER_LOST,
+# depending on the timing of close of the connection socket
+SELECT 1;
+Got one of the listed errors
+SELECT 1;
+1
+1
+SELECT @id != CONNECTION_ID();
+@id != CONNECTION_ID()
+1
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION MY_KILL;

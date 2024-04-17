@@ -65,42 +65,36 @@ connection default;
 --error ER_NOT_SUPPORTED_YET
 KILL (SELECT COUNT(*) FROM mysql.user);
 
-# -----------------
-# The following test has been commented out because of
-# Bug#36372334 	main.kill test fails after restoring MYSQL_OPT_RECONNECT
-# -----------------
-# Disabled test begin ---
-#connection con1;
-#let $ID= `SELECT @id := CONNECTION_ID()`;
-#connection con2;
-#let $ignore= `SELECT @id := $ID`;
-#connection con1;
-## Signal when this connection is terminating.
-#SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
-## See if we can kill the sync point itself.
-## Wait in 'before_do_command_net_read' until killed.
-## It doesn't wait for a signal 'kill' but for to be killed.
-## The signal name doesn't matter here.
-#SET DEBUG_SYNC= 'before_do_command_net_read SIGNAL con1_read WAIT_FOR kill';
-#connection con2;
-#SET DEBUG_SYNC= 'now WAIT_FOR con1_read';
-## Repeat KILL until con1 terminates.
-#let $wait_condition= SELECT MY_KILL(@id);
-#--source include/wait_condition.inc
-#SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
-#SET DEBUG_SYNC = 'RESET';
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+connection con1;
+# Signal when this connection is terminating.
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+# See if we can kill the sync point itself.
+# Wait in 'before_do_command_net_read' until killed.
+# It doesn't wait for a signal 'kill' but for to be killed.
+# The signal name doesn't matter here.
+SET DEBUG_SYNC= 'before_do_command_net_read SIGNAL con1_read WAIT_FOR kill';
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR con1_read';
+# Repeat KILL until con1 terminates.
+let $wait_condition= SELECT MY_KILL(@id);
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+SET DEBUG_SYNC = 'RESET';
 
-#connection con1;
-#--error 1053,2006,2013
-#SELECT 1;
-#connect;
-#SELECT 1;
-#let $ignore= `SELECT @id := $ID`;
-#SELECT @id != CONNECTION_ID();
-#connection con2;
-#SELECT 4;
-#connection default;
-# Disabled test end ---
+connection con1;
+--error 1053,2006,2013
+SELECT 1;
+connect;
+SELECT 1;
+let $ignore= `SELECT @id := $ID`;
+SELECT @id != CONNECTION_ID();
+connection con2;
+SELECT 4;
+connection default;
 
 #
 # BUG#14851: killing long running subquery processed via a temporary table.
@@ -235,41 +229,33 @@ while ($i)
 connection default;
 SET DEBUG_SYNC = 'RESET';
 
-# -----------------
-# The following test has been commented out because of
-# Bug#36372334 	main.kill test fails after restoring MYSQL_OPT_RECONNECT
-# -----------------
+--echo #
+--echo # Bug#19723: kill of active connection yields different error code
+--echo # depending on platform.
+--echo #
 
-# Disabled test begin ---
+--echo
+--echo # Connection: con1.
+--connection con1
+let $ID= `SELECT @id := CONNECTION_ID()`;
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+--error ER_QUERY_INTERRUPTED
+KILL @id;
 
-#--echo #
-#--echo # Bug#19723: kill of active connection yields different error code
-#--echo # depending on platform.
-#--echo #
-
-#--echo
-#--echo # Connection: con1.
-#--connection con1
-#let $ID= `SELECT @id := CONNECTION_ID()`;
-#SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
-#--error ER_QUERY_INTERRUPTED
-#KILL @id;
-
-#connection con2;
-#SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
-#connection con1;
-#--echo # ER_SERVER_SHUTDOWN, CR_SERVER_GONE_ERROR, CR_SERVER_LOST,
-#--echo # depending on the timing of close of the connection socket
-#--error 1053,2006,2013
-#SELECT 1;
-#connect;
-#SELECT 1;
-#let $ignore= `SELECT @id := $ID`;
-#SELECT @id != CONNECTION_ID();
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+connection con1;
+--echo # ER_SERVER_SHUTDOWN, CR_SERVER_GONE_ERROR, CR_SERVER_LOST,
+--echo # depending on the timing of close of the connection socket
+--error 1053,2006,2013
+SELECT 1;
+connect;
+SELECT 1;
+let $ignore= `SELECT @id := $ID`;
+SELECT @id != CONNECTION_ID();
 connection default;
 disconnect con1;
-#SET DEBUG_SYNC = 'RESET';
-# Disabled test end ---
+SET DEBUG_SYNC = 'RESET';
 
 ###########################################################################
 
