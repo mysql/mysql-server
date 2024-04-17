@@ -2886,7 +2886,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t4`.`b` AS `b`,max(`test`.`t4`.`a`) AS `ma` from `test`.`t4` left join (/* select#2 */ select max(`test`.`t2`.`a`) AS `MAX(t2.a)`,`test`.`t2`.`b` AS `b` from `test`.`t2` group by `test`.`t2`.`b`) `derived_1_2` on((`derived_1_2`.`b` = `test`.`t4`.`b`)) where true group by `test`.`t4`.`b` having (`ma` < `derived_1_2`.`MAX(t2.a)`)
 DROP TABLE t2, t4;
 Bug 3

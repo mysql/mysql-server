@@ -169,7 +169,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`k`) AS `SUM(k)`,`test`.`t1`.`k` AS `k` from `test`.`t1` having ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X'))) = 'XXX')
 SELECT SUM(k), k
 FROM t1
@@ -276,7 +275,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
 Warnings:
-Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`k`) AS `SUM(k)`,`test`.`t1`.`k` AS `k` from `test`.`t1` having ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X'))) = 'XXX')
 SELECT SUM(k), k
@@ -2401,3 +2399,52 @@ x
 1
 NULL
 DROP TABLE t;
+# Bug#36262779: MySQL fails to execute query if a subquery refer to
+#               a column of parent table
+CREATE TABLE t1 (
+a int DEFAULT NULL,
+b int DEFAULT NULL
+);
+CREATE TABLE t2 (
+id int DEFAULT NULL
+);
+CREATE TABLE t3 (
+a int DEFAULT NULL
+);
+EXPLAIN SELECT ref_0.b AS c0
+from t1 AS ref_0
+WHERE EXISTS (SELECT ref_0.b AS c10
+FROM (SELECT (SELECT ref_2.a AS c0
+FROM (SELECT ref_4.id AS c0, ref_0.a AS c1
+FROM t2 AS ref_4
+) AS subq_0
+) AS c0,
+ref_0.a AS c2
+FROM t3 AS ref_2
+) AS subq_1
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ref_0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch(ref_0)
+3	DEPENDENT DERIVED	ref_2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+4	DEPENDENT SUBQUERY	ref_4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.ref_0.a' of SELECT #5 was resolved in SELECT #1
+Note	1276	Field or reference 'test.ref_2.a' of SELECT #4 was resolved in SELECT #3
+Note	1276	Field or reference 'test.ref_0.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.ref_0.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ref_0`.`b` AS `c0` from `test`.`t1` `ref_0` semi join (lateral (/* select#3 */ select (/* select#4 */ select `test`.`ref_2`.`a` AS `c0` from `test`.`t2` `ref_4`) AS `c0`,`test`.`ref_0`.`a` AS `c2` from `test`.`t3` `ref_2`) `subq_1`) where true
+SELECT ref_0.b AS c0
+from t1 AS ref_0
+WHERE EXISTS (SELECT ref_0.b AS c10
+FROM (SELECT (SELECT ref_2.a AS c0
+FROM (SELECT ref_4.id AS c0, ref_0.a AS c1
+FROM t2 AS ref_4
+) AS subq_0
+) AS c0,
+ref_0.a AS c2
+FROM t3 AS ref_2
+) AS subq_1
+);
+c0
+DROP TABLE t1, t2, t3;

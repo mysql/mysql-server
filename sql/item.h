@@ -5920,9 +5920,6 @@ class Item_ref : public Item_ident {
   Item **m_ref_item{nullptr};
 
  public:
-  Item_ref(Name_resolution_context *context_arg, const char *db_name_arg,
-           const char *table_name_arg, const char *field_name_arg)
-      : Item_ident(context_arg, db_name_arg, table_name_arg, field_name_arg) {}
   Item_ref(const POS &pos, const char *db_name_arg, const char *table_name_arg,
            const char *field_name_arg)
       : Item_ident(pos, db_name_arg, table_name_arg, field_name_arg) {}

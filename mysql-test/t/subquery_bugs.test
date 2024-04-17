@@ -2024,3 +2024,36 @@ ANALYZE TABLE t;
 SELECT 1 AS x FROM t
 WHERE i IN (SELECT i FROM (TABLE t) AS dt WHERE i < 2) GROUP BY x WITH ROLLUP;
 DROP TABLE t;
+
+--echo # Bug#36262779: MySQL fails to execute query if a subquery refer to
+--echo #               a column of parent table
+
+CREATE TABLE t1 (
+  a int DEFAULT NULL,
+  b int DEFAULT NULL
+);
+CREATE TABLE t2 (
+  id int DEFAULT NULL
+);
+CREATE TABLE t3 (
+  a int DEFAULT NULL
+);
+
+let $query =
+SELECT ref_0.b AS c0
+from t1 AS ref_0
+WHERE EXISTS (SELECT ref_0.b AS c10
+              FROM (SELECT (SELECT ref_2.a AS c0
+                            FROM (SELECT ref_4.id AS c0, ref_0.a AS c1
+                                  FROM t2 AS ref_4
+                                 ) AS subq_0
+                           ) AS c0,
+                           ref_0.a AS c2
+                    FROM t3 AS ref_2
+                   ) AS subq_1
+             );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;

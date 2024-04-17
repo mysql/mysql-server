@@ -5669,8 +5669,8 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
       break;
     }
 
-    /* Search in SELECT and GROUP lists of the outer select. */
-    if (select_alias_referencable(place) &&
+    // Search in SELECT and GROUP lists of this outer query block.
+    if (select_alias_referencable(place) && table_name == nullptr &&
         outer_context->resolve_in_select_list) {
       if (resolve_ref_in_select_and_group(thd, this, select, &ref)) {
         return -1; /* Some error occurred (e.g. ambiguous names). */
@@ -5750,21 +5750,13 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     mark_as_dependent(thd, last_checked_context->query_block,
                       context->query_block, this, (Item_ident *)*reference);
     if (last_checked_context->query_block->having_fix_field) {
-      Item_ref *rf = new Item_ref(
-          context, cached_table->db[0] ? cached_table->db : nullptr,
-          cached_table->alias, field_name);
+      Item **pitem = last_checked_context->query_block->add_hidden_item(this);
+
+      Item_ref *rf = new Item_ref(context, pitem, field_name);
       if (rf == nullptr) return -1;
       *reference = rf;
       // WL#6570 remove-after-qa
       assert(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
-      /*
-        rf is Item_ref => never substitute other items (in this case)
-        during fix_fields() => we can use rf after fix_fields()
-      */
-      assert(!rf->fixed);  // Assured by Item_ref()
-      if (rf->fix_fields(thd, reference) || (*reference)->check_cols(1)) {
-        return -1;
-      }
       return 0;
     }
   }
@@ -8423,8 +8415,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         if (place == CTX_DERIVED && select->end_lateral_table == nullptr)
           goto loop;
 
-        /* Search in the SELECT and GROUP lists of the outer select. */
-        if (select_alias_referencable(place) &&
+        // Search in the SELECT and GROUP lists of this outer query block
+        if (select_alias_referencable(place) && table_name == nullptr &&
             outer_context->resolve_in_select_list) {
           if (resolve_ref_in_select_and_group(thd, this, select, &m_ref_item)) {
             return true;  // Some error occurred (e.g. ambiguous names).

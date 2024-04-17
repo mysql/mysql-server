@@ -1191,7 +1191,7 @@ FROM t1 AS t1_outer GROUP BY t1_outer.b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1_outer.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT 1 FROM t1 as t1_outer GROUP BY a 
 HAVING (SELECT t1_outer.b FROM t1 AS t1_inner LIMIT 1);
-ERROR 42S22: Unknown column 'test.t1_outer.b' in 'field list'
+ERROR 42000: Expression #1 of HAVING clause is not in GROUP BY clause and contains nonaggregated column 'test.t1_outer.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT (SELECT SUM(t1_inner.a) FROM t1 AS t1_inner LIMIT 1) 
 FROM t1 AS t1_outer GROUP BY t1_outer.b;
 (SELECT SUM(t1_inner.a) FROM t1 AS t1_inner LIMIT 1)
@@ -1257,10 +1257,16 @@ SELECT 1 FROM t1 GROUP BY b HAVING a = 2;
 ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT 1 FROM t1 GROUP BY SUM(b);
 ERROR HY000: Invalid use of group function
-SELECT b FROM t1 AS t1_outer GROUP BY a HAVING t1_outer.a IN 
-(SELECT SUM(t1_inner.b)+t1_outer.b FROM t1 AS t1_inner GROUP BY t1_inner.a
-HAVING SUM(t1_inner.b)+t1_outer.b > 5);
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1_outer.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT b
+FROM t1 AS t1_outer
+GROUP BY a
+HAVING t1_outer.a IN
+(SELECT SUM(t1_inner.b) + t1_outer.b
+FROM t1 AS t1_inner
+GROUP BY t1_inner.a
+HAVING SUM(t1_inner.b) + t1_outer.b > 5
+);
+ERROR 42S22: Unknown column 't1_outer.b' in 'having clause'
 DROP TABLE t1;
 SET SQL_MODE = '';
 SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
