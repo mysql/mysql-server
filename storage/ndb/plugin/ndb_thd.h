@@ -78,6 +78,11 @@ const char *ndb_thd_query(const THD *thd);
 size_t ndb_thd_query_length(const THD *thd);
 
 /*
+  @brief Get PFS id of current thread
+*/
+ulonglong ndb_thd_get_pfs_thread_id();
+
+/*
  @brief Check if THD is the "binlog injector thread"
 
  @return true if thread matches condition

@@ -1071,11 +1071,12 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
   return res;
 }
 
-Thd_ndb::Thd_ndb(THD *thd)
+Thd_ndb::Thd_ndb(THD *thd, const char *name)
     : m_thd(thd),
       options(0),
       trans_options(0),
       m_ddl_ctx(nullptr),
+      m_thread_name(name),
       m_batch_mem_root(key_memory_thd_ndb_batch_mem_root,
                        BATCH_MEM_ROOT_BLOCK_SIZE),
       global_schema_lock_trans(nullptr),

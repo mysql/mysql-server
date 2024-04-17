@@ -41,10 +41,10 @@
 */
 static const int MAX_TRANSACTIONS = 4;
 
-Thd_ndb *Thd_ndb::seize(THD *thd) {
+Thd_ndb *Thd_ndb::seize(THD *thd, const char *name) {
   DBUG_TRACE;
 
-  Thd_ndb *thd_ndb = new Thd_ndb(thd);
+  Thd_ndb *thd_ndb = new Thd_ndb(thd, name);
   if (thd_ndb == nullptr) {
     return nullptr;
   }
@@ -342,4 +342,19 @@ void Thd_ndb::clear_ddl_transaction_ctx() {
   assert(m_ddl_ctx != nullptr);
   delete m_ddl_ctx;
   m_ddl_ctx = nullptr;
+}
+
+std::string Thd_ndb::get_info_str() const {
+  bool sep = false;
+  std::stringstream ss;
+  if (m_thread_name) {
+    ss << "name=" << m_thread_name;
+    sep = true;
+  }
+  const ulonglong pfs_thread_id = ndb_thd_get_pfs_thread_id();
+  if (pfs_thread_id) {
+    if (sep) ss << ", ";
+    ss << "pfs_thread_id=" << pfs_thread_id;
+  }
+  return ss.str();
 }

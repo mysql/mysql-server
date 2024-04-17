@@ -455,7 +455,7 @@ void Ndb_metadata_change_monitor::do_run() {
     return;
   }
 
-  Thd_ndb_guard thd_ndb_guard(thd);
+  Thd_ndb_guard thd_ndb_guard(thd, psi_name());
   const Thd_ndb *thd_ndb = thd_ndb_guard.get_thd_ndb();
   if (thd_ndb == nullptr) {
     assert(false);

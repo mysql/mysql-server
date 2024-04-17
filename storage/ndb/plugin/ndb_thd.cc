@@ -83,6 +83,14 @@ const char *ndb_thd_query(const THD *thd) { return thd->query().str; }
 
 size_t ndb_thd_query_length(const THD *thd) { return thd->query().length; }
 
+ulonglong ndb_thd_get_pfs_thread_id() {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  return PSI_THREAD_CALL(get_current_thread_internal_id)();
+#else
+  return 0;
+#endif
+}
+
 bool ndb_thd_is_binlog_thread(const THD *thd) {
   return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 }
