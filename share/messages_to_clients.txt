@@ -10452,6 +10452,33 @@ ER_SERVER_OFFLINE_MODE_REASON
 ER_SERVER_OFFLINE_MODE_USER
   eng "The server is currently in offline mode since %s, set by user %s"
 
+ER_LH_UNSTRUCTURED_NO_DATA_FOUND
+  eng "No data was extracted from provided files."
+
+ER_LH_UNSTRUCTURED_FILE_PARSE_ERR
+  eng "File: %.*s Could not be parsed."
+
+ER_LH_UNSTRUCTURED_ENCODING_ERR
+  eng "Segments %d to %d in file: %.*s Could not be encoded."
+
+ER_LH_UNSTRUCTURED_FILE_TYPE_MISMATCH_ERR
+  eng "File: %.*s is not a supported file type."
+
+ER_LH_UNSTRUCTURED_SCHEMA_ERR
+  eng "Defined schema does not match expected for column: %s."
+
+ER_LH_COLUMN_ENGINE_ATTR_ERR
+  eng "Invalid column engine attribute: %s."
+
+ER_LH_UNSTRUCTURED_OBJ_READ_ERR
+  eng "File: %.*s Could not be read."
+
+ER_LH_NO_SEGMENTS_GENERATED
+  eng "File: %.*s did not result in segments."
+
+ER_LH_UNSTRUCTURED_FILE_TOO_LARGE
+  eng "File: %s is too large."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
