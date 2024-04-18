@@ -5,40 +5,62 @@
 --source include/xplugin_create_user.inc
 ## Test starts here
 
+
+--echo
+--echo ## 1.a. Verify that basic usage of `mysqlx_generate_document_id`
+--echo ##      works correctly using classic protocol.
+--echo ## 1.b. Usage of `mysqlx_generate_document_id` with
+--echo ##      invalid arguments using classic protocol.
+--echo ## 2.a. Handling of NULL values in DO (classic)
+--echo ## 2.b. Handling of NULL values in SELECT (classic)
+--echo ## 2.c. Handling of FUNCTION returning NULL values in DO (classic)
+--echo ## 2.d. Handling of FUNCTION returning NULL values in SELECT (classic)
+--echo ## 3.a. Verify that basic usage of `mysqlx_generate_document_id`
+--echo ##      works correctly using x protocol.
+--echo ## 3.b. Usage of `mysqlx_generate_document_id` with
+--echo ##      invalid arguments using X protocol.
+--echo ## 4.a. Handling of NULL values in DO (x)
+--echo ## 4.b. Handling of NULL values in SELECT (x)
+--echo ## 4.c. Handling of FUNCTION returning NULL values in DO (x)
+--echo ## 4.d. Handling of FUNCTION returning NULL values in SELECT (x)
+
+
 --write_file $MYSQL_TMP_DIR/udf_mysqlx_generate_document_id.xpl
 
--->stmtsql SELECT mysqlx_generate_document_id() FROM xtest.util;
--->recvresult
+-->echo
+-->echo #
+-->echo ## Ad 3.a. Verify that basic usage of `mysqlx_generate_document_id`
+-->echo ##         works correctly using x protocol.
 
--->stmtsql SELECT mysqlx_generate_document_id(16) FROM xtest.util;
--->recvresult
+SELECT mysqlx_generate_document_id() FROM xtest.util;
 
--->stmtsql SELECT mysqlx_generate_document_id(16, 8) FROM xtest.util;
--->recvresult
+SELECT mysqlx_generate_document_id(16) FROM xtest.util;
 
--->stmtsql SELECT mysqlx_generate_document_id(16, 8, 0) FROM xtest.util;
--->recvresult
+SELECT mysqlx_generate_document_id(16, 8) FROM xtest.util;
 
--->stmtsql SELECT mysqlx_generate_document_id(16, 8, 1) FROM xtest.util;
--->recvresult
+SELECT mysqlx_generate_document_id(16, 8, 0) FROM xtest.util;
 
--->sql
+SELECT mysqlx_generate_document_id(16, 8, 1) FROM xtest.util;
+
 set auto_increment_offset = 16;
 set auto_increment_increment = 8;
--->endsql
 
--->stmtsql SELECT mysqlx_generate_document_id(@@auto_increment_offset, @@auto_increment_increment) FROM xtest.util;
--->recvresult
+CALL xtest.my_procedure(16, 8);
 
--->stmtsql DO mysqlx_generate_document_id();
--->recvresult
+SELECT mysqlx_generate_document_id(@@auto_increment_offset, @@auto_increment_increment) FROM xtest.util;
+
+DO mysqlx_generate_document_id();
+
+-->echo
+-->echo #
+-->echo ## Ad 3.b. Usage of `mysqlx_generate_document_id` with
+-->echo ##         invalid arguments using X protocol.
 
 -->stmtsql CALL mysqlx_generate_document_id();
 -->expecterror ER_NO_DB_ERROR
 -->recvresult
 
--->stmtsql USE xtest;
--->recvresult
+use xtest;
 
 -->stmtsql CALL mysqlx_generate_document_id();
 -->expecterror ER_SP_DOES_NOT_EXIST
@@ -89,16 +111,67 @@ set auto_increment_increment = 8;
 -->expecterror ER_CANT_INITIALIZE_UDF
 -->recvresult
 
--->sql
-DELIMITER ||;
-CREATE PROCEDURE my_procedure(IN offset INT, IN increment INT)
-BEGIN
-  SELECT mysqlx_generate_document_id(offset, increment) AS document_id;
-END ||
-DELIMITER ;||
 
-CALL my_procedure(16, 8);
--->endsql
+-->echo
+-->echo #
+-->echo ## Ad 4.a. Handling of NULL values in DO
+
+-->stmtsql DO mysqlx_generate_document_id(NULL, 1, 1);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, NULL, 1);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo ## Ad 4.b. Handling of NULL values in SELECT
+
+-->stmtsql SELECT mysqlx_generate_document_id(NULL,1,1);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(1,NULL,1);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(1,1,NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo ## Ad 4.c. Handling of FUNCTION returning NULL values in DO
+
+-->stmtsql DO mysqlx_generate_document_id(IF(1=2,1,NULL), 1, 0);
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, IF(1=2,1,NULL), 0);
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, IF(1=2,1,NULL));
+-->recvresult
+
+
+-->echo
+-->echo #
+-->echo ## Ad 4.d. Handling of FUNCTION returning NULL values in SELECT
+
+-->stmtsql SELECT mysqlx_generate_document_id(IF(1=2,1,NULL),1,0);
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(1,IF(1=2,1,NULL),0);
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(1,1,IF(1=2,1,NULL));
+-->recvresult
 EOF
 
 
@@ -109,6 +182,11 @@ USE xtest;
 CREATE TABLE util(f INT);
 
 INSERT INTO util(f) VALUES(1),(2),(3),(4),(5);
+
+--echo
+--echo #
+--echo ## Ad 1.a. Verify that basic usage of `mysqlx_generate_document_id`
+--echo ##         works correctly using classic protocol.
 
 --replace_regex $DOC_ID_TIME_MASK
 SELECT mysqlx_generate_document_id() FROM util;
@@ -131,8 +209,25 @@ set auto_increment_increment = 8;
 --replace_regex $DOC_ID_TIME_MASK
 SELECT mysqlx_generate_document_id(@@auto_increment_offset, @@auto_increment_increment) FROM util;
 
+DELIMITER ||;
+CREATE PROCEDURE my_procedure(IN offset INT, IN increment INT)
+BEGIN
+  SELECT mysqlx_generate_document_id(offset, increment) AS document_id;
+END ||
+DELIMITER ;||
+
+--replace_regex $DOC_ID_TIME_MASK
+CALL my_procedure(16, 8);
+
+--echo
+--echo #
+--echo ## Ad 1.b. Usage of `mysqlx_generate_document_id` with
+--echo ##         invalid arguments using classic protocol.
+
 DO mysqlx_generate_document_id();
 
+# The functions accepts from 1-3 arguments, and all
+# should be INTs.
 --error 1305
 CALL mysqlx_generate_document_id();
 
@@ -169,16 +264,60 @@ DO mysqlx_generate_document_id(1, 1, 1, 1);
 --error 1123
 DO mysqlx_generate_document_id(1, 1, 1, 1, 1);
 
+--echo
+--echo #
+--echo ## Ad 2.a. Handling of NULL values in DO
 
-DELIMITER ||;
-CREATE PROCEDURE my_procedure(IN offset INT, IN increment INT)
-BEGIN
-  SELECT mysqlx_generate_document_id(offset, increment) AS document_id;
-END ||
-DELIMITER ;||
+--error 1123
+DO mysqlx_generate_document_id(NULL, 1, 1);
+
+--error 1123
+DO mysqlx_generate_document_id(1, NULL, 1);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 1, NULL);
+
+
+--echo
+--echo #
+--echo ## Ad 2.b. Handling of NULL values in SELECT
+
+--error 1123
+SELECT mysqlx_generate_document_id(NULL,1,1);
+
+--error 1123
+SELECT mysqlx_generate_document_id(1,NULL,1);
+
+--error 1123
+SELECT mysqlx_generate_document_id(1,1,NULL);
+
+
+--echo
+--echo #
+--echo ## Ad 2.c. Handling of FUNCTION returning NULL values in DO
 
 --replace_regex $DOC_ID_TIME_MASK
-CALL my_procedure(16, 8);
+DO mysqlx_generate_document_id(IF(1=2,1,NULL), 1, 0);
+
+--replace_regex $DOC_ID_TIME_MASK
+DO mysqlx_generate_document_id(1, IF(1=2,1,NULL), 0);
+
+--replace_regex $DOC_ID_TIME_MASK
+DO mysqlx_generate_document_id(1, 1, IF(1=2,1,NULL));
+
+
+--echo
+--echo #
+--echo ## Ad 2.d. Handling of FUNCTION returning NULL values in SELECT
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(IF(1=2,1,NULL),1,0);
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(1,IF(1=2,1,NULL),0);
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(1,1,IF(1=2,1,NULL));
 
 
 --replace_regex $DOC_ID_TIME_MASK
