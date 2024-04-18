@@ -109,9 +109,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** The underlying ClusterTransaction */
     protected ClusterTransaction clusterTransaction;
 
-    /** The transaction id to join */
-    protected String joinTransactionId = null;
-
     /** The properties for this session */
     protected Map properties;
 
@@ -885,7 +882,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     protected void internalBegin() {
         try {
-            clusterTransaction = db.startTransaction(joinTransactionId);
+            clusterTransaction = db.startTransaction();
             clusterTransaction.setLockMode(lockmode);
             // if a transaction has already begun, tell the cluster transaction about the key
             if (partitionKey != null) {
@@ -1577,24 +1574,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     public <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> domainTypeHandler) {
         QueryBuilderImpl builder = (QueryBuilderImpl)getQueryBuilder();
         return builder.createQueryDefinition(domainTypeHandler);
-    }
-
-    /** Return the coordinatedTransactionId of the current transaction.
-     * The transaction might not have been enlisted.
-     * @return the coordinatedTransactionId
-     */
-    public String getCoordinatedTransactionId() {
-        assertNotClosed();
-        return clusterTransaction.getCoordinatedTransactionId();
-    }
-
-    /** Set the coordinatedTransactionId for the next transaction. This
-     * will take effect as soon as the transaction is enlisted.
-     * @param coordinatedTransactionId the coordinatedTransactionId
-     */
-    public void setCoordinatedTransactionId(String coordinatedTransactionId) {
-        assertNotClosed();
-        clusterTransaction.setCoordinatedTransactionId(coordinatedTransactionId);
     }
 
     /** Set the lock mode for subsequent operations. The lock mode takes effect immediately

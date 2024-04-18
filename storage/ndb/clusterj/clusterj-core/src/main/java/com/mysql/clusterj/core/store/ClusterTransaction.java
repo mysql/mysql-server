@@ -74,10 +74,6 @@ public interface ClusterTransaction {
 
     public void setPartitionKey(PartitionKey partitionKey);
 
-    public String getCoordinatedTransactionId();
-
-    public void setCoordinatedTransactionId(String coordinatedTransactionId);
-
     public void setLockMode(LockMode lockmode);
 
     public void setAutocommit(boolean autocommit);
