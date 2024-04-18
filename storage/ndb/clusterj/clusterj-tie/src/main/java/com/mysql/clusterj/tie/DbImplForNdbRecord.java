@@ -112,7 +112,7 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
         return ndbDictionary;
     }
 
-    public ClusterTransaction startTransaction(String joinTransactionId) {
+    public ClusterTransaction startTransaction() {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
@@ -149,10 +149,6 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     }
 
     public NdbTransaction enlist(String tableName, int partitionId) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
-    }
-
-    public NdbTransaction joinTransaction(String coordinatedTransactionId) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
