@@ -3241,6 +3241,10 @@ struct HA_CREATE_INFO {
   /** Secondary engine load status */
   bool secondary_load{false};
 
+  /** Part info in order to maintain in HA_CREATE_INFO the per-partition
+   * secondary_load status*/
+  partition_info *part_info{nullptr};
+
   const char *data_file_name{nullptr};
   const char *index_file_name{nullptr};
   const char *alias{nullptr};

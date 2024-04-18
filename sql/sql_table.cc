@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sstream>
 
 #include <algorithm>
 #include <atomic>
@@ -51,6 +52,7 @@
 #include "mysql/psi/psi_table.h"  // IWYU pragma: keep
 
 /* PSI_TABLE_CALL() with WITH_LOCK_ORDER */
+#include "dd/object_id.h"
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
@@ -11800,13 +11802,48 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
    * entries will be recorded. */
   bool skip_metadata_update = false;
 
-  // Partitioned Load/Unload
-  if (table_list->table->part_info != nullptr) {
-    table_list->partition_names = nullptr;
+  /* If set, we don't update the secondary_load flag of the table in DD. Used in
+   * partition unload, where we may unload a few partitions but not the entire
+   * table */
+  bool skip_table_dd_update = false;
 
+  // Partitioned Load/Unload
+  table_list->partition_names = nullptr;
+  std::set<std::string_view> modified_parts;
+  std::stringstream modified_parts_ss;
+  if (table_list->table->part_info != nullptr) {
     if (m_alter_info->partition_names.elements > 0 &&
         !(m_alter_info->flags & Alter_info::ALTER_ALL_PARTITION)) {
       table_list->partition_names = &m_alter_info->partition_names;
+      if (table_def->subpartition_type() ==
+          dd::Table::enum_subpartition_type::ST_NONE) {
+        for (auto pname : *table_list->partition_names) {
+          modified_parts_ss << pname.c_ptr() << " ";
+          modified_parts.emplace(pname.c_ptr());
+        }
+      } else {
+        /* In case of a sub-partitioned table, by requesting to load/unload a
+         * top-level partition, we should also mark as to-be-(un)loaded all of
+         * its subpartitions*/
+        for (auto pname : *table_list->partition_names) {
+          bool part_with_subpart = false;
+          modified_parts_ss << pname.c_ptr() << " ";
+          for (auto &part_obj : *table_def->partitions()) {
+            if (strcmp(part_obj->name().c_str(), pname.c_ptr()) == 0 &&
+                part_obj->parent_partition_id() == dd::INVALID_OBJECT_ID &&
+                !part_obj->subpartitions()->empty()) {
+              for (auto &sub_part_obj : *part_obj->subpartitions()) {
+                modified_parts.emplace(sub_part_obj->name());
+              }
+              part_with_subpart = true;
+              break;
+            }
+          }
+          if (!part_with_subpart) {
+            modified_parts.emplace(pname.c_ptr());
+          }
+        }
+      }
     }
   }
 
@@ -11827,7 +11864,21 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     if (retval) return true;
   } else {
     if (table_list->partition_names != nullptr) {
-      skip_metadata_update = true;
+      // Find already loaded partitions and skip unsetting the table's
+      // secondary_load flag if not all partitions are unloaded
+      for (auto &part_obj : *table_def->partitions()) {
+        bool is_part_loaded = false;
+        assert(part_obj->options().exists("secondary_load"));
+        if (part_obj->options().get("secondary_load", &is_part_loaded)) {
+          LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+                 "secondary_unload", "getting partition metadata failed");
+          return true;
+        }
+        if (is_part_loaded && !modified_parts.contains(part_obj->name())) {
+          skip_table_dd_update = true;
+          break;
+        }
+      }
     }
     if (DBUG_EVALUATE_IF("sim_secunload_fail", true, false)) {
       my_error(ER_SECONDARY_ENGINE, MYF(0),
@@ -11854,14 +11905,35 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
         "sec_load_unload",
         ("secondary_load flag update is skipped for table %s", full_tab_name));
   } else {
+    // update partitions' secondary load flag
+    for (auto &part_obj : *table_def->leaf_partitions()) {
+      if (table_list->partition_names == nullptr ||
+          modified_parts.contains(part_obj->name())) {
+        if (part_obj->options().set("secondary_load", is_load)) {
+          LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+                 (is_load ? "secondary_load" : "secondary_unload"),
+                 "setting partition metadata failed for partitions ",
+                 modified_parts_ss.str().c_str());
+          return true;
+        }
+      }
+    }
+
+    auto update_dd = [&thd, &table_def, skip_table_dd_update, is_load]() {
+      auto update_tbl_secondary_flag =
+          skip_table_dd_update
+              ? false
+              : table_def->options().set("secondary_load", is_load);
+      return update_tbl_secondary_flag || thd->dd_client()->update(table_def);
+    };
+
     // Update the secondary_load flag based on the current operation.
     if (DBUG_EVALUATE_IF("sim_fail_metadata_update",
                          (my_error(ER_SECONDARY_ENGINE, MYF(0),
                                    "Simulated failure during metadata update"),
                           true),
                          false) ||
-        table_def->options().set("secondary_load", is_load) ||
-        thd->dd_client()->update(table_def)) {
+        update_dd()) {
       LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
              (is_load ? "secondary_load" : "secondary_unload"),
              "metadata update failed");
@@ -11904,6 +11976,8 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
       return true;
     });
   }
+
+  modified_parts.clear();
 
   // Close primary table.
   close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
@@ -15484,6 +15558,13 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
 
   // Prepare data in HA_CREATE_INFO shared by ALTER and upgrade code.
   create_info->init_create_options_from_share(table->s, used_fields);
+
+  if (((create_info->used_fields & HA_CREATE_USED_SECONDARY_ENGINE) != 0U) &&
+      create_info->secondary_engine.str == nullptr) {
+    /* when removing the secondary_engine, remove also part_info from
+     * HA_CREATE_INFO */
+    create_info->part_info = nullptr;
+  }
 
   if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field) {
     /* Table has an autoincrement, copy value to new table */

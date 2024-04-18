@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=90000
+Current I_S_VERSION=90100
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -709,6 +709,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   sub_part.name AS SUBPARTITION_NAME,
   part.number+1 AS PARTITION_ORDINAL_POSITION,
   sub_part.number+1 AS SUBPARTITION_ORDINAL_POSITION,
+  CASE WHEN tbl.subpartition_expression IS NULL THEN CASE WHEN locate('secondary_load',part.options) > 0 THEN substring(part.options, locate('secondary_load',part.options)+15, 1) ELSE NULL END ELSE CASE WHEN locate('secondary_load',sub_part.options) > 0 THEN substring(sub_part.options, locate('secondary_load',sub_part.options)+15, 1) ELSE NULL END END AS SECONDARY_LOAD,
   CASE tbl.partition_type  WHEN 'HASH' THEN 'HASH'   WHEN 'RANGE' THEN 'RANGE'   WHEN 'LIST' THEN 'LIST'   WHEN 'AUTO' THEN 'AUTO'   WHEN 'KEY_51' THEN 'KEY'   WHEN 'KEY_55' THEN 'KEY'   WHEN 'LINEAR_KEY_51' THEN 'LINEAR KEY'   WHEN 'LINEAR_KEY_55' THEN 'LINEAR KEY'   WHEN 'LINEAR_HASH' THEN 'LINEAR HASH'   WHEN 'RANGE_COLUMNS' THEN 'RANGE COLUMNS'   WHEN 'LIST_COLUMNS' THEN 'LIST COLUMNS'   ELSE NULL END AS PARTITION_METHOD,
   CASE tbl.subpartition_type  WHEN 'HASH' THEN 'HASH'   WHEN 'RANGE' THEN 'RANGE'   WHEN 'LIST' THEN 'LIST'   WHEN 'AUTO' THEN 'AUTO'   WHEN 'KEY_51' THEN 'KEY'   WHEN 'KEY_55' THEN 'KEY'   WHEN 'LINEAR_KEY_51' THEN 'LINEAR KEY'   WHEN 'LINEAR_KEY_55' THEN 'LINEAR KEY'   WHEN 'LINEAR_HASH' THEN 'LINEAR HASH'   WHEN 'RANGE_COLUMNS' THEN 'RANGE COLUMNS'   WHEN 'LIST_COLUMNS' THEN 'LIST COLUMNS'   ELSE NULL END AS SUBPARTITION_METHOD,
   tbl.partition_expression_utf8 AS PARTITION_EXPRESSION,
@@ -746,6 +747,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   sub_part.name AS SUBPARTITION_NAME,
   part.number+1 AS PARTITION_ORDINAL_POSITION,
   sub_part.number+1 AS SUBPARTITION_ORDINAL_POSITION,
+  CASE WHEN tbl.subpartition_expression IS NULL THEN CASE WHEN locate('secondary_load',part.options) > 0 THEN substring(part.options, locate('secondary_load',part.options)+15, 1) ELSE NULL END ELSE CASE WHEN locate('secondary_load',sub_part.options) > 0 THEN substring(sub_part.options, locate('secondary_load',sub_part.options)+15, 1) ELSE NULL END END AS SECONDARY_LOAD,
   CASE tbl.partition_type  WHEN 'HASH' THEN 'HASH'   WHEN 'RANGE' THEN 'RANGE'   WHEN 'LIST' THEN 'LIST'   WHEN 'AUTO' THEN 'AUTO'   WHEN 'KEY_51' THEN 'KEY'   WHEN 'KEY_55' THEN 'KEY'   WHEN 'LINEAR_KEY_51' THEN 'LINEAR KEY'   WHEN 'LINEAR_KEY_55' THEN 'LINEAR KEY'   WHEN 'LINEAR_HASH' THEN 'LINEAR HASH'   WHEN 'RANGE_COLUMNS' THEN 'RANGE COLUMNS'   WHEN 'LIST_COLUMNS' THEN 'LIST COLUMNS'   ELSE NULL END AS PARTITION_METHOD,
   CASE tbl.subpartition_type  WHEN 'HASH' THEN 'HASH'   WHEN 'RANGE' THEN 'RANGE'   WHEN 'LIST' THEN 'LIST'   WHEN 'AUTO' THEN 'AUTO'   WHEN 'KEY_51' THEN 'KEY'   WHEN 'KEY_55' THEN 'KEY'   WHEN 'LINEAR_KEY_51' THEN 'LINEAR KEY'   WHEN 'LINEAR_KEY_55' THEN 'LINEAR KEY'   WHEN 'LINEAR_HASH' THEN 'LINEAR HASH'   WHEN 'RANGE_COLUMNS' THEN 'RANGE COLUMNS'   WHEN 'LIST_COLUMNS' THEN 'LIST COLUMNS'   ELSE NULL END AS SUBPARTITION_METHOD,
   tbl.partition_expression_utf8 AS PARTITION_EXPRESSION,
@@ -1649,8 +1651,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 90000.
+The schema checksum corresponds to I_S version 90100.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 90000 stored on disk.]
+IS_VERSION 90100 stored on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]

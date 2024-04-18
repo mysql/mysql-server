@@ -27,6 +27,7 @@
 #include <string.h>
 #include <algorithm>
 #include <memory>  // unique_ptr
+#include <unordered_map>
 
 #include "lex_string.h"
 #include "m_string.h"
@@ -1641,7 +1642,43 @@ static bool fill_dd_partition_from_create_info(
           part_obj->set_comment(part_elem->part_comment);
         part_obj->set_number(part_num);
         dd::Properties *part_options = &part_obj->options();
+        /* After a DDL, we should appropriately set the partitions/subpartitions
+         * secondary_load flag in DD based on the info that exists in
+         * create_info. */
         set_partition_options(part_elem, part_options);
+        std::unordered_map<std::string_view, bool> subpart_index;
+        part_options->set("secondary_load", false);
+        if (create_info->part_info != nullptr) {
+          bool part_found_in_create_info = false;
+          for (auto &create_info_part : create_info->part_info->partitions) {
+            if (strcmp(create_info_part.partition_name,
+                       part_elem->partition_name) != 0) {
+              continue;
+            }
+            part_found_in_create_info = true;
+            part_options->set("secondary_load",
+                              create_info_part.secondary_load);
+            /* When removing subpartitioning, we need to mark a partition as
+             * loaded if all of its subpartitions were previously loaded*/
+            if (create_info->part_info->is_sub_partitioned()) {
+              bool all_subpart_loaded = true;
+              for (auto &subpart : create_info_part.subpartitions) {
+                subpart_index.emplace(subpart.partition_name,
+                                      subpart.secondary_load);
+                if (!subpart.secondary_load) {
+                  all_subpart_loaded = false;
+                }
+              }
+              if (all_subpart_loaded) {
+                part_options->set("secondary_load", true);
+              }
+            }
+            break;
+          }
+          if (!part_found_in_create_info) {
+            part_options->set("secondary_load", false);
+          }
+        }
 
         // Set partition tablespace
         if (fill_dd_tablespace_id_or_name<dd::Partition>(
@@ -1763,6 +1800,18 @@ static bool fill_dd_partition_from_create_info(
             sub_obj->set_number(sub_part_num);
             dd::Properties *sub_options = &sub_obj->options();
             set_partition_options(sub_elem, sub_options);
+            if (part_options->exists("secondary_load")) {
+              bool part_secondary_load = false;
+              part_options->get("secondary_load", &part_secondary_load);
+              if (part_secondary_load) {
+                sub_options->set("secondary_load", true);
+              } else if (subpart_index.contains(sub_elem->partition_name)) {
+                sub_options->set("secondary_load",
+                                 subpart_index[sub_elem->partition_name]);
+              } else {
+                sub_options->set("secondary_load", false);
+              }
+            }
 
             // Set partition tablespace
             if (fill_dd_tablespace_id_or_name<dd::Partition>(

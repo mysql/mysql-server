@@ -65,7 +65,7 @@ class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {
     "data_file_name", "explicit_tablespace", "index_file_name", "max_rows",
-    "min_rows",       "nodegroup_id",        "tablespace"};
+    "min_rows",       "nodegroup_id",        "secondary_load",  "tablespace"};
 
 ///////////////////////////////////////////////////////////////////////////
 // Partition_impl implementation.

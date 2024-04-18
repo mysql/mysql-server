@@ -2071,6 +2071,11 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     if (part_info->partitions.push_back(curr_part_elem, &share->mem_root))
       return true;
 
+    const auto &part_options = part_obj->options();
+    if (part_options.exists("secondary_load")) {
+      part_options.get("secondary_load", &curr_part_elem->secondary_load);
+    }
+
     for (const dd::Partition *sub_part_obj : part_obj->subpartitions()) {
       partition_element *curr_sub_part_elem =
           new (&share->mem_root) partition_element;
@@ -2086,6 +2091,12 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       if (curr_part_elem->subpartitions.push_back(curr_sub_part_elem,
                                                   &share->mem_root))
         return true;
+
+      const auto &sub_part_options = sub_part_obj->options();
+      if (sub_part_options.exists("secondary_load")) {
+        sub_part_options.get("secondary_load",
+                             &curr_sub_part_elem->secondary_load);
+      }
     }
   }
 

@@ -133,3 +133,41 @@ IS_LOADED
 0
 DROP TABLE t2;
 DROP TABLE t1;
+# Load/unload partitions from secondary engine.
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+b VARCHAR(10)) 
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (100),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+ALTER TABLE t1 SECONDARY_UNLOAD PARTITION(p0);
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ALTER TABLE t1 SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD PARTITION();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ALTER TABLE t1 SECONDARY_UNLOAD PARTITION(p0);
+ERROR HY000: Table is not loaded on a secondary engine
+ALTER TABLE t1 SECONDARY_LOAD PARTITION(p0,p1);
+ALTER TABLE t1 SECONDARY_UNLOAD PARTITION();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ALTER TABLE t1 SECONDARY_UNLOAD PARTITION(p0);
+ALTER TABLE t1 SECONDARY_LOAD PARTITION(p1), MODIFY B VARCHAR(100) DEFAULT NULL;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', MODIFY B VARCHAR(100) DEFAULT NULL' at line 1
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+b VARCHAR(10)) 
+PARTITION BY RANGE(id) 
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2
+(
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (100),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+ALTER TABLE t1 SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD PARTITION(p0sp0,p2sp1);
+DROP TABLE t1;

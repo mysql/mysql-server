@@ -2712,6 +2712,12 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
   }
   secondary_load = share->secondary_load;
 
+  /* Copy the partitioning information that exists in the table share */
+  if (share->m_part_info != nullptr) {
+    part_info = share->m_part_info->get_clone(current_thd);
+    part_info->subpart_type = share->m_part_info->subpart_type;
+  }
+
   if (!(used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE)) {
     /* m_implicit_tablespace_autoextend_size = 0 is a valid value. Hence,
     we need a mechanism to indicate the value change. */

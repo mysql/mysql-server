@@ -127,6 +127,9 @@ class partition_element {
   bool signed_flag;  // Range value signed
   bool max_value;    // MAXVALUE range
 
+  /*The load status of the specific partition*/
+  bool secondary_load{false};
+
   partition_element()
       : part_max_rows(0),
         part_min_rows(0),
@@ -156,7 +159,8 @@ class partition_element {
         nodegroup_id(part_elem->nodegroup_id),
         has_null_value(false),
         signed_flag(false),
-        max_value(false) {}
+        max_value(false),
+        secondary_load{part_elem->secondary_load} {}
   inline void set_from_info(const HA_CREATE_INFO *info) {
     data_file_name = info->data_file_name;
     index_file_name = info->index_file_name;
