@@ -3501,7 +3501,6 @@ int MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
 }
 
 enum class HostnameMatch {
-  no_resolve,      // failure: could not resolve hostname
   no_match,        // failure: hostname does not match socket address
   ok_exact_match,  // success: exact match
   ok_wildcard,     // success: match not required
@@ -3519,7 +3518,7 @@ static HostnameMatch match_hostname(const ndb_sockaddr *client_addr,
   // - compare the resolved address with the clients.
   ndb_sockaddr resolved_addr;
   if (Ndb_getAddr(&resolved_addr, config_hostname) != 0)
-    return HostnameMatch::no_resolve;
+    return HostnameMatch::no_match;
 
   // Special case for client connecting on loopback address, check if it
   // can use this hostname by trying to bind the configured hostname. If this
@@ -3543,14 +3542,16 @@ static HostnameMatch match_hostname(const ndb_sockaddr *client_addr,
 /**
    @brief Build list of nodes in configuration
 
+   @param node_id 0 for any, otherwise a specific node id
+   @param type  Type of nodes to list (MGM/DATA/API)
    @param config_nodes List of nodes
+   @param error_code Error code
+   @param error_string Error string
    @return true if list was filled properly, false otherwise
  */
-bool MgmtSrvr::build_node_list_from_config(NodeId node_id,
-                                           ndb_mgm_node_type type,
-                                           Vector<ConfigNode> &config_nodes,
-                                           int &error_code,
-                                           BaseString &error_string) const {
+bool MgmtSrvr::build_node_type_list_from_config(
+    NodeId node_id, ndb_mgm_node_type type, Vector<ConfigNode> &config_nodes,
+    int &error_code, BaseString &error_string) const {
   Guard g(m_local_config_mutex);
 
   ConfigIter iter(m_local_config, CFG_SECTION_NODE);
@@ -3604,13 +3605,42 @@ bool MgmtSrvr::build_node_list_from_config(NodeId node_id,
   return true;
 }
 
-int MgmtSrvr::find_node_type(NodeId node_id, ndb_mgm_node_type type,
-                             const ndb_sockaddr *client_addr,
-                             const Vector<ConfigNode> &config_nodes,
-                             Vector<PossibleNode> &nodes, int &error_code,
-                             BaseString &error_string) {
-  const char *found_config_hostname = nullptr;
-  bool found_unresolved_hosts = false;
+/**
+   Given a list of nodes from config, find all that match the
+   supplied client address and (optional) node id
+
+   @param node_id If non zero then specifies required nodeid.  Can only be
+                  one match.
+                  If zero then any nodeid matches, return all.
+   @param type Type of node being matched (DB|MGMD|API)
+   @param client_addr Address client is connecting from
+   @param config_nodes List of nodes matching type from config
+   @param nodes Output list of nodes matching client address
+ */
+void MgmtSrvr::match_client_addr_to_config_nodes(
+    NodeId node_id, ndb_mgm_node_type type, const ndb_sockaddr *client_addr,
+    const Vector<ConfigNode> &config_nodes,
+    Vector<PossibleNode> &node_matches) {
+  /**
+   * Examine every candidate node from config to see if it can
+   * be a match for the connecting client's address.
+   *
+   * If node_id is specified then we return the first match.
+   * If node_id is not specified then all matches are returned
+   *
+   * Types of config vs client address match :
+   *   Wildcard match : Config has no address - matches anything
+   *   Exact match    : Config has address which matches client's when
+   *                    resolved (can also be loopback)
+   *   No match       : Config has address which does not match client's
+   *                    when resolved.
+   *
+   * The resulting vector of matching nodes can be length :
+   *   0  No config nodes match client address
+   *   1  One config node matches client address
+   *  >1  Multiple config nodes match client address
+   *      Exact matches are placed first in the Vector
+   */
 
   for (unsigned i = 0; i < config_nodes.size(); i++) {
     const ConfigNode &node = config_nodes[i];
@@ -3625,97 +3655,35 @@ int MgmtSrvr::find_node_type(NodeId node_id, ndb_mgm_node_type type,
     const HostnameMatch matchType =
         match_hostname(client_addr, config_hostname);
     switch (matchType) {
-      case HostnameMatch::no_resolve:
-        found_config_hostname = config_hostname;
-        found_unresolved_hosts = true;
-        break;
-
       case HostnameMatch::no_match:
-        found_config_hostname = config_hostname;
+        /* Config address not resolvable or resolvable and
+         * - Client address is loopback but we cannot bind the config address
+         * - Client address and resolved config are not IPv6 equal
+         */
         break;
 
       case HostnameMatch::ok_wildcard:
-        nodes.push_back({current_node_id, "", false});
+        /* Config hostname is null or empty */
+        node_matches.push_back({current_node_id, "", false});
         break;
 
       case HostnameMatch::ok_exact_match: {
-        found_config_hostname = config_hostname;
-
+        /* Config address resolvable
+         * - Client address is loopback and we can bind the config address
+         * - Client address and resolved config are IPv6 equal
+         */
         unsigned int pos = 0;
         // Insert this node into the list ahead of the non-exact matches
-        for (; pos < nodes.size() && nodes[pos].exact_match; pos++)
+        for (; pos < node_matches.size() && node_matches[pos].exact_match;
+             pos++)
           ;
-        nodes.push({current_node_id, config_hostname, true}, pos);
+        node_matches.push({current_node_id, config_hostname, true}, pos);
         break;
       }
     }
 
-    if (node_id) break;
+    if (node_id) break; /* Found the only match */
   }
-
-  if (nodes.size() != 0) {
-    return 0;
-  }
-
-  if (found_unresolved_hosts) {
-    error_code = NDB_MGM_ALLOCID_CONFIG_RETRY;
-
-    BaseString type_string;
-    const char *alias, *str = nullptr;
-    char addr_buf[NDB_ADDR_STRLEN];
-    alias = ndb_mgm_get_node_type_alias_string(type, &str);
-    type_string.assfmt("%s(%s)", alias, str);
-
-    char *addr_str = Ndb_inet_ntop(client_addr, addr_buf, sizeof(addr_buf));
-
-    error_string.appfmt(
-        "No configured host found of node type %s for "
-        "connection from ip %s. Some hostnames are currently "
-        "unresolvable. Can be retried.",
-        type_string.c_str(), addr_str);
-    return -1;
-  }
-
-  /*
-    lock on m_configMutex held because found_config_hostname may have
-    reference into config structure
-  */
-  error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-  if (node_id) {
-    if (found_config_hostname) {
-      char addr_buf[NDB_ADDR_STRLEN];
-      {
-        // Append error describing which host the faulty connection was from
-        char *addr_str = Ndb_inet_ntop(client_addr, addr_buf, sizeof(addr_buf));
-        error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-                            node_id, addr_str);
-      }
-      {
-        // Append error describing which was the expected host
-        ndb_sockaddr config_addr;
-        int r_config_addr = Ndb_getAddr(&config_addr, found_config_hostname);
-        char *addr_str =
-            Ndb_inet_ntop(&config_addr, addr_buf, sizeof(addr_buf));
-        error_string.appfmt(" expected %s(%s).", found_config_hostname,
-                            r_config_addr ? "lookup failed" : addr_str);
-      }
-      return -1;
-    }
-    error_string.appfmt("No node defined with id=%d in config file.", node_id);
-    return -1;
-  }
-
-  // node_id == 0 and nodes.size() == 0
-  if (found_config_hostname) {
-    char addr_buf[NDB_ADDR_STRLEN];
-    char *addr_str = Ndb_inet_ntop(client_addr, addr_buf, sizeof(addr_buf));
-    error_string.appfmt("Connection done from wrong host ip %s.",
-                        (client_addr) ? addr_str : "");
-    return -1;
-  }
-
-  error_string.append("No nodes defined in config file.");
-  return -1;
 }
 
 int MgmtSrvr::try_alloc(NodeId id, ndb_mgm_node_type type, Uint32 timeout_ms,
@@ -3894,21 +3862,73 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
     }
   }
 
-  // Build list of nodes fom configuration, this is done as a separate step
-  // in order to hold the config mutex only for a short time and also
-  // avoid holding it while resolving addresses.
+  // Build list of nodes matching (type[, nodeid]), from configuration,
+  // this is done as a separate step in order to hold the config mutex
+  // only for a short time and also avoid holding it while resolving
+  // addresses.
   Vector<ConfigNode> config_nodes;
-  if (!build_node_list_from_config(nodeid, type, config_nodes, error_code,
-                                   error_string)) {
+  if (!build_node_type_list_from_config(nodeid, type, config_nodes, error_code,
+                                        error_string)) {
     assert(error_string.length() > 0);
     return false;
   }
 
-  /* Find possible nodeids */
+  if (config_nodes.size() == 0) {
+    /* No nodes in config matching type [and nodeid] */
+    error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+    if (nodeid != 0) {
+      error_string.appfmt("No node defined with id=%d in config file.", nodeid);
+      return false;
+    } else {
+      error_string.append("No nodes defined in config file.");
+      return false;
+    }
+  }
+
+  /* Choose subset of candidates matching client address */
   Vector<PossibleNode> nodes;
-  if (find_node_type(nodeid, type, client_addr, config_nodes, nodes, error_code,
-                     error_string))
+  match_client_addr_to_config_nodes(nodeid, type, client_addr, config_nodes,
+                                    nodes);
+
+  if (nodes.size() == 0) {
+    /**
+     * No candidate node ids matched client address
+     *
+     * This could indicate :
+     *   1 Temporary name resolution misalignment
+     *   2 Permanent name resolution misalignment
+     *   3 Attempt to connect from incorrect location
+     *
+     * To cover case 1, a temporary 'retry' error is returned rather
+     * than a permanent error.
+     */
+    error_code = NDB_MGM_ALLOCID_CONFIG_RETRY;
+    char addr_buf[NDB_ADDR_STRLEN];
+    char *addr_str = Ndb_inet_ntop(client_addr, addr_buf, sizeof(addr_buf));
+
+    if (nodeid != 0) {
+      // Append error describing which host the faulty connection was from
+      error_string.appfmt("Connection with id %d done from host ip %s,", nodeid,
+                          addr_str);
+
+      // Append error describing which was the expected host
+      ndb_sockaddr config_addr;
+      assert(config_nodes.size() == 1); /* Single matching nodeid from config */
+      const char *config_hostname = config_nodes[0].hostname.c_str();
+      int r_config_addr = Ndb_getAddr(&config_addr, config_hostname);
+      char *addr_str = Ndb_inet_ntop(&config_addr, addr_buf, sizeof(addr_buf));
+      error_string.appfmt(" not matching expected %s(%s).", config_hostname,
+                          r_config_addr ? "lookup failed" : addr_str);
+    } else {
+      /* nodeid == 0 */
+      error_string.appfmt(
+          "Connection done from host ip %s, not matching any (resolved) "
+          "configured address.",
+          (client_addr) ? addr_str : "");
+    }
+
     return false;
+  }
 
   // Print list of possible nodes
   for (unsigned i = 0; i < nodes.size(); i++) {
@@ -3917,7 +3937,7 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
                          node.host.c_str(), node.exact_match);
   }
 
-  // nodes.size() == 0 handled inside find_node_type
+  // nodes.size() == 0 handled above
   assert(nodes.size() != 0);
 
   if (type == NDB_MGM_NODE_TYPE_MGM && nodes.size() > 1) {
