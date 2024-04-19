@@ -311,3 +311,102 @@ SELECT TABLE_ID = @TID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t
 --echo # CLEANUP
 SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
 DROP TABLE t_compressed;
+
+--echo #
+--echo # Bug#35869747: Cannot drop index from upgraded instance
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] \\[MY-014073\\] \\[InnoDB\\] Index idx[0-9] of test\\.t[0-9] exceeds limit of 767 bytes per column.");
+--enable_query_log
+
+--echo # Upgrade from 5.7.31 having tables with redundant row format and
+--echo # index longer than supported 767 bytes.
+# The data directory was created by using the following steps:
+# 1. Using mysql-5.7.31 version:
+#    SET GLOBAL innodb_default_row_format=redundant;
+#    CREATE TABLE t1 ( fld1 varchar(255) CHARACTER SET utf8mb4);
+#    CREATE TABLE `t2` (`fld1` varchar(255) CHARACTER SET utf8mb4 default null,
+#                       `fld2` varchar(255) CHARACTER SET utf8mb4 default null);
+#    CREATE TABLE `t3` (`fld1` varchar(255) CHARACTER SET utf8mb4 default null,
+#                       `fld2` varchar(255) CHARACTER SET utf8mb4 default null);
+#    CREATE TABLE `t4` (`fld1` varchar(255) CHARACTER SET utf8mb4 default null);
+#    SET GLOBAL innodb_default_row_format=dynamic;
+#    CREATE INDEX idx1 ON t1(fld1);
+#    CREATE INDEX idx1 ON t2(fld1,fld2);
+#    CREATE INDEX idx1 ON t3(fld1);
+#    CREATE INDEX idx2 ON t3(fld2);
+#    CREATE INDEX idx1 ON t4(fld1(250));
+# 2. Zip the data directory.
+
+--echo # Stop the running the server.
+--source include/shutdown_mysqld.inc
+
+--echo # Unzip the datadir.
+--exec unzip -qo $MYSQLTEST_VARDIR/std_data/data5731_long_index.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir.
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --lower_case_table_names=1
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo # Verify tables after upgrade.
+
+--echo # Table with single index of invalid length.
+SHOW CREATE TABLE test.t1;
+--echo # Table with composite index of invalid length.
+SHOW CREATE TABLE test.t2;
+--echo # Table with two indexes of invalid length.
+SHOW CREATE TABLE test.t3;
+--echo # Table with prefix index of invalid length.
+SHOW CREATE TABLE test.t4;
+
+--echo # CHECK TABLE should flag indexes as corrupt after fix.
+CHECK TABLE test.t1;
+CHECK TABLE test.t2;
+CHECK TABLE test.t3;
+CHECK TABLE test.t4;
+
+--echo # TRUNCATE TABLE reports an index too long error since it is DROP + CREATE.
+--error ER_INDEX_COLUMN_TOO_LONG
+TRUNCATE TABLE test.t1;
+--error ER_INDEX_COLUMN_TOO_LONG
+TRUNCATE TABLE test.t2;
+--error ER_INDEX_COLUMN_TOO_LONG
+TRUNCATE TABLE test.t3;
+--error ER_INDEX_COLUMN_TOO_LONG
+TRUNCATE TABLE test.t4;
+
+--echo # SELECT statement which uses the index errors out flagging the corruption.
+--error ER_INDEX_CORRUPT
+SELECT * FROM test.t1 FORCE INDEX (idx1);
+--error ER_INDEX_CORRUPT
+SELECT * FROM test.t2 FORCE INDEX (idx1);
+
+--echo # SELECT statement which does not use the corrupted index succeeds.
+SELECT * FROM test.t3;
+SELECT * FROM test.t4;
+
+--echo # DROP INDEX succeeds after fix.
+ALTER TABLE test.t1 DROP INDEX idx1;
+ALTER TABLE test.t2 DROP INDEX idx1;
+
+--echo # DROP TABLE succeeds after fix.
+DROP TABLE test.t3;
+DROP TABLE test.t4;
+
+--echo # Cleanup
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Clean up data dir
+--force-rmdir $MYSQL_TMP_DIR/data
+
+--echo # Restarting server to restore server state
+--let $restart_parameters = "restart:"
+--source include/start_mysqld.inc

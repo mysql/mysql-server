@@ -405,6 +405,16 @@ in dd::Table
 bool dd_instant_columns_consistent(const dd::Table &dd_table);
 #endif /* UNIV_DEBUG */
 
+/** Scan through all the keys to identify the key parts which are
+greater than the maximum size supported by the table record format.
+@param table         MySQL table definition.
+@param max_part_len  Maximum index part length allowed.
+@param visitor       Function wrapper to invoke lambda expression.
+*/
+void dd_visit_keys_with_too_long_parts(
+    const TABLE *table, const size_t max_part_len,
+    std::function<void(const KEY &)> visitor);
+
 /** Determine if a dd::Table has any INSTANT ADD column(s) in V1
 @param[in]      table   dd::Table
 @return true if table has instant column(s) in V1, false otherwise */

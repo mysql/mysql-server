@@ -4337,39 +4337,16 @@ static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
   }
 }
 
-/** Check if a new table's index will exceed the index limit for the table
-row format
+/** Check if the key parts of the indexes of new table will exceed the
+index limit based on the table row format
 @param[in]      form            MySQL table that is being altered
-@param[in]      max_len         max index length allowed
+@param[in]      max_part_len    max index part length allowed
 @return true if within limits false otherwise */
-static bool innobase_check_index_len(const TABLE *form, ulint max_len) {
-  for (uint key_num = 0; key_num < form->s->keys; key_num++) {
-    const KEY &key = form->key_info[key_num];
-
-    for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
-      const KEY_PART_INFO *key_part = &key.key_part[i];
-      unsigned prefix_len = 0;
-
-      if (key.flags & HA_SPATIAL) {
-        prefix_len = 0;
-      } else if (key.flags & HA_FULLTEXT) {
-        prefix_len = 0;
-      } else if (key_part->key_part_flag & HA_PART_KEY_SEG) {
-        /* SPATIAL and FULLTEXT index always are on
-        full columns. */
-        ut_ad(!(key.flags & (HA_SPATIAL | HA_FULLTEXT)));
-        prefix_len = key_part->length;
-        ut_ad(prefix_len > 0);
-      } else {
-        prefix_len = 0;
-      }
-
-      if (key_part->length > max_len || prefix_len > max_len) {
-        return (false);
-      }
-    }
-  }
-  return (true);
+static bool innobase_check_index_len(const TABLE *form, ulint max_part_len) {
+  bool valid = true;
+  dd_visit_keys_with_too_long_parts(form, max_part_len,
+                                    [&valid](auto) { valid = false; });
+  return valid;
 }
 
 /** Update internal structures with concurrent writes blocked,

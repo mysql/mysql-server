@@ -1867,6 +1867,23 @@ bool dd_instant_columns_consistent(const dd::Table &dd_table) {
 }
 #endif /* UNIV_DEBUG */
 
+void dd_visit_keys_with_too_long_parts(
+    const TABLE *table, const size_t max_part_len,
+    std::function<void(const KEY &)> visitor) {
+  for (uint key_num = 0; key_num < table->s->keys; key_num++) {
+    const KEY &key = table->key_info[key_num];
+    if (!(key.flags & (HA_SPATIAL | HA_FULLTEXT))) {
+      for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
+        const KEY_PART_INFO *key_part = &key.key_part[i];
+        if (max_part_len < key_part->length) {
+          visitor(key);
+          continue;
+        }
+      }
+    }
+  }
+}
+
 static void instant_update_table_cols_count(dict_table_t *dict_table,
                                             uint32_t n_added_column,
                                             uint32_t n_dropped_column) {
@@ -2770,6 +2787,34 @@ const dict_index_t *dd_find_index(const dict_table_t *table, Index *dd_index) {
   return index;
 }
 
+/** Return the prefix length of the key.
+@param[in]    key                Key information.
+@param[in]    key_part           Key part information.
+@return       Key prefix length or 0 if whole column is indexed.
+*/
+static inline uint16_t get_index_prefix_len(const KEY &key,
+                                            const KEY_PART_INFO *key_part) {
+  if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+    return 0;
+  }
+
+  if (key_part->key_part_flag & HA_PART_KEY_SEG) {
+    ut_ad(key_part->length > 0);
+    return key_part->length;
+  }
+
+#ifdef UNIV_DEBUG
+  auto field = key_part->field;
+  ut_ad((!is_blob(field->real_type()) &&
+         field->real_type() != MYSQL_TYPE_GEOMETRY) ||
+        key_part->length >= (field->type() == MYSQL_TYPE_VARCHAR
+                                 ? field->key_length()
+                                 : field->pack_length()));
+#endif
+
+  return 0;
+}
+
 template const dict_index_t *dd_find_index<dd::Index>(const dict_table_t *,
                                                       dd::Index *);
 template const dict_index_t *dd_find_index<dd::Partition_index>(
@@ -2782,7 +2827,6 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 @param[in]      key_num         key_info[] offset
 @return         error code
 @retval         0 on success
-@retval         HA_ERR_INDEX_COL_TOO_LONG if a column is too long
 @retval         HA_ERR_TOO_BIG_ROW if the record is too long */
 [[nodiscard]] static int dd_fill_one_dict_index(const dd::Index *dd_index,
                                                 dict_table_t *table,
@@ -2833,7 +2877,6 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 
   for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
     const KEY_PART_INFO *key_part = &key.key_part[i];
-    unsigned prefix_len = 0;
     const Field *field = key_part->field;
     ut_ad(field == form->field[key_part->fieldnr - 1]);
     ut_ad(field == form->field[field->field_index()]);
@@ -2855,32 +2898,7 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
       is_asc = false;
     }
 
-    if (key.flags & HA_SPATIAL) {
-      prefix_len = 0;
-    } else if (key.flags & HA_FULLTEXT) {
-      prefix_len = 0;
-    } else if (key_part->key_part_flag & HA_PART_KEY_SEG) {
-      /* SPATIAL and FULLTEXT index always are on
-      full columns. */
-      ut_ad(!(key.flags & (HA_SPATIAL | HA_FULLTEXT)));
-      prefix_len = key_part->length;
-      ut_ad(prefix_len > 0);
-    } else {
-      ut_ad(key.flags & (HA_SPATIAL | HA_FULLTEXT) ||
-            (!is_blob(field->real_type()) &&
-             field->real_type() != MYSQL_TYPE_GEOMETRY) ||
-            key_part->length >= (field->type() == MYSQL_TYPE_VARCHAR
-                                     ? field->key_length()
-                                     : field->pack_length()));
-      prefix_len = 0;
-    }
-
-    if ((key_part->length > max_len || prefix_len > max_len) &&
-        !(key.flags & (HA_FULLTEXT))) {
-      dict_mem_index_free(index);
-      my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_len);
-      return HA_ERR_INDEX_COL_TOO_LONG;
-    }
+    const auto prefix_len = get_index_prefix_len(key, key_part);
 
     dict_col_t *col = nullptr;
 
@@ -3453,6 +3471,26 @@ void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
             long_true_varchar | is_virtual | is_multi_val,
         charset_no);
   }
+}
+
+/** Check if the individual parts of the composite index does not exceed the
+limit based on the table row format. If yes, mark the index as corrupt.
+@param[in]     m_table         InnoDB table handle
+@param[in]     table           MySQL table definition */
+static void validate_index_len(dict_table_t *m_table, const TABLE *table) {
+  const uint32_t max_part_len = DICT_MAX_FIELD_LEN_BY_FORMAT(m_table);
+  dd_visit_keys_with_too_long_parts(table, max_part_len, [&](const KEY &key) {
+    dict_index_t *index = dict_table_get_index_on_name(m_table, key.name, true);
+    if (index != nullptr) {
+      std::string schema_name;
+      std::string table_name;
+
+      dict_set_corrupted(index);
+      m_table->get_table_name(schema_name, table_name);
+      ib::error(ER_IB_INDEX_PART_TOO_LONG, key.name, schema_name.c_str(),
+                table_name.c_str(), ulong{max_part_len});
+    }
+  });
 }
 
 template <typename Table>
@@ -5097,6 +5135,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     m_table = exist;
   } else {
     dict_table_add_to_cache(m_table, true);
+
+    validate_index_len(m_table, table);
 
     if (m_table->fts && dict_table_has_fts_index(m_table)) {
       fts_optimize_add_table(m_table);
