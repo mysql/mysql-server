@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -548,6 +548,10 @@ get_multithreaded_config(EmulatorData& ed)
   if (!globalData.isNdbMt)
   {
     ndbout << "NDBMT: non-mt" << endl;
+    g_eventLogger->warning(
+        "Running ndbd with a single thread of signal execution.  "
+        "For multi-threaded signal execution run the ndbmtd binary.");
+
     return 0;
   }
 
