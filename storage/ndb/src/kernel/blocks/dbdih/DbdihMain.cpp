@@ -1508,10 +1508,32 @@ void Dbdih::execREAD_CONFIG_REQ(Signal *signal) {
   ndb_mgm_get_int_parameter(p, CFG_DB_AUTO_THREAD_CONFIG,
                             &use_auto_thread_config);
 
+  /**
+   * Ignore AutomaticThreadConfig configuration for single threaded data
+   * node (ndbd).
+   */
+  if (use_auto_thread_config && !globalData.isNdbMt) {
+    jam();
+    use_auto_thread_config = 0;
+  }
+
   Uint32 use_classic_fragmentation = 1;
   ndb_mgm_get_int_parameter(p, CFG_DB_CLASSIC_FRAGMENTATION,
                             &use_classic_fragmentation);
   m_use_classic_fragmentation = use_classic_fragmentation;
+
+  /**
+   * Ignore ClassicFragmentation configuration for single threaded data
+   * node (ndbd).
+   */
+  if (!m_use_classic_fragmentation && !globalData.isNdbMt) {
+    jam();
+    m_use_classic_fragmentation = 1;
+    g_eventLogger->info(
+        "ClassicFragmentation configuration ignored, "
+        "ndbd does not support non classic fragmentation");
+  }
+
   if (m_use_classic_fragmentation && use_auto_thread_config) {
     jam();
     m_use_classic_fragmentation = 0;
@@ -1519,6 +1541,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal *signal) {
 
   c_fragments_per_node_ = 0;
   if (!m_use_classic_fragmentation) {
+    ndbrequire(globalData.isNdbMt);
     jam();
     c_fragments_per_node_ = 2;
     ndb_mgm_get_int_parameter(p, CFG_DB_PARTITIONS_PER_NODE,
