@@ -662,6 +662,10 @@ static int get_multithreaded_config(EmulatorData &ed) {
   // multithreaded is compiled in ndbd/ndbmtd for now
   if (!globalData.isNdbMt) {
     g_eventLogger->info("NDBMT: non-mt");
+    g_eventLogger->warning(
+        "Running ndbd with a single thread of signal execution.  "
+        "For multi-threaded signal execution run the ndbmtd binary.");
+
     return 0;
   }
 
