@@ -1696,6 +1696,8 @@ IF(APPLE)
   ELSE()
     SET(HOMEBREW_HOME "/usr/local/opt")
   ENDIF()
+  # The Xcode version is 1.2.12 which is too old
+  LIST(REMOVE_ITEM SYSTEM_LIBRARIES ZLIB)
 ENDIF()
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
