@@ -22,7 +22,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_stored_program_imp.h"
-#include <cstring>    // strcmp
+#include <cstring>  // strcmp
+#include "my_sys.h"
 #include "my_time.h"  // check_datetime_range
 #include "mysql/components/services/bits/stored_program_bits.h"  // stored_program_argument_type
 #include "mysql/components/services/mysql_string.h"
@@ -832,11 +833,15 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::get,
   if (*is_null) return MYSQL_SUCCESS;
   auto temp = String{};
   auto string = item->val_str(&temp);
-  // HCS-8941: fix the bug when service called for non-string types: in case
-  // this string owns the buffer, the buffer will be freed when this function
-  // exits
+
   if (string->is_alloced()) {
-    *value = nullptr;
+    // During execution, current_thd mem_root points to execute_mem_root (check
+    // sp_head::execute) and it is reset to caller mem_root after execution.
+    // Execute_mem_root is deallocated after execution
+    auto copied_string =
+        strmake_root(current_thd->mem_root, string->ptr(), string->length());
+    *value = copied_string;
+    *length = string->length();
     return MYSQL_FAILURE;
   }
   *value = string->c_ptr();
