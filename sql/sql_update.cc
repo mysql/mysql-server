@@ -1919,7 +1919,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
     Item_field *const field = down_cast<Item_field *>(*field_it++);
     Item *const value = *value_it++;
     assert(!field->hidden && !value->hidden);
-    uint offset = field->table_ref->shared;
+    uint offset = field->m_table_ref->shared;
     fields_for_table[offset]->push_back(field);
     values_for_table[offset]->push_back(value);
   }
@@ -2255,7 +2255,7 @@ bool Query_result_update::optimize() {
    For a regular multi-update it refers to some updated table.
   */
   Table_ref *first_table_for_update =
-      down_cast<Item_field *>(*VisibleFields(*fields).begin())->table_ref;
+      down_cast<Item_field *>(*VisibleFields(*fields).begin())->m_table_ref;
 
   /* Create a temporary table for keys to all tables, except main table */
   for (Table_ref *table_ref = update_tables; table_ref != nullptr;

@@ -7719,7 +7719,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
     return true;
   }
-  table_ref = ((Item_field *)item)->table_ref;
+  table_ref = down_cast<Item_field *>(item)->m_table_ref;
 
   if (table_ref != nullptr) table_ref->set_fulltext_searched();
 
@@ -7732,8 +7732,9 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
     a generated column's generation expression it's not. Thus
     we use field's table, at this moment it's already available.
   */
-  TABLE *const table =
-      table_ref ? table_ref->table : ((Item_field *)item)->field->table;
+  TABLE *const table = table_ref != nullptr
+                           ? table_ref->table
+                           : down_cast<Item_field *>(item)->field->table;
 
   if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT)) {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
@@ -7787,7 +7788,7 @@ bool Item_func_match::fix_index(const THD *thd) {
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts = 0, keynr;
   uint max_cnt = 0, mkeys = 0, i;
 
-  if (!table_ref) goto err;
+  if (table_ref == nullptr) goto err;
 
   /*
     We will skip execution if the item is not fixed

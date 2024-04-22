@@ -357,9 +357,9 @@ bool OrderItemsReferenceUnavailableTables(
                  [materialized_base_tables](Item *item) {
                    if (item->type() == Item::FIELD_ITEM) {
                      Item_field *item_field = down_cast<Item_field *>(item);
-                     return item_field->table_ref != nullptr &&
+                     return item_field->m_table_ref != nullptr &&
                             !item_field->is_outer_reference() &&
-                            Overlaps(item_field->table_ref->map(),
+                            Overlaps(item_field->m_table_ref->map(),
                                      materialized_base_tables);
                    }
                    return false;

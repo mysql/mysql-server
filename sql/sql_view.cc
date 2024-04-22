@@ -788,7 +788,7 @@ bool is_updatable_view(THD *thd, Table_ref *view) {
       bool view_has_updatable_column = false;
       for (Item *item : lex->query_block->visible_fields()) {
         Item_field *item_field = item->field_for_view_update();
-        if (item_field && !item_field->table_ref->schema_table) {
+        if (item_field && !item_field->m_table_ref->schema_table) {
           view_has_updatable_column = true;
           break;
         }

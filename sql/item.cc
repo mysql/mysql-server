@@ -1031,7 +1031,7 @@ bool Item_field::add_field_to_set_processor(uchar *arg) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   TABLE *table = (TABLE *)arg;
-  if (table_ref->table == table)
+  if (m_table_ref->table == table)
     bitmap_set_bit(&table->tmp_set, field->field_index());
   return false;
 }
@@ -1080,7 +1080,7 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
   Condition_pushdown::Derived_table_info *dti =
       pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
   Table_ref *derived_table = dti->m_derived_table;
-  if (table_ref == derived_table) {
+  if (m_table_ref == derived_table) {
     assert(field->table == derived_table->table);
     // For set operations, if there is result type mismatch for this
     // expression across query blocks, we do not do condition pushdown
@@ -1227,7 +1227,7 @@ Item *Item_field::replace_with_derived_expr(uchar *arg) {
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
   Table_ref *derived_table = dti->m_derived_table;
-  if (derived_table != table_ref) return this;
+  if (derived_table != m_table_ref) return this;
   Query_block *query_block = dti->m_derived_query_block;
   return query_block->clone_expression(
       current_thd, query_block->get_derived_expr(field->field_index()),
@@ -1244,7 +1244,7 @@ Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
   Table_ref *derived_table = dti->m_derived_table;
-  if (derived_table != table_ref) return this;
+  if (derived_table != m_table_ref) return this;
   Query_block *query_block = dti->m_derived_query_block;
 
   // Get the expression in the derived table and find the right ref item to
@@ -1341,7 +1341,7 @@ bool Item_field::check_column_privileges(uchar *arg) {
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
-  if (check_column_grant_in_table_ref(thd, table_ref, field_name,
+  if (check_column_grant_in_table_ref(thd, m_table_ref, field_name,
                                       strlen(field_name),
                                       thd->want_privilege)) {
     return true;
@@ -1361,15 +1361,15 @@ bool Item_field::check_column_privileges(uchar *arg) {
 bool Item_view_ref::check_column_privileges(uchar *arg) {
   THD *thd = (THD *)arg;
 
-  if (cached_table->is_derived())  // Rely on checking underlying tables
+  if (m_table_ref->is_derived())  // Rely on checking underlying tables
     return false;
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
-  assert(strlen(cached_table->get_table_name()) > 0);
+  assert(strlen(m_table_ref->get_table_name()) > 0);
 
-  if (check_column_grant_in_table_ref(thd, cached_table, field_name,
+  if (check_column_grant_in_table_ref(thd, m_table_ref, field_name,
                                       strlen(field_name), thd->want_privilege))
     return true;
 
@@ -2892,8 +2892,8 @@ bool Item_ident_for_show::fix_fields(THD *, Item **) {
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Table_ref *tr, Field *f)
     : Item_ident(context_arg, f->table->s->db.str, *f->table_name,
-                 f->field_name),
-      table_ref(tr) {
+                 f->field_name) {
+  m_table_ref = tr;
   set_field(f);
 
   // Possibly override original names that were assigned from table reference:
@@ -2960,7 +2960,6 @@ bool Item_field::do_itemize(Parse_context *pc, Item **res) {
 
 Item_field::Item_field(THD *thd, Item_field *item)
     : Item_ident(thd, item),
-      table_ref(item->table_ref),
       field(item->field),
       result_field(item->result_field),
       m_multi_equality(item->m_multi_equality),
@@ -2968,6 +2967,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
       no_constant_propagation(item->no_constant_propagation),
       have_privileges(item->have_privileges),
       any_privileges(item->any_privileges) {
+  m_table_ref = item->m_table_ref;
   collation.set(DERIVATION_IMPLICIT);
   if (item->m_orig_table_name != nullptr)
     m_orig_table_name = item->m_orig_table_name;
@@ -3045,20 +3045,20 @@ inline static uint32 adjust_max_effective_column_length(Field *field_par,
 }
 
 void Item_field::set_field(Field *field_par) {
-  table_ref = field_par->table->pos_in_table_list;
-  assert(table_ref == nullptr || table_ref->table == field_par->table);
+  m_table_ref = field_par->table->pos_in_table_list;
+  assert(m_table_ref == nullptr || m_table_ref->table == field_par->table);
   assert(field_par->field_index() != NO_FIELD_INDEX);
   field_index = field_par->field_index();
 
   field = result_field = field_par;  // for easy coding with fields
   set_nullable(field->is_nullable() || field->is_tmp_nullable() ||
                field->table->is_nullable());
-  if (table_ref != nullptr) {
-    table_name = table_ref->alias;
-    m_orig_db_name = table_ref->db;
+  if (m_table_ref != nullptr) {
+    table_name = m_table_ref->alias;
+    m_orig_db_name = m_table_ref->db;
     db_name = m_orig_db_name;
-    m_orig_table_name = table_ref->table_name;
-    if (table_ref->is_derived()) {
+    m_orig_table_name = m_table_ref->table_name;
+    if (m_table_ref->is_derived()) {
       // Show underlying field's information
       m_orig_db_name = field_par->orig_db_name;
       m_orig_table_name = field_par->orig_table_name;
@@ -3292,9 +3292,9 @@ bool Item_field::eq(const Item *item) const {
 }
 
 table_map Item_field::used_tables() const {
-  if (!table_ref) return 1;  // Temporary table; always table 0
-  if (table_ref->table->const_table) return 0;  // const item
-  return depended_from ? OUTER_REF_TABLE_BIT : table_ref->map();
+  if (m_table_ref == nullptr) return 1;  // Temporary table; always table 0
+  if (m_table_ref->table->const_table) return 0;  // const item
+  return depended_from != nullptr ? OUTER_REF_TABLE_BIT : m_table_ref->map();
 }
 
 bool Item_field::used_tables_for_level(uchar *arg) {
@@ -3303,8 +3303,8 @@ bool Item_field::used_tables_for_level(uchar *arg) {
   assert(!tr->table->const_table);
   Used_tables *const ut = pointer_cast<Used_tables *>(arg);
   /*
-    When the qualifying query for the field (table_ref->query_block) is the same
-    level as the requested level, add the table's map.
+    When the qualifying query for the field (m_table_ref->query_block) is
+    the same level as the requested level, add the table's map.
     When the qualifying query for the field is outer relative to the
     requested level, add an outer reference.
   */
@@ -3385,10 +3385,10 @@ void Item_ident::fix_after_pullout(Query_block *parent_query_block,
 Item *Item_field::get_tmp_table_item(THD *thd) {
   DBUG_TRACE;
   Item_field *new_item = new Item_field(thd, this);
-  if (!new_item) return nullptr; /* purecov: inspected */
+  if (new_item == nullptr) return nullptr; /* purecov: inspected */
 
   new_item->field = new_item->result_field;
-  new_item->table_ref = nullptr;  // Internal temporary table has no table_ref
+  new_item->m_table_ref = nullptr;  // Internal temporary table has no table ref
 
   return new_item;
 }
@@ -5556,10 +5556,9 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
       If field was already found by first call
       to find_field_in_tables(), we only need to find appropriate context.
     */
-    if (field_found &&
-        outer_context->query_block != cached_table->query_block) {
+    if (field_found && outer_context->query_block != m_table_ref->query_block) {
       DBUG_PRINT("outer_field", ("but cached is of SL#%d, continue",
-                                 cached_table->query_block->select_number));
+                                 m_table_ref->query_block->select_number));
       continue;
     }
 
@@ -5882,9 +5881,8 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
   For the case where a table reference is already set for the field,
   we just need to make a call to set_field(). This is true for a cloned
   field used during condition pushdown to derived tables. A cloned field
-  inherits table reference, depended_from, cached_table, context and field
-  from the original field. set_field() ensures all other members are set
-  correctly.
+  inherits table reference, depended_from, context and field from the original
+  field. set_field() ensures all other members are set correctly.
 
   @param[in]     thd        current thread
   @param[in,out] reference  view column if this item was resolved to a
@@ -5896,25 +5894,24 @@ bool is_null_on_empty_table(THD *thd, Item_field *i) {
 bool Item_field::fix_fields(THD *thd, Item **reference) {
   assert(!fixed);
   Field *from_field = not_found_field;
-  bool outer_fixed = false;
   Query_block *qb = thd->lex->current_query_block();
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
-  if (table_ref != nullptr) {
+  if (m_table_ref != nullptr) {
     // This is a cloned field (used during condition pushdown to derived
     // tables). It has table reference and the field too. Make a call to
     // set_field() to ensure everything else gets set correctly.
-    Table_ref *orig_table_ref = table_ref;
+    Table_ref *orig_table_ref = m_table_ref;
     set_field(field);
-    // Note that the call to set_field() above would have set the "table_ref"
+    // Note that the call to set_field() above would have set the "m_table_ref"
     // derived from field's table which in most cases is same as the already
-    // set "table_ref". However, in case of update statements, while setting
+    // set "m_table_ref". However, in case of update statements, while setting
     // up update_tables, table references are changed. Since condition pushdown
     // happens after this setup, we must make sure we set the original table
     // reference for the field.
-    table_ref = orig_table_ref;
+    m_table_ref = orig_table_ref;
     return false;
   }
   assert(field == nullptr);
@@ -5962,8 +5959,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
           }
 
           set_field(new_field);
-
-          cached_table = table_ref;
 
           // The found column may be an outer reference
           if (item_field->depended_from)
@@ -6015,22 +6010,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       }
     }
     if ((ret = fix_outer_field(thd, &from_field, reference)) < 0) return true;
-    outer_fixed = true;
-    if (!ret) return false;
-  }
-  /*
-    We should resolve this as an outer field reference if
-    1. we haven't done it before, and
-    2. the query_block of the table that contains this field is
-       different from the query_block of the current name resolution
-       context.
-   */
-  if (!outer_fixed &&                                                       // 1
-      cached_table && cached_table->query_block && context->query_block &&  // 2
-      cached_table->query_block != context->query_block) {
-    int ret;
-    if ((ret = fix_outer_field(thd, &from_field, reference)) < 0) return true;
-    outer_fixed = true;
     if (!ret) return false;
   }
 
@@ -6077,12 +6056,13 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
 
   if (any_privileges) {
     const char *db, *tab;
-    db = cached_table->get_db_name();
-    tab = cached_table->get_table_name();
-    assert(field->table == table_ref->table);
-    if (!(have_privileges =
-              (get_column_grant(thd, &table_ref->grant, db, tab, field_name) &
-               VIEW_ANY_ACL))) {
+    db = m_table_ref->get_db_name();
+    tab = m_table_ref->get_table_name();
+    assert(field->table == m_table_ref->table);
+    have_privileges =
+        get_column_grant(thd, &m_table_ref->grant, db, tab, field_name) &
+        VIEW_ANY_ACL;
+    if (!have_privileges) {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0), "ANY",
                thd->security_context()->priv_user().str,
                thd->security_context()->host_or_ip().str, field_name, tab);
@@ -6108,25 +6088,25 @@ void Item_field::bind_fields() {
   assert(field_index != NO_FIELD_INDEX);
   /*
     Check consistency of Item_field objects:
-    - If we have no table_ref, then field must be a valid pointer.
+    - If we have no m_table_ref, then field must be a valid pointer.
       (Applicable for expressions of generated columns).
     - Some temporary tables used for materialization (derived tables)
-      have permanent metadata, hence both table_ref and field are valid.
-    - All other tables that have a valid table_ref do not have a valid
+      have permanent metadata, hence both m_table_ref and field are valid.
+    - All other tables that have a valid m_table_ref do not have a valid
       field reference at this point.
   */
-  assert((table_ref == nullptr && field != nullptr) ||
-         (table_ref != nullptr &&
-          (table_ref->is_view_or_derived() ||
-           table_ref->is_recursive_reference()) &&
+  assert((m_table_ref == nullptr && field != nullptr) ||
+         (m_table_ref != nullptr &&
+          (m_table_ref->is_view_or_derived() ||
+           m_table_ref->is_recursive_reference()) &&
           field != nullptr) ||
-         (table_ref != nullptr &&
-          !(table_ref->is_view_or_derived() ||
-            table_ref->is_recursive_reference()) &&
+         (m_table_ref != nullptr &&
+          !(m_table_ref->is_view_or_derived() ||
+            m_table_ref->is_recursive_reference()) &&
           field == nullptr));
-  if (table_ref != nullptr && table_ref->table == nullptr) return;
+  if (m_table_ref != nullptr && m_table_ref->table == nullptr) return;
   if (field == nullptr) {
-    field = result_field = table_ref->table->field[field_index];
+    field = result_field = m_table_ref->table->field[field_index];
     m_orig_field_name = field->field_name;
   }
   if (table_name == nullptr) table_name = *field->table_name;
@@ -6148,8 +6128,8 @@ void Item_field::cleanup() {
     Also invalidate the original field name, since it is usually determined
     from the field name in the Field object.
   */
-  if (table_ref != nullptr && !table_ref->is_view_or_derived() &&
-      !table_ref->is_recursive_reference()) {
+  if (m_table_ref != nullptr && !m_table_ref->is_view_or_derived() &&
+      !m_table_ref->is_recursive_reference()) {
     field = nullptr;
     m_orig_field_name = nullptr;
   }
@@ -6158,10 +6138,10 @@ void Item_field::cleanup() {
   result_field = field;
 
   /*
-    When table_ref is NULL, table_name must be reassigned together with
+    When m_table_ref is NULL, table_name must be reassigned together with
     table pointer.
   */
-  if (table_ref == nullptr) table_name = nullptr;
+  if (m_table_ref == nullptr) table_name = nullptr;
 
   // Reset field before next optimization (multiple equality analysis)
   m_multi_equality = nullptr;
@@ -6175,7 +6155,7 @@ void Item_field::cleanup() {
   @todo refactor CREATE TABLE so this is no longer needed.
 */
 void Item_field::reset_field() {
-  assert(table_ref == nullptr);
+  assert(m_table_ref == nullptr);
   fixed = false;
   context = nullptr;
   db_name = m_orig_db_name;
@@ -6458,9 +6438,9 @@ Item *Item_field::replace_equal_field(uchar *arg) {
     }
     Item_field *subst = m_multi_equality->get_subst_item(this);
     assert(subst);
-    assert(table_ref == subst->table_ref ||
-           table_ref->table != subst->table_ref->table);
-    if (table_ref != subst->table_ref && !field->eq(subst->field)) {
+    assert(m_table_ref == subst->m_table_ref ||
+           m_table_ref->table != subst->m_table_ref->table);
+    if (m_table_ref != subst->m_table_ref && !field->eq(subst->field)) {
       if (!has_compatible_context(subst) ||
           !func->allow_replacement(this, subst)) {
         return this;
@@ -8140,7 +8120,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg) {
   Query_block *select = pointer_cast<Query_block *>(select_arg);
   assert(fixed);
 
-  assert((table_ref == select->context.table_list) ==
+  assert((m_table_ref == select->context.table_list) ==
          (field->table == select->context.table_list->table));
   if (field->table != select->context.table_list->table &&
       type() != Item::TRIGGER_FIELD_ITEM) {
@@ -8479,24 +8459,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
             return false;
           }
           if (from_field != not_found_field) {
-            if (cached_table && cached_table->query_block &&
-                outer_context->query_block &&
-                cached_table->query_block != outer_context->query_block) {
-              /*
-                Due to cache, find_field_in_tables() can return field which
-                doesn't belong to provided outer_context. In this case we have
-                to find proper field context in order to fix field correctly.
-              */
-              do {
-                outer_context = outer_context->outer_context;
-                select = outer_context->query_block;
-                cur_query_expression = last_checked_context->query_block
-                                           ->master_query_expression();
-                last_checked_context = outer_context;
-              } while (outer_context && outer_context->query_block &&
-                       cached_table->query_block != outer_context->query_block);
-              place = cur_query_expression->place();
-            }
             cur_query_expression->accumulate_used_tables(
                 from_field->table->pos_in_table_list->map());
             break;
@@ -8866,9 +8828,9 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
   }
   if (super::fix_fields(thd, reference)) return true;
 
-  if (cached_table->is_inner_table_of_outer_join()) {
+  if (m_table_ref->is_inner_table_of_outer_join()) {
     set_nullable(true);
-    first_inner_table = cached_table->any_outer_leaf_table();
+    first_inner_table = m_table_ref->any_outer_leaf_table();
   }
   return false;
 }
@@ -9198,9 +9160,6 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   // Assign the cloned field as the one to use hereafter
   set_field(def_field);
 
-  // Needs cached_table for some Item traversal functions:
-  cached_table = table_ref;
-
   // Use same field name as the underlying field:
   assert(field_name == nullptr);
   field_name = arg->item_name.ptr();
@@ -9245,7 +9204,7 @@ type_conversion_status Item_default_value::save_in_field_inner(
       }
 
       if (context->view_error_handler) {
-        Table_ref *view = cached_table->top_table();
+        Table_ref *view = m_table_ref->top_table();
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER_THD(thd, ER_NO_DEFAULT_FOR_VIEW_FIELD), view->db,
@@ -9381,10 +9340,10 @@ void Item_insert_value::bind_fields() {
   if (arg == nullptr) return;
   if (!fixed) return;
 
-  assert(table_ref->table->insert_values);
+  assert(m_table_ref->table->insert_values);
 
   // Bind field to the current TABLE object
-  field->table = table_ref->table;
+  field->table = m_table_ref->table;
 
   field->move_field_offset(
       (ptrdiff_t)(field->table->insert_values - m_rowbuffer_saved));
@@ -9562,7 +9521,7 @@ void Item_trigger_field::cleanup() {
     A trigger is bound to a TABLE, so the Table_ref may vary between
     executions
   */
-  table_ref = nullptr;
+  m_table_ref = nullptr;
 
   Item::cleanup();
 }

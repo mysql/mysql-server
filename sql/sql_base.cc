@@ -8010,7 +8010,7 @@ Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
           return WRONG_GRANT;
       } else {
         assert(ref && *ref && (*ref)->fixed);
-        assert(*actual_table == (down_cast<Item_ident *>(*ref))->cached_table);
+        assert(*actual_table == down_cast<Item_ident *>(*ref)->m_table_ref);
 
         const Column_privilege_tracker tracker(thd, want_privilege);
         if ((*ref)->walk(&Item::check_column_privileges, enum_walk::PREFIX,
@@ -8118,7 +8118,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
 
   allow_rowid = table_name || (first_table && !first_table->next_local);
 
-  if (item->cached_table) {
+  if (item->m_table_ref != nullptr) {
     /*
       This shortcut is used by prepared statements. We assume that
       Table_ref *first_table is not changed during query execution (which
@@ -8128,21 +8128,18 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
       field makes some prepared query ambiguous and so erroneous, but we
       accept this trade off.
     */
-    Table_ref *table_ref = item->cached_table;
+    Table_ref *table_ref = item->m_table_ref;
 
     /*
       @todo WL#6570 - is this reasonable???
-      Also refactor this code to replace "cached_table" with "table_ref" -
-      as there is no longer need for more than one resolving, hence
-      no "caching" as well.
     */
     if (item->type() == Item::FIELD_ITEM)
       field_index = down_cast<Item_field *>(item)->field_index;
 
     /*
-      The condition (table_ref->view == NULL) ensures that we will call
+      The condition (m_table_ref->view == NULL) ensures that we will call
       find_field_in_table even in the case of information schema tables
-      when table_ref->field_translation != NULL.
+      when m_table_ref->field_translation != NULL.
     */
 
     if (table_ref->table && !table_ref->is_view()) {
@@ -8205,12 +8202,12 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
     if ((cur_field == nullptr && thd->is_error()) || cur_field == WRONG_GRANT)
       return nullptr;
 
-    if (cur_field) {
+    if (cur_field != nullptr) {
       /*
         Store the original table of the field, which may be different from
         cur_table in the case of NATURAL/USING join.
       */
-      item->cached_table =
+      item->m_table_ref =
           (!actual_table->cacheable_table || found) ? nullptr : actual_table;
 
       // @todo WL#6570 move this assignment to a more strategic place?
@@ -9255,7 +9252,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
         my_error(ER_INVALID_ASSIGNMENT_TARGET, MYF(0), str.c_ptr());
         return true;
       }
-      Table_ref *tr = field->table_ref;
+      Table_ref *tr = field->m_table_ref;
       if ((want_privilege & UPDATE_ACL) && !tr->is_updatable()) {
         /*
           The base table of the column may have beeen referenced through a view
@@ -9573,7 +9570,7 @@ bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
         if (is_hidden) continue;
 
         /* cache the table for the Item_fields inserted by expanding stars */
-        if (tables->cacheable_table) field->cached_table = tables;
+        if (tables->cacheable_table) field->m_table_ref = tables;
       }
 
       if (!found) {
@@ -9719,7 +9716,7 @@ bool fill_record(THD *thd, TABLE *table, const mem_root_deque<Item *> &fields,
   auto value_it = VisibleFields(values).begin();
   for (Item *fld : VisibleFields(fields)) {
     Item_field *const field = fld->field_for_view_update();
-    assert(field != nullptr && field->table_ref->table == table);
+    assert(field != nullptr && field->m_table_ref->table == table);
 
     Field *const rfield = field->field;
     Item *value = *value_it++;

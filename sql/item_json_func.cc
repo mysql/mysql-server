@@ -717,7 +717,7 @@ static bool do_json_schema_validation(
     assert(!json_schema->const_item() ||
            (json_schema->real_item()->type() == Item::FIELD_ITEM &&
             down_cast<const Item_field *>(json_schema->real_item())
-                ->table_ref->table->const_table));
+                ->m_table_ref->table->const_table));
 
     assert(is_convertible_to_json(json_schema));
 

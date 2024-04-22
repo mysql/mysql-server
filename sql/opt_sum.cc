@@ -472,7 +472,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
 
             ref.key_buff = key_buff;
             Item_field *item_field = down_cast<Item_field *>(expr);
-            Table_ref *tr = item_field->table_ref;
+            Table_ref *tr = item_field->m_table_ref;
             TABLE *table = tr->table;
             /*
               If table already has been read, we may use the values already
@@ -1067,7 +1067,7 @@ static bool find_key_for_maxmin(bool max_fl, Index_lookup *ref,
         key_part_map key_part_used = 0;
         *range_fl = NO_MIN_RANGE | NO_MAX_RANGE;
         if (matching_cond(max_fl, ref, keyinfo, part, cond,
-                          item_field->table_ref->map(), &key_part_used,
+                          item_field->m_table_ref->map(), &key_part_used,
                           range_fl, prefix_len) &&
             !(key_part_to_use & ~key_part_used)) {
           if (!max_fl && key_part_used == key_part_to_use && part->null_bit) {
@@ -1156,7 +1156,9 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
   }
 
   // Check that condition actually references the specific table
-  if ((cond->used_tables() & item_field->table_ref->map()) == 0) return false;
+  if ((cond->used_tables() & item_field->m_table_ref->map()) == 0) {
+    return false;
+  }
   bool less_fl = false;
   switch (down_cast<Item_func *>(cond)->functype()) {
     case Item_func::BETWEEN:

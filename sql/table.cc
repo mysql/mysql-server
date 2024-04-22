@@ -5006,7 +5006,7 @@ Natural_join_column::Natural_join_column(Item_field *field_param,
     Cache table, to have no resolution problem after natural join nests have
     been changed to ordinary join nests.
   */
-  if (tab->cacheable_table) field_param->cached_table = tab;
+  if (tab->cacheable_table) field_param->m_table_ref = tab;
   view_field = nullptr;
   table_ref = tab;
   is_common = false;

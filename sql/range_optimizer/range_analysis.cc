@@ -773,7 +773,7 @@ static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
     Item_field *item_field = static_cast<Item_field *>(predicand);
     Field *field = item_field->field;
 
-    if (!((ref_tables | item_field->table_ref->map()) & param_comp))
+    if (!((ref_tables | item_field->m_table_ref->map()) & param_comp))
       ftree = get_func_mm_tree(thd, param, prev_tables, read_tables,
                                remove_jump_scans, predicand, op, value, inv);
     Item_equal *item_equal = item_field->multi_equality();
@@ -781,7 +781,7 @@ static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
       for (Item_field &item : item_equal->get_fields()) {
         Field *f = item.field;
         if (!field->eq(f) &&
-            !((ref_tables | item.table_ref->map()) & param_comp)) {
+            !((ref_tables | item.m_table_ref->map()) & param_comp)) {
           tree = get_func_mm_tree(thd, param, prev_tables, read_tables,
                                   remove_jump_scans, &item, op, value, inv);
           ftree = !ftree ? tree : tree_and(param, ftree, tree);
@@ -977,7 +977,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
       for (Item_field &field_item : item_equal->get_fields()) {
         Field *field = field_item.field;
         table_map param_comp = ~(prev_tables | read_tables | current_table);
-        if (!((ref_tables | field_item.table_ref->map()) & param_comp)) {
+        if (!((ref_tables | field_item.m_table_ref->map()) & param_comp)) {
           SEL_TREE *tree =
               get_mm_parts(thd, param, prev_tables, read_tables, item_equal,
                            field, Item_func::EQ_FUNC, value);

@@ -4549,8 +4549,8 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
   if (!table_join_idx) return 0;
 
   // Locate JOIN_TABs thanks to table_join_idx, then compare their index.
-  cmp = table_join_idx[field1->table_ref->tableno()]->idx() -
-        table_join_idx[field2->table_ref->tableno()]->idx();
+  cmp = table_join_idx[field1->m_table_ref->tableno()]->idx() -
+        table_join_idx[field2->m_table_ref->tableno()]->idx();
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
 
@@ -7004,7 +7004,7 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
 */
 
 static uint get_semi_join_select_list_index(Item_field *item_field) {
-  Table_ref *emb_sj_nest = item_field->table_ref->embedding;
+  Table_ref *emb_sj_nest = item_field->m_table_ref->embedding;
   if (emb_sj_nest && emb_sj_nest->is_sj_or_aj_nest()) {
     const mem_root_deque<Item *> &items =
         emb_sj_nest->nested_join->sj_inner_exprs;
@@ -7116,7 +7116,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
          cond->functype() == Item_func::SP_CROSSES_FUNC);
 
   Field *const field = item_field->field;
-  Table_ref *const tl = item_field->table_ref;
+  Table_ref *const tl = item_field->m_table_ref;
 
   if (tl->table->reginfo.join_tab == nullptr) {
     /*
@@ -7762,7 +7762,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
 static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS)) {
     const Field *const field = key_field->item_field->field;
-    Table_ref *const tl = key_field->item_field->table_ref;
+    Table_ref *const tl = key_field->item_field->m_table_ref;
     TABLE *const table = tl->table;
 
     for (uint key = 0; key < table->s->keys; key++) {

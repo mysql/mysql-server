@@ -4185,16 +4185,23 @@ class Item_ident : public Item {
     field_name is normally identical to Item::item_name.
   */
   const char *field_name;
-
-  /*
-    Cached pointer to table which contains this field, used for the same reason
-    by prep. stmt. too in case then we have not-fully qualified field.
-    0 - means no cached value.
-    @todo Notice that this is usually the same as Item_field::table_ref.
-          cached_table should be replaced by table_ref ASAP.
+  /**
+    Points to the Table_ref object of the table or view that the column or
+    reference is resolved against (only valid after resolving).
+    Notice that for the following types of "tables", no Table_ref object is
+    assigned and hence m_table_ref is NULL:
+     - Temporary tables assigned by join optimizer for sorting and aggregation.
+     - Stored procedure dummy tables.
+    For fields referencing such tables, table number is always 0, and other
+    uses of m_table_ref is not needed.
   */
-  Table_ref *cached_table;
-  Query_block *depended_from;
+  Table_ref *m_table_ref{nullptr};
+  /**
+    For a column or reference that is an outer reference, depended_from points
+    to the qualifying query block, otherwise it is NULL
+    (only valid after resolving).
+  */
+  Query_block *depended_from{nullptr};
 
   Item_ident(Name_resolution_context *context_arg, const char *db_name_arg,
              const char *table_name_arg, const char *field_name_arg)
@@ -4205,9 +4212,7 @@ class Item_ident : public Item {
         context(context_arg),
         db_name(db_name_arg),
         table_name(table_name_arg),
-        field_name(field_name_arg),
-        cached_table(nullptr),
-        depended_from(nullptr) {
+        field_name(field_name_arg) {
     item_name.set(field_name_arg);
   }
 
@@ -4220,9 +4225,7 @@ class Item_ident : public Item {
         m_alias_of_expr(false),
         db_name(db_name_arg),
         table_name(table_name_arg),
-        field_name(field_name_arg),
-        cached_table(nullptr),
-        depended_from(nullptr) {
+        field_name(field_name_arg) {
     item_name.set(field_name_arg);
   }
 
@@ -4238,7 +4241,7 @@ class Item_ident : public Item {
         db_name(item->db_name),
         table_name(item->table_name),
         field_name(item->field_name),
-        cached_table(item->cached_table),
+        m_table_ref(item->m_table_ref),
         depended_from(item->depended_from) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
@@ -4380,16 +4383,6 @@ class Item_field : public Item_ident {
                                              bool no_conversions) override;
 
  public:
-  /**
-    Table containing this resolved field. This is required e.g for calculation
-    of table map. Notice that for the following types of "tables",
-    no Table_ref object is assigned and hence table_ref is NULL:
-     - Temporary tables assigned by join optimizer for sorting and aggregation.
-     - Stored procedure dummy tables.
-    For fields referencing such tables, table number is always 0, and other
-    uses of table_ref is not needed.
-  */
-  Table_ref *table_ref{nullptr};
   /// Source field
   Field *field{nullptr};
 
@@ -4581,7 +4574,7 @@ class Item_field : public Item_ident {
              enum_query_type query_type) const override;
   bool is_outer_field() const override {
     assert(fixed);
-    return table_ref->outer_join || table_ref->outer_join_nest();
+    return m_table_ref->outer_join || m_table_ref->outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const override {
     assert(data_type() == MYSQL_TYPE_GEOMETRY);
@@ -6147,21 +6140,21 @@ class Item_view_ref final : public Item_ref {
   Item_view_ref(Name_resolution_context *context_arg, Item **item,
                 const char *db_name_arg, const char *alias_name_arg,
                 const char *table_name_arg, const char *field_name_arg,
-                Table_ref *tl)
+                Table_ref *tr)
       : Item_ref(context_arg, item, db_name_arg, alias_name_arg,
                  field_name_arg),
         first_inner_table(nullptr) {
-    if (tl->is_view()) {
+    if (tr->is_view()) {
       m_orig_db_name = db_name_arg;
       m_orig_table_name = table_name_arg;
     } else {
       assert(db_name_arg == nullptr);
       m_orig_table_name = table_name_arg;
     }
-    cached_table = tl;
-    if (cached_table->is_inner_table_of_outer_join()) {
+    m_table_ref = tr;
+    if (m_table_ref->is_inner_table_of_outer_join()) {
       set_nullable(true);
-      first_inner_table = cached_table->any_outer_leaf_table();
+      first_inner_table = m_table_ref->any_outer_leaf_table();
     }
   }
 
@@ -6198,7 +6191,7 @@ class Item_view_ref final : public Item_ref {
     return !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != nullptr
                ? ref_item()->real_item()->type() == FIELD_ITEM
                      ? down_cast<Item_field *>(ref_item()->real_item())
-                           ->table_ref->map()
+                           ->m_table_ref->map()
                      : first_inner_table->map()
                : inner_map;
   }
@@ -6899,8 +6892,8 @@ class Item_cache : public Item_basic_constant {
     add_accum_properties(item);
     if (item->type() == FIELD_ITEM) {
       cached_field = down_cast<Item_field *>(item);
-      if (cached_field->table_ref != nullptr)
-        used_table_map = cached_field->table_ref->map();
+      if (cached_field->m_table_ref != nullptr)
+        used_table_map = cached_field->m_table_ref->map();
     } else {
       used_table_map = item->used_tables();
     }

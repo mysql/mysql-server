@@ -300,7 +300,7 @@ inline void ResolveFieldToFakeTable(
     if (item->type() == Item::FIELD_ITEM) {
       Item_field *item_field = down_cast<Item_field *>(item);
       Fake_TABLE *table = fake_tables.at(item_field->table_name);
-      item_field->table_ref = table->pos_in_table_list;
+      item_field->m_table_ref = table->pos_in_table_list;
       Field *field = nullptr;
       if (strcmp(item_field->field_name, "x") == 0) {
         field = table->field[0];

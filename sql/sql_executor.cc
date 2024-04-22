@@ -494,7 +494,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
         if (!possible_keys.is_clear_all()) {
           TABLE *const table = field->table;
           for (Key_use *use = stat->keyuse();
-               use && use->table_ref == item_field.table_ref; use++) {
+               use && use->table_ref == item_field.m_table_ref; use++) {
             if (possible_keys.is_set(use->key) &&
                 table->key_info[use->key].key_part[use->keypart].field == field)
               table->const_key_parts[use->key] |= use->keypart_map;

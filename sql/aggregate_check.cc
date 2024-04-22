@@ -399,7 +399,7 @@ bool Group_check::is_fd_on_source(Item *item) {
 
       Item_field *const item_field = down_cast<Item_field *>(item2);
       /**
-        @todo make table_ref non-NULL for gcols, then use it for 'tl'.
+        @todo make m_table_ref non-NULL for gcols, then use it for 'tl'.
         Do the same in Item_field::used_tables_for_level().
       */
       Table_ref *const tl = item_field->field->table->pos_in_table_list;
@@ -767,11 +767,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
     Used_tables ut(select);
     (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                      pointer_cast<uchar *>(&ut));
-    /*
-      todo When we eliminate all uses of cached_table, we can probably add a
-      derived_table_ref field to Item_view_ref objects and use it here.
-    */
-    Table_ref *const tl = item->cached_table;
+    Table_ref *const tl = item->m_table_ref;
     assert(tl->is_view_or_derived());
     /*
       We might find expression-based FDs in the result of the view's query
@@ -801,7 +797,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
   else if (item->type() == Item::FIELD_ITEM) {
     Item_field *const item_field = down_cast<Item_field *>(item);
     /**
-      @todo make table_ref non-NULL for gcols, then use it for 'tl'.
+      @todo make m_table_ref non-NULL for gcols, then use it for 'tl'.
       Do the same in Item_field::used_tables_for_level().
     */
     Table_ref *const tl = item_field->field->table->pos_in_table_list;
@@ -1216,7 +1212,7 @@ bool Group_check::do_ident_check(Item_ident *i, table_map tm,
   switch (type) {
     case CHECK_GROUP:
       if (i->type() == Item::FIELD_ITEM &&
-          down_cast<Item_field *>(i)->table_ref->m_was_scalar_subquery) {
+          down_cast<Item_field *>(i)->m_table_ref->m_was_scalar_subquery) {
         // The table has exactly one row, thus this column is FD
         return false;
       }

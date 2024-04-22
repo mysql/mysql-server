@@ -4281,9 +4281,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
        it != VisibleFields(*fields).end(); ++it, ++counter) {
     Item *item = *it;
     if (item->type() == Item::REF_ITEM &&
-        ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF) {
+        down_cast<Item_ref *>(item)->ref_type() == Item_ref::VIEW_REF) {
       Item_view_ref *item_ref = down_cast<Item_view_ref *>(item);
-      if (item_ref->cached_table->is_merged() &&
+      if (item_ref->m_table_ref->is_merged() &&
           order_item->eq(item_ref->ref_item())) {
         order->item = &ref_item_array[counter];
         // Order by is now referencing select expression, so increment the
@@ -4296,6 +4296,12 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   }
 
   order->in_field_list = false;
+
+  // find_field_in_tables() may have set this field, actually a bad idea.
+  if (order_item->type() == Item::FIELD_ITEM ||
+      order_item->type() == Item::REF_ITEM) {
+    down_cast<Item_ident *>(order_item)->m_table_ref = nullptr;
+  }
   /*
     The call to order_item->fix_fields() means that here we resolve
     'order_item' to a column from a table in the list 'tables', or to
@@ -5535,9 +5541,9 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     subs_query_expression->types.push_back(item);
   }
 
-  Table_ref *tl;
+  Table_ref *tr;
   if (transform_subquery_to_derived(
-          thd, &tl, subs_query_expression, subq,
+          thd, &tr, subs_query_expression, subq,
           // If subquery is top-level in WHERE, and not negated, use INNER JOIN,
           // else use LEFT JOIN.
           // We could use LEFT JOIN unconditionally and let simplify_joins()
@@ -5564,20 +5570,14 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   for (auto it_outer = sj_outer_exprs.begin(); it_outer != sj_outer_exprs.end();
        ++i, ++j, ++it_outer) {
     Item *outer = *it_outer;
-    assert(i < (int)tl->table->s->fields);
+    assert(i < (int)tr->table->s->fields);
     // Using this constructor, instead of the alternative which only takes a
     // Field pointer, gives a persistent name to the item (sets orig_table_name
     // etc) which is necessary for prepared statements.
     derived_field = new (thd->mem_root)
-        Item_field(thd, &this->context, tl, tl->table->field[i]);
+        Item_field(thd, &this->context, tr, tr->table->field[i]);
     if (derived_field == nullptr) return true;
-    // The said constructor sets 'fixed' to true, so join_cond->fix_fields()
-    // below ignores 'derived_field', so derived_field->cached_table isn't set,
-    // making a prepared statement fail. Setting cached_table solves it, and
-    // also helps during name resolution because the derived table isn't in the
-    // context's name resolution chain.
-    // derived_field->cached_table = tl;
-    // derived_field->cached_field_index = i;
+
     Item_bool_func *comp_item;
     Item_func::Functype op_type = sj_decor.op_type_at(j);
     switch (op_type) {
@@ -5604,9 +5604,6 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
         comp_item = nullptr;
     }
     if (comp_item == nullptr) return true;
-    // 'outer' moved from the left expression of IN (or from an operator in
-    // WHERE, if decorrelated) to this new equality:
-    // thd->replace_rollback_place(comp_item->arguments());
     join_cond = and_items(join_cond, comp_item);
   }
 
@@ -5615,22 +5612,21 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
   join_cond->apply_is_true();
   if (!join_cond->fixed && join_cond->fix_fields(thd, &join_cond)) return true;
-  tl->set_join_cond(join_cond);
+  tr->set_join_cond(join_cond);
 
   // Make the IS [NOT] NULL condition:
   derived_field = new (thd->mem_root)
-      Item_field(thd, &this->context, tl, tl->table->field[0]);
+      Item_field(thd, &this->context, tr, tr->table->field[0]);
   if (derived_field == nullptr) return true;
-  // derived_field->cached_table = tl;
-  // derived_field->cached_field_index = 0;
 
   Item *null_check;
-  if (!tl->outer_join)
+  if (!tr->outer_join) {
     null_check = new (thd->mem_root) Item_func_true();
-  else if (subq->can_do_aj)
+  } else if (subq->can_do_aj) {
     null_check = new (thd->mem_root) Item_func_isnull(derived_field);
-  else
+  } else {
     null_check = new (thd->mem_root) Item_func_isnotnull(derived_field);
+  }
   null_check->apply_is_true();
   if (null_check->fix_fields(thd, &null_check)) return true;
 
