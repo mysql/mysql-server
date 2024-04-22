@@ -1,8 +1,8 @@
 SELECT distinct name, expires, serial FROM ndbinfo.certificates order by name;
 name	expires	serial
-NDB Data Node Mar 2023	19-Apr-2024	B7:15:32:D5:AE:FF:C7:E1:E2:4A
-NDB Management Node Mar 2023	19-Apr-2024	20:70:03:B8:BE:5F:C7:FB:A8:3E
-NDB Node Mar 2023	19-Apr-2024	7B:A8:13:FB:D8:42:8E:A3:C9:06
+NDB Data Node Apr 2024	07-Apr-2035	63:C9:9E:38:94:C8:B6:E4:B3:19
+NDB Management Node Apr 2024	07-Apr-2035	6E:EC:9D:3A:64:A1:76:78:09:82
+NDB Node Apr 2024	07-Apr-2035	04:92:89:3C:3D:93:5C:BB:14:C0
 SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
 WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;
 node_id	remote_node_id	encrypted

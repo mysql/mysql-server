@@ -9,17 +9,18 @@
 #
 # To refresh these:
 #
-# mtr --start ndb_tls.tls_required    (TO START MGMD)
+# mtr --start ndb_tls.basic_mgm_tls    (TO START MGMD)
 # Then, in the source tree:
 #
 #   cd mysql-test/std_data/ndb-tls
 #   ndb_sign_keys -C CA-cert.pem -K CA-key.pem -c localhost:13000 \
 #    --CA-search-path=. --ndb-tls-search-path=active \
-#    --schedule=400,0,400,0,400,0
+#    --schedule=4000,0,4000,0,4000,0
 #
 # Then enter the CA passphrase, which is "Stockholm".
 #
 # Commit the three new cert files, and discard the retired files.
+# Then re-record result files for this test and for tls_off_certs.
 
 
 # Expect 3 certificates
