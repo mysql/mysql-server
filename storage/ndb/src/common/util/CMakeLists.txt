@@ -65,6 +65,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   TlsKeyManager.cpp
   Vector.cpp
   basename.cpp
+  cstrbuf.cpp
   decimal_utils.cpp
   md5_hash.cpp
   ndb_init.cpp

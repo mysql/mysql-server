@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <cstdarg>
-#include <cstdio>
 #include <string_view>
 #include <type_traits>
 #include "portlib/ndb_compiler.h"
@@ -90,9 +89,8 @@ class cstrbuf {
   constexpr int append(const std::string_view other) noexcept;
   constexpr int append(std::size_t count, char ch) noexcept;
 
-  [[nodiscard]] int appendf(const char fmt[], ...) noexcept
-      ATTRIBUTE_FORMAT(printf, 2, 3);
-  [[nodiscard]] int appendf(const char fmt[], std::va_list ap) noexcept
+  int appendf(const char fmt[], ...) noexcept ATTRIBUTE_FORMAT(printf, 2, 3);
+  int vappendf(const char fmt[], std::va_list ap) noexcept
       ATTRIBUTE_FORMAT(printf, 2, 0);
 
   // buffer properties
@@ -132,6 +130,17 @@ class cstrbuf {
   Container m_buf;
   std::size_t m_next_pos;
 };
+
+/*
+ * cstrbuf_vsnprintf_noerr is a wrapper for std::vsnprintf that asserts that
+ * vsnprintf does not fail.  It is only intended to be used in implementation
+ * of cstrbuf::vappendf to be able to remove [[nodiscard]] attribute.  Function
+ * is not part of template class to avoid having more than one symbol for this
+ * function.
+ */
+int cstrbuf_vsnprintf_noerr(char str[], size_t size, const char fmt[],
+                            std::va_list ap) noexcept
+    ATTRIBUTE_FORMAT(printf, 3, 0);
 
 // deduction guides - static extent
 
@@ -271,23 +280,20 @@ template <std::size_t Extent, bool Owning>
 inline int cstrbuf<Extent, Owning>::appendf(const char fmt[], ...) noexcept {
   std::va_list ap;
   va_start(ap, fmt);
-  int r = appendf(fmt, ap);
+  int r = vappendf(fmt, ap);
   va_end(ap);
   return r;
 }
 
 template <std::size_t Extent, bool Owning>
-inline int cstrbuf<Extent, Owning>::appendf(const char fmt[],
-                                            std::va_list ap) noexcept {
+inline int cstrbuf<Extent, Owning>::vappendf(const char fmt[],
+                                             std::va_list ap) noexcept {
   int r;
   if (!is_truncated()) {
     const std::size_t space_left = extent() - m_next_pos;
-    r = std::vsnprintf(next(), space_left, fmt, ap);
+    r = cstrbuf_vsnprintf_noerr(next(), space_left, fmt, ap);
   } else {
-    r = std::vsnprintf(nullptr, 0, fmt, ap);
-  }
-  if (r < 0) {
-    return r;
+    r = cstrbuf_vsnprintf_noerr(nullptr, 0, fmt, ap);
   }
   m_next_pos += r;
   return (is_truncated() ? 1 : 0);
@@ -366,7 +372,7 @@ template <std::size_t Extent>
 inline int cstrbuf_format(ndb::span<char, Extent> buf, const char fmt[],
                           std::va_list ap) noexcept {
   cstrbuf strbuf(buf);
-  return strbuf.appendf(fmt, ap);
+  return strbuf.vappendf(fmt, ap);
 }
 
 template <std::size_t Extent>

@@ -20,19 +20,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/cstrbuf.h"
+#include <cstdio>
+#include "util/require.h"
+
+int cstrbuf_vsnprintf_noerr(char str[], size_t size, const char fmt[],
+                            std::va_list ap) noexcept {
+  int r = std::vsnprintf(str, size, fmt, ap);
+  /*
+   * vsnprintf can possibly fail with EILSEQ or EOVERFLOW both typically
+   * indicates bugs in application.
+   *
+   * EILSEQ indicates invalid wide character code.
+   * EOVERFLOW indicates either that size of str is more than INT_MAX or that
+   * the size of needed buffer to be returned exceeds INT_MAX.
+   *
+   * This wrapper function asserts that vsnprintf always succeeds.
+   */
+  require(r >= 0);
+  return r;
+}
+
 #ifdef TEST_CSTRBUF
 
-#include "util/cstrbuf.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
 #include "unittest/mytap/tap.h"
-#include "util/require.h"
 #include "util/span.h"
 
 int main() {
-  plan(37);
+  plan(39);
 
   char buf[30];
 
@@ -133,6 +152,10 @@ int main() {
   const int trettisju = 37;
   ok1(cbuf7.append("XYZDFABC") == 1);
   ok1(cbuf7.appendf("name: %d", trettisju) == 1);
+
+  cbuf7.clear();
+  ok1(cbuf7.appendf("%d", 0) == 0);
+  ok1(std::strcmp(cbuf7.c_str(), "0") == 0);
 
   return exit_status();
 }
