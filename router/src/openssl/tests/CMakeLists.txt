@@ -31,7 +31,6 @@ ADD_GOOGLETEST_FILE(test_tls.cc
   MODULE openssl
   LIB_DEPENDS
     routertest_helpers
-    router_lib
     harness_net_ts
     harness_tls
     harness-library

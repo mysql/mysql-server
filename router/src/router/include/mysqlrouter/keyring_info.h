@@ -26,7 +26,7 @@
 #ifndef KEYRING_INFO_INCLUDED
 #define KEYRING_INFO_INCLUDED
 
-#include "mysqlrouter/router_export.h"
+#include "mysqlrouter/router_utils_export.h"
 
 #include <chrono>
 #include <stdexcept>
@@ -73,7 +73,7 @@ class SetRouterIdEnvVariableError : public std::runtime_error {
  * @brief KeyringInfo class encapsulates loading and storing master key
  * using master-key-reader and master-key-writer.
  */
-class ROUTER_LIB_EXPORT KeyringInfo {
+class ROUTER_UTILS_EXPORT KeyringInfo {
  private:
   /** @brief The path to keyring file */
   std::string keyring_file_;

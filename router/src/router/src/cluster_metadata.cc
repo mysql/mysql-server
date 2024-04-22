@@ -408,7 +408,7 @@ bool metadata_schema_version_is_compatible(
   return true;
 }
 
-std::string ROUTER_LIB_EXPORT get_metadata_schema_uncompatible_msg(
+std::string get_metadata_schema_uncompatible_msg(
     const mysqlrouter::MetadataSchemaVersion &version) {
   return "The target Cluster's Metadata version ('" + to_string(version) +
          "') is not supported. Please use the latest MySQL Shell to upgrade it "

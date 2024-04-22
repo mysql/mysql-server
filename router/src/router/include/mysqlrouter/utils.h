@@ -26,7 +26,7 @@
 #ifndef MYSQLROUTER_UTILS_INCLUDED
 #define MYSQLROUTER_UTILS_INCLUDED
 
-#include "mysqlrouter/router_export.h"
+#include "mysqlrouter/router_utils_export.h"
 
 #include <sys/stat.h>  // mode_t
 
@@ -42,7 +42,7 @@
 
 #ifdef _WIN32
 extern "C" {
-extern bool ROUTER_LIB_EXPORT g_windows_service;
+extern bool ROUTER_UTILS_EXPORT g_windows_service;
 }
 #endif
 
@@ -54,7 +54,7 @@ using perm_mode = mode_t;
 using perm_mode = int;
 #endif
 /** @brief Constant for directory accessible only for the owner */
-extern const perm_mode ROUTER_LIB_EXPORT kStrictDirectoryPerm;
+extern const perm_mode ROUTER_UTILS_EXPORT kStrictDirectoryPerm;
 
 // Some (older) compiler have no std::to_string available
 template <typename T>
@@ -65,7 +65,7 @@ std::string to_string(const T &data) {
 }
 
 // represent milliseconds as floating point seconds
-std::string ROUTER_LIB_EXPORT
+std::string ROUTER_UTILS_EXPORT
 ms_to_seconds_string(const std::chrono::milliseconds &msec);
 
 /**
@@ -83,7 +83,7 @@ ms_to_seconds_string(const std::chrono::milliseconds &msec);
  * @param data string containing the TCP port number
  * @return uint16_t the TCP port number
  */
-uint16_t ROUTER_LIB_EXPORT get_tcp_port(const std::string &data);
+uint16_t ROUTER_UTILS_EXPORT get_tcp_port(const std::string &data);
 
 /** @brief Dumps buffer as hex values
  *
@@ -99,17 +99,17 @@ std::string hexdump(const unsigned char *buffer, size_t count);
 
 /** @brief Prompts for a password from the console.
  */
-std::string ROUTER_LIB_EXPORT prompt_password(const std::string &prompt);
+std::string ROUTER_UTILS_EXPORT prompt_password(const std::string &prompt);
 
 /** @brief Override default prompt password function
  */
-void ROUTER_LIB_EXPORT
+void ROUTER_UTILS_EXPORT
 set_prompt_password(const std::function<std::string(const std::string &)> &f);
 
 #ifdef _WIN32
 /** @brief Returns whether if the router process is running as a Windows Service
  */
-bool ROUTER_LIB_EXPORT is_running_as_service();
+bool ROUTER_UTILS_EXPORT is_running_as_service();
 
 /** @brief Writes to the Windows event log.
  *
@@ -117,7 +117,7 @@ bool ROUTER_LIB_EXPORT is_running_as_service();
  *
  * @throws std::runtime_error in case of an error
  */
-void ROUTER_LIB_EXPORT write_windows_event_log(const std::string &msg);
+void ROUTER_UTILS_EXPORT write_windows_event_log(const std::string &msg);
 
 #endif
 
@@ -135,7 +135,7 @@ void ROUTER_LIB_EXPORT write_windows_event_log(const std::string &msg);
  *
  * @return bool (success flag)
  */
-bool ROUTER_LIB_EXPORT substitute_envvar(std::string &line) noexcept;
+bool ROUTER_UTILS_EXPORT substitute_envvar(std::string &line) noexcept;
 
 /*
  * @brief Substitutes placeholder of particular environment variable in file
@@ -147,9 +147,9 @@ bool ROUTER_LIB_EXPORT substitute_envvar(std::string &line) noexcept;
  *
  * @return path to file
  */
-std::string ROUTER_LIB_EXPORT substitute_variable(const std::string &s,
-                                                  const std::string &name,
-                                                  const std::string &value);
+std::string ROUTER_UTILS_EXPORT substitute_variable(const std::string &s,
+                                                    const std::string &name,
+                                                    const std::string &value);
 
 bool my_check_access(const std::string &path);
 
@@ -157,8 +157,8 @@ bool my_check_access(const std::string &path);
  *
  * Exception thrown if open, create read or write operation fails.
  */
-void ROUTER_LIB_EXPORT copy_file(const std::string &from,
-                                 const std::string &to);
+void ROUTER_UTILS_EXPORT copy_file(const std::string &from,
+                                   const std::string &to);
 
 /**
  * renames file.
@@ -170,13 +170,13 @@ void ROUTER_LIB_EXPORT copy_file(const std::string &from,
  *
  * @returns stdx::expected<void, std::error_code>
  */
-stdx::expected<void, std::error_code> ROUTER_LIB_EXPORT
+stdx::expected<void, std::error_code> ROUTER_UTILS_EXPORT
 rename_file(const std::string &from, const std::string &to);
 
 /** @brief Returns whether the socket name passed as parameter is valid
  */
-bool ROUTER_LIB_EXPORT is_valid_socket_name(const std::string &socket,
-                                            std::string &err_msg);
+bool ROUTER_UTILS_EXPORT is_valid_socket_name(const std::string &socket,
+                                              std::string &err_msg);
 
 /** @brief Converts char array to signed integer, intuitively.
  *
@@ -191,7 +191,8 @@ bool ROUTER_LIB_EXPORT is_valid_socket_name(const std::string &socket,
  * @param value           char array to get converted
  * @param default_result  value to return in case of nullptr being passed
  */
-int strtoi_checked(const char *value, signed int default_result = 0) noexcept;
+int ROUTER_UTILS_EXPORT strtoi_checked(const char *value,
+                                       signed int default_result = 0) noexcept;
 
 /** @brief Converts char array to unsigned integer, intuitively.
  *         adding check for null parameter and some conversion restrictions.
@@ -207,10 +208,10 @@ int strtoi_checked(const char *value, signed int default_result = 0) noexcept;
  * @param value           char array to get converted
  * @param default_result  value to return in case of nullptr being passed
  */
-unsigned ROUTER_LIB_EXPORT
+unsigned ROUTER_UTILS_EXPORT
 strtoui_checked(const char *value, unsigned int default_result = 0) noexcept;
 
-uint64_t ROUTER_LIB_EXPORT
+uint64_t ROUTER_UTILS_EXPORT
 strtoull_checked(const char *value, uint64_t default_result = 0) noexcept;
 
 }  // namespace mysqlrouter

@@ -40,7 +40,7 @@ ROUTER_ADD_SHARED_LIBRARY(metadata_cache
   LINK_LIBRARIES
   PUBLIC
   harness_stdx
-  router_lib
+  router_cluster
   mysqlxclient_lite
   router_mysqlxmessages
   PRIVATE
@@ -59,7 +59,6 @@ add_harness_plugin(metadata_cache_plugin
   metadata_cache_plugin.cc
   plugin_config.cc
   REQUIRES
-  router_lib
   metadata_cache
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )

@@ -33,7 +33,8 @@
 
 namespace impl {
 
-class HTTP_SERVER_EXPORT HttpServerComponentImpl : public HttpServerComponent {
+class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
+    : public HttpServerComponent {
  public:
   HttpServerComponentImpl() = default;
 

@@ -25,7 +25,6 @@ ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
     test_routing_direct.cc
-    test_routing_reuse.cc
     test_routing_router_require.cc
     test_routing_sharing.cc
     test_routing_sharing_constrained_pools.cc
@@ -33,14 +32,21 @@ FOREACH(test_file
     test_routing_splitting.cc
     test_routing_tracing.cc
     )
-ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+  ADD_GOOGLETEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+    MODULE "integration"
+    LIB_DEPENDS
+    routertest_helpers
+    mysqlxclient_lite
+    mysqlxmessages_lite
+    mysql_protocol
+    )
+ENDFOREACH()
+
+ADD_GOOGLETEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_routing_reuse.cc
   MODULE "integration"
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
-                      ${PROTOBUF_INCLUDE_DIR}
   LIB_DEPENDS
   mysqlxclient
-  mysqlxmessages
+  mysqlxmessages # for TextFormatParser
+  routertest_helpers
   mysql_protocol
-  ext::libprotobuf
   )
-ENDFOREACH()

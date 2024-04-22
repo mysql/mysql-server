@@ -30,7 +30,7 @@
 
 #include "http/base/request.h"
 
-#include "mysqlrouter/http_server_export.h"
+#include "mysqlrouter/http_server_lib_export.h"
 
 class HttpAuthRealm;
 
@@ -39,7 +39,7 @@ class HttpAuthRealm;
  *
  * bridges HttpRequest with the HttpAuthRealm's
  */
-class HTTP_SERVER_EXPORT HttpAuth {
+class HTTP_SERVER_LIB_EXPORT HttpAuth {
  public:
   /**
    * require Authorization.

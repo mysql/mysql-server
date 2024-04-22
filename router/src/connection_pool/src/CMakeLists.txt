@@ -49,7 +49,6 @@ ADD_HARNESS_PLUGIN(connection_pool_plugin
   SOURCES
   connection_pool_plugin.cc
   REQUIRES
-  router_lib
   harness_stdx
   connection_pool
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"

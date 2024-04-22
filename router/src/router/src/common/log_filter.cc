@@ -24,11 +24,11 @@
 */
 
 #include "mysqlrouter/log_filter.h"
-#include <stdexcept>
 
 #include <algorithm>
 #include <iterator>
 #include <sstream>
+#include <stdexcept>
 
 namespace mysqlrouter {
 

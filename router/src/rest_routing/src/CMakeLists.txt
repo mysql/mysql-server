@@ -34,7 +34,10 @@ ADD_HARNESS_PLUGIN(rest_routing
   rest_routing_plugin.cc
   rest_routing_routes_status.cc
   rest_routing_status.cc
-  REQUIRES router_lib;routing;http_server;rest_api
+  REQUIRES
+  routing
+  http_server_lib
+  rest_api
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
 
 GENERATE_EXPORT_HEADER(rest_routing

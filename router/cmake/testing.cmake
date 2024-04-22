@@ -41,11 +41,11 @@ ENDFUNCTION()
 
 # ADD_ROUTER_TEST_FILE(FILE)
 #
-# add a test that depends on the 'router_lib', 'harness-library' and 'gtest'
+# add a test that depends on the 'router_utils', 'harness-library' and 'gtest'
 FUNCTION(ADD_ROUTER_TEST_FILE FILE)
   SET(DEFAULT_LIB_DEPENDS
     harness-library
-    router_lib
+    router_utils
     routertest_helpers
     ${CMAKE_THREAD_LIBS_INIT}
     ${GTEST_LIBRARIES})

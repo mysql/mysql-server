@@ -40,7 +40,9 @@ ROUTER_ADD_SHARED_LIBRARY(io_component
 ADD_HARNESS_PLUGIN(io
   SOURCES
   io_plugin.cc
-  REQUIRES io_component;harness-library;router_lib
+  REQUIRES
+  io_component
+  harness-library
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 

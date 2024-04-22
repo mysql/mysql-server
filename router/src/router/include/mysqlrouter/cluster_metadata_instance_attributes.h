@@ -26,7 +26,7 @@
 #ifndef MYSQLROUTER_CLUSTER_METADATA_INSTANCE_ATTRIBUTES_INCLUDED
 #define MYSQLROUTER_CLUSTER_METADATA_INSTANCE_ATTRIBUTES_INCLUDED
 
-#include "mysqlrouter/router_export.h"
+#include "mysqlrouter/router_cluster_export.h"
 
 #include <string>
 
@@ -36,14 +36,14 @@
 namespace mysqlrouter {
 
 struct InstanceAttributes {
-  static stdx::expected<InstanceType, std::string> ROUTER_LIB_EXPORT
+  static stdx::expected<InstanceType, std::string> ROUTER_CLUSTER_EXPORT
   get_instance_type(const std::string &attributes,
                     const mysqlrouter::InstanceType default_instance_type);
 
-  static stdx::expected<bool, std::string> ROUTER_LIB_EXPORT
+  static stdx::expected<bool, std::string> ROUTER_CLUSTER_EXPORT
   get_hidden(const std::string &attributes, bool default_res);
 
-  static stdx::expected<bool, std::string> ROUTER_LIB_EXPORT
+  static stdx::expected<bool, std::string> ROUTER_CLUSTER_EXPORT
   get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
                                                bool default_res);
 };

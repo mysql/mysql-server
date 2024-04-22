@@ -29,7 +29,10 @@ ADD_HARNESS_PLUGIN(rest_connection_pool
   rest_connection_pool_plugin.cc
   rest_connection_pool_status.cc
   rest_connection_pool_list.cc
-  REQUIRES connection_pool;http_server;rest_api
+  REQUIRES
+  connection_pool
+  http_server_lib
+  rest_api
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
 
 GENERATE_EXPORT_HEADER(rest_connection_pool

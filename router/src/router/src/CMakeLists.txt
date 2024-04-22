@@ -28,6 +28,49 @@ IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)  # bypass Warning C4996 (getenv)
 ENDIF()
 
+ROUTER_ADD_SHARED_LIBRARY(router_utils
+  default_paths.cc
+  keyring_info.cc
+  utils.cc
+  uri.cc
+
+  OUTPUT_NAME "mysqlrouter_utils"
+
+  LINK_LIBRARIES
+  PUBLIC
+  harness_stdx
+  harness-library
+  )
+
+ROUTER_ADD_SHARED_LIBRARY(router_mysql
+  common/log_filter.cc
+  common/mysql_session.cc
+  common/utils_sqlstring.cc
+
+  OUTPUT_NAME "mysqlrouter_mysql"
+
+  LINK_LIBRARIES
+  PUBLIC
+  harness_stdx
+  harness-library  # log_debug
+  mysqlclient
+  )
+
+ROUTER_ADD_SHARED_LIBRARY(router_cluster
+  cluster_metadata.cc
+  cluster_metadata_instance_attributes.cc
+  cluster_metadata_dynamic_state.cc
+
+  OUTPUT_NAME "mysqlrouter_cluster"
+
+  LINK_LIBRARIES
+  PUBLIC
+  harness_stdx
+  harness-library
+  router_utils
+  router_mysql
+  )
+
 IF(WIN32)
   SET(router_lib_output_name "mysqlrouter_lib")
 ELSE()
@@ -39,17 +82,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_lib
   certificate_generator.cc
   certificate_handler.cc
   config_files.cc
-  cluster_metadata.cc
-  cluster_metadata_dynamic_state.cc
-  cluster_metadata_instance_attributes.cc
   sys_user_operations.cc
-  utils.cc
-  uri.cc
-  keyring_info.cc
-  default_paths.cc
-  common/log_filter.cc
-  common/mysql_session.cc
-  common/utils_sqlstring.cc
 
   NO_EXPORT_HEADER  # custom names
   OUTPUT_NAME "${router_lib_output_name}"
@@ -59,7 +92,9 @@ ROUTER_ADD_SHARED_LIBRARY(router_lib
   harness-library
   harness_stdx
   harness_tls
-  mysqlclient
+  router_utils
+  router_cluster
+  # router_mysql
   OpenSSL::SSL OpenSSL::Crypto
   io_component
   extra::rapidjson
@@ -140,5 +175,7 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_keyring
   keyring_cli.cc
   keyring_frontend.cc
   COMPONENT Router
-  LINK_LIBRARIES router_lib
+  LINK_LIBRARIES
+  router_utils
+  extra::rapidjson
   )

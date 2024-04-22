@@ -34,13 +34,13 @@
 
 namespace mysql_harness {
 class DynamicState;
-}
+}  // namespace mysql_harness
 
 /**
  * @brief ClusterMetadataDynamicState represents a dynamic state that the
  * metadata cache module wants to persist in the file.
  */
-class ROUTER_LIB_EXPORT ClusterMetadataDynamicState {
+class ROUTER_CLUSTER_EXPORT ClusterMetadataDynamicState {
  public:
   /**
    * @brief Creates and initializes a metadata cache dynamic state object.

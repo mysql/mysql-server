@@ -30,12 +30,12 @@
 #include <string>
 
 #include "http/base/request_handler.h"
-#include "mysqlrouter/http_server_export.h"
+#include "mysqlrouter/http_server_lib_export.h"
 
 #include "http/base/request.h"
 #include "http/http_server_context.h"
 
-class HTTP_SERVER_EXPORT HttpServerComponent {
+class HTTP_SERVER_LIB_EXPORT HttpServerComponent {
  public:
   using HttpServerCtxtPtr = std::shared_ptr<http::HttpServerContext>;
 
