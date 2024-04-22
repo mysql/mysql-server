@@ -27,6 +27,8 @@
 
 #include <memory>
 
+#include <google/protobuf/stubs/common.h>
+
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 
@@ -40,6 +42,17 @@ class Error_dumper : public ::google::protobuf::io::ErrorCollector {
   std::stringstream m_out;
 
  public:
+#if (GOOGLE_PROTOBUF_VERSION >= 4024000)
+  void RecordError(int line, int column, absl::string_view message) override {
+    m_out << "ERROR in message: line " << line + 1 << ": column " << column
+          << ": " << message << "\n";
+  }
+
+  void RecordWarning(int line, int column, absl::string_view message) override {
+    m_out << "WARNING in message: line " << line + 1 << ": column " << column
+          << ": " << message << "\n";
+  }
+#else
   void AddError(int line, int column, const std::string &message) override {
     m_out << "ERROR in message: line " << line + 1 << ": column " << column
           << ": " << message << "\n";
@@ -49,6 +62,7 @@ class Error_dumper : public ::google::protobuf::io::ErrorCollector {
     m_out << "WARNING in message: line " << line + 1 << ": column " << column
           << ": " << message << "\n";
   }
+#endif  // (GOOGLE_PROTOBUF_VERSION >= 4024000)
 
   std::string str() { return m_out.str(); }
 };
