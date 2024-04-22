@@ -48,7 +48,7 @@ INSERT INTO t1(col1, col2)
 --let $diff_tables = master:t1, slave:t1
 --source include/diff_tables.inc
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 SELECT ST_SRID(col1) AS no_srid, ST_SRID(col2) AS srid_2000 FROM t1;
 
@@ -68,7 +68,7 @@ INSERT INTO t1(col1, col2)
   VALUES (ST_GeomFromText('POINT(1 1)', 2000),
           ST_GeomFromText('POINT(1 1)', 0));
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 --source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
@@ -76,7 +76,7 @@ SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 --let $diff_tables = master:t1, slave:t1
 --source include/diff_tables.inc
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 SELECT ST_SRID(col1) AS srid_2000, ST_SRID(col2) AS srid_0 FROM t1;
 

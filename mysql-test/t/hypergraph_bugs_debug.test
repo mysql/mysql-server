@@ -38,3 +38,5 @@ SET DEBUG='-d,subplan_tokens,force_subplan_0xe22c12cb96055ddc,force_subplan_0x8a
 
 SET join_buffer_size = @old_join_buffer_size;
 DROP TABLE t, t1, t2, t3;
+
+--source include/disable_hypergraph.inc

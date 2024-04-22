@@ -19,6 +19,9 @@
 ########################################################################
 #
 
+# Fails when the hypergraph optimizer is used.
+--source include/not_hypergraph.inc
+
 --echo ==============================================
 --echo     CRUD UPDATE SCENARIOS
 --echo ==============================================

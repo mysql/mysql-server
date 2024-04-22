@@ -6,6 +6,9 @@
 --source include/count_sessions.inc
 --source include/allowed_ciphers.inc
 
+# Some nested calls to mysqltest fail with --hypergraph.
+--source include/not_hypergraph.inc
+
 --echo #
 --echo # Test WL#14839: Extend MySQL TLS handshake to allow SNI
 --echo #

@@ -184,3 +184,5 @@ ANALYZE TABLE t;
 EXPLAIN FORMAT=TREE
 SELECT x IN (SELECT x FROM t) FROM t GROUP BY x ORDER BY MAX(y);
 DROP TABLE t;
+
+--source include/disable_hypergraph.inc

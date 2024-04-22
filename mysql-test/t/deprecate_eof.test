@@ -7,6 +7,9 @@
 
 --source include/no_ps_protocol.inc
 
+# When running mtr with --hypergraph, statement_id is different.
+--source include/not_hypergraph.inc
+
 --echo # Restart the mysqld server with default options so, statement_id will work. 
 --source include/restart_mysqld.inc
 

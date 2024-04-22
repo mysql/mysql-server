@@ -114,7 +114,7 @@ DROP TABLE t2;
 
 --echo # Testing memory/sql/Filesort_buffer::sort_keys.
 let $memory_key = memory/sql/Filesort_buffer::sort_keys;
-let $test_query = SELECT * FROM t1 ORDER BY f1;
+let $test_query = SELECT * FROM t1 IGNORE INDEX (f1) ORDER BY f1;
 --source include/mem_cnt_check_err.inc
 
 --echo # Testing memory/sql/IndexRangeScanIterator::mrr_buf_desc.
@@ -144,7 +144,7 @@ DROP TABLE t2;
 
 --echo # Testing memory/sql/TABLE::sort_io_cache.
 let $memory_key = memory/sql/TABLE::sort_io_cache;
-let $test_query = SELECT * FROM t1 ORDER BY f1;
+let $test_query = SELECT * FROM t1 IGNORE INDEX (f1) ORDER BY f1;
 --source include/mem_cnt_check_err.inc
 
 --echo # Testing memory/sql/Unique::sort_buffer.
@@ -186,6 +186,12 @@ ANALYZE TABLE t2;
 let $memory_key = memory/sql/Unique::sort_buffer;
 let $test_query = SELECT /*+SET_VAR(sort_buffer_size=8192)*/ COUNT(*) FROM t3 FORCE INDEX(idx_b, idx_c) WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 --source include/mem_cnt_check_err.inc
+if ($HYPERGRAPH_TEST) {
+  # The index hint is ignored by the hypergraph optimizer, so the
+  # ROR-union plan expected by the test is not chosen. Remove the
+  # workaround when WL#16005 is done.
+  --echo <ignored hypergraph optimizer error: statement skipped by test>
+}
 DROP TABLE t3,t2;
 
 --echo # Testing memory/sql/Unique::merge_buffer.
@@ -209,14 +215,13 @@ let $test_query = SELECT (((((((((((((((((((((((((((((((((((((((((((((((((((((((
 --echo # Testing memory/sql/hashed_operation.
 CREATE TABLE t0(c0 INT);
 CREATE TABLE t3(c0 DOUBLE);
-CREATE TABLE t2(c0 DOUBLE);
-INSERT INTO t0 VALUES(0);
-INSERT INTO t3 VALUES('-0');
-INSERT INTO t2 VALUES('+0');
+# Make the tables big enough to ensure that a hash join is chosen.
+INSERT INTO t0 VALUES (0), (1), (2), (3), (4), (5), (6);
+INSERT INTO t3 SELECT c0 + 1 FROM t0;
 let $memory_key = memory/sql/hashed_operation;
 let $test_query = SELECT * FROM t0, t3 WHERE t0.c0 = t3.c0;
 --source include/mem_cnt_check_err.inc
-DROP TABLE t0, t3, t2;
+DROP TABLE t0, t3;
 
 DROP PROCEDURE p1;
 DROP TABLE t1;

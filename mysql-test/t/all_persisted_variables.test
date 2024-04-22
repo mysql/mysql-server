@@ -29,6 +29,11 @@
 # added, it is the responsibility of the Dev to edit $total_persistent_vars.
 ################################################################################
 
+# When running with --hypergraph, mysqltest sets hypergraph_optimizer
+# in each session. The expected number of variables with
+# variable_source='PERSISTED' will therefore be different.
+--source include/not_hypergraph.inc
+
 --echo ***********************************************************************
 --echo * Run only on debug build,non-windows as few server variables are not
 --echo * available on all platforms.

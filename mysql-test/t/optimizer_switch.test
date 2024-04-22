@@ -12,34 +12,42 @@ select @@optimizer_switch;
 
 set optimizer_switch='default';
 set optimizer_switch='materialization=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='loosescan=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,materialization=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='materialization=off,semijoin=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,loosescan=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 
 set optimizer_switch='default';
 set optimizer_switch='materialization=off,loosescan=off';
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch; 
 set optimizer_switch='default';
 

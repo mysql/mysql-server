@@ -11,6 +11,8 @@
 #                                                                   #
 #####################################################################
 
+--source include/elide_costs.inc
+
 --source include/rpl/init_source_replica.inc
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Replica SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Replica SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
@@ -113,10 +115,13 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 # Create a table like t1.
 CREATE TABLE t2 LIKE t1;
 
-ANALYZE TABLE t1;
-EXPLAIN INSERT INTO t2 SELECT * FROM t1;
-EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
-EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
 
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 CREATE TABLE t3 SELECT * from t1;

@@ -1353,6 +1353,7 @@ select fld1,fld3 from t2 where fld1 like "25050_";
 # it will be sorted first before the distinct table is created.
 #
 
+--sorted_result
 select distinct companynr from t2;
 select distinct companynr from t2 order by companynr;
 select distinct companynr from t2 order by companynr desc;
@@ -1361,8 +1362,10 @@ select distinct t2.fld3,period from t2,t1 where companynr=37 and fld3 like "O%";
 select distinct fld3 from t2 where companynr = 34 order by fld3;
 select distinct fld3 from t2 limit 10;
 select distinct fld3 from t2 having fld3 like "A%" limit 10;
+--replace_result abr Abr art Art
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%";
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" order by a limit 10;
+--replace_result abr Abr
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%" limit 10;
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" limit 10;
 
@@ -1429,6 +1432,7 @@ SET BIG_TABLES=0;
 --source include/turn_off_only_full_group_by.inc
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+--skip_if_hypergraph  # LIMIT without ORDER BY is non-deterministic.
 select distinct fld5 from t2 limit 10;
 
 #
@@ -1547,6 +1551,7 @@ INSERT INTO t4 (companynr, companyname) VALUES (00,'Unknown');
 --sorted_result
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 
+--sorted_result
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 
 #
@@ -1661,6 +1666,7 @@ select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) f
 select /*! SQL_SMALL_RESULT */
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr, t2nr order by companynr,t2nr limit 10;
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
+--sorted_result
 select distinct mod(companynr,10) from t4 group by companynr;
 select distinct 1 from t4 group by companynr;
 select count(distinct fld1) from t2;
@@ -1680,6 +1686,7 @@ select name,count(*) from t3 where name='cloakroom' group by name;
 select name,count(*) from t3 where name='cloakroom' and price>10 group by name;
 select count(*) from t3 where name='cloakroom' and price2=823742;
 select name,count(*) from t3 where name='cloakroom' and price2=823742 group by name;
+--sorted_result
 select name,count(*) from t3 where name >= "extramarital" and price <= 39654943 group by name;
 select t2.fld3,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 group by t3.name;
 
@@ -1688,6 +1695,7 @@ select t2.fld3,count(*) from t2,t3 where t2.fld1=158402 and t3.name=t2.fld3 grou
 #
 
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 select companynr|0,companyname from t4 group by 1;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 

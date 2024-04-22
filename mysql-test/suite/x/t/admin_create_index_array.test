@@ -1,5 +1,8 @@
 ## manipulate of indexes on aray fields in document
 
+# Uses tabular EXPLAIN, which is not supported by hypergraph.
+--source include/not_hypergraph.inc
+
 ## 1. Create and drop array index
 ## 2. Create and drop 'multi-field' array index
 ## 3. Create and drop 'unique' array index

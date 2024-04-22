@@ -43,6 +43,7 @@ SELECT * FROM t4;
 SHOW CREATE TABLE t4;
 INSERT INTO t5 VALUES(0, 1), (100, 2), (50, 3);
 INSERT INTO t5 VALUES(0, 4), (109, 5), (0, 6);
+--sorted_result
 SELECT * FROM t5;
 SHOW CREATE TABLE t5;
 
@@ -86,6 +87,7 @@ set debug = "+d, dict_set_index_corrupted";
 CHECK TABLE t4;
 set debug = "-d, dict_set_index_corrupted";
 
+--skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 --error ER_INDEX_CORRUPT
 SELECT b FROM t4 WHERE b > 3;
 
@@ -105,6 +107,7 @@ INSERT INTO t5 VALUES(0, 10), (0, 11);
 set global innodb_flush_log_at_trx_commit=1;
 
 CHECK TABLE t4;
+--skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 --error ER_INDEX_CORRUPT
 SELECT b FROM t4 WHERE b > 3;
 
@@ -137,6 +140,7 @@ INSERT INTO t5 VALUES(0, 10), (0, 20);
 
 set global innodb_flush_log_at_trx_commit=1;
 
+--skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 --error ER_INDEX_CORRUPT
 SELECT b FROM t5 WHERE b > 3;
 

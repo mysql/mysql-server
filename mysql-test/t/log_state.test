@@ -278,6 +278,7 @@ UPDATE t2 set b=b+sleep(.01) limit 1;
 UPDATE t1 SET a=a+sleep(.01) WHERE a in (SELECT b from t2);
 DELETE FROM t1 WHERE a=a+sleep(.01) ORDER BY a LIMIT 2;
 
+--skip_if_hypergraph  # Different plan gives different rows_examined.
 SELECT rows_examined,sql_text FROM mysql.slow_log;
 disconnect con2;
 connection default;

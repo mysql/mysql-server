@@ -24,3 +24,5 @@ SELECT 1 FROM
 WHERE dt1.x = dt2.x;
 
 DROP TABLE t1, t2;
+
+--source include/disable_hypergraph.inc

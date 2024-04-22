@@ -1,3 +1,6 @@
+# Slightly different output when the hypergraph optimizer is used,
+# due to different query plans in SHOW TABLES.
+--source include/not_hypergraph.inc
 
 CREATE TABLE t1(id INT NOT NULL);
 

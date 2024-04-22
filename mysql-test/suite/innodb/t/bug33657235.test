@@ -1,5 +1,8 @@
 --source include/count_sessions.inc
 
+# The hypergraph optimizer does not support FORCE INDEX hints yet (WL#16005).
+--source include/not_hypergraph.inc
+
 CREATE TABLE t1 (
   id INT PRIMARY KEY,
   u CHAR(2) NOT NULL,

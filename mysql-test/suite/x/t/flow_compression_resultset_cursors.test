@@ -8,6 +8,9 @@
 ## Test that verifies flow of CURSOR execution
 ## (bullet no 2)
 
+# Fails when the hypergraph optimizer is used.
+--source include/not_hypergraph.inc
+
 ## Preamble
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc

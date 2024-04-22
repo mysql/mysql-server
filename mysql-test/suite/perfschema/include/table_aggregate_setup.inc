@@ -69,6 +69,10 @@
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
+# The hypergraph optimizer chooses different query plans, which
+# results in different counts in the performance schema tables.
+--source include/not_hypergraph.inc
+
 --disable_query_log
 create user user1@localhost, user2@localhost,
             user3@localhost, user4@localhost;

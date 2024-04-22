@@ -348,6 +348,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
 --echo # BUG#55615 : should not crash
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT (@a:=(SELECT @a:=1 FROM t1 LIMIT 1)) AND COUNT(1) FROM t1 GROUP BY @a;
 --echo # BUG#55564 : should not crash
 SELECT IF(

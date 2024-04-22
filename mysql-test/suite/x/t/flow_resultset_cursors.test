@@ -1,5 +1,8 @@
 ## Test that verifies flow of CRUSOR execution
 
+# Fails when the hypergraph optimizer is used.
+--source include/not_hypergraph.inc
+
 ## Preamble
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc

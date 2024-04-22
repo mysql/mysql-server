@@ -51,6 +51,13 @@ connection default;
 let $show_statement= SHOW PROCESSLIST;
 let $field= State;
 let $condition= = 'Updating';
+if ($HYPERGRAPH_TEST) {
+  # The 'Updating' stage is specific to the old optimizer's
+  # single-table UPDATE code path. The hypergraph optimizer uses a
+  # common code path for single-table and multi-table UPDATE, and sees
+  # 'Executing' instead.
+  let $condition = = 'Executing';
+}
 --source include/wait_show_condition.inc
 
 # If the testing box is overloadeded and innodb_lock_wait_timeout is too small

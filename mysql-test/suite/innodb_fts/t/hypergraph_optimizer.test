@@ -71,3 +71,5 @@ SELECT ANY_VALUE(x), MATCH (x) AGAINST ('abc') AS score
   ORDER BY score;
 
 DROP TABLE t;
+
+--source include/disable_hypergraph.inc

@@ -2501,7 +2501,10 @@ SET GLOBAL max_allowed_packet = 1024;
 CONNECT (con1,localhost,root,,);
 CONNECTION con1;
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
+# Ignore differences in warnings with the hypergraph optimizer.
+--disable_warnings
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i;
+--enable_warnings
 CONNECTION default;
 DISCONNECT con1;
 SET GLOBAL max_allowed_packet = default;

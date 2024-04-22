@@ -112,6 +112,7 @@ SET @@session.sql_mode='invalid';
 --echo # Test the wildcard value for tracking.
 SET @@session.session_track_system_variables='*';
 --echo # Expect change info.
+--skip_if_hypergraph  # Different statement_id.
 SET @@session.sql_mode= @sql_mode_saved;
 
 --echo # Switch off the session system variables tracker (using empty string).

@@ -1,2 +1,3 @@
 --source include/have_hypergraph.inc
 --source suite/secondary_engine/inc/secondary_engine_bugs.inc
+--source include/disable_hypergraph.inc

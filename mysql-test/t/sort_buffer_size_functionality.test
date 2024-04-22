@@ -182,7 +182,9 @@ set optimizer_switch='derived_merge=off';
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
 
 --disable_warnings
+--skip_if_hypergraph  # Different plan. Less sorting.
 select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
+--skip_if_hypergraph  # Different plan. Less sorting.
 select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
 select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan;
 --enable_warnings
@@ -190,7 +192,9 @@ select (select variable_value from performance_schema.global_status where variab
 select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
 
 --disable_warnings
+--skip_if_hypergraph  # Different plan. Less sorting.
 select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
+--skip_if_hypergraph  # Different plan. Less sorting.
 select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
 select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') - @Sort_scan;
 --enable_warnings

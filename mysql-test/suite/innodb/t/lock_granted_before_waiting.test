@@ -2,6 +2,11 @@
 --source include/have_innodb_16k.inc
 --source include/count_sessions.inc
 
+# This test requires the SELECT FOR SHARE statement to pick an index
+# range scan, but hypergraph chooses a table scan. Try to get the test
+# to run under hypergraph with a FORCE INDEX hint after WL#16005.
+--source include/not_hypergraph.inc
+
 # Save the original settings, to be restored at the end of test
 SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
 

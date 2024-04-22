@@ -96,31 +96,31 @@ Variable_name	Value
 Secondary_engine_execution_count	1
 [ Connection Master ]
 CREATE TABLE t2 LIKE t1;
-ANALYZE TABLE t1;
+ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN INSERT INTO t2 SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-Warnings:
-Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
-EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-Warnings:
-Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
-EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-3	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
-Warnings:
-Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union all /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN
+-> Insert into t2
+    -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
+EXPLAIN
+-> Insert into t2
+    -> Table scan on <union temporary>  (rows=10)
+        -> Union materialize with deduplication  (rows=10)
+            -> Table scan on t1  (rows=5)
+            -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+EXPLAIN
+-> Insert into t2
+    -> Table scan on <union temporary>  (rows=10)
+        -> Union all materialize  (rows=10)
+            -> Table scan on t1  (rows=5)
+            -> Table scan on t1  (rows=5)
+
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0

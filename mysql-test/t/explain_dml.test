@@ -100,6 +100,10 @@ REPLACE INTO t1 PARTITION(p0, p1)
 #No effect on EXPLAIN FOR CONNECTION .... for both SINGLE/MULTI-TABLE DML
 let $QID= `SELECT CONNECTION_ID()`;
 let $point=   planned_single_delete;
+if ($HYPERGRAPH_TEST) {
+  # Hypergraph uses the same code path for single-table and multi-table DELETE.
+  let $point = before_reset_query_plan;
+}
 let $err=0;
 
 connect (ce, localhost, root,, test);

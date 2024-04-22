@@ -40,3 +40,5 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 SET OPTIMIZER_SWITCH = default;
+
+--source include/disable_hypergraph.inc

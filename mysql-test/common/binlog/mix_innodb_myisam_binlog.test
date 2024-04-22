@@ -8,6 +8,9 @@
 -- source include/have_log_bin.inc
 -- source include/have_myisam.inc
 
+# Contents of binlog are slightly different with hypergraph because it
+# executes the DELETE statement differently.
+--source include/not_hypergraph.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 

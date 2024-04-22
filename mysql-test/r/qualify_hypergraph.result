@@ -432,8 +432,6 @@ v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 SELECT * FROM v2;
 ERROR HY000: 'QUALIFY clause' can be used only if the hypergraph optimizer is enabled.
 SET @@optimizer_switch = @start_value_optimizer_switch;
-Warnings:
-Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select sum(`sales`.`sale_amount`) AS `total_sales`,rank() OVER (ORDER BY sum(`sales`.`sale_amount`) desc )  AS `sales_rank` from `sales` group by `sales`.`salesperson_id` qualify (sum(`sales`.`sale_amount`) > 3000)	utf8mb4	utf8mb4_0900_ai_ci

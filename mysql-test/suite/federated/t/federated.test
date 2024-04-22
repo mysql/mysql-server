@@ -521,8 +521,12 @@ SELECT * FROM federated.t1 WHERE id = 5
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
   OR (col2 = 'three Three' AND col3 = 33);
 # Bug#35362984 Memory leak with index merge union plan
+# Different warnings with hypergraph because the hint is not supported
+# yet (WL#16005).
+--disable_warnings
 SELECT /*+ INDEX_MERGE(t1 PRIMARY,col3) */* FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
   OR (col2 = 444 AND col3 = 4444444);
+--enable_warnings
 --sorted_result
 SELECT * FROM federated.t1 WHERE id = 1 
   OR col1 = 10
@@ -1888,12 +1892,14 @@ connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE t1 (a INT, b INT, KEY(a,b)) ENGINE=federated
 CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+--skip_if_hypergraph  # Chooses range scan and hits bug#11755165.
 --sorted_result
 SELECT * FROM t1 WHERE a IS NULL;
 --sorted_result
 SELECT * FROM t1 WHERE a IS NOT NULL;
 --sorted_result
 SELECT * FROM t1 WHERE a=1 AND b=1;
+--skip_if_hypergraph  # Chooses range scan and hits bug#11755165.
 --sorted_result
 SELECT * FROM t1 WHERE a IS NULL AND b=1;
 --sorted_result

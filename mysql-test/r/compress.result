@@ -266,16 +266,16 @@ fld1	fld3
 select distinct companynr from t2;
 companynr
 00
-37
-36
-50
-58
 29
-40
-53
-65
-41
 34
+36
+37
+40
+41
+50
+53
+58
+65
 68
 select distinct companynr from t2 order by companynr;
 companynr
@@ -1356,16 +1356,16 @@ companynr	companyname
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
-37	company 4
-36	company 3
-50	company 11
-58	company 8
 29	company 1
-40	company 5
-53	company 7
-65	company 9
-41	company 6
 34	company 2
+36	company 3
+37	company 4
+40	company 5
+41	company 6
+50	company 11
+53	company 7
+58	company 8
+65	company 9
 68	company 10
 select * from t1,t1 t12;
 Period	Varor_period	Period	Varor_period
@@ -1635,15 +1635,15 @@ companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 512	4181	3288532102	786542	786542	786542.0000
 select distinct mod(companynr,10) from t4 group by companynr;
 mod(companynr,10)
-9
-8
 0
-4
-6
-7
 1
 3
+4
 5
+6
+7
+8
+9
 select distinct 1 from t4 group by companynr;
 1
 1
@@ -1751,10 +1751,10 @@ name	count(*)
 cloakroom	4181
 select name,count(*) from t3 where name >= "extramarital" and price <= 39654943 group by name;
 name	count(*)
+Iranizes	4181
 extramarital	4181
 gazer	4181
 gems	4181
-Iranizes	4181
 spates	4181
 tucked	4181
 violinist	4181
@@ -1763,18 +1763,18 @@ fld3	count(*)
 spates	4181
 select companynr|0,companyname from t4 group by 1;
 companynr|0	companyname
+0	Unknown
 29	company 1
-68	company 10
-50	company 11
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
+50	company 11
 53	company 7
 58	company 8
 65	company 9
-0	Unknown
+68	company 10
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 companynr	companyname	count(*)
 29	company 1	95
@@ -2530,16 +2530,16 @@ fld1	fld3
 select distinct companynr from t2;
 companynr
 00
-37
-36
-50
-58
 29
-40
-53
-65
-41
 34
+36
+37
+40
+41
+50
+53
+58
+65
 68
 select distinct companynr from t2 order by companynr;
 companynr
@@ -3620,16 +3620,16 @@ companynr	companyname
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
-37	company 4
-36	company 3
-50	company 11
-58	company 8
 29	company 1
-40	company 5
-53	company 7
-65	company 9
-41	company 6
 34	company 2
+36	company 3
+37	company 4
+40	company 5
+41	company 6
+50	company 11
+53	company 7
+58	company 8
+65	company 9
 68	company 10
 select * from t1,t1 t12;
 Period	Varor_period	Period	Varor_period
@@ -3899,15 +3899,15 @@ companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 512	4181	3288532102	786542	786542	786542.0000
 select distinct mod(companynr,10) from t4 group by companynr;
 mod(companynr,10)
-9
-8
 0
-4
-6
-7
 1
 3
+4
 5
+6
+7
+8
+9
 select distinct 1 from t4 group by companynr;
 1
 1
@@ -4015,10 +4015,10 @@ name	count(*)
 cloakroom	4181
 select name,count(*) from t3 where name >= "extramarital" and price <= 39654943 group by name;
 name	count(*)
+Iranizes	4181
 extramarital	4181
 gazer	4181
 gems	4181
-Iranizes	4181
 spates	4181
 tucked	4181
 violinist	4181
@@ -4027,18 +4027,18 @@ fld3	count(*)
 spates	4181
 select companynr|0,companyname from t4 group by 1;
 companynr|0	companyname
+0	Unknown
 29	company 1
-68	company 10
-50	company 11
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
+50	company 11
 53	company 7
 58	company 8
 65	company 9
-0	Unknown
+68	company 10
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 companynr	companyname	count(*)
 29	company 1	95

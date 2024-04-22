@@ -63,3 +63,5 @@ EXPLAIN FORMAT=TREE SELECT x FROM small_tab STRAIGHT_JOIN large_tab USING (x);
 
 DROP TABLE large_tab;
 DROP TABLE small_tab;
+
+--source include/disable_hypergraph.inc

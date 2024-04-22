@@ -2367,7 +2367,9 @@ SELECT * FROM (SELECT cs FROM test1.t1 WHERE ci = '0') AS dt;
 --error ER_COLUMNACCESS_DENIED_ERROR
 SELECT * FROM (SELECT cs FROM test1.t1 WHERE cu = '0') AS dt;
 
+--sorted_result
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cs) AS dt;
+--sorted_result
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cus) AS dt;
 --error ER_COLUMNACCESS_DENIED_ERROR
 SELECT * FROM (SELECT COUNT(*) AS c FROM test1.t1 GROUP BY cn) AS dt;

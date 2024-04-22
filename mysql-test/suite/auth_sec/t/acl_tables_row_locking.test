@@ -19,6 +19,9 @@
 --source include/have_debug_sync.inc
 --source include/big_test.inc
 
+# Hypergraph chooses different plans and takes different locks.
+--source include/not_hypergraph.inc
+
 --echo #
 --echo # Setup schema for the test
 --echo # We create new users so that we can populate rows in all acl tables.

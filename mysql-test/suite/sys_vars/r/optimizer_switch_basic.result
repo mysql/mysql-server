@@ -74,6 +74,21 @@ set optimizer_switch ='b';
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'b'
 set optimizer_switch = 0x6400ec62;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'd\x00\xECb'
+#
+# Bug#35189564: hypergraph_optimizer switch is not set to its Default value
+#
+SET optimizer_switch = DEFAULT;
+SET @saved_optimizer_switch = (SELECT @@optimizer_switch);
+SET optimizer_switch = 'hypergraph_optimizer=on';
+SET optimizer_switch = DEFAULT;
+SELECT @@optimizer_switch = @saved_optimizer_switch;
+@@optimizer_switch = @saved_optimizer_switch
+1
+SET optimizer_switch = 'hypergraph_optimizer=off';
+SET optimizer_switch = DEFAULT;
+SELECT @@optimizer_switch = @saved_optimizer_switch;
+@@optimizer_switch = @saved_optimizer_switch
+1
 SET @@global.optimizer_switch = @start_global_value;
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch

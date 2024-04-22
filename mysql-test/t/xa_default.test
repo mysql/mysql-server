@@ -199,10 +199,15 @@ UPDATE t1 SET a=4 WHERE a=2;
 let $conn_id= `SELECT CONNECTION_ID()`;
 SEND UPDATE t1 SET a=5 WHERE a=2;
 
+# Wait until the UPDATE statement has started executing. The old
+# optimizer uses the single-table UPDATE code path (which sets state
+# to 'Searching rows for update'), whereas the hypergraph optimizer
+# uses a common code path for single-table and multi-table UPDATE and
+# sets the state to 'executing'.
 --connection default
 let $wait_timeout= 2;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE ID=$conn_id AND STATE='Searching rows for update';
+WHERE ID=$conn_id AND STATE IN ('Searching rows for update', 'executing');
 --source include/wait_condition.inc
 
 --error ER_LOCK_DEADLOCK
@@ -226,7 +231,7 @@ SEND UPDATE t1 SET a=5 WHERE a=2;
 --connection default
 let $wait_timeout= 2;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE ID=$conn_id AND STATE='Searching rows for update';
+WHERE ID=$conn_id AND STATE IN ('Searching rows for update', 'executing');
 --source include/wait_condition.inc
 
 --error ER_LOCK_DEADLOCK

@@ -7518,8 +7518,13 @@ static void test_explain_bug() {
   mysql_free_result(result);
   mysql_stmt_close(stmt);
 
-  stmt =
-      mysql_simple_prepare(mysql, "explain select id, name FROM test_explain");
+  stmt = mysql_simple_prepare(
+      mysql,
+      // Force use of the old optimizer, since the hypergraph optimizer does not
+      // support the tabular EXPLAIN format.
+      "explain select "
+      "/*+set_var(optimizer_switch='hypergraph_optimizer=off')*/"
+      " id, name FROM test_explain");
   check_stmt(stmt);
 
   rc = mysql_stmt_execute(stmt);

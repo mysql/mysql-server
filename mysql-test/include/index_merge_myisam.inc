@@ -16,6 +16,8 @@
 #               include/index_merge*.inc files
 #
 
+SET @global_optimizer_switch_saved = @@global.optimizer_switch;
+
 let $engine_type= MyISAM;
 # MyISAM supports Merge tables
 let $merge_table_support= 1;
@@ -84,6 +86,7 @@ select @@optimizer_switch;
 set optimizer_switch=@default_optimizer_switch;
 
 # Check setting defaults for global vars
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@global.optimizer_switch;
 set @@global.optimizer_switch=@default_optimizer_switch;
 select @@global.optimizer_switch;
@@ -206,9 +209,6 @@ set optimizer_switch=@default_optimizer_switch;
 show variables like 'optimizer_switch';
 
 # Reset the global switch to default.
-set @@global.optimizer_switch=default;
-# We need to set hypergraph_optimizer=off explicitly because of
-# Bug#35189564.
-set @@global.optimizer_switch="hypergraph_optimizer=off";
+set @@global.optimizer_switch=@global_optimizer_switch_saved;
 
 drop table t0, t1;

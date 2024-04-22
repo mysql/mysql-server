@@ -7238,8 +7238,6 @@ Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i;
 REPEAT(j, 2)	COUNT(*)
 	1
-Warnings:
-Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
 SET GLOBAL max_allowed_packet = default;
 SET GLOBAL net_buffer_length = default;
 DROP TABLE tt;

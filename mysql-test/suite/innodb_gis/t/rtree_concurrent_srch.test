@@ -6,6 +6,9 @@
 --source include/have_debug_sync.inc
 --source include/big_test.inc
 
+# Hypergraph chooses different plans and take different locks.
+--source include/not_hypergraph.inc
+
 # Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 

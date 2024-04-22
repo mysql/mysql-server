@@ -109,10 +109,12 @@ delete from t1;
 insert into t2 values(1),(2);
 create view v1 as select f1(a) as f from t2;
 select * from v1 order by f;
+--skip_if_hypergraph  # More rows due to bug#36578540.
 SELECT 'master:',a FROM t1 ORDER BY a;
 
 --source include/rpl/sync_to_replica.inc
 connection slave;
+--skip_if_hypergraph  # More rows due to bug#36578540.
 SELECT 'slave:',a FROM t1 ORDER BY a;
 
 connection master;

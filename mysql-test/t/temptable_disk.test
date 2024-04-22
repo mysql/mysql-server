@@ -99,6 +99,7 @@ SELECT @@global.temptable_use_mmap;
 
 # Just make sure some disk pages were allocated, the exact number of bytes
 # and pages is irrelevant for this test.
+--skip_if_hypergraph  # Different plan. Avoids temporary table.
 SELECT count_alloc > 0
 FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_disk';
@@ -138,11 +139,13 @@ LIMIT 2;
 # Greater-or-equal must be used as memory for shared-block is not accounted for. After fixing
 # Bug #29890126 TEMPTABLE ALLOCATOR DOESN'T TRACK RAM-CONSUMPTION FOR SHARED-BLOCK we can
 # switch to using equal-operator (as we do for MMAP-ed allocations down below)
+--skip_if_hypergraph  # Different plan. Avoids temporary table.
 SELECT sum_number_of_bytes_alloc >= 2*1024*1024
 FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_ram';
 
 # We need to make sure we have exhausted the MMAP limit
+--skip_if_hypergraph  # Different plan. Avoids temporary table.
 SELECT sum_number_of_bytes_alloc = 4*1024*1024 + 64
 FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_disk';

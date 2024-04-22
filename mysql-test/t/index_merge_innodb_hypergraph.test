@@ -54,3 +54,5 @@ ANALYZE TABLE t1;
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=0 AND c=0;
 
 DROP TABLE t1;
+
+--source include/disable_hypergraph.inc

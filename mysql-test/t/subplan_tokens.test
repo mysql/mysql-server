@@ -31,3 +31,5 @@ SET DEBUG='-d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 
 DROP TABLE t1;
+
+--source include/disable_hypergraph.inc

@@ -98,3 +98,5 @@ FROM t1, t2 WHERE t1.x = t2.pk
 GROUP BY t1.pk;
 
 DROP TABLE t1, t2;
+
+--source include/disable_hypergraph.inc

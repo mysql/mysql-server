@@ -140,7 +140,10 @@ BEGIN
     FROM INFORMATION_SCHEMA.TABLES
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
         ORDER BY tables_in_mysql;
-  SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ CONCAT(table_schema, '.', table_name) AS columns_in_mysql,
+  -- Always use the old optimizer until bug#36553075 is fixed.
+  SELECT /*+SET_VAR(use_secondary_engine=OFF)
+            SET_VAR(optimizer_switch='hypergraph_optimizer=off')*/
+         CONCAT(table_schema, '.', table_name) AS columns_in_mysql,
        column_name, ordinal_position, column_default, is_nullable,
        data_type, character_maximum_length, character_octet_length,
        numeric_precision, numeric_scale, character_set_name,
@@ -154,7 +157,10 @@ BEGIN
 
   -- Dump all triggers except mtr internals, only those in the sys schema should exist
   -- do not select the CREATED column however, as tests like mysqldump.test / mysql_ugprade.test update this
-  SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_MANIPULATION,
+  -- Always use the old optimizer until bug#36553075 is fixed.
+  SELECT /*+SET_VAR(use_secondary_engine=OFF)
+            SET_VAR(optimizer_switch='hypergraph_optimizer=off')*/
+         TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_MANIPULATION,
          EVENT_OBJECT_CATALOG, EVENT_OBJECT_SCHEMA, EVENT_OBJECT_TABLE, ACTION_ORDER, ACTION_CONDITION,
          ACTION_STATEMENT, ACTION_ORIENTATION, ACTION_TIMING ACTION_REFERENCE_OLD_TABLE, ACTION_REFERENCE_NEW_TABLE,
          ACTION_REFERENCE_OLD_ROW, ACTION_REFERENCE_NEW_ROW, SQL_MODE, DEFINER CHARACTER_SET_CLIENT,
@@ -165,7 +171,10 @@ BEGIN
 
   -- Dump all created procedures, only those in the sys schema should exist
   -- do not select the CREATED or LAST_ALTERED columns however, as tests like mysqldump.test / mysql_ugprade.test update this
-  SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
+  -- Always use the old optimizer until bug#36553075 is fixed.
+  SELECT /*+SET_VAR(use_secondary_engine=OFF)
+            SET_VAR(optimizer_switch='hypergraph_optimizer=off')*/
+         SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
          CHARACTER_OCTET_LENGTH,NUMERIC_PRECISION,NUMERIC_SCALE,DATETIME_PRECISION,CHARACTER_SET_NAME,COLLATION_NAME,
          DTD_IDENTIFIER,ROUTINE_BODY,ROUTINE_DEFINITION,EXTERNAL_NAME,EXTERNAL_LANGUAGE,PARAMETER_STYLE,
          IS_DETERMINISTIC,SQL_DATA_ACCESS,SQL_PATH,SECURITY_TYPE,SQL_MODE,ROUTINE_COMMENT,DEFINER,
@@ -173,7 +182,10 @@ BEGIN
     FROM INFORMATION_SCHEMA.ROUTINES ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE;
 
   -- Dump all views, only those in the sys schema should exist
-  SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM INFORMATION_SCHEMA.VIEWS
+  -- Always use the old optimizer until bug#36553075 is fixed.
+  SELECT /*+SET_VAR(use_secondary_engine=OFF)
+            SET_VAR(optimizer_switch='hypergraph_optimizer=off')*/
+         * FROM INFORMATION_SCHEMA.VIEWS
     ORDER BY TABLE_SCHEMA, TABLE_NAME;
 
   -- Dump all plugins, loaded with plugin-loading options or through

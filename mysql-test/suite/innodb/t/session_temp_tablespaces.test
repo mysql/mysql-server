@@ -118,6 +118,10 @@ SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TA
 --echo # information_schema.innodb_session_temp_tablespaces are
 --echo # in sync
 
+if ($HYPERGRAPH_TEST) {
+  # temp_7.ibt has different size with hypergraph.
+  --replace_result 114688 131072
+}
 SELECT USER, b.STATE, INFO, SIZE, a.STATE, PURPOSE FROM
   INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
   WHERE a.ID=b.ID ORDER BY SPACE;
@@ -130,6 +134,10 @@ connect (con3, localhost, root,,);
 connection con3;
 
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+if ($HYPERGRAPH_TEST) {
+  # temp_7.ibt has different size with hypergraph.
+  --replace_result 114688 131072
+}
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
@@ -138,6 +146,10 @@ connect (con4, localhost, root,,);
 connection con4;
 
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+if ($HYPERGRAPH_TEST) {
+  # temp_7.ibt has different size with hypergraph.
+  --replace_result 114688 131072
+}
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
@@ -146,6 +158,10 @@ connect (con5, localhost, root,,);
 connection con5;
 
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+if ($HYPERGRAPH_TEST) {
+  # temp_7.ibt has different size with hypergraph.
+  --replace_result 114688 131072
+}
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
@@ -164,6 +180,10 @@ SET SESSION DEBUG = "-d,fil_create_temp_tablespace_fail_fallocate";
 # On executing select query from INNODB_SESSION_TEMP_TABLESPACES,
 # new set of 10 ibt files would be created
 
+if ($HYPERGRAPH_TEST) {
+  # temp_7.ibt has different size with hypergraph.
+  --replace_result 114688 131072
+}
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
@@ -277,6 +297,10 @@ let $wl6737_auto_inc = auto_increment;
 --enable_query_log
 --enable_result_log
 
+if ($HYPERGRAPH_TEST) {
+  # temp_9.ibt has different size with hypergraph.
+  --replace_result 131072 163840
+}
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 

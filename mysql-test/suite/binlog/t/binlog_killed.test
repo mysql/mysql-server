@@ -1,6 +1,9 @@
 -- source include/have_myisam.inc
 -- source include/have_binlog_format_statement.inc
 
+# Hypergraph chooses different plans and takes locks differently.
+--source include/not_hypergraph.inc
+
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 

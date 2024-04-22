@@ -170,10 +170,12 @@ CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_r
 
 # analysis - as there's no control of the various latencies, it may be the same for two or more of the queries.
 # So replace_result cannot be used to give it a unique value. Instead just use LATENCY for all rows.
+--skip_if_hypergraph  # Differs in rows_examined for QUERY_SELECT.
 --replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_avg_latency LATENCY $o_upd_lock_latency LATENCY $o_upd_cpu_latency LATENCY $o_upd_controlled_mem MEMORY $o_upd_total_mem MEMORY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $o_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_avg_latency LATENCY $o_sel_lock_latency LATENCY $o_sel_cpu_latency LATENCY $o_sel_controlled_mem MEMORY $o_sel_total_mem MEMORY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $o_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_avg_latency LATENCY $o_ins_lock_latency LATENCY $o_ins_cpu_latency LATENCY $o_ins_controlled_mem MEMORY $o_ins_total_mem MEMORY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN
 --sorted_result
 CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
 
+--skip_if_hypergraph  # Differs in rows_examined for QUERY_SELECT.
 --replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $d_upd_tock_latency LATENCY $d_upd_cpu_latency LATENCY $d_upd_controlled_mem MEMORY $o_upd_controlled_mem MEMORY $d_upd_total_mem MEMORY $o_upd_total_mem MEMORY $d_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $d_sel_tock_latency LATENCY $d_sel_cpu_latency LATENCY $d_sel_controlled_mem MEMORY $o_sel_controlled_mem MEMORY $d_sel_total_mem MEMORY $o_sel_total_mem MEMORY $d_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN $d_ins_tock_latency LATENCY $d_ins_cpu_latency LATENCY $d_ins_controlled_mem MEMORY $o_ins_controlled_mem MEMORY $d_ins_total_mem MEMORY $o_ins_total_mem MEMORY
 --sorted_result
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
@@ -182,8 +184,10 @@ CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analys
 CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_errors_or_warnings');
 
+--skip_if_hypergraph  # Differs in rows_examined for QUERY_SELECT.
 --replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $o_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
 CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans');
+--skip_if_hypergraph  # Differs in rows_examined for QUERY_SELECT.
 --replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $d_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');
 
@@ -212,8 +216,10 @@ SELECT sys.format_statement(DIGEST_TEXT) AS query,
   FROM performance_schema.events_statements_summary_by_digest
  ORDER BY SUBSTRING(query, 1, 6);
 SET @sys.statement_performance_analyzer.view = 'test.view_digests';
+--skip_if_hypergraph  # Differs in rows_examined.
 --replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_avg_latency LATENCY $o_sel_total_latency LATENCY $o_sel_avg_latency LATENCY $o_ins_total_latency LATENCY $o_ins_avg_latency LATENCY
 CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+--skip_if_hypergraph  # Differs in rows_examined.
 --replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $d_sel_total_latency LATENCY $d_ins_total_latency LATENCY
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');
 

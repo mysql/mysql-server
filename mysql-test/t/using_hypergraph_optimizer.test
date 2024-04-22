@@ -234,3 +234,4 @@ DROP TABLE t1, t2;
 
 SET optimizer_trace='enabled=off';
 SET optimizer_switch=default;
+--source include/disable_hypergraph.inc

@@ -11,6 +11,9 @@
 # result file for used_columns output (Bug#22472365).
 --source include/have_binlog_format_row.inc
 
+# EXPLAIN output is different with the hypergraph optimizer.
+--source include/not_hypergraph.inc
+
 # Optimizer plan are printed as part of the test-case and changing page
 # size will affect the optimizer plan numbers. so enable it only for 16K
 

@@ -1,5 +1,8 @@
 --source include/have_debug_sync.inc
 
+# Disabled with the hypergraph optimizer because of bug#36556714.
+--source include/not_hypergraph.inc
+
 --echo # Bug #27491839  INNODB: ASSERTION FAILURE:
 --echo #                LOCK0LOCK.CC:NNN:!LOCK_REC_OTHER_TRX_HOLDS_EXPL( LOCK
 

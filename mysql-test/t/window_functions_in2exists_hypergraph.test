@@ -1,4 +1,5 @@
 # Non-hypergraph results are tested in window_functions_in2exists.test.
 --source include/have_hypergraph.inc
 --source include/window_functions_in2exists.inc
+--source include/disable_hypergraph.inc
 

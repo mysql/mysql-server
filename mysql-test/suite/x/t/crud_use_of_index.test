@@ -1,5 +1,8 @@
 ## verify of index usage
 
+# Hypergraph optimizer chooses different query plan.
+--source include/not_hypergraph.inc
+
 ## 1. Verify usage array index
 ## 1.1 with "cont_in (JSON_CONTAINS)
 ## 1.2 with "overlaps" (JSON_OVERLAPS)

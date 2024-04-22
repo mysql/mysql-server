@@ -9,7 +9,7 @@ replace_regex
   /thread id \d+/thread id %NUMBER%/
   /TRANSACTION \d+/TRANSACTION %NUMBER%/
   /hex [0-9a-f]+/hex %HEXADECIMAL%/
-  /query id \d+ .* statistics/query id %NUMBER% %ADDRESS% %USER% statistics/
+  /query id \d+ .* (statistics|executing)/query id %NUMBER% %ADDRESS% %USER% statistics/
   /trx id \d+/trx id %NUMBER%/
   /asc.*(\x3b\x3b)/asc %ASC%\1/
   /space id \d+/space id %NUMBER%/

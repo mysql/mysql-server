@@ -18,7 +18,7 @@ ST_GeomFromText('POINT(1 1)', 2000));
 include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
 def	test	t1	col1	NULL	NULL	point
 def	test	t1	col2	Anguilla 1957 / British West Indies Grid	2000	point
@@ -36,14 +36,14 @@ ST_GeomFromText('POINT(0 0)', 0));
 INSERT INTO t1(col1, col2)
 VALUES (ST_GeomFromText('POINT(1 1)', 2000),
 ST_GeomFromText('POINT(1 1)', 0));
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
 def	test	t1	col1	Anguilla 1957 / British West Indies Grid	2000	point
 def	test	t1	col2		0	point
 include/rpl/sync_to_replica.inc
 [Connection Slave]
 include/diff_tables.inc [master:t1, slave:t1]
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
 def	test	t1	col1	Anguilla 1957 / British West Indies Grid	2000	point
 def	test	t1	col2		0	point

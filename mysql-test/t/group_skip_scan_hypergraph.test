@@ -31,3 +31,5 @@ GROUP BY field1;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+--source include/disable_hypergraph.inc

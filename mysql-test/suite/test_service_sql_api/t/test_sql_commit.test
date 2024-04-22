@@ -1,3 +1,6 @@
+# Slightly different output when the hypergraph optimizer is used,
+# due to different query plans.
+--source include/not_hypergraph.inc
 
 --echo # Creating table t1
 CREATE TABLE t1(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1));

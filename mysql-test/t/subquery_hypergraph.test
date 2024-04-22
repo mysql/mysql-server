@@ -15,3 +15,5 @@ EXPLAIN FORMAT=TREE SELECT * FROM t WHERE (SELECT x FROM t);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT * FROM t WHERE (SELECT x FROM t);
 DROP TABLE t;
+
+--source include/disable_hypergraph.inc

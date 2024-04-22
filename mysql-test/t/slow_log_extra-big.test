@@ -7,6 +7,10 @@
 # would give us extra lines for the prepare and drop phases.
 --source include/no_ps_protocol.inc
 
+# Hypergraph chooses different query plans, so the collected
+# statistics are different.
+--source include/not_hypergraph.inc
+
 --source include/big_test.inc
 --source include/count_sessions.inc
 

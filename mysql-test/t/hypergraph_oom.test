@@ -59,3 +59,5 @@ WHERE
   AND t2.b <> 3;
 
 DROP TABLE t1,t2,t3,t4,t5,t7,t8,t12,t13;
+
+--source include/disable_hypergraph.inc

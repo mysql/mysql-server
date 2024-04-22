@@ -6620,6 +6620,19 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   return 1; /* Connected */
 }
 
+/**
+   Enable the hypergraph optimizer in a connection. Set it as a session variable
+   in order to take effect in the current session, but also as a global variable
+   so that a test case can do "SET optimizer_switch = DEFAULT;" without
+   switching to the old optimizer for the rest of the session.
+*/
+static bool enable_hypergraph_optimizer(st_connection *con) {
+  const char *set_stmt =
+      "SET @@session.optimizer_switch='hypergraph_optimizer=on', "
+      "@@global.optimizer_switch='hypergraph_optimizer=on';";
+  return mysql_query_wrapper(&con->mysql, set_stmt) != 0;
+}
+
 /*
   Open a new connection to MySQL Server with the parameters
   specified. Make the new connection the current connection.
@@ -6728,6 +6741,9 @@ static void do_connect(struct st_command *command) {
       revert_properties();
       if (ds_connection_name.length) set_current_connection(con_slot);
       assert(con_slot != next_con);
+      if (opt_hypergraph) {
+        enable_hypergraph_optimizer(con_slot);
+      }
     }
     goto free_options;
   }
@@ -9746,9 +9762,7 @@ int main(int argc, char **argv) {
   set_current_connection(con);
 
   if (opt_hypergraph) {
-    const int error = mysql_query_wrapper(
-        &con->mysql, "SET optimizer_switch='hypergraph_optimizer=on';");
-    if (error != 0) {
+    if (enable_hypergraph_optimizer(con)) {
       die("--hypergraph was given, but the server does not support the "
           "hypergraph optimizer. (errno=%d)",
           my_errno());

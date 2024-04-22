@@ -65,3 +65,4 @@ EOF
 
 # Cleanup
 --source ../include/xplugin_cleanup.inc
+--source include/disable_hypergraph.inc

@@ -45,7 +45,7 @@ eval SET @con1_id = $con1_id;
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con1_id AND INFO = 'UPDATE t1 SET c1=11 WHERE c1=10'
-AND STATE = 'updating';
+AND STATE IN ('updating', 'executing');
 --source include/wait_condition.inc
 --sleep 1
 

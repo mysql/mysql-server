@@ -1,6 +1,10 @@
 
 --source include/no_valgrind_without_big.inc
 
+# This test is for a specific code path in the old optimizer. Skip it
+# with the hypergraph optimizer.
+--source include/not_hypergraph.inc
+
 # To make sure we have stable costs, set memory io cost equal to disk io cost
 UPDATE mysql.engine_cost
 SET cost_value = 1.0

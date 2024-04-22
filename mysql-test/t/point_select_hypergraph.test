@@ -15,3 +15,5 @@ EXECUTE q USING @v;
 DROP TABLE t1;
 
 SET optimizer_switch=DEFAULT;
+
+--source include/disable_hypergraph.inc

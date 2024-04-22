@@ -1,3 +1,4 @@
+SET @global_optimizer_switch_saved = @@global.optimizer_switch;
 #---------------- Index merge test 1 -------------------------------------------
 # (Start of test file: index_merge1.inc)
 SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
@@ -2446,8 +2447,6 @@ set optimizer_switch=4;
 set optimizer_switch=NULL;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
 set optimizer_switch=@default_optimizer_switch;
-Warnings:
-Warning	1287	The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer.
 set optimizer_switch='index_merge';
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge'
 set optimizer_switch='index_merge=index_merge';
@@ -2670,6 +2669,5 @@ set optimizer_switch=@default_optimizer_switch;
 show variables like 'optimizer_switch';
 Variable_name	Value
 optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on
-set @@global.optimizer_switch=default;
-set @@global.optimizer_switch="hypergraph_optimizer=off";
+set @@global.optimizer_switch=@global_optimizer_switch_saved;
 drop table t0, t1;

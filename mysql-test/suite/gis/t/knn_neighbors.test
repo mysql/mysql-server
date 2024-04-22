@@ -294,3 +294,5 @@ DROP TABLE cafe;
 
 #this query is to increase coverage
 SELECT HOST FROM performance_schema.setup_actors WHERE HOST = '%' AND USER = '%';
+
+--source include/disable_hypergraph.inc

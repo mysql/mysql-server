@@ -231,7 +231,7 @@ eval SET @con2_id = $con2_id;
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con2_id AND INFO = 'UPDATE t1 SET c1=2 WHERE c1=1 /* From connection 2 */'
-AND STATE = 'updating';
+AND STATE IN ('updating', 'executing');
 --source include/wait_condition.inc
 let $con3_id=`SELECT CONNECTION_ID()`;
 --sleep 1
@@ -246,7 +246,7 @@ eval SET @con3_id = $con3_id;
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con3_id AND INFO = 'DELETE FROM t1 WHERE c1=1 /* From connection 3 */'
-AND STATE = 'updating';
+AND STATE IN ('updating', 'executing');
 --source include/wait_condition.inc
 --echo # wait over
 let $con4_id=`SELECT CONNECTION_ID()`;

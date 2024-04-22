@@ -4,6 +4,7 @@
 #
 
 SET @start_global_value = @@global.optimizer_switch;
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @start_global_value;
 
 #
@@ -83,5 +84,22 @@ set optimizer_switch ='b';
 --error ER_WRONG_VALUE_FOR_VAR
 set optimizer_switch = 0x6400ec62;
 
+--echo #
+--echo # Bug#35189564: hypergraph_optimizer switch is not set to its Default value
+--echo #
+
+SET optimizer_switch = DEFAULT;
+SET @saved_optimizer_switch = (SELECT @@optimizer_switch);
+
+--error 0,ER_HYPERGRAPH_NOT_SUPPORTED_YET
+SET optimizer_switch = 'hypergraph_optimizer=on';
+SET optimizer_switch = DEFAULT;
+SELECT @@optimizer_switch = @saved_optimizer_switch;
+
+SET optimizer_switch = 'hypergraph_optimizer=off';
+SET optimizer_switch = DEFAULT;
+SELECT @@optimizer_switch = @saved_optimizer_switch;
+
 SET @@global.optimizer_switch = @start_global_value;
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @@global.optimizer_switch;

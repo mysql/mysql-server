@@ -501,3 +501,5 @@ EXPLAIN FORMAT=TREE select sql_small_result avg(id) from tb1 t1 group by id2;
 #cleanup
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table tb1;
+
+--source include/disable_hypergraph.inc

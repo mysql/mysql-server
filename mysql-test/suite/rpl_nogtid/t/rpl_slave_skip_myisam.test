@@ -32,6 +32,7 @@ source include/rpl/deprecated/show_binlog_events.inc;
 
 # These tables should be changed
 SELECT * FROM t1;
+--skip_if_hypergraph  # Different plan in multi-table UPDATE above.
 SELECT * FROM t2;
 save_master_pos;
 --echo **** On Slave ****

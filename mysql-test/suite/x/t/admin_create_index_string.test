@@ -1,5 +1,8 @@
 ## generated
 
+# Uses tabular EXPLAIN, which is not supported by hypergraph.
+--source include/not_hypergraph.inc
+
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 

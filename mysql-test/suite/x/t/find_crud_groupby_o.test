@@ -10,6 +10,9 @@
 ########################################################################
 #
 
+# Different ordering of results with hypergraph.
+--source include/not_hypergraph.inc
+
 --echo ==============================================
 --echo     CRUD FIND GROUP BY SCENARIOS
 --echo ==============================================

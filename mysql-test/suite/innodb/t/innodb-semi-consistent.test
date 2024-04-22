@@ -132,6 +132,7 @@ select * from t1 where a=2 for update;
 select * from t1 where a=2 limit 1 for update;
 connection b;
 # semi-consistent read will skip non-matching locked rows a=1, a=2
+--skip_if_hypergraph  # Chooses different query plan which cannot use semi-consistent read.
 update t1 straight_join t2 set a=11,t2.col=t2.col+1 where a+1=6+1 and t2.col>0*a;
 -- error ER_LOCK_WAIT_TIMEOUT
 update t1 straight_join t2 set a=12,t2.col=t2.col+1 where a+1=2+1 and t2.col>0*a;
@@ -143,8 +144,10 @@ connection b;
 update t1 straight_join t2 set a=14,t2.col=t2.col+1 where a+1=1+1 and t2.col>0*a;
 commit;
 # 10 tmp tables (5 stmts, 2 tmp tables each): no update was done on the fly.
+--skip_if_hypergraph  # Different result because of skipped UPDATE above.
 show status like "created_tmp_tables";
 connection a;
+--skip_if_hypergraph  # Different result because of skipped UPDATE above.
 select * from t1;
 
 

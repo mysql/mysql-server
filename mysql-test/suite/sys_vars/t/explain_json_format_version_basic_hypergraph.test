@@ -1,2 +1,3 @@
 --source include/have_hypergraph.inc
 --source suite/sys_vars/inc/explain_json_format_version.inc
+--source include/disable_hypergraph.inc

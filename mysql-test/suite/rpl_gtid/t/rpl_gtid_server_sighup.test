@@ -35,6 +35,10 @@
 --source include/have_binlog_format_statement.inc
 --source include/rpl/init_source_replica.inc
 
+# Contents of binlog are slightly different with hypergraph because it
+# executes the DELETE statement differently.
+--source include/not_hypergraph.inc
+
 # Bug#23297190 :RPL_GTID_SERVER_SIGHUP AND RPL_SOURCE_POS_WAIT_AFTER_STARTUP FAILS
 # IN VALGRIND : Increased the time interval between the connection retries.
 --connection slave

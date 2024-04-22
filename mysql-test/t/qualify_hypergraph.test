@@ -387,3 +387,5 @@ CREATE TABLE t1 (f1 INTEGER);
 SELECT NTILE(1) OVER() FROM (SELECT * FROM t1) as dt QUALIFY f1 AND FALSE;
 
 DROP TABLE t1;
+
+--source include/disable_hypergraph.inc

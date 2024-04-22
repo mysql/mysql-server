@@ -1,2 +1,3 @@
 --source include/have_hypergraph.inc
 --source suite/sys_vars/inc/explain_default_format.inc
+--source include/disable_hypergraph.inc

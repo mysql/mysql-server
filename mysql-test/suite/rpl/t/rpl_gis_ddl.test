@@ -35,7 +35,7 @@ CREATE TABLE t1 (no_srid POINT DEFAULT NULL,
                  srid_0 POINT SRID 0 DEFAULT NULL,
                  srid_4326 POINT SRID 4326 DEFAULT NULL);
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 --echo # Insert some data with correct SRID into these columns
 INSERT INTO t1 (no_srid, srid_0, srid_4326)
@@ -54,7 +54,7 @@ INSERT INTO t1 (no_srid, srid_0, srid_4326)
 --let $diff_tables = master:t1, slave:t1
 --source include/diff_tables.inc
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 SELECT ST_SRID(no_srid) AS no_srid,
        ST_SRID(srid_0) AS srid_0,
@@ -138,7 +138,7 @@ CREATE TABLE t1 (col1 POINT SRID 4326,
 INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(0 0)', 4326));
 INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 4326));
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 --source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
@@ -146,7 +146,7 @@ SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 --let $diff_tables = master:t1, slave:t1
 --source include/diff_tables.inc
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 SELECT ST_SRID(col1) AS srid_4326, ST_SRID(col2) AS srid_0 FROM t1;
 
@@ -161,7 +161,7 @@ ALTER TABLE t1 CHANGE COLUMN col2 col2 POINT AS (ST_SRID(col1, 4326)) SRID 4326;
 INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(0 0)', 2000));
 INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 2000));
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 --source include/rpl/sync_to_replica.inc
 --echo [Connection Slave]
@@ -169,7 +169,7 @@ SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 --let $diff_tables = master:t1, slave:t1
 --source include/diff_tables.inc
 
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS ORDER BY column_name;
 
 SELECT ST_SRID(col1) AS srid_2000, ST_SRID(col2) AS srid_4326 FROM t1;
 

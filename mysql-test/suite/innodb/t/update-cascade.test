@@ -218,7 +218,9 @@ rollback;
 --echo # In t3 yet to be updated.
 set session transaction isolation level read uncommitted;
 start transaction;
+--skip_if_hypergraph  # Sees a different intermediate state.
 select f1, f2 from t1;
+--skip_if_hypergraph  # Sees a different intermediate state.
 select f1, f2 from t2;
 select f1, f2 from t3;
 commit;

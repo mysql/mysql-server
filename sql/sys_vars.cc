@@ -3208,32 +3208,19 @@ void update_optimizer_switch() {
 }
 
 static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
-                                   set_var *var) {
+                                   set_var *var [[maybe_unused]]) {
+#ifndef WITH_HYPERGRAPH_OPTIMIZER
   const bool current_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
   const bool want_hypergraph_optimizer =
       var->save_result.ulonglong_value & OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
 
-  if (current_hypergraph_optimizer && !want_hypergraph_optimizer) {
-    // Don't turn off the hypergraph optimizer on set optimizer_switch=DEFAULT.
-    // This is so that mtr --hypergraph should not be easily cancelled in the
-    // middle of a test, unless the test explicitly meant it.
-    if (var->value == nullptr) {
-      var->save_result.ulonglong_value |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
-    }
-  } else if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
-#ifdef WITH_HYPERGRAPH_OPTIMIZER
-    // Allow, with a warning.
-    push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                 ER_THD(thd, ER_WARN_HYPERGRAPH_EXPERIMENTAL));
-    return false;
-#else
-    // Disallow; the hypergraph optimizer is not ready for production yet.
+  if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "use in non-debug builds");
     return true;
-#endif
   }
+#endif
   return false;
 }
 

@@ -1,3 +1,7 @@
+# Slightly different output when the hypergraph optimizer is used,
+# due to different query plans.
+--source include/not_hypergraph.inc
+
 --echo # Creating table t1
 CREATE TABLE t1(c1 INT, c2 VARCHAR(128));
 INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');

@@ -65,3 +65,4 @@ PARTITIONS 2;
 --echo ## Cleanup
 drop procedure proc_gis;
 drop table cafe;
+--source include/disable_hypergraph.inc

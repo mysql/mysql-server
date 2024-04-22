@@ -48,3 +48,5 @@ eval $select_stmt;
 
 drop table t1;
 drop table json_tab;
+
+--source include/disable_hypergraph.inc

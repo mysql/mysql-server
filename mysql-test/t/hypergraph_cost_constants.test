@@ -90,3 +90,5 @@ UPDATE mysql.server_cost SET cost_value = DEFAULT;
 
 DROP TABLE t;
 --enable_warnings
+
+--source include/disable_hypergraph.inc

@@ -38,7 +38,7 @@ eval SET @con2_id = $con2_id;
 let $wait_timeout = 10;
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con2_id AND INFO = 'update t1 set c1=2 where c1=0 and c2=0'
-AND STATE = 'updating';
+AND STATE IN ('updating', 'executing');
 --source include/wait_condition.inc
 --sleep 1
 SET DEBUG_SYNC='rec_lock_add_to_waitq SIGNAL signal1 WAIT_FOR waiting1';

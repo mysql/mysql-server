@@ -7178,6 +7178,10 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--logdir=%s/tmp",  $opt_vardir);
 
+  if ($opt_hypergraph) {
+    mtr_add_arg($args, "--hypergraph");
+  }
+
   if (IS_WINDOWS) {
     mtr_add_arg($args, "--protocol=pipe");
   }

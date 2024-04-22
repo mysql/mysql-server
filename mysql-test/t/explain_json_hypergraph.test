@@ -283,3 +283,5 @@ SELECT JSON_EXTRACT(@v1, '$.query_type') = 'delete';
 
 DROP TABLE t1, t2;
 SET @v1=NULL;
+
+--source include/disable_hypergraph.inc

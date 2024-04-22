@@ -1426,3 +1426,5 @@ FROM t WHERE x IN (
   SELECT NULL FROM t AS t1, t AS t2 STRAIGHT_JOIN t AS t3 ON t2.x = t3.x
 ) OR x = 1;
 DROP TABLE t;
+
+--source include/disable_hypergraph.inc

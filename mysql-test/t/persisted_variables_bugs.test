@@ -165,6 +165,7 @@ SELECT @@global.collation_database;
 # test SIGNED long value
 SELECT @@global.optimizer_trace_offset;
 # test Sys_var_flagset type
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @@global.optimizer_switch;
 # test Sys_var_multi_enum type
 SELECT @@global.enforce_gtid_consistency;
@@ -190,6 +191,7 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SELECT @@global.binlog_cache_size;
 SELECT @@global.collation_database;
 SELECT @@global.optimizer_trace_offset;
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @@global.optimizer_switch;
 SELECT @@global.enforce_gtid_consistency;
 SELECT @@global.sql_mode;

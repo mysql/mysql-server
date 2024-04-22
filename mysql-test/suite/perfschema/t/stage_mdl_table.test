@@ -47,6 +47,7 @@ let $wait_condition=
   and PROCESSLIST_STATE = 'Waiting for table metadata lock';
 --source include/wait_condition.inc
 
+--skip_if_hypergraph  # Differences in stages.
 call dump_one_thread('user1');
 call dump_one_thread('user2');
 

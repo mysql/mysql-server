@@ -16,3 +16,5 @@ ORDER BY 1 LIMIT 2 OFFSET 1;
 VALUES ROW(0, 1), ROW(4, 6), ROW(7, 5), ROW(5, 7), ROW(9, 8),
        ROW(7, 2), ROW(7, 6), ROW(4, 5), ROW(3, 2), ROW(9, 7)
 ORDER BY 1, 2;
+
+--source include/disable_hypergraph.inc

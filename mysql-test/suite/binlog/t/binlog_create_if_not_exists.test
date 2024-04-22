@@ -24,6 +24,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 --source include/rpl/sync_to_replica.inc
 --connection slave
 
+--sorted_result
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
 SELECT name FROM mysql.func WHERE name = 'metaphon';
 SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";
@@ -53,6 +54,7 @@ CREATE TRIGGER IF NOT EXISTS trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 --source include/rpl/sync_to_replica.inc
 --connection slave
 
+--sorted_result
 SELECT routine_name FROM information_schema.routines WHERE routine_schema = "test";
 SELECT name FROM mysql.func WHERE name = 'metaphon';
 SELECT trigger_name FROM information_schema.triggers WHERE trigger_schema = "test";

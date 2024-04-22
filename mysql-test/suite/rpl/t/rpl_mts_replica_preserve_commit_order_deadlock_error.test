@@ -33,6 +33,12 @@
 --source include/have_debug.inc
 --source include/rpl/init_source_replica.inc
 
+# The DELETE statement in step 3.4 uses a different plan with
+# hypergraph (table scan instead of index range scan) and takes
+# different locks. Consider using FORCE INDEX to get the desired plan
+# after WL#16005.
+--source include/not_hypergraph.inc
+
 --echo #
 --echo # 1. Initial data
 --echo #

@@ -3,6 +3,9 @@
 
 --source include/have_debug_sync.inc
 
+# The test is specific to the old optimizer.
+--source include/not_hypergraph.inc
+
 --echo
 --echo BUG#11763382 Assertion 'inited==INDEX' on SELECT MAX(...)
 --echo
