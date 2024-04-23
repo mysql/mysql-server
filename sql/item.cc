@@ -3107,12 +3107,12 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   if (lower_case_table_names == 1 ||
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used())) {
-    if (table_name_arg && table_name_arg[0]) {
+    if (!(query_type & QT_NO_TABLE) && table_name_arg && table_name_arg[0]) {
       my_stpcpy(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name = t_name_buff;
     }
-    if (db_name_arg && db_name_arg[0]) {
+    if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0]) {
       my_stpcpy(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name = d_name_buff;
