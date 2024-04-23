@@ -2499,21 +2499,24 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
 }
 
 String *Item_func_xml_update::val_str(String *str) {
-  String *res = nullptr, *rep = nullptr;
-
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
     assert(is_nullable());
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
-  if (!nodeset_func || !(res = args[0]->val_str(str)) ||
-      !(rep = args[2]->val_str(&tmp_value)) || !parse_xml(res, &pxml) ||
-      (nodeset_func->type() != XPATH_NODESET)) {
-    null_value = true;
-    return nullptr;
-  }
+  if (nodeset_func == nullptr) return error_str();
+
+  String *res = eval_string_arg(collation.collation, args[0], str);
+  if (res == nullptr) return error_str();
+
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> rep_buf(nullptr, 0,
+                                                 collation.collation);
+  String *rep = eval_string_arg(collation.collation, args[2], &rep_buf);
+  if (rep == nullptr) return error_str();
+
+  if (!parse_xml(res, &pxml)) return error_str();
+  if (nodeset_func->type() != XPATH_NODESET) return error_str();
 
   XPathFilter nodeset;
   down_cast<const Item_nodeset_func *>(nodeset_func)->val_nodeset(&nodeset);
