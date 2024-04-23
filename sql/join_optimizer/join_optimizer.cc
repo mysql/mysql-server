@@ -735,6 +735,18 @@ void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
 }
 
 /**
+  Check if the statement is killed or an error has been raised. If it is killed,
+  also make sure that the appropriate error is raised.
+ */
+bool CheckKilledOrError(THD *thd) {
+  if (thd->killed != THD::NOT_KILLED) {
+    thd->send_kill_message();
+    assert(thd->is_error());
+  }
+  return thd->is_error();
+}
+
+/**
   Called for each table in the query block, at some arbitrary point before we
   start seeing subsets where it's joined to other tables.
 
@@ -744,7 +756,7 @@ void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
   if there is a cost for materializing them.
  */
 bool CostingReceiver::FoundSingleNode(int node_idx) {
-  if (m_thd->is_error()) return true;
+  if (CheckKilledOrError(m_thd)) return true;
 
   m_graph->secondary_engine_costing_flags &=
       ~SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
@@ -3848,7 +3860,7 @@ void MoveDegenerateJoinConditionToFilter(THD *thd, Query_block *query_block,
  */
 bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                                         int edge_idx) {
-  if (m_thd->is_error()) return true;
+  if (CheckKilledOrError(m_thd)) return true;
 
   m_graph->secondary_engine_costing_flags |=
       SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
