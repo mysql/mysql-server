@@ -91,7 +91,7 @@ class Digest {
    *
    * @param data data to update digest function with
    */
-  void update(const std::span<uint8_t> &data) {
+  void update(const std::span<const uint8_t> &data) {
     EVP_DigestUpdate(ctx_.get(), data.data(), data.size());
   }
 
