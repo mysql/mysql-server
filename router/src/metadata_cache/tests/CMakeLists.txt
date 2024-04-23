@@ -32,8 +32,8 @@ ADD_TEST_FILE(test_cache_plugin.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
     test-helpers
-    mysqlxclient_lite
-    mysqlxmessages_lite
+    router_mysqlxclient
+    router_mysqlxmessages
     router_cluster    # ClusterMetadataDynamicState
   INCLUDE_DIRS
     ../src

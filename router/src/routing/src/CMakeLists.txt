@@ -23,10 +23,6 @@
 
 INCLUDE(GenerateExportHeader)
 
-IF (NOT TARGET ext::libprotobuf-lite)
-  MESSAGE(FATAL_ERROR "Routing plugin requires protobuf-lite library")
-ENDIF()
-
 ADD_LIBRARY(sql_lexer STATIC
   sql_lexer.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
@@ -170,7 +166,7 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   routing_connections
   router_mysqlxmessages
   routing_frontend_lib
-  ext::libprotobuf-lite
+  ext::libprotobuf
   metadata_cache
   connection_pool
   destination_status

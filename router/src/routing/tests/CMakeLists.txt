@@ -96,10 +96,10 @@ ADD_ROUTER_TEST_FILE(
   LIB_DEPENDS
     mysql_protocol
     test-helpers
-    mysqlxclient_lite
-    mysqlxmessages_lite
+    router_mysqlxclient
+    router_mysqlxmessages
     connection_pool
-    ext::libprotobuf-lite
+    ext::libprotobuf
     routing_connections
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src

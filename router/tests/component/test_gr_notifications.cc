@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #endif
 
 #include <gmock/gmock.h>
-#include <protobuf_lite/mysqlx_notice.pb.h>
+#include <protobuf/mysqlx_notice.pb.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>

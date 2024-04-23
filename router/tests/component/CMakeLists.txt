@@ -102,8 +102,8 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
-  mysqlxclient_lite
-  mysqlxmessages_lite
+  router_mysqlxclient
+  router_mysqlxmessages
   router_cluster
 
   DEPENDS
@@ -141,8 +141,8 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   $<TARGET_PROPERTY:routing_connections,INCLUDE_DIRECTORIES>
 
   LIB_DEPENDS
-  mysqlxclient_lite
-  mysqlxmessages_lite
+  router_mysqlxclient
+  router_mysqlxmessages
 
   DEPENDS
   http_auth_backend

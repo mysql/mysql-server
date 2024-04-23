@@ -25,7 +25,7 @@ INCLUDE(GenerateExportHeader)
 
 ADD_HARNESS_PLUGIN(router_protobuf SOURCES
   protobuf_plugin.cc
-  REQUIRES ext::libprotobuf-lite
+  REQUIRES ext::libprotobuf
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 TARGET_INCLUDE_DIRECTORIES(router_protobuf

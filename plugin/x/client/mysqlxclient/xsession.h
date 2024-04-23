@@ -33,6 +33,7 @@
 #include "mysqlxclient/xargument.h"
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xprotocol.h"
+#include "mysqlxclient_export.h"
 
 namespace xcl {
 
@@ -46,7 +47,7 @@ namespace xcl {
   X Protocol specific features (or flows) may require manual sending of
   X Protocol messages (user needs to acquire XProtocol interface).
 */
-class XSession {
+class MYSQLXCLIENT_EXPORT XSession {
  public:
   /**
     Capabilities supported by client library.
@@ -686,9 +687,9 @@ class XSession {
     @retval != nullptr     OK
     @retval == nullptr     error occurred
 */
-std::unique_ptr<XSession> create_session(const char *socket_file,
-                                         const char *user, const char *pass,
-                                         const char *schema, XError *out_error);
+std::unique_ptr<XSession> MYSQLXCLIENT_EXPORT
+create_session(const char *socket_file, const char *user, const char *pass,
+               const char *schema, XError *out_error);
 
 /**
   Create, connect and authenticate the session using TCP.
@@ -706,9 +707,9 @@ std::unique_ptr<XSession> create_session(const char *socket_file,
     @retval != nullptr     OK
     @retval == nullptr     error occurred
 */
-std::unique_ptr<XSession> create_session(const char *host, const uint16_t port,
-                                         const char *user, const char *pass,
-                                         const char *schema, XError *out_error);
+std::unique_ptr<XSession> MYSQLXCLIENT_EXPORT
+create_session(const char *host, const uint16_t port, const char *user,
+               const char *pass, const char *schema, XError *out_error);
 
 /**
   Create not connected session object.
@@ -717,7 +718,7 @@ std::unique_ptr<XSession> create_session(const char *host, const uint16_t port,
     @retval != nullptr     OK
     @retval == nullptr     error occurred
 */
-std::unique_ptr<XSession> create_session();
+std::unique_ptr<XSession> MYSQLXCLIENT_EXPORT create_session();
 
 }  // namespace xcl
 

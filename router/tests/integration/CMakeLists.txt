@@ -36,8 +36,8 @@ FOREACH(test_file
     MODULE "integration"
     LIB_DEPENDS
     routertest_helpers
-    mysqlxclient_lite
-    mysqlxmessages_lite
+    router_mysqlxclient
+    router_mysqlxmessages
     mysql_protocol
     )
 ENDFOREACH()
@@ -45,8 +45,8 @@ ENDFOREACH()
 ADD_GOOGLETEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_routing_reuse.cc
   MODULE "integration"
   LIB_DEPENDS
-  mysqlxclient
-  mysqlxmessages # for TextFormatParser
+  router_mysqlxclient
+  router_mysqlxmessages # for TextFormatParser
   routertest_helpers
   mysql_protocol
   )

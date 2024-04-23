@@ -21,61 +21,118 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+Include(GenerateExportHeader)
+
 # get the INCLUDE_DIRECTORIES manually, as cmake 3.6.x will fail if
 #
-#   $<TARGET_PROPERTY,mysqlxmessages_lite:INCLUDE_DIRECTORIES>
+#   $<TARGET_PROPERTY,mysqlxmessages:INCLUDE_DIRECTORIES>
 #
 # is used in TARGET_INCLUDE_DIRECTORIES().
 
-GET_TARGET_PROPERTY(XMSG_INC_DIRS mysqlxmessages_lite
+GET_TARGET_PROPERTY(XMSG_INC_DIRS mysqlxmessages_shared
   INCLUDE_DIRECTORIES)
-GET_TARGET_PROPERTY(XMSG_SYS_INC_DIRS mysqlxmessages_lite
+GET_TARGET_PROPERTY(XMSG_SYS_INC_DIRS mysqlxmessages_shared
   INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+# get the sources from 'mysqlxmessages' instead of
+# the shared version to get the dependencies lined up properly.
+GET_TARGET_PROPERTY(XMSG_SOURCES mysqlxmessages
+  SOURCES)
+GET_TARGET_PROPERTY(XMSG_COMPILE_DEFS mysqlxmessages_shared
+  INTERFACE_COMPILE_DEFINITIONS)
+GET_TARGET_PROPERTY(XMSG_COMPILE_OPTS mysqlxmessages_shared
+  INTERFACE_COMPILE_OPTIONS)
 
-# depends on mysqlxmessage_lite to ensure the .pb.h headers
-# are already built before they are included.
-ADD_CONVENIENCE_LIBRARY(router_mysqlxmessages_exports
-  mysqlxmessages_exports.cc
-  INCLUDE_DIRECTORIES ${XMSG_INC_DIRS}
-  SYSTEM_INCLUDE_DIRECTORIES ${XMSG_SYS_INC_DIRS}
-  DEPENDENCIES
-    mysqlxmessages_lite
+SET_SOURCE_FILES_PROPERTIES(${XMSG_SOURCES}
+  PROPERTIES GENERATED TRUE)
+
+ROUTER_ADD_SHARED_LIBRARY(router_mysqlxmessages
+  ${XMSG_SOURCES}
+
+  NO_EXPORT_HEADER
+  OUTPUT_NAME "mysqlrouter_mysqlxmessages"
+  # depend on mysqlxmessages to generate all the .pb.cc files.
+  DEPENDENCIES mysqlxmessages
+
+  LINK_LIBRARIES
+  PUBLIC
+  ext::libprotobuf
   )
-
-IF(WIN32)
-  ADD_SHARED_LIBRARY(router_mysqlxmessages
-    mysqlxmessages_exports.cc
-    COMPONENT Router
-    DESTINATION ${ROUTER_INSTALL_LIBDIR}
-    LINK_LIBRARIES
-      mysqlxmessages_lite
-      ext::libprotobuf-lite
-    OUTPUT_NAME "mysqlrouter_mysqlxmessages"
-    SOVERSION 1
-    )
-ELSE()
-  MERGE_LIBRARIES_SHARED(router_mysqlxmessages
-    router_mysqlxmessages_exports
-    EXPORTS
-      _mysqlrouter_mysqlxmessages_exports
-    COMPONENT Router
-    DESTINATION ${ROUTER_INSTALL_LIBDIR}
-    LINK_LIBRARIES
-      mysqlxmessages_lite
-    OUTPUT_NAME "mysqlrouter_mysqlxmessages"
-    SOVERSION 1
-    NAMELINK_SKIP
-    )
-
-  TARGET_LINK_LIBRARIES(router_mysqlxmessages
-    PUBLIC
-    ext::libprotobuf-lite
-    )
-ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(router_mysqlxmessages
   PUBLIC ${XMSG_INC_DIRS}
   )
 TARGET_INCLUDE_DIRECTORIES(router_mysqlxmessages
   SYSTEM PUBLIC ${XMSG_SYS_INC_DIRS}
+  )
+TARGET_COMPILE_DEFINITIONS(router_mysqlxmessages
+  PUBLIC ${XMSG_COMPILE_DEFS}
+  PRIVATE mysqlxmessages_shared_EXPORTS=1
+  )
+TARGET_COMPILE_OPTIONS(router_mysqlxmessages
+  PUBLIC ${XMSG_COMPILE_OPTS}
+  )
+
+# with LTO:
+#
+# plugin/x/generated/protobuf/mysqlx_prepare.pb.cc:
+# In member function 'InternalSwap':
+# lto1: error: writing 16 bytes into a region of size 0 [-Werror=stringop-overflow=]
+# plugin/x/generated/protobuf/mysqlx_prepare.pb.h:377:27:
+# note: at offset 16 into destination object 'find_' of size 8
+#
+IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND MY_COMPILER_IS_GNU)
+  MY_TARGET_LINK_OPTIONS(router_mysqlxmessages
+    "-Wno-error=stringop-overflow")
+ENDIF()
+
+## rebuild mysqlxclient as router_mysqlxclient
+
+GET_TARGET_PROPERTY(XCLI_INC_DIRS mysqlxclient_shared
+  INCLUDE_DIRECTORIES)
+GET_TARGET_PROPERTY(XCLI_SYS_INC_DIRS mysqlxclient_shared
+  INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+GET_TARGET_PROPERTY(XCLI_SOURCES mysqlxclient_shared
+  SOURCES)
+GET_TARGET_PROPERTY(XCLI_SOURCE_DIR mysqlxclient_shared
+  SOURCE_DIR)
+
+SET(XCLI_SOURCE_ABSOLUTE)
+FOREACH(F ${XCLI_SOURCES})
+  IF(IS_ABSOLUTE ${F})
+    LIST(APPEND XCLI_SOURCES_ABSOLUTE ${F})
+  ELSE()
+    LIST(APPEND XCLI_SOURCES_ABSOLUTE ${XCLI_SOURCE_DIR}/${F})
+  ENDIF()
+ENDFOREACH()
+
+ROUTER_ADD_SHARED_LIBRARY(router_mysqlxclient
+  ${XCLI_SOURCES_ABSOLUTE}
+
+  NO_EXPORT_HEADER
+  OUTPUT_NAME "mysqlrouter_mysqlxclient"
+  DEPENDENCIES GenError
+
+  LINK_LIBRARIES
+  PUBLIC
+  router_mysqlxmessages
+  ext::lz4
+  ext::zstd
+  ext::zlib
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  PRIVATE
+  vio
+  strings
+  mysys
+  )
+
+TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient
+  PUBLIC ${XCLI_INC_DIRS}
+  )
+TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient
+  SYSTEM PUBLIC ${XCLI_SYS_INC_DIRS}
+  )
+TARGET_COMPILE_DEFINITIONS(router_mysqlxclient
+  PUBLIC USE_MYSQLX_FULL_PROTO=1
+  PRIVATE mysqlxclient_shared_EXPORTS=1
   )
