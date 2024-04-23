@@ -5042,6 +5042,8 @@ bool udf_handler::get_and_convert_string(uint index) {
       return true;
     }
     if (errors) {
+      report_conversion_error(m_args_extension.charset_info[index], res->ptr(),
+                              res->length(), res->charset());
       return true;
     }
     f_args.args[index] = arg_buffers[index].c_ptr_safe();

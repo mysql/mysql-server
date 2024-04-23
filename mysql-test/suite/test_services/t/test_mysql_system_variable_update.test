@@ -244,6 +244,10 @@ SELECT @@test_component.int_sys_var;
 --echo # Try setting PERSIST_ONLY connection_memory_limit with sub-thread. Should succeed
 SELECT test_set_system_variable_signed_integer(1, NULL, "connection_memory_limit", 5000000, "PERSIST_ONLY");
 
+--echo # Bug#36420251 Argument charset conversion errors calling UDFs make the UDF returning a NULL
+--error ER_CANNOT_CONVERT_STRING
+SELECT test_set_system_variable_string(0, NULL, "Гергана", "on", "GLOBAL");
+
 --echo # Check that the variable is now persisted only but not changed:
 SELECT VARIABLE_VALUE,@@global.connection_memory_limit
   FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';

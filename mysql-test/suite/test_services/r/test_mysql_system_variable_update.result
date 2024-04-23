@@ -249,6 +249,9 @@ SELECT @@test_component.int_sys_var;
 SELECT test_set_system_variable_signed_integer(1, NULL, "connection_memory_limit", 5000000, "PERSIST_ONLY");
 test_set_system_variable_signed_integer(1, NULL, "connection_memory_limit", 5000000, "PERSIST_ONLY")
 0
+# Bug#36420251 Argument charset conversion errors calling UDFs make the UDF returning a NULL
+SELECT test_set_system_variable_string(0, NULL, "Гергана", "on", "GLOBAL");
+ERROR HY000: Cannot convert string '\xD0\x93\xD0\xB5\xD1\x80...' from utf8mb4 to latin1
 # Check that the variable is now persisted only but not changed:
 SELECT VARIABLE_VALUE,@@global.connection_memory_limit
 FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='connection_memory_limit';
