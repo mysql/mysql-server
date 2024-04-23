@@ -376,9 +376,9 @@ TEST_F(ItemTest, ItemEqual) {
       "0123456789012345678901234567890123456789"
       "0123456789012345678901234567890123456789"
       "0123456789012345678901234567890123456789";
-  Item_equal *item_equal =
-      new Item_equal(new Item_string(STRING_WITH_LEN(foo), &my_charset_bin),
-                     new Item_field(&mft));
+  Item_multi_eq *item_equal =
+      new Item_multi_eq(new Item_string(STRING_WITH_LEN(foo), &my_charset_bin),
+                        new Item_field(&mft));
 
   EXPECT_FALSE(item_equal->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_equal->val_int());
@@ -445,14 +445,14 @@ TEST_F(ItemTest, ItemEqualEq) {
   Mock_field_timestamp field2;
   field2.field_name = "field2";
 
-  Item_equal *item_equal1 =
-      new Item_equal(new Item_field(&field1), new Item_field(&field2));
-  Item_equal *item_equal2 =
-      new Item_equal(new Item_field(&field2), new Item_field(&field1));
-  Item_equal *item_equal3 =
-      new Item_equal(new Item_int(123), new Item_field(&field1));
-  Item_equal *item_equal4 =
-      new Item_equal(new Item_int(123), new Item_field(&field1));
+  Item_multi_eq *item_equal1 =
+      new Item_multi_eq(new Item_field(&field1), new Item_field(&field2));
+  Item_multi_eq *item_equal2 =
+      new Item_multi_eq(new Item_field(&field2), new Item_field(&field1));
+  Item_multi_eq *item_equal3 =
+      new Item_multi_eq(new Item_int(123), new Item_field(&field1));
+  Item_multi_eq *item_equal4 =
+      new Item_multi_eq(new Item_int(123), new Item_field(&field1));
   item_equal4->add(new Item_field(&field2));
 
   Item_func_equal *spaceship =

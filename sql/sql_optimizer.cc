@@ -108,6 +108,7 @@
 #include "sql/sql_const_folding.h"
 #include "sql/sql_error.h"
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
+#include "sql/sql_list.h"         // List_iterator_fast
 #include "sql/sql_planner.h"      // calculate_condition_filter
 #include "sql/sql_test.h"         // print_where
 #include "sql/sql_tmp_table.h"
@@ -231,13 +232,13 @@ bool JOIN::alloc_indirection_slices() {
 }
 
 /**
-  The List<Item_equal> in COND_EQUAL partially overlaps with the argument list
-  in various Item_cond via C-style casts. However, the hypergraph optimizer can
-  modify the lists in Item_cond (by calling compile()), causing an Item_equal to
-  be replaced with Item_func_eq, and this can cause a List<Item_equal> not to
-  contain Item_equal pointers anymore. This is is obviously bad if anybody wants
-  to actually look into these lists after optimization (in particular, NDB
-  wants this).
+  The List<Item_multi_eq> in COND_EQUAL partially overlaps with the argument
+  list in various Item_cond via C-style casts. However, the hypergraph optimizer
+  can modify the lists in Item_cond (by calling compile()), causing an
+  Item_multi_eq to be replaced with Item_func_eq, and this can cause a
+  List<Item_multi_eq> not to contain Item_multi_eq pointers anymore. This is is
+  obviously bad if anybody wants to actually look into these lists after
+  optimization (in particular, NDB wants this).
 
   Since untangling this spaghetti seems very hard, we solve it by brute force:
   Make a copy of all the COND_EQUAL lists, so that they no longer reach into the
@@ -247,8 +248,8 @@ static void SaveCondEqualLists(COND_EQUAL *cond_equal) {
   if (cond_equal == nullptr) {
     return;
   }
-  List<Item_equal> copy;
-  for (Item_equal &item : cond_equal->current_level) {
+  List<Item_multi_eq> copy;
+  for (Item_multi_eq &item : cond_equal->current_level) {
     copy.push_back(&item);
   }
   cond_equal->current_level = std::move(copy);
@@ -3701,12 +3702,13 @@ class COND_CMP : public ilink<COND_CMP> {
   COND_CMP(Item *a, Item_func *b) : and_level(a), cmp_func(b) {}
 };
 
-Item_equal *find_item_equal(COND_EQUAL *cond_equal,
-                            const Item_field *item_field, bool *inherited_fl) {
-  Item_equal *item = nullptr;
+Item_multi_eq *find_item_equal(COND_EQUAL *cond_equal,
+                               const Item_field *item_field,
+                               bool *inherited_fl) {
+  Item_multi_eq *item = nullptr;
   bool in_upper_level = false;
   while (cond_equal) {
-    List_iterator_fast<Item_equal> li(cond_equal->current_level);
+    List_iterator_fast<Item_multi_eq> li(cond_equal->current_level);
     while ((item = li++)) {
       if (item->contains(item_field->field)) goto finish;
     }
@@ -3736,8 +3738,8 @@ finish:
 
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal) {
   bool dummy;
-  Item_equal *item_eq = find_item_equal(cond_equal, item_field, &dummy);
-  if (!item_eq) return item_field;
+  Item_multi_eq *item_eq = find_item_equal(cond_equal, item_field, &dummy);
+  if (item_eq == nullptr) return item_field;
 
   return item_eq->get_subst_item(item_field);
 }
@@ -3768,13 +3770,13 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal) {
     the check_equality will be called for the following equality
     predicates a=b, b=c, b=2 and f=e.
     - For a=b it will be called with *cond_equal=(0,[]) and will transform
-      *cond_equal into (0,[Item_equal(a,b)]).
-    - For b=c it will be called with *cond_equal=(0,[Item_equal(a,b)])
-      and will transform *cond_equal into CE=(0,[Item_equal(a,b,c)]).
+      *cond_equal into (0,[Item_multi_eq(a,b)]).
+    - For b=c it will be called with *cond_equal=(0,[Item_multi_eq(a,b)])
+      and will transform *cond_equal into CE=(0,[Item_multi_eq(a,b,c)]).
     - For b=2 it will be called with *cond_equal=(ptr(CE),[])
-      and will transform *cond_equal into (ptr(CE),[Item_equal(2,a,b,c)]).
+      and will transform *cond_equal into (ptr(CE),[Item_multi_eq(2,a,b,c)]).
     - For f=e it will be called with *cond_equal=(ptr(CE), [])
-      and will transform *cond_equal into (ptr(CE),[Item_equal(f,e)]).
+      and will transform *cond_equal into (ptr(CE),[Item_multi_eq(f,e)]).
 
   @note
     Now only fields that have the same type definitions (verified by
@@ -3855,9 +3857,9 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
 
     /* Search for multiple equalities containing field1 and/or field2 */
     bool left_copyfl, right_copyfl;
-    Item_equal *left_item_equal =
+    Item_multi_eq *left_item_equal =
         find_item_equal(cond_equal, left_item_field, &left_copyfl);
-    Item_equal *right_item_equal =
+    Item_multi_eq *right_item_equal =
         find_item_equal(cond_equal, right_item_field, &right_copyfl);
 
     /* As (NULL=NULL) != TRUE we can't just remove the predicate f=f */
@@ -3882,13 +3884,13 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
     /* Copy the found multiple equalities at the current level if needed */
     if (left_copyfl) {
       /* left_item_equal of an upper level contains left_item */
-      left_item_equal = new Item_equal(left_item_equal);
+      left_item_equal = new Item_multi_eq(left_item_equal);
       if (left_item_equal == nullptr) return true;
       cond_equal->current_level.push_back(left_item_equal);
     }
     if (right_copyfl) {
       /* right_item_equal of an upper level contains right_item */
-      right_item_equal = new Item_equal(right_item_equal);
+      right_item_equal = new Item_multi_eq(right_item_equal);
       if (right_item_equal == nullptr) return true;
       cond_equal->current_level.push_back(right_item_equal);
     }
@@ -3901,7 +3903,7 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         /* Merge two multiple equalities forming a new one */
         if (left_item_equal->merge(thd, right_item_equal)) return true;
         /* Remove the merged multiple equality from the list */
-        List_iterator<Item_equal> li(cond_equal->current_level);
+        List_iterator<Item_multi_eq> li(cond_equal->current_level);
         while ((li++) != right_item_equal)
           ;
         li.remove();
@@ -3912,9 +3914,9 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         right_item_equal->add(down_cast<Item_field *>(left_item));
       } else {
         /* None of the fields was found in multiple equalities */
-        Item_equal *item_equal =
-            new Item_equal(down_cast<Item_field *>(left_item),
-                           down_cast<Item_field *>(right_item));
+        Item_multi_eq *item_equal =
+            new Item_multi_eq(down_cast<Item_field *>(left_item),
+                              down_cast<Item_field *>(right_item));
         if (item_equal == nullptr) return true;
         cond_equal->current_level.push_back(item_equal);
       }
@@ -3993,34 +3995,36 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       }
 
       bool copyfl;
-      Item_equal *item_equal = find_item_equal(cond_equal, field_item, &copyfl);
+      Item_multi_eq *multi_eq =
+          find_item_equal(cond_equal, field_item, &copyfl);
       if (copyfl) {
-        item_equal = new Item_equal(item_equal);
-        if (item_equal == nullptr) return true;
-        cond_equal->current_level.push_back(item_equal);
+        multi_eq = new Item_multi_eq(multi_eq);
+        if (multi_eq == nullptr) return true;
+        cond_equal->current_level.push_back(multi_eq);
       }
-      if (item_equal) {
-        if (item_equal->const_arg() != nullptr) {
+      if (multi_eq != nullptr) {
+        if (multi_eq->const_arg() != nullptr) {
           // Make sure that the existing const and new one are of comparable
           // collation.
           DTCollation cmp_collation;
           if (cmp_collation.set(const_item->collation,
-                                item_equal->const_arg()->collation,
+                                multi_eq->const_arg()->collation,
                                 MY_COLL_CMP_CONV) ||
               cmp_collation.derivation == DERIVATION_NONE) {
             return false;
           }
         }
         /*
-          The flag cond_false will be set to 1 after this, if item_equal
-          already contains a constant and its value is  not equal to
-          the value of const_item.
+          When adding this coonst_item, if this Item_multi_eq already had a
+          constant set and it's value is not also equal to this const_item,
+          we'll set the m_always_false = true as a condition cannot have
+          two distinct values at the same time.
         */
-        if (item_equal->add(thd, const_item, field_item)) return true;
+        if (multi_eq->add(thd, const_item, field_item)) return true;
       } else {
-        item_equal = new Item_equal(const_item, field_item);
-        if (item_equal == nullptr) return true;
-        cond_equal->current_level.push_back(item_equal);
+        multi_eq = new Item_multi_eq(const_item, field_item);
+        if (multi_eq == nullptr) return true;
+        cond_equal->current_level.push_back(multi_eq);
       }
       *simple_equality = true;
       return false;
@@ -4123,7 +4127,7 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
 
   @note If the equality was created by IN->EXISTS, it may be removed later by
   subquery materialization. So we don't mix this possibly temporary equality
-  with others; if we let it go into a multiple-equality (Item_equal), then we
+  with others; if we let it go into a multiple-equality (Item_multi_eq), then we
   could not remove it later. There is however an exception: if the outer
   expression is a constant, it is safe to leave the equality even in
   materialization; all it can do is preventing NULL/FALSE distinction but if
@@ -4164,13 +4168,12 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
   Replace all equality predicates in a condition by multiple equality items.
 
     At each 'and' level the function detects items for equality predicates
-    and replaces them by a set of multiple equality items of class Item_equal,
-    taking into account inherited equalities from upper levels.
-    If an equality predicate is used not in a conjunction it's just
-    replaced by a multiple equality predicate.
-    For each 'and' level the function set a pointer to the inherited
-    multiple equalities in the cond_equal field of the associated
-    object of the type Item_cond_and.
+    and replaces them by a set of multiple equality items of class
+    Item_multi_eq, taking into account inherited equalities from upper levels.
+    If an equality predicate is used not in a conjunction it's just replaced by
+    a multiple equality predicate. For each 'and' level the function set
+    a pointer to the inherited multiple equalities in the cond_equal field of
+    the associated object of the type Item_cond_and.
     The function also traverses the cond tree and for each field reference
     sets a pointer to the multiple equality item containing the field, if there
     is any. If this multiple equality equates fields to a constant the
@@ -4202,19 +4205,19 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     The function performs the substitution in a recursive descent of
     the condition tree, passing to the next AND level a chain of multiple
     equality predicates which have been built at the upper levels.
-    The Item_equal items built at the level are attached to other
+    The Item_multi_eq items built at the level are attached to other
     non-equality conjuncts as a sublist. The pointer to the inherited
     multiple equalities is saved in the and condition object (Item_cond_and).
     This chain allows us for any field reference occurrence to easily find a
     multiple equality that must be held for this occurrence.
     For each AND level we do the following:
     - scan it for all equality predicate (=) items
-    - join them into disjoint Item_equal() groups
+    - join them into disjoint Item_multi_eq() groups
     - process the included OR conditions recursively to do the same for
       lower AND levels.
 
     We need to do things in this order as lower AND levels need to know about
-    all possible Item_equal objects in upper levels.
+    all possible Item_multi_eq objects in upper levels.
 
   @param thd          thread handle
   @param cond         condition(expression) where to make replacement
@@ -4228,7 +4231,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
 
 static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
                                        COND_EQUAL *inherited, bool do_inherit) {
-  Item_equal *item_equal;
+  Item_multi_eq *item_equal;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels = inherited;
   assert(cond->is_bool_func());
@@ -4274,7 +4277,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
         return *retcond == nullptr;
       }
 
-      List_iterator_fast<Item_equal> it(cond_equal.current_level);
+      List_iterator_fast<Item_multi_eq> it(cond_equal.current_level);
       while ((item_equal = it++)) {
         if (item_equal->resolve_type(thd)) return true;
         item_equal->update_used_tables();
@@ -4354,7 +4357,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
 
         and_cond->quick_fix_field();
         List<Item> *args = and_cond->argument_list();
-        List_iterator_fast<Item_equal> it(cond_equal.current_level);
+        List_iterator_fast<Item_multi_eq> it(cond_equal.current_level);
         while ((item_equal = it++)) {
           if (item_equal->resolve_type(thd)) return true;
           item_equal->update_used_tables();
@@ -4475,10 +4478,10 @@ static bool build_equal_items(THD *thd, Item *cond, Item **retcond,
       cond_equal = &down_cast<Item_cond_and *>(cond)->cond_equal;
     else if (cond_type == Item::FUNC_ITEM &&
              down_cast<Item_func *>(cond)->functype() ==
-                 Item_func::MULT_EQUAL_FUNC) {
+                 Item_func::MULTI_EQ_FUNC) {
       cond_equal = new (thd->mem_root) COND_EQUAL;
       if (cond_equal == nullptr) return true;
-      cond_equal->current_level.push_back(down_cast<Item_equal *>(cond));
+      cond_equal->current_level.push_back(down_cast<Item_multi_eq *>(cond));
     }
   }
   if (cond_equal) {
@@ -4597,7 +4600,7 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
 
 static Item *eliminate_item_equal(THD *thd, Item *cond,
                                   COND_EQUAL *upper_levels,
-                                  Item_equal *item_equal) {
+                                  Item_multi_eq *item_equal) {
   List<Item> eq_list;
   Item *eq_item = nullptr;
   if (item_equal->const_item() && !item_equal->val_int())
@@ -4619,7 +4622,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
       First see if we really need to generate it:
     */
     Item_field *item_field = &*it++;  // Field to generate equality for.
-    Item_equal *const upper = item_field->find_item_equal(upper_levels);
+    Item_multi_eq *const upper = item_field->find_multi_equality(upper_levels);
     if (upper)  // item_field is in this upper equality
     {
       if (item_const && upper->const_arg())
@@ -4629,7 +4632,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
         need to generate the equality, unless item_field belongs to a
         semi-join nest that is used for Materialization, and refers to tables
         that are outside of the materialized semi-join nest,
-        As noted in Item_equal::get_subst_item(), subquery materialization
+        As noted in Item_multi_eq::get_subst_item(), subquery materialization
         does not have this problem.
       */
       JOIN_TAB *const tab = item_field->field->table->reginfo.join_tab;
@@ -4638,7 +4641,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
         Item_field *item_match;
         auto li = item_equal->get_fields().begin();
         while ((item_match = &*li++) != item_field) {
-          if (item_match->find_item_equal(upper_levels) == upper)
+          if (item_match->find_multi_equality(upper_levels) == upper)
             break;  // (item_match, item_field) is also in upper level equality
         }
         if (item_match != item_field) continue;
@@ -4675,7 +4678,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
       unless the item is within a materialized semijoin nest, in case it will
       be matched against the first item within the SJM nest.
       @see JOIN::set_prefix_tables()
-      @see Item_equal::get_subst_item()
+      @see Item_multi_eq::get_subst_item()
     */
 
     Item *const head =
@@ -4775,11 +4778,11 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
       cond_equal = &((Item_cond_and *)cond)->cond_equal;
       cond_list->disjoin((List<Item> *)&cond_equal->current_level);
 
-      List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      List_iterator_fast<Item_multi_eq> it(cond_equal->current_level);
       auto cmp = [table_join_idx](Item_field *f1, Item_field *f2) {
         return compare_fields_by_table_order(f1, f2, table_join_idx);
       };
-      Item_equal *item_equal;
+      Item_multi_eq *item_equal;
       while ((item_equal = it++)) {
         item_equal->sort(cmp);
       }
@@ -4799,8 +4802,8 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
     }
 
     if (and_level) {
-      List_iterator_fast<Item_equal> it(cond_equal->current_level);
-      Item_equal *item_equal;
+      List_iterator_fast<Item_multi_eq> it(cond_equal->current_level);
+      Item_multi_eq *item_equal;
       while ((item_equal = it++)) {
         cond = eliminate_item_equal(thd, cond, cond_equal->upper_levels,
                                     item_equal);
@@ -4817,8 +4820,8 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
                               : implicit_cast<Item *>(new Item_func_false());
   } else if (cond->type() == Item::FUNC_ITEM &&
              (down_cast<Item_func *>(cond))->functype() ==
-                 Item_func::MULT_EQUAL_FUNC) {
-    Item_equal *item_equal = down_cast<Item_equal *>(cond);
+                 Item_func::MULTI_EQ_FUNC) {
+    Item_multi_eq *item_equal = down_cast<Item_multi_eq *>(cond);
     item_equal->sort([table_join_idx](Item_field *f1, Item_field *f2) {
       return compare_fields_by_table_order(f1, f2, table_join_idx);
     });
@@ -5214,7 +5217,7 @@ void JOIN::set_prefix_tables() {
       conditions referring to preceding non-const tables.
        - If we're looking at the first SJM table, reset current_tables_map
          to refer to only allowed tables
-      @see Item_equal::get_subst_item()
+      @see Item_multi_eq::get_subst_item()
       @see eliminate_item_equal()
     */
     if (sj_is_materialize_strategy(tab->get_sj_strategy())) {
@@ -7096,7 +7099,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
          cond->functype() == Item_func::LT_FUNC ||
          cond->functype() == Item_func::GE_FUNC ||
          cond->functype() == Item_func::LE_FUNC ||
-         cond->functype() == Item_func::MULT_EQUAL_FUNC ||
+         cond->functype() == Item_func::MULTI_EQ_FUNC ||
          cond->functype() == Item_func::EQUAL_FUNC ||
          cond->functype() == Item_func::LIKE_FUNC ||
          cond->functype() == Item_func::ISNULL_FUNC ||
@@ -7310,7 +7313,7 @@ static bool add_key_equal_fields(THD *thd, Key_field **key_fields,
   if (add_key_field(thd, key_fields, and_level, cond, field_item, eq_func, val,
                     num_values, usable_tables, sargables))
     return true;
-  Item_equal *item_equal = field_item->multi_equality();
+  Item_multi_eq *item_equal = field_item->multi_equality();
   if (item_equal == nullptr) return false;
   /*
     Add to the set of possible key values every substitution of
@@ -7714,7 +7717,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
       }
       break;
     case Item_func::OPTIMIZE_EQUAL:
-      Item_equal *item_equal = (Item_equal *)cond;
+      Item_multi_eq *item_equal = down_cast<Item_multi_eq *>(cond);
       Item *const_item = item_equal->const_arg();
       if (const_item) {
         /*

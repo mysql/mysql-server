@@ -3368,7 +3368,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
                              &query_block->m_table_nest,
                              &query_block->cond_value));
   EXPECT_EQ(1, cond_equal->current_level.size());
-  const Item_equal *eq = cond_equal->current_level.head();
+  const Item_multi_eq *eq = cond_equal->current_level.head();
   EXPECT_EQ(nullptr, eq->const_arg());
   EXPECT_EQ(4, eq->get_fields().size());
 
@@ -3432,7 +3432,7 @@ TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithSargable) {
                              &query_block->m_table_nest,
                              &query_block->cond_value));
   EXPECT_EQ(1, cond_equal->current_level.size());
-  const Item_equal *eq = cond_equal->current_level.head();
+  const Item_multi_eq *eq = cond_equal->current_level.head();
   EXPECT_EQ(nullptr, eq->const_arg());
   EXPECT_EQ(3, eq->get_fields().size());
 
@@ -7991,8 +7991,8 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
                              &query_block->m_table_nest,
                              &query_block->cond_value));
   EXPECT_EQ(1, cond_equal->current_level.size());
-  EXPECT_TRUE(is_function_of_type(query_block->where_cond(),
-                                  Item_func::MULT_EQUAL_FUNC));
+  EXPECT_TRUE(
+      is_function_of_type(query_block->where_cond(), Item_func::MULTI_EQ_FUNC));
   query_block->join->where_cond = query_block->where_cond();
 
   const size_t mem_root_size_after_resolving = thd->mem_root->allocated_size();

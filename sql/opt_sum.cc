@@ -638,9 +638,9 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
   *inv_order = false;
   switch (func_item->argument_count()) {
     case 0:
-      /* MULT_EQUAL_FUNC */
+      /* MULTI_EQ_FUNC */
       {
-        Item_equal *item_equal = down_cast<Item_equal *>(func_item);
+        Item_multi_eq *item_equal = down_cast<Item_multi_eq *>(func_item);
         args[0] = item_equal->get_first();
         if (item_equal->members() > 1) return false;
         if (!(args[1] = item_equal->const_arg())) return false;
@@ -847,7 +847,7 @@ static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
       if (((Item_func_between *)cond)->negated) return false;
 
       break;
-    case Item_func::MULT_EQUAL_FUNC:
+    case Item_func::MULTI_EQ_FUNC:
       eq_type = true;
       break;
     default:
@@ -1184,7 +1184,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     }
     case Item_func::EQ_FUNC:
     case Item_func::EQUAL_FUNC:
-    case Item_func::MULT_EQUAL_FUNC:
+    case Item_func::MULTI_EQ_FUNC:
     case Item_func::ISNULL_FUNC:
       break;
     default:          // Keep compiler happy

@@ -299,7 +299,7 @@ KeySelectivityResult EstimateSelectivityFromIndexStatistics(
      clearly prefer the least risky choice here.
 
   Returns -1.0 if no index or no histogram was found. Lifted from
-  Item_equal::get_filtering_effect.
+  Item_multi_eq::get_filtering_effect.
 
   @param[in] thd The current thread.
   @param[in] equal_fields  The equijoined fields for which we calculate
@@ -446,8 +446,8 @@ double EstimateSelectivity(THD *thd, Item *condition,
   // If we get more sophisticated cardinality estimation, e.g. by histograms
   // or the likes, we need to revisit this assumption, and potentially adjust
   // our model here.
-  if (is_function_of_type(condition, Item_func::MULT_EQUAL_FUNC)) {
-    Item_equal *equal = down_cast<Item_equal *>(condition);
+  if (is_function_of_type(condition, Item_func::MULTI_EQ_FUNC)) {
+    Item_multi_eq *equal = down_cast<Item_multi_eq *>(condition);
 
     // These should have been expanded early, before we get here.
     assert(equal->const_arg() == nullptr);

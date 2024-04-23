@@ -110,7 +110,9 @@ typedef enum {
 } decimal_round_mode;
 typedef int32 decimal_digit_t;
 struct decimal_t {
-  int intg, frac, len;
+  int intg;
+  int frac;
+  int len;
   bool sign;
   decimal_digit_t *buf;
 };

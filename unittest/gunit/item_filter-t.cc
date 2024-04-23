@@ -230,8 +230,8 @@ Item_func *ItemFilterTest::create_item(Item_func::Functype type, Field *fld,
     case Item_func::LE_FUNC:
       result = new Item_func_le(new Item_field(fld), new Item_int(val1));
       break;
-    case Item_func::MULT_EQUAL_FUNC:
-      result = new Item_equal(new Item_int(val1), new Item_field(fld));
+    case Item_func::MULTI_EQ_FUNC:
+      result = new Item_multi_eq(new Item_int(val1), new Item_field(fld));
       break;
     case Item_func::XOR_FUNC:
       result = new Item_func_xor(new Item_field(fld), new Item_int(val1));
@@ -273,7 +273,7 @@ TEST_F(ItemFilterTest, BasicDefaultRows) {
   bitmap_init(&no_ignore_flds, nullptr, m_table->s->fields);
 
   // Check filtering for predicate: field0 = 10
-  create_item_check_filter(COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC,
+  create_item_check_filter(COND_FILTER_EQUALITY, Item_func::MULTI_EQ_FUNC,
                            m_field[0], 10, unused_int, used_tables,
                            &no_ignore_flds);
   // Check filtering for predicate: field0 > 10
@@ -322,7 +322,7 @@ TEST_F(ItemFilterTest, BasicIgnoreField) {
   bitmap_set_bit(&ignore_fld0, m_field[0]->field_index());
 
   // Check filtering for predicate on ignored field: field0 = 10
-  create_item_check_filter(COND_FILTER_ALLPASS, Item_func::MULT_EQUAL_FUNC,
+  create_item_check_filter(COND_FILTER_ALLPASS, Item_func::MULTI_EQ_FUNC,
                            m_field[0], 10, unused_int, used_tables,
                            &ignore_fld0);
   // Check filtering for predicate on ignored field: field0 > 10
@@ -350,7 +350,7 @@ TEST_F(ItemFilterTest, BasicIgnoreField) {
                            10, 12, used_tables, &ignore_fld0);
 
   // Verifying that predicates on other fields are not ignored
-  create_item_check_filter(COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC,
+  create_item_check_filter(COND_FILTER_EQUALITY, Item_func::MULTI_EQ_FUNC,
                            m_field[1], 10, unused_int, used_tables,
                            &ignore_fld0);
 
@@ -372,11 +372,11 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
 
   // Create predicate: field0 = 10
   Item *eq_item1 = create_item_check_filter(
-      COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC, m_field[0], 10,
+      COND_FILTER_EQUALITY, Item_func::MULTI_EQ_FUNC, m_field[0], 10,
       unused_int, used_tables, &ignore_flds);
   // Create predicate: field1 = 10
   Item *eq_item2 = create_item_check_filter(
-      COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC, m_field[1], 10,
+      COND_FILTER_EQUALITY, Item_func::MULTI_EQ_FUNC, m_field[1], 10,
       unused_int, used_tables, &ignore_flds);
 
   // Create predicate: field2 < 99
@@ -445,11 +445,11 @@ TEST_F(ItemFilterTest, BasicConstOr) {
 
   // Create predicate: field0 = 10
   Item *eq_item1 = create_item_check_filter(
-      COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC, m_field[0], 10,
+      COND_FILTER_EQUALITY, Item_func::MULTI_EQ_FUNC, m_field[0], 10,
       unused_int, used_tables, &ignore_flds);
   // Create predicate: field1 = 10
   Item *eq_item2 = create_item_check_filter(
-      COND_FILTER_EQUALITY, Item_func::MULT_EQUAL_FUNC, m_field[1], 10,
+      COND_FILTER_EQUALITY, Item_func::MULTI_EQ_FUNC, m_field[1], 10,
       unused_int, used_tables, &ignore_flds);
 
   // Create predicate: field2 < 99

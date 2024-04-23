@@ -1076,8 +1076,8 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
                              bool manifest_result, Item **retcond,
                              Item::cond_result *cond_value) {
   Item *i = nullptr;
-  const int is_top_level =
-      ft == Item_func::MULT_EQUAL_FUNC ||
+  const bool is_top_level =
+      ft == Item_func::MULTI_EQ_FUNC ||
       down_cast<Item_bool_func2 *>(*retcond)->ignore_unknown();
   if (always_true) {
     if (ref_or_field->is_nullable()) {
@@ -1298,7 +1298,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
     case Item_func::GE_FUNC:
     case Item_func::GT_FUNC:
     case Item_func::EQUAL_FUNC:
-    case Item_func::MULT_EQUAL_FUNC:
+    case Item_func::MULTI_EQ_FUNC:
       break;
     default:
       /* Not a comparison function, so fold its args instead */
@@ -1307,7 +1307,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
   Item **args = nullptr;
 
-  if (func_type != Item_func::MULT_EQUAL_FUNC) {
+  if (func_type != Item_func::MULTI_EQ_FUNC) {
     args = func->arguments();
   } else {
     /*
@@ -1315,7 +1315,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
       normal comparison functions and multi-equal: we use a scratch two args
       array and update the multi-equal's normal constant later.
     */
-    const auto equal = down_cast<Item_equal *>(func);
+    auto *const equal = down_cast<Item_multi_eq *>(func);
     // Use first field:  any one will do: they have the same type
     equal->m_const_folding[0] = equal->get_first();
     equal->m_const_folding[1] = equal->const_arg();
@@ -1420,7 +1420,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
     case Item_func::EQ_FUNC:
     case Item_func::EQUAL_FUNC:
     case Item_func::NE_FUNC:
-    case Item_func::MULT_EQUAL_FUNC:
+    case Item_func::MULTI_EQ_FUNC:
       switch (place) {
         case RP_OUTSIDE_HIGH:
         case RP_OUTSIDE_LOW:
@@ -1438,9 +1438,9 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         case RP_ON_MIN:
           break;
       }
-      if (func_type == Item_func::MULT_EQUAL_FUNC && (*retcond != nullptr)) {
+      if (func_type == Item_func::MULTI_EQ_FUNC && (*retcond != nullptr)) {
         // The constant may have been modified, update the multi-equal
-        const auto equal = down_cast<Item_equal *>(func);
+        auto *const equal = down_cast<Item_multi_eq *>(func);
         assert(equal->m_const_folding[1] != nullptr);  // the constant
         equal->set_const_arg(equal->m_const_folding[1]);
       }

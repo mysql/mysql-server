@@ -326,8 +326,8 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
     case Item_func::LT_FUNC:
       result = new Item_func_lt(new Item_field(fld), new Item_int(value));
       break;
-    case Item_func::MULT_EQUAL_FUNC:
-      result = new Item_equal(new Item_int(value), new Item_field(fld));
+    case Item_func::MULTI_EQ_FUNC:
+      result = new Item_multi_eq(new Item_int(value), new Item_field(fld));
       break;
     case Item_func::XOR_FUNC:
       result = new Item_func_xor(new Item_field(fld), new Item_int(value));

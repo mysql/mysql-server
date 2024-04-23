@@ -29,7 +29,7 @@
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 
-class Item_equal;
+class Item_multi_eq;
 class NdbTransaction;
 class NdbQueryBuilder;
 class NdbQueryOperand;
@@ -586,7 +586,7 @@ struct pushed_table {
 
   const TABLE *get_table() const { return m_table; }
 
-  Item_equal *get_item_equal(const Item_field *field_item) const;
+  Item_multi_eq *get_item_equal(const Item_field *field_item) const;
 
   ndb_table_map get_tables_in_this_query_scope() const;
   ndb_table_map get_tables_in_all_query_scopes() const;

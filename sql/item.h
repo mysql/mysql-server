@@ -77,16 +77,22 @@
 #include "template_utils.h"
 
 class Item;
+class Item_cache;
+class Item_in_subselect;
 class Item_field;
 class Item_func;
+class Item_multi_eq;
 class Item_singlerow_subselect;
 class Item_sum;
 class Json_wrapper;
 class Protocol;
 class Query_block;
 class Security_context;
+class sp_head;
+class sp_rcontext;
 class THD;
 class user_var_entry;
+struct COND_EQUAL;
 struct TYPELIB;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
@@ -653,8 +659,6 @@ class Type_properties {
 };
 
 /*************************************************************************/
-
-class sp_rcontext;
 
 class Settable_routine_parameter {
  public:
@@ -3821,8 +3825,6 @@ Item *TransformItem(Item *item, T &&transformer) {
                          pointer_cast<uchar *>(&transformer));
 }
 
-class sp_head;
-
 class Item_basic_constant : public Item {
   table_map used_table_map;
 
@@ -4362,9 +4364,6 @@ class Item_ident_for_show final : public Item {
   }
 };
 
-class COND_EQUAL;
-class Item_equal;
-
 class Item_field : public Item_ident {
   typedef Item_ident super;
 
@@ -4426,7 +4425,7 @@ class Item_field : public Item_ident {
     this analysis should be performed during preparation instead, so that
     Item_field can be const after preparation.
   */
-  Item_equal *m_multi_equality{nullptr};
+  Item_multi_eq *m_multi_equality{nullptr};
 
  public:
   /**
@@ -4434,9 +4433,9 @@ class Item_field : public Item_ident {
     if index value is not known.
   */
   uint16 field_index{NO_FIELD_INDEX};
-  Item_equal *multi_equality() const { return m_multi_equality; }
+  Item_multi_eq *multi_equality() const { return m_multi_equality; }
 
-  void set_item_equal_all_join_nests(Item_equal *item_equal) {
+  void set_item_equal_all_join_nests(Item_multi_eq *item_equal) {
     assert(item_equal != nullptr);
     item_equal_all_join_nests = item_equal;
   }
@@ -4450,7 +4449,7 @@ class Item_field : public Item_ident {
   // generate join conditions that references unreachable fields for said
   // iterators.) The split is done because NDB expects the list to only
   // contain fields from the same join nest.
-  Item_equal *item_equal_all_join_nests{nullptr};
+  Item_multi_eq *item_equal_all_join_nests{nullptr};
   /// If true, the optimizer's constant propagation will not replace this item
   /// with an equal constant.
   bool no_constant_propagation{false};
@@ -4556,7 +4555,7 @@ class Item_field : public Item_ident {
   Item *replace_with_derived_expr_ref(uchar *arg) override;
   void cleanup() override;
   void reset_field();
-  Item_equal *find_item_equal(COND_EQUAL *cond_equal) const;
+  Item_multi_eq *find_multi_equality(COND_EQUAL *cond_equal) const;
   bool subst_argument_checker(uchar **arg) override;
   Item *equal_fields_propagator(uchar *arg) override;
   Item *replace_item_field(uchar *) override;
@@ -6309,8 +6308,6 @@ class Item_outer_ref final : public Item_ref {
   Item *replace_outer_ref(uchar *) override;
 };
 
-class Item_in_subselect;
-
 /*
   An object of this class is like Item_ref, and
   sets owner->was_null=true if it has returned a NULL value from any
@@ -6516,8 +6513,6 @@ class Item_metadata_copy final : public Item {
   */
   Item_result cached_result_type;
 };
-
-class Item_cache;
 
 /**
   This is used for segregating rows in groups (e.g. GROUP BY, windows), to

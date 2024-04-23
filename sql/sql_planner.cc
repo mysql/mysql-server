@@ -1561,11 +1561,11 @@ static ulonglong get_bound_sj_equalities(const JOIN_TAB *tab,
     else
       continue;
     Item_field *const item_field = down_cast<Item_field *>(item);
-    Item_equal *item_equal = item_field->multi_equality();
+    Item_multi_eq *item_equal = item_field->multi_equality();
     if (item_equal == nullptr) {
       Table_ref *const nest = item_field->m_table_ref->outer_join_nest();
-      item_equal = item_field->find_item_equal(nest ? nest->cond_equal
-                                                    : tab->join()->cond_equal);
+      item_equal = item_field->find_multi_equality(
+          (nest != nullptr) ? nest->cond_equal : tab->join()->cond_equal);
     }
     if (item_equal != nullptr) {
       /*

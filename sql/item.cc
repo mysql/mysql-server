@@ -1445,7 +1445,7 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
   This function is called when:
   - Comparing items in the WHERE clause (when doing where optimization)
   - When trying to find an ORDER BY/GROUP BY item in the SELECT part
-  - When matching fields in multiple equality objects (Item_equal)
+  - When matching fields in multiple equality objects (Item_multi_eq)
 */
 
 bool Item::eq(const Item *item) const {
@@ -6169,7 +6169,7 @@ void Item_field::reset_field() {
 
   The function first searches the field among multiple equalities
   of the current level (in the cond_equal->current_level list).
-  If it fails, it continues searching in upper levels accessed
+  If it fails, it continues searching in outer levels accessed
   through a pointer cond_equal->upper_levels.
   The search terminates as soon as a multiple equality containing
   the field is found.
@@ -6178,13 +6178,13 @@ void Item_field::reset_field() {
                       the field (this object) is to be looked for
 
   @return
-    - First Item_equal containing the field, if success
+    - First Item_multi_eq containing the field, if success
     - nullptr, otherwise
 */
 
-Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal) const {
+Item_multi_eq *Item_field::find_multi_equality(COND_EQUAL *cond_equal) const {
   while (cond_equal) {
-    for (Item_equal &item : cond_equal->current_level) {
+    for (Item_multi_eq &item : cond_equal->current_level) {
       if (item.contains(field)) return &item;
     }
     /*
@@ -6285,7 +6285,7 @@ static void convert_zerofill_number_to_string(Item **item,
 
 Item *Item_field::equal_fields_propagator(uchar *arg) {
   if (no_constant_propagation) return this;
-  m_multi_equality = find_item_equal((COND_EQUAL *)arg);
+  m_multi_equality = find_multi_equality(pointer_cast<COND_EQUAL *>(arg));
   if (m_multi_equality == nullptr) return this;
   Item *item = m_multi_equality->const_arg();
   if (item == nullptr) return this;
@@ -6410,7 +6410,7 @@ Item *Item_default_value::replace_item_field(uchar *argp) {
   object refers to (belongs to) unless item_equal contains  a constant
   item. In this case the function returns this constant item,
   (if the substitution does not require conversion).
-  If the Item_field object does not refer any Item_equal object
+  If the Item_field object does not refer any Item_multi_eq object
   'this' is returned .
 
   @note

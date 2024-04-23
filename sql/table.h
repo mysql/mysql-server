@@ -74,7 +74,6 @@ class Histogram;
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-class COND_EQUAL;
 class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
@@ -108,6 +107,7 @@ enum enum_stats_auto_recalc : int;
 enum Value_generator_source : short;
 enum row_type : int;
 struct AccessPath;
+struct COND_EQUAL;
 struct HA_CREATE_INFO;
 struct LEX;
 struct NESTED_JOIN;

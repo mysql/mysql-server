@@ -1947,11 +1947,11 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   //////////////////////////////////////////////////////////////////
   // 2) Use the equality set to possibly find more parent candidates
   //    usable by substituting existing 'key_item_field'.
-  //    The hypergraph optimizer do not provide a reliable Item_equal.
+  //    The hypergraph optimizer do not provide a reliable Item_multi_eq.
   //
-  const Item_equal *item_equal = (!m_thd->lex->using_hypergraph_optimizer())
-                                     ? table->get_item_equal(key_item_field)
-                                     : nullptr;
+  const Item_multi_eq *item_equal = (!m_thd->lex->using_hypergraph_optimizer())
+                                        ? table->get_item_equal(key_item_field)
+                                        : nullptr;
   if (item_equal != nullptr) {
     for (const Item_field &substitute_field : item_equal->get_fields()) {
       if (&substitute_field != key_item_field) {
@@ -2255,7 +2255,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
    * If there are any key_fields with 'current_parents' different from
    * our selected 'parent', we have to find substitutes for
    * those key_fields within the equality set.
-   * When using the Hypergraph optimizer we can't use the Item_equal's.
+   * When using the Hypergraph optimizer we can't use the Item_multi_eq's.
    **/
   const bool use_item_equal = !m_thd->lex->using_hypergraph_optimizer();
 
@@ -2270,7 +2270,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
     if (use_item_equal && key_item->type() == Item::FIELD_ITEM) {
       const Item_field *join_item = static_cast<const Item_field *>(key_item);
       uint referred_table_no = get_table_no(join_item);
-      Item_equal *item_equal = table->get_item_equal(join_item);
+      Item_multi_eq *item_equal = table->get_item_equal(join_item);
 
       if (referred_table_no != parent_no && item_equal != nullptr) {
         for (const Item_field &substitute_field : item_equal->get_fields()) {

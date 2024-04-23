@@ -472,8 +472,8 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
     }
   } else if (cond->type() == Item::FUNC_ITEM &&
              down_cast<Item_func *>(cond)->functype() ==
-                 Item_func::MULT_EQUAL_FUNC) {
-    Item_equal *item_equal = (Item_equal *)cond;
+                 Item_func::MULTI_EQ_FUNC) {
+    Item_multi_eq *item_equal = down_cast<Item_multi_eq *>(cond);
     const bool contained_const = item_equal->const_arg() != nullptr;
     if (item_equal->update_const(thd)) return true;
     if (!contained_const && item_equal->const_arg()) {
@@ -859,7 +859,7 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
       }
     } else if (item->type() == Item::FIELD_ITEM) {
       bool dummy;
-      Item_equal *item_eq = find_item_equal(
+      Item_multi_eq *item_eq = find_item_equal(
           table_list->cond_equal, down_cast<Item_field *>(item), &dummy);
       if (item_eq == nullptr) {
         // Didn't come from a multi-equality.
@@ -3600,7 +3600,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
     if (thd->is_error()) return 1;
   }
 
-  /* Check appearance of new constant items in Item_equal objects */
+  /* Check appearance of new constant items in Item_multi_eq objects */
   JOIN *const join = tab->join();
   if (join->where_cond && update_const_equal_items(thd, join->where_cond, tab))
     return 1;

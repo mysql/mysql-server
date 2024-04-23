@@ -41,17 +41,23 @@ typedef enum {
 typedef int32 decimal_digit_t;
 
 /**
-    intg is the number of *decimal* digits (NOT number of decimal_digit_t's !)
-         before the point
-    frac is the number of decimal digits after the point
-    len  is the length of buf (length of allocated space) in decimal_digit_t's,
-         not in bytes
-    sign false means positive, true means negative
-    buf  is an array of decimal_digit_t's
- */
+  Base struct used to represent decimal data type.
+
+  As stated in my_decimal::init, we do not initialize these members,
+  even though clang-tidy complains, as we want to catch uninitialized use.
+*/
 struct decimal_t {
-  int intg, frac, len;
+  /// The number of *decimal* digits (NOT number of decimal_digit_t's !)
+  /// before the point.
+  int intg;
+  /// The number of decimal digits after the point.
+  int frac;
+  /// The length of buf (length of allocated space) in decimal_digit_t's,
+  /// not in bytes.
+  int len;
+  /// False means positive, true means negative.
   bool sign;
+  /// An array of decimal_digit_t's.
   decimal_digit_t *buf;
 };
 

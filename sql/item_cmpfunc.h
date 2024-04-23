@@ -1051,7 +1051,7 @@ class Item_eq_base : public Item_func_comparison {
   ///
   /// It is always nullptr in Item_func_equal objects, as such objects are never
   /// created from multiple equalities.
-  Item_equal *source_multiple_equality = nullptr;
+  Item_multi_eq *source_multiple_equality = nullptr;
 };
 
 /**
@@ -2503,52 +2503,52 @@ class Item_cond : public Item_bool_func {
 };
 
 /**
-  The class Item_equal is used to represent conjunctions of equality
-  predicates of the form field1 = field2, and field=const in where
-  conditions and on expressions.
+  The class Item_multi_eq is used to represent conjunctions of equality
+  predicates of the form field1 = field2, and field = const in where
+  conditions and on join conditions.
 
   All equality predicates of the form field1=field2 contained in a
   conjunction are substituted for a sequence of items of this class.
-  An item of this class Item_equal(f1,f2,...fk) represents a
+  An item of this class Item_multi_eq(f1,f2,...fk) represents a
   multiple equality f1=f2=...=fk.
 
   If a conjunction contains predicates f1=f2 and f2=f3, a new item of
-  this class is created Item_equal(f1,f2,f3) representing the multiple
+  this class is created Item_multi_eq(f1,f2,f3) representing the multiple
   equality f1=f2=f3 that substitutes the above equality predicates in
   the conjunction.
   A conjunction of the predicates f2=f1 and f3=f1 and f3=f2 will be
   substituted for the item representing the same multiple equality
   f1=f2=f3.
-  An item Item_equal(f1,f2) can appear instead of a conjunction of
+  An item Item_multi_eq(f1,f2) can appear instead of a conjunction of
   f2=f1 and f1=f2, or instead of just the predicate f1=f2.
 
-  An item of the class Item_equal inherits equalities from outer
+  An item of the class Item_multi_eq inherits equalities from outer
   conjunctive levels.
 
   Suppose we have a where condition of the following form:
   WHERE f1=f2 AND f3=f4 AND f3=f5 AND ... AND (...OR (f1=f3 AND ...)).
   In this case:
-    f1=f2 will be substituted for Item_equal(f1,f2);
-    f3=f4 and f3=f5  will be substituted for Item_equal(f3,f4,f5);
-    f1=f3 will be substituted for Item_equal(f1,f2,f3,f4,f5);
+    f1=f2 will be substituted for Item_multi_eq(f1,f2);
+    f3=f4 and f3=f5  will be substituted for Item_multi_eq(f3,f4,f5);
+    f1=f3 will be substituted for Item_multi_eq(f1,f2,f3,f4,f5);
 
-  An object of the class Item_equal can contain an optional constant
+  An object of the class Item_multi_eq can contain an optional constant
   item c. Then it represents a multiple equality of the form
   c=f1=...=fk.
 
-  Objects of the class Item_equal are used for the following:
+  Objects of the class Item_multi_eq are used for the following:
 
-  1. An object Item_equal(t1.f1,...,tk.fk) allows us to consider any
+  1. An object Item_multi_eq(t1.f1,...,tk.fk) allows us to consider any
   pair of tables ti and tj as joined by an equi-condition.
   Thus it provide us with additional access paths from table to table.
 
-  2. An object Item_equal(t1.f1,...,tk.fk) is applied to deduce new
+  2. An object Item_multi_eq(t1.f1,...,tk.fk) is applied to deduce new
   SARGable predicates:
     f1=...=fk AND P(fi) => f1=...=fk AND P(fi) AND P(fj).
   It also can give us additional index scans and can allow us to
   improve selectivity estimates.
 
-  3. An object Item_equal(t1.f1,...,tk.fk) is used to optimize the
+  3. An object Item_multi_eq(t1.f1,...,tk.fk) is used to optimize the
   selected execution plan for the query: if table ti is accessed
   before the table tj then in any predicate P in the where condition
   the occurrence of tj.fj is substituted for ti.fi. This can allow
@@ -2565,18 +2565,12 @@ class Item_cond : public Item_bool_func {
   plan for those, obtained by substitution of some fields for equal fields,
   that can be used.
 
-  Prepared Statements/Stored Procedures note: instances of class
-  Item_equal are created only at the time a PS/SP is executed and
-  are deleted in the end of execution. All changes made to these
-  objects need not be registered in the list of changes of the parse
-  tree and do not harm PS/SP re-execution.
-
-  Item equal objects are employed only at the optimize phase. Usually they are
-  not supposed to be evaluated.  Yet in some cases we call the method val_int()
-  for them. We have to take care of restricting the predicate such an
+  Multiple equality objects are employed only at the optimize phase. Usually
+  they are not supposed to be evaluated. Yet in some cases we call the method
+  val_int() for them. We have to take care of restricting the predicate such an
   object represents f1=f2= ...=fn to the projection of known fields fi1=...=fik.
 */
-class Item_equal final : public Item_bool_func {
+class Item_multi_eq final : public Item_bool_func {
   /// List of equal field items.
   List<Item_field> fields;
   /// Optional constant item equal to all the field items.
@@ -2586,23 +2580,35 @@ class Item_equal final : public Item_bool_func {
   /// Helper for comparing constants.
   Arg_comparator cmp;
   /// Flag set to true if the equality is known to be always false.
-  bool cond_false{false};
+  bool m_always_false{false};
   /// Should constants be compared as datetimes?
   bool compare_as_dates{false};
+  /// Checks if the current constant value m_const_arg (that each field
+  /// in fields needs to be equal to during execution) is the same as
+  /// the provided constant item. If that's not the case, it sets
+  /// m_always_false to true as a field cannot be equal to different
+  /// constant values at the same time.
+  /// @returns false on success, true on error.
+  bool compare_const(THD *thd, Item *const_item);
 
  public:
-  ~Item_equal() override;
+  ~Item_multi_eq() override;
 
-  Item_equal(Item_field *f1, Item_field *f2);
-  Item_equal(Item *c, Item_field *f);
-  explicit Item_equal(Item_equal *item_equal);
+  Item_multi_eq(Item_field *lhs_field, Item_field *rhs_field);
+  Item_multi_eq(Item *const_item, Item_field *field);
+  explicit Item_multi_eq(Item_multi_eq *item_multi_eq);
 
+  Item_multi_eq(const Item_multi_eq &) = delete;
+  Item_multi_eq operator=(const Item_multi_eq &) = delete;
+  Item_multi_eq(const Item_multi_eq &&) = delete;
+  Item_multi_eq operator=(const Item_multi_eq &&) = delete;
+
+  /// Returns the constant Item that this multi equality is equal to(if any).
   Item *const_arg() const { return m_const_arg; }
-  void set_const_arg(Item *c) { m_const_arg = c; }
-  bool compare_const(THD *thd, Item *c);
-  bool add(THD *thd, Item *c, Item_field *f);
-  bool add(THD *thd, Item *c);
-  void add(Item_field *f);
+  void set_const_arg(Item *const_item) { m_const_arg = const_item; }
+  bool add(THD *thd, Item *const_item, Item_field *field);
+  bool add(THD *thd, Item *const_item);
+  void add(Item_field *field);
   uint members();
   bool contains(const Field *field) const;
   /**
@@ -2612,14 +2618,14 @@ class Item_equal final : public Item_bool_func {
   */
   Item_field *get_first() { return fields.head(); }
   Item_field *get_subst_item(const Item_field *field);
-  bool merge(THD *thd, Item_equal *item);
+  bool merge(THD *thd, Item_multi_eq *item);
   bool update_const(THD *thd);
-  enum Functype functype() const override { return MULT_EQUAL_FUNC; }
+  enum Functype functype() const override { return MULTI_EQ_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_EQUAL; }
   bool cast_incompatible_args(uchar *) override {
-    // Multiple equality nodes (Item_equal) should have been
+    // Multiple equality nodes (Item_multi_eq) should have been
     // converted back to simple equalities (Item_func_eq) by
     // substitute_for_best_equal_field before cast nodes are injected.
     assert(false);
@@ -2632,7 +2638,7 @@ class Item_equal final : public Item_bool_func {
   /**
     Order field items in multiple equality according to a sorting criteria.
 
-    The function perform ordering of the field items in the Item_equal
+    The function perform ordering of the field items in the Item_multi_eq
     object according to the criteria determined by the cmp callback parameter.
     If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
     placed after item_field2.
@@ -2652,7 +2658,7 @@ class Item_equal final : public Item_bool_func {
   // A class to iterate over fields without exposing fields directly.
   class FieldProxy {
    public:
-    explicit FieldProxy(Item_equal *item) : m_fields(&item->fields) {}
+    explicit FieldProxy(Item_multi_eq *item) : m_fields(&item->fields) {}
     List_STL_Iterator<Item_field> begin() { return m_fields->begin(); }
     List_STL_Iterator<Item_field> end() { return m_fields->end(); }
     List_STL_Iterator<const Item_field> begin() const {
@@ -2671,7 +2677,7 @@ class Item_equal final : public Item_bool_func {
   };
   class ConstFieldProxy {
    public:
-    explicit ConstFieldProxy(const Item_equal *item)
+    explicit ConstFieldProxy(const Item_multi_eq *item)
         : m_fields(&item->fields) {}
     List_STL_Iterator<const Item_field> begin() const {
       return m_fields->cbegin();
@@ -2710,27 +2716,25 @@ class Item_equal final : public Item_bool_func {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-  Item *m_const_folding[2];  ///< temporary area used for constant folding
+  ///< temporary area used for constant folding
+  Item *m_const_folding[2]{nullptr, nullptr};
 
  private:
   void check_covering_prefix_keys();
 };
 
-class COND_EQUAL {
- public:
-  uint max_members;               /* max number of members the current level
-                                     list and all lower level lists */
-  COND_EQUAL *upper_levels;       /* multiple equalities of upper and levels */
-  List<Item_equal> current_level; /* list of multiple equalities of
-                                     the current and level           */
-  COND_EQUAL() { upper_levels = nullptr; }
+struct COND_EQUAL {
+  /// Reference to the multiple equalities of outer level.
+  COND_EQUAL *upper_levels{nullptr};
+  /// List of multiple equalities in the current conjunction.
+  List<Item_multi_eq> current_level;
 };
 
 class Item_cond_and final : public Item_cond {
  public:
-  COND_EQUAL cond_equal; /* contains list of Item_equal objects for
-                            the current and level and reference
-                            to multiple equalities of upper and levels */
+  /// Contains list of Item_multi_eq objects for the current conjunction
+  /// and references to multiple equalities of outer levels.
+  COND_EQUAL cond_equal;
   Item_cond_and() : Item_cond() {}
 
   Item_cond_and(Item *i1, Item *i2) : Item_cond(i1, i2) {}

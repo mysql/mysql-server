@@ -1457,12 +1457,12 @@ static bool min_max_inspect_cond_for_fields(Item *cond,
         if (*min_max_arg_present && *non_min_max_arg_present) return true;
       }
 
-      if (pred->functype() == Item_func::MULT_EQUAL_FUNC) {
+      if (pred->functype() == Item_func::MULTI_EQ_FUNC) {
         /*
           Analyze participating fields in a multiequal condition.
         */
         for (Item_field &item_field :
-             down_cast<Item_equal *>(cond)->get_fields()) {
+             down_cast<Item_multi_eq *>(cond)->get_fields()) {
           util_min_max_inspect_item(&item_field, min_max_arg_item,
                                     min_max_arg_present,
                                     non_min_max_arg_present);

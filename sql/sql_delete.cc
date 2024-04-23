@@ -89,7 +89,7 @@
 #include "sql/trigger_def.h"
 #include "sql/uniques.h"  // Unique
 
-class COND_EQUAL;
+struct COND_EQUAL;
 class Item_exists_subselect;
 class Opt_trace_context;
 class Select_lex_visitor;

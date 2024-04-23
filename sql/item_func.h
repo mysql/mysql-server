@@ -226,7 +226,7 @@ class Item_func : public Item_result_field {
     XOR_FUNC,
     BETWEEN,
     IN_FUNC,
-    MULT_EQUAL_FUNC,
+    MULTI_EQ_FUNC,
     INTERVAL_FUNC,
     ISNOTNULLTEST_FUNC,
     SP_EQUALS_FUNC,

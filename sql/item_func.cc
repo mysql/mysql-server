@@ -924,10 +924,10 @@ const Item_field *Item_func::contributes_to_filter(
 
   assert((read_tables & filter_for_table) == 0);
   /*
-    Multiple equality (Item_equal) should not call this function
+    Multiple equality (Item_multi_eq) should not call this function
     because it would reject valid comparisons.
   */
-  assert(functype() != MULT_EQUAL_FUNC);
+  assert(functype() != MULTI_EQ_FUNC);
 
   /*
     To contribute to filtering effect, the condition must refer to

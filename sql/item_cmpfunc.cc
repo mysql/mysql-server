@@ -6923,83 +6923,83 @@ bool Item_func_comparison::cast_incompatible_args(uchar *) {
   return cmp.inject_cast_nodes();
 }
 
-Item_equal::Item_equal(Item_field *f1, Item_field *f2) : Item_bool_func() {
-  fields.push_back(f1);
-  fields.push_back(f2);
+Item_multi_eq::Item_multi_eq(Item_field *lhs_field, Item_field *rhs_field)
+    : Item_bool_func() {
+  fields.push_back(lhs_field);
+  fields.push_back(rhs_field);
 }
 
-Item_equal::Item_equal(Item *c, Item_field *f) : Item_bool_func() {
-  fields.push_back(f);
-  m_const_arg = c;
-  compare_as_dates = f->is_temporal_with_date();
+Item_multi_eq::Item_multi_eq(Item *const_item, Item_field *field)
+    : Item_bool_func(),
+      m_const_arg(const_item),
+      compare_as_dates(field->is_temporal_with_date()) {
+  fields.push_back(field);
 }
 
-Item_equal::Item_equal(Item_equal *item_equal) : Item_bool_func() {
-  List_iterator_fast<Item_field> li(item_equal->fields);
+Item_multi_eq::Item_multi_eq(Item_multi_eq *item_multi_eq) : Item_bool_func() {
+  List_iterator_fast<Item_field> li(item_multi_eq->fields);
   Item_field *item;
   while ((item = li++)) {
     fields.push_back(item);
   }
-  m_const_arg = item_equal->m_const_arg;
-  compare_as_dates = item_equal->compare_as_dates;
-  cond_false = item_equal->cond_false;
+  m_const_arg = item_multi_eq->m_const_arg;
+  compare_as_dates = item_multi_eq->compare_as_dates;
+  m_always_false = item_multi_eq->m_always_false;
 }
 
-bool Item_equal::compare_const(THD *thd, Item *c) {
+bool Item_multi_eq::compare_const(THD *thd, Item *const_item) {
   if (compare_as_dates) {
-    cmp.set_datetime_cmp_func(this, &c, &m_const_arg);
-    cond_false = cmp.compare();
+    cmp.set_datetime_cmp_func(this, &const_item, &m_const_arg);
+    m_always_false = (cmp.compare() != 0);
   } else {
-    Item_func_eq *func = new Item_func_eq(c, m_const_arg);
-    if (func == nullptr) return true;
-    if (func->set_cmp_func()) return true;
-    func->quick_fix_field();
-    cond_false = !func->val_int();
+    Item_func_eq *eq_func = new Item_func_eq(const_item, m_const_arg);
+    if (eq_func == nullptr) return true;
+    if (eq_func->set_cmp_func()) return true;
+    eq_func->quick_fix_field();
+    m_always_false = (eq_func->val_int() == 0);
   }
   if (thd->is_error()) return true;
-  if (cond_false) used_tables_cache = 0;
+  if (m_always_false) used_tables_cache = 0;
 
   return false;
 }
 
-bool Item_equal::add(THD *thd, Item *c, Item_field *f) {
-  if (cond_false) return false;
+bool Item_multi_eq::add(THD *thd, Item *const_item, Item_field *field) {
+  if (m_always_false) return false;
   if (m_const_arg == nullptr) {
-    assert(f);
-    m_const_arg = c;
-    compare_as_dates = f->is_temporal_with_date();
+    assert(field != nullptr);
+    m_const_arg = const_item;
+    compare_as_dates = field->is_temporal_with_date();
     return false;
   }
-  return compare_const(thd, c);
+  return compare_const(thd, const_item);
 }
 
-bool Item_equal::add(THD *thd, Item *c) {
-  if (cond_false) return false;
+bool Item_multi_eq::add(THD *thd, Item *const_item) {
+  if (m_always_false) return false;
   if (m_const_arg == nullptr) {
-    m_const_arg = c;
+    m_const_arg = const_item;
     return false;
   }
-  return compare_const(thd, c);
+  return compare_const(thd, const_item);
 }
 
-void Item_equal::add(Item_field *f) { fields.push_back(f); }
+void Item_multi_eq::add(Item_field *field) { fields.push_back(field); }
 
-uint Item_equal::members() { return fields.elements; }
+uint Item_multi_eq::members() { return fields.elements; }
 
 /**
   Check whether a field is referred in the multiple equality.
 
-  The function checks whether field is occurred in the Item_equal object .
+  The function checks whether field is occurred in the Item_multi_eq object .
 
   @param field   field whose occurrence is to be checked
 
-  @retval
-    true       if multiple equality contains a reference to field
-  @retval
-    false      otherwise
+  @returns true if multiple equality contains a reference to field, false
+  otherwise.
 */
 
-bool Item_equal::contains(const Field *field) const {
+bool Item_multi_eq::contains(const Field *field) const {
   for (const Item_field &item : fields) {
     if (field->eq(item.field)) return true;
   }
@@ -7007,13 +7007,13 @@ bool Item_equal::contains(const Field *field) const {
 }
 
 /**
-  Join members of another Item_equal object.
+  Add members of another Item_multi_eq object.
 
-    The function actually merges two multiple equalities.
-    After this operation the Item_equal object additionally contains
-    the field items of another item of the type Item_equal.
-    If the optional constant items are not equal the cond_false flag is
-    set to 1.
+    The function merges two multiple equalities.
+    After this operation the Item_multi_eq object additionally contains
+    the field items of another item of the type Item_multi_eq.
+    If the optional constant items are not equal the m_always_false flag is
+    set to true.
 
   @param thd     thread handler
   @param item    multiple equality whose members are to be joined
@@ -7021,19 +7021,19 @@ bool Item_equal::contains(const Field *field) const {
   @returns false if success, true if error
 */
 
-bool Item_equal::merge(THD *thd, Item_equal *item) {
+bool Item_multi_eq::merge(THD *thd, Item_multi_eq *item) {
   fields.concat(&item->fields);
   Item *c = item->m_const_arg;
   if (c) {
     /*
-      The flag cond_false will be set to 1 after this, if
+      The flag m_always_false will be set to true after this, if
       the multiple equality already contains a constant and its
-      value is  not equal to the value of c.
+      value is not equal to the value of c.
     */
     if (add(thd, c)) return true;
   }
-  cond_false |= item->cond_false;
-  if (cond_false) used_tables_cache = 0;
+  m_always_false |= item->m_always_false;
+  if (m_always_false) used_tables_cache = 0;
 
   return false;
 }
@@ -7052,7 +7052,7 @@ bool Item_equal::merge(THD *thd, Item_equal *item) {
   @returns false if success, true if error
 */
 
-bool Item_equal::update_const(THD *thd) {
+bool Item_multi_eq::update_const(THD *thd) {
   List_iterator<Item_field> it(fields);
   Item *item;
   while ((item = it++)) {
@@ -7062,13 +7062,13 @@ bool Item_equal::update_const(THD *thd) {
           Such a constant status here is a result of:
             a) empty outer-joined table: in this case such a column has a
                value of NULL; but at the same time other arguments of
-               Item_equal don't have to be NULLs and the value of the whole
+               Item_multi_eq don't have to be NULLs and the value of the whole
                multiple equivalence expression doesn't have to be NULL or FALSE
                because of the outer join nature;
           or
             b) outer-joined table contains only 1 row: the result of
                this column is equal to a row field value *or* NULL.
-          Both values are inacceptable as Item_equal constants.
+          Both values are inacceptable as Item_multi_eq constants.
         */
         !item->is_outer_field()) {
       it.remove();
@@ -7078,7 +7078,7 @@ bool Item_equal::update_const(THD *thd) {
   return false;
 }
 
-bool Item_equal::fix_fields(THD *thd, Item **) {
+bool Item_multi_eq::fix_fields(THD *thd, Item **) {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache = used_tables_cache = 0;
@@ -7110,10 +7110,10 @@ bool Item_equal::fix_fields(THD *thd, Item **) {
   'filter_for_table', the predicates on all these fields will
   contribute to the filtering effect.
 */
-float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
-                                       table_map read_tables,
-                                       const MY_BITMAP *fields_to_ignore,
-                                       double rows_in_table) {
+float Item_multi_eq::get_filtering_effect(THD *thd, table_map filter_for_table,
+                                          table_map read_tables,
+                                          const MY_BITMAP *fields_to_ignore,
+                                          double rows_in_table) {
   // This predicate does not refer to a column in 'filter_for_table'
   if (!(used_tables() & filter_for_table)) return COND_FILTER_ALLPASS;
 
@@ -7208,11 +7208,11 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
   return found_comparable ? filter : COND_FILTER_ALLPASS;
 }
 
-void Item_equal::update_used_tables() {
+void Item_multi_eq::update_used_tables() {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache = used_tables_cache = 0;
-  if (cond_false) return;
+  if (m_always_false) return;
   m_accum_properties = 0;
   while ((item = li++)) {
     item->update_used_tables();
@@ -7223,9 +7223,9 @@ void Item_equal::update_used_tables() {
   if (m_const_arg != nullptr) used_tables_cache |= m_const_arg->used_tables();
 }
 
-longlong Item_equal::val_int() {
+longlong Item_multi_eq::val_int() {
   Item_field *item_field;
-  if (cond_false) return 0;
+  if (m_always_false) return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item = m_const_arg != nullptr ? m_const_arg : it++;
   eval_item->store_value(item);
@@ -7241,14 +7241,14 @@ longlong Item_equal::val_int() {
   return 1;
 }
 
-Item_equal::~Item_equal() {
+Item_multi_eq::~Item_multi_eq() {
   if (eval_item != nullptr) {
     ::destroy_at(eval_item);
     eval_item = nullptr;
   }
 }
 
-bool Item_equal::resolve_type(THD *thd) {
+bool Item_multi_eq::resolve_type(THD *thd) {
   Item *item;
   // As such item is created during optimization, types of members are known:
 #ifndef NDEBUG
@@ -7264,7 +7264,7 @@ bool Item_equal::resolve_type(THD *thd) {
   return eval_item == nullptr;
 }
 
-bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg) {
+bool Item_multi_eq::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   List_iterator_fast<Item_field> it(fields);
@@ -7276,8 +7276,8 @@ bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
-void Item_equal::print(const THD *thd, String *str,
-                       enum_query_type query_type) const {
+void Item_multi_eq::print(const THD *thd, String *str,
+                          enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
 
@@ -7292,8 +7292,8 @@ void Item_equal::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_equal::eq_specific(const Item *item) const {
-  const Item_equal *item_eq = down_cast<const Item_equal *>(item);
+bool Item_multi_eq::eq_specific(const Item *item) const {
+  const Item_multi_eq *item_eq = down_cast<const Item_multi_eq *>(item);
   if ((m_const_arg != nullptr) != (item_eq->m_const_arg != nullptr)) {
     return false;
   }
@@ -7442,7 +7442,7 @@ void Item_func_trig_cond::print(const THD *thd, String *str,
      the first field in the multiple equality is returned.
 */
 
-Item_field *Item_equal::get_subst_item(const Item_field *field) {
+Item_field *Item_multi_eq::get_subst_item(const Item_field *field) {
   assert(field != nullptr);
 
   const JOIN_TAB *field_tab = field->field->table->reginfo.join_tab;
@@ -7473,7 +7473,7 @@ Item_field *Item_equal::get_subst_item(const Item_field *field) {
       Note that subquery materialization does not have the same problem:
       even though IN->EXISTS has injected equalities involving outer query's
       expressions, it has wrapped those expressions in variants of Item_ref,
-      never Item_field, so they can be part of an Item_equal only if they are
+      never Item_field, so they can be part of an Item_multi_eq only if they are
       constant (in which case there is no problem with choosing them below);
       @see check_simple_equality().
     */
@@ -7516,18 +7516,18 @@ Item_field *Item_equal::get_subst_item(const Item_field *field) {
 }
 
 /**
-  Transform an Item_equal object after having added a table that
+  Transform an Item_multi_eq object after having added a table that
   represents a materialized semi-join.
 
   @details
-    If the multiple equality represented by the Item_equal object contains
+    If the multiple equality represented by the Item_multi_eq object contains
     a field from the subquery that was used to create the materialized table,
     add the corresponding key field from the materialized table to the
     multiple equality.
     @see JOIN::update_equalities_for_sjm() for the reason.
 */
 
-Item *Item_equal::equality_substitution_transformer(uchar *arg) {
+Item *Item_multi_eq::equality_substitution_transformer(uchar *arg) {
   Table_ref *sj_nest = reinterpret_cast<Table_ref *>(arg);
   List_iterator<Item_field> it(fields);
   List<Item_field> added_fields;

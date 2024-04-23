@@ -119,7 +119,7 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 
-class COND_EQUAL;
+struct COND_EQUAL;
 
 static bool prepare_partial_update(Opt_trace_context *trace,
                                    const mem_root_deque<Item *> &fields,
