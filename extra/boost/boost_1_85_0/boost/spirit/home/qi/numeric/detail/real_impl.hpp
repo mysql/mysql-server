@@ -206,7 +206,7 @@ namespace boost { namespace spirit { namespace qi  { namespace detail
             bool neg = p.parse_sign(first, last);
 
             // Now attempt to parse an integer
-            T n;
+            T n = 0;
 
             typename traits::real_accumulator<T>::type acc_n = 0;
             bool got_a_number = p.parse_n(first, last, acc_n);

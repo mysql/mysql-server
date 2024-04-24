@@ -183,6 +183,9 @@ namespace projections
                 template <typename Params>
                 par_ob_tran(Params const& params, Parameters const& par)
                     : link(projections::detail::create_new(params, o_proj_parameters(params, par)))
+                    , lamp(0)
+                    , cphip(0)
+                    , sphip(0)
                 {
                     if (! link.get())
                         BOOST_THROW_EXCEPTION( projection_exception(error_unknown_projection_id) );
