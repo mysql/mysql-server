@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <memory>
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -1615,7 +1616,7 @@ static int verify_test() {
   require(CA_cert);
 
   /* Create a private key and a NodeCertificate */
-  NodeCertificate *nc = new NodeCertificate(Node::Type::Client, 150);
+  auto nc = std::make_unique<NodeCertificate>(Node::Type::Client, 150);
   nc->create_keys("P-256");
   nc->set_lifetime(90, 10);
   r1 = nc->finalise(CA_cert, CA_key);
@@ -1631,7 +1632,6 @@ static int verify_test() {
 
   Certificate::free(CA_cert);
   PrivateKey::free(CA_key);
-  delete nc;
 
   return 0;
 }
