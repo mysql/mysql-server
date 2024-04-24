@@ -1,0 +1,21 @@
+--echo #
+--echo # Bug #35792948: Improve mysql_native_password deprecation warning
+--echo #
+
+--echo # Should be 0 rows
+SELECT DATA FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013360';
+
+CREATE USER b35792948@localhost IDENTIFIED WITH 'mysql_native_password';
+
+--echo # Should be 1 row
+SELECT DATA FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013360';
+
+--exec $MYSQL -u b35792948 -e "SELECT 1 as some_command"
+
+--echo # Should still be 1 row
+SELECT DATA FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013360';
+
+--echo # Cleanup
+DROP USER b35792948@localhost;
+
+--echo # End of 8.0 tests
