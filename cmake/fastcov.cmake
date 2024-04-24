@@ -151,7 +151,6 @@ FOREACH(FASTCOV_EXCLUDE
     "/usr/include"
     "/usr/lib"
     "${BOOST_INCLUDE_DIR}"
-    "${BOOST_PATCHES_DIR}"
     ${GMOCK_INCLUDE_DIRS}
     "${CMAKE_SOURCE_DIR}/extra/duktape"
     "${CMAKE_SOURCE_DIR}/extra/lz4"

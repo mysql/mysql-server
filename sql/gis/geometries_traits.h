@@ -46,7 +46,6 @@
 #include <boost/geometry/geometries/concepts/linestring_concept.hpp>
 #include <boost/geometry/geometries/concepts/point_concept.hpp>
 #include <boost/geometry/geometries/concepts/polygon_concept.hpp>
-#include <boost/geometry/multi/core/tags.hpp>
 
 #include "sql/gis/geometries_cs.h"
 #include "sql/malloc_allocator.h"

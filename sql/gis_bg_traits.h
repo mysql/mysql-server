@@ -43,7 +43,6 @@
 #include <boost/geometry/geometries/concepts/linestring_concept.hpp>
 #include <boost/geometry/geometries/concepts/point_concept.hpp>
 #include <boost/geometry/geometries/concepts/polygon_concept.hpp>
-#include <boost/geometry/multi/core/tags.hpp>
 #include <boost/geometry/util/math.hpp>
 #include <boost/static_assert.hpp>
 
