@@ -96,11 +96,15 @@ innodb.bug33788578_ddl                      : Bug#36312666 Several InnoDB testca
 innodb.bug33788578_online_ddl               : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.log_upgrade_empty_disabled_log_normal_shutdown : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.log_upgrade_empty_log_fast_shutdown            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_upgrade                                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.partition_prefixkey_upgrade            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.dd_upgrade_error_cs                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.dd_upgrade_cs                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.dd_upgrade_error_ci                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.dd_upgrade_ci                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_upgrade_error_debug                 : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_schema_definition_after_upgrade_80_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.mysql_upgrade_grant                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.mysql_inplace_upgrade                  : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.mysql_80_inplace_upgrade               : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.upgrade_with_float_auto_increment      : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
