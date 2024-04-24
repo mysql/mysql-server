@@ -3558,7 +3558,7 @@ bool MgmtSrvr::build_node_type_list_from_config(
    @param type Type of node being matched (DB|MGMD|API)
    @param client_addr Address client is connecting from
    @param config_nodes List of nodes matching type from config
-   @param nodes Output list of nodes matching client address
+   @param node_matches Output list of nodes matching client address
  */
 void MgmtSrvr::match_client_addr_to_config_nodes(
     NodeId node_id, ndb_mgm_node_type type, const ndb_sockaddr *client_addr,
