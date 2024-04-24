@@ -6066,17 +6066,25 @@ int Ndb_binlog_thread::handle_error(NdbEventOperation *pOp) const {
   return 0;
 }
 
-/**
-   Inject an incident (aka. 'lost events' or 'gap') into the injector,
-   indicating that problem has occurred while processing the event stream.
+void Ndb_binlog_thread::inject_incident_message(injector *inj, THD *thd,
+                                                const char *message) const {
+  DBUG_TRACE;
 
-   @param thd           The thread handle
-   @param inj           Pointer to the injector
-   @param event_type    Type of the event problem that has occurred.
-   @param gap_epoch     The epoch when problem was detected.
+  // First write the error message to log
+  log_info("Writing incident '%s' to binlog", message);
 
-*/
-void Ndb_binlog_thread::inject_incident(
+  // Write incident message to injector
+  if (inj->record_incident(thd, message) != 0) {
+    log_error("Failed to write incident to binlog");
+    return;
+  }
+
+  // Since injecting an incident to binlog is rare, also write message to log
+  // indicating that incident has been written
+  log_info("Incident '%s' written to binlog", message);
+}
+
+void Ndb_binlog_thread::inject_incident_for_event(
     injector *inj, THD *thd, NdbDictionary::Event::TableEvent event_type,
     Uint64 gap_epoch) const {
   DBUG_TRACE;
@@ -6090,17 +6098,9 @@ void Ndb_binlog_thread::inject_incident(
 
   char errmsg[80];
   snprintf(errmsg, sizeof(errmsg),
-           "Detected %s in GCI %llu, "
-           "inserting GAP event",
-           reason, gap_epoch);
-
-  // Write error message to log
-  log_error("%s", errmsg);
-
-  // Record incident in injector
-  if (inj->record_incident(thd, errmsg) != 0) {
-    log_error("Failed to record incident");
-  }
+           "Detected %s in epoch %u/%u, inserting GAP event", reason,
+           (uint)(gap_epoch >> 32), (uint)(gap_epoch));
+  inject_incident_message(inj, thd, errmsg);
 }
 
 /**
@@ -6785,7 +6785,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   if (event_type == NdbDictionary::Event::TE_INCONSISTENT ||
       event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
     // Error has occurred in event stream processing, inject incident
-    inject_incident(inj, thd, event_type, current_epoch);
+    inject_incident_for_event(inj, thd, event_type, current_epoch);
 
     i_pOp = i_ndb->nextEvent2();
     return true;  // OK, error handled
@@ -7083,9 +7083,9 @@ void Ndb_binlog_thread::do_wakeup() {
   */
 }
 
-bool Ndb_binlog_thread::check_reconnect_incident(
+void Ndb_binlog_thread::check_reconnect_incident(
     THD *thd, injector *inj, Reconnect_type incident_id) const {
-  std::string_view msg = "cluster disconnect";
+  const char *msg = "cluster disconnect";
   log_verbose(1, "Check for incidents");
 
   if (incident_id == MYSQLD_STARTUP) {
@@ -7104,17 +7104,12 @@ bool Ndb_binlog_thread::check_reconnect_incident(
       */
       log_verbose(60, " - skipping incident for first log, log_number: %u",
                   log_number);
-      return false;  // No incident written
+      return;  // No incident written
     }
     log_verbose(60, " - current binlog file number: %u", log_number);
   }
 
-  // Write an incident event to the binlog since it's not possible to know what
-  // has happened in the cluster while not being connected.
-  log_verbose(20, "Writing incident for %.*s", (int)msg.length(), msg.data());
-  if (inj->record_incident(thd, msg)) log_error("Failed to record incident");
-
-  return true;  // Incident written
+  inject_incident_message(inj, thd, msg);
 }
 
 bool Ndb_binlog_thread::handle_purge(const char *filename) {
@@ -7458,11 +7453,9 @@ restart_cluster_failure:
   lex_start(thd);
 
   if (do_reconnect_incident && ndb_binlog_running) {
-    if (check_reconnect_incident(thd, inj, reconnect_incident_id)) {
-      // Incident written, don't report incident again unless Ndb_binlog_thread
-      // is restarted
-      do_reconnect_incident = false;
-    }
+    check_reconnect_incident(thd, inj, reconnect_incident_id);
+    // Don't report incident again unless thread is restarted
+    do_reconnect_incident = false;
   }
   reconnect_incident_id = CLUSTER_DISCONNECT;
 
