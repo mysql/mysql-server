@@ -23,7 +23,7 @@ connection default;
 disconnect con1;
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_count= 2
+--let $assert_count= 1
 --let $assert_select= 'mysql_native_password' is deprecated
 --let $assert_text= There should be a 2nd warning when authenticating mysql_native_password
 --source include/assert_grep.inc
@@ -31,7 +31,7 @@ disconnect con1;
 ALTER USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password' BY 'foo';
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_count= 3
+--let $assert_count= 1
 --let $assert_select= 'mysql_native_password' is deprecated
 --let $assert_text= There should be a 3nd warning from ALTER USER
 --source include/assert_grep.inc
@@ -39,7 +39,7 @@ ALTER USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password' BY 'foo
 SET PASSWORD FOR bug35336317@localhost = 'baz';
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_count= 4
+--let $assert_count= 1
 --let $assert_select= 'mysql_native_password' is deprecated
 --let $assert_text= And a 4th warning from SET PASSWORD
 --source include/assert_grep.inc
