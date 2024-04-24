@@ -4176,6 +4176,14 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     return true;
   }
 
+  order_item_type = order_item->type();
+
+  Table_ref *saved_table_ref = nullptr;
+  if (order_item_type == Item::FIELD_ITEM ||
+      order_item_type == Item::REF_ITEM) {
+    // unit tests need m_table_ref to be preserved
+    saved_table_ref = down_cast<Item_ident *>(order_item)->m_table_ref;
+  }
   /* Check whether the resolved field is unambiguous. */
   if (select_item != nullptr) {
     Item *view_ref = nullptr;
@@ -4192,7 +4200,6 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       Lookup the current GROUP or WINDOW partition by or order by field in the
       FROM clause.
     */
-    order_item_type = order_item->type();
     from_field = not_found_field;
     if (((is_group_field || is_window_order) &&
          order_item_type == Item::FIELD_ITEM) ||
@@ -4300,7 +4307,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   // find_field_in_tables() may have set this field, actually a bad idea.
   if (order_item->type() == Item::FIELD_ITEM ||
       order_item->type() == Item::REF_ITEM) {
-    down_cast<Item_ident *>(order_item)->m_table_ref = nullptr;
+    down_cast<Item_ident *>(order_item)->m_table_ref = saved_table_ref;
   }
   /*
     The call to order_item->fix_fields() means that here we resolve
