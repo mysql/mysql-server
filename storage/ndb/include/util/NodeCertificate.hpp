@@ -243,10 +243,11 @@ class CertSubject {
 class CertLifetime {
  public:
   static constexpr const int DefaultDays = 90;
+  static constexpr const int CaDefaultDays = 365 * 4 + 1;
   static constexpr long SecondsPerHour = 60 * 60;
   static constexpr long SecondsPerDay = 24 * SecondsPerHour;
 
-  CertLifetime() { set_lifetime(DefaultDays, 0); }
+  CertLifetime(int days) { set_lifetime(days, 0); }
   CertLifetime(struct x509_st *cert) { set_lifetime(cert); }
   CertLifetime(const CertLifetime &) = default;
 
@@ -282,8 +283,6 @@ class CertLifetime {
   time_t replace_time(float pct) const;
 
  protected:
-  CertLifetime(int n) : m_duration(n) {}
-
   mutable struct tm m_notBefore;  // mutable because of timegm()
   mutable struct tm m_notAfter;
   time_t m_duration{0};
@@ -355,6 +354,7 @@ class SerialNumber {
 class ClusterCertAuthority {
  public:
   static struct x509_st *create(struct evp_pkey_st *key,
+                                const CertLifetime &lifetime,
                                 const char *ordinal = "First",
                                 bool self_sign = true);
   static int sign(struct x509_st *ca, struct evp_pkey_st *, struct x509_st *);

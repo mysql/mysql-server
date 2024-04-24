@@ -89,6 +89,7 @@ bool opt_rs_openssl = 0;
 bool opt_stdio = 0;
 int opt_replace_by = -10;
 int opt_duration = 0;
+int opt_ca_days = CertLifetime::CaDefaultDays;
 unsigned long long opt_bind_host = 0;
 unsigned long long opt_node_types = 0;
 
@@ -133,8 +134,7 @@ static struct my_option sign_keys_options[] = {
      &opt_ndb_config_file, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
     {"no-config", 'l',
-     "Do not obtain cluster configuration; "
-     "create a single certificate",
+     "Do not obtain cluster configuration; create a single certificate",
      &opt_noconfig, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"CA-cert", 'C', "Cluster CA Certificate file name", &opt_ca_cert, nullptr,
@@ -157,6 +157,9 @@ static struct my_option sign_keys_options[] = {
      "defaults to \"First\" for --create-CA and \"Second\" for --rotate-CA",
      &opt_ca_ordinal, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
      0, nullptr},
+    {"CA-days", NDB_OPT_NOSHORT, "Set CA validity time in days", &opt_ca_days,
+     nullptr, nullptr, GET_INT, REQUIRED_ARG, opt_ca_days, -1, 0, nullptr, 0,
+     nullptr},
     {"passphrase", NDB_OPT_NOSHORT, "Cluster CA Key Pass Phrase",
      &opt_cluster_key_pass, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -577,8 +580,8 @@ int ClusterCredentialFiles::create(const char *key_dir, const char *cert_dir) {
       stderr);
   EVP_PKEY *key = EVP_RSA_gen(2048);
   if (!key) return TlsKeyError::openssl_error;
-
-  X509 *cert = ClusterCertAuthority::create(key, opt_ca_ordinal);
+  CertLifetime days(opt_ca_days);
+  X509 *cert = ClusterCertAuthority::create(key, days, opt_ca_ordinal, true);
   if (!cert) return TlsKeyError::failed_to_init_ca;
 
   if (!opt_cluster_key_pass)
@@ -650,7 +653,9 @@ int rotate_CA(EVP_PKEY *ca_key, const PkiFile::PathName &ca_key_path,
   EVP_PKEY *new_key = EVP_RSA_gen(2048);
   if (!new_key) return TlsKeyError::openssl_error;
 
-  X509 *new_cert = ClusterCertAuthority::create(new_key, opt_ca_ordinal, 0);
+  CertLifetime days(opt_ca_days);
+  X509 *new_cert =
+      ClusterCertAuthority::create(new_key, days, opt_ca_ordinal, false);
   if (!new_cert) return TlsKeyError::failed_to_init_ca;
 
   /* Now the old CA signs the new CA certificate */

@@ -118,9 +118,10 @@ namespace Test {
 
 class CertAuthority {
  public:
-  CertAuthority(const char *ordinal = "First") {
+  CertAuthority(const char *ordinal = "First")
+      : CA_lifetime(CertLifetime::CaDefaultDays) {
     CA_key = EVP_RSA_gen(2048);
-    CA_cert = ClusterCertAuthority::create(CA_key, ordinal, false);
+    CA_cert = ClusterCertAuthority::create(CA_key, CA_lifetime, ordinal, false);
   }
 
   ~CertAuthority() {
@@ -138,6 +139,7 @@ class CertAuthority {
   X509 *cert() const { return CA_cert; }
 
  private:
+  CertLifetime CA_lifetime;
   EVP_PKEY *CA_key{nullptr};
   X509 *CA_cert{nullptr};
 };
