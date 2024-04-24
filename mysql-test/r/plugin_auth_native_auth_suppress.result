@@ -1,0 +1,20 @@
+#
+# Bug #35792948: Improve mysql_native_password deprecation warning
+#
+# Should be 0 rows
+SELECT DATA FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013360';
+DATA
+CREATE USER b35792948@localhost IDENTIFIED WITH 'mysql_native_password';
+# Should be 1 row
+SELECT DATA FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013360';
+DATA
+Plugin mysql_native_password reported: ''mysql_native_password' is deprecated and will be removed in a future release. Please use caching_sha2_password instead'
+some_command
+1
+# Should still be 1 row
+SELECT DATA FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-013360';
+DATA
+Plugin mysql_native_password reported: ''mysql_native_password' is deprecated and will be removed in a future release. Please use caching_sha2_password instead'
+# Cleanup
+DROP USER b35792948@localhost;
+# End of 8.0 tests
