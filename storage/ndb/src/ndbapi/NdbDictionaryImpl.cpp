@@ -6327,6 +6327,7 @@ int NdbDictInterface::unpackOldListTables(NdbDictionary::Dictionary::List &list,
       }
       memcpy(otherName, &data[pos], n << 2);
       if (!(objectName = BaseString(otherName))) {
+        delete[] otherName;
         m_error.code = 4000;
         return -1;
       }
