@@ -237,6 +237,26 @@ class Ndb_binlog_thread : public Ndb_component {
   */
   void log_ndb_error(const NdbError &ndberr) const;
 
+  /**
+    Write an incident message to the binlog.
+    @param inj           Pointer to the injector
+    @param thd           The thread handle
+    @param message       The message to write.
+  */
+  void inject_incident_message(injector *inj, THD *thd,
+                               const char *message) const;
+
+  /**
+    Write an incident for particular NDB event type to the binlog.
+    @param inj           Pointer to the injector
+    @param thd           The thread handle
+    @param event_type    Type of the NDB event problem that has occurred.
+    @param gap_epoch     The epoch when problem was detected.
+   */
+  void inject_incident_for_event(injector *inj, THD *thd,
+                                 NdbDictionary::Event::TableEvent event_type,
+                                 Uint64 gap_epoch) const;
+
   /*
      The Ndb_binlog_thread is supposed to make a continuous recording
      of the activity in the cluster to the mysqlds binlog. When this
@@ -252,7 +272,7 @@ class Ndb_binlog_thread : public Ndb_component {
     // from the cluster
     CLUSTER_DISCONNECT
   };
-  bool check_reconnect_incident(THD *thd, injector *inj,
+  void check_reconnect_incident(THD *thd, injector *inj,
                                 Reconnect_type incident_id) const;
 
   /**
@@ -363,9 +383,6 @@ class Ndb_binlog_thread : public Ndb_component {
   // Functions for injecting events
   bool inject_apply_status_write(injector_transaction &trans,
                                  ulonglong gci) const;
-  void inject_incident(injector *inj, THD *thd,
-                       NdbDictionary::Event::TableEvent event_type,
-                       Uint64 gap_epoch) const;
   void inject_table_map(injector_transaction &trans, Ndb *ndb) const;
   void commit_trans(injector_transaction &trans, THD *thd, Uint64 current_epoch,
                     EpochContext epoch_ctx);

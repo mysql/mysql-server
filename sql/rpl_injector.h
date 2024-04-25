@@ -145,8 +145,6 @@ class injector {
             m_is_transactional(is_transactional),
             m_skip_hash(skip_hash) {}
 
-      char const *db_name() const { return m_table->s->db.str; }
-      char const *table_name() const { return m_table->s->table_name.str; }
       TABLE *get_table() const { return m_table; }
       bool is_transactional() const { return m_is_transactional; }
       bool skip_hash() const { return m_skip_hash; }
