@@ -66,7 +66,8 @@ Ndb_binlog_purger::Ndb_binlog_purger(bool *binlogging_on, ulong *log_purge_rate)
 
 Ndb_binlog_purger::~Ndb_binlog_purger() {}
 
-void Ndb_binlog_purger::submit_purge_binlog_file(const std::string &filename) {
+void Ndb_binlog_purger::submit_purge_binlog_file(void *session,
+                                                 const std::string &filename) {
   if (is_stop_requested()) {
     // Does not happen, but better not accept new work
     log_error("Binlog file '%s' submitted while stopping", filename.c_str());
@@ -76,26 +77,27 @@ void Ndb_binlog_purger::submit_purge_binlog_file(const std::string &filename) {
   std::unique_lock files_lock(m_purge_files_lock);
 
   // Don't allow adding existing filename
-  if (std::ranges::any_of(m_purge_files,
-                          [filename](const auto f) { return f == filename; })) {
+  if (std::ranges::any_of(m_purge_files, [filename](const auto &request) {
+        return request.filename == filename;
+      })) {
     log_info("Binlog file '%s' was already submitted for purge, skipping",
              filename.c_str());
     return;
   }
 
-  m_purge_files.push_back(std::move(filename));
+  m_purge_files.push_back({std::move(filename), session});
   purge_queue_size++;
   assert(purge_queue_size == static_cast<long long>(m_purge_files.size()));
   m_purge_file_added_cond.notify_one();
 }
 
-void Ndb_binlog_purger::wait_purge_binlog_file(const std::string &filename) {
+void Ndb_binlog_purger::wait_purge_completed_for_session(void *session) {
   std::unique_lock files_lock(m_purge_files_lock);
 
-  m_purge_files_finished_cond.wait(files_lock, [this, filename]() {
+  m_purge_files_finished_cond.wait(files_lock, [this, session]() {
     return is_stop_requested() ||
-           std::ranges::none_of(m_purge_files, [filename](const auto f) {
-             return f == filename;
+           std::ranges::none_of(m_purge_files, [session](const auto &request) {
+             return request.session == session;
            });
   });
 }
@@ -137,7 +139,7 @@ void Ndb_binlog_purger::find_and_delete_orphan_purged_rows() {
   for (const auto &file : ndb_binlog_index_files_not_existing) {
     log_info("Found row(s) for '%s' which has been purged, removing it",
              file.c_str());
-    submit_purge_binlog_file(file);
+    submit_purge_binlog_file(nullptr, file);
   }
 }
 
@@ -229,7 +231,7 @@ void Ndb_binlog_purger::process_purge_first_file_completed(
   }
 #endif
   std::unique_lock files_lock(m_purge_files_lock);
-  assert(m_purge_files[0] == filename);
+  assert(m_purge_files[0].filename == filename);
   m_purge_files.erase(m_purge_files.begin());
   purged_files_count++;
   purge_queue_size--;
@@ -242,7 +244,7 @@ bool Ndb_binlog_purger::process_purge_first_file(Ndb_local_connection &con) {
   if (m_purge_files.empty()) return false;
 
   // Start processing file to remove.
-  const auto filename = m_purge_files[0];
+  const auto filename = m_purge_files[0].filename;
   log_info("Start purging binlog file: '%s'", filename.c_str());
 
   files_lock.unlock();
@@ -315,7 +317,7 @@ void Ndb_binlog_purger::process_purge_files_list() {
       log_error(
           "Got too many errors when removing rows for '%s' from "
           "ndb_binlog_index, skipping...",
-          m_purge_files[0].c_str());
+          m_purge_files[0].filename.c_str());
       m_purge_files.erase(m_purge_files.begin());
       purge_queue_size--;
       assert(purge_queue_size == static_cast<long long>(m_purge_files.size()));
