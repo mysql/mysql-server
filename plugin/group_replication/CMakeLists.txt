@@ -137,12 +137,6 @@ SET(GMS_LISTENER_SERVICE_TEST_SOURCES
   src/services/notification/impl/gms_listener_test.cc
 )
 
-MY_CHECK_CXX_COMPILER_WARNING("-Wextra-semi" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${GMS_LISTENER_SERVICE_TEST_SOURCES}
-    COMPILE_FLAGS " ${HAS_WARN_FLAG}")
-ENDIF()
-
 # Allow both WITHOUT_GROUP_REPLICATION=1 and WITH_GROUP_REPLICATION=0 to be
 # specified.
 # Furthermore, the MYSQL_ADD_PLUGIN will replace them with

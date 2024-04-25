@@ -30,7 +30,7 @@
 #  Other values will be ignored, and we fall back to "bundled"
 #
 
-# Bundled version is currently 3.19.4
+# Bundled version is currently 4.24.4
 # Lowest checked system version is 3.5.0 on Oracle Linux 8.
 # Older versions may generate code which breaks the -Werror build.
 SET(MIN_PROTOBUF_VERSION_REQUIRED "3.5.0")
