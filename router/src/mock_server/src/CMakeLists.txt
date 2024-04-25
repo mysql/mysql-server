@@ -160,6 +160,9 @@ add_harness_plugin(mock_server
     router_lib
     harness_tls
   )
+ADD_DEPENDENCIES(mock_server
+  GenError
+  )
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/
