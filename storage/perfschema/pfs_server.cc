@@ -107,7 +107,8 @@ int initialize_performance_schema(
     PSI_error_bootstrap **error_bootstrap,
     PSI_data_lock_bootstrap **data_lock_bootstrap,
     PSI_system_bootstrap **system_bootstrap,
-    PSI_tls_channel_bootstrap **tls_channel_bootstrap) {
+    PSI_tls_channel_bootstrap **tls_channel_bootstrap,
+    PSI_metric_bootstrap **metric_bootstrap) {
   bool init_failed = false;
 
   *thread_bootstrap = nullptr;
@@ -127,6 +128,7 @@ int initialize_performance_schema(
   *data_lock_bootstrap = nullptr;
   *system_bootstrap = nullptr;
   *tls_channel_bootstrap = nullptr;
+  *metric_bootstrap = nullptr;
 
   pfs_enabled = param->m_enabled;
 
@@ -245,6 +247,7 @@ int initialize_performance_schema(
       *data_lock_bootstrap = &pfs_data_lock_bootstrap;
       *system_bootstrap = &pfs_system_bootstrap;
       *tls_channel_bootstrap = &pfs_tls_channel_bootstrap;
+      *metric_bootstrap = &pfs_metric_bootstrap;
     }
   }
 

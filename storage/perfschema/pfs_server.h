@@ -39,6 +39,7 @@
 #include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_metric.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_socket.h"
@@ -348,6 +349,8 @@ void pre_initialize_performance_schema();
   @param [out] system_bootstrap System instrumentation service bootstrap
   @param [out] tls_channel_bootstrap TLS channel instrumentation service
   bootstrap
+  @param [out] metric_bootstrap Telemetry metrics instrumentation service
+  bootstrap
   @retval 0 success
 */
 int initialize_performance_schema(
@@ -364,7 +367,8 @@ int initialize_performance_schema(
     PSI_error_bootstrap **error_bootstrap,
     PSI_data_lock_bootstrap **data_lock_bootstrap,
     PSI_system_bootstrap **system_bootstrap,
-    PSI_tls_channel_bootstrap **tls_channel_bootstrap);
+    PSI_tls_channel_bootstrap **tls_channel_bootstrap,
+    PSI_metric_bootstrap **metric_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 
