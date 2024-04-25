@@ -346,6 +346,7 @@ class Item_func_json_schema_valid final : public Item_bool_func {
   ~Item_func_json_schema_valid() override;
 
   const char *func_name() const override { return "json_schema_valid"; }
+  enum Functype functype() const override { return JSON_SCHEMA_VALID_FUNC; }
 
   bool val_bool() override;
 
@@ -371,6 +372,10 @@ class Item_func_json_schema_validation_report final : public Item_json_func {
 
   const char *func_name() const override {
     return "json_schema_validation_report";
+  }
+
+  enum Functype functype() const override {
+    return JSON_SCHEMA_VALIDATION_REPORT_FUNC;
   }
 
   bool val_json(Json_wrapper *wr) override;
