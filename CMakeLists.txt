@@ -472,7 +472,7 @@ ENDIF()
 # old and new source code and use cmake -DWITH_NDBCLUSTER=xx for both.
 # If both WITH_NDB and WITH_NDBCLUSTER is set they must be equal.
 # Else WITH_NDB is set as WITH_NDBCLUSTER.
-# WITH_NDBCLUSTER is unset and not cached to not intefere with
+# WITH_NDBCLUSTER is unset and not cached to not interfere with
 # legacy logic in MYSQL_ADD_PLUGIN.
 IF(DEFINED WITH_NDBCLUSTER)
   SET(HAVE_WITH_NDBCLUSTER 1)
@@ -492,7 +492,7 @@ IF(DEFINED WITH_NDBCLUSTER)
   ELSE()
     SET(WITH_NDB_DEFAULT OFF)
   ENDIF()
-  # Unset WITH_NDBCLUSTER to not intefere with MYSQL_ADD_PLUGIN logic.
+  # Unset WITH_NDBCLUSTER to not interfere with MYSQL_ADD_PLUGIN logic.
   # It will be added to cache at end of this file.
   UNSET(WITH_NDBCLUSTER CACHE)
 ELSE()
