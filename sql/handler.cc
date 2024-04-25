@@ -5910,6 +5910,12 @@ int ha_binlog_index_purge_file(THD *thd, const char *file) {
   return 0;
 }
 
+void ha_binlog_index_purge_wait(THD *thd) {
+  assert(thd);
+  binlog_func_st bfn = {BFN_BINLOG_PURGE_WAIT, nullptr};
+  binlog_func_foreach(thd, &bfn);
+}
+
 struct binlog_log_query_st {
   enum_binlog_command binlog_command;
   const char *query;

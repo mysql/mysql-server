@@ -46,8 +46,14 @@ class Ndb_binlog_purger : public Ndb_component {
   THD *m_thd{nullptr};
   void create_thd(void *stackptr);
 
+  // Name of one file to purge and the session which requested it
+  struct PurgeRequest {
+    std::string filename;
+    void *session;
+  };
+
   // List of purged files whose rows need to be removed
-  std::vector<std::string> m_purge_files;
+  std::vector<PurgeRequest> m_purge_files;
   // Mutex protecting the list of files to purge
   std::mutex m_purge_files_lock;
   // Condition used by purger to wait until there are new files to
@@ -91,16 +97,18 @@ class Ndb_binlog_purger : public Ndb_component {
     @brief Submit the name of a purged binlog file for aynchrounous removal
     of corresponding rows from the ndb_binlog_index table.
 
+    @param session Identifies the session requesting purge. Used for being able
+    to wait for purge to complete, use nullptr when there is no need to wait.
     @param filename Name of the binlog file which has been purged
   */
-  void submit_purge_binlog_file(const std::string &filename);
+  void submit_purge_binlog_file(void *session, const std::string &filename);
 
   /*
-    @brief Wait until removal of rows for the given filename has completed.
+    @brief Wait until removal of files for the given session has completed.
 
-    @param filename Name of the binlog file to wait for removal of.
+    @param session Identifies the session requesting purge..
   */
-  void wait_purge_binlog_file(const std::string &filename);
+  void wait_purge_completed_for_session(void *session);
 
  private:
   virtual int do_init() override;

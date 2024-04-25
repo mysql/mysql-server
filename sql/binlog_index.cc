@@ -965,16 +965,8 @@ int Binlog_index_monitor::purge_index_entry(THD *thd,
         }
 
         error = 0;
-        if (!need_lock_index) {
-          /*
-            This is to avoid triggering an error in NDB.
-
-            @todo: This is weird, what does NDB errors have to do with
-            need_lock_index? Explain better or refactor /Sven
-          */
-          if (!m_is_relay_log)
-            ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
-        }
+        if (!m_is_relay_log)
+          ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
 
         DBUG_PRINT("info", ("purging %s", log_info.log_file_name));
         if (!mysql_file_delete(key_file_binlog, log_info.log_file_name,

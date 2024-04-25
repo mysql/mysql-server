@@ -3237,6 +3237,7 @@ bool purge_source_logs_to_file(THD *thd, const char *to_log) {
   auto purge_error = mysql_bin_log.purge_logs(
       search_file_name, include_to_log, need_index_lock, need_update_threads,
       nullptr, auto_purge);
+  ha_binlog_index_purge_wait(thd);
   return purge_error_message(thd, purge_error);
 }
 
@@ -3272,6 +3273,7 @@ bool purge_source_logs_before_date(THD *thd, time_t purge_time) {
   constexpr auto auto_purge{false};
   auto purge_error =
       mysql_bin_log.purge_logs_before_date(purge_time, auto_purge);
+  ha_binlog_index_purge_wait(thd);
   return purge_error_message(thd, purge_error);
 }
 
