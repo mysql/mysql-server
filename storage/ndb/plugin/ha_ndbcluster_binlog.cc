@@ -338,6 +338,14 @@ static Ndb_binlog_purger ndb_binlog_purger(&opt_bin_log,
      binlog on the local server, if the auto purge conditions are exceeded at
      that time the applier will trigger a purge of the binlog.
 
+  @note This callback is normally called with the `LOCK_index` mutex held, this
+  means that time consuming work should not be performed as the mutex is
+  needed for other functionality and are assumed to not be held for long.
+  Instead, the work to remove references to the purged file are started
+  asynchronously in the background and waited for completion from
+  ndbcluster_binlog_index_purge_wait() which is then called after releasing
+  the mutex.
+
   @param thd Thread handle
   @param filename Name of the binlog file which has been removed
 */
@@ -350,7 +358,7 @@ static void ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
     // No thd indicates auto purge at server startup, just submit the purged
     // file to purger who will remove the rows when server has started properly.
     ndb_log_info("Purging binlog file at server startup: '%s'", filename);
-    ndb_binlog_purger.submit_purge_binlog_file(filename);
+    ndb_binlog_purger.submit_purge_binlog_file(nullptr, filename);
     return;
   }
 
@@ -360,17 +368,22 @@ static void ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
   }
 
   ndb_log_info("Purging binlog file: '%s'", filename);
-  ndb_binlog_purger.submit_purge_binlog_file(filename);
+  ndb_binlog_purger.submit_purge_binlog_file(thd, filename);
+}
 
-  if (thd_sql_command(thd) == SQLCOM_PURGE ||
-      thd_sql_command(thd) == SQLCOM_PURGE_BEFORE) {
-    // When the ndb binlog thread triggers a purge it should never wait
-    assert(!ndb_thd_is_binlog_thread(thd));
+static void ndbcluster_binlog_index_purge_wait(THD *thd) {
+  DBUG_TRACE;
+  assert(thd);
+  // Only PURGE BINARY LOGS TO and PURGE BINARY LOGS BEFORE calls wait
+  assert(thd_sql_command(thd) == SQLCOM_PURGE ||
+         thd_sql_command(thd) == SQLCOM_PURGE_BEFORE);
 
-    // Wait until purger has removed all rows for the file
-    ndb_binlog_purger.wait_purge_binlog_file(filename);
-  }
-  return;
+  // When the ndb binlog thread triggers a purge it should never wait
+  assert(!ndb_thd_is_binlog_thread(thd));
+
+  // Wait until purger has removed all files requested by this session
+  ndb_log_info("Waiting for purge to complete");
+  ndb_binlog_purger.wait_purge_completed_for_session(thd);
 }
 
 /*
@@ -630,6 +643,9 @@ static int ndbcluster_binlog_func(handlerton *, THD *thd, enum_binlog_func fn,
       break;
     case BFN_BINLOG_PURGE_FILE:
       ndbcluster_binlog_index_purge_file(thd, (const char *)arg);
+      break;
+    case BFN_BINLOG_PURGE_WAIT:
+      ndbcluster_binlog_index_purge_wait(thd);
       break;
   }
   return 0;

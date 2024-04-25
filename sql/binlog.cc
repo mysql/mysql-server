@@ -3321,6 +3321,7 @@ bool purge_source_logs_to_file(THD *thd, const char *to_log) {
   auto purge_error = mysql_bin_log.purge_logs(
       search_file_name, include_to_log, need_index_lock, need_update_threads,
       nullptr, auto_purge);
+  ha_binlog_index_purge_wait(thd);
   return purge_error_message(thd, purge_error);
 }
 
@@ -3356,6 +3357,7 @@ bool purge_source_logs_before_date(THD *thd, time_t purge_time) {
   constexpr auto auto_purge{false};
   auto purge_error =
       mysql_bin_log.purge_logs_before_date(purge_time, auto_purge);
+  ha_binlog_index_purge_wait(thd);
   return purge_error_message(thd, purge_error);
 }
 
@@ -6326,17 +6328,9 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
 
         error = 0;
-        if (!need_lock_index) {
-          /*
-            This is to avoid triggering an error in NDB.
-
-            @todo: This is weird, what does NDB errors have to do with
-            need_lock_index? Explain better or refactor /Sven
-          */
-          if (!is_relay_log) {
-            // Only called when purging binlog
-            ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
-          }
+        if (!is_relay_log) {
+          // Only called when purging binlog
+          ha_binlog_index_purge_file(thd, log_info.log_file_name);
         }
 
         DBUG_PRINT("info", ("purging %s", log_info.log_file_name));

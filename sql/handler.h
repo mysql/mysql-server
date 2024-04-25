@@ -690,7 +690,8 @@ enum enum_binlog_func {
   BFN_RESET_SLAVE = 2,
   BFN_BINLOG_WAIT = 3,
   BFN_BINLOG_END = 4,
-  BFN_BINLOG_PURGE_FILE = 5
+  BFN_BINLOG_PURGE_FILE = 5,
+  BFN_BINLOG_PURGE_WAIT = 6
 };
 
 enum enum_binlog_command {
@@ -7360,7 +7361,42 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht,
                        const ulonglong *trxid);
 
 int ha_reset_logs(THD *thd);
+
+/**
+  Inform storage engine(s) that a binary log file will be purged and any
+  references to it should be removed.
+
+  The function is called for all purged files, regardless if it is an explicit
+  PURGE BINARY LOGS statement, or an automatic purge performed by the server.
+
+  @note Since function is called with the LOCK_index mutex held the work
+  performed in this callback should be kept at minimum. One way to defer work is
+  to schedule work and use the `ha_binlog_index_purge_wait` callback to wait for
+  completion.
+
+  @param thd Thread handle of session purging file. The nullptr value indicates
+  that purge is done at server startup.
+  @param file Name of file being purged.
+  @return Always 0, return value are ignored by caller.
+*/
 int ha_binlog_index_purge_file(THD *thd, const char *file);
+
+/**
+  Request the storage engine to complete any operations that were initiated
+  by `ha_binlog_index_purge_file` and which need to complete
+  before PURGE BINARY LOGS completes.
+
+  The function is called only from PURGE BINARY LOGS. Each PURGE BINARY LOGS
+  statement will result in 0, 1 or more calls to `ha_binlog_index_purge_file`,
+  followed by exactly 1 call to `ha_binlog_index_purge_wait`.
+
+  @note This function is called without LOCK_index mutex held and thus any
+  waiting performed will only affect the current session.
+
+  @param thd Thread handle of session.
+*/
+void ha_binlog_index_purge_wait(THD *thd);
+
 void ha_reset_slave(THD *thd);
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command, const char *query,
