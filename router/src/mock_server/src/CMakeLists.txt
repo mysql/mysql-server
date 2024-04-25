@@ -170,7 +170,10 @@ add_harness_plugin(mock_server
     io_component
     harness_tls
   )
-ADD_DEPENDENCIES(mock_server mysql_server_mock_schema)
+ADD_DEPENDENCIES(mock_server
+  GenError
+  mysql_server_mock_schema
+  )
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/
