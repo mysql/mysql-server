@@ -1,0 +1,74 @@
+# Test innodb_optimize_fulltext_only optimization on large text
+# Because of the way this optimization is perfomed, some logic is only
+# hit if the size of all individual tokens after compression
+# exceeds a certain threshold
+
+SET GLOBAL innodb_optimize_fulltext_only=ON;
+
+CREATE TABLE book (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	heading VARCHAR(20),
+	content TEXT,
+	FULLTEXT idx (content)
+	) ENGINE= InnoDB;
+
+CREATE PROCEDURE find (word CHAR(20))
+	SELECT heading FROM book WHERE MATCH(content)
+		AGAINST (word IN NATURAL LANGUAGE MODE)
+		ORDER BY id;
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/lob/frankenstein.txt' INTO TABLE book
+	FIELDS TERMINATED BY '#' LINES TERMINATED BY '@' (heading, content);
+
+CALL find('they');
+CALL find('wretched');
+CALL find('mariner');
+
+SET GLOBAL innodb_ft_aux_table="test/book";
+
+OPTIMIZE TABLE book;
+
+CALL find('they');
+CALL find('wretched');
+CALL find('mariner');
+
+SET GLOBAL innodb_ft_aux_table="test/book";
+
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_DELETED;
+
+DELETE FROM book;
+
+CALL find('they');
+
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_DELETED;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+OPTIMIZE TABLE book;
+
+CALL find('they');
+
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_DELETED;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+SET GLOBAL innodb_ft_num_word_optimize=10000;
+
+OPTIMIZE TABLE book;
+
+CALL find('they');
+
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_DELETED;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+DROP TABLE book;
+DROP PROCEDURE find;
+SET GLOBAL innodb_optimize_fulltext_only=OFF;
+SET GLOBAL innodb_ft_aux_table=default;
+SET GLOBAL innodb_ft_num_word_optimize=default;
