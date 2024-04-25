@@ -330,9 +330,6 @@ buf_block_t *Parallel_reader::Scan_ctx::block_get_s_latched(
 }
 
 void PCursor::savepoint() noexcept {
-  /* Store the cursor position on the previous user record on the page. */
-  m_pcur->move_to_prev_on_page();
-
   m_pcur->store_position(m_mtr);
 
   m_mtr->commit();
@@ -347,11 +344,6 @@ void PCursor::resume() noexcept {
   was purged meanwhile. */
 
   restore_position();
-
-  if (!m_pcur->is_after_last_on_page()) {
-    /* Move to the successor of the saved record. */
-    m_pcur->move_to_next_on_page();
-  }
 }
 
 dberr_t PCursor::move_to_user_rec() noexcept {
