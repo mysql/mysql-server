@@ -145,4 +145,21 @@ class Ndb_thd_memory_guard {
   ~Ndb_thd_memory_guard();
 };
 
+/**
+  @brief RAII style class to create and release a THD
+
+  @note The THD will be created and configured to be a background THD
+*/
+class Ndb_thd_guard {
+  THD *const m_thd;
+  Ndb_thd_guard(const Ndb_thd_guard &) = delete;
+
+ public:
+  Ndb_thd_guard();
+
+  ~Ndb_thd_guard();
+
+  THD *get_thd() const { return m_thd; }
+};
+
 #endif

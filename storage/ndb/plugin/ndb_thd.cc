@@ -149,3 +149,16 @@ Ndb_thd_memory_guard::Ndb_thd_memory_guard(THD *thd [[maybe_unused]])
 Ndb_thd_memory_guard::~Ndb_thd_memory_guard() {
   assert(m_thd->mem_root->allocated_size() <= m_thd_mem_root_size_before);
 }
+
+Ndb_thd_guard::Ndb_thd_guard() : m_thd(new THD()) {
+  m_thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  m_thd->thread_stack = reinterpret_cast<const char *>(&m_thd);
+  m_thd->store_globals();
+}
+
+Ndb_thd_guard::~Ndb_thd_guard() {
+  if (m_thd) {
+    m_thd->release_resources();
+    delete m_thd;
+  }
+}

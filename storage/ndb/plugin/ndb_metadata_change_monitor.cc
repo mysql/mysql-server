@@ -35,7 +35,6 @@
 #include "my_dbug.h"
 #include "mysql/psi/mysql_cond.h"   // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"  // mysql_mutex_t
-#include "sql/sql_class.h"          // THD
 #include "sql/table.h"              // is_infoschema_db() / is_perfschema_db()
 #include "storage/ndb/include/ndbapi/NdbError.hpp"    // NdbError
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndb_binlog_is_read_only
@@ -396,28 +395,6 @@ bool Ndb_metadata_change_monitor::detect_schema_and_table_changes(
   return true;
 }
 
-// RAII style class for THD
-class Thread_handle_guard {
-  THD *const m_thd;
-  Thread_handle_guard(const Thread_handle_guard &) = delete;
-
- public:
-  Thread_handle_guard() : m_thd(new THD()) {
-    m_thd->system_thread = SYSTEM_THREAD_BACKGROUND;
-    m_thd->thread_stack = reinterpret_cast<const char *>(&m_thd);
-    m_thd->store_globals();
-  }
-
-  ~Thread_handle_guard() {
-    if (m_thd) {
-      m_thd->release_resources();
-      delete m_thd;
-    }
-  }
-
-  THD *get_thd() const { return m_thd; }
-};
-
 extern bool opt_ndb_metadata_check;
 extern unsigned long opt_ndb_metadata_check_interval;
 extern bool opt_ndb_metadata_sync;
@@ -470,7 +447,7 @@ void Ndb_metadata_change_monitor::do_run() {
     return;
   }
 
-  Thread_handle_guard thd_guard;
+  Ndb_thd_guard thd_guard;
   THD *thd = thd_guard.get_thd();
   if (thd == nullptr) {
     assert(false);
