@@ -114,6 +114,11 @@ class Ndb_component {
    */
   bool wait_for_server_started(void);
 
+  /**
+   * Performance Schema Interface name
+   */
+  const char *psi_name() { return m_psi_name; }
+
  private:
   enum ThreadState {
     TS_UNINIT = 0,
