@@ -421,4 +421,26 @@ class Thd_ndb {
   Ndb_applier *get_applier() const { return m_applier.get(); }
 };
 
+/**
+  @brief RAII style class for seizing and relasing a Thd_ndb
+*/
+class Thd_ndb_guard {
+  THD *const m_thd;
+  Thd_ndb *const m_thd_ndb;
+  Thd_ndb_guard() = delete;
+  Thd_ndb_guard(const Thd_ndb_guard &) = delete;
+
+ public:
+  Thd_ndb_guard(THD *thd) : m_thd(thd), m_thd_ndb(Thd_ndb::seize(m_thd)) {
+    thd_set_thd_ndb(m_thd, m_thd_ndb);
+  }
+
+  ~Thd_ndb_guard() {
+    Thd_ndb::release(m_thd_ndb);
+    thd_set_thd_ndb(m_thd, nullptr);
+  }
+
+  const Thd_ndb *get_thd_ndb() const { return m_thd_ndb; }
+};
+
 #endif
