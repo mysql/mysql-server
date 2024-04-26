@@ -83,6 +83,14 @@ const char *ndb_thd_query(const THD *thd) { return thd->query().str; }
 
 size_t ndb_thd_query_length(const THD *thd) { return thd->query().length; }
 
+ulonglong ndb_thd_get_pfs_thread_id() {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  return PSI_THREAD_CALL(get_current_thread_internal_id)();
+#else
+  return 0;
+#endif
+}
+
 bool ndb_thd_is_binlog_thread(const THD *thd) {
   return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 }
@@ -148,4 +156,19 @@ Ndb_thd_memory_guard::Ndb_thd_memory_guard(THD *thd [[maybe_unused]])
 
 Ndb_thd_memory_guard::~Ndb_thd_memory_guard() {
   assert(m_thd->mem_root->allocated_size() <= m_thd_mem_root_size_before);
+}
+
+Ndb_thd_guard::Ndb_thd_guard() : m_thd(new THD()) {
+  m_thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  m_thd->thread_stack = reinterpret_cast<const char *>(&m_thd);
+  m_thd->set_new_thread_id();
+  m_thd->store_globals();
+  m_thd->set_command(COM_DAEMON);
+}
+
+Ndb_thd_guard::~Ndb_thd_guard() {
+  if (m_thd) {
+    m_thd->release_resources();
+    delete m_thd;
+  }
 }

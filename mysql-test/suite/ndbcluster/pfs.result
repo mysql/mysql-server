@@ -84,3 +84,15 @@ PRIO	System
 ERROR_CODE	MY-010865
 SUBSYSTEM	NDB
 DATA	connection[0], NodeID: 49, all storage nodes connected
+# Log messages written by ndbcluster plugin components that call into
+# MySQL (need a THD) must have a thread_id (THD id) assigned
+SELECT LEFT(DATA,LOCATE(':',DATA)-1) as component, IF(THREAD_ID > 0, "true", "false") AS has_thread_id
+FROM performance_schema.error_log
+WHERE SUBSYSTEM = "NDB" AND
+DATA LIKE "%: Started%" ORDER BY DATA;
+component	Binlog
+has_thread_id	true
+component	Index Stat
+has_thread_id	false
+component	Metadata
+has_thread_id	true

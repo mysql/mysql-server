@@ -7343,7 +7343,7 @@ restart_cluster_failure:
   }
 
   // Create Thd_ndb after server started
-  if (!(thd_ndb = Thd_ndb::seize(thd))) {
+  if (!(thd_ndb = Thd_ndb::seize(thd, psi_name()))) {
     log_error("Failed to seize Thd_ndb object");
     goto err;
   }
