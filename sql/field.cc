@@ -2410,7 +2410,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   if (cs->mbmaxlen > 1) {
     uint dummy_errors;
     tmp.copy(from_arg, len, cs, &my_charset_bin, &dummy_errors);
-    from = (uchar *)tmp.ptr();
+    from = pointer_cast<uchar *>(tmp.ptr());
     len = tmp.length();
   }
 
@@ -4223,9 +4223,8 @@ type_conversion_status Field_float::store(const char *from, size_t len,
   const char *end;
   const double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error != 0 || end == from ||
-      (((uint)(end - from) != len &&
-        !check_if_only_end_space(cs, end, from + len) &&
-        thd->check_for_truncated_fields))) {
+      (from + len != end && !check_if_only_end_space(cs, end, from + len) &&
+       thd->check_for_truncated_fields)) {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
@@ -4392,9 +4391,8 @@ type_conversion_status Field_double::store(const char *from, size_t len,
   const char *end;
   const double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error != 0 || end == from ||
-      (((uint)(end - from) != len &&
-        !check_if_only_end_space(cs, end, from + len) &&
-        thd->check_for_truncated_fields))) {
+      (from + len != end && !check_if_only_end_space(cs, end, from + len) &&
+       thd->check_for_truncated_fields)) {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
@@ -6316,19 +6314,20 @@ type_conversion_status Field_longstr::report_if_important_data(
 type_conversion_status Field_string::store(const char *from, size_t length,
                                            const CHARSET_INFO *cs) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
+  char *pos = pointer_cast<char *>(ptr);
   size_t copy_length;
   const char *well_formed_error_pos;
   const char *cannot_convert_error_pos;
   const char *from_end_pos;
 
   copy_length = field_well_formed_copy_nchars(
-      field_charset, (char *)ptr, field_length, cs, from, length,
+      field_charset, pos, field_length, cs, from, length,
       field_length / field_charset->mbmaxlen, &well_formed_error_pos,
       &cannot_convert_error_pos, &from_end_pos);
 
   /* Append spaces if the string was shorter than the field. */
   if (copy_length < field_length)
-    field_charset->cset->fill(field_charset, (char *)ptr + copy_length,
+    field_charset->cset->fill(field_charset, pos + copy_length,
                               field_length - copy_length,
                               field_charset->pad_char);
 
@@ -6427,15 +6426,14 @@ double Field_string::val_real() const {
   int error;
   const char *end;
   const CHARSET_INFO *cs = charset();
+  const char *pos = pointer_cast<const char *>(ptr);
   double result;
 
-  result = my_strntod(cs, (char *)ptr, field_length, &end, &error);
-  if ((error ||
-       (field_length != (uint32)(end - (char *)ptr) &&
-        !check_if_only_end_space(cs, end, (char *)ptr + field_length)))) {
-    size_t length =
-        cs->cset->lengthsp(cs, pointer_cast<const char *>(ptr), field_length);
-    const ErrConvString err((char *)ptr, length, cs);
+  result = my_strntod(cs, pos, field_length, &end, &error);
+  if (error || (end != pos + field_length &&
+                !check_if_only_end_space(cs, end, pos + field_length))) {
+    size_t length = cs->cset->lengthsp(cs, pos, field_length);
+    const ErrConvString err(pos, length, cs);
     push_warning_printf(
         current_thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DOUBLE", err.ptr());
@@ -6448,15 +6446,14 @@ longlong Field_string::val_int() const {
   int error;
   const char *end;
   const CHARSET_INFO *cs = charset();
+  const char *pos = pointer_cast<const char *>(ptr);
   longlong result;
 
-  result = my_strntoll(cs, (char *)ptr, field_length, 10, &end, &error);
-  if ((error ||
-       (field_length != (uint32)(end - (char *)ptr) &&
-        !check_if_only_end_space(cs, end, (char *)ptr + field_length)))) {
-    size_t length =
-        cs->cset->lengthsp(cs, pointer_cast<const char *>(ptr), field_length);
-    const ErrConvString err((char *)ptr, length, cs);
+  result = my_strntoll(cs, pos, field_length, 10, &end, &error);
+  if (error || (pos + field_length != end &&
+                !check_if_only_end_space(cs, end, pos + field_length))) {
+    size_t length = cs->cset->lengthsp(cs, pos, field_length);
+    const ErrConvString err(pos, length, cs);
     push_warning_printf(
         current_thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "INTEGER", err.ptr());
@@ -6467,25 +6464,25 @@ longlong Field_string::val_int() const {
 String *Field_string::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   size_t length;
+  const char *pos = pointer_cast<const char *>(ptr);
   if (current_thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)
     length = my_charpos(field_charset, ptr, ptr + field_length,
                         field_length / field_charset->mbmaxlen);
   else
-    length = field_charset->cset->lengthsp(field_charset, (const char *)ptr,
-                                           field_length);
-  val_ptr->set((const char *)ptr, length, field_charset);
+    length = field_charset->cset->lengthsp(field_charset, pos, field_length);
+  val_ptr->set(pos, length, field_charset);
   return val_ptr;
 }
 
 my_decimal *Field_string::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = charset();
-  const int err = str2my_decimal(E_DEC_FATAL_ERROR, (char *)ptr, field_length,
-                                 cs, decimal_value);
+  const char *pos = pointer_cast<const char *>(ptr);
+  const int err =
+      str2my_decimal(E_DEC_FATAL_ERROR, pos, field_length, cs, decimal_value);
   if (err) {
-    size_t length =
-        cs->cset->lengthsp(cs, pointer_cast<const char *>(ptr), field_length);
-    const ErrConvString errmsg((char *)ptr, length, cs);
+    size_t length = cs->cset->lengthsp(cs, pos, field_length);
+    const ErrConvString errmsg(pos, length, cs);
     push_warning_printf(
         current_thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
         ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DECIMAL", errmsg.ptr());
@@ -6521,10 +6518,10 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
       Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
       this doesn't matter, for but NO PAD, we need to do it ourselves here.
     */
-    a_len = field_charset->cset->lengthsp(field_charset, (const char *)a_ptr,
-                                          a_len);
-    b_len = field_charset->cset->lengthsp(field_charset, (const char *)b_ptr,
-                                          b_len);
+    a_len = field_charset->cset->lengthsp(
+        field_charset, pointer_cast<const char *>(a_ptr), a_len);
+    b_len = field_charset->cset->lengthsp(
+        field_charset, pointer_cast<const char *>(b_ptr), b_len);
   }
 
   return field_charset->coll->strnncollsp(field_charset, a_ptr, a_len, b_ptr,
@@ -6537,6 +6534,7 @@ size_t Field_string::make_sort_key(uchar *to, size_t length) const {
 
 size_t Field_string::make_sort_key(uchar *to, size_t length,
                                    size_t trunc_pos) const {
+  const char *pos = pointer_cast<const char *>(ptr);
   /*
     We don't store explicitly how many bytes long this string is.
     Find out by calling charpos, since just using field_length
@@ -6547,10 +6545,8 @@ size_t Field_string::make_sort_key(uchar *to, size_t length,
     the end of the string for “end of string”.
   */
   size_t input_length = std::min<size_t>(
-      field_length,
-      field_charset->cset->charpos(
-          field_charset, pointer_cast<const char *>(ptr),
-          pointer_cast<const char *>(ptr) + field_length, trunc_pos));
+      field_length, field_charset->cset->charpos(
+                        field_charset, pos, pos + field_length, trunc_pos));
 
   if (field_charset->pad_attribute == NO_PAD &&
       !(current_thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)) {
@@ -6558,8 +6554,8 @@ size_t Field_string::make_sort_key(uchar *to, size_t length,
       Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
       this doesn't matter, for but NO PAD, we need to do it ourselves here.
     */
-    input_length = field_charset->cset->lengthsp(
-        field_charset, (const char *)ptr, input_length);
+    input_length =
+        field_charset->cset->lengthsp(field_charset, pos, input_length);
   }
 
   assert(char_length_cache == char_length());
@@ -6597,8 +6593,8 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
   if (field_charset->mbmaxlen == 1) {
     while (length && from[length - 1] == field_charset->pad_char) length--;
   } else
-    length = field_charset->cset->lengthsp(field_charset, (const char *)from,
-                                           length);
+    length = field_charset->cset->lengthsp(
+        field_charset, pointer_cast<const char *>(from), length);
 
   if (max_length < length_bytes)
     length = 0;
@@ -6663,7 +6659,7 @@ const uchar *Field_string::unpack(uchar *to, const uchar *from,
 
   memcpy(to, from, length);
   // Pad the string with the pad character of the fields charset
-  field_charset->cset->fill(field_charset, (char *)to + length,
+  field_charset->cset->fill(field_charset, pointer_cast<char *>(to) + length,
                             field_length - length, field_charset->pad_char);
   return from + length;
 }
@@ -6715,12 +6711,12 @@ uint Field_string::max_packed_col_length() const {
 
 size_t Field_string::get_key_image(uchar *buff, size_t length,
                                    imagetype) const {
-  const size_t bytes =
-      my_charpos(field_charset, (char *)ptr, (char *)ptr + field_length,
-                 length / field_charset->mbmaxlen);
+  const char *pos = pointer_cast<const char *>(ptr);
+  const size_t bytes = my_charpos(field_charset, pos, pos + field_length,
+                                  length / field_charset->mbmaxlen);
   memcpy(buff, ptr, bytes);
   if (bytes < length)
-    field_charset->cset->fill(field_charset, (char *)buff + bytes,
+    field_charset->cset->fill(field_charset, pointer_cast<char *>(buff) + bytes,
                               length - bytes, field_charset->pad_char);
   return bytes;
 }
@@ -6754,7 +6750,7 @@ size_t Field_string::get_key_image(uchar *buff, size_t length,
 */
 int Field_varstring::do_save_field_metadata(uchar *metadata_ptr) const {
   assert(field_length <= 65535);
-  int2store((char *)metadata_ptr, field_length);
+  int2store(pointer_cast<char *>(metadata_ptr), field_length);
   return 2;
 }
 
@@ -6767,9 +6763,9 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   const char *from_end_pos;
 
   copy_length = field_well_formed_copy_nchars(
-      field_charset, (char *)ptr + length_bytes, field_length, cs, from, length,
-      field_length / field_charset->mbmaxlen, &well_formed_error_pos,
-      &cannot_convert_error_pos, &from_end_pos);
+      field_charset, pointer_cast<char *>(ptr) + length_bytes, field_length, cs,
+      from, length, field_length / field_charset->mbmaxlen,
+      &well_formed_error_pos, &cannot_convert_error_pos, &from_end_pos);
 
   if (length_bytes == 1)
     *ptr = (uchar)copy_length;
@@ -6793,17 +6789,15 @@ double Field_varstring::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   const char *end;
-  double result;
   const CHARSET_INFO *cs = charset();
-
   const uint length = data_length();
-  result = my_strntod(cs, (char *)ptr + length_bytes, length, &end, &error);
+  const char *pos = pointer_cast<char *>(ptr) + length_bytes;
 
-  if ((error || (length != (uint)(end - (char *)ptr + length_bytes) &&
-                 !check_if_only_end_space(
-                     cs, end, (char *)ptr + length_bytes + length)))) {
-    push_numerical_conversion_warning(current_thd, (char *)ptr + length_bytes,
-                                      length, cs, "DOUBLE",
+  const double result = my_strntod(cs, pos, length, &end, &error);
+
+  if (error || (end != pos + length &&
+                !check_if_only_end_space(cs, end, pos + length))) {
+    push_numerical_conversion_warning(current_thd, pos, length, cs, "DOUBLE",
                                       ER_TRUNCATED_WRONG_VALUE);
   }
   return result;
@@ -6814,16 +6808,13 @@ longlong Field_varstring::val_int() const {
   int error;
   const char *end;
   const CHARSET_INFO *cs = charset();
-
   const uint length = data_length();
-  const longlong result =
-      my_strntoll(cs, (char *)ptr + length_bytes, length, 10, &end, &error);
+  const char *pos = pointer_cast<char *>(ptr) + length_bytes;
+  const longlong result = my_strntoll(cs, pos, length, 10, &end, &error);
 
-  if ((error || (length != (uint)(end - (char *)ptr + length_bytes) &&
-                 !check_if_only_end_space(
-                     cs, end, (char *)ptr + length_bytes + length)))) {
-    push_numerical_conversion_warning(current_thd, (char *)ptr + length_bytes,
-                                      length, cs, "INTEGER",
+  if (error || (end != pos + length &&
+                !check_if_only_end_space(cs, end, pos + length))) {
+    push_numerical_conversion_warning(current_thd, pos, length, cs, "INTEGER",
                                       ER_TRUNCATED_WRONG_VALUE);
   }
   return result;
@@ -6840,12 +6831,10 @@ my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = charset();
   const uint length = data_length();
-  const int error = str2my_decimal(
-      E_DEC_FATAL_ERROR, (char *)ptr + length_bytes, length, cs, decimal_value);
+  const char *pos = pointer_cast<char *>(ptr) + length_bytes;
 
-  if (error) {
-    push_numerical_conversion_warning(current_thd, (char *)ptr + length_bytes,
-                                      length, cs, "DECIMAL",
+  if (str2my_decimal(E_DEC_FATAL_ERROR, pos, length, cs, decimal_value)) {
+    push_numerical_conversion_warning(current_thd, pos, length, cs, "DECIMAL",
                                       ER_TRUNCATED_WRONG_VALUE);
   }
   return decimal_value;
@@ -7035,8 +7024,9 @@ size_t Field_varstring::get_key_image(uchar *buff, size_t length,
 
 void Field_varstring::set_key_image(const uchar *buff, size_t length) {
   length = uint2korr(buff);  // Real length is here
-  (void)Field_varstring::store((const char *)buff + HA_KEY_BLOB_LENGTH, length,
-                               field_charset);
+  (void)Field_varstring::store(
+      pointer_cast<const char *>(buff) + HA_KEY_BLOB_LENGTH, length,
+      field_charset);
 }
 
 int Field_varstring::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
@@ -7066,9 +7056,9 @@ Field *Field_varstring::new_field(MEM_ROOT *root, TABLE *new_table) const {
 Field *Field_varstring::new_key_field(MEM_ROOT *root, TABLE *new_table,
                                       uchar *new_ptr, uchar *new_null_ptr,
                                       uint new_null_bit) const {
-  Field_varstring *res;
-  if ((res = (Field_varstring *)Field::new_key_field(
-           root, new_table, new_ptr, new_null_ptr, new_null_bit))) {
+  Field_varstring *res = down_cast<Field_varstring *>(Field::new_key_field(
+      root, new_table, new_ptr, new_null_ptr, new_null_bit));
+  if (res != nullptr) {
     /* Keys length prefixes are always packed with 2 bytes */
     res->length_bytes = 2;
   }
@@ -7351,9 +7341,10 @@ String *Field_vector::val_str(String *, String *val_ptr) const {
 #ifdef WORDS_BIGENDIAN
     val_ptr->alloc(length);
     uint32 dimensions = get_dimensions(length, Field_vector::precision);
-    float *to_store = (float *)(val_ptr->ptr());
+    float *to_store = pointer_cast<float *>(val_ptr->ptr());
     for (uint32 i = 0; i < dimensions; i++) {
-      to_store[i] = float4get((const uchar *)(blob + i * sizeof(float)));
+      to_store[i] =
+          float4get(pointer_cast<const uchar *>(blob + i * sizeof(float)));
     }
     val_ptr->length(length);
 #else
@@ -7424,7 +7415,7 @@ my_decimal *Field_blob::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   size_t length;
   const char *blob = pointer_cast<const char *>(get_blob_data());
-  if (!blob) {
+  if (blob == nullptr) {
     blob = "";
     length = 0;
   } else
@@ -8154,7 +8145,7 @@ bool Field_json::pack_diff(uchar **to, ulonglong value_format) const {
   // We know the caller has allocated enough space, but we don't
   // know how much it is.  So just say that it is large, to
   // suppress bounds checks.
-  String to_string((char *)*to, 0xffffFFFF, &my_charset_bin);
+  String to_string(pointer_cast<char *>(*to), 0xffffFFFF, &my_charset_bin);
   to_string.length(0);
   if (diff_vector->write_binary(&to_string))
     // write_binary only returns true (error) in case it failed to
@@ -8163,7 +8154,7 @@ bool Field_json::pack_diff(uchar **to, ulonglong value_format) const {
     assert(0); /* purecov: inspected */
 
   // It should not have reallocated.
-  assert(*to == (uchar *)to_string.ptr());
+  assert(*to == pointer_cast<uchar *>(to_string.ptr()));
 
   *to += to_string.length();
   return false;
@@ -8746,8 +8737,9 @@ bool Field::eq_def(const Field *field) const {
 static bool compare_type_names(const CHARSET_INFO *charset, TYPELIB *t1,
                                TYPELIB *t2) {
   for (uint i = 0; i < t1->count; i++)
-    if (my_strnncoll(charset, (const uchar *)t1->type_names[i],
-                     t1->type_lengths[i], (const uchar *)t2->type_names[i],
+    if (my_strnncoll(charset, pointer_cast<const uchar *>(t1->type_names[i]),
+                     t1->type_lengths[i],
+                     pointer_cast<const uchar *>(t2->type_names[i]),
                      t2->type_lengths[i]))
       return false;
   return true;
@@ -8976,9 +8968,9 @@ void Field_bit::hash(ulong *nr, ulong *nr2) const {
 Field *Field_bit::new_key_field(MEM_ROOT *root, TABLE *new_table,
                                 uchar *new_ptr, uchar *new_null_ptr,
                                 uint new_null_bit) const {
-  Field_bit *res;
-  if ((res = (Field_bit *)Field::new_key_field(root, new_table, new_ptr,
-                                               new_null_ptr, new_null_bit))) {
+  Field_bit *res = down_cast<Field_bit *>(Field::new_key_field(
+      root, new_table, new_ptr, new_null_ptr, new_null_bit));
+  if (res != nullptr) {
     /* Move bits normally stored in null_pointer to new_ptr */
     res->bit_ptr = new_ptr;
     res->bit_ofs = 0;
@@ -9347,7 +9339,7 @@ const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data) {
     Otherwise stray bits can cause spurious values.
   */
   const uint new_len = (field_length + 7) / 8;
-  char *value = (char *)my_alloca(new_len);
+  char *value = pointer_cast<char *>(my_alloca(new_len));
   memset(value, 0, new_len);
   const uint len = from_len + ((from_bit_len > 0) ? 1 : 0);
   memcpy(value + (new_len - len), from, len);
@@ -10417,7 +10409,7 @@ int Field_typed_array::do_save_field_metadata(uchar *metadata_ptr) const {
   switch (m_elt_type) {
     case MYSQL_TYPE_VARCHAR: {
       assert(field_length < 65536);
-      char *param_ptr = (char *)(metadata_ptr + 1);
+      char *param_ptr = pointer_cast<char *>(metadata_ptr + 1);
       int3store(param_ptr, field_length);
       return 4;
     }

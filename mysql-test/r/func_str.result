@@ -5919,3 +5919,56 @@ LOWER(ct))) <> 'xyz';
 pk
 1
 DROP TABLE t1;
+# Bug#36457756: Invalid result converting string to numeric
+CREATE TABLE t0(a VARCHAR(10));
+CREATE TABLE t1(a VARCHAR(64));
+INSERT INTO t1 VALUES('316-354');
+SELECT IF(a, 1, 0) FROM t1;
+IF(a, 1, 0)
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '316-354'
+SELECT IF(a <> 0, 1, 0) FROM t1;
+IF(a <> 0, 1, 0)
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '316-354'
+SELECT a | 2147483647 FROM t1;
+a | 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '316-354'
+SELECT CAST(a AS DECIMAL) FROM t1;
+CAST(a AS DECIMAL)
+316
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '316-354'
+INSERT INTO t0 SELECT IF(a, 1, 0) FROM t1;
+ERROR 22007: Truncated incorrect DOUBLE value: '316-354'
+INSERT INTO t0 SELECT IF(a <> 0, 1, 0) FROM t1;
+ERROR 22007: Truncated incorrect DOUBLE value: '316-354'
+INSERT INTO t0 SELECT a | 2147483647 FROM t1;
+ERROR 22007: Truncated incorrect INTEGER value: '316-354'
+INSERT INTO t0 SELECT CAST(a AS DECIMAL) FROM t1;
+ERROR 22007: Truncated incorrect DECIMAL value: '316-354'
+SET @@sql_mode = '';
+INSERT INTO t0 SELECT IF(a, 1, 0) FROM t1;
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '316-354'
+INSERT INTO t0 SELECT IF(a <> 0, 1, 0) FROM t1;
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '316-354'
+INSERT INTO t0 SELECT a | 2147483647 FROM t1;
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '316-354'
+INSERT INTO t0 SELECT CAST(a AS DECIMAL) FROM t1;
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '316-354'
+SELECT * FROM t0;
+a
+1
+1
+2147483647
+316
+SET @@sql_mode = DEFAULT;
+DROP TABLE t0, t1;
