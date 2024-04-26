@@ -1,5 +1,7 @@
 --source include/have_ndb.inc
 --source include/have_lowercase0.inc  # Case sensitive
+# Running mysqld with valgrind causes unintended overload
+--source include/not_valgrind.inc
 # Test generates various MySQLD warnings and errors
 call mtr.add_suppression("Detected event buffer full");
 
