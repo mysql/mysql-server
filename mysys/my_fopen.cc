@@ -187,7 +187,7 @@ int my_fclose(FILE *stream, myf MyFlags) {
 
   int err = -1;
 #ifndef _WIN32
-  err = mysys_priv::RetryOnEintr([&]() { return fclose(stream); }, -1);
+  err = fclose(stream);
 #else
   err = my_win_fclose(stream);
 #endif
