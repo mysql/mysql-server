@@ -322,7 +322,7 @@ class Binlog_index {
   IO_CACHE purge_index_file;
   char purge_index_file_name[FN_REFLEN];
 
-  bool is_relay_log;
+  const bool is_relay_log;
   /**
      Set of log info objects that are in usage and might prevent some other
      operations from executing.
@@ -562,6 +562,7 @@ class Binlog_index_monitor {
   /** POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t m_LOCK_index;
   Binlog_index m_binlog_index;
+  const bool m_is_relay_log;
 };
 
 #endif /* BINLOG_INDEX_H_INCLUDED */

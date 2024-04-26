@@ -768,7 +768,7 @@ void Binlog_index::adjust_linfo_offsets(my_off_t purge_offset) {
 }
 
 Binlog_index_monitor::Binlog_index_monitor(bool relay_log)
-    : m_binlog_index(relay_log) {}
+    : m_binlog_index(relay_log), m_is_relay_log(relay_log) {}
 
 void Binlog_index_monitor::set_psi_keys(PSI_mutex_key key_LOCK_index,
                                         PSI_file_key key_file_log_index,
@@ -972,7 +972,8 @@ int Binlog_index_monitor::purge_index_entry(THD *thd,
             @todo: This is weird, what does NDB errors have to do with
             need_lock_index? Explain better or refactor /Sven
           */
-          ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+          if (!m_is_relay_log)
+            ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
         }
 
         DBUG_PRINT("info", ("purging %s", log_info.log_file_name));
