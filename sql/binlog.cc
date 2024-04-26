@@ -6377,7 +6377,10 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
             @todo: This is weird, what does NDB errors have to do with
             need_lock_index? Explain better or refactor /Sven
           */
-          ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+          if (!is_relay_log) {
+            // Only called when purging binlog
+            ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+          }
         }
 
         DBUG_PRINT("info", ("purging %s", log_info.log_file_name));
