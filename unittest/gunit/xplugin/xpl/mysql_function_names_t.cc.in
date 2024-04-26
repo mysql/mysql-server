@@ -137,7 +137,7 @@ enum {
   UDF = false,
 };
 
-// https://dev.mysql.com/doc/refman/8.0/en/func-op-summary-ref.html
+// https://dev.mysql.com/doc/refman/8.0/en/functions.html
 Param_mysql_functions documentation_mysql_functions_param[] = {
     {"ABS", PASS},
     {"ACOS", PASS},
