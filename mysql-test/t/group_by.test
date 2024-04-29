@@ -3631,3 +3631,9 @@ FROM ( SELECT ANY_VALUE(value)
 
 DROP PROCEDURE BatchInsert;
 DROP TABLE product;
+
+--echo # Bug#36556725: failure in Group_check::do_ident_check
+
+CREATE TABLE t1(f1 INTEGER);
+SELECT (SELECT f1) FROM t1 GROUP BY f1 HAVING f1 < 1;
+DROP TABLE t1;

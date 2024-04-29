@@ -8215,17 +8215,6 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
       return nullptr;
 
     if (cur_field != nullptr) {
-      /*
-        Store the original table of the field, which may be different from
-        cur_table in the case of NATURAL/USING join.
-      */
-      item->m_table_ref =
-          (!actual_table->cacheable_table || found) ? nullptr : actual_table;
-
-      // @todo WL#6570 move this assignment to a more strategic place?
-      if (item->type() == Item::FIELD_ITEM)
-        down_cast<Item_field *>(item)->field_index = field_index;
-
       assert(thd->where);
       /*
         If we found a fully qualified field we return it directly as it can't
@@ -8238,7 +8227,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
           my_error(ER_NON_UNIQ_ERROR, MYF(0),
                    table_name ? item->full_name() : name, thd->where);
-        return (Field *)nullptr;
+        return nullptr;
       }
       found = cur_field;
     }

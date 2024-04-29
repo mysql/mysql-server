@@ -2885,15 +2885,13 @@ bool Item_ident_for_show::fix_fields(THD *, Item **) {
 
   @param thd         thread context
   @param context_arg Name resolution context for this field
-  @param tr          Table reference, provides table and schema name
-  @param f         Field reference, provides field name and original table name
+  @param f         Field reference, provides field name and original table name,
+                     as well as table reference with table and schema name.
 */
 
-Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
-                       Table_ref *tr, Field *f)
+Item_field::Item_field(THD *thd, Name_resolution_context *context_arg, Field *f)
     : Item_ident(context_arg, f->table->s->db.str, *f->table_name,
                  f->field_name) {
-  m_table_ref = tr;
   set_field(f);
 
   // Possibly override original names that were assigned from table reference:
@@ -8344,8 +8342,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
           (*reference)->increment_ref_count();
           *reference = this;
         } else {
-          Item_field *fld = new Item_field(
-              thd, context, from_field->table->pos_in_table_list, from_field);
+          Item_field *fld = new Item_field(thd, context, from_field);
           if (fld == nullptr) return true;
           m_ref_item = qb->add_hidden_item(fld);
           fld->increment_ref_count();
@@ -8479,8 +8476,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
 
         {
           const Prepared_stmt_arena_holder ps_arena_holder(thd);
-          fld = new Item_field(
-              thd, context, from_field->table->pos_in_table_list, from_field);
+          fld = new Item_field(thd, context, from_field);
           if (fld == nullptr) return true;
         }
 

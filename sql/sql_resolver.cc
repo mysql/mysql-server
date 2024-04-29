@@ -4179,12 +4179,6 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
   order_item_type = order_item->type();
 
-  Table_ref *saved_table_ref = nullptr;
-  if (order_item_type == Item::FIELD_ITEM ||
-      order_item_type == Item::REF_ITEM) {
-    // unit tests need m_table_ref to be preserved
-    saved_table_ref = down_cast<Item_ident *>(order_item)->m_table_ref;
-  }
   /* Check whether the resolved field is unambiguous. */
   if (select_item != nullptr) {
     Item *view_ref = nullptr;
@@ -4305,11 +4299,6 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
   order->in_field_list = false;
 
-  // find_field_in_tables() may have set this field, actually a bad idea.
-  if (order_item->type() == Item::FIELD_ITEM ||
-      order_item->type() == Item::REF_ITEM) {
-    down_cast<Item_ident *>(order_item)->m_table_ref = saved_table_ref;
-  }
   /*
     The call to order_item->fix_fields() means that here we resolve
     'order_item' to a column from a table in the list 'tables', or to
@@ -5583,7 +5572,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // Field pointer, gives a persistent name to the item (sets orig_table_name
     // etc) which is necessary for prepared statements.
     derived_field = new (thd->mem_root)
-        Item_field(thd, &this->context, tr, tr->table->field[i]);
+        Item_field(thd, &this->context, tr->table->field[i]);
     if (derived_field == nullptr) return true;
 
     Item_bool_func *comp_item;
@@ -5623,8 +5612,8 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   tr->set_join_cond(join_cond);
 
   // Make the IS [NOT] NULL condition:
-  derived_field = new (thd->mem_root)
-      Item_field(thd, &this->context, tr, tr->table->field[0]);
+  derived_field =
+      new (thd->mem_root) Item_field(thd, &this->context, tr->table->field[0]);
   if (derived_field == nullptr) return true;
 
   Item *null_check;

@@ -5071,7 +5071,7 @@ const char *Field_iterator_table::name() { return (*ptr)->field_name; }
 
 Item *Field_iterator_table::create_item(THD *thd) {
   Table_ref *tr = (*ptr)->table->pos_in_table_list;
-  Item_field *item = new Item_field(thd, &tr->query_block->context, tr, *ptr);
+  Item_field *item = new Item_field(thd, &tr->query_block->context, *ptr);
   if (item == nullptr) return nullptr;
   /*
     This function creates Item-s which don't go through fix_fields(); see same
@@ -5302,8 +5302,8 @@ Natural_join_column *Field_iterator_table_ref::get_or_create_column_ref(
     /* The field belongs to a stored table. */
     Field *tmp_field = table_field_it.field();
     assert(table_ref == tmp_field->table->pos_in_table_list);
-    Item_field *tmp_item = new Item_field(thd, &table_ref->query_block->context,
-                                          table_ref, tmp_field);
+    Item_field *tmp_item =
+        new Item_field(thd, &table_ref->query_block->context, tmp_field);
     if (tmp_item == nullptr) return nullptr;
     nj_col = new (thd->mem_root) Natural_join_column(tmp_item, table_ref);
     field_count = table_ref->table->s->fields;

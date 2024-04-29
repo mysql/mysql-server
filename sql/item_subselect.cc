@@ -3477,9 +3477,8 @@ bool subselect_hash_sj_engine::setup(
     const bool nullable = field->is_nullable();
     ref.items[part_no] = item->left_expr->element_index(part_no);
 
-    if (!(right_col_item =
-              new Item_field(thd, &tmp_table_ref->query_block->context,
-                             tmp_table_ref, field)) ||
+    if (!(right_col_item = new Item_field(
+              thd, &tmp_table_ref->query_block->context, field)) ||
         !(eq_cond = new Item_func_eq(ref.items[part_no], right_col_item)) ||
         down_cast<Item_cond_and *>(m_cond)->add(eq_cond)) {
       delete m_cond;

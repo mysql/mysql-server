@@ -4734,3 +4734,17 @@ Cat2	5
 Cat2	7
 NULL	NULL
 DROP TABLE t1;
+# Bug#36557029: Recent failure in check_column_grant_in_table_ref
+CREATE TABLE t (
+a INTEGER GENERATED ALWAYS AS (1) VIRTUAL,
+KEY (a)
+) ENGINE = InnoDB;
+WITH cte1 AS (
+SELECT (SELECT a) AS a
+FROM t AS r
+WHERE a > 0
+GROUP BY r.a, r.a
+)
+SELECT a, a FROM cte1 WHERE cte1.a <= r.a;
+ERROR 42S22: Unknown column 'r.a' in 'where clause'
+DROP TABLE t;

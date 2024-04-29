@@ -4956,3 +4956,10 @@ COUNT(*)
 200
 DROP PROCEDURE BatchInsert;
 DROP TABLE product;
+# Bug#36556725: failure in Group_check::do_ident_check
+CREATE TABLE t1(f1 INTEGER);
+SELECT (SELECT f1) FROM t1 GROUP BY f1 HAVING f1 < 1;
+(SELECT f1)
+Warnings:
+Warning	1052	Column 'f1' in group statement is ambiguous
+DROP TABLE t1;

@@ -4472,8 +4472,7 @@ class Item_field : public Item_ident {
   Item_field(const POS &pos, const char *db_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_field(THD *thd, Item_field *item);
-  Item_field(THD *thd, Name_resolution_context *context_arg, Table_ref *tr,
-             Field *field);
+  Item_field(THD *thd, Name_resolution_context *context_arg, Field *field);
   Item_field(Field *field);
 
   bool do_itemize(Parse_context *pc, Item **res) override;
