@@ -4186,10 +4186,10 @@ error:
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
     <td>max_packet_size</td>
     <td>maximum packet size</td></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>character_set</td>
-    <td>client charset \ref a_protocol_character_set, only the lower 8-bits</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[23]"</td>
+    <td>client charset \ref a_protocol_character_set</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[22]"</td>
     <td>filler</td>
     <td>filler to the size of the handhshake response packet. All 0s.</td></tr>
   <tr><td colspan="3">} else {</td></tr>
@@ -4858,10 +4858,10 @@ connect_stage STDCALL mysql_get_connect_nonblocking_stage(MYSQL *mysql) {
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
     <td>max_packet_size</td>
     <td>maximum packet size</td></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>character_set</td>
-    <td>client charset \ref a_protocol_character_set, only the lower 8-bits</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[23]"</td>
+    <td>client charset \ref a_protocol_character_set</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[22]"</td>
     <td>filler</td>
     <td>filler to the size of the handhshake response packet. All 0s.</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
