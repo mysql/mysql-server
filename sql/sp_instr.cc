@@ -570,12 +570,18 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
   return error || thd->is_error();
 }
 
-LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
+LEX *sp_lex_instr::parse_statement(THD *thd, sp_head *sp) {
   String sql_query;
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
   SQL_I_List<Item_trigger_field> *next_trig_list_bkp = nullptr;
   sql_query.set_charset(system_charset_info);
+
+  /*
+    This function must be entered with a clean execution context. Otherwise
+    we may have dangling references into the statement's mem_root.
+  */
+  assert(thd->item_list() == nullptr);
 
   get_query(&sql_query);
 
@@ -608,6 +614,8 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   thd->mem_root = &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(parse_arena);
 
+  assert(thd->item_list() == nullptr);
+
   // Prepare parser state. It can be done just before parse_sql(), do it here
   // only to simplify exit in case of failure (out-of-memory error).
 
@@ -615,12 +623,6 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
   if (parser_state.init(thd, sql_query.c_ptr(), sql_query.length()))
     return nullptr;
-
-  // Switch THD's item list. It is used to remember the newly created set
-  // of Items during parsing. We should clean those items after each execution.
-
-  Item *execution_item_list = thd->item_list();
-  thd->reset_item_list();
 
   // Create a new LEX and initialize it.
 
@@ -633,7 +635,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
   sp->m_parser_data.set_current_stmt_start_ptr(sql_query.c_ptr());
 
-  // Parse the just constructed SELECT-statement.
+  // Parse the just constructed SQL statement.
 
   thd->m_digest = nullptr;
   thd->m_statement_psi = nullptr;
@@ -699,7 +701,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   // Restore execution mem-root and item list.
 
   thd->mem_root = execution_mem_root;
-  thd->set_item_list(execution_item_list);
+  thd->reset_item_list();
 
   // That's it.
 
@@ -719,12 +721,16 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
   auto scope_guard = create_scope_guard(
       [thd] { thd->set_secondary_engine_statement_context(nullptr); });
-
+  /*
+    Retry execution in a loop until successful, or a fatal error has occurred,
+    or the statement is killed, or a non-fatal error is encountered but
+    no retry option is possible.
+  */
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
     if (is_invalid() || (m_lex->has_udf() && !m_first_execution)) {
       free_lex();
-      LEX *lex = parse_expr(thd, thd->sp_runtime_ctx->sp);
+      LEX *lex = parse_statement(thd, thd->sp_runtime_ctx->sp);
       if (lex == nullptr) return true;
 
       set_lex(lex, true);
@@ -775,44 +781,15 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
     m_first_execution = false;
 
-    // Exit immediately if  execution is successful
+    // Exit immediately if execution is successful
     if (!rc) return false;
 
     // Exit if a fatal error has occurred or statement execution was killed.
     if (thd->is_fatal_error() || thd->is_killed()) {
       return true;
     }
-    int my_errno = thd->get_stmt_da()->mysql_errno();
+    const int my_errno = thd->get_stmt_da()->mysql_errno();
 
-    if (my_errno != ER_NEED_REPREPARE &&
-        my_errno != ER_PREPARE_FOR_PRIMARY_ENGINE &&
-        my_errno != ER_PREPARE_FOR_SECONDARY_ENGINE) {
-      if (m_lex->m_sql_cmd != nullptr &&
-          thd->secondary_engine_optimization() ==
-              Secondary_engine_optimization::SECONDARY &&
-          !m_lex->unit->is_executed()) {
-        if (!thd->is_secondary_engine_forced()) {
-          /*
-            Some error occurred during resolving or optimization in
-            the secondary engine, and secondary engine execution is not forced.
-            Retry execution of the statement in the primary engine.
-          */
-          thd->clear_error();
-          thd->set_secondary_engine_optimization(
-              Secondary_engine_optimization::PRIMARY_ONLY);
-          invalidate();
-          // Disable the general log. The query was written to the general log
-          // in the first attempt to execute it. No need to write it twice.
-          if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
-            thd->variables.option_bits |= OPTION_LOG_OFF;
-            general_log_temporarily_disabled = true;
-          }
-          continue;
-        }
-      }
-      assert(thd->is_error());
-      return true;
-    }
     if (my_errno == ER_NEED_REPREPARE) {
       /*
         Reprepare_observer ensures that the statement is retried
@@ -832,13 +809,10 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
         assert(thd->is_error());
         return true;
       }
-      thd->clear_error();
-    } else {
-      assert(my_errno == ER_PREPARE_FOR_PRIMARY_ENGINE ||
-             my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE);
+    } else if (my_errno == ER_PREPARE_FOR_PRIMARY_ENGINE ||
+               my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
       assert(thd->secondary_engine_optimization() ==
              Secondary_engine_optimization::PRIMARY_TENTATIVELY);
-      thd->clear_error();
       if (my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::SECONDARY);
@@ -846,14 +820,43 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_ONLY);
       }
-      // Disable the general log. The query was written to the general log in
-      // the first attempt to execute it. No need to write it twice.
-      if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
-        thd->variables.option_bits |= OPTION_LOG_OFF;
-        general_log_temporarily_disabled = true;
+    } else {
+      if (m_lex->m_sql_cmd == nullptr ||
+          thd->secondary_engine_optimization() !=
+              Secondary_engine_optimization::SECONDARY ||
+          m_lex->unit->is_executed() || thd->is_secondary_engine_forced()) {
+        return true;
       }
+      /*
+        Some error occurred during resolving or optimization in
+        the secondary engine, and secondary engine execution is not forced.
+        Retry execution of the statement in the primary engine.
+      */
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::PRIMARY_ONLY);
     }
+    /*
+      Disable the general log. The query was written to the general log in
+      the first attempt to execute it. No need to write it twice.
+    */
+    if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
+      thd->variables.option_bits |= OPTION_LOG_OFF;
+      general_log_temporarily_disabled = true;
+    }
+    /*
+      Prepare for re-prepare and re-optimization:
+      - Clear the current diagnostics area.
+      - Invalidate the statement object.
+      - Clean up the statement's LEX, including release of plugins.
+      - Clean up and free items, both permanent in stmt. and transient in THD.
+    */
+    thd->clear_error();
     invalidate();
+    m_lex->sphead = nullptr;
+    lex_end(m_lex);
+    cleanup_items(thd->item_list());
+    thd->free_items();
+    cleanup_items(m_arena.item_list());
   }
 }
 

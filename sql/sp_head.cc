@@ -2018,6 +2018,10 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   Diagnostics_area *caller_da = thd->get_stmt_da();
   Diagnostics_area sp_da(false);
 
+  assert(thd->secondary_engine_optimization() !=
+         Secondary_engine_optimization::SECONDARY);
+  thd->set_secondary_engine_optimization(
+      Secondary_engine_optimization::PRIMARY_ONLY);
   /*
     Just reporting a stack overrun error
     (@sa check_stack_overrun()) requires stack memory for error
@@ -2410,6 +2414,10 @@ done:
           m_first_instance->m_first_free_instance->m_recursion_level ==
               m_recursion_level + 1));
   m_first_instance->m_first_free_instance = this;
+
+  // CALL statement or similar can only be executed in primary engine:
+  thd->set_secondary_engine_optimization(
+      Secondary_engine_optimization::PRIMARY_ONLY);
 
   return err_status;
 }

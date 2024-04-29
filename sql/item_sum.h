@@ -537,6 +537,8 @@ class Item_sum : public Item_func {
   /// Copy constructor, need to perform subqueries with temporary tables
   Item_sum(THD *thd, const Item_sum *item);
 
+  ~Item_sum() override { assert(aggr == nullptr); }
+
   bool do_itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const = 0;

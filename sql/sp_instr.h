@@ -292,15 +292,14 @@ class sp_lex_instr : public sp_instr {
   bool execute_expression(THD *thd, uint *nextp);
 
   /**
-    (Re-)parse the query corresponding to this instruction and return a new
-    LEX-object.
+    Parse statement corresponding to this instruction and return a new LEX.
 
     @param thd  Thread context.
     @param sp   The stored program.
 
     @return new LEX-object or NULL in case of failure.
   */
-  LEX *parse_expr(THD *thd, sp_head *sp);
+  LEX *parse_statement(THD *thd, sp_head *sp);
 
   /**
      Set LEX-object.

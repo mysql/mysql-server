@@ -6815,13 +6815,24 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
           Secondary_engine_optimization::PRIMARY_ONLY);
     }
   }
+  // Cannot reach here with secondary execution mode if offload is impossible:
+  assert(thd->secondary_engine_optimization() !=
+             Secondary_engine_optimization::SECONDARY ||
+         offload_possible);
+
   // Only open secondary engine tables if use of a secondary engine
   // has been requested, and access has not been disabled previously.
   if (sql_cmd->secondary_storage_engine_disabled() ||
       thd->secondary_engine_optimization() !=
-          Secondary_engine_optimization::SECONDARY)
+          Secondary_engine_optimization::SECONDARY) {
+    // If offload is not possible, set execution to primary only:
+    if (thd->secondary_engine_optimization() ==
+            Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
+        !offload_possible)
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::PRIMARY_ONLY);
     return false;
-
+  }
   // If the statement cannot be executed in a secondary engine because
   // of a property of the statement, do not attempt to open the
   // secondary tables. Also disable use of secondary engines for
