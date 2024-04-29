@@ -557,14 +557,14 @@ void Ndb_metadata_change_monitor::do_run() {
         break;
       }
 
-      log_verbose(10, "Metadata check started");
+      log_verbose(50, "Metadata check started");
 
       ndbcluster_binlog_validate_sync_excluded_objects(thd);
 
       if (!detect_logfile_group_changes(thd, thd_ndb)) {
         log_info("Failed to detect logfile group metadata changes");
       }
-      log_verbose(10, "Logfile group metadata check completed");
+      log_verbose(99, "Logfile group metadata check completed");
 
       if (is_stop_requested()) {
         return;
@@ -573,7 +573,7 @@ void Ndb_metadata_change_monitor::do_run() {
       if (!detect_tablespace_changes(thd, thd_ndb)) {
         log_info("Failed to detect tablespace metadata changes");
       }
-      log_verbose(10, "Tablespace metadata check completed");
+      log_verbose(99, "Tablespace metadata check completed");
 
       if (is_stop_requested()) {
         return;
@@ -582,8 +582,8 @@ void Ndb_metadata_change_monitor::do_run() {
       if (!detect_schema_and_table_changes(thd, thd_ndb)) {
         log_info("Failed to detect table metadata changes");
       }
-      log_verbose(10, "Table metadata check completed");
-      log_verbose(10, "Metadata check completed");
+      log_verbose(99, "Table metadata check completed");
+      log_verbose(50, "Metadata check completed");
 
       if (controller.get_metadata_sync()) {
         if (controller.all_changes_detected()) {
