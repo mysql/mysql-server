@@ -27,12 +27,8 @@ DROP DATAFILE './table_space1/datafile.dat';
 DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE NDB;
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_sync = true;
+SET GLOBAL ndb_metadata_sync = true;
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 500
@@ -95,10 +91,8 @@ DROP DATAFILE './table_space1/datafile.dat';
 DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE NDB;
-SET GLOBAL ndb_metadata_check_interval = 0;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_sync = true;
+SET GLOBAL ndb_metadata_sync = true;
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 500
@@ -333,10 +327,8 @@ DROP TABLESPACE table_space1;
 DROP TABLESPACE table_space2;
 DROP LOGFILE GROUP log_group1
 ENGINE NDB;
-SET GLOBAL ndb_metadata_check_interval = 0;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_sync = true;
+SET GLOBAL ndb_metadata_sync = true;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -264,6 +264,7 @@ COUNT(*)
 200
 ************ Restore the slave ************************
 CREATE DATABASE tpcb;
+SET GLOBAL ndb_metadata_sync = true;
 ***** Check a few slave restore values ***************
 USE tpcb;
 SELECT COUNT(*) FROM account;

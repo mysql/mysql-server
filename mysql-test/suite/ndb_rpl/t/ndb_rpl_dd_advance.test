@@ -297,19 +297,9 @@ SELECT COUNT(*) FROM history;
 connection slave;
 CREATE DATABASE tpcb;
 
-# Store initial counts of both detected and synchronized objects
---let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
-
 --source common/rpl/ndb_restore_replica_option.inc
 
---disable_query_log
-# Set low interval so changes are detected quickly
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
---enable_query_log
-
-# Wait until the following 7 object changes are detected:
+# Wait until the following 7 object changes are synced:
 # Logfile group 'lg1'
 # Tablespace 'ts1'
 # Tablespace 'ts2'
@@ -317,17 +307,8 @@ SET GLOBAL ndb_metadata_check_interval = 0;
 # Table 'tpcb.history'
 # Table 'tpcb.teller'
 # Table 'tpcb.branch'
---let $expected_changes = 7
---let $max_wait = 30
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
---disable_query_log ONCE
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $max_wait = 30
---source wait_metadata_synced.inc
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
 
 --echo ***** Check a few slave restore values ***************
 connection slave;

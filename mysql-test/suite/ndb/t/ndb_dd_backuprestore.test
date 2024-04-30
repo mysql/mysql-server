@@ -49,55 +49,19 @@ DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE NDB;
 
-# Store initial counts of both detected and synchronized objects
---let $initial_detected_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
---connection server2
---let $initial_detected_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
---connection server1
-
 -- source common/rpl/ndb_restore_source.inc
 
-# Set low interval so changes are detected quickly
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
-
-# Wait until the following 3 object changes are detected:
+# Wait until the following changes have been synced:
 # Logfile group 'log_group1'
 # Tablespace 'table_space1'
 # Table 'test.t1'
---let $initial_detected_count = $initial_detected_count_server1
---let $expected_changes = 3
---let $max_wait = 30
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $initial_synced_count = $initial_synced_count_server1
---let $max_wait = 30
---source wait_metadata_synced.inc
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
 
 --connection server2
 # Sync on server 2 as well
-# Set low interval so changes are detected quickly
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 0;
-
---let $initial_detected_count = $initial_detected_count_server2
---let $expected_changes = 3
---let $max_wait = 30
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $initial_synced_count = $initial_synced_count_server2
---let $max_wait = 30
---source wait_metadata_synced.inc
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
 
 --connection server1
 
@@ -171,56 +135,22 @@ DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE NDB;
 
-# Store initial counts of both detected and synchronized objects
---let $initial_detected_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
---connection server2
---let $initial_detected_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
---connection server1
-
 -- source common/rpl/ndb_restore_source.inc
 
-# Set low interval so changes are detected quickly
-SET GLOBAL ndb_metadata_check_interval = 0;
-
-# Wait until the following 6 object changes are detected:
+# Wait until the following 6 object changes are synced:
 # Logfile group 'log_group1'
 # Tablespace 'table_space1'
 # Table 'test.t1'
 # Table 'test.t2'
 # Table 'test.t3'
 # Table 'test.t4'
---let $initial_detected_count = $initial_detected_count_server1
---let $expected_changes = 6
---let $max_wait = 30
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $initial_synced_count = $initial_synced_count_server1
---let $max_wait = 30
---source wait_metadata_synced.inc
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
 
 --connection server2
 # Sync on server 2 as well
-# Set low interval so changes are detected quickly
-SET GLOBAL ndb_metadata_check_interval = 0;
-
---let $initial_detected_count = $initial_detected_count_server2
---let $expected_changes = 6
---let $max_wait = 30
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $initial_synced_count = $initial_synced_count_server2
---let $max_wait = 30
---source wait_metadata_synced.inc
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
 
 --connection server1
 
@@ -359,20 +289,9 @@ DROP TABLESPACE table_space2;
 DROP LOGFILE GROUP log_group1
 ENGINE NDB;
 
-# Store initial counts of both detected and synchronized objects
---let $initial_detected_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
---connection server2
---let $initial_detected_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
---connection server1
-
 -- source common/rpl/ndb_restore_source.inc
 
-# Set low interval so changes are detected quickly
-SET GLOBAL ndb_metadata_check_interval = 0;
-
-# Wait until the following 9 object changes are detected:
+# Wait until the following 9 objects are synced:
 # Logfile group 'log_group1'
 # Tablespace 'table_space1'
 # Tablespace 'table_space2'
@@ -382,36 +301,13 @@ SET GLOBAL ndb_metadata_check_interval = 0;
 # Table 'test.t4'
 # Table 'test.t5'
 # Table 'test.t6'
---let $initial_detected_count = $initial_detected_count_server1
---let $expected_changes = 9
---let $max_wait = 45
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $initial_synced_count = $initial_synced_count_server1
---let $max_wait = 45
---source wait_metadata_synced.inc
+--let $max_wait = 90
+--source wait_immediate_metadata_sync.inc
 
 --connection server2
 # Sync on server 2 as well
-# Set low interval so changes are detected quickly
-SET GLOBAL ndb_metadata_check_interval = 0;
-
---let $initial_detected_count = $initial_detected_count_server2
---let $expected_changes = 9
---let $max_wait = 45
---source wait_metadata_changes_detected.inc
-
-# Changes have been detected, reset value
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-
-# Wait until the changes detected have been synced
---let $initial_synced_count = $initial_synced_count_server2
---let $max_wait = 45
---source wait_metadata_synced.inc
+--let $max_wait = 90
+--source wait_immediate_metadata_sync.inc
 
 --connection server1
 
