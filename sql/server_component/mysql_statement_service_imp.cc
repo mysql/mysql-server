@@ -185,8 +185,10 @@ DEFINE_BOOL_METHOD(mysql_stmt_metadata_imp::param_metadata,
   } else if (strcmp(metadata, "is_unsigned") == 0) {
     *static_cast<bool *>(data) = param->unsigned_flag;
     return MYSQL_SUCCESS;
+  } else if (strcmp(metadata, "charset") == 0) {
+    *static_cast<const char **>(data) = param->collation.collation->csname;
+    return MYSQL_SUCCESS;
   }
-
   return MYSQL_FAILURE;
 }
 

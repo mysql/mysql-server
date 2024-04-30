@@ -574,6 +574,10 @@ DECLARE_BOOL_METHOD(param_count,
   if (SERVICE_PLACEHOLDER(mysql_stmt_metadata)
           ->param_metadata(statement, index, "is_unsigned", &is_unsigned))
     return {};
+  auto charset = static_cast<char const *>(nullptr);
+  if (SERVICE_PLACEHOLDER(mysql_stmt_metadata)
+          ->param_metadata(statement, index, "charset", &charset))
+    return {};
 
   @note Calling this on regular statements would fail.
 
@@ -586,6 +590,7 @@ DECLARE_BOOL_METHOD(param_count,
   - Parameter is null ("null_bit" of the returned bool type)
   - Parameter type ("type" of the returned uint64_t type)
   - Parameter is unsigned ("is_unsigned" of the returned bool type)
+  - Parameter charset ("charset" of the returned const char* type)
 
   @param [out] data The data argument is the value for the member
   @return Status of the performed operation
