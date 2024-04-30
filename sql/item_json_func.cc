@@ -3373,7 +3373,8 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
       item->set_data_type_datetime(decimals);
       return;
     case ITEM_CAST_DECIMAL:
-      item->set_data_type_decimal(length, decimals);
+      item->set_data_type_decimal(
+          std::min<unsigned>(length, DECIMAL_MAX_PRECISION), decimals);
       return;
     case ITEM_CAST_CHAR:
       // If no character set is specified, the JSON default character set is

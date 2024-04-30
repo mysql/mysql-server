@@ -1569,6 +1569,7 @@ class Item : public Parse_tree_node {
   inline void set_data_type_decimal(uint8 precision, uint8 scale) {
     set_data_type(MYSQL_TYPE_NEWDECIMAL);
     collation.set_numeric();
+    assert(precision <= DECIMAL_MAX_PRECISION);
     decimals = scale;
     fix_char_length(my_decimal_precision_to_length_no_truncation(
         precision, scale, unsigned_flag));

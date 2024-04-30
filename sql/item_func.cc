@@ -2784,7 +2784,8 @@ bool Item_func_neg::resolve_type(THD *thd) {
         the negated number
       */
       unsigned_flag = false;
-      set_data_type_decimal(args[0]->decimal_precision(), 0);
+      set_data_type_decimal(
+          min<uint>(args[0]->decimal_precision(), DECIMAL_MAX_PRECISION), 0);
       hybrid_type = DECIMAL_RESULT;
       DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
     }
@@ -3351,6 +3352,7 @@ bool Item_func_int_val::resolve_type_inner(THD *) {
       // order of magnitude.
       int precision = args[0]->decimal_precision() - args[0]->decimals;
       if (args[0]->decimals != 0) ++precision;
+      precision = std::min(precision, DECIMAL_MAX_PRECISION);
       set_data_type_decimal(precision, 0);
       hybrid_type = DECIMAL_RESULT;
 
@@ -3508,6 +3510,7 @@ bool Item_func_round::resolve_type(THD *thd) {
         new_scale = val1;
       }
       if (precision == 0) precision = 1;
+      precision = min<uint>(precision, DECIMAL_MAX_PRECISION);
       set_data_type_decimal(precision, new_scale);
       hybrid_type = DECIMAL_RESULT;
       break;
@@ -6100,7 +6103,9 @@ bool Item_func_set_user_var::resolve_type(THD *thd) {
           args[0]->max_length;  // Preserves "length" of integer constants
       break;
     case MYSQL_TYPE_NEWDECIMAL:
-      set_data_type_decimal(args[0]->decimal_precision(), args[0]->decimals);
+      set_data_type_decimal(
+          min<uint>(args[0]->decimal_precision(), DECIMAL_MAX_PRECISION),
+          args[0]->decimals);
       break;
     case MYSQL_TYPE_DOUBLE:
       set_data_type_double();

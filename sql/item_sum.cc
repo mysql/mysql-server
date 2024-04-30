@@ -1929,7 +1929,8 @@ bool Item_sum_sum::resolve_type(THD *thd) {
     case DECIMAL_RESULT: {
       // SUM result cannot be longer than length(arg) + length(MAX_ROWS)
       const int precision =
-          args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
+          min<uint>(args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS,
+                    DECIMAL_MAX_PRECISION);
       set_data_type_decimal(precision, args[0]->decimals);
       curr_dec_buff = 0;
       my_decimal_set_zero(dec_buffs);
@@ -2264,13 +2265,14 @@ bool Item_sum_avg::resolve_type(THD *thd) {
   null_value = true;
   prec_increment = thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT) {
-    const int precision = args[0]->decimal_precision() + prec_increment;
+    const int precision = min<uint>(
+        args[0]->decimal_precision() + prec_increment, DECIMAL_MAX_PRECISION);
     int scale =
         min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
     set_data_type_decimal(precision, scale);
     f_precision =
         min(precision + DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
-    f_scale = args[0]->decimals;
+    f_scale = min<uint>(args[0]->decimals, f_precision);
     dec_bin_size = my_decimal_get_binary_size(f_precision, f_scale);
   } else {
     assert(hybrid_type == REAL_RESULT);
