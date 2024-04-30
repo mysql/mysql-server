@@ -655,6 +655,13 @@ class MYSQL_BIN_LOG : public TC_LOG {
 #endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc) { bytes_written += inc; }
   void reset_bytes_written() { bytes_written = 0; }
+  /// @brief Adds bytes written in the current relay log into the variable
+  /// handling the total number of bytes acquired by the replica. Resets the
+  /// counter of bytes written. If requested by caller,
+  /// acquires relay log space lock
+  /// @param rli Pointer to the applier metadata object
+  /// @param need_log_space_lock Information on whether to acquire the
+  /// lock protecting data responsible for keeping the relay log space at bay
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
   void set_max_size(ulong max_size_arg);
 

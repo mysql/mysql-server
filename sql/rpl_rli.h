@@ -901,19 +901,22 @@ class Relay_log_info : public Rpl_info {
 
   /*
     Handling of the relay_log_space_limit optional constraint.
-    ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
-    threads, the SQL thread sets it to unblock the I/O thread and make it
-    temporarily forget about the constraint.
   */
-  ulonglong log_space_limit, log_space_total;
-  std::atomic<bool> ignore_log_space_limit;
+  std::atomic<ulonglong> log_space_limit, log_space_total;
 
-  /*
-    Used by the SQL thread to instructs the IO thread to rotate
-    the logs when the SQL thread needs to purge to release some
-    disk space.
-   */
-  std::atomic<bool> sql_force_rotate_relay;
+  // This flag is used by a coordinator to check if the receiver waits for
+  // a relay log space. If yes, it will enable aggressive relay log
+  // purge.
+  std::atomic_bool is_receiver_waiting_for_rl_space;
+
+  // This is file to which coordinator moved after enforced purge
+  // It is used by the receiver to check if all possible files were purged
+  // before making a decision on whether transaction may fit into the
+  // relay_log_space_limit. It is used to avoid possibly infinite waiting in
+  // case a transaction and required relay log metadata is bigger than
+  // 'relay_log_space_limit'. This filename is protected with the
+  // log_space_lock
+  std::string coordinator_log_after_purge{""};
 
   time_t last_master_timestamp;
 

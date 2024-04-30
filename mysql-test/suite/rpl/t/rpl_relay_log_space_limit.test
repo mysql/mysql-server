@@ -1,0 +1,141 @@
+# ==== PURPOSE ====
+#
+# This test validates handling of the relay_log_space_limit by replication
+# threads: receiver and applier coordinator. Here, we test basic functionality
+# of the 'relay_log_space_limit' and also check that:
+# - there is no race between receiver and coordinator when handling the limit
+#
+# ==== REQUIREMENTS ====
+#
+# relay_log_space_limit requirements:
+#
+# R1. When transaction size is lower than the 'relay_log_space_limit', the
+#     replica shall use the maximum of the 'relay_log_space_limit' bytes to
+#     store transactions in the relay log.
+# R2. When receiver writes transaction into the relay log, when the used
+#     relay log space plus the
+#     transaction size exceed the 'relay_log_space_limit', the receiver
+#     shall rotate the relay log and wait for notification that relay log
+#     space was reclaimed by the coordinator.
+# R3. When the applier coordinator detects that the replica receiver is waiting,
+#     when outside of a group, the coordinator shall:
+#     a) wait for workers to apply scheduled jobs
+#     b) force purging the current relay log file before moving to the next file
+#     c) notify the receiver that a part of relay log space used was reclaimed
+# R4. When transaction size is higher than the 'relay_log_space_limit', when all
+#     possible relay log files are purged, the replica shall ignore the limit
+#     and write the transaction into the relay log.
+#
+# test requirements:
+#
+# R1. When transaction size is higher than the 'relay_log_space_limit', when all
+#     possible relay log files are purged, the replica shall ignore the limit
+#     and write the transaction into the relay log.
+#
+# ==== IMPLEMENTATION ====
+#
+# T1.
+#     Test steps:
+#
+#     0. Test setup:
+#        a) the 'relay_log_space_limit' is able to fit all transactions except
+#           of the last, large transaction
+#     1. Start the receiver
+#     2. Create a table
+#     3. Generate 2 small transactions, rotate relay log after each
+#        transaction
+#     4. Generate a transaction that exceeds the relay log space limit, which
+#        will block the receiver
+#     5. Run replication applier
+#     6. Synchronize source and replica servers
+#     7. Execute a transaction that cannot fit into the relay log space
+#        limit. After purging relay log, the limit is ignored.
+#     8. Synchronize source and replica servers
+#     9. Check Pass condition 2: test finished (no deadlock), checked
+#        automatically
+#
+#     Test pass conditions:
+#
+#    - step 9 (synchronization in step 6 and step 8 succeeds)
+#
+# ==== REFERENCES ====
+#
+# Bug#36507020 relay_log_space_limit GTID and large txns may lead
+#              to no channel progress
+#
+
+--source include/big_test.inc
+
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave=1
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Start the receiver
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_receiver.inc
+
+--echo
+--echo # 2. Create a table
+--echo # 3. Generate 2 small transactions, rotate relay log after each
+--echo #    transaction
+--echo
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t (a LONGBLOB) ENGINE = InnoDB;
+INSERT INTO t VALUES (REPEAT('a', 1000));
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+--source include/rpl/connection_source.inc
+INSERT INTO t VALUES (REPEAT('a', 1000));
+--source include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+
+--echo
+--echo # 4. Generate a transaction that exceeds the relay log space limit, which
+--echo #    will block the receiver
+--echo
+
+--source include/rpl/connection_source.inc
+INSERT INTO t VALUES (REPEAT('a', 10000));
+
+--echo
+--echo # 5. Run replication applier
+--echo
+
+--source include/rpl/connection_replica.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/replica_io' AND processlist_state= 'Waiting for the replica SQL thread to free relay log space'
+--source include/wait_condition.inc
+--source include/rpl/start_applier.inc
+
+--echo
+--echo # 6. Synchronize source and replica servers
+--echo
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 7. Execute a transaction that cannot fit into the relay log space
+--echo #    limit. After purging relay log, the limit is ignored.
+--echo
+
+--source include/rpl/connection_source.inc
+INSERT INTO t VALUES (REPEAT('a', 15000));
+
+--echo
+--echo # 8. Synchronize source and replica servers
+--echo
+
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # Clean up
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t;
+--source include/rpl/deinit.inc
