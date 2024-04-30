@@ -47,6 +47,7 @@ a
 4
 5
 DROP TABLE t1;
+SET GLOBAL ndb_metadata_sync = true;
 SELECT * FROM t1;
 a	b
 1	a

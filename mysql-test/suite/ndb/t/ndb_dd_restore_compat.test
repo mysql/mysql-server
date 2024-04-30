@@ -1,37 +1,31 @@
--- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
-
-# Store initial counts of both detected and synchronized objects
---let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
---let $initial_synced_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
 
 --exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 
 --disable_query_log
-# Turn auto sync on with a low interval so changes are detected quickly
-SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check = true;
-SET GLOBAL ndb_metadata_check_interval = 0;
 # Suppress expected errors
 call mtr.add_suppression("Table upgrade required");
 call mtr.add_suppression("Table definition contains obsolete data types");
 call mtr.add_suppression("Failed to migrate table");
 call mtr.add_suppression("Got error '10923: Table definition contains obsolete data types");
+--connection server2
+call mtr.add_suppression("Table upgrade required");
+call mtr.add_suppression("Table definition contains obsolete data types");
+call mtr.add_suppression("Failed to create entry in DD");
+call mtr.add_suppression("Failed to migrate table");
+call mtr.add_suppression("Failed to install table");
+call mtr.add_suppression("Got error '10923: Table definition contains obsolete data types");
+--connection server1
 --enable_query_log
 
-# Wait until the following 3 object changes are detected:
+# Wait until the following 3 object changes are synced:
 # Logfile group 'lg'
 # Tablespace 'ts'
 # Table 'test.t1'
---let $expected_changes = 3
---let $max_wait = 30
---source wait_metadata_changes_detected.inc
-
-# Wait until the changes detected have been synced
---let $max_wait = 30
---source wait_metadata_synced.inc
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
 
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
@@ -41,13 +35,7 @@ SHOW WARNINGS;
 
 # Wait until there are no excluded objects
 --let $max_wait = 30
---source wait_metadata_sync_zero_excluded.inc
-
---disable_query_log
-# Reset metadata check values
-SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
---enable_query_log
+--source wait_immediate_metadata_sync.inc
 
 ALTER TABLESPACE ts
 DROP DATAFILE 'datafile.dat';

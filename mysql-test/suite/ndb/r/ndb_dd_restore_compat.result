@@ -1,3 +1,4 @@
+SET GLOBAL ndb_metadata_sync = true;
 SHOW CREATE TABLE t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
@@ -5,6 +6,7 @@ Level	Code	Message
 Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
+SET GLOBAL ndb_metadata_sync = true;
 ALTER TABLESPACE ts
 DROP DATAFILE 'datafile.dat';
 DROP TABLESPACE ts;
