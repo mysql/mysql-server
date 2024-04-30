@@ -244,12 +244,35 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     }
   }
 
-  int get_update_attributes_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_attributes_count");
-  }
+  void verify_no_last_check_in_updates(const ClusterSetData &cs_topology,
+                                       const std::chrono::milliseconds period) {
+    // <cluster_id, node_id>
+    using NodeId = std::pair<unsigned, unsigned>;
+    std::map<NodeId, size_t> count;
 
-  int get_update_last_check_in_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_last_check_in_count");
+    // in the first run pick up how many times the last_check_in update was
+    // performed on each node so far
+    for (const auto &cluster : cs_topology.clusters) {
+      unsigned node_id = 0;
+      for (const auto &node : cluster.nodes) {
+        count[NodeId(cluster.id, node_id)] =
+            get_int_global_value(node.http_port, "update_last_check_in_count");
+        ++node_id;
+      }
+    }
+
+    std::this_thread::sleep_for(period);
+
+    // make sure the last_check_in update counter was not incremented on any of
+    // the nodes
+    for (const auto &cluster : cs_topology.clusters) {
+      unsigned node_id = 0;
+      for (const auto &node : cluster.nodes) {
+        EXPECT_EQ(
+            get_int_global_value(node.http_port, "update_last_check_in_count"),
+            count[NodeId(cluster.id, node_id)]);
+      }
+    }
   }
 
   std::string router_conf_file;
@@ -1573,6 +1596,8 @@ class PrimaryTargetClusterMarkedInvalidInTheMetadataTest
  * @test Check that when target_cluster is marked as invalidated in the metadata
  * the Router either handles only RO connections or no connections at all
  * depending on the invalidatedClusterRoutingPolicy
+ * Also checks that the Router does not do internal UPDATE (last_check_in)
+ * queries on the invalidated cluster.
  * [@FR11]
  * [@TS_R15_1-3]
  */
@@ -1587,7 +1612,8 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
   create_clusterset(view_id, /*target_cluster_id*/ kPrimaryClusterId,
                     /*primary_cluster_id*/ kPrimaryClusterId,
                     "metadata_clusterset.js",
-                    /*router_options*/ R"({"target_cluster" : "primary"})");
+                    /*router_options*/ R"({"target_cluster" : "primary", 
+                                          "stats_updates_frequency": 1})");
   /* auto &router = */ launch_router();
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1606,6 +1632,7 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
   SCOPED_TRACE(
       "// Mark our PRIMARY cluster as invalidated in the metadata, also set "
       "the selected invalidatedClusterRoutingPolicy");
+
   clusterset_data_.clusters[kPrimaryClusterId].invalid = true;
   for (const auto &cluster : clusterset_data_.clusters) {
     for (const auto &node : cluster.nodes) {
@@ -1614,7 +1641,8 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
           view_id + 1, /*this_cluster_id*/ cluster.id,
           /*target_cluster_id*/ kPrimaryClusterId, http_port, clusterset_data_,
           /*router_options*/
-          R"({"target_cluster" : "primary", "invalidated_cluster_policy" : ")" +
+          R"({"target_cluster" : "primary", "stats_updates_frequency": 1,
+               "invalidated_cluster_policy" : ")" +
               policy + "\" }");
     }
   }
@@ -1641,6 +1669,10 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
                                .nodes[kRONodeId]
                                .classic_port);
   }
+
+  // Primary cluster is invalidated - Router should not do any UPDATE operations
+  // on it
+  verify_no_last_check_in_updates(clusterset_data_, 1500ms);
 }
 
 INSTANTIATE_TEST_SUITE_P(

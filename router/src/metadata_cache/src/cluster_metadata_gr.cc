@@ -1325,7 +1325,7 @@ std::optional<metadata_cache::metadata_server_t>
 GRClusterSetMetadataBackend::find_rw_server() {
   if (cluster_topology_) {
     for (auto &cluster : (*cluster_topology_).clusters_data) {
-      if (!cluster.is_primary) continue;
+      if (!cluster.is_primary || cluster.is_invalidated) continue;
 
       log_debug("Updating the status of cluster '%s' to find the writable node",
                 cluster.name.c_str());
