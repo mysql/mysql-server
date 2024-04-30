@@ -436,7 +436,7 @@ std::optional<metadata_cache::metadata_server_t>
 ClusterMetadata::find_rw_server(
     const std::vector<metadata_cache::ManagedCluster> &clusters) {
   for (auto &cluster : clusters) {
-    if (cluster.is_primary && cluster.has_quorum)
+    if (cluster.is_primary && cluster.has_quorum && !cluster.is_invalidated)
       return find_rw_server(cluster.members);
   }
 
