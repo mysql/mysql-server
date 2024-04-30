@@ -342,4 +342,36 @@ TEST_F(UnionSyntaxTest, InnerVsOuterOrder) {
   //    EXPECT_EQ(2, get_limit(query_expression->fake_query_block));
 }
 
+TEST_F(UnionSyntaxTest, QueryTermIteratorReentrancy) {
+  Query_block *query_block = parse(
+      "(SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 10)"
+      " UNION ALL "
+      " (SELECT * FROM r UNION DISTINCT SELECT * FROM s) LIMIT 7");
+
+  Query_expression *qe = query_block->master_query_expression();
+  Query_terms<QTC_POST_ORDER, VL_VISIT_LEAVES> terms(qe->query_term());
+  // set of nodes collected without any "interference"
+  std::vector<Query_term *> nodes_a_priori;
+  std::vector<Query_term *> nodes_outer;
+  std::vector<Query_term *> nodes_inner;
+
+  for (Query_term *term1 : terms) {
+    nodes_a_priori.push_back(term1);
+  }
+
+  EXPECT_EQ(7, nodes_a_priori.size());
+
+  for (Query_term *term1 : terms) {
+    // run a second iterator over the same query terms and verify that it
+    // doesn't interfere with the outer iterator's job
+    for (Query_term *term2 : terms) {
+      nodes_inner.push_back(term2);
+    }
+    EXPECT_EQ(nodes_a_priori, nodes_inner);
+    nodes_inner.clear();
+    nodes_outer.push_back(term1);
+  }
+  EXPECT_EQ(nodes_a_priori, nodes_outer);
+}
+
 }  // namespace union_syntax_unittest
