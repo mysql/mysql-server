@@ -1,0 +1,56 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Start the receiver
+
+[connection slave]
+include/rpl/start_receiver.inc
+
+# 2. Create a table
+# 3. Generate 2 small transactions, rotate relay log after each
+#    transaction
+
+[connection master]
+CREATE TABLE t (a LONGBLOB) ENGINE = InnoDB;
+INSERT INTO t VALUES (REPEAT('a', 1000));
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+[connection master]
+INSERT INTO t VALUES (REPEAT('a', 1000));
+include/rpl/sync_to_replica_received.inc
+FLUSH RELAY LOGS;
+
+# 4. Generate a transaction that exceeds the relay log space limit, which
+#    will block the receiver
+
+[connection master]
+INSERT INTO t VALUES (REPEAT('a', 10000));
+
+# 5. Run replication applier
+
+[connection slave]
+include/rpl/start_applier.inc
+
+# 6. Synchronize source and replica servers
+
+[connection master]
+include/rpl/sync_to_replica.inc
+
+# 7. Execute a transaction that cannot fit into the relay log space
+#    limit. After purging relay log, the limit is ignored.
+
+[connection master]
+INSERT INTO t VALUES (REPEAT('a', 15000));
+
+# 8. Synchronize source and replica servers
+
+include/rpl/sync_to_replica.inc
+
+# Clean up
+
+[connection master]
+DROP TABLE t;
+include/rpl/deinit.inc

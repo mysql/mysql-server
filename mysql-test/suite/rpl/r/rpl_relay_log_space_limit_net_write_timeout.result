@@ -1,0 +1,49 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Create a table
+# 2. Generate several large transactions, containing large events
+
+CREATE TABLE t (a LONGBLOB) ENGINE = InnoDB;
+CREATE PROCEDURE gen_transactions(trx_count INT, ev_count INT, insert_byte_count INT)
+BEGIN
+SET @x = 0;
+REPEAT
+START TRANSACTION;
+SET @ev_cnt = 0;
+REPEAT
+INSERT INTO t VALUES (REPEAT('a', insert_byte_count));
+SET @ev_cnt = @ev_cnt + 1;
+UNTIL @ev_cnt >= ev_count
+END REPEAT;
+COMMIT;
+SET @x = @x + 1;
+UNTIL @x >= trx_count
+END REPEAT;
+END %
+CALL gen_transactions(5, 3, 104857600);
+
+# 3. Run replication
+
+[connection slave]
+include/rpl/start_replica.inc
+
+# 4. Synchronize source and replica servers
+
+[connection master]
+include/rpl/sync_to_replica.inc
+
+# 5. Check Pass condition 1: the number of connects to the source
+#    is less than or equal to the number of transactions
+
+include/assert_grep.inc [Check Pass condition 1]
+
+# Clean up
+
+[connection master]
+DROP TABLE t;
+DROP PROCEDURE gen_transactions;
+include/rpl/deinit.inc
