@@ -416,3 +416,22 @@ SELECT
 FROM t;
 
 DROP TABLE t;
+
+--echo # Bug#36570439: Assertion failed: other_type != enum_json_type::J_ERROR
+--echo #               Json_wrapper::compare()
+
+CREATE TABLE t (a INT, b JSON, c VARCHAR(1));
+
+INSERT INTO t VALUES (0, '{}', NULL);
+
+--error ER_INVALID_JSON_PATH
+SELECT b
+FROM t
+WHERE (CASE
+       WHEN a THEN NOW(2)
+       WHEN b->'w' THEN a < b
+       ELSE b <= 1
+       END
+      ) <=> c;
+
+DROP TABLE t;

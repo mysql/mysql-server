@@ -3885,6 +3885,7 @@ Item *Item_func_case::find_item(String *) {
     for (uint i = 0; i < ncases; i += 2) {
       // No expression between CASE and the first WHEN
       if (args[i]->val_bool()) return args[i + 1];
+      if (current_thd->is_error()) return nullptr;
       continue;
     }
   } else {

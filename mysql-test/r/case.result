@@ -520,3 +520,17 @@ END
 FROM t;
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
 DROP TABLE t;
+# Bug#36570439: Assertion failed: other_type != enum_json_type::J_ERROR
+#               Json_wrapper::compare()
+CREATE TABLE t (a INT, b JSON, c VARCHAR(1));
+INSERT INTO t VALUES (0, '{}', NULL);
+SELECT b
+FROM t
+WHERE (CASE
+WHEN a THEN NOW(2)
+WHEN b->'w' THEN a < b
+ELSE b <= 1
+END
+) <=> c;
+ERROR 42000: Invalid JSON path expression. The error is around character position 1.
+DROP TABLE t;
