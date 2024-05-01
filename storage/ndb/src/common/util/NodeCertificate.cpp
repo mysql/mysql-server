@@ -404,12 +404,12 @@ short ActivePrivateKey::find(const TlsSearchPath *searchPath, int node_id,
  *    SigningRequest class
  */
 SigningRequest::SigningRequest(X509_REQ *req, Node::Type type, int node_id)
-    : CertSubject(type, node_id), CertLifetime(), m_req(req) {
+    : CertSubject(type, node_id), CertLifetime(DefaultDays), m_req(req) {
   m_bound_hostnames = sk_GENERAL_NAME_new_null();
 }
 
 SigningRequest::SigningRequest(X509_REQ *req)
-    : CertSubject(), CertLifetime(), m_req(req) {
+    : CertSubject(), CertLifetime(DefaultDays), m_req(req) {
   parse_name();
   m_bound_hostnames = sk_GENERAL_NAME_new_null();
   int idx = -1;
@@ -735,9 +735,6 @@ static bool initClusterCertAuthority(X509 *cert, const char *ordinal) {
   snprintf((char *)subject, sizeof(subject), ClusterCertAuthority::Subject,
            ordinal);
 
-  /* Valid for 4 years */
-  Certificate::set_expire_time(cert, (4 * 365) + 1);
-
   /* Set a random ten byte serial number */
   ASN1_STRING *serial = SerialNumber::random();
   r1 = X509_set_serialNumber(cert, serial);
@@ -760,18 +757,20 @@ static bool initClusterCertAuthority(X509 *cert, const char *ordinal) {
   return (r1 == 1);
 }
 
-static X509 *create_unsigned_CA(EVP_PKEY *key, const char *ordinal) {
+static X509 *create_unsigned_CA(EVP_PKEY *key, const char *ordinal,
+                                const CertLifetime &certLifetime) {
   X509 *cert = Certificate::create(key);
   if (cert) {
+    certLifetime.set_cert_lifetime(cert);
     if (initClusterCertAuthority(cert, ordinal)) return cert;
     Certificate::free(cert);
   }
   return nullptr;
 }
 
-X509 *ClusterCertAuthority::create(EVP_PKEY *key, const char *ordinal,
-                                   bool sign) {
-  X509 *cert = create_unsigned_CA(key, ordinal);
+X509 *ClusterCertAuthority::create(EVP_PKEY *key, const CertLifetime &lifetime,
+                                   const char *ordinal, bool sign) {
+  X509 *cert = create_unsigned_CA(key, ordinal, lifetime);
   if (cert) {
     if (!sign || ClusterCertAuthority::sign(cert, key, cert)) return cert;
     Certificate::free(cert);
@@ -1100,7 +1099,7 @@ time_t CertLifetime::replace_time(float pct) const {
  *    NodeCertificate class
  */
 NodeCertificate::NodeCertificate(Node::Type type, int node_id)
-    : CertSubject(type, node_id), CertLifetime() {
+    : CertSubject(type, node_id), CertLifetime(DefaultDays) {
   m_bound_hostnames = sk_GENERAL_NAME_new_null();
 }
 
@@ -1396,7 +1395,7 @@ static int parser_test() {
 */
 
 static int cert_lifetime_test() {
-  CertLifetime c1;
+  CertLifetime c1(CertLifetime::DefaultDays);
   time_t t1, t2;
 
   /* Compare replacement date */
@@ -1414,8 +1413,7 @@ static int cert_lifetime_test() {
   if (!c1.set_lifetime(-10, 0)) return 8;
 
   /* Cert expires 20 days from now. Create a replacement 5 days from now. */
-  CertLifetime c2;
-  c2.set_lifetime(20, 0);
+  CertLifetime c2(20);
   t2 = c2.replace_time(5) - time(&t1);
   printf("t2: %ld days\n", (long)t2 / CertLifetime::SecondsPerDay);
   if (t2 != five_days) return 9;
@@ -1495,7 +1493,8 @@ static int file_test() {
   /* Create a CA */
   EVP_PKEY *CA_key = EVP_RSA_gen(2048);
   require(CA_key);
-  X509 *CA_cert = ClusterCertAuthority::create(CA_key);
+  CertLifetime lifetime(CertLifetime::CaDefaultDays);
+  X509 *CA_cert = ClusterCertAuthority::create(CA_key, lifetime);
   require(CA_cert);
 
   /* Open the stored signing request */
@@ -1612,7 +1611,8 @@ static int verify_test() {
 
   /* Create a CA */
   EVP_PKEY *CA_key = EVP_RSA_gen(2048);
-  X509 *CA_cert = ClusterCertAuthority::create(CA_key);
+  CertLifetime CA_lifetime(CertLifetime::CaDefaultDays);
+  X509 *CA_cert = ClusterCertAuthority::create(CA_key, CA_lifetime);
   require(CA_cert);
 
   /* Create a private key and a NodeCertificate */
