@@ -2093,3 +2093,16 @@ DEALLOCATE PREPARE s5;
 DEALLOCATE PREPARE s6;
 
 DROP TABLE t7;
+
+--echo # Bug#36570474: Assertion failed: !current_thd->is_error() &&
+--echo #               has_value in Item_func_coalesce::val_json()
+
+CREATE FUNCTION f(a CHAR(1)) RETURNS JSON DETERMINISTIC
+  RETURN NULL;
+
+--error ER_DATETIME_FUNCTION_OVERFLOW
+SELECT f(1 ^ ISNULL(ADDDATE(CURRENT_TIMESTAMP, INTERVAL 999999999999 DAY)) AND
+        FOUND_ROWS()) <=>
+       ANY_VALUE(JSON_OBJECTAGG('{}','{}'));
+
+DROP FUNCTION f;

@@ -18100,3 +18100,12 @@ DEALLOCATE PREPARE s4;
 DEALLOCATE PREPARE s5;
 DEALLOCATE PREPARE s6;
 DROP TABLE t7;
+# Bug#36570474: Assertion failed: !current_thd->is_error() &&
+#               has_value in Item_func_coalesce::val_json()
+CREATE FUNCTION f(a CHAR(1)) RETURNS JSON DETERMINISTIC
+RETURN NULL;
+SELECT f(1 ^ ISNULL(ADDDATE(CURRENT_TIMESTAMP, INTERVAL 999999999999 DAY)) AND
+FOUND_ROWS()) <=>
+ANY_VALUE(JSON_OBJECTAGG('{}','{}'));
+ERROR 22008: Datetime function: datetime field overflow
+DROP FUNCTION f;

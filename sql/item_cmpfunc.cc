@@ -2164,7 +2164,9 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     return have_null_items;
   }
   const bool a_null = a->is_nullable() && a->is_null();
+  if (current_thd->is_error()) return false;
   const bool b_null = b->is_nullable() && b->is_null();
+  if (current_thd->is_error()) return false;
   if (a_null || b_null) {
     *result = a_null == b_null;
     return true;
@@ -2597,6 +2599,7 @@ longlong Item_func_equal::val_int() {
   assert(fixed);
   // Perform regular equality check first:
   const int value = cmp.compare();
+  if (current_thd->is_error()) return 0;
   // If comparison is not NULL, we have a result:
   if (!null_value) return value == 0 ? 1 : 0;
   null_value = false;
