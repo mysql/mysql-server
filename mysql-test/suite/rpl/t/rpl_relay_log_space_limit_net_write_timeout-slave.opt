@@ -1,0 +1,1 @@
+--max_allowed_packet=1073741824 --relay-log-space-limit=419430400 --innodb-redo-log-capacity=400M

@@ -587,6 +587,21 @@ void end_slave();                 /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
 void set_slave_thread_options(THD *thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
+
+/// @brief Rotates the relay log
+/// @details Locking order:
+/// a) log_lock, log_space_lock
+/// b) log_lock, end_pos_lock
+/// @param mi Pointer to connection metadata object
+/// @param log_master_fd Information on whether rotate came from:
+/// - true - the origin is replica, this function will insert a source FDE
+/// - false - the origin is the source, we don't need to insert FDE as it
+///   will be send by the source
+/// @param need_lock When true, we acquire relay log lock,
+/// otherwise the caller must hold it
+/// @param need_log_space_lock When true, we acquire the log protecting
+/// data structures responsible for handling the relay_log_space_limit,
+/// otherwise the caller must hold it
 int rotate_relay_log(Master_info *mi, bool log_master_fd = true,
                      bool need_lock = true, bool need_log_space_lock = true);
 typedef enum {

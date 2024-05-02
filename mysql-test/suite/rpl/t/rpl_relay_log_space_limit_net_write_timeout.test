@@ -1,0 +1,147 @@
+# ==== PURPOSE ====
+#
+# This test validates handling of the relay_log_space_limit by replication
+# threads: receiver and applier coordinator. Here, we make sure that
+# handling of the 'relay_log_space_limit' does not create a loop due to
+# restarting the auto-positioning protocol.
+#
+# ==== REQUIREMENTS ====
+#
+# relay_log_space_limit requirements:
+#
+# R1. When transaction size is lower than the 'relay_log_space_limit', the
+#     replica shall use the maximum of the 'relay_log_space_limit' bytes to
+#     store transactions in the relay log.
+# R2. When receiver writes transaction into the relay log, when the used
+#     relay log space plus the
+#     transaction size exceed the 'relay_log_space_limit', the receiver
+#     shall rotate the relay log and wait for notification that relay log
+#     space was reclaimed by the coordinator.
+# R3. When the applier coordinator detects that the replica receiver is waiting,
+#     when outside of a group, the coordinator shall:
+#     a) wait for workers to apply scheduled jobs
+#     b) force purging the current relay log file before moving to the next file
+#     c) notify the receiver that a part of relay log space used was reclaimed
+# R4. When transaction size is higher than the 'relay_log_space_limit', when all
+#     possible relay log files are purged, the replica shall ignore the limit
+#     and write the transaction into the relay log.
+#
+# test requirements:
+#
+# R1. When the 'relay_log_space_limit' is greater than the size of one
+#     transaction and lower than the size of two transactions, when running
+#     with GTID based replication, when the time of handling one transaction
+#     is greater that the 'net_write_timeout', the number of reconnects to the
+#     receiver shall not exceed to the number of executed transactions.
+# R2. When a single transaction cannot fit into the 'relay_log_space_limit',
+#     when applier has purged all available logs, the 'relay_log_space_limit'
+#     shall be ignored for this transaction.
+#
+# ==== IMPLEMENTATION ====
+#
+# T1.
+#     Test steps:
+#
+#     0. Test setup: low value of 'net write timeout' and low value of the
+#        'relay_log_space_limit', to make sure that:
+#        a) the 'relay_log_space_limit' is reached after writing each
+#           transaction to the relay log
+#        b) the time of handling the 'relay_log_space_limit' is greater than
+#           the 'net_write_timeout', causing the dump thread to disconnect and
+#           restart replication after each transaction
+#        c) the 'relay_log_space_limit' is able to fit one transaction and
+#           several events of the next transaction
+#     1. Create a table
+#     2. Generate several large transactions, containing large events
+#     3. Run replication
+#     4. Synchronize source and replica servers
+#     5. Check Pass condition 1: the number of connects to the source
+#        is less than or equal to the number of transactions
+#     6. Check Pass condition 2: test finished (no deadlock), checked
+#        automatically
+#
+#     Test pass conditions:
+#
+#    - step 5
+#    - step 6
+#
+# ==== REFERENCES ====
+#
+# Bug#36507020 relay_log_space_limit GTID and large txns may lead
+#              to no channel progress
+#
+
+--source include/big_test.inc
+
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+--echo
+--echo # 1. Create a table
+--echo # 2. Generate several large transactions, containing large events
+--echo
+
+CREATE TABLE t (a LONGBLOB) ENGINE = InnoDB;
+
+DELIMITER %;
+
+# Generates 'trx_count' transactions, each containing 'ev_count' events of
+# size around 'insert_byte_count'
+CREATE PROCEDURE gen_transactions(trx_count INT, ev_count INT, insert_byte_count INT)
+BEGIN
+  SET @x = 0;
+  REPEAT
+    START TRANSACTION;
+      SET @ev_cnt = 0;
+      REPEAT
+        INSERT INTO t VALUES (REPEAT('a', insert_byte_count));
+      SET @ev_cnt = @ev_cnt + 1;
+      UNTIL @ev_cnt >= ev_count
+      END REPEAT;
+    COMMIT;
+  SET @x = @x + 1;
+  UNTIL @x >= trx_count
+  END REPEAT;
+END %
+
+DELIMITER ;%
+
+# Generate 5 transactions, each containing 3 events ~100MiB
+CALL gen_transactions(5, 3, 104857600);
+
+--echo
+--echo # 3. Run replication
+--echo
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--echo
+--echo # 4. Synchronize source and replica servers
+--echo
+
+--source include/rpl_connection_master.inc
+--let $slave_timeout=3600
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 5. Check Pass condition 1: the number of connects to the source
+--echo #    is less than or equal to the number of transactions
+--echo
+
+--let $assert_select=Replica receiver thread for channel '': connected to source
+--let $assert_count_condition= <=5
+--let $assert_text=Check Pass condition 1
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--source include/assert_grep.inc
+
+--echo
+--echo # Clean up
+--echo
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+DROP PROCEDURE gen_transactions;
+--source include/rpl_end.inc
