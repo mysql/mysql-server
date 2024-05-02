@@ -4062,33 +4062,33 @@ ERROR HY000: Incorrect integer value: '' for column 'i' at row 1
 INSERT INTO deci VALUES ('');
 ERROR HY000: Incorrect decimal value: '' for column 'd' at row 1
 INSERT INTO dbls VALUES ('');
-ERROR 01000: Data truncated for column 'r' at row 1
+ERROR HY000: Incorrect DOUBLE value: '' for column 'r' at row 1
 INSERT INTO flts VALUES ('');
-ERROR 01000: Data truncated for column 'f' at row 1
+ERROR HY000: Incorrect FLOAT value: '' for column 'f' at row 1
 INSERT INTO ints VALUES ('   ');
 ERROR HY000: Incorrect integer value: '   ' for column 'i' at row 1
 INSERT INTO deci VALUES ('   ');
 ERROR HY000: Incorrect decimal value: '   ' for column 'd' at row 1
 INSERT INTO dbls VALUES ('   ');
-ERROR 01000: Data truncated for column 'r' at row 1
+ERROR HY000: Incorrect DOUBLE value: '   ' for column 'r' at row 1
 INSERT INTO flts VALUES ('   ');
-ERROR 01000: Data truncated for column 'f' at row 1
+ERROR HY000: Incorrect FLOAT value: '   ' for column 'f' at row 1
 INSERT INTO ints VALUES (@empty);
 ERROR HY000: Incorrect integer value: '' for column 'i' at row 1
 INSERT INTO deci VALUES (@empty);
 ERROR HY000: Incorrect decimal value: '' for column 'd' at row 1
 INSERT INTO dbls VALUES (@empty);
-ERROR 01000: Data truncated for column 'r' at row 1
+ERROR HY000: Incorrect DOUBLE value: '' for column 'r' at row 1
 INSERT INTO flts VALUES (@empty);
-ERROR 01000: Data truncated for column 'f' at row 1
+ERROR HY000: Incorrect FLOAT value: '' for column 'f' at row 1
 INSERT INTO ints VALUES (@spaces);
 ERROR HY000: Incorrect integer value: '   ' for column 'i' at row 1
 INSERT INTO deci VALUES (@spaces);
 ERROR HY000: Incorrect decimal value: '   ' for column 'd' at row 1
 INSERT INTO dbls VALUES (@spaces);
-ERROR 01000: Data truncated for column 'r' at row 1
+ERROR HY000: Incorrect DOUBLE value: '   ' for column 'r' at row 1
 INSERT INTO flts VALUES (@spaces);
-ERROR 01000: Data truncated for column 'f' at row 1
+ERROR HY000: Incorrect FLOAT value: '   ' for column 'f' at row 1
 INSERT INTO ints VALUES ('666');
 INSERT INTO deci VALUES ('777.777');
 INSERT INTO dbls VALUES ('888.888e100');
@@ -4114,17 +4114,17 @@ ERROR HY000: Incorrect integer value: '' for column 'i' at row 1
 EXECUTE ps2 USING @empty;
 ERROR HY000: Incorrect decimal value: '' for column 'd' at row 1
 EXECUTE ps3 USING @empty;
-ERROR 01000: Data truncated for column 'r' at row 1
+ERROR HY000: Incorrect DOUBLE value: '' for column 'r' at row 1
 EXECUTE ps4 USING @empty;
-ERROR 01000: Data truncated for column 'f' at row 1
+ERROR HY000: Incorrect FLOAT value: '' for column 'f' at row 1
 EXECUTE ps1 USING @spaces;
 ERROR HY000: Incorrect integer value: '   ' for column 'i' at row 1
 EXECUTE ps2 USING @spaces;
 ERROR HY000: Incorrect decimal value: '   ' for column 'd' at row 1
 EXECUTE ps3 USING @spaces;
-ERROR 01000: Data truncated for column 'r' at row 1
+ERROR HY000: Incorrect DOUBLE value: '   ' for column 'r' at row 1
 EXECUTE ps4 USING @spaces;
-ERROR 01000: Data truncated for column 'f' at row 1
+ERROR HY000: Incorrect FLOAT value: '   ' for column 'f' at row 1
 EXECUTE ps1 USING @intval;
 EXECUTE ps1 USING @intvalx;
 EXECUTE ps2 USING @decval;

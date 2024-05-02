@@ -582,7 +582,7 @@ a	b	c	d
 1	1	1	1
 DELETE FROM t1;
 INSERT INTO t1 ( a ) VALUES ( regexp_replace('a', 'a', 'a') );
-ERROR 01000: Data truncated for column 'a' at row 1
+ERROR HY000: Incorrect DOUBLE value: 'a' for column 'a' at row 1
 INSERT INTO t1 ( b ) VALUES ( regexp_replace('a', 'a', 'a') );
 ERROR HY000: Incorrect integer value: 'a' for column 'b' at row 1
 INSERT INTO t1 ( c ) VALUES ( regexp_replace('a', 'a', 'a') );
@@ -593,7 +593,7 @@ a	b	c	d
 NULL	NULL	a	NULL
 DELETE FROM t1;
 INSERT INTO t1 ( a ) VALUES ( regexp_substr('a', 'a') );
-ERROR 01000: Data truncated for column 'a' at row 1
+ERROR HY000: Incorrect DOUBLE value: 'a' for column 'a' at row 1
 INSERT INTO t1 ( b ) VALUES ( regexp_substr('a', 'a') );
 ERROR HY000: Incorrect integer value: 'a' for column 'b' at row 1
 INSERT INTO t1 ( c ) VALUES ( regexp_substr('a', 'a') );

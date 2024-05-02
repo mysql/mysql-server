@@ -5508,6 +5508,11 @@ SELECT avg(distinct(t1.a)) FROM t1, t1 t2
 GROUP BY t2.a ORDER BY t1.a;
 avg(distinct(t1.a))
 0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '' for column '' at row 1
+Warning	1366	Incorrect DOUBLE value: '' for column '' at row 1
+Warning	1366	Incorrect DOUBLE value: '' for column '' at row 1
+Warning	1366	Incorrect DOUBLE value: '' for column '' at row 1
 DROP TABLE t1;
 # End of test BUG#57203
 #

@@ -470,10 +470,10 @@ CREATE TABLE t1 (f FLOAT);
 INSERT INTO t1 VALUES ('1.');
 INSERT INTO t1 VALUES ('2.0.');
 Warnings:
-Warning	1265	Data truncated for column 'f' at row 1
+Warning	1366	Incorrect FLOAT value: '2.0.' for column 'f' at row 1
 INSERT INTO t1 VALUES ('.');
 Warnings:
-Warning	1265	Data truncated for column 'f' at row 1
+Warning	1366	Incorrect FLOAT value: '.' for column 'f' at row 1
 SELECT * FROM t1 ORDER BY f;
 f
 0

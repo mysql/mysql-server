@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 
 CREATE TABLE t1 (
-  id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+  id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
   gender CHAR(1),
   name VARCHAR(20)
 );
@@ -49,36 +49,60 @@ INSERT INTO t1 (gender, name) VALUES ('F', 'Eva'), ('F', 'Sofia'),
 
 SELECT
   SUM(DISTINCT LENGTH(name)) s1,
-  SUM(DISTINCT SUBSTRING(NAME, 1, 3)) s2,
   SUM(DISTINCT LENGTH(SUBSTRING(name, 1, 4))) s3
 FROM t1;
 
 SELECT
   SUM(DISTINCT LENGTH(g1.name)) s1,
-  SUM(DISTINCT SUBSTRING(g2.name, 1, 3)) s2,
   SUM(DISTINCT LENGTH(SUBSTRING(g3.name, 1, 4))) s3
 FROM t1 g1, t1 g2, t1 g3;
 
+
 SELECT
   SUM(DISTINCT LENGTH(g1.name)) s1,
-  SUM(DISTINCT SUBSTRING(g2.name, 1, 3)) s2,
   SUM(DISTINCT LENGTH(SUBSTRING(g3.name, 1, 4))) s3
 FROM t1 g1, t1 g2, t1 g3 GROUP BY LENGTH(SUBSTRING(g3.name, 5, 10));
+
 
 # here we explicitly request summing through temporary table (so
 # Item_sum_sum_distinct::copy_or_same() is called)
 
 SELECT SQL_BUFFER_RESULT
   SUM(DISTINCT LENGTH(name)) s1,
-  SUM(DISTINCT SUBSTRING(NAME, 1, 3)) s2,
   SUM(DISTINCT LENGTH(SUBSTRING(name, 1, 4))) s3
 FROM t1;
 
 SELECT SQL_BUFFER_RESULT
   SUM(DISTINCT LENGTH(g1.name)) s1,
-  SUM(DISTINCT SUBSTRING(g2.name, 1, 3)) s2,
   SUM(DISTINCT LENGTH(SUBSTRING(g3.name, 1, 4))) s3
 FROM t1 g1, t1 g2, t1 g3 GROUP BY LENGTH(SUBSTRING(g3.name, 5, 10));
+
+# check that we see conversion warnings for above queries when we use
+# DISTINCT SUBSTRING, but make a smaller table t2 instead of t1 to
+# avoid spewing out too many warnings on the canon.
+CREATE TABLE t2 AS SELECT id, gender,name FROM t1
+ORDER BY LENGTH(name) DESC LIMIT 1;
+
+SELECT SUM(DISTINCT SUBSTRING(NAME, 1, 3)) s2
+FROM t2;
+
+SELECT
+  SUM(DISTINCT SUBSTRING(g2.name, 1, 3)) s2
+FROM t2 g1, t2 g2, t2 g3;
+
+SELECT
+  SUM(DISTINCT SUBSTRING(g2.name, 1, 3)) s2
+FROM t2 g1, t2 g2, t2 g3 GROUP BY LENGTH(SUBSTRING(g3.name, 5, 10));
+
+SELECT SQL_BUFFER_RESULT
+  SUM(DISTINCT SUBSTRING(g2.name, 1, 3)) s2
+FROM t2 g1, t2 g2, t2 g3 GROUP BY LENGTH(SUBSTRING(g3.name, 5, 10));
+
+SELECT SQL_BUFFER_RESULT
+  SUM(DISTINCT SUBSTRING(NAME, 1, 3)) s2
+FROM t2;
+
+DROP TABLE t2;
 
 # this test demonstrates that strings are automatically converted to numbers
 # before summing
@@ -88,14 +112,14 @@ UPDATE t1 SET name=CONCAT(name, @l:=@l+1);
 
 SELECT SUM(DISTINCT RIGHT(name, 1)) FROM t1;
 
-# this is a test case for ordinary t1 
+# this is a test case for ordinary t1
 
 SELECT SUM(DISTINCT id) FROM t1;
 SELECT SUM(DISTINCT id % 11) FROM t1;
 
 DROP TABLE t1;
 
---echo 
+--echo
 --echo BUG#37891: Column cannot be null error with aggregate in a subquery
 --echo
 CREATE TABLE t1 (
@@ -119,3 +143,9 @@ SELECT * FROM t1 WHERE int_key IN ( SELECT SUM(DISTINCT pk) FROM t2 WHERE time_n
 SELECT * FROM t1 WHERE int_key IN ( SELECT AVG(DISTINCT pk) FROM t2 WHERE time_nokey = datetime_key );
 drop table t1,t2;
 
+--echo
+--echo Bug#36035064 sum(distinct substring()) does not give warnings, while sum(substring() does
+--echo
+SELECT SUM(         SUBSTRING("text", 1, 3)) FROM dual;
+--echo # Used to not give warnings:
+SELECT SUM(DISTINCT SUBSTRING("text", 1, 3)) FROM dual;

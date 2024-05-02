@@ -644,6 +644,9 @@ INSERT INTO t1 VALUES('iynfj', 1, 1, 1, 1);
 INSERT INTO t1 VALUES('innfj', 2, 2, 2, 2);
 SELECT SUM( DISTINCT a ) FROM t1 GROUP BY a HAVING a IN ( AVG( 1 ), 1 + a);
 SUM( DISTINCT a )
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'innfj' for column '' at row 1
+Warning	1366	Incorrect DOUBLE value: 'iynfj' for column '' at row 1
 SELECT SUM( DISTINCT b ) FROM t1 GROUP BY b HAVING b IN ( AVG( 1 ), 1 + b);
 SUM( DISTINCT b )
 1

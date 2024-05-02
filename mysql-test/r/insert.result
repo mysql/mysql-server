@@ -88,14 +88,14 @@ Warning	1681	UNSIGNED for decimal and floating point data types is deprecated an
 set @value= "aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1265	Data truncated for column 'f_double' at row 1
-Warning	1265	Data truncated for column 'f_float' at row 1
-Warning	1265	Data truncated for column 'f_double_7_2' at row 1
-Warning	1265	Data truncated for column 'f_float_4_3' at row 1
-Warning	1265	Data truncated for column 'f_double_u' at row 1
-Warning	1265	Data truncated for column 'f_float_u' at row 1
-Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
-Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa' for column 'f_double' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa' for column 'f_float' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa' for column 'f_double_7_2' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa' for column 'f_float_4_3' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa' for column 'f_double_u' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa' for column 'f_float_u' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa' for column 'f_double_15_1_u' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa' for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	1
 original_value	aa
@@ -110,14 +110,14 @@ f_float_3_1_u	0.0
 set @value= "1aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1265	Data truncated for column 'f_double' at row 1
-Warning	1265	Data truncated for column 'f_float' at row 1
-Warning	1265	Data truncated for column 'f_double_7_2' at row 1
-Warning	1265	Data truncated for column 'f_float_4_3' at row 1
-Warning	1265	Data truncated for column 'f_double_u' at row 1
-Warning	1265	Data truncated for column 'f_float_u' at row 1
-Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
-Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+Warning	1366	Incorrect DOUBLE value: '1aa' for column 'f_double' at row 1
+Warning	1366	Incorrect FLOAT value: '1aa' for column 'f_float' at row 1
+Warning	1366	Incorrect DOUBLE value: '1aa' for column 'f_double_7_2' at row 1
+Warning	1366	Incorrect FLOAT value: '1aa' for column 'f_float_4_3' at row 1
+Warning	1366	Incorrect DOUBLE value: '1aa' for column 'f_double_u' at row 1
+Warning	1366	Incorrect FLOAT value: '1aa' for column 'f_float_u' at row 1
+Warning	1366	Incorrect DOUBLE value: '1aa' for column 'f_double_15_1_u' at row 1
+Warning	1366	Incorrect FLOAT value: '1aa' for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	2
 original_value	1aa
@@ -132,14 +132,14 @@ f_float_3_1_u	1.0
 set @value= "aa1";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1265	Data truncated for column 'f_double' at row 1
-Warning	1265	Data truncated for column 'f_float' at row 1
-Warning	1265	Data truncated for column 'f_double_7_2' at row 1
-Warning	1265	Data truncated for column 'f_float_4_3' at row 1
-Warning	1265	Data truncated for column 'f_double_u' at row 1
-Warning	1265	Data truncated for column 'f_float_u' at row 1
-Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
-Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa1' for column 'f_double' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa1' for column 'f_float' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa1' for column 'f_double_7_2' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa1' for column 'f_float_4_3' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa1' for column 'f_double_u' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa1' for column 'f_float_u' at row 1
+Warning	1366	Incorrect DOUBLE value: 'aa1' for column 'f_double_15_1_u' at row 1
+Warning	1366	Incorrect FLOAT value: 'aa1' for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	3
 original_value	aa1

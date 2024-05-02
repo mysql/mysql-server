@@ -54,6 +54,7 @@
 #include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql-common/json_dom.h"
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/create_field.h"
@@ -1338,8 +1339,13 @@ bool Aggregator_distinct::add() {
     }
     return false;
   } else {
+    const enum_check_fields saved_value = thd->check_for_truncated_fields;
+    auto reset_check_truncated_fields = create_scope_guard(
+        [thd, saved_value] { thd->check_for_truncated_fields = saved_value; });
+    thd->check_for_truncated_fields = CHECK_FIELD_WARN;
+
     item_sum->get_arg(0)->save_in_field(table->field[0], false);
-    if (current_thd->is_error()) {
+    if (thd->is_error()) {
       return true;
     }
     if (table->field[0]->is_null()) return false;
