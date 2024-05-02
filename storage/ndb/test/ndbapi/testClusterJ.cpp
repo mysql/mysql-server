@@ -178,15 +178,14 @@ int run_tests(int argc, char **argv) {
   if (mtr_classpath) {
     classpath += Separator;
     classpath += mtr_classpath;
-  }
-  if (strlen(compileTimeClassPath) > 0) {
+  } else if (strlen(compileTimeClassPath) > 0) {
     classpath += Separator;
     classpath += compileTimeClassPath;
   }
   printf("Java Classpath: %s \n", classpath.c_str());
 
-  /* Fail here if there is no possible path to the JDBC driver */
-  if (!(mtr_classpath || strlen(compileTimeClassPath))) {
+  /* Fail here if classpath does not contain connector/j */
+  if (classpath.find("mysql-connector-j") == std::string::npos) {
     fprintf(stderr, " ** Error: No path to mysql-connector-j jar file **\n");
     return -1;
   }
@@ -195,6 +194,7 @@ int run_tests(int argc, char **argv) {
   NdbProcess::Args args;
   args.add("-Djava.library.path=", ndbClientDir.c_str());
   args.add("-Dclusterj.properties=", paths.propsFile().c_str());
+  args.add("-Duser.timezone=GMT-3");
   args.add2("-cp", classpath.c_str());
   args.add("testsuite.clusterj.AllTests");
   args.add(clusterjTestJar.c_str());
