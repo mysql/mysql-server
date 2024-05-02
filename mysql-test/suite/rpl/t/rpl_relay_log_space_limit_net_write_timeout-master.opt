@@ -1,1 +1,0 @@
---max_allowed_packet=1073741824 --net-write-timeout=1 --innodb-redo-log-capacity=400M
