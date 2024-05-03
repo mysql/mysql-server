@@ -5972,3 +5972,13 @@ a
 316
 SET @@sql_mode = DEFAULT;
 DROP TABLE t0, t1;
+# Bug#36562972: Character set changing unexpectedly
+CREATE TABLE t1 (
+col varchar(36) DEFAULT (REPLACE(UUID(), _utf8mb4'-', _utf8mb4'_'))
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col` varchar(36) DEFAULT (replace(uuid(),_utf8mb3'-',_utf8mb3'_'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

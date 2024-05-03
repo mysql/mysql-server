@@ -2797,3 +2797,13 @@ SELECT * FROM t0;
 SET @@sql_mode = DEFAULT;
 
 DROP TABLE t0, t1;
+
+--echo # Bug#36562972: Character set changing unexpectedly
+
+CREATE TABLE t1 (
+  col varchar(36) DEFAULT (REPLACE(UUID(), _utf8mb4'-', _utf8mb4'_'))
+);
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

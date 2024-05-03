@@ -1325,7 +1325,7 @@ bool Item_func_replace::resolve_type(THD *thd) {
   // We let the first argument (only) determine the character set of the result.
   // REPLACE(str, from_str, to_str)
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
-  if (simplify_string_args(thd, collation, args + 1, 1)) return true;
+  if (simplify_string_args(thd, collation, args + 1, 2)) return true;
 
   ulonglong char_length = args[0]->max_char_length(collation.collation);
   const ulonglong replace_length =

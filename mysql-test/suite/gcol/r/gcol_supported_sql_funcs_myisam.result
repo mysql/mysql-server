@@ -1208,7 +1208,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_latin1'aa',_utf8mb4'bb')) VIRTUAL
+  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_latin1'aa',_latin1'bb')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('maa',default);
 select * from t1;
