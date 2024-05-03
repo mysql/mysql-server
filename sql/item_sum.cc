@@ -2254,7 +2254,7 @@ bool Item_sum_avg::resolve_type(THD *thd) {
     set_data_type_decimal(precision, scale);
     f_precision =
         min(precision + DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
-    f_scale = args[0]->decimals;
+    f_scale = min<uint>(args[0]->decimals, f_precision);
     dec_bin_size = my_decimal_get_binary_size(f_precision, f_scale);
   } else {
     assert(hybrid_type == REAL_RESULT);
