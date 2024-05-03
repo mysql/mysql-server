@@ -35,7 +35,6 @@ Consume ops up to target
 Restart TC node
 Wait for not started state
 Check no operations from failed TC remain (must be none)
-select * from ndbinfo.cluster_operations where tc_node_id=2;;
 node_id	block_instance	transid	operation_type	state	tableid	fragmentid	client_node_id	client_block_ref	tc_node_id	tc_block_no	tc_block_instance
 Start TC node
 Wait for all started
@@ -62,7 +61,6 @@ Consume ops up to target
 Restart TC node
 Wait for not started state
 Check no operations from failed TC remain (must be none)
-select * from ndbinfo.cluster_operations where tc_node_id=1;;
 node_id	block_instance	transid	operation_type	state	tableid	fragmentid	client_node_id	client_block_ref	tc_node_id	tc_block_no	tc_block_instance
 Start TC node
 Wait for all started
