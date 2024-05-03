@@ -80,7 +80,9 @@ while ($extra_pages < 2)
   exec $NDB_WAITER --not-started -w $tcnode >> $NDB_TOOLS_OUTPUT;
 
   --echo Check no operations from failed TC remain (must be none)
+  --disable_query_log
   --eval select * from ndbinfo.cluster_operations where tc_node_id=$tcnode;
+  --enable_query_log
 
   --echo Start TC node
   exec $NDB_MGM -e "$tcnode start" >> $NDB_TOOLS_OUTPUT;
