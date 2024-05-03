@@ -524,6 +524,9 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
         row.write_uint64(
             globalTransporterRegistry.get_send_buffer_max_alloc_bytes(trpId));
 
+        /* Transporter type */
+        row.write_uint32(globalTransporterRegistry.get_transporter_type(trpId));
+
         ndbinfo_send_row(signal, req, row, rl);
         trpId++;
         if (rl.need_break(req)) {
