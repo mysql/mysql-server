@@ -63,7 +63,7 @@ ndb$acc_operations	15	64
 ndb$backup_id	1	20
 ndb$blocks	29	20
 ndb$certificates	34	44
-ndb$columns	560	44
+ndb$columns	561	44
 ndb$config_nodes	34	28
 ndb$counters	200	24
 ndb$dblqh_tcconnect_state	19	52
@@ -106,7 +106,7 @@ ndb$threadblocks	124	16
 ndb$threads	26	40
 ndb$threadstat	22	144
 ndb$transactions	5	44
-ndb$transporter_details	32	108
+ndb$transporter_details	32	112
 ndb$transporters	32	68
 
 CALL populate_sizes();
