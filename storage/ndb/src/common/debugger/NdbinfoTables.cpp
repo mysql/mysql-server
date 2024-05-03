@@ -105,8 +105,8 @@ DECLARE_NDBINFO_TABLE(POOLS, 14) = {
      {"resource_id", Ndbinfo::Number, ""},
      {"type_id", Ndbinfo::Number, "Record type id within resource"}}};
 
-DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 18) = {
-    {"transporter_details", 18, 0,
+DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 19) = {
+    {"transporter_details", 19, 0,
      [](const Ndbinfo::Counts &counts) {
        return (counts.data_nodes) * (counts.all_nodes - 1);
      },
@@ -139,7 +139,9 @@ DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 18) = {
      {"sendbuffer_alloc_bytes", Ndbinfo::Number64,
       "SendBuffer bytes allocated"},
      {"sendbuffer_max_alloc_bytes", Ndbinfo::Number64,
-      "SendBuffer historical max bytes allocated"}}};
+      "SendBuffer historical max bytes allocated"},
+
+     {"type", Ndbinfo::Number, "Transporter type"}}};
 
 DECLARE_NDBINFO_TABLE(TRANSPORTERS, 12) = {
     {"transporters", 12, 0,

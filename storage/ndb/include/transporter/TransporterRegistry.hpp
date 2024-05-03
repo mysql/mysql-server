@@ -545,6 +545,7 @@ class TransporterRegistry {
   Transporter *get_node_base_transporter(NodeId nodeId) const;
   Transporter *get_node_transporter_instance(NodeId nodeId, int inst) const;
   bool is_shm_transporter(TrpId trp_id);
+  TransporterType get_transporter_type(TrpId id) const;
 
   ndb_sockaddr get_connect_address_node(NodeId nodeId) const;
   ndb_sockaddr get_connect_address(TrpId trpId) const;
