@@ -109,6 +109,7 @@ main.mysql_inplace_upgrade                  : Bug#36312666 Several InnoDB testca
 main.mysql_80_inplace_upgrade               : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.upgrade_with_float_auto_increment      : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.read_only_ddl                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+encryption.upgrade                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
