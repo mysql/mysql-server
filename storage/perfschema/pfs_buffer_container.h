@@ -94,12 +94,17 @@ class PFS_buffer_default_array {
     size_t monotonic_max;
     value_type *pfs;
 
-    if (m_full) {
+    if (m_full.load()) {
       return nullptr;
     }
 
+    // Immutable
+    size_t max = m_max.load();
+    // Immutable
+    T *ptr = m_ptr.load();
+
     monotonic = m_monotonic.m_size_t++;
-    monotonic_max = monotonic + m_max;
+    monotonic_max = monotonic + max;
 
     if (unlikely(monotonic >= monotonic_max)) {
       /*
@@ -109,12 +114,12 @@ class PFS_buffer_default_array {
       */
       m_monotonic.m_size_t.store(0);
       monotonic = 0;
-      monotonic_max = m_max;
+      monotonic_max = max;
     }
 
     while (monotonic < monotonic_max) {
-      index = monotonic % m_max;
-      pfs = m_ptr + index;
+      index = monotonic % max;
+      pfs = ptr + index;
 
       if (pfs->m_lock.free_to_dirty(dirty_state)) {
         return pfs;
@@ -122,25 +127,68 @@ class PFS_buffer_default_array {
       monotonic = m_monotonic.m_size_t++;
     }
 
-    m_full = true;
+    m_full.store(true);
     return nullptr;
   }
 
   void deallocate(value_type *pfs) {
     pfs->m_lock.allocated_to_free();
-    m_full = false;
+
+    if (m_full.load()) {
+      m_full.store(false);
+    }
   }
 
   T *get_first() { return m_ptr; }
 
   T *get_last() { return m_ptr + m_max; }
 
-  bool m_full;
+  /**
+   Page full flag.
+
+   Concurrency profile:
+   - mostly read during normal operations.
+   - do not perform useless write,
+     check for previous value first
+   - occasional write on state changes
+  */
+  std::atomic<bool> m_full{false};
+
+  /**
+   Monotonic counter.
+   This counter is used to access items in the page.
+
+   Concurrency profile:
+   - frequent read and write, must be on its own cacheline
+  */
   PFS_cacheline_atomic_size_t m_monotonic;
-  T *m_ptr;
-  size_t m_max;
-  /** Container. */
-  PFS_opaque_container *m_container;
+
+  /**
+   Array of values.
+
+   Concurrency profile:
+   - written once on page creation
+   - read only during normal operations.
+  */
+  std::atomic<T *> m_ptr{nullptr};
+
+  /**
+   Max number of items in the page.
+
+   Concurrency profile:
+   - written once on page creation
+   - read only during normal operations.
+  */
+  std::atomic<size_t> m_max{0};
+
+  /**
+   Container.
+
+   Concurrency profile:
+   - written once on page creation
+   - read only during normal operations.
+  */
+  std::atomic<PFS_opaque_container *> m_container{nullptr};
 };
 
 template <class T>
@@ -445,12 +493,14 @@ class PFS_buffer_scalable_container {
       return;
     }
 
+    allocator_type *allocator = m_allocator.load();
+
     native_mutex_lock(&m_critical_section);
 
     for (i = 0; i < PFS_PAGE_COUNT; i++) {
       page = m_pages[i];
       if (page != nullptr) {
-        m_allocator->free_array(page);
+        allocator->free_array(page);
         delete page;
         m_pages[i] = nullptr;
       }
@@ -478,7 +528,7 @@ class PFS_buffer_scalable_container {
   size_t get_memory() { return get_row_count() * get_row_size(); }
 
   value_type *allocate(pfs_dirty_state *dirty_state) {
-    if (m_full) {
+    if (m_full.load()) {
       m_lost++;
       return nullptr;
     }
@@ -600,9 +650,12 @@ class PFS_buffer_scalable_container {
           builtin_memory_scalable_buffer.count_alloc(sizeof(array_type));
 
           array->m_max = get_page_logical_size(current_page_count);
-          int rc = m_allocator->alloc_array(array);
+
+          allocator_type *allocator = m_allocator.load();
+
+          int rc = allocator->alloc_array(array);
           if (rc != 0) {
-            m_allocator->free_array(array);
+            allocator->free_array(array);
             delete array;
             builtin_memory_scalable_buffer.count_free(sizeof(array_type));
             m_lost++;
@@ -639,7 +692,7 @@ class PFS_buffer_scalable_container {
     }
 
     m_lost++;
-    m_full = true;
+    m_full.store(true);
     return nullptr;
   }
 
@@ -652,10 +705,14 @@ class PFS_buffer_scalable_container {
     safe_pfs->m_lock.allocated_to_free();
 
     /* Flag the containing page as not full. */
-    page->m_full = false;
+    if (page->m_full.load()) {
+      page->m_full.store(false);
+    }
 
     /* Flag the overall container as not full. */
-    m_full = false;
+    if (m_full.load()) {
+      m_full.store(false);
+    }
   }
 
   static void static_deallocate(value_type *safe_pfs) {
@@ -667,7 +724,9 @@ class PFS_buffer_scalable_container {
     safe_pfs->m_lock.allocated_to_free();
 
     /* Flag the containing page as not full. */
-    page->m_full = false;
+    if (page->m_full.load()) {
+      page->m_full.store(false);
+    }
 
     /* Find the containing buffer */
     PFS_opaque_container *opaque_container = page->m_container;
@@ -675,7 +734,9 @@ class PFS_buffer_scalable_container {
     container = reinterpret_cast<container_type *>(opaque_container);
 
     /* Flag the overall container as not full. */
-    container->m_full = false;
+    if (container->m_full.load()) {
+      container->m_full.store(false);
+    }
   }
 
   iterator_type iterate() {
@@ -903,15 +964,89 @@ class PFS_buffer_scalable_container {
     return nullptr;
   }
 
-  bool m_initialized;
-  bool m_full;
-  size_t m_max;
+  /**
+   Initialized full flag.
+
+   Concurrency profile:
+   - write in init / cleanup
+   - readonly during normal operations
+  */
+  std::atomic<bool> m_initialized{false};
+
+  /**
+   Buffer full flag.
+
+   Concurrency profile:
+   - mostly read during normal operations.
+   - do not perform useless write,
+     check for previous value first
+   - occasional write on state changes
+  */
+  std::atomic<bool> m_full{false};
+
+  /**
+   Max number of items in the buffer.
+
+   Concurrency profile:
+   - written once on page creation
+   - read only during normal operations.
+  */
+  std::atomic<size_t> m_max{0};
+
+  /**
+   Monotonic page counter.
+   This counter is used to access pages in the array.
+
+   Concurrency profile:
+   - frequent read and write, must be on its own cacheline
+  */
   PFS_cacheline_atomic_size_t m_monotonic;
+
+  /**
+   Current page index.
+
+   Concurrency profile:
+   - occasional write on buffer extend
+   - mostly read otherwise
+  */
   PFS_cacheline_atomic_size_t m_max_page_index;
-  size_t m_max_page_count;
-  size_t m_last_page_size;
+
+  /**
+   Max number of pages.
+
+   Concurrency profile:
+   - written once on buffer creation
+   - read only during normal operations.
+  */
+  std::atomic<size_t> m_max_page_count{0};
+
+  /**
+   Size of the last page.
+
+   Concurrency profile:
+   - written once on buffer creation
+   - read only during normal operations.
+  */
+  std::atomic<size_t> m_last_page_size{0};
+
+  /**
+   Array of pages.
+
+   Concurrency profile:
+   - occasional write on buffer extend
+   - mostly read otherwise
+  */
   std::atomic<array_type *> m_pages[PFS_PAGE_COUNT];
-  allocator_type *m_allocator;
+
+  /**
+   Buffer allocator.
+
+   Concurrency profile:
+   - written once on buffer creation
+   - read only during normal operations.
+  */
+  std::atomic<allocator_type *> m_allocator{nullptr};
+
   native_mutex_t m_critical_section;
 };
 
