@@ -252,12 +252,15 @@ Log_event *Rpl_applier_reader::read_next_event() {
     if (m_rli->is_receiver_waiting_for_rl_space.load() &&
         !m_rli->is_in_group()) {
       force_purging = true;
-      mysql_mutex_unlock(&m_rli->data_lock);
-      auto data_lock_guard =
-          create_scope_guard([this] { mysql_mutex_lock(&m_rli->data_lock); });
-      if (m_rli->current_mts_submode->wait_for_workers_to_finish(m_rli) == -1) {
-        m_errmsg = "Failed to compute mta checkpoint";
-        return nullptr;
+      if (m_rli->is_parallel_exec()) {
+        mysql_mutex_unlock(&m_rli->data_lock);
+        auto data_lock_guard =
+            create_scope_guard([this] { mysql_mutex_lock(&m_rli->data_lock); });
+        if (m_rli->current_mts_submode->wait_for_workers_to_finish(m_rli) ==
+            -1) {
+          m_errmsg = "Failed to compute mta checkpoint";
+          return nullptr;
+        }
       }
     }
     if (!move_to_next_log(force_purging)) return read_next_event();
