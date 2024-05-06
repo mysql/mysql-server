@@ -1571,7 +1571,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	index	NULL	test_idx	14	NULL	3	100.00	Using index
 1	SIMPLE	alias7	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 1	SIMPLE	alias6	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias7.pk	1	100.00	Using where
-1	SIMPLE	alias4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias6.pk	1	100.00	Using where
+1	SIMPLE	alias4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias6.pk	1	100.00	Using index condition
 1	SIMPLE	alias5	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	alias3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias5.col_int	1	100.00	Using index
