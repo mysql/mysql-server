@@ -1183,9 +1183,6 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
 
     /* Check again with a shared lock. */
     rseg = undo_space->get_active(rseg_slot);
-    if (rseg == nullptr) {
-      continue;
-    }
   }
 
   undo::spaces->s_unlock();
