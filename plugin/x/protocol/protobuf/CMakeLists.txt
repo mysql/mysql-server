@@ -76,7 +76,7 @@ TARGET_COMPILE_DEFINITIONS(${PROTOBUF_FULL_LIB_NAME}
 # force the include of the export header.
 IF(MSVC)
   TARGET_COMPILE_OPTIONS(mysqlxmessages
-    PUBLIC /FI"${CMAKE_CURRENT_BINARY_DIR}/mysqlxmessages_export.h")
+    PUBLIC /FI${CMAKE_CURRENT_BINARY_DIR}/mysqlxmessages_export.h)
 ELSE()
   TARGET_COMPILE_OPTIONS(mysqlxmessages
     PUBLIC -include ${CMAKE_CURRENT_BINARY_DIR}/mysqlxmessages_export.h)

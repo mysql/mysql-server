@@ -84,6 +84,12 @@ IF(WIN32)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
 ENDIF()
 
+IF(WIN32_CLANG)
+  # Clang complains that classes to be DLLexported need an explicit
+  # copy assignment operator.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-copy-with-dtor")
+ENDIF()
+
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/rapidjson.cmake)
 
 SET(ROUTER_LICENSE_FILE "${CMAKE_SOURCE_DIR}/router/LICENSE.router")
