@@ -25,6 +25,12 @@ INCLUDE(GenerateExportHeader)
 
 DISABLE_MISSING_PROFILE_WARNING()
 
+IF(WIN32_CLANG)
+  # Clang complains that classes to be DLLexported need an explicit
+  # copy assignment operator.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-copy-with-dtor")
+ENDIF()
+
 INCLUDE(source_files.cmake)
 IF(HAVE_SETNS)
   LIST(APPEND CLIENT_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
@@ -61,6 +67,7 @@ ADD_DEPENDENCIES(mysqlxclient_shared GenError)
 
 TARGET_LINK_LIBRARIES(mysqlxclient_shared PUBLIC ext::lz4 ext::zstd ext::zlib)
 TARGET_LINK_LIBRARIES(mysqlxclient_shared PUBLIC ${MYSQLX_PROTOCOL_FULL_LIB})
+TARGET_LINK_LIBRARIES(mysqlxclient_shared PRIVATE mysys vio)
 TARGET_INCLUDE_DIRECTORIES(mysqlxclient_shared SYSTEM PUBLIC
   ${MYSQLX_PROJECT_DIR}/client/
   ${CMAKE_CURRENT_BINARY_DIR}/  # for the mysqlxclient_export.h
