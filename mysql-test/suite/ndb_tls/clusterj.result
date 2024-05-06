@@ -1,9 +1,9 @@
 Found Connector/J JAR in MTR_CLASSPATH
+Looking for a suitable Java...
+Found Java
 Found clusterj.jar
 Found clusterj_test jar
 Found ndbclient library
-Looking for a suitable Java...
-Found Java
 DROP TABLE a;
 DROP TABLE allprimitives;
 DROP TABLE autopkint;

@@ -2,55 +2,49 @@
 # Run the Cluster/J JUnit tests from MTR
 #
 
-# Don't run in asan builds
---source include/not_asan.inc
 --source include/have_ndb.inc
-
+--source include/full_result_diff.inc
+--source include/not_asan.inc
 --source suite/ndb/include/have_connectorj.inc
---source suite/ndb/include/have_clusterj.inc
+
+# Check for Windows; set path separator; skip test if TLS is required
+# (Bug#35645569 Cluster/J cannot use TLS on Windows)
+--let SEP=:
+if (`select @@version_compile_os IN ("Win32","Win64","Windows")`)
+{
+  if ($NDB_TEST_REQUIRES_TLS)
+  {
+  --skip No Cluster/J TLS on Windows
+  }
+--let SEP=;
+}
+
 --let JAVA_MIN_REQUIRED_VERSION=1.8
 --source suite/ndb/include/have_java.inc
+--source suite/ndb/include/have_clusterj.inc
 
-# Check there is no --RequireTls=On, it will happen when running for example
-# ./mtr --defaults-extra-file=suite/ndb/secure.cnf
-let $find_defaults_option=RequireTls;
-let $find_defaults_value=(On|True|1);
-let $find_defaults_groups=cluster_config;
-let $find_defaults_group_suffix=.1;
-source include/find_defaults.inc;
-if ($find_defaults_status == 0) {
-  # RequireTls is on for cluster_config.1. Provide TLS configuraion for
-  # clusterj too.
-  --append_file $MYSQLTEST_VARDIR/tmp/clusterj.properties
-com.mysql.clusterj.tls.path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
-com.mysql.clusterj.tls.strict=1
-EOF
-}
-
---let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
---let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
-# MTR_CLASSPATH automatically added to JAVA_CLASSPATH
---let JAVA_JVM_OPTS= -ea -Xcheck:jni
---let JAVA_JVM_OPTS_1= -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
---let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR"
-# Run the cluster-test jar in the same timezone as the
-# server (set in the environment variable TZ)
---let JAVA_JVM_OPTS_3= -Duser.timezone=$TZ
---let JAVA_CLASS= testsuite.clusterj.AllTests
---let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
-
-# Enable debug tests if this is a debug build
 --source include/check_ndb_debug.inc
+--let ENABLE_DEBUG_TESTS=
 if ($have_ndb_debug) {
-  --let JAVA_ARGUMENTS= $JAVA_ARGUMENTS --enable-debug-tests
+  --let ENABLE_DEBUG_TESTS= --enable-debug-tests
 }
 
---source suite/ndb/include/run_java.inc
+exec
+  $MTR_JAVA -ea -Xcheck:jni
+  -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
+  -Djava.library.path=$NDBCLIENT_LIB_DIR
+  -Duser.timezone=$TZ
+  -Djava.io.tmpdir=$MYSQLTEST_VARDIR/tmp
+  -classpath $CLUSTERJ_TEST_JAR$SEP$CLUSTERJ_JAR$SEP$MTR_CLASSPATH
+  testsuite.clusterj.AllTests
+  $CLUSTERJ_TEST_JAR $ENABLE_DEBUG_TESTS
+  > $MYSQLTEST_VARDIR/tmp/clusterj_test.log ;
 
---echo Clean up the temporary clusterj.properties file.
+# If the test has succeeded, clean up the properties file and the log file
 --remove_file $MYSQLTEST_VARDIR/tmp/clusterj.properties
+--remove_file $MYSQLTEST_VARDIR/tmp/clusterj_test.log
 
---echo Clean up tables used in the JUnit tests.
+# Clean up tables used in the JUnit tests.
 DROP TABLE a;
 DROP TABLE allprimitives;
 DROP TABLE autopkint;
