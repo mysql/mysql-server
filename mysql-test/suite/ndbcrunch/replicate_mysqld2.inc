@@ -8,8 +8,8 @@
 #echo MYSQLD2_SOCK $MYSQLD2_SOCK;
 
 --echo # Save source binlog position
-let $source_file= query_get_value(SHOW MASTER STATUS, File, 1);
-let $source_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $source_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 #echo source_file: $source_file;
 #echo source_pos: $source_pos;
 
