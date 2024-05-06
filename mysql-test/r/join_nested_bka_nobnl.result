@@ -1479,7 +1479,7 @@ ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ref	idx_b	idx_b	5	test.t3.b	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	idx_b	idx_b	5	test.t3.b	1	100.00	Using index condition
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t3` join `test`.`t4` left join (`test`.`t1` join `test`.`t2`) on(((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = 1))) where true

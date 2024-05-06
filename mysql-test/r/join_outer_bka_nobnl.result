@@ -3905,4 +3905,44 @@ c0	c0	c0
 1	NULL	3
 2	NULL	3
 DROP TABLE t0, t1, t2;
+#
+# Bug#36418426: Even though there is an index, the index is not being used enough when LEFT JOIN.
+#
+CREATE TABLE t1 (
+id int NOT NULL,
+f1 int NOT NULL,
+f2 int NOT NULL,
+f3 int NOT NULL,
+f4 int NOT NULL,
+f5 int NOT NULL,
+PRIMARY KEY (id),
+KEY idx1 (f2,f3,f4,f5)
+);
+INSERT INTO t1 VALUES (16, 25, 35, 45, 55, 65);
+INSERT INTO t1 VALUES (17, 29, 39, 49, 59, 69);
+INSERT INTO t1 VALUES (18, 23, 33, 43, 53, 63);
+INSERT INTO t1 VALUES (19, 27, 37, 47, 57, 67);
+CREATE TABLE t2 (
+id int NOT NULL,
+f1 int NOT NULL,
+f2 int NOT NULL,
+PRIMARY KEY (id),
+KEY idx2 (f1,f2)
+);
+INSERT INTO t2 VALUES (36, 55, 65);
+INSERT INTO t2 VALUES (37, 59, 69);
+INSERT INTO t2 VALUES (38, 53, 63);
+INSERT INTO t2 VALUES (39, 57, 67);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN
+SELECT * FROM t2 USE INDEX(idx2) LEFT JOIN t1 USE INDEX(idx1) ON t1.f2=t2.f2 AND t1.f3 = 20 and t1.f4 > 10 and t1.f5>20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	NULL	idx2	8	NULL	4	100.00	Using index
+1	SIMPLE	t1	NULL	ref	idx1	idx1	8	test.t2.f2,const	1	100.00	Using index condition; Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t2` USE INDEX (`idx2`) left join `test`.`t1` USE INDEX (`idx1`) on(((`test`.`t1`.`f3` = 20) and (`test`.`t1`.`f2` = `test`.`t2`.`f2`) and (`test`.`t1`.`f4` > 10) and (`test`.`t1`.`f5` > 20))) where true
+DROP TABLES t1,t2;
 set optimizer_switch=default;
