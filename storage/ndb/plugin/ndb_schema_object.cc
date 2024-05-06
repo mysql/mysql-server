@@ -132,11 +132,13 @@ NDB_SCHEMA_OBJECT::NDB_SCHEMA_OBJECT(const char *key, const char *db,
       m_started(std::chrono::steady_clock::now()) {}
 
 NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
+  assert(state.dbug_lock());
   assert(state.m_use_count == 0);
   // Check that all participants have completed
   assert(state.m_participants.size() == count_completed_participants());
   // Coordinator should have completed
   assert(state.m_coordinator_completed);
+  assert(state.dbug_unlock());
 }
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,

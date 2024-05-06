@@ -109,6 +109,8 @@ class NDB_SCHEMA_OBJECT {
     // received the final ack which cleared all the slock bits
     bool m_coordinator_completed{false};
 
+    bool dbug_lock() { return m_lock.try_lock(); }
+    bool dbug_unlock() { return m_lock.unlock(), true; }
   } state;
 
   uint increment_use_count() const;
