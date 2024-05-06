@@ -2600,7 +2600,7 @@ t1a	t1b	t2a	t2b
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-1	SIMPLE	t2	NULL	ref	idx	idx	5	test.t1.t1b	#	100.00	Using where
+1	SIMPLE	t2	NULL	ref	idx	idx	5	test.t1.t1b	#	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t1a` AS `t1a`,`test`.`t1`.`t1b` AS `t1b`,`test`.`t2`.`t2a` AS `t2a`,`test`.`t2`.`t2b` AS `t2b` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`idx`) on((`test`.`t2`.`t2b` <=> `test`.`t1`.`t1b`)) where true
 SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
@@ -2635,7 +2635,7 @@ t1a	t1b	t2a	t2b
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-1	SIMPLE	t2	NULL	ref	idx	idx	4	test.t1.t1b	#	100.00	Using where
+1	SIMPLE	t2	NULL	ref	idx	idx	4	test.t1.t1b	#	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t1a` AS `t1a`,`test`.`t1`.`t1b` AS `t1b`,`test`.`t2`.`t2a` AS `t2a`,`test`.`t2`.`t2b` AS `t2b` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`idx`) on((`test`.`t2`.`t2b` <=> `test`.`t1`.`t1b`)) where true
 SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;

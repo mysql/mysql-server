@@ -6442,9 +6442,11 @@ static bool has_not_null_predicate(Item *cond, Item_field *not_null_item) {
   handled outside of this function.
 
   Restrict some function types from being pushed down to storage engine:
-  a) Don't push down the triggered conditions. Nested outer joins execution
-     code may need to evaluate a condition several times (both triggered and
-     untriggered).
+  a) Don't push down the triggered conditions with exception for
+  IS_NOT_NULL_COMPL trigger condition since the NULL-complemented rows are added
+  at a later stage in the iterators, so we won't see NULL-complemented rows when
+  evaluating it as an index condition. Nested outer joins execution code may
+  need to evaluate a condition several times (both triggered and untriggered).
      TODO: Consider cloning the triggered condition and using the copies for:
         1. push the first copy down, to have most restrictive index condition
            possible.
@@ -6484,9 +6486,15 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       Item_func *item_func = (Item_func *)item;
       const Item_func::Functype func_type = item_func->functype();
 
-      if (func_type == Item_func::TRIG_COND_FUNC ||  // Restriction a.
-          func_type == Item_func::DD_INTERNAL_FUNC)  // Restriction d.
+      if (func_type == Item_func::DD_INTERNAL_FUNC)  // Restriction d.
         return false;
+
+      // Restriction a.
+      if (func_type == Item_func::TRIG_COND_FUNC &&
+          down_cast<Item_func_trig_cond *>(item_func)->get_trig_type() !=
+              Item_func_trig_cond::IS_NOT_NULL_COMPL) {
+        return false;
+      }
 
       /* This is a function, apply condition recursively to arguments */
       if (item_func->argument_count() > 0) {

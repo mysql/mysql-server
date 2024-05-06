@@ -81,7 +81,7 @@ pk	pk	col_int_key	col_date_key
 EXPLAIN select * from t3 left join t1 on t1.col_date_key is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`col_date_key` is null)) where true
 select * from t3 left join t1 on t1.col_date_key is null;
@@ -91,7 +91,7 @@ EXPLAIN select * from t3 left join t1 on t1.col_date_key is null
 where t1.col_date_key is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`col_date_key` is null)) where ((`test`.`t1`.`col_date_key` = DATE'0000-00-00') or (`test`.`t1`.`col_date_key` is null))
 select * from t3 left join t1 on t1.col_date_key is null
