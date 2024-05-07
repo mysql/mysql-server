@@ -169,7 +169,7 @@ bool Ndb_binlog_purger::find_min_and_max_epochs(Ndb_local_connection &con,
   }
   assert(result.size() == 1);
   min_epoch = std::stoull(result[0]);
-  log_info("  min_epoch: %lu", min_epoch);
+  log_info("  min_epoch: %llu", static_cast<unsigned long long>(min_epoch));
   result.clear();
 
   // Get MAX(epoch) for filename by finding first row with different filename.
@@ -200,13 +200,14 @@ bool Ndb_binlog_purger::find_min_and_max_epochs(Ndb_local_connection &con,
     if (result.size() == 0) {
       // No max row found, return max one higher than min
       max_epoch = min_epoch + 1;
-      log_info("  max_epoch: %lu (min_epoch+1)", max_epoch);
+      log_info("  max_epoch: %llu (min_epoch+1)",
+               static_cast<unsigned long long>(max_epoch));
       return false;
     }
   }
   assert(result.size() == 1);
   max_epoch = std::stoull(result[0]);
-  log_info("  max_epoch: %lu", max_epoch);
+  log_info("  max_epoch: %llu", static_cast<unsigned long long>(max_epoch));
 
   return false;
 }
