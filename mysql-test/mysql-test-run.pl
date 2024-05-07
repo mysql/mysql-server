@@ -3070,7 +3070,8 @@ sub find_plugin($$) {
                     "$basedir/lib/plugin/" . $plugin_filename,
                     "$basedir/lib64/plugin/" . $plugin_filename,
                     "$basedir/lib/mysql/plugin/" . $plugin_filename,
-                    "$basedir/lib64/mysql/plugin/" . $plugin_filename,);
+                    "$basedir/lib64/mysql/plugin/" . $plugin_filename,
+                    "$basedir/lib64/mysqlrouter/" . $plugin_filename);
   return $lib_plugin;
 }
 
