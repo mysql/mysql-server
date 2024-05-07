@@ -694,6 +694,11 @@ class sp_instr_freturn : public sp_lex_instr {
 
   LEX_CSTRING get_expr_query() const override { return m_expr_query; }
 
+  void adjust_sql_command(LEX *lex) override {
+    assert(lex->sql_command == SQLCOM_SELECT);
+    lex->sql_command = SQLCOM_END;
+  }
+
  private:
   /// RETURN-expression item.
   Item *m_expr_item;
