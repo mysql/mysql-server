@@ -4,6 +4,7 @@
 # innodb_disable_sort_file_cache will attempt to use direct mode and warn
 # if it's not available
 --source include/have_odirect.inc
+--source include/not_solaris.inc
 
 CREATE TABLE test (
   num INTEGER,
