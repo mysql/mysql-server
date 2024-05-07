@@ -93,10 +93,22 @@ TARGET_COMPILE_DEFINITIONS(${PROTOBUF_FULL_LIB_NAME} PUBLIC
 # create shared lib that's not built by default. It is specified
 # to allow GENERATE_EXPORT_HEADER create the right dllexport() declarations
 # and provided router_mysqlxmessages a template.
-ADD_LIBRARY(mysqlxmessages_shared SHARED
-  EXCLUDE_FROM_ALL
-  $<TARGET_PROPERTY:mysqlxmessages,SOURCES>
-  )
+IF(APPLE)
+  # For Xcode the ADD_LIBRARY below fails with
+  # The custom command generating ..... is attached to multiple targets:
+  #    mysqlxmessages  mysqlxmessages_shared
+  # Rather than having a special implementation for Xcode only,
+  # we do this for all builds (including make/ninja) on MacOS:
+  MERGE_LIBRARIES_SHARED(mysqlxmessages_shared mysqlxmessages
+    EXCLUDE_FROM_ALL
+    SKIP_INSTALL
+    )
+ELSE()
+  ADD_LIBRARY(mysqlxmessages_shared SHARED
+    EXCLUDE_FROM_ALL
+    $<TARGET_PROPERTY:mysqlxmessages,SOURCES>
+    )
+ENDIF()
 GENERATE_EXPORT_HEADER(mysqlxmessages_shared
   BASE_NAME mysqlxmessages
   )
