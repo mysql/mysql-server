@@ -146,7 +146,6 @@ class IndexDistanceScanIterator final : public TableRowIterator {
   IndexDistanceScanIterator(THD *thd, TABLE *table, int idx,
                             QUICK_RANGE *query_mbr, double expected_rows,
                             ha_rows *examined_rows);
-  ~IndexDistanceScanIterator() override;
 
   bool Init() override;
   int Read() override;
