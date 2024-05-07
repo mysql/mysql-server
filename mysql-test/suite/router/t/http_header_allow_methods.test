@@ -1,0 +1,135 @@
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+--source ../include/schema/functions_schema.sql
+
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+
+--echo # Table object with all CRUD options available
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t_all
+--source ../include/mrs/db_object/add.inc
+
+--echo # Table object with only CREATE available
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t_create
+--let $mrs_add_db_object_op=CREATE
+--let $mrs_schema_id_sql_variable=
+--source ../include/mrs/db_object/add.inc
+
+--echo # Table object with only READ available
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t_read
+--let $mrs_add_db_object_op=READ
+--source ../include/mrs/db_object/add.inc
+
+--echo # Table object with only UPDATE available
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t_update
+--let $mrs_add_db_object_op=UPDATE
+--source ../include/mrs/db_object/add.inc
+
+--echo # Table object with only DELETE available
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t_delete
+--let $mrs_add_db_object_op=DELETE
+--source ../include/mrs/db_object/add.inc
+
+--echo # Procedure object with all options available (GET, PUT, OPTIONS)
+--let $mrs_add_db_object=proc_int
+--let $mrs_add_db_object_path=/proc_all
+--let $mrs_add_db_object_type=PROCEDURE
+--source ../include/mrs/db_object/add.inc
+
+--echo # Procedure object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
+--let $mrs_add_db_object=proc_int
+--let $mrs_add_db_object_path=/proc_get
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object_op=READ
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_schema=func_schema
+--let $mrs_add_schema_path=/functions
+--source ../include/mrs/db_schema/add.inc
+
+--echo # Function object with all options available (GET, PUT, OPTIONS)
+--let $mrs_add_db_object=func_sum
+--let $mrs_add_db_object_path=/func_all
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--source ../include/mrs/db_object/add.inc
+
+--echo # Function object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
+--let $mrs_add_db_object=func_sum
+--let $mrs_add_db_object_path=/func_get
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,HEADER
+
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_all --wait-until-found=60
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_create --expected-status Forbidden
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_read
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_update --expected-status Forbidden
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_delete --expected-status Forbidden
+
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/proc_all
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/proc_get
+
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/functions/func_all -t PUT --payload '{"a":10,"b":20}'
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/functions/func_get -t PUT --payload '{"a":10,"b":20}'
+
+--source ../include/mrs/changes/fetch_object.inc
+
+--echo ## Change the Access-Control-Allow-Methods in the headers on a service-level
+
+--let $mrs_modify_options='{"headers":{"Access-Control-Allow-Methods":"GET, POST, PUT, DELETE, OPTIONS"}}'
+--source ../include/mrs/service/modify_options.inc
+--source ../include/mrs/changes/wait_object.inc
+
+--echo ## Check that now all the objects report the service-level value for "Access-Control-Allow-Methods" regardless of the CRUD access rights
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_all
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_create --expected-status Forbidden
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_read
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_update --expected-status Forbidden
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t_delete --expected-status Forbidden
+
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/proc_all
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/basic/proc_get
+
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/functions/func_all -t PUT --payload '{"a":10,"b":20}'
+--replace_regex /^Date.*/Date -> %DATE%/
+--exec $MRS_CLIENT_ARGS --path /svc/functions/func_get -t PUT --payload '{"a":10,"b":20}'
+
+# Cleanup
+DROP SCHEMA basic_schema;
+--source ../include/mrs/cleanup.inc

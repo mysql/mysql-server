@@ -285,6 +285,26 @@ class RestRequestHandler : public ::http::base::RequestHandler {
       }
     }
 
+    // set the Access-Control-Allow-Methods if not already set on the service
+    // level
+    if (!oh.find("Access-Control-Allow-Methods")) {
+      std::string access_control_allow_methods;
+      for (const auto method :
+           {HttpMethod::Get, HttpMethod::Post, HttpMethod::Put,
+            HttpMethod::Delete, HttpMethod::Options}) {
+        if ((method == HttpMethod::Options) ||
+            (get_access_right_from_http_method(method) &
+             rest_handler_->get_access_rights())) {
+          if (!access_control_allow_methods.empty()) {
+            access_control_allow_methods += ", ";
+          }
+          access_control_allow_methods += get_http_method_name(method);
+        }
+      }
+      oh.add("Access-Control-Allow-Methods",
+             access_control_allow_methods.c_str());
+    }
+
     if (method == HttpMethod::Options) {
       throw http::Error{HttpStatusCode::Ok};
     }
