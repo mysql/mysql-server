@@ -69,20 +69,24 @@ void set_query_for_display(THD *thd) {
   }
 }
 
-char *convert_and_store(MEM_ROOT *mem_root, const char *str, size_t length,
-                        const CHARSET_INFO *src_cs,
-                        const CHARSET_INFO *dst_cs) {
-  String convert;
-  uint errors = 0;
-
+LEX_CSTRING convert_and_store(MEM_ROOT *mem_root, const char *str,
+                              size_t length, const CHARSET_INFO *src_cs,
+                              const CHARSET_INFO *dst_cs) {
   // Conversion happens only if there is no dst_cs, or a different charset or a
   // non-binary charset
   // TODO HCS-9585: show warnings when errors != 0
   if (dst_cs != nullptr && !my_charset_same(src_cs, dst_cs) &&
       src_cs != &my_charset_bin && dst_cs != &my_charset_bin) {
-    if (convert.copy(str, length, src_cs, dst_cs, &errors)) return nullptr;
-    str = convert.ptr();
-    length = convert.length();
+    const auto new_length = size_t{dst_cs->mbmaxlen * length};
+    auto *converted_str = static_cast<char *>(mem_root->Alloc(new_length + 1));
+    if (converted_str == nullptr) return {};  // OOM
+
+    auto errors = uint{0};
+    auto converted_length = copy_and_convert(converted_str, new_length, dst_cs,
+                                             str, length, src_cs, &errors);
+    converted_str[converted_length] = 0;
+    return {converted_str, converted_length};
   }
-  return strmake_root(mem_root, str, length);
+  str = strmake_root(mem_root, str, length);
+  return {str, length};
 }

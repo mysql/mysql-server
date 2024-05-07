@@ -122,12 +122,12 @@ bool Protocol_local_v2::store_string(const char *str, size_t length,
   auto converted =
       convert_and_store(&m_result_set_mem_root, str, length, src_cs, dst_cs);
 
-  if (converted == nullptr) return true;
+  if (converted.str == nullptr) return true;
 
   *m_current_column = converted;
 
-  auto *pointer = std::get_if<char *>(m_current_column);
-  if (pointer == nullptr || *pointer == nullptr) return true;
+  auto *pointer = std::get_if<LEX_CSTRING>(m_current_column);
+  if (pointer == nullptr) return true;
 
   ++m_current_column;
   m_result_set_capacity.add_bytes(length);
@@ -436,31 +436,39 @@ bool Protocol_local_v2::send_field_metadata(Send_field *field,
 
   if (m_current_metadata_column == nullptr) return true;
 
-  m_current_metadata_column->database_name = convert_and_store(
+  // Note: since database, column and table name cannot contain \0
+  // (https://dev.mysql.com/doc/refman/8.0/en/identifiers.html), strlen can be
+  // used here.
+  auto database_name = convert_and_store(
       &m_result_set_mem_root, field->db_name, strlen(field->db_name),
       system_charset_info, m_execute_statement->m_expected_charset);
-  if (m_current_metadata_column->database_name == nullptr) return true;
+  if (database_name.str == nullptr) return true;
+  m_current_metadata_column->database_name = database_name.str;
 
-  m_current_metadata_column->table_name = convert_and_store(
+  auto table_name = convert_and_store(
       &m_result_set_mem_root, field->table_name, strlen(field->table_name),
       system_charset_info, m_execute_statement->m_expected_charset);
-  if (m_current_metadata_column->table_name == nullptr) return true;
+  if (table_name.str == nullptr) return true;
+  m_current_metadata_column->table_name = table_name.str;
 
-  m_current_metadata_column->original_table_name =
+  auto original_table_name =
       convert_and_store(&m_result_set_mem_root, field->org_table_name,
                         strlen(field->org_table_name), system_charset_info,
                         m_execute_statement->m_expected_charset);
-  if (m_current_metadata_column->original_table_name == nullptr) return true;
+  if (original_table_name.str == nullptr) return true;
+  m_current_metadata_column->original_table_name = original_table_name.str;
 
-  m_current_metadata_column->column_name = convert_and_store(
+  auto column_name = convert_and_store(
       &m_result_set_mem_root, field->col_name, strlen(field->col_name),
       system_charset_info, m_execute_statement->m_expected_charset);
-  if (m_current_metadata_column->column_name == nullptr) return true;
+  if (column_name.str == nullptr) return true;
+  m_current_metadata_column->column_name = column_name.str;
 
-  m_current_metadata_column->original_col_name = convert_and_store(
+  auto original_col_name = convert_and_store(
       &m_result_set_mem_root, field->org_col_name, strlen(field->org_col_name),
       system_charset_info, m_execute_statement->m_expected_charset);
-  if (m_current_metadata_column->original_col_name == nullptr) return true;
+  if (original_col_name.str == nullptr) return true;
+  m_current_metadata_column->original_col_name = original_col_name.str;
 
   // If there is no expected charset, use the default charset specified cs
   if (m_execute_statement->m_expected_charset == nullptr) {

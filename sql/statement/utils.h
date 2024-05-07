@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef RUN_COMMAND_UTILS_H
 #define RUN_COMMAND_UTILS_H
 
+#include "lex_string.h"
 #include "my_alloc.h"
 #include "mysql/strings/m_ctype.h"
 class THD;
@@ -65,9 +66,10 @@ void set_query_for_display(THD *thd);
  * @param length Length of the input string
  * @param src_cs Source charset
  * @param dst_cs Dest charset
- * @return char* Pointer to the converted string on the memroot
+ * @return LEX_CSTRING Pointer to the converted string on the memroot
  */
-char *convert_and_store(MEM_ROOT *mem_root, const char *str, size_t length,
-                        const CHARSET_INFO *src_cs, const CHARSET_INFO *dst_cs);
+LEX_CSTRING convert_and_store(MEM_ROOT *mem_root, const char *str,
+                              size_t length, const CHARSET_INFO *src_cs,
+                              const CHARSET_INFO *dst_cs);
 
 #endif

@@ -80,7 +80,7 @@ class Statement_handle {
    *
    * @return true of error is reported.
    */
-  const char *get_last_error() {
+  LEX_CSTRING get_last_error() {
     assert(is_error());
     return convert_and_store(&m_warning_mem_root,
                              m_diagnostics_area->message_text(),
@@ -103,7 +103,7 @@ class Statement_handle {
    *
    * @return const char*
    */
-  const char *get_mysql_state() {
+  LEX_CSTRING get_mysql_state() {
     assert(is_error());
     return convert_and_store(&m_warning_mem_root,
                              m_diagnostics_area->returned_sqlstate(),
