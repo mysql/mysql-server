@@ -2405,9 +2405,17 @@ QueryForwarder::classify_query() {
         }
       } else if (access_mode) {
         // access-mode set via query-attributes.
+
+        // gcc with -fprofile-use warns:
+        //
+        // warning: ‘MEM <signed int> [(struct optional *)&access_mode]’ may be
+        // used uninitialized [-Wmaybe-uninitialized]
+        MY_COMPILER_DIAGNOSTIC_PUSH();
+        MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized");
         want_read_only_connection =
             (*access_mode ==
              ClientSideClassicProtocolState::AccessMode::ReadOnly);
+        MY_COMPILER_DIAGNOSTIC_POP();
         read_only_decider = ReadOnlyDecider::QueryAttribute;
       } else {
         // automatically detected.
