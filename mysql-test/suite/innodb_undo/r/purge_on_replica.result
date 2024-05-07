@@ -26,6 +26,7 @@ begin;
 call insert_data();
 # 4: commit, trigger undo log truncation
 commit;
+include/rpl/sync_to_replica.inc
 select tablespace_name, file_name from information_schema.files
 where file_name like "%undo%";
 TABLESPACE_NAME	FILE_NAME
