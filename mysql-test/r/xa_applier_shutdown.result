@@ -1,0 +1,309 @@
+# Scenario 1: Simple test with CREATE TABLE before XA START
+# 1.1: Shutdown from same connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# 1.2: Shutdown from other connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# Scenario 2: After XA START
+# 2.1: Shutdown from same connection
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# 2.2: Shutdown from other connection
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# Scenario 3: After XA START + XA END
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA END 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# Scenario 4: After XA START + XA END + XA PREPARE
+# 4.1: Shutdown from same connection
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA END 'test0';
+XA PREPARE 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# 4.2: Shutdown from other connection
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA END 'test0';
+XA PREPARE 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# Scenario 5: After XA START + INSERT
+# 5.1: Shutdown from same connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# 5.2: Shutdown from other connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# Scenario 6: After XA START + INSERT + XA END
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA END 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# Scenario 7: After XA START + INSERT + XA END + XA PREPARE, do restart
+#   followed by XA ROLLBACK
+# 7.1: Shutdown from same connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA END 'test0';
+XA PREPARE 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+XA ROLLBACK 'test0';
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# 7.2: Shutdown from other connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA END 'test0';
+XA PREPARE 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+XA ROLLBACK 'test0';
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# Scenario 8: After XA START + INSERT + XA END + XA PREPARE, do restart
+#   followed by XA COMMIT
+# 8.1: Shutdown from same connection
+call mtr.add_suppression("Found 1 prepared XA transactions");
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA END 'test0';
+XA PREPARE 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+XA COMMIT 'test0';
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+10
+DROP TABLE t1;
+# 8.2: Shutdown from other connection
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA END 'test0';
+XA PREPARE 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test0
+XA COMMIT 'test0';
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+10
+DROP TABLE t1;
+# Secenario 9: XA START + XA END + XA COMMIT ONE PHASE, do restart from
+#   from other connection
+# 9.1: Without INSERTs
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+XA END 'test0';
+XA COMMIT 'test0' ONE PHASE;
+XA START 'test0';
+XA END 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+10
+DROP TABLE t1;
+# 9.2: With INSERTs
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+SET @@SESSION.pseudo_replica_mode=1;
+BINLOG '0';
+ERROR HY000: Decoding of base64 string failed
+XA START 'test0';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+XA END 'test0';
+XA COMMIT 'test0' ONE PHASE;
+XA START 'test0';
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+XA END 'test0';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+10
+DROP TABLE t1;
