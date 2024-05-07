@@ -122,6 +122,12 @@
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
 
+%if 0%{?rhel} > 7
+%global compatver             8.0.37
+%global compatlib             21
+%global compatsrc             https://cdn.mysql.com/Downloads/MySQL-8.0/mysql-boost-%{compatver}.tar.gz
+%endif
+
 %global cmake3                cmake%{?el7:3}
 
 # multiarch
@@ -796,7 +802,7 @@ fi
 %endif
 
 # Build compat libs
-%if 0%{?compatlib}
+%if 0%{?compatlib} && 0%{?rhel} == 7
 (
   pushd mysql-%{compatver}
   mkdir build && pushd build
@@ -823,7 +829,34 @@ fi
   make %{?_smp_mflags} VERBOSE=1
   popd && popd
 )
-%endif # 0%{?compatlib}
+%endif # 0%{?compatlib} && %{rhel} == 7
+
+%if 0%{?compatlib} && 0%{?rhel} > 7
+(
+  pushd mysql-%{compatver}
+  mkdir build && pushd build
+  cmake .. \
+    -DBUILD_CONFIG=mysql_release \
+    -DINSTALL_LAYOUT=RPM \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DMYSQL_MAINTAINER_MODE=0 \
+    -DCMAKE_C_FLAGS="%{optflags}" \
+    -DCMAKE_CXX_FLAGS="%{optflags}" \
+    -DWITH_SYSTEMD=0 \
+    -DWITH_BOOST=../boost \
+    -DWITH_ROUTER=0 \
+    -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+    -DWITHOUT_SERVER=1 \
+    -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+    -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+    -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+    -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
+    -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  pushd libmysql
+  make %{?_smp_mflags} VERBOSE=1
+  popd && popd && popd
+)
+%endif # 0%{?compatlib} && %{rhel} > 7
 
 # Build debug versions of mysqld
 mkdir debug
@@ -992,8 +1025,8 @@ mkdir release
 
 %install
 
-%if 0%{?compatlib}
 # Install compat libs
+%if 0%{?compatlib} && 0%{?rhel} == 7
 dirs="libmysql libmysql_r"
 %{?el7:dirs="build/libmysql build/libmysqld build/sql/share"}
 for dir in $dirs ; do
@@ -1003,7 +1036,16 @@ for dir in $dirs ; do
 done
 rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
 %{?el7:rm -f %{buildroot}%{_libdir}/mysql/libmysqld.{a,la,so}}
-%endif # 0%{?compatlib}
+%endif # 0%{?compatlib} && 0%{?rhel} == 7
+
+%if 0%{?compatlib} && 0%{?rhel} > 7
+(
+    pushd mysql-%{compatver}/build/libmysql
+    make DESTDIR=%{buildroot} mysqlclient install
+    rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient.{a,so}
+    popd
+)
+%endif # 0%{?compatlib} && 0%{?rhel} > 7
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
@@ -1567,9 +1609,11 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}
-%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.*.0
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.*.*
+%if %{?rhel} == 7
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
-%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*.0
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*.*
+%endif # {?rhel} == 7
 %endif
 
 %files test
