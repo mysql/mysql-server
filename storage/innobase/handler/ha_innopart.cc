@@ -3186,10 +3186,9 @@ int ha_innopart::records(ha_rows *num_rows) {
 
   n_threads = Parallel_reader::available_threads(n_threads, false);
 
-  if (n_threads > 0 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
+  if (n_threads > 1 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
       m_prebuilt->select_lock_type == LOCK_NONE &&
-      trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt &&
-      n_threads > 1) {
+      trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt) {
     trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
     trx_assign_read_view(trx);
 
@@ -3204,6 +3203,11 @@ int ha_innopart::records(ha_rows *num_rows) {
       if (dict_table_is_discarded(m_prebuilt->table)) {
         ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                     m_prebuilt->table->name.m_name);
+
+        /* Restore the parallel read thread count if parallel read is not
+        executed */
+        Parallel_reader::release_threads(n_threads);
+
         *num_rows = HA_POS_ERROR;
         return (HA_ERR_NO_SUCH_TABLE);
       }
@@ -3215,6 +3219,8 @@ int ha_innopart::records(ha_rows *num_rows) {
 
     ulint n_rows{};
 
+    /* There is no need to restore the parallel read thread count after this
+    method call as it takes the ownership of n_threads. */
     auto err =
         row_mysql_parallel_select_count_star(trx, indexes, n_threads, &n_rows);
 
@@ -3233,6 +3239,10 @@ int ha_innopart::records(ha_rows *num_rows) {
     /* The index scan is probably so expensive, so the overhead
     of the rest of the function is neglectable for each partition.
     So no current reason for optimizing this further. */
+
+    /* Restore the parallel read thread count if parallel read is not
+    executed */
+    Parallel_reader::release_threads(n_threads);
 
     for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
          i = m_part_info->get_next_used_partition(i)) {

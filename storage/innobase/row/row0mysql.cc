@@ -4603,6 +4603,8 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
 skip_parallel_read:
 #endif /* UNIV_DEBUG */
 
+  DBUG_EXECUTE_IF("ib_die_if_not_parallel_read", ut_error;);
+
   bool contains_null;
   rec_t *rec = nullptr;
   ulint matched_fields;
