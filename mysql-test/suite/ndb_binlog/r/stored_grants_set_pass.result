@@ -1,0 +1,7 @@
+CREATE USER 'nsu1'@'%' IDENTIFIED BY 'xrm0Baa--';
+GRANT SELECT ON test.* to 'nsu1'@'%';
+GRANT NDB_STORED_USER ON *.* TO 'nsu1'@'%';
+@@ndb_log_bin
+1
+1
+2

@@ -1,0 +1,56 @@
+# Bug#36483690 "ALTER USER" fails in NDB schema distribution
+
+--source include/have_ndb.inc
+
+CREATE USER 'nsu1'@'%' IDENTIFIED BY 'xrm0Baa--';
+GRANT SELECT ON test.* to 'nsu1'@'%';
+GRANT NDB_STORED_USER ON *.* TO 'nsu1'@'%';
+
+# Prove that the connections are talking to two different servers
+disable_query_log;
+select @@ndb_log_bin;
+let id1 = `select @@server_id`;
+
+connect(verifycon,127.0.0.1,nsu1,xrm0Baa--,test,$MASTER_MYPORT1);
+connection verifycon;
+let id2 = `select @@server_id`;
+echo $id1;
+echo $id2;
+assert($id1 != $id2);
+disable_result_log;
+
+let iter=50;
+while($iter > 0)
+{
+  connection default;
+  let $pass=`SELECT concat(char(floor(rand() * 26) + 64 USING latin1),
+                           char(floor(rand() * 26) + 96 USING latin1),
+                           char(floor(rand() * 26) + 64 USING latin1),
+                           char(floor(rand() * 26) + 96 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           char(floor(rand() * 56) + 35 USING latin1),
+                           "01234567890-") as p`;
+  eval ALTER USER 'nsu1'@'%' IDENTIFIED BY "$pass" RETAIN CURRENT PASSWORD;
+
+  disconnect verifycon;
+  # Connect to the other server using the new password:
+  connect(verifycon,127.0.0.1,nsu1,$pass,test,$MASTER_MYPORT1);
+  connection verifycon;
+  let id = `select @@server_id`;
+  assert($id == $id2);
+
+  dec $iter;
+}
+
+# Cleanup
+disconnect verifycon;
+
+connection default;
+DROP USER 'nsu1'@'%';
+
