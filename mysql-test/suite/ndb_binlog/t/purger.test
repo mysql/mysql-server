@@ -139,7 +139,7 @@ CREATE TEMPORARY TABLE temp (
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
 ) engine = InnoDB;
 let $i = 0;
-let $rows = 10000;
+let $rows = 1000;
 while ($i < $rows) {
   eval INSERT INTO temp (
       epoch, orig_server_id, orig_epoch,
@@ -161,7 +161,7 @@ let $loops = $NUM_FILES;
 while ($i <= $loops) {
   let $file = '$binlog_name$i';
   let $j = 1;
-  let $chunk = 10; # *10000 rows per file
+  let $chunk = 10; # *1000 rows per file
   while($j <= $chunk) {
     eval INSERT INTO mysql.ndb_binlog_index (
       epoch, orig_server_id, orig_epoch,

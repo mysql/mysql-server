@@ -93,18 +93,18 @@ binlog.000010	158	No
 # =======================================
 SELECT COUNT(*) FROM mysql.ndb_binlog_index;
 COUNT(*)
-900000
+90000
 SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
 COUNT(*)	File
-100000	BINLOG_NAME1
-100000	BINLOG_NAME2
-100000	BINLOG_NAME3
-100000	BINLOG_NAME4
-100000	BINLOG_NAME5
-100000	BINLOG_NAME6
-100000	BINLOG_NAME7
-100000	BINLOG_NAME8
-100000	BINLOG_NAME9
+10000	BINLOG_NAME1
+10000	BINLOG_NAME2
+10000	BINLOG_NAME3
+10000	BINLOG_NAME4
+10000	BINLOG_NAME5
+10000	BINLOG_NAME6
+10000	BINLOG_NAME7
+10000	BINLOG_NAME8
+10000	BINLOG_NAME9
 # =======================================
 # 4. Purging the binary logs
 # =======================================
@@ -140,12 +140,12 @@ COUNT(*)
 # Still rows left for the last binlog file
 SELECT COUNT(*), File FROM mysql.ndb_binlog_index GROUP BY File ORDER BY File;
 COUNT(*)	File
-100000	BINLOG_NAME9
+10000	BINLOG_NAME9
 # Rotate to new binary log and purge the last binlog file with rows
 FLUSH BINARY LOGS;
 PURGE BINARY LOGS TO 'binlog.000010';
 # Show status counters:
-purged_rows: 900000
+purged_rows: 90000
 purged_files: 9
 # =======================================
 # 5. Check that all rows has been removed from ndb_binlog_index
