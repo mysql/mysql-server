@@ -842,7 +842,7 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::get,
         strmake_root(current_thd->mem_root, string->ptr(), string->length());
     *value = copied_string;
     *length = string->length();
-    return MYSQL_FAILURE;
+    return MYSQL_SUCCESS;
   }
   *value = string->c_ptr();
   *length = string->length();
