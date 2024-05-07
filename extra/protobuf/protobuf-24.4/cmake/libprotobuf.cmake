@@ -81,4 +81,19 @@ IF(protobuf_BUILD_SHARED_LIBS)
   ENDIF()
   INSTALL_PRIVATE_LIBRARY(libprotobuf)
 
+  IF(WITH_ROUTER)
+    IF(APPLE OR WIN32)
+      INSTALL(TARGETS libprotobuf
+        DESTINATION "${ROUTER_INSTALL_PLUGINDIR}" COMPONENT Router
+        )
+    ELSEIF(UNIX)
+      INSTALL(TARGETS libprotobuf
+        LIBRARY
+        DESTINATION "${ROUTER_INSTALL_LIBDIR}"
+        COMPONENT Router
+        NAMELINK_SKIP
+        )
+    ENDIF()
+  ENDIF()
+
 ENDIF()

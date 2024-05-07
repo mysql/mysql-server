@@ -1980,7 +1980,7 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing_connections.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_utils.so.*
-%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.24.4.0
+%{_libdir}/mysqlrouter/private/libprotobuf.so.24.4.0
 %{_libdir}/mysqlrouter/private/libabsl_*.so
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
