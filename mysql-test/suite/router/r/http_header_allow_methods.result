@@ -1,0 +1,134 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `basic_schema` - created 
+# DB `func_schema` - created
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Table object with all CRUD options available
+# Registred DB_OBJECT at path: /svc/basic/t_all
+# Table object with only CREATE available
+# Registred DB_OBJECT at path: /svc/basic/t_create
+# Table object with only READ available
+# Registred DB_OBJECT at path: /svc/basic/t_read
+# Table object with only UPDATE available
+# Registred DB_OBJECT at path: /svc/basic/t_update
+# Table object with only DELETE available
+# Registred DB_OBJECT at path: /svc/basic/t_delete
+# Procedure object with all options available (GET, PUT, OPTIONS)
+# Registred DB_OBJECT at path: /svc/basic/proc_all
+# Procedure object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
+# Registred DB_OBJECT at path: /svc/basic/proc_get
+# Registred DB_SCHEMA at path: /svc/functions
+# Function object with all options available (GET, PUT, OPTIONS)
+# Registred DB_OBJECT at path: /svc/functions/func_all
+# Function object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
+# Registred DB_OBJECT at path: /svc/functions/func_get
+GET /svc/basic/t_all
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  1023
+GET /svc/basic/t_create
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  POST, OPTIONS
+Content-Type  ->  application/problem+json
+Content-Length  ->  36
+GET /svc/basic/t_read
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  1030
+GET /svc/basic/t_update
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  PUT, OPTIONS
+Content-Type  ->  application/problem+json
+Content-Length  ->  36
+GET /svc/basic/t_delete
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  DELETE, OPTIONS
+Content-Type  ->  application/problem+json
+Content-Length  ->  36
+GET /svc/basic/proc_all
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, PUT, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  124
+GET /svc/basic/proc_get
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, PUT, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  124
+PUT /svc/functions/func_all (payload-size:15)
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, PUT, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  13
+PUT /svc/functions/func_get (payload-size:15)
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, PUT, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  13
+## Change the Access-Control-Allow-Methods in the headers on a service-level
+## Check that now all the objects report the service-level value for "Access-Control-Allow-Methods" regardless of the CRUD access rights
+GET /svc/basic/t_all
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  1023
+GET /svc/basic/t_create
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/problem+json
+Content-Length  ->  36
+GET /svc/basic/t_read
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  1030
+GET /svc/basic/t_update
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/problem+json
+Content-Length  ->  36
+GET /svc/basic/t_delete
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/problem+json
+Content-Length  ->  36
+GET /svc/basic/proc_all
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  124
+GET /svc/basic/proc_get
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  124
+PUT /svc/functions/func_all (payload-size:15)
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  13
+PUT /svc/functions/func_get (payload-size:15)
+Date -> %DATE%
+Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Content-Type  ->  application/json
+Content-Length  ->  13
+DROP SCHEMA basic_schema;
+DROP SCHEMA func_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
