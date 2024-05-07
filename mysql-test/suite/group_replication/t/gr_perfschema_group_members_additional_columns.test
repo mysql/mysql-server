@@ -6,7 +6,7 @@
 # 1A. Store server_uuid and member_version for future reference
 # 1B. Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1
 # 2.  Assert MEMBER_ROLE and MEMBER_VERSION before start of GR
-# 2A. Assert MEMBER_ROLE and MEMBER_VERSION are not set on server2
+# 2A. Assert MEMBER_ROLE is not set and MEMBER_VERSION is set on server2
 # 2B. Start GR on server2
 # 2C. Store server_uuid and member_version for future reference
 # 3.  Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1 and server2
@@ -60,7 +60,7 @@
 --let $rpl_connection_name= server2
 --source include/connection.inc
 
-## Assert MEMBER_ROLE and MEMBER_VERSION are not set on server2
+## Assert MEMBER_ROLE is not set and MEMBER_VERSION is set on server2
 
 # Assert MEMBER_ROLE
 --let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members, MEMBER_ROLE, 1)
@@ -70,8 +70,8 @@
 
 # Assert MEMBER_VERSION
 --let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members, MEMBER_VERSION, 1)
---let $assert_text= 'Server2 MEMBER_VERSION should not be set when GR is starting'
---let $assert_cond= "$_member_version_"= ""
+--let $assert_text= 'Server2 MEMBER_VERSION should be set when GR is starting'
+--let $assert_cond= "$_member_version_"= "$server_version"
 --source include/assert.inc
 
 ## Start GR on server2

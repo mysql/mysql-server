@@ -1,0 +1,47 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Before start of GR assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+#    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+#    MEMBER_COMMUNICATION_STACK are correct.
+include/assert.inc [The performance_schema.replication_group_members.CHANNEL_NAME is group_replication_applier]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_ID matches with server_uuid system variable]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_HOST is correct]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_PORT matches with port system variable]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_STATE is OFFLINE]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_VERSION is correct]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL]
+#
+# 2. Bootstrap GR.
+include/start_and_bootstrap_group_replication.inc
+#
+# 3. Assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+#    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+#    MEMBER_COMMUNICATION_STACK are correct.
+include/assert.inc [The performance_schema.replication_group_members.CHANNEL_NAME is group_replication_applier]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_ID matches with server_uuid system variable]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_HOST is correct]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_PORT matches with port system variable]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_STATE is ONLINE]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_VERSION is correct]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL]
+#
+# 4. Stop GR.
+include/stop_group_replication.inc
+#
+# 5. Assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+#    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+#    MEMBER_COMMUNICATION_STACK are correct.
+include/assert.inc [The performance_schema.replication_group_members.CHANNEL_NAME is group_replication_applier]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_ID matches with server_uuid system variable]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_HOST is correct]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_PORT matches with port system variable]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_STATE is OFFLINE]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_VERSION is correct]
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL]
+#
+# 6. Clean up.
+include/group_replication_end.inc

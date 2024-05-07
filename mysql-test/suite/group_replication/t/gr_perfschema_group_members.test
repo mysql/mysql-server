@@ -29,18 +29,18 @@
 --source include/assert.inc
 
 --let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_members, Member_Id, 1)
---let $assert_text= The value of member_id should be empty before starting group replication
---let $assert_cond= "$member_id" = ""
+--let $assert_text= The value of member_id is set before starting group replication
+--let $assert_cond= "$member_id" = "[SELECT @@SERVER_UUID]"
 --source include/assert.inc
 
 --let $member_host= query_get_value(SELECT Member_Host from performance_schema.replication_group_members, Member_Host, 1)
---let $assert_text= The value of member_host should be empty before starting group replication
---let $assert_cond= "$member_host" = ""
+--let $assert_text= The value of member_host should be set before starting group replication
+--let $assert_cond= "$member_host" != ""
 --source include/assert.inc
 
 --let $member_port= query_get_value(SELECT Member_Port from performance_schema.replication_group_members, Member_Port, 1)
---let $assert_text= The value of member_port should be NULL before starting group replication
---let $assert_cond= "$member_port" = "NULL"
+--let $assert_text= The value of member_port should be set before starting group replication
+--let $assert_cond= "$member_port" = "[SELECT @@port]"
 --source include/assert.inc
 
 --let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)

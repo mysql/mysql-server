@@ -67,7 +67,7 @@ SET SESSION SQL_LOG_BIN=1;
 
 --let $_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $assert_text= The group_replication failed to start
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$_member_id"] = 0
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$_member_id" AND member_state="OFFLINE"] = 1
 --source include/assert.inc
 
 # Now that group name is defined, start group_replication should be successful

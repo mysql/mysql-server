@@ -1,8 +1,8 @@
 SET GLOBAL group_replication_group_name= "8a84f357-aaa4-10df-85ab-c70aa9429562";
 include/assert.inc [The value of channel name should be group_replication_applier]
-include/assert.inc [The value of member_id should be empty before starting group replication]
-include/assert.inc [The value of member_host should be empty before starting group replication]
-include/assert.inc [The value of member_port should be NULL before starting group replication]
+include/assert.inc [The value of member_id is set before starting group replication]
+include/assert.inc [The value of member_host should be set before starting group replication]
+include/assert.inc [The value of member_port should be set before starting group replication]
 include/assert.inc [The value of member_state should be offline before starting group replication]
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [The value of channel name should be group_replication_applier]

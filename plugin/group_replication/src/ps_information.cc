@@ -48,6 +48,32 @@ bool get_group_members_info(
         Group_member_info::MEMBER_OFFLINE);
     callbacks.set_member_state(callbacks.context, *member_state,
                                strlen(member_state));
+    char *hostname = nullptr;
+    char *uuid = nullptr;
+    uint port = 0U;
+    uint server_version = 0U;
+    uint admin_port = 0U;
+    get_server_parameters(&hostname, &port, &uuid, &server_version,
+                          &admin_port);
+    callbacks.set_member_id(callbacks.context, *uuid, strlen(uuid));
+    callbacks.set_member_host(callbacks.context, *hostname, strlen(hostname));
+    callbacks.set_member_port(callbacks.context, port);
+
+    const Member_version member_version(server_version);
+    const std::string member_version_string =
+        member_version.get_version_string();
+    callbacks.set_member_version(callbacks.context,
+                                 *member_version_string.c_str(),
+                                 member_version_string.length());
+
+    const char *incoming_connection_protocol =
+        Communication_stack_to_string::to_string(
+            static_cast<enum_transport_protocol>(
+                get_communication_stack_var()));
+    callbacks.set_member_incoming_communication_protocol(
+        callbacks.context, *incoming_connection_protocol,
+        strlen(incoming_connection_protocol));
+
     return false;
   }
 
@@ -95,10 +121,8 @@ bool get_group_members_info(
 
   const char *member_state;
   const char *member_role = member_info.get_member_role_string();
-  std::string member_version =
-      (member_info.get_recovery_status() != Group_member_info::MEMBER_OFFLINE)
-          ? member_info.get_member_version().get_version_string()
-          : "";
+  const std::string member_version =
+      member_info.get_member_version().get_version_string();
 
   // override the state if we think it is unreachable
   if (!member_info.is_unreachable())

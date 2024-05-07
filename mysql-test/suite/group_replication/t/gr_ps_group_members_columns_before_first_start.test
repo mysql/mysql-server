@@ -1,0 +1,159 @@
+################################################################################
+# This test confirms that CHANNEL_NAME, MEMBER_ID, MEMBER_HOST, MEMBER_PORT,
+# MEMBER_STATE, MEMBER_VERSION and MEMBER_COMMUNICATION_STACK are always
+# displayed in performance_schema.replication_group_members table if Group
+# replication plugin is installed.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Before start of GR assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+#    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+#    MEMBER_COMMUNICATION_STACK are correct.
+# 2. Bootstrap GR.
+# 3. Assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+#    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+#    MEMBER_COMMUNICATION_STACK are correct.
+# 4. Stop GR.
+# 5. Assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+#    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+#    MEMBER_COMMUNICATION_STACK are correct.
+# 6. Clean up.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--let $server1_channel= "group_replication_applier"
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID as UUID, UUID, 1)
+--let $server1_hostname= "127.0.0.1"
+--let $server1_port= query_get_value(SELECT @@port as PORT, PORT, 1)
+
+# Store server1_version
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_VERSION, 1)
+--let $_member_version_1= query_get_value(SELECT @@version as version, version, 1)
+--let $server1_version= query_get_value("SELECT LEFT('$_member_version_1',CHAR_LENGTH('$_member_version_')) AS VERSION", VERSION, 1)
+
+# If MEMBER_VERSION is NULL, CHAR_LENGTH will be 0, so we will end up comparing NULL strings
+# Major, minor and patch version and dots count to minimum 5
+# So check server_version length is minimum 5
+--let $server1_version_length = query_get_value(SELECT CHAR_LENGTH("$server1_version") AS LENGTH, LENGTH, 1)
+if ($server1_version_length < 5)
+{
+  --die ERROR IN TEST: Member version is NULL
+}
+
+--echo #
+--echo # 1. Before start of GR assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+--echo #    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+--echo #    MEMBER_COMMUNICATION_STACK are correct.
+
+--let $assert_text= The performance_schema.replication_group_members.CHANNEL_NAME is group_replication_applier
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_group_members]" = $server1_channel;
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_ID matches with server_uuid system variable
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members]" = "$server1_uuid";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_HOST is correct
+--let $assert_cond= "[SELECT MEMBER_HOST FROM performance_schema.replication_group_members]" = $server1_hostname;
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_PORT matches with port system variable
+--let $assert_cond= "[SELECT MEMBER_PORT FROM performance_schema.replication_group_members]" = "$server1_port";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_STATE is OFFLINE
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members]" = "OFFLINE";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_VERSION is correct
+--let $assert_cond= "[SELECT MEMBER_VERSION FROM performance_schema.replication_group_members]" = "$server1_version";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL
+--let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MYSQL\')]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # 2. Bootstrap GR.
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # 3. Assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+--echo #    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+--echo #    MEMBER_COMMUNICATION_STACK are correct.
+
+--let $assert_text= The performance_schema.replication_group_members.CHANNEL_NAME is group_replication_applier
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_group_members]" = $server1_channel;
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_ID matches with server_uuid system variable
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members]" = "$server1_uuid";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_HOST is correct
+--let $assert_cond= "[SELECT MEMBER_HOST FROM performance_schema.replication_group_members]" = $server1_hostname;
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_PORT matches with port system variable
+--let $assert_cond= "[SELECT MEMBER_PORT FROM performance_schema.replication_group_members]" = "$server1_port";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_STATE is ONLINE
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members]" = "ONLINE";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_VERSION is correct
+--let $assert_cond= "[SELECT MEMBER_VERSION FROM performance_schema.replication_group_members]" = "$server1_version";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL
+--let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MYSQL\')]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # 4. Stop GR.
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # 5. Assert CHANNEL_NAME, MEMBER_ID, MEMBER_HOST,
+--echo #    MEMBER_PORT, MEMBER_STATE, MEMBER_VERSION and
+--echo #    MEMBER_COMMUNICATION_STACK are correct.
+
+--let $assert_text= The performance_schema.replication_group_members.CHANNEL_NAME is group_replication_applier
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_group_members]" = $server1_channel;
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_ID matches with server_uuid system variable
+--let $assert_cond= "[SELECT MEMBER_ID FROM performance_schema.replication_group_members]" = "$server1_uuid";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_HOST is correct
+--let $assert_cond= "[SELECT MEMBER_HOST FROM performance_schema.replication_group_members]" = $server1_hostname;
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_PORT matches with port system variable
+--let $assert_cond= "[SELECT MEMBER_PORT FROM performance_schema.replication_group_members]" = "$server1_port";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_STATE is OFFLINE
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members]" = "OFFLINE";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_VERSION is correct
+--let $assert_cond= "[SELECT MEMBER_VERSION FROM performance_schema.replication_group_members]" = "$server1_version";
+--source include/assert.inc
+
+--let $assert_text= The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL
+--let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MYSQL\')]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # 6. Clean up.
+
+--source include/group_replication_end.inc

@@ -17,7 +17,7 @@ include/assert.inc ['Server1 MEMBER_VERSION should match with SELECT @@server_ve
 #####################################################################
 [connection server2]
 include/assert.inc ['Server2 MEMBER_ROLE should not be set when GR is starting']
-include/assert.inc ['Server2 MEMBER_VERSION should not be set when GR is starting']
+include/assert.inc ['Server2 MEMBER_VERSION should be set when GR is starting']
 include/start_group_replication.inc
 
 ##############################################################################
