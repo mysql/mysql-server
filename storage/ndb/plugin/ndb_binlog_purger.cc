@@ -27,7 +27,6 @@
 #include "storage/ndb/plugin/ndb_binlog_purger.h"
 
 #include <chrono>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -118,11 +117,26 @@ void Ndb_binlog_purger::find_and_delete_orphan_purged_rows() {
     return;
   }
 
-  // Lambda to check if filename part of file doesn't match any existing
+  // Lambda to check that file doesn't end with any existing binlog file
+  //
+  // Example when the file should be kept:
+  //   file: ".\binlog.000001"
+  //   existing: [ "binlog.000001", "binlog.000002", ... ]
+  //
   auto not_existing_filter = [&existing](std::string_view file) {
-    const auto filename = std::filesystem::path(file).filename();
-    return std::none_of(begin(existing), end(existing),
-                        [&filename](const auto f) { return f == filename; });
+    // Check if string ends with another string, to be replaced by
+    // std::string_view::ends_with() in higher versions
+    auto ends_with = [](const std::string_view &a, const std::string_view &b) {
+      return a.size() >= b.size() &&
+             a.compare(a.size() - b.size(), std::string_view::npos, b) == 0;
+    };
+
+    for (const auto &e : existing) {
+      if (ends_with(file, e)) {
+        return false;  // Keep
+      }
+    }
+    return true;  // Remove
   };
 
   // Build list of binary log files referenced in ndb_binlog_index which does
