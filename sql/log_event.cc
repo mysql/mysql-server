@@ -8049,6 +8049,13 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
             if (field->is_field_for_functional_index())  // Always exclude
                                                          // functional indexes
               return true;
+            if (!is_after_image &&
+                !bitmap_is_subset(
+                    &field->gcol_info->base_columns_map,
+                    &this->m_local_cols))  // Exclude generated columns for
+                                           // which the base columns are
+                                           // unavailable
+              return true;
             if (!is_after_image &&  // Always exclude virtual generated columns
                 field->is_virtual_gcol())  // if not processing after-image
               return true;
