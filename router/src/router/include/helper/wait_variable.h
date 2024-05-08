@@ -185,8 +185,8 @@ class WaitableVariable {
       const Callback &callback = Callback()) {
     ValueType result;
     if (monitor_with_value_.wait_for(
-            rel_time, [this, &expected_values, &result,
-                       &callback](const auto &current_value) {
+            rel_time,
+            [&expected_values, &result, &callback](const auto &current_value) {
               if (helper::container::has(expected_values, current_value)) {
                 result = current_value;
                 callback();

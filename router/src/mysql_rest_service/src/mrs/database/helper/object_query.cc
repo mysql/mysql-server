@@ -60,8 +60,8 @@ void dump_table(std::shared_ptr<entry::Table> t, const std::string &indent) {
   }
 }
 
-void dump_object(std::shared_ptr<entry::Object> object,
-                 const std::string &indent = "") {
+[[maybe_unused]] void dump_object(std::shared_ptr<entry::Object> object,
+                                  const std::string &indent = "") {
   std::cout << indent << "# " << object->name << "\n";
   std::cout << indent << "base tables:\n";
   for (const auto &t : object->base_tables) {

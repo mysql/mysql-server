@@ -22,9 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// TODO(lkotula): Whats wrond with this one (Shouldn't be in review)
-//#define MYSQL_ROUTER_LOG_DOMAIN "io"
-
 #include <algorithm>  // max
 #include <array>
 #include <map>
@@ -35,23 +32,24 @@
 #include <thread>
 #include <vector>
 
+#include "my_thread.h"     // NOLINT(build/include_subdir)
+#include "mysqld_error.h"  // NOLINT(build/include_subdir)
+
 #include "keyring/keyring_manager.h"
-#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_rest_service_export.h"
 #include "mysqlrouter/server_compatibility.h"
 
-#include <helper/plugin_monitor.h>
 #include "collector/mysql_cache_manager.h"
+#include "helper/plugin_monitor.h"
 #include "mrs/database/schema_monitor.h"
 #include "mrs/gtid_manager.h"
 #include "mrs/object_manager.h"
 #include "mrs/observability/entities_manager.h"
 #include "mrs/router_observation_entities.h"
 #include "mysql_rest_service_plugin_config.h"
-#include "mysqld_error.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -199,7 +197,7 @@ static void run(mysql_harness::PluginFuncEnv *env) {
       service_names.insert(el.empty() ? "routing" : "routing:" + el);
     }
 
-    if (g_mrs_configuration->service_monitor_.wait_for_services(
+    if (g_mrs_configuration->service_monitor_->wait_for_services(
             service_names) &&
         g_mrs_configuration->init_runtime_configuration()) {
       g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
@@ -217,13 +215,13 @@ static void run(mysql_harness::PluginFuncEnv *env) {
 
 static void stop(mysql_harness::PluginFuncEnv * /* env */) {
   log_debug("stop");
-  if (g_mrs_configuration) g_mrs_configuration->service_monitor_.abort();
+  if (g_mrs_configuration) g_mrs_configuration->service_monitor_->abort();
   if (g_mrds_module) g_mrds_module->stop();
 }
 
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   log_debug("deinit");
-  if (g_mrs_configuration) g_mrs_configuration->service_monitor_.abort();
+  if (g_mrs_configuration) g_mrs_configuration->service_monitor_->abort();
   g_mrds_module.reset();
 }
 

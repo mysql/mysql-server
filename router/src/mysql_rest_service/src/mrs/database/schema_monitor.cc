@@ -24,8 +24,6 @@
 
 #include "mrs/database/schema_monitor.h"
 
-#include "mysql/harness/logging/logging.h"
-
 #include "helper/string/contains.h"
 #include "helper/string/generic.h"
 #include "mrs/database/helper/content_file_from_options.h"
@@ -43,6 +41,8 @@
 
 #include "router_config.h"
 #include "socket_operations.h"
+
+#include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -65,25 +65,26 @@ SchemaMonitor::SchemaMonitor(
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
 void SchemaMonitor::start() {
-  state_.exchange(k_initializing, k_running);
-  log_debug("State at start:%i", static_cast<int>(state_.get()));
-  run();
+  if (state_.exchange(k_initializing, k_running)) {
+    log_debug("SchemaMonitor::start");
+    run();
+  }
 }
 
 void SchemaMonitor::stop() {
   waitable_.serialize_with_cv([this](void *, std::condition_variable &cv) {
-    state_.exchange({k_initializing, k_running}, k_stopped);
-    log_debug("State at stop:%i", static_cast<int>(state_.get()));
-    cv.notify_all();
+    if (state_.exchange({k_initializing, k_running}, k_stopped)) {
+      log_debug("SchemaMonitor::stop");
+      cv.notify_all();
+    }
   });
   // The thread might be already stopped or even it has never started
   if (monitor_thread_.joinable()) monitor_thread_.join();
 }
 
 void SchemaMonitor::run() {
-  // TODO(lkotula): Remove below log-entry (Shouldn't be in review)
-  //  using RowProcessor = mysqlrouter::MySQLSession::RowProcessor;
-  log_system("Starting monitor");
+  log_system("Starting MySQL Rest Metadata monitor");
+
   bool full_fetch_compleated = false;
   mrs::database::FileFromOptions options_files;
   std::unique_ptr<database::QueryState> turn_state{new database::QueryState()};
@@ -212,7 +213,7 @@ void SchemaMonitor::run() {
                 exc.what());
     }
   } while (wait_until_next_refresh());
-  log_system("Stopping monitor");
+  log_system("Stopping MySQL REST Service monitor");
 }
 
 bool SchemaMonitor::wait_until_next_refresh() {
