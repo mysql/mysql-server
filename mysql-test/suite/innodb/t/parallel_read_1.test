@@ -1,0 +1,100 @@
+# Bug#114154 parallel read degrades to single thread read
+#
+# After a partition table is read in parallel for many times(at least 256),
+# the parallel read will degrade to single thread read.
+#
+# ==== Implementation ====
+# 1. Prepare the data
+# 2. Do 256 (max value of --innodb_parallel_read_threads) parallel reads on
+#    a partitioned table while innodb_parallel_read_threads = 1.
+#    It used to cause parallel threads leak before the fix.
+# 3. Do parallel read under innodb_parallel_read_threads = 16 and ensure that
+#    it does not degrade to single thread read.
+# 4. cleanup
+#
+
+--source include/have_debug.inc
+
+--echo #####################################################################
+--echo # 1. Prepare
+--echo #####################################################################
+--echo # Create a normal table
+CREATE TABLE t1(
+        class   INT,
+        id      INT,
+        title   VARCHAR(100),
+        PRIMARY KEY(class)
+) ENGINE=InnoDB;
+
+--echo # Create a partition table
+CREATE TABLE t2(
+        class   INT,
+        id      INT,
+        title   VARCHAR(100),
+        PRIMARY KEY(class)
+) ENGINE=InnoDB
+PARTITION BY RANGE(class) (
+PARTITION p0 VALUES LESS THAN (5000),
+PARTITION p1 VALUES LESS THAN (10000),
+PARTITION p2 VALUES LESS THAN (15000));
+
+--echo # Create a procedure to insert data
+DELIMITER |;
+CREATE PROCEDURE populate_t1_t2()
+BEGIN
+DECLARE i int DEFAULT 1;
+
+START TRANSACTION;
+  WHILE (i <= 1000) DO
+    INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+    INSERT INTO t2 VALUES (i, i, CONCAT('a', i));
+    SET i = i + 1;
+  END WHILE;
+COMMIT;
+END |
+
+--echo # Create a procedure to repeat execute 'select count(*) from partition table'
+CREATE PROCEDURE select_count_partition_table()
+BEGIN
+  DECLARE i int DEFAULT 1;
+  WHILE (i <= 256) DO
+    SELECT COUNT(*) FROM t2;
+    SET i = i + 1;
+  END WHILE;
+END |
+DELIMITER ;|
+
+--disable_result_log
+--echo # Load data
+CALL populate_t1_t2();
+--enable_result_log
+
+--echo #####################################################################
+--echo # 2. Repeat sql 'select count(*) from t2;' for 256 times.
+--echo #####################################################################
+SET SESSION innodb_parallel_read_threads = 1;
+
+--disable_result_log
+CALL select_count_partition_table();
+--enable_result_log
+
+--echo #######################################################################
+--echo # 3. Parallel read will degrade to single thread read before this patch
+--echo #######################################################################
+SET SESSION innodb_parallel_read_threads = 16;
+
+SET GLOBAL DEBUG="+d,ib_die_if_not_parallel_read";
+
+SELECT COUNT(*) FROM t1;
+
+SELECT COUNT(*) FROM t2;
+
+SET GLOBAL DEBUG="-d,ib_die_if_not_parallel_read";
+
+--echo #####################################################################
+--echo # 4. Cleanup
+--echo #####################################################################
+DROP PROCEDURE populate_t1_t2;
+DROP PROCEDURE select_count_partition_table;
+DROP TABLE t1;
+DROP TABLE t2;

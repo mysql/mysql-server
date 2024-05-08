@@ -1,0 +1,68 @@
+#####################################################################
+# 1. Prepare
+#####################################################################
+# Create a normal table
+CREATE TABLE t1(
+class   INT,
+id      INT,
+title   VARCHAR(100),
+PRIMARY KEY(class)
+) ENGINE=InnoDB;
+# Create a partition table
+CREATE TABLE t2(
+class   INT,
+id      INT,
+title   VARCHAR(100),
+PRIMARY KEY(class)
+) ENGINE=InnoDB
+PARTITION BY RANGE(class) (
+PARTITION p0 VALUES LESS THAN (5000),
+PARTITION p1 VALUES LESS THAN (10000),
+PARTITION p2 VALUES LESS THAN (15000));
+# Create a procedure to insert data
+CREATE PROCEDURE populate_t1_t2()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 1000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+INSERT INTO t2 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END |
+# Create a procedure to repeat execute 'select count(*) from partition table'
+CREATE PROCEDURE select_count_partition_table()
+BEGIN
+DECLARE i int DEFAULT 1;
+WHILE (i <= 256) DO
+SELECT COUNT(*) FROM t2;
+SET i = i + 1;
+END WHILE;
+END |
+# Load data
+CALL populate_t1_t2();
+#####################################################################
+# 2. Repeat sql 'select count(*) from t2;' for 256 times.
+#####################################################################
+SET SESSION innodb_parallel_read_threads = 1;
+CALL select_count_partition_table();
+#######################################################################
+# 3. Parallel read will degrade to single thread read before this patch
+#######################################################################
+SET SESSION innodb_parallel_read_threads = 16;
+SET GLOBAL DEBUG="+d,ib_die_if_not_parallel_read";
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1000
+SET GLOBAL DEBUG="-d,ib_die_if_not_parallel_read";
+#####################################################################
+# 4. Cleanup
+#####################################################################
+DROP PROCEDURE populate_t1_t2;
+DROP PROCEDURE select_count_partition_table;
+DROP TABLE t1;
+DROP TABLE t2;
