@@ -38,14 +38,37 @@ INSERT INTO test.geo0(poly)
 INSERT INTO test.geo4326(g)
    VALUES(ST_GeomFromText('POINT(0 0)',4326)),
          (ST_GeomFromText('POINT(90 89)',4326)),
+         (ST_GeomFromText('POINT(80 0)',4326)),
          (ST_GeomFromText('POINT(-90 89)',4326)),
          (NULL);
 
 --echo
 --echo
---echo ## I. Verify JSON encoding of different times of data, returned in FEED response
+--echo ## I. Verify JSON encoding of GEOMETRY types with SRID 0, returned in FEED response
 --echo #
---echo # 1. Verify generation of JSON boolean from bit and bit(1)
+--echo # 1. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
+--echo #    LINESTRING, POLYGON returning single object.
+--echo # 2. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
+--echo #    LINESTRING, POLYGON returning multiple objects.
+--echo # 3. Verify that object can be updated with different GeoJson and response
+--echo #    contains same data.
+--echo # 4. Verify that object can be updated with different WKT-format and response
+--echo #    contains same data formated as GeoJson.
+--echo # 5. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
+--echo # 6. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
+--echo #
+--echo ## II. Verify JSON encoding of GEOMETRY types with SRID 4326, returned in FEED response
+--echo #
+--echo # 1. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
+--echo #    LINESTRING, POLYGON returning single object.
+--echo # 2. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
+--echo #    LINESTRING, POLYGON returning multiple objects.
+--echo # 3. Verify that object can be updated with different GeoJson and response
+--echo #    contains same data.
+--echo # 4. Verify that object can be updated with different WKT-format and response
+--echo #    contains same data formated as GeoJson.
+--echo # 5. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
+--echo # 6. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
 --echo #
 --echo #
 
@@ -67,7 +90,6 @@ INSERT INTO test.geo4326(g)
 --source ../include/mrs/db_object/add.inc
 
 
-
 --exec $MRS_CLIENT_ARGS --path /svc/test/geo0/1 --wait-until-found 60 --display none
 
 --let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/g,/items/*/id,/items/*/poly,/items/*/point,/items/*/l
@@ -86,68 +108,103 @@ INSERT INTO test.geo4326(g)
 --echo
 --echo #
 --echo # I.3
-exec $MRS_CLIENT_ARGS_OBJ 
+exec $MRS_CLIENT_ARGS_OBJ
    --path /svc/test/geo0/2 --request-type PUT
    --payload
    '{"g":{"type":"LineString","coordinates":[[100,0],[0,0]]},"point":null,"l":null,"poly":null}';
 
---echo
---echo #
---echo # I.4
-exec $MRS_CLIENT_ARGS_OBJ 
+exec $MRS_CLIENT_ARGS_OBJ
    --path /svc/test/geo0/2 --request-type PUT
    --payload
    '{"g":{"type":"Point", "coordinates":[100,0]},"point":null,"l":null,"poly":null}';
 
 --echo
 --echo #
---echo # II.1
---exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":\"POINT\(100\ 0\)\"}
+--echo # I.4
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload
+   '{"g":"POINT(0 0)","point":null,"l":null,"poly":null}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload
+   '{"g":"POINT(100 0)","point":null,"l":null,"poly":null}';
 
 
 --echo
 --echo #
---echo # II.2
+--echo # I.5
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":\"POINT\(100\ 0\)\"}
+
+
 --exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":\"POINT\(0\ 0\)\"}
 
 
 --echo
 --echo #
---echo # II.3
+--echo # I.6
 --exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":{\"type\":\"Point\",\"coordinates\":[0,0]}}
 
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0/?q={\"g\":{\"type\":\"Point\",\"coordinates\":[100,0]}}
 
+###################################
 --echo
 --echo #
---echo # III.1
+--echo # II.1
 --exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2
 
 --echo
 --echo #
---echo # III.2
---exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2 --request-type PUT --payload '{"g":{"type":"Point", "coordinates":[10,0]},"point":null,"l":null,"poly":null}'
+--echo # II.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326
 
 --echo
 --echo #
---echo # III.3
---exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2 --request-type PUT --payload '{"g":"POINT(11 0)","point":null,"l":null,"poly":null}'
+--echo # II.3
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"g":{"type":"LineString","coordinates":[[80,0],[0,0]]},"point":null,"l":null,"poly":null}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"g":{"type":"Point", "coordinates":[80,0]},"point":null,"l":null,"poly":null}';
 
 --echo
 --echo #
---echo # IV.1
---exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":\"POINT\(11\ 0\)\"}
+--echo # II.4
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"g":"POINT(0 0)","point":null,"l":null,"poly":null}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"g":"POINT(80 0)","point":null,"l":null,"poly":null}';
 
 
 --echo
 --echo #
---echo # IV.2
+--echo # II.5
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":\"POINT\(80\ 0\)\"}
+
+
 --exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":\"POINT\(0\ 0\)\"}
 
 
 --echo
 --echo #
---echo # IV.3
+--echo # II.6
 --exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":{\"type\":\"Point\",\"coordinates\":[0,0]}}
+
+# coordinates are reversed in comparison to SRID 0.
+# POINT(80 0) == "coordinates":[0, 80]
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326/?q={\"g\":{\"type\":\"Point\",\"coordinates\":[0,80]}}
 
 
 # Cleanup
