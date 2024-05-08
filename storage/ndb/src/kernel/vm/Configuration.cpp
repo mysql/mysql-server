@@ -418,8 +418,21 @@ void Configuration::setupConfiguration() {
   Uint32 num_cpus = 0;
   iter.get(CFG_DB_AUTO_THREAD_CONFIG, &auto_thread_config);
   iter.get(CFG_DB_NUM_CPUS, &num_cpus);
-  g_eventLogger->info("AutomaticThreadConfig = %u, NumCPUs = %u",
-                      auto_thread_config, num_cpus);
+
+  /**
+   * Ignore AutomaticThreadConfig configuration for single threaded data
+   * node (ndbd).
+   */
+  if (auto_thread_config && !NdbIsMultiThreaded()) {
+    auto_thread_config = 0;
+    g_eventLogger->info(
+        "AutomaticThreadConfig configuration ignored, "
+        "ndbd does not support automatic thread config");
+  } else {
+    g_eventLogger->info("AutomaticThreadConfig = %u, NumCPUs = %u",
+                        auto_thread_config, num_cpus);
+  }
+
   iter.get(CFG_DB_MT_THREADS, &mtthreads);
   iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring);
   if (auto_thread_config == 0 && thrconfigstring != nullptr &&
