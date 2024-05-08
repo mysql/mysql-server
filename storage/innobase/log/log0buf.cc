@@ -1201,10 +1201,6 @@ void log_buffer_flush_to_disk(log_t &log, bool sync) {
   log_write_up_to(log, lsn, sync);
 }
 
-void log_buffer_flush_to_disk(bool sync) {
-  log_buffer_flush_to_disk(*log_sys, sync);
-}
-
 void log_buffer_sync_in_background() {
   log_t &log = *log_sys;
 

@@ -40,16 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "rem/rec.h"
 
-/** Gets the value of the specified field in the record.
-@param[in]      index   record descriptor
-@param[in]      rec     physical record
-@param[in]      offsets array returned by rec_get_offsets()
-@param[in]      n       index of the field
-@param[out]     len     length of the field, UNIV_SQL_NULL if SQL null
-@return value of the field */
-byte *rec_get_nth_field(const dict_index_t *index, const rec_t *rec,
-                        const ulint *offsets, ulint n, ulint *len);
-
 const byte *rec_get_nth_field_old(const dict_index_t *index, const rec_t *rec,
                                   ulint n, ulint *len);
 
@@ -71,9 +61,68 @@ record.
 @param[out]     len     length of the field; UNIV_SQL_NULL if SQL null;
                         UNIV_SQL_ADD_COL_DEFAULT if it's default value and no
                         value inlined
+@note This long method is made inline because it is on performance sensitive hot
+path. One must run performance tests if they intend to improve this method.
 @return offset from the origin of rec */
-ulint rec_get_nth_field_offs(const dict_index_t *index, const ulint *offsets,
-                             ulint n, ulint *len);
+inline ulint rec_get_nth_field_offs(const dict_index_t *index,
+                                    const ulint *offsets, ulint n, ulint *len) {
+  if (index && index->has_row_versions()) {
+    n = index->get_field_off_pos(n);
+  }
+
+  ulint offs;
+  ulint length;
+  ut_ad(n < rec_offs_n_fields(offsets));
+  ut_ad(len);
+
+  if (n == 0) {
+    offs = 0;
+  } else {
+    offs = rec_offs_base(offsets)[n] & REC_OFFS_MASK;
+  }
+
+  length = rec_offs_base(offsets)[1 + n];
+
+  if (length & REC_OFFS_SQL_NULL) {
+    length = UNIV_SQL_NULL;
+  } else if (length & REC_OFFS_DEFAULT) {
+    length = UNIV_SQL_ADD_COL_DEFAULT;
+  } else if (length & REC_OFFS_DROP) {
+    length = UNIV_SQL_INSTANT_DROP_COL;
+  } else {
+    length &= REC_OFFS_MASK;
+    length -= offs;
+  }
+
+  *len = length;
+  return (offs);
+}
+
+/** Gets the value of the specified field in the record.
+@param[in]      index   record descriptor
+@param[in]      rec     physical record
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      n       index of the field
+@param[out]     len     length of the field, UNIV_SQL_NULL if SQL null
+@return value of the field */
+inline const byte *rec_get_nth_field(const dict_index_t *index,
+                                     const rec_t *rec, const ulint *offsets,
+                                     ulint n, ulint *len) {
+  return rec + rec_get_nth_field_offs(index, offsets, n, len);
+}
+
+/** Gets the value of the specified field in the record.
+@param[in]      index   record descriptor
+@param[in]      rec     physical record
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      n       index of the field
+@param[out]     len     length of the field, UNIV_SQL_NULL if SQL null
+@return value of the field */
+inline byte *rec_get_nth_field(const dict_index_t *index, rec_t *rec,
+                               const ulint *offsets, ulint n, ulint *len) {
+  return const_cast<byte *>(rec_get_nth_field(
+      index, const_cast<const rec_t *>(rec), offsets, n, len));
+}
 
 /** The following function is used to get the offset to the nth
 data field in an old-style record.
@@ -85,13 +134,29 @@ data field in an old-style record.
 ulint rec_get_nth_field_offs_old(const dict_index_t *index, const rec_t *rec,
                                  ulint n, ulint *len);
 
+/** Validates offset and field number.
+@param[in]      index   record descriptor
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      n       nth field
+@param[in]      L       Line number of calling satement*/
+void validate_rec_offset(const dict_index_t *index, const ulint *offsets,
+                         ulint n, ut::Location L);
+
 /** Returns nonzero if the extern bit is set in nth field of rec.
 @param[in]      index           record descriptor
 @param[in]      offsets         array returned by rec_get_offsets()
 @param[in]      n               nth field
 @return nonzero if externally stored */
-[[nodiscard]] ulint rec_offs_nth_extern(const dict_index_t *index,
-                                        const ulint *offsets, ulint n);
+[[nodiscard]] inline ulint rec_offs_nth_extern(const dict_index_t *index,
+                                               const ulint *offsets, ulint n) {
+  if (index && index->has_row_versions()) {
+    n = index->get_field_off_pos(n);
+  }
+
+  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
+  /* Returns nonzero if the extern bit is set in nth field of rec. */
+  return rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL;
+}
 
 /** Mark the nth field as externally stored.
 @param[in]      index           record descriptor

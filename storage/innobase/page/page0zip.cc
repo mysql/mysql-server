@@ -2117,8 +2117,7 @@ void page_zip_write_trx_id_and_roll_ptr(page_zip_des_t *page_zip, byte *rec,
       page_zip_dir_start(page_zip) -
       (rec_get_heap_no_new(rec) - 1) * (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
-  field = const_cast<byte *>(
-      rec_get_nth_field(nullptr, rec, offsets, trx_id_col, &len));
+  field = rec_get_nth_field(nullptr, rec, offsets, trx_id_col, &len);
   ut_ad(len == DATA_TRX_ID_LEN);
   ut_ad(field + DATA_TRX_ID_LEN ==
         rec_get_nth_field(nullptr, rec, offsets, trx_id_col + 1, &len));

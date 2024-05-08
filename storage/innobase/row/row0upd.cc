@@ -315,8 +315,7 @@ void row_upd_rec_sys_fields_in_recovery(rec_t *rec, page_zip_des_t *page_zip,
     byte *field;
     ulint len;
 
-    field =
-        const_cast<byte *>(rec_get_nth_field(nullptr, rec, offsets, pos, &len));
+    field = rec_get_nth_field(nullptr, rec, offsets, pos, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     trx_write_trx_id(field, trx_id);
     trx_write_roll_ptr(field + DATA_TRX_ID_LEN, roll_ptr);
