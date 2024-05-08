@@ -341,7 +341,7 @@ bool PluginConfig::init_runtime_configuration() {
   log_debug("provider_rw_=%p", provider_rw_.get());
   log_debug("provider_ro_=%p", provider_ro_.get());
 
-  if (!service_monitor_.wait_for_services(waiting_for_metadatacache_plugin))
+  if (!service_monitor_->wait_for_services(waiting_for_metadatacache_plugin))
     return false;
 
   if (!provider_ro_) provider_ro_ = provider_rw_;

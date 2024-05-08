@@ -30,6 +30,8 @@
 namespace mrs {
 namespace json {
 
+JsonTemplateFactory::~JsonTemplateFactory() = default;
+
 std::shared_ptr<database::JsonTemplate> JsonTemplateFactory::create_template(
     const database::JsonTemplateType type, const bool encode_bigints_as_strings,
     const bool include_links) const {

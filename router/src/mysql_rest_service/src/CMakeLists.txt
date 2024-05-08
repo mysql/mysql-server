@@ -58,6 +58,7 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/query_rest_sp_media.cc
   mrs/database/query_rest_table_updater.cc
   mrs/database/query_state.cc
+  mrs/database/query_statistics.cc
   mrs/database/query_version.cc
   mrs/database/query_warnings.cc
   mrs/database/helper/query.cc
@@ -71,17 +72,37 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/helper/sp_function_query.cc
 )
 
-TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_db
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-  PRIVATE ${PROJECT_SOURCE_DIR}/src/http/include/)
-
 TARGET_LINK_LIBRARIES(mysql_rest_service_db
   mysql_rest_service_if
   harness-library
+  router_lib
+  http_common
   routing)
 
-ADD_HARNESS_PLUGIN(mysql_rest_service
-  SOURCES
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_db
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+ADD_LIBRARY(mysql_rest_service_json
+  mrs/json/response_json_template.cc
+  mrs/json/json_template_factory.cc
+  mrs/json/response_sp_json_template_unnest.cc
+  mrs/json/response_sp_json_template_nest.cc
+  )
+
+TARGET_LINK_LIBRARIES(mysql_rest_service_json
+  mysql_rest_service_if
+  harness-library
+  router_lib
+  http_common
+  )
+
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_json
+  PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+ADD_LIBRARY(mysql_rest_service_impl
   collector/counted_mysql_session.cc
   collector/mysql_cache_manager.cc
   helper/media_detector.cc
@@ -92,7 +113,6 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   helper/token/jwt.cc
   helper/mysql_column_types.cc
   helper/mysql_numeric_value.cc
-  mrs/database/query_statistics.cc
   mrs/authentication/helper/crypto.cc
   mrs/authentication/helper/http_result.cc
   mrs/authentication/helper/scram.cc
@@ -107,10 +127,6 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/authentication/www_authentication_handler.cc
   mrs/authentication/sasl_handler.cc
   mrs/authentication/scram_handler.cc
-  mrs/json/response_json_template.cc
-  mrs/json/json_template_factory.cc
-  mrs/json/response_sp_json_template_unnest.cc
-  mrs/json/response_sp_json_template_nest.cc
   mrs/http/cookie.cc
   mrs/http/header_accept.cc
   mrs/http/utilities.cc
@@ -138,9 +154,28 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_unauthorize.cc
   mrs/rest/handler_schema_metadata.cc
   mrs/rest/handler_sp.cc
+  )
+
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_impl
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/harness/include/
+    ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
+    ${PROJECT_SOURCE_DIR}/src/routing/include/
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+TARGET_LINK_LIBRARIES(mysql_rest_service_impl
+  http_client
+  rest_api
+  mysql_rest_service_db
+  )
+
+ADD_HARNESS_PLUGIN(mysql_rest_service
+  SOURCES
   mysql_rest_service_plugin_config.cc
   mysql_rest_service_plugin.cc
-  REQUIRES io_component;router_lib;routing;http_server;rest_api;http_client;mysql_rest_service_if;mysql_rest_service_db;
+  REQUIRES io_component;router_lib;routing;http_server;mysql_rest_service_impl;mysql_rest_service_db;mysql_rest_service_json
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 
