@@ -776,7 +776,9 @@ static inline size_t log_compute_wait_event_slot(lsn_t lsn, size_t events_n) {
   waking up those in lsn/512. Note that this scenario (lsn % 512 == 0) happens
   often because our strategy is to prefer writes of full log blocks only,
   leaving the incomplete last block for next write (unless there are no full
-  blocks). */
+  blocks).
+  Note: if you ever change the way this is computed, update the logic in
+  notify_about_advanced_write_lsn as it depends on OS_FILE_LOG_BLOCK_SIZE. */
   return ((lsn - 1) / OS_FILE_LOG_BLOCK_SIZE) & (events_n - 1);
 }
 
@@ -1561,13 +1563,36 @@ static inline void notify_about_advanced_write_lsn(log_t &log,
     if (srv_flush_log_at_trx_commit == 1) {
       os_event_set(log.flusher_event);
     }
-
+    /* For performance reasons, we rely on the help from notifier thread only if
+    there is more than one event to set, and set it ourselves otherwise. The
+    notifier thread will eventually set events related to each written lsn
+    anyway, but instead of paying the cost of os_event_set() to hurry it up, we
+    spend it on waking up the actually interested threads, eliminating one hop.
+    If we decide to do it ourselves, and thus set just one event, then it is
+    crucial for correctness that indeed log_compute_write_event_slot(log,x) has
+    same value for all x in the range old_write_lsn < x <= new_write_lsn. For
+    performance, we would like the inverse implication: whenever all x are in
+    the same slot, do it ourselves. To check this condition in constant time, we
+    rely on the following property of log_compute_write_event_slot(..,x):
+    For all a<b<c:
+    log_compute_write_event_slot(..,a) == log_compute_write_event_slot(..,c) &&
+    log_compute_write_event_slot(..,a) != log_compute_write_event_slot(..,b)
+    implies that (c-a) > OS_FILE_LOG_BLOCK_SIZE.
+    This property let us check if all x in a range are mapped to same slot, by
+    checking the end points of the range, and the length of the range only.
+    This property is a consequence of the current implementation assigning same
+    slot it assigned to log_compute_write_event_slot(..,b) to a range of length
+    at least OS_FILE_LOG_BLOCK_SIZE around b. This in turn holds, because we
+    simply use (b-1) div OS_FILE_LOG_BLOCK_SIZE to assign the slot. If the
+    implementation of log_compute_write_event_slot(..) changes in future, we
+    should check which of these assumptions still hold, and adjust the logic */
     const auto first_slot =
         log_compute_write_event_slot(log, old_write_lsn + 1);
 
     const auto last_slot = log_compute_write_event_slot(log, new_write_lsn);
 
-    if (first_slot == last_slot) {
+    if (first_slot == last_slot &&
+        (new_write_lsn - old_write_lsn) <= OS_FILE_LOG_BLOCK_SIZE) {
       log_sync_point("log_write_before_users_notify");
       os_event_set(log.write_events[first_slot]);
     } else {
