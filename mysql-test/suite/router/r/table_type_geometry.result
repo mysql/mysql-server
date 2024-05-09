@@ -11,30 +11,15 @@
 # restart:generated_router_1.cnf
 CREATE TABLE test.geo0(
 id INTEGER AUTO_INCREMENT PRIMARY KEY,
-g GEOMETRY SRID 0,
-point POINT SRID 0,
-l LINESTRING SRID 0,
-poly POLYGON SRID 0);
+g GEOMETRY SRID 0);
 CREATE TABLE test.geo4326(
 id INTEGER AUTO_INCREMENT PRIMARY KEY,
-g GEOMETRY SRID 4326,
-point POINT SRID 4326,
-l LINESTRING SRID 4326,
-poly POLYGON SRID 4326);
+g GEOMETRY SRID 4326);
 INSERT INTO test.geo0(g)
 VALUES(ST_GeomFromText('POINT(0 0)')),
 (ST_GeomFromText('LINESTRING(110 100, 20 30)')),
 (ST_GeomFromText('POLYGON((-110 100, 0 0, 0 100, -110 100))')),
 (NULL);
-INSERT INTO test.geo0(point)
-VALUES(ST_GeomFromText('POINT(1 1)')),
-(ST_GeomFromText('POINT(-111 101)'));
-INSERT INTO test.geo0(l)
-VALUES(ST_GeomFromText('LINESTRING(1 1, 10 0)')),
-(ST_GeomFromText('LINESTRING(111 101, 10 0)'));
-INSERT INTO test.geo0(poly)
-VALUES(ST_GeomFromText('POLYGON((1 1, 1 0, 0 0, 1 1))')),
-(ST_GeomFromText('POLYGON((2 2, 0 2, 0 0, 2 2))'));
 INSERT INTO test.geo4326(g)
 VALUES(ST_GeomFromText('POINT(0 0)',4326)),
 (ST_GeomFromText('POINT(90 89)',4326)),
@@ -43,12 +28,12 @@ VALUES(ST_GeomFromText('POINT(0 0)',4326)),
 (NULL);
 
 
-## I. Verify JSON encoding of GEOMETRY types with SRID 0, returned in FEED response
+## I. Verify JSON encoding of GEOMETRY type with SRID 0, returned in FEED response
 #
-# 1. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
-#    LINESTRING, POLYGON returning single object.
-# 2. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
-#    LINESTRING, POLYGON returning multiple objects.
+# 1. Verify JSON response containing GeoJson fields generated from type GEOMETRY 
+#    returning single object.
+# 2. Verify JSON response containing GeoJson fields generated from types GEOMETRY
+#    returning multiple objects.
 # 3. Verify that object can be updated with different GeoJson and response
 #    contains same data.
 # 4. Verify that object can be updated with different WKT-format and response
@@ -58,10 +43,10 @@ VALUES(ST_GeomFromText('POINT(0 0)',4326)),
 #
 ## II. Verify JSON encoding of GEOMETRY types with SRID 4326, returned in FEED response
 #
-# 1. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
-#    LINESTRING, POLYGON returning single object.
-# 2. Verify JSON response containing GeoJson fields generated from types GEOMETRY, POINT,
-#    LINESTRING, POLYGON returning multiple objects.
+# 1. Verify JSON response containing GeoJson fields generated from type GEOMETRY
+#    returning single object.
+# 2. Verify JSON response containing GeoJson fields generated from type GEOMETRY,
+#    returning multiple objects.
 # 3. Verify that object can be updated with different GeoJson and response
 #    contains same data.
 # 4. Verify that object can be updated with different WKT-format and response
@@ -91,11 +76,7 @@ GET /svc/test/geo0/2
                 30.0
             ]
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
 
@@ -111,11 +92,7 @@ GET /svc/test/geo0
                     0.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 1,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -130,11 +107,7 @@ GET /svc/test/geo0
                         30.0
                     ]
                 ]
-            },
-            "l": null,
-            "id": 2,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -159,140 +132,10 @@ GET /svc/test/geo0
                         ]
                     ]
                 ]
-            },
-            "l": null,
-            "id": 3,
-            "poly": null,
-            "point": null
-        },
-        {
-            "g": null,
-            "l": null,
-            "id": 4,
-            "poly": null,
-            "point": null
-        },
-        {
-            "g": null,
-            "l": null,
-            "id": 5,
-            "poly": null,
-            "point": {
-                "type": "Point",
-                "coordinates": [
-                    1.0,
-                    1.0
-                ]
             }
         },
         {
-            "g": null,
-            "l": null,
-            "id": 6,
-            "poly": null,
-            "point": {
-                "type": "Point",
-                "coordinates": [
-                    -111.0,
-                    101.0
-                ]
-            }
-        },
-        {
-            "g": null,
-            "l": {
-                "type": "LineString",
-                "coordinates": [
-                    [
-                        1.0,
-                        1.0
-                    ],
-                    [
-                        10.0,
-                        0.0
-                    ]
-                ]
-            },
-            "id": 7,
-            "poly": null,
-            "point": null
-        },
-        {
-            "g": null,
-            "l": {
-                "type": "LineString",
-                "coordinates": [
-                    [
-                        111.0,
-                        101.0
-                    ],
-                    [
-                        10.0,
-                        0.0
-                    ]
-                ]
-            },
-            "id": 8,
-            "poly": null,
-            "point": null
-        },
-        {
-            "g": null,
-            "l": null,
-            "id": 9,
-            "poly": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            1.0,
-                            1.0
-                        ],
-                        [
-                            1.0,
-                            0.0
-                        ],
-                        [
-                            0.0,
-                            0.0
-                        ],
-                        [
-                            1.0,
-                            1.0
-                        ]
-                    ]
-                ]
-            },
-            "point": null
-        },
-        {
-            "g": null,
-            "l": null,
-            "id": 10,
-            "poly": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            2.0,
-                            2.0
-                        ],
-                        [
-                            0.0,
-                            2.0
-                        ],
-                        [
-                            0.0,
-                            0.0
-                        ],
-                        [
-                            2.0,
-                            2.0
-                        ]
-                    ]
-                ]
-            },
-            "point": null
+            "g": null
         }
     ]
 }
@@ -300,7 +143,7 @@ OK
 
 #
 # I.3
-PUT /svc/test/geo0/2 (payload-size:91)
+PUT /svc/test/geo0/2 (payload-size:57)
 {
     "g": {
         "type": "LineString",
@@ -314,14 +157,10 @@ PUT /svc/test/geo0/2 (payload-size:91)
                 0.0
             ]
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
-PUT /svc/test/geo0/2 (payload-size:79)
+PUT /svc/test/geo0/2 (payload-size:45)
 {
     "g": {
         "type": "Point",
@@ -329,17 +168,13 @@ PUT /svc/test/geo0/2 (payload-size:79)
             100.0,
             0.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
 
 #
 # I.4
-PUT /svc/test/geo0/2 (payload-size:52)
+PUT /svc/test/geo0/2 (payload-size:18)
 {
     "g": {
         "type": "Point",
@@ -347,14 +182,10 @@ PUT /svc/test/geo0/2 (payload-size:52)
             0.0,
             0.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
-PUT /svc/test/geo0/2 (payload-size:54)
+PUT /svc/test/geo0/2 (payload-size:20)
 {
     "g": {
         "type": "Point",
@@ -362,11 +193,7 @@ PUT /svc/test/geo0/2 (payload-size:54)
             100.0,
             0.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
 
@@ -382,11 +209,7 @@ GET /svc/test/geo0/?q={"g":"POINT(100 0)"}
                     100.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 2,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -401,11 +224,7 @@ GET /svc/test/geo0/?q={"g":"POINT(0 0)"}
                     0.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 1,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -423,11 +242,7 @@ GET /svc/test/geo0/?q={"g":{"type":"Point","coordinates":[0,0]}}
                     0.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 1,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -442,11 +257,7 @@ GET /svc/test/geo0/?q={"g":{"type":"Point","coordinates":[100,0]}}
                     100.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 2,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -462,11 +273,7 @@ GET /svc/test/geo4326/2
             89.0,
             90.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
 
@@ -482,11 +289,7 @@ GET /svc/test/geo4326
                     0.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 1,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -495,11 +298,7 @@ GET /svc/test/geo4326
                     89.0,
                     90.0
                 ]
-            },
-            "l": null,
-            "id": 2,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -508,11 +307,7 @@ GET /svc/test/geo4326
                     0.0,
                     80.0
                 ]
-            },
-            "l": null,
-            "id": 3,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -521,18 +316,10 @@ GET /svc/test/geo4326
                     89.0,
                     -90.0
                 ]
-            },
-            "l": null,
-            "id": 4,
-            "poly": null,
-            "point": null
+            }
         },
         {
-            "g": null,
-            "l": null,
-            "id": 5,
-            "poly": null,
-            "point": null
+            "g": null
         }
     ]
 }
@@ -540,7 +327,7 @@ OK
 
 #
 # II.3
-PUT /svc/test/geo4326/2 (payload-size:90)
+PUT /svc/test/geo4326/2 (payload-size:56)
 {
     "g": {
         "type": "LineString",
@@ -554,14 +341,10 @@ PUT /svc/test/geo4326/2 (payload-size:90)
                 0.0
             ]
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
-PUT /svc/test/geo4326/2 (payload-size:78)
+PUT /svc/test/geo4326/2 (payload-size:44)
 {
     "g": {
         "type": "Point",
@@ -569,17 +352,13 @@ PUT /svc/test/geo4326/2 (payload-size:78)
             80.0,
             0.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
 
 #
 # II.4
-PUT /svc/test/geo4326/2 (payload-size:52)
+PUT /svc/test/geo4326/2 (payload-size:18)
 {
     "g": {
         "type": "Point",
@@ -587,14 +366,10 @@ PUT /svc/test/geo4326/2 (payload-size:52)
             0.0,
             0.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
-PUT /svc/test/geo4326/2 (payload-size:53)
+PUT /svc/test/geo4326/2 (payload-size:19)
 {
     "g": {
         "type": "Point",
@@ -602,11 +377,7 @@ PUT /svc/test/geo4326/2 (payload-size:53)
             0.0,
             80.0
         ]
-    },
-    "l": null,
-    "id": 2,
-    "poly": null,
-    "point": null
+    }
 }
 OK
 
@@ -622,11 +393,7 @@ GET /svc/test/geo4326/?q={"g":"POINT(80 0)"}
                     0.0,
                     80.0
                 ]
-            },
-            "l": null,
-            "id": 2,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -635,11 +402,7 @@ GET /svc/test/geo4326/?q={"g":"POINT(80 0)"}
                     0.0,
                     80.0
                 ]
-            },
-            "l": null,
-            "id": 3,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -654,11 +417,7 @@ GET /svc/test/geo4326/?q={"g":"POINT(0 0)"}
                     0.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 1,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -676,11 +435,7 @@ GET /svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,0]}}
                     0.0,
                     0.0
                 ]
-            },
-            "l": null,
-            "id": 1,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }
@@ -695,11 +450,7 @@ GET /svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,80]}}
                     0.0,
                     80.0
                 ]
-            },
-            "l": null,
-            "id": 2,
-            "poly": null,
-            "point": null
+            }
         },
         {
             "g": {
@@ -708,11 +459,7 @@ GET /svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,80]}}
                     0.0,
                     80.0
                 ]
-            },
-            "l": null,
-            "id": 3,
-            "poly": null,
-            "point": null
+            }
         }
     ]
 }

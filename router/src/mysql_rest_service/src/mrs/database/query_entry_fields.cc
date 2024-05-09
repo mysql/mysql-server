@@ -180,6 +180,7 @@ void QueryEntryFields::on_row_params(const ResultRow &row) {
           {"POINT", DataType::typeString},
           {"LINESTRING", DataType::typeString},
           {"POLYGON", DataType::typeString},
+          {"GEOMCOLLECTION", DataType::typeString},
           {"GEOMETRYCOLLECTION", DataType::typeString},
           {"MULTIPOINT", DataType::typeString},
           {"MULTILINESTRING", DataType::typeString},

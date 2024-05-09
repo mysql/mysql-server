@@ -71,20 +71,31 @@ std::vector<std::string> get_array_of_string(Value *value) {
 class tosGeom {
  private:
   static bool is_geo_json(Value *v) {
+    // TODO: this function is not correct yet, it will reject valid geo jsons
+    // like:
+    // {"type":"Feature", "geometry": {"type": "Point", "coordinates": [1, 1]},
+    // "properties": {}}
+    // that are accepted by mysql server. If possible it would be best to use
+    // some server function for this classification.
     using namespace std::string_literals;
     if (!v->IsObject()) return false;
 
-    bool has_type{false}, has_coords{false};
+    bool has_type{false}, has_coords{false}, has_geometries{false};
     auto v_as_object = v->GetObject();
 
     for (auto kv : helper::json::member_iterator(v_as_object)) {
-      if (!has_type && "type"s == kv.first)
+      if (!has_type && "type"s == kv.first) {
         has_type = kv.second->IsString();
-      else if (!has_coords && "coordinates"s == kv.first)
+      } else if (!has_geometries && "geometries"s == kv.first) {
+        // GEOMETRYCOLLECTION will have "geometries" array of geometry objects
+        // instead of "coordintes" directly
+        has_geometries = kv.second->IsArray();
+      } else if (!has_coords && "coordinates"s == kv.first) {
         has_coords = kv.second->IsArray();
+      }
     }
 
-    return has_type && has_coords;
+    return has_type && (has_coords || has_geometries);
   }
 
  public:
