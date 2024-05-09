@@ -131,7 +131,7 @@ ADD_SUBDIRECTORY(src)
 
 
 IF(WITH_UNIT_TESTS)
-#  ADD_SUBDIRECTORY(tests)
-#  ADD_SUBDIRECTORY(tests/mrs_client)
+  ADD_SUBDIRECTORY(tests)
+  ADD_SUBDIRECTORY(tests/mrs_client)
 ENDIF()
 
