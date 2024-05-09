@@ -1,0 +1,82 @@
+SHOW VARIABLES LIKE 'log_bin';
+Variable_name	Value
+log_bin	ON
+SHOW VARIABLES LIKE 'ndb_log_bin';
+Variable_name	Value
+ndb_log_bin	ON
+RESET MASTER;
+# 1. Insert to create referencing rows
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=ndb;
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (3);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (4);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (5);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (6);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (7);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (8);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (9);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (10);
+FLUSH LOGS;
+DROP TABLE t1;
+# 2. Save copies of the three first rows
+CREATE TEMPORARY TABLE save_rows_from_binlog_index AS
+SELECT * FROM mysql.ndb_binlog_index ORDER BY epoch LIMIT 3;
+# 3. Purge first five binlog files
+PURGE BINARY LOGS TO 'binlog.000006';
+# 4. Restore saved rows, these should be removed during restart
+INSERT INTO mysql.ndb_binlog_index SELECT * FROM save_rows_from_binlog_index;
+# 5. Insert rows which will be removed
+insert into mysql.ndb_binlog_index values
+(9, 'Test.000001', 20, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, 'Test.000001', 21, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, 'Test.000001', 22, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, './Test.000002', 23, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, './Test.000002', 24, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, '/home/a/b/c/d/e/f/Test.000004', 25, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, 'c:\\Progra~1\\WinAmp\\Skins\\Test.000005', 26, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file'),
+(9, './Test.000006/', 27, 0, 0, 0, 0, 0, 0, 0, 0, 'Next file');
+show binary logs;
+Log_name	File_size	Encrypted
+binlog.000006	#	#
+binlog.000007	#	#
+binlog.000008	#	#
+binlog.000009	#	#
+binlog.000010	#	#
+binlog.000011	#	#
+SELECT DISTINCT(File) FROM mysql.ndb_binlog_index;
+File
+Test.000001
+./Test.000002
+/home/a/b/c/d/e/f/Test.000004
+c:\Progra~1\WinAmp\Skins\Test.000005
+./Test.000006/
+./binlog.000001
+./binlog.000002
+./binlog.000003
+./binlog.000006
+./binlog.000007
+./binlog.000008
+./binlog.000009
+./binlog.000010
+# 6. Restart
+# restart
+# 7. Wait for 5 rows
+# 8. Show that referenced rows are still there
+SELECT DISTINCT(File) FROM mysql.ndb_binlog_index;
+File
+./binlog.000006
+./binlog.000007
+./binlog.000008
+./binlog.000009
+./binlog.000010
+RESET MASTER;
