@@ -513,6 +513,7 @@ static std::map<std::string, entry::ColumnType> k_datatype_map{
     {"POINT", entry::ColumnType::GEOMETRY},
     {"LINESTRING", entry::ColumnType::GEOMETRY},
     {"POLYGON", entry::ColumnType::GEOMETRY},
+    {"GEOMCOLLECTION", entry::ColumnType::GEOMETRY},
     {"GEOMETRYCOLLECTION", entry::ColumnType::GEOMETRY},
     {"MULTIPOINT", entry::ColumnType::GEOMETRY},
     {"MULTILINESTRING", entry::ColumnType::GEOMETRY},

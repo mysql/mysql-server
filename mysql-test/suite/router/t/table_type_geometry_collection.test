@@ -1,0 +1,188 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+CREATE TABLE test.geo0(
+  id INTEGER AUTO_INCREMENT PRIMARY KEY,
+  gc GEOMETRYCOLLECTION SRID 0);
+
+CREATE TABLE test.geo4326(
+  id INTEGER AUTO_INCREMENT PRIMARY KEY,
+  gc GEOMETRYCOLLECTION SRID 4326);
+
+
+INSERT INTO test.geo0(gc)
+   VALUES(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(10 10), POINT(30 30), LINESTRING(15 15, 20 20))')),
+         (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(20 20), POINT(40 40), LINESTRING(25 25, 30 30))')),
+         (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(20 20), POINT(40 40), POINT(60 60))'));
+
+INSERT INTO test.geo4326(gc)
+   VALUES(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))', 4326)),
+         (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(2 2), LINESTRING(2 2, 3 3))', 4326)),
+         (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(2 2), POINT(3 3))', 4326)),
+         (NULL);
+
+--echo
+--echo
+--echo ## I. Verify JSON encoding of GEOMETRYCOLLECTION type with SRID 0, returned in FEED response
+--echo #
+--echo # 1. Verify JSON response containing GeoJson fields generated from type GEOMETRYCOLLECTION
+--echo #    returning single object.
+--echo # 2. Verify JSON response containing GeoJson fields generated from types GEOMETRYCOLLECTION
+--echo #    returning multiple objects.
+--echo # 3. Verify that object can be updated with different GeoJson and response
+--echo #    contains same data.
+--echo # 4. Verify that object can be updated with different WKT-format and response
+--echo #    contains same data formated as GeoJson.
+--echo # 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
+--echo # 6. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
+--echo #
+--echo ## II. Verify JSON encoding of GEOMETRYCOLLECTION types with SRID 4326, returned in FEED response
+--echo #
+--echo # 1. Verify JSON response containing GeoJson fields generated from type GEOMETRYCOLLECTION
+--echo #    returning single object.
+--echo # 2. Verify JSON response containing GeoJson fields generated from type GEOMETRYCOLLECTION,
+--echo #    returning multiple objects.
+--echo # 3. Verify that object can be updated with different GeoJson and response
+--echo #    contains same data.
+--echo # 4. Verify that object can be updated with different WKT-format and response
+--echo #    contains same data formated as GeoJson.
+--echo # 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
+--echo # 6. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
+--echo #
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=test
+--let $mrs_add_schema_path=/test
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=geo0
+--let $mrs_add_db_object_path=/geo0
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=geo4326
+--let $mrs_add_db_object_path=/geo4326
+--source ../include/mrs/db_object/add.inc
+
+
+--exec $MRS_CLIENT_ARGS --path /svc/test/geo0/1 --wait-until-found 60 --display none
+
+--let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/gc
+--let $MRS_CLIENT_ARGS_OBJ=$MRS_CLIENT_ARGS --json-pointer /gc
+
+--echo
+--echo #
+--echo # I.1
+--exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo0/2
+
+--echo
+--echo #
+--echo # I.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo0
+
+--echo
+--echo #
+--echo # I.3
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload '{"gc": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [5, 5]}, {"type": "Point", "coordinates": [6, 6]}]}}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload '{"gc": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [7, 7]}]}}';
+
+--echo
+--echo #
+--echo # I.4
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload
+   '{"gc":"GEOMETRYCOLLECTION(POINT(8 8), POINT(9 9))"}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo0/2 --request-type PUT
+   --payload
+   '{"gc":"GEOMETRYCOLLECTION(POINT(8 8), POINT(10 10))"}';
+
+--echo
+--echo #
+--echo # I.5
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"gc":"GEOMETRYCOLLECTION(POINT(8 8),POINT(10 10))"}'
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"gc":"GEOMETRYCOLLECTION(POINT(10 10), POINT(30 30), LINESTRING(15 15, 20 20))"}'
+
+
+--echo
+--echo #
+--echo # I.6
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [8, 8]}, {"type": "Point", "coordinates": [10, 10]}]}}'
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 10]}, {"type": "Point", "coordinates": [30, 30]}, {"type": "LineString", "coordinates": [[15, 15], [20, 20]]}]}}'
+
+###################################
+--echo
+--echo #
+--echo # II.1
+--exec $MRS_CLIENT_ARGS_OBJ --path /svc/test/geo4326/2
+
+--echo
+--echo #
+--echo # II.2
+--exec $MRS_CLIENT_ARGS_LIST --path /svc/test/geo4326
+
+--echo
+--echo #
+--echo # II.3
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [3, 3]}, {"type": "Point", "coordinates": [4, 4]}]}}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [5, 5]}, {"type": "LineString", "coordinates": [[1, 1], [2, 2]]}]}}';
+
+--echo
+--echo #
+--echo # II.4
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"gc":"GEOMETRYCOLLECTION(POINT(12 12),POINT(13 13))"}';
+
+exec $MRS_CLIENT_ARGS_OBJ
+   --path /svc/test/geo4326/2 --request-type PUT
+   --payload
+   '{"gc":"GEOMETRYCOLLECTION(POINT(14 14),LINESTRING(15 15, 16 16))"}';
+
+--echo
+--echo #
+--echo # II.5
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"gc":"GEOMETRYCOLLECTION(POINT(14 14),LINESTRING(15 15, 16 16))"}'
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"gc":"GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))"}'
+
+--echo
+--echo #
+--echo # II.6
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [2, 2]}]}}'
+
+--exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [14, 14]}, {"type": "LineString", "coordinates": [[15,15], [16,16]]}]}}'
+
+
+# Cleanup
+DROP TABLE test.geo0;
+DROP TABLE test.geo4326;
+--source ../include/mrs/cleanup.inc
