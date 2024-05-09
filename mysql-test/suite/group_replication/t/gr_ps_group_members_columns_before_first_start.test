@@ -74,7 +74,7 @@ if ($server1_version_length < 5)
 --source include/assert.inc
 
 --let $assert_text= The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL
---let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MYSQL\')]" = 1
+--let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MySQL\')]" = 1
 --source include/assert.inc
 
 --echo #
@@ -112,7 +112,7 @@ if ($server1_version_length < 5)
 --source include/assert.inc
 
 --let $assert_text= The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL
---let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MYSQL\')]" = 1
+--let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MySQL\')]" = 1
 --source include/assert.inc
 
 --echo #
@@ -150,7 +150,7 @@ if ($server1_version_length < 5)
 --source include/assert.inc
 
 --let $assert_text= The performance_schema.replication_group_members.MEMBER_COMMUNICATION_STACK is XCom or MYSQL
---let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MYSQL\')]" = 1
+--let $assert_cond= "[SELECT COUNT(*) as COUNT FROM performance_schema.replication_group_members WHERE MEMBER_COMMUNICATION_STACK IN (\'XCom\',\'MySQL\')]" = 1
 --source include/assert.inc
 
 --echo #
