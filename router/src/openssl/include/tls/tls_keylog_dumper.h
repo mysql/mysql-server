@@ -35,7 +35,7 @@ namespace tls {
 
 class TlsKeylogDumper {
  public:
-  explicit TlsKeylogDumper(SSL_CTX *ctx) {
+  explicit TlsKeylogDumper([[maybe_unused]] SSL_CTX *ctx) {
 #if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
   }
 };
