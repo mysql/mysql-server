@@ -117,6 +117,7 @@ GET /svc2/sch2/redirect.html
 Temporary Redirect(307)
 Date -> %DATE%
 Content-Type  ->  text/html; charset=ISO-8859-1
+Access-Control-Allow-Methods  ->  GET, OPTIONS
 Location  ->  /svc1/sch1/obj1/1
 Content-Length  ->  0
 GET /svc2/sch2/index.html
