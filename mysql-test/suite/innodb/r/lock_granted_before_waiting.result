@@ -23,7 +23,7 @@ CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val CHAR(200));
 INSERT INTO t1 (id,val) VALUES (1, "a"),  (3, "c"), (1998,"x"), (2000, "z");
 CALL register_connection("con1");
 BEGIN;
-SELECT * FROM t1 WHERE id<=3 FOR SHARE;
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=3 FOR SHARE;
 id	val
 1	a
 3	c

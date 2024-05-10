@@ -41,12 +41,6 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_statement.inc
 
-# The DELETE statement in step 3.4 uses a different plan with
-# hypergraph (table scan instead of index range scan) and takes
-# different locks. Consider using FORCE INDEX to get the desired plan
-# after WL#16005.
---source include/not_hypergraph.inc
-
 --echo #
 --echo # 1. Create source-replica topology.
 --source include/rpl/init_source_replica.inc
@@ -125,7 +119,7 @@ INSERT INTO t1 VALUES(3, 1);
 --echo # 3.4 Execute Transaction-2
 --echo #
 BEGIN;
-DELETE FROM t1 WHERE c2 <= 1;
+DELETE t1 FROM t1 FORCE INDEX (c2) WHERE c2 <= 1;
 INSERT INTO t2 values(1);
 COMMIT;
 

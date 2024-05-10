@@ -521,8 +521,8 @@ SELECT * FROM federated.t1 WHERE id = 5
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
   OR (col2 = 'three Three' AND col3 = 33);
 # Bug#35362984 Memory leak with index merge union plan
-# Different warnings with hypergraph because the hint is not supported
-# yet (WL#16005).
+# Different warnings with hypergraph because it evaluates the
+# predicates in a different order than the old optimizer.
 --disable_warnings
 SELECT /*+ INDEX_MERGE(t1 PRIMARY,col3) */* FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
   OR (col2 = 444 AND col3 = 4444444);

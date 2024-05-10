@@ -2,11 +2,6 @@
 --source include/have_innodb_16k.inc
 --source include/count_sessions.inc
 
-# This test requires the SELECT FOR SHARE statement to pick an index
-# range scan, but hypergraph chooses a table scan. Try to get the test
-# to run under hypergraph with a FORCE INDEX hint after WL#16005.
---source include/not_hypergraph.inc
-
 # Save the original settings, to be restored at the end of test
 SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
 
@@ -43,7 +38,7 @@ INSERT INTO t1 (id,val) VALUES (1, "a"),  (3, "c"), (1998,"x"), (2000, "z");
 --connect (con1, localhost, root,,)
   CALL register_connection("con1");
   BEGIN;
-  SELECT * FROM t1 WHERE id<=3 FOR SHARE;
+  SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=3 FOR SHARE;
 
 --connect (con2, localhost, root,,)
   CALL register_connection("con2");

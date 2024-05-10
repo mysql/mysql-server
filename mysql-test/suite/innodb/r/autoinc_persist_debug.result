@@ -151,7 +151,7 @@ Table	Op	Msg_type	Msg_text
 test.t4	check	Warning	InnoDB: The B-tree of index b is corrupted.
 test.t4	check	error	Corrupt
 set debug = "-d, dict_set_index_corrupted";
-SELECT b FROM t4 WHERE b > 3;
+SELECT b FROM t4 FORCE INDEX (b) WHERE b > 3;
 ERROR HY000: Index b is corrupted
 # This should insert 18, 19
 INSERT INTO t4 VALUES(0, 6), (0, 7);
@@ -169,7 +169,7 @@ CHECK TABLE t4;
 Table	Op	Msg_type	Msg_text
 test.t4	check	Warning	InnoDB: Index b is marked as corrupted
 test.t4	check	error	Corrupt
-SELECT b FROM t4 WHERE b > 3;
+SELECT b FROM t4 FORCE INDEX (b) WHERE b > 3;
 ERROR HY000: Index b is corrupted
 # This should fix the corrupted index
 DROP INDEX b ON t4;
@@ -204,7 +204,7 @@ SELECT @@global.innodb_log_checkpoint_now;
 INSERT INTO t5 VALUES(0, 10), (0, 20);
 # Kill and restart
 set global innodb_flush_log_at_trx_commit=1;
-SELECT b FROM t5 WHERE b > 3;
+SELECT b FROM t5 FORCE INDEX (b) WHERE b > 3;
 ERROR HY000: Index b is corrupted
 # This should fix the corrupted index
 DROP INDEX b ON t5;

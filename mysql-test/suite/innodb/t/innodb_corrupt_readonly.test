@@ -40,11 +40,9 @@ SET SESSION debug="+d,dict_set_index_corrupted";
 check table t;
 SET SESSION debug="-d,dict_set_index_corrupted";
 
---skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 -- error ER_INDEX_CORRUPT
-select c from t;
+select c from t force index (idx1);
 
---skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 show warnings;
 
 # This does not use the corrupted index, expect to succeed

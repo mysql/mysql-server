@@ -1,6 +1,8 @@
 --source include/count_sessions.inc
 
-# The hypergraph optimizer does not support FORCE INDEX hints yet (WL#16005).
+# The hypergraph optimizer gets a timeout from the UPDATE statement,
+# possibly because the SELECT ... FOR SHARE statements takes more lock
+# due to hypergraph lacking support for ICP.
 --source include/not_hypergraph.inc
 
 CREATE TABLE t1 (

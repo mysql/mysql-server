@@ -26,7 +26,7 @@ test.t	check	Warning	InnoDB: The B-tree of index idx1 is corrupted.
 test.t	check	Warning	InnoDB: The B-tree of index idx is corrupted.
 test.t	check	error	Corrupt
 SET SESSION debug="-d,dict_set_index_corrupted";
-select c from t;
+select c from t force index (idx1);
 ERROR HY000: Index idx1 is corrupted
 show warnings;
 Level	Code	Message

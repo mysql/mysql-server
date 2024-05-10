@@ -87,9 +87,8 @@ set debug = "+d, dict_set_index_corrupted";
 CHECK TABLE t4;
 set debug = "-d, dict_set_index_corrupted";
 
---skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 --error ER_INDEX_CORRUPT
-SELECT b FROM t4 WHERE b > 3;
+SELECT b FROM t4 FORCE INDEX (b) WHERE b > 3;
 
 --echo # This should insert 18, 19
 INSERT INTO t4 VALUES(0, 6), (0, 7);
@@ -107,9 +106,8 @@ INSERT INTO t5 VALUES(0, 10), (0, 11);
 set global innodb_flush_log_at_trx_commit=1;
 
 CHECK TABLE t4;
---skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 --error ER_INDEX_CORRUPT
-SELECT b FROM t4 WHERE b > 3;
+SELECT b FROM t4 FORCE INDEX (b) WHERE b > 3;
 
 --echo # This should fix the corrupted index
 DROP INDEX b ON t4;
@@ -140,9 +138,8 @@ INSERT INTO t5 VALUES(0, 10), (0, 20);
 
 set global innodb_flush_log_at_trx_commit=1;
 
---skip_if_hypergraph  # Does not use index. Add FORCE INDEX after WL#16005?
 --error ER_INDEX_CORRUPT
-SELECT b FROM t5 WHERE b > 3;
+SELECT b FROM t5 FORCE INDEX (b) WHERE b > 3;
 
 --echo # This should fix the corrupted index
 DROP INDEX b ON t5;

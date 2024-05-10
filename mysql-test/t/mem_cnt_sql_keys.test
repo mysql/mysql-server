@@ -186,12 +186,6 @@ ANALYZE TABLE t2;
 let $memory_key = memory/sql/Unique::sort_buffer;
 let $test_query = SELECT /*+SET_VAR(sort_buffer_size=8192)*/ COUNT(*) FROM t3 FORCE INDEX(idx_b, idx_c) WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 --source include/mem_cnt_check_err.inc
-if ($HYPERGRAPH_TEST) {
-  # The index hint is ignored by the hypergraph optimizer, so the
-  # ROR-union plan expected by the test is not chosen. Remove the
-  # workaround when WL#16005 is done.
-  --echo <ignored hypergraph optimizer error: statement skipped by test>
-}
 DROP TABLE t3,t2;
 
 --echo # Testing memory/sql/Unique::merge_buffer.
