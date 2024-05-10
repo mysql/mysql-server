@@ -4,16 +4,15 @@ call mtr.add_suppression("Unsuccessful login attempt");
 
 ## Non-SSL connection testing for mysqlxtest
 RUN CREATE USER user1_mysqlx@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1'
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string1'
 
 0 rows affected
 RUN CREATE USER user2_mysqlx@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string2'
-            PASSWORD EXPIRE
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string2'
 
 0 rows affected
 RUN CREATE USER user3_mysqlx@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string3'
 REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
 ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
@@ -24,12 +23,12 @@ RUN CREATE USER user4_mysqlx@localhost REQUIRE SSL ACCOUNT LOCK
 
 0 rows affected
 RUN CREATE USER user5_mysqlx@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string'
             REQUIRE SSL
 
 0 rows affected
 RUN CREATE USER user6_mysqlx@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd'
+            IDENTIFIED WITH 'caching_sha2_password' BY 'dwh@#ghd'
             REQUIRE X509
 
 0 rows affected
@@ -49,6 +48,23 @@ RUN GRANT ALL ON *.* TO user5_mysqlx@localhost
 
 0 rows affected
 RUN GRANT ALL ON *.* TO user6_mysqlx@localhost
+
+0 rows affected
+connecting...
+active session is now '_CACHE_SESSION'
+closing session _CACHE_SESSION
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+connecting...
+active session is now '_CACHE_SESSION'
+closing session _CACHE_SESSION
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE
 
 0 rows affected
 Mysqlx.Ok {
@@ -88,7 +104,7 @@ Mysqlx.Ok {
 ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
-TCP/IP
+Socket
 0 rows affected
 RUN show status like 'Mysqlx_ssl_version'
 Variable_name	Value

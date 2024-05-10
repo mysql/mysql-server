@@ -15,17 +15,17 @@ GRANT ALL PRIVILEGES ON *.* TO audit_user@localhost WITH GRANT OPTION;
 -->sql
 
 CREATE USER user1_mysqlx@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string1';
 
 CREATE USER user3_mysqlx@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string3'
 REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
 ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
 PASSWORD EXPIRE NEVER;
 
 CREATE USER user5_mysqlx@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string'
             REQUIRE SSL;
 
 GRANT ALL ON *.* TO user1_mysqlx@localhost;

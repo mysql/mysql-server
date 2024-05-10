@@ -118,12 +118,12 @@ SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt;
 -->endsql
 EOF
 
-CREATE USER 'x_root'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'x_root'@'localhost';
 GRANT ALL ON *.* TO 'x_root'@'localhost' WITH GRANT OPTION;
 
 --sleep 3
 # Run from xplugin
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/log_encrypt_xplugin_test.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --ssl-mode=required --file=$MYSQL_TMP_DIR/log_encrypt_xplugin_test.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/log_encrypt_xplugin_test.tmp
 
 DROP USER 'x_root'@'localhost';

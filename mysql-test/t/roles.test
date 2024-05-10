@@ -812,13 +812,11 @@ DROP TABLE test.t5;
 
 --echo # Test of role for proxy users
 DROP USER IF EXISTS baseuser, admin1, admin2, r1, r2;
-CREATE USER baseuser IDENTIFIED WITH mysql_native_password,
-            admin1 IDENTIFIED WITH mysql_native_password,
-            admin2 IDENTIFIED WITH mysql_native_password;
+CREATE USER baseuser IDENTIFIED WITH caching_sha2_password,
+            admin1 IDENTIFIED WITH caching_sha2_password,
+            admin2 IDENTIFIED WITH caching_sha2_password;
 GRANT PROXY ON baseuser TO admin1;
 GRANT PROXY ON baseuser TO admin2;
-SET @@global.check_proxy_users = ON;
-SET @@global.mysql_native_password_proxy_users = ON;
 
 CREATE ROLE r1, r2;
 GRANT SELECT ON mysql.db to r1;
@@ -847,8 +845,6 @@ DISCONNECT con_admin2;
 
 CONNECTION default;
 DROP USER baseuser, admin1, admin2, r1, r2;
-SET @@global.check_proxy_users = OFF;
-SET @@global.mysql_native_password_proxy_users = OFF;
 
 --echo #
 --echo # SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE

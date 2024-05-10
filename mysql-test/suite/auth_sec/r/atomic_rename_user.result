@@ -147,22 +147,6 @@ SELECT user(), current_user();
 user()	current_user()
 a@localhost	b@1
 DROP USER b@1;
-# Proxy user
-CREATE USER a IDENTIFIED with 'mysql_native_password', b;
-GRANT CREATE USER ON *.* TO b;
-GRANT PROXY ON b TO a;
-SET @@global.check_proxy_users = ON;
-SET @@global.mysql_native_password_proxy_users = ON;
-SELECT user(), current_user(), @@proxy_user;
-user()	current_user()	@@proxy_user
-a@localhost	b@%	'a'@'%'
-RENAME USER a TO c;
-SELECT user(), current_user(), @@proxy_user;
-user()	current_user()	@@proxy_user
-a@localhost	b@%	'c'@'%'
-DROP USER b, c;
-SET @@global.check_proxy_users = OFF;
-SET @@global.mysql_native_password_proxy_users = OFF;
 # Anonymous user
 CREATE USER ''@'localhost';
 GRANT CREATE USER ON *.* TO ''@'localhost';

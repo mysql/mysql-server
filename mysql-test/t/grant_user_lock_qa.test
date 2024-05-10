@@ -78,19 +78,19 @@ FROM mysql.user WHERE USER='user2';
 --connect(con1, localhost, user2,'auth_string')
 connection default;
 
-CREATE USER 'user8'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user8'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+            BY 'auth_string'
             ACCOUNT UNLOCK;
 ALTER USER 'user8'@'localhost' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER 'user9'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user9'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+            BY 'auth_string'
             ACCOUNT LOCK;
-CREATE USER 'user10'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user10'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+            BY 'auth_string'
             PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER 'user10'@'localhost' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER 'user11'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'user11'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+            BY 'auth_string'
             ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 ALTER USER 'user11'@'localhost' PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 
@@ -169,8 +169,8 @@ connection default;
 SHOW CREATE USER u2@localhost;
 --echo # Recreating user using SHOW CREATE USER output for u2@localhost
 DROP USER u2@localhost;
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+            BY 'auth_string'
             REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
 # Testing connection
 --replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
@@ -250,7 +250,7 @@ ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD EXPIRE INTERVAL 90 
 query_vertical SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
 
-CREATE USER user5@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user5@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string'
                             ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
 # Testing connection
 --connect(con1, localhost, user5, 'auth_string')
@@ -259,7 +259,7 @@ connection default;
 disconnect con1;
 
 --echo
-CREATE USER user6@localhost IDENTIFIED WITH 'mysql_native_password'
+CREATE USER user6@localhost IDENTIFIED WITH 'caching_sha2_password'
                             ACCOUNT UNLOCK ACCOUNT LOCK PASSWORD EXPIRE NEVER;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,password_expired,
@@ -271,7 +271,7 @@ SHOW CREATE USER user6@localhost;
 --error ER_ACCOUNT_HAS_BEEN_LOCKED
 --connect(con1, localhost, user6)
 connection default;
-ALTER USER user6@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER user6@localhost IDENTIFIED WITH 'caching_sha2_password'
                            ACCOUNT LOCK ACCOUNT UNLOCK;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,password_expired,
@@ -288,12 +288,13 @@ connection default;
 disconnect con1;
 
 --echo
-CREATE USER user7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y'
+CREATE USER user7@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y'
             PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user7';
 --echo
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<undeterministic_password_hash>' REQUIRE/
 SHOW CREATE USER user7@localhost;
 # Testing connection
 --connect(con1, localhost, user7, 'auth_string#%y')
@@ -317,19 +318,20 @@ connection default;
 --connect(con1, localhost, user7,'auth_string_sha256',,,,SSL)
 connection default;
 
-CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
-AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
+CREATE USER user8@localhost IDENTIFIED WITH 'caching_sha2_password'
+BY 'auth_string' ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='user8';
 --echo
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<undeterministic password hash>' REQUIRE/
 SHOW CREATE USER user8@localhost;
 # Testing connection
 --connect(con1, localhost, user8,'auth_string')
 SELECT USER();
 connection default;
 disconnect con1;
-ALTER USER user8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'new_auth_string'
+ALTER USER user8@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'new_auth_string'
                            ACCOUNT UNLOCK PASSWORD EXPIRE;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,password_expired,
@@ -403,7 +405,7 @@ SHOW CREATE USER u7@localhost;
 SELECT USER();
 connection default;
 disconnect con1;
-ALTER USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u7@localhost IDENTIFIED WITH 'caching_sha2_password'
                         PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
@@ -517,7 +519,7 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 SHOW CREATE USER u11@localhost;
 # Recreating user from SHOW CREATE USER output.
 DROP USER u11@localhost;
-CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 6 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
 --replace_column 2 # 3 #
 query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
@@ -652,9 +654,9 @@ CREATE USER u18@localhost,
             u19@localhost IDENTIFIED BY 'auth_string',
             u20@localhost IDENTIFIED WITH 'sha256_password',
             u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
-            u22@localhost IDENTIFIED WITH 'mysql_native_password',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password'
-                          AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634'
+            u22@localhost IDENTIFIED WITH 'caching_sha2_password',
+            u23@localhost IDENTIFIED WITH 'caching_sha2_password'
+                          BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT LOCK;
 --replace_column 2 # 3 #
@@ -715,9 +717,9 @@ ALTER  USER u18@localhost,
             u19@localhost IDENTIFIED BY 'auth_string',
             u20@localhost IDENTIFIED WITH 'sha256_password',
             u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
-            u22@localhost IDENTIFIED WITH 'mysql_native_password',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password'
-                          AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634'
+            u22@localhost IDENTIFIED WITH 'caching_sha2_password',
+            u23@localhost IDENTIFIED WITH 'caching_sha2_password'
+                          BY 'auth_&string'
                           REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           ACCOUNT UNLOCK;

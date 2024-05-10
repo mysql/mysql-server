@@ -1,7 +1,7 @@
 
 
 ===========================================================================================================================================
-Checking the password authentication using the sha256_password plugin at the client and mysql_native_password plugin at the server side
+Checking the password authentication using the sha256_password plugin at the client and caching_sha2_password plugin at the server side
 ===========================================================================================================================================
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';

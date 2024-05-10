@@ -1,11 +1,5 @@
-CREATE USER xuser_native@'localhost'
-IDENTIFIED WITH 'mysql_native_password' BY 'native';
-CREATE USER xuser_sha256@'localhost'
-IDENTIFIED WITH 'sha256_password' BY 'sha256';
 CREATE USER xuser_cache2@'localhost'
 IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 #######################################################################
@@ -22,40 +16,6 @@ GRANT ALL ON *.* TO xuser_cache2@localhost;
 #######################################################################
 ## Fill cache with all xuser_* accounts
 #
--- Expecting success with parameters: REQUIRED	plain	xuser_native	native
---
-connecting...
-active session is now 'sess0'
-RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
-user	plugin
-xuser_native	mysql_native_password
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
--- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
---
-connecting...
-active session is now 'sess0'
-RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
-user	plugin
-xuser_sha256	sha256_password
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
 -- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
 --
 connecting...
@@ -77,46 +37,6 @@ switched to session default
 #######################################################################
 ## Check if the account entries are removed after changing the account.
 #
--- Expecting success with parameters: DISABLED	memory	xuser_native	native
---
-connecting...
-active session is now 'sess0'
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
-RUN ALTER USER xuser_native@localhost IDENTIFIED BY 'native2';
-
-0 rows affected
--- Expecting failure with parameters: DISABLED	memory	xuser_native	native
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: DISABLED	memory	xuser_native	native2
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
---
-connecting...
-active session is now 'sess0'
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
-RUN RENAME USER xuser_sha256@localhost TO xuser_sha2@localhost;
-
-0 rows affected
--- Expecting failure with parameters: DISABLED	memory	xuser_sha2	sha256
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
---
-connecting...
-Got expected error (one of: 1045 2510 )
 -- Expecting success with parameters: DISABLED	memory	xuser_cache2	cache2
 --
 connecting...
@@ -126,10 +46,30 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
-RUN DROP USER xuser_cache2@localhost;
+RUN RENAME USER xuser_cache2@localhost TO xuser_cache@localhost;
 
 0 rows affected
 -- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error (one of: 1045 2510 )
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache	cache2
+--
+connecting...
+Got expected error (one of: 1045 2510 )
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache	cache2
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+RUN DROP USER xuser_cache@localhost;
+
+0 rows affected
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache	cache2
 --
 connecting...
 Got expected error (one of: 1045 2510 )
@@ -137,12 +77,6 @@ Got expected error (one of: 1045 2510 )
 #######################################################################
 ## Go back to orginal settings
 #
-RUN ALTER USER xuser_native@localhost IDENTIFIED BY 'native'
-
-0 rows affected
-RUN RENAME USER xuser_sha2@localhost TO xuser_sha256@localhost
-
-0 rows affected
 RUN CREATE USER xuser_cache2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'cache2'
 
 0 rows affected
@@ -153,40 +87,6 @@ RUN GRANT ALL ON *.* TO xuser_cache2@localhost
 #######################################################################
 ## Fill cache again
 #
--- Expecting success with parameters: REQUIRED	plain	xuser_native	native
---
-connecting...
-active session is now 'sess0'
-RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
-user	plugin
-xuser_native	mysql_native_password
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
--- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
---
-connecting...
-active session is now 'sess0'
-RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
-user	plugin
-xuser_sha256	sha256_password
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
 -- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
 --
 connecting...
@@ -204,7 +104,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
--- Expecting success with parameters: DISABLED	memory	xuser_native	native
+-- Expecting success with parameters: DISABLED	memory	xuser_cache2	cache2
 --
 connecting...
 active session is now 'sess0'
@@ -213,18 +113,18 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
-RUN SET PASSWORD FOR 'xuser_native'@'localhost' = 'native3';
+RUN SET PASSWORD FOR 'xuser_cache2'@'localhost' = 'cache3';
 
 0 rows affected
--- Expecting failure with parameters: DISABLED	memory	xuser_native	native3
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache3
 --
 connecting...
 Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache3
 --
 connecting...
 Got expected error (one of: 1045 2510 )
--- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache3
 --
 connecting...
 active session is now 'sess0'
@@ -233,17 +133,17 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
-RUN GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost'
+RUN GRANT SELECT,LOCK TABLES ON *.* TO xuser_cache2@'localhost'
 
 0 rows affected
-RUN SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new'
+RUN SET PASSWORD FOR 'xuser_cache2'@'localhost' = 'cache4'
 
 0 rows affected
--- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache3
 --
 connecting...
 Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256_new
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache4
 --
 connecting...
 Got expected error (one of: 1045 2510 )
@@ -251,6 +151,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP USER xuser_native@'localhost';
-DROP USER xuser_sha256@'localhost';
 DROP USER xuser_cache2@'localhost';

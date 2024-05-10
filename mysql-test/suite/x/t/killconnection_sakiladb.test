@@ -2,6 +2,8 @@
 ## Data structures are borrowed from sakila-db example and reduced to smallest (as possible) state.
 ##
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 

@@ -18,11 +18,12 @@
 # Use master connection
 --connection master
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 
-CREATE USER user_localhost@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
+CREATE USER user_localhost@localhost IDENTIFIED WITH 'caching_sha2_password' BY '';
 GRANT ALL ON *.* TO user_localhost@localhost;
 
 ## Test starts here

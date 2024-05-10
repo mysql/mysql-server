@@ -26,14 +26,22 @@
 #include "mysql_com.h"  // NOLINT(build/include_subdir)
 #include "sha1.h"       // for SHA1_HASH_SIZE NOLINT(build/include_subdir)
 
-#include "password.h"
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/native_plain_verification.h"
-#include "plugin/x/src/native_verification.h"
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/sha256_plain_verification.h"
 #include "plugin/x/src/sha2_plain_verification.h"
 #include "unittest/gunit/xplugin/xpl/mock/sha256_password_cache.h"
+
+#define PVERSION41_CHAR '*'
+
+// stub function just to make it buildable
+void scramble(char *, const char *, const char *) {}
+
+void make_password_from_salt(char *to, const uint8 *hash_stage2) {
+  *to++ = PVERSION41_CHAR;
+  octet2hex(to, (const char *)hash_stage2, SHA1_HASH_SIZE);
+}
 
 namespace xpl {
 namespace test {
@@ -91,35 +99,12 @@ TEST_F(User_password_verification, native_plain_verification_fail) {
       "user", "host", WRONG_PASSWD, EXPECTED_NATIVE_HASH));
 }
 
-TEST_F(User_password_verification, native_verification_get_salt) {
-  Native_verification verificator{m_cache_mock.get()};
-  ASSERT_STRNE(EMPTY, verificator.get_salt().c_str());
-}
-
 std::string get_hash(const std::string &salt, const std::string &user_string) {
   char scrambled[SCRAMBLE_LENGTH + 1] = {0};
   char hash[2 * SHA1_HASH_SIZE + 2] = {0};
   ::scramble(scrambled, salt.c_str(), user_string.c_str());
   ::make_password_from_salt(hash, reinterpret_cast<const uint8_t *>(scrambled));
   return hash;
-}
-
-TEST_F(User_password_verification, native_verification_pass) {
-  Native_verification verificator{m_cache_mock.get()};
-  EXPECT_CALL(*m_cache_mock.get(), contains(_, _, _)).Times(0);
-  EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
-  ASSERT_TRUE(verificator.verify_authentication_string(
-      "", "", get_hash(verificator.get_salt(), GOOD_PASSWD),
-      EXPECTED_NATIVE_HASH));
-}
-
-TEST_F(User_password_verification, native_verification_fail) {
-  Native_verification verificator{m_cache_mock.get()};
-  EXPECT_CALL(*m_cache_mock.get(), contains(_, _, _)).Times(0);
-  EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
-  ASSERT_FALSE(verificator.verify_authentication_string(
-      "", "", get_hash(verificator.get_salt(), WRONG_PASSWD),
-      EXPECTED_NATIVE_HASH));
 }
 
 TEST_F(User_password_verification, sha256_plain_verification_get_salt) {

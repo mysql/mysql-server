@@ -33,18 +33,12 @@ closesession;
 
 
 -->macro Try_to_login_all_xusers_using_memory	%LOGIN_MACRO%
-callmacro %LOGIN_MACRO%	DISABLED	memory	xuser_native	native;
-callmacro %LOGIN_MACRO%	DISABLED	memory	xuser_sha256	sha256;
 callmacro %LOGIN_MACRO%	DISABLED	memory	xuser_cache2	cache2;
 
-callmacro %LOGIN_MACRO%	REQUIRED	memory	xuser_native	native;
-callmacro %LOGIN_MACRO%	REQUIRED	memory	xuser_sha256	sha256;
 callmacro %LOGIN_MACRO%	REQUIRED	memory	xuser_cache2	cache2;
 -->endmacro
 
 
 -->macro Login_all_xusers_using_plain_to_fill_the_cache
-callmacro Login_ok_and_verify	REQUIRED	plain	xuser_native	native;
-callmacro Login_ok_and_verify	REQUIRED	plain	xuser_sha256	sha256;
 callmacro Login_ok_and_verify	REQUIRED	plain	xuser_cache2	cache2;
 -->endmacro

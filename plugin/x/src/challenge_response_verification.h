@@ -41,12 +41,11 @@ class Challenge_response_verification : public iface::Account_verification {
   explicit Challenge_response_verification(iface::SHA256_password_cache *cache);
 
   const std::string &get_salt() const override;
+  static std::string generate_salt();
 
  protected:
   const std::string k_salt;
   iface::SHA256_password_cache *m_sha256_password_cache;
-
-  std::string generate_salt();
 };
 
 }  // namespace xpl

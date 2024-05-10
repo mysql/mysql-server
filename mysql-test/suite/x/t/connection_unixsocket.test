@@ -3,19 +3,20 @@
 ## Preamble
 --source include/not_windows.inc
 --source ../include/have_performance_schema_threads.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 
-CREATE USER user_127_0_0_1@127.0.0.1 IDENTIFIED WITH 'mysql_native_password' BY '';
-CREATE USER user_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
-CREATE USER user_all@'%' IDENTIFIED WITH 'mysql_native_password' BY '';
-CREATE USER user_localhost@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
-CREATE USER user_localhost_8_8_8_8@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
-CREATE USER user_localhost_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
-CREATE USER user_requires_ssl IDENTIFIED WITH 'mysql_native_password' BY '' REQUIRE SSL;
+CREATE USER user_127_0_0_1@127.0.0.1 IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER user_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER user_all@'%' IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER user_localhost@localhost IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER user_localhost_8_8_8_8@localhost IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER user_localhost_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'caching_sha2_password' BY '';
+CREATE USER user_requires_ssl IDENTIFIED WITH 'caching_sha2_password' BY '' REQUIRE SSL;
 
 GRANT ALL ON *.* TO user_127_0_0_1@127.0.0.1;
 GRANT ALL ON *.* TO user_8_8_8_8@8.8.8.8;

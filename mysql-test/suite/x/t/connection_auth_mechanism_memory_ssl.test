@@ -16,7 +16,7 @@ callmacro Login_failed	DISABLED	memory	xuser_ssl	pass;
 EOF
 
 CREATE USER xuser_ssl@localhost
-  IDENTIFIED WITH 'mysql_native_password' BY 'pass'
+  IDENTIFIED WITH 'caching_sha2_password' BY 'pass'
   REQUIRE SSL;
 
 

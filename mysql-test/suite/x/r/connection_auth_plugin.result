@@ -1,25 +1,11 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
 call mtr.add_suppression("Access denied for user .*");
-CREATE USER xuser_native@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'native';
-CREATE USER xuser_sha256@localhost
-IDENTIFIED WITH 'sha256_password' BY 'sha256';
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
-Plain connection as x_root (just check) -> success
-user	plugin
-x_root	mysql_native_password
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_active	OFF
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
+CREATE USER xuser_cache@localhost
+IDENTIFIED WITH 'caching_sha2_password' BY 'cache';
+GRANT ALL ON *.* TO xuser_cache@localhost;
 Ssl connection as x_root (just check) -> success
 user	plugin
-x_root	mysql_native_password
+x_root	caching_sha2_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	ON
@@ -28,46 +14,27 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Ssl connection by native plugin  -> success
-user	plugin
-xuser_native	mysql_native_password
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Plain connection by native plugin -> success
-user	plugin
-xuser_native	mysql_native_password
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_active	OFF
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Ssl connection by sha256 plugin  -> success
-user	plugin
-xuser_sha256	sha256_password
-0 rows affected
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Plain connection by sha256 plugin  -> fail (ssl is obligatory)
+Plain connection as x_root (just check) -> fail (password cache disabled, was not cached in previous step)
 Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
-Ssl connection by native plugin  -> fail (wrong password)
-Application terminated with expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Ssl connection by caching_sha2_password plugin  -> success
+user	plugin
+xuser_cache	caching_sha2_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Plain connection by caching_sha2_password plugin -> fail (password cache disabled, was not cached in previous step)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
+ok
+Ssl connection by caching_sha2_password plugin  -> fail (wrong password)
+Application terminated with expected error: Access denied for user 'xuser_cache'@'localhost' (using password: YES) (code 1045)
 ok
 Ssl connection by sha256 plugin  -> fail (wrong password)
 Application terminated with expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 ok
-DROP USER xuser_native@localhost, xuser_sha256@localhost;
+DROP USER xuser_cache@localhost;

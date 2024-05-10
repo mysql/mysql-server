@@ -9,7 +9,7 @@ ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
 create user 'foo'@'fakehost', 'bar'@'fakehost';
 ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
 create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
-  IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
+  IDENTIFIED WITH 'caching_sha2_password' BY 'wrong_password',
 'foo3'@'fakehost';
 include/rpl/sync_to_replica.inc
 select Host,User from mysql.user where Host='fakehost';

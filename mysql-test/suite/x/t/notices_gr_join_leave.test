@@ -199,6 +199,7 @@ EOF
 
 ## Setup X Plugin & GR
 --let $dont_reset_global_status_variables=1
+--let $dont_cache_x_root=1
 --source include/xplugin_preamble.inc
 
 --let $rpl_skip_group_replication_start= 1
@@ -226,7 +227,7 @@ while ($i < $ceiling)
 --echo ##########################################################################
 
 exec $MYSQLXTEST
-  -ux_root --ssl-mode=disabled --file=$xtest
+  -ux_root --file=$xtest
   -v %SERVER_NUMBER%=$rpl_server_count
   -v %GR_NAME%=$group_replication_group_name
   -v %ASSERT_NOTICES%=CHK_assert_notice
@@ -241,7 +242,7 @@ exec $MYSQLXTEST
 --echo ##########################################################################
 
 exec $MYSQLXTEST
-  -ux_root --ssl-mode=disabled --file=$xtest
+  -ux_root --file=$xtest
   -v %SERVER_NUMBER%=$rpl_server_count
   -v %GR_NAME%=$group_replication_group_name
   -v %ASSERT_NOTICES%=CHK_assert_notice_none_ignore_args

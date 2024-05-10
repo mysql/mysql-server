@@ -81,7 +81,7 @@ CREATE USER zaphodbeeblebrox@localhost IDENTIFIED WITH caching_sha2_password BY 
 # Clear caches
 FLUSH PRIVILEGES;
 
-CREATE USER u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'pwd';
+CREATE USER u1@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'pwd';
 
 --echo # Try to establish a connection with TLS - Should succeed
 --exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-mode=REQUIRED -uarthurdent -pabcd -e "SELECT USER(), CURRENT_USER()" 2>&1

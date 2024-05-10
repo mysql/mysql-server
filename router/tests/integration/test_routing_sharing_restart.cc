@@ -1087,7 +1087,7 @@ TEST_P(ShareConnectionTestWithRestartedServer,
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// connecting for cmd " + std::to_string(ndx));
 
-    auto account = SharedServer::native_empty_password_account();
+    auto account = SharedServer::caching_sha2_empty_password_account();
 
     cli.username(account.username);
     cli.password(account.password);

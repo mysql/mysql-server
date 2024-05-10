@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 
 ==== Test ====
-CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'caching_sha2_password';
 include/rpl/sync_to_replica.inc
 
 ==== Clean up ====

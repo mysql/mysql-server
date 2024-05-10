@@ -76,20 +76,20 @@ sha256@localhost
 # connect with wrong password and SSL disabled
 connect(localhost,sha256,auth_string,test,SOURCE_PORT,SOURCE_SOCKET);
 Got one of the listed errors
-# case4: authenticate user with mysql_native_password
-CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'native';
-# restart: --authentication-policy=*:mysql_native_password
-# connect as native_user
+# case4: authenticate user with caching_sha2_password
+CREATE USER sha2_user@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'sha2_pwd';
+# restart: --authentication-policy=*:caching_sha2_password
+# connect as sha2_user
 SELECT USER();
 USER()
-native_user@localhost
+sha2_user@localhost
 # Change to empty password
-ALTER USER native_user@localhost IDENTIFIED BY '';
-# connect as native_user with empty password
+ALTER USER sha2_user@localhost IDENTIFIED BY '';
+# connect as sha2_user with empty password
 SELECT USER();
 USER()
-native_user@localhost
-DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
+sha2_user@localhost
+DROP USER sha256@localhost, sha2_user@localhost, caching_sha2@localhost;
 DROP DATABASE testdb;
 # restart:
 ############  Test with zstd algorithm ############
@@ -170,19 +170,19 @@ sha256@localhost
 # connect with wrong password and SSL disabled
 connect(localhost,sha256,auth_string,test,SOURCE_PORT,SOURCE_SOCKET);
 Got one of the listed errors
-# case4: authenticate user with mysql_native_password
-CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'native';
-# restart: --authentication-policy=*:mysql_native_password
-# connect as native_user
+# case4: authenticate user with caching_sha2_password
+CREATE USER sha2_user@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'sha2_pwd';
+# restart: --authentication-policy=*:caching_sha2_password
+# connect as sha2_user
 SELECT USER();
 USER()
-native_user@localhost
+sha2_user@localhost
 # Change to empty password
-ALTER USER native_user@localhost IDENTIFIED BY '';
-# connect as native_user with empty password
+ALTER USER sha2_user@localhost IDENTIFIED BY '';
+# connect as sha2_user with empty password
 SELECT USER();
 USER()
-native_user@localhost
-DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
+sha2_user@localhost
+DROP USER sha256@localhost, sha2_user@localhost, caching_sha2@localhost;
 DROP DATABASE testdb;
 # restart:

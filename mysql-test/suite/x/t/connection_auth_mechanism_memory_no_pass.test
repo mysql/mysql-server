@@ -1,5 +1,6 @@
 ## Test cases for authorization plugins
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 
@@ -9,13 +10,7 @@
 
 --write_file $MYSQL_TMP_DIR/try_login_using_memory.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
-
-callmacro Login_ok	REQUIRED	plain	xuser_native	;
-callmacro Login_ok	REQUIRED	plain	xuser_sha256	;
 callmacro Login_ok	REQUIRED	plain	xuser_cache2	;
-
-callmacro Login_ok	DISABLED	memory	xuser_native	;
-callmacro Login_ok	DISABLED	memory	xuser_sha256	;
 callmacro Login_ok	DISABLED	memory	xuser_cache2	;
 EOF
 
@@ -26,13 +21,9 @@ EOF
 # Create and configure xuser_* accounts that use native, sha256 and
 # cache_sha2 authentication plugins.
 
---let $pass_native=''
---let $pass_sha256=''
 --let $pass_cache2=''
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 

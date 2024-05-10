@@ -123,7 +123,7 @@ CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u3';
-ALTER USER u3@localhost IDENTIFIED WITH 'mysql_native_password';
+ALTER USER u3@localhost IDENTIFIED WITH 'caching_sha2_password';
 # look for plugin,auth_string and password expired field
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
@@ -133,7 +133,7 @@ CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u4';
-ALTER USER u4@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u4@localhost IDENTIFIED WITH 'caching_sha2_password'
            BY 'auth_string';
 # look for plugin,auth_string field
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -167,7 +167,7 @@ CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u7';
-ALTER USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u7@localhost IDENTIFIED WITH 'caching_sha2_password'
             REQUIRE ISSUER 'issuer';
 # look for plugin,auth_string, password expired, SSL type field
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -179,7 +179,7 @@ CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u8';
-ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u8@localhost IDENTIFIED WITH 'caching_sha2_password'
             REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 # look for plugin,auth_string, password expired, SSL fields
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -445,7 +445,8 @@ CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
 --replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u8@localhost;
-ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+ALTER USER u8@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
+--replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u8@localhost;
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
@@ -574,7 +575,7 @@ ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
 --connect(con_20553132_u1, localhost, 20553132_u1, defg)
 # Must succeed
 --disable_ps_protocol
-ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
+ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
 --enable_ps_protocol
 disconnect con_20553132_u1;
 

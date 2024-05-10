@@ -24,7 +24,7 @@ SET GLOBAL mysqlx_enable_hello_notice= TRUE;
 
 newsession attempt1	-;
 callmacro Verify_its_xprotocol_connection_with_result;
-login x_root		test	mysql41;
+login x_root		test	SHA256_MEMORY;
 
 echo;
 echo #;
@@ -32,7 +32,7 @@ echo # 2. Raw connection to X Plugin with ServerHello notice off;
 SET GLOBAL mysqlx_enable_hello_notice= FALSE;
 
 newsession attempt2	-;
-login x_root		test	mysql41;
+login x_root		test	SHA256_MEMORY;
 
 echo;
 echo #;
@@ -43,7 +43,7 @@ SET GLOBAL mysqlx_enable_hello_notice= TRUE;
 newsession attempt3	-;
 callmacro Verify_its_xprotocol_connection_with_result;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
-login x_root		test	mysql41;
+login x_root		test	SHA256_MEMORY;
 
 echo;
 echo #;
@@ -53,7 +53,7 @@ SET GLOBAL mysqlx_enable_hello_notice= FALSE;
 
 newsession attempt4	-;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
-login x_root		test	mysql41;
+login x_root		test	SHA256_MEMORY;
 
 echo;
 echo #;
@@ -66,7 +66,7 @@ SET GLOBAL mysqlx_enable_hello_notice= TRUE;
 
 EOF
 
-CREATE USER 'some_user' @'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'some_user' @'localhost' IDENTIFIED WITH 'caching_sha2_password';
 
 exec $MYSQLXTEST
   -ux_root --password=''

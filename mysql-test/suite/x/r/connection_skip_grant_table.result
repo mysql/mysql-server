@@ -4,7 +4,7 @@ call mtr.add_suppression("Internal account mysqlxsys@localhost can't be removed 
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 CREATE USER nonblank@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'valid_password';
+IDENTIFIED WITH 'caching_sha2_password' BY 'valid_password';
 Test starts here
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address

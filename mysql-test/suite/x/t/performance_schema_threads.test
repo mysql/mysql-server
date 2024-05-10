@@ -8,10 +8,6 @@
 # Tests
 
 --write_file $MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl
--->import connection.macro
--->callmacro Verify_its_xprotocol_connection
--->login %ARG_USER%	%ARG_PASS%	%ARG_DB%	mysql41
-
 -->macro Verify_column_in_thread_table	%COLUMN%	%EXPECTED_VALUE%
 -->echo Verify [Current process needs to have %EXPECTED_VALUE% in %COLUMN% column]
 -->quiet
@@ -21,12 +17,12 @@
 -->assert_eq %EXPECTED_VALUE%	%VALUE%
 -->endmacro
 
--->callmacro Verify_column_in_thread_table	PROCESSLIST_USER	%ARG_USER%
--->callmacro Verify_column_in_thread_table	PROCESSLIST_HOST	%ARG_HOST%
--->callmacro Verify_column_in_thread_table	PROCESSLIST_DB	%ARG_DB%
--->callmacro Verify_column_in_thread_table	PROCESSLIST_DB	%ARG_DB%
--->callmacro Verify_column_in_thread_table	CONNECTION_TYPE	TCP/IP
--->callmacro Verify_column_in_thread_table	CONNECTION_TYPE	TCP/IP
+-->callmacro Verify_column_in_thread_table	PROCESSLIST_USER	%OPTION_CLIENT_USER%
+-->callmacro Verify_column_in_thread_table	PROCESSLIST_HOST	%OPTION_CLIENT_HOST%
+-->callmacro Verify_column_in_thread_table	PROCESSLIST_DB	%OPTION_CLIENT_SCHEMA%
+-->callmacro Verify_column_in_thread_table	PROCESSLIST_DB	%OPTION_CLIENT_SCHEMA%
+-->callmacro Verify_column_in_thread_table	CONNECTION_TYPE	%EXPECTED_CONN%
+-->callmacro Verify_column_in_thread_table	CONNECTION_TYPE	%EXPECTED_CONN%
 -->callmacro Verify_column_in_thread_table	PROCESSLIST_COMMAND	Query
 
 EOF
@@ -39,16 +35,24 @@ GRANT SELECT ON *.* TO 'user_on_127_0_0_1'@127.0.0.1;
 
 --source ../include/performance_schema_assert_empty_worker_threads.inc
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl --no-auth
-                 -v%ARG_USER%=x_root -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=performance_schema
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl
+                 -ux_root --password= --host=localhost --schema=performance_schema
+                 -v%EXPECTED_CONN%=SSL/TLS
                  2>&1;
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl --no-auth
-                 -v%ARG_USER%=user_on_127_0_0_1 -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=mysql
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl
+                 -uuser_on_127_0_0_1 --password= --host=localhost --schema=mysql
+                 -v%EXPECTED_CONN%=SSL/TLS
                  2>&1;
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl --no-auth
-                 -v%ARG_USER%=user_on_localhost -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=sys
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl
+                 -uuser_on_localhost --password= --host=localhost --schema=sys
+                 -v%EXPECTED_CONN%=SSL/TLS
+                 2>&1;
+
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl
+                 -uuser_on_localhost --password= --host=localhost --schema=sys
+                 --ssl-mode=DISABLED -v%EXPECTED_CONN%=TCP/IP
                  2>&1;
 
 --source ../include/performance_schema_assert_empty_worker_threads.inc

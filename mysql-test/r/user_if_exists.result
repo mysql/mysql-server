@@ -170,55 +170,58 @@ FLUSH PRIVILEGES;
 
 
 CREATE USER user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 CREATE USER IF NOT EXISTS user2@localhost
-IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-SELECT User,plugin,authentication_string,ssl_type,
+IDENTIFIED WITH 'caching_sha2_password'
+            BY 'not_valid_password';
+SELECT User,plugin,LENGTH(authentication_string),ssl_type,
 password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
 User	user2
-plugin	mysql_native_password
-authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+plugin	caching_sha2_password
+LENGTH(authentication_string)	70
 ssl_type	
 password_expired	N
 password_lifetime	NULL
+expected of LENGTH(authentication_string) = 70
 CREATE USER IF NOT EXISTS user2@localhost
 IDENTIFIED WITH 'sha256_password';
 Warnings:
 Note	3163	Authorization ID 'user2'@'localhost' already exists.
-SELECT User,plugin,authentication_string,ssl_type,
+SELECT User,plugin,LENGTH(authentication_string),ssl_type,
 password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
 User	user2
-plugin	mysql_native_password
-authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+plugin	caching_sha2_password
+LENGTH(authentication_string)	70
 ssl_type	
 password_expired	N
 password_lifetime	NULL
+expected of LENGTH(authentication_string) = 70
 ALTER USER IF EXISTS user2@localhost
-IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-SELECT User,plugin,authentication_string,ssl_type,
+IDENTIFIED WITH 'caching_sha2_password'
+            BY 'not_valid_password_too';
+SELECT User,plugin,LENGTH(authentication_string),ssl_type,
 password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
 User	user2
-plugin	mysql_native_password
-authentication_string	*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF
+plugin	caching_sha2_password
+LENGTH(authentication_string)	70
 ssl_type	
 password_expired	N
 password_lifetime	NULL
+expected of LENGTH(authentication_string) = 70
 CREATE USER IF NOT EXISTS user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 Warnings:
 Note	3163	Authorization ID 'user1'@'localhost' already exists.
 CREATE USER IF NOT EXISTS ne_user1@localhost,user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 Warnings:
 Note	3163	Authorization ID 'user1'@'localhost' already exists.
 ALTER USER IF EXISTS ne_user2@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 Warnings:
 Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
 ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 Warnings:
 Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
 DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,
@@ -230,24 +233,24 @@ Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
 # Restarting the server with --log-row ON
 # Restart server.
 CREATE USER user1@localhost
-IDENTIFIED WITH 'mysql_native_password';
+IDENTIFIED WITH 'caching_sha2_password';
 CREATE USER IF NOT EXISTS user2@localhost
-IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'caching_sha2_password'
+            BY 'not_valid_password';
 CREATE USER IF NOT EXISTS user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 Warnings:
 Note	3163	Authorization ID 'user1'@'localhost' already exists.
 CREATE USER IF NOT EXISTS ne_user1@localhost,user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 Warnings:
 Note	3163	Authorization ID 'user1'@'localhost' already exists.
 ALTER USER IF EXISTS ne_user2@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 Warnings:
 Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
 ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 Warnings:
 Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
 DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,

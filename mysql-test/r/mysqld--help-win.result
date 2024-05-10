@@ -715,17 +715,6 @@ The following options may be given as the first argument:
  NULLS_UNEQUAL (default behavior for 4.1 and later),
  NULLS_EQUAL (emulate 4.0 behavior), and NULLS_IGNORED
  --myisam-use-mmap   Use memory mapping for reading and writing MyISAM tables
- --mysql-native-password[=name] 
- Enable or disable mysql_native_password plugin. Possible
- values are ON, OFF, FORCE (don't start if the plugin
- fails to load).
- --mysql-native-password-proxy-users 
- If set to FALSE (the default), then the
- mysql_native_password plugin will not signal for
- authenticated users to be checked for mapping to proxy
- users.  When set to TRUE, the plugin will flag associated
- authenticated accounts to be mapped to proxy users when
- the server option check_proxy_users is enabled.
  --named-pipe        Enable the named pipe (NT)
  --named-pipe-full-access-group=name 
  Name of Windows group granted full access to the named
@@ -1802,8 +1791,6 @@ myisam-recover-options OFF
 myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
-mysql-native-password OFF
-mysql-native-password-proxy-users FALSE
 named-pipe FALSE
 named-pipe-full-access-group 
 net-buffer-length 16384

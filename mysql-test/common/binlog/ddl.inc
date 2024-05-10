@@ -30,7 +30,11 @@
 
 --let $binlog_file=
 
---let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'mysql_native_password'
+#--let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password'
+#--let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'sha256_password'
+#--let $ddl_query=CREATE USER user1;
+#--let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'cleartext_plugin_server'
+--let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password'
 --let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'
   --source common/binlog/crash_safe_ddl.inc
@@ -48,17 +52,29 @@
   --source common/binlog/crash_safe_ddl.inc
 
 --let $id_string='123456'
---let $old_auth_str=`SELECT authentication_string FROM mysql.user WHERE user LIKE 'user1'`
+--let $old_auth_str=`SELECT HEX(authentication_string) FROM mysql.user WHERE user LIKE 'user1'`
 --let $ddl_query=ALTER USER user1 IDENTIFIED BY $id_string
---let $pre_binlog_crash_check=SELECT authentication_string = '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
---let $post_binlog_crash_check=SELECT authentication_string != '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
+    # [KH] replace test
+    #--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+    --replace_regex / = '(.*)' FROM/ = '<non-deterministic-password-hash>' FROM/
+--let $pre_binlog_crash_check=SELECT HEX(authentication_string) = '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
+    # [KH] replace test
+    #--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+    --replace_regex / = '(.*)' FROM/ = '<non-deterministic-password-hash>' FROM/
+--let $post_binlog_crash_check=SELECT HEX(authentication_string) != '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
   --source common/binlog/crash_safe_ddl.inc
 
 --let $id_string='abcdef'
---let $old_auth_str=`SELECT authentication_string FROM mysql.user WHERE user LIKE 'user1'`
+--let $old_auth_str=`SELECT HEX(authentication_string) FROM mysql.user WHERE user LIKE 'user1'`
 --let $ddl_query=SET PASSWORD FOR user1=$id_string
---let $pre_binlog_crash_check=SELECT authentication_string = '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
---let $post_binlog_crash_check=SELECT authentication_string != '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
+    # [KH] replace test
+    #--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+    --replace_regex / = '(.*)' FROM/ = '<non-deterministic-password-hash>' FROM/
+--let $pre_binlog_crash_check=SELECT HEX(authentication_string) = '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
+    # [KH] replace test
+    #--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+    --replace_regex / = '(.*)' FROM/ = '<non-deterministic-password-hash>' FROM/
+--let $post_binlog_crash_check=SELECT HEX(authentication_string) != '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
   --source common/binlog/crash_safe_ddl.inc
 
 --let $ddl_query=RENAME USER user1 TO user2

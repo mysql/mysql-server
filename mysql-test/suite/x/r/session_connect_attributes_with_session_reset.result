@@ -1,5 +1,5 @@
-CREATE USER xtest_client@localhost;
-GRANT ALL ON *.* TO xtest_client@localhost;
+CREATE USER xtest_client@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY "";
+GRANT ALL ON *.* TO xtest_client@'localhost';
 
 
 ## I. Check the session_connect_attrs capability with Session.Reset with keep_open=false.

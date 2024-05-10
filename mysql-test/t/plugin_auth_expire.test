@@ -12,7 +12,7 @@ ALTER USER b22551523@localhost IDENTIFIED with 'test_plugin_server';
 --echo # Must still be N
 SELECT password_expired from mysql.user where user='b22551523' and host = 'localhost';
 
-ALTER USER b22551523@localhost IDENTIFIED with 'mysql_native_password';
+ALTER USER b22551523@localhost IDENTIFIED with 'caching_sha2_password';
 --echo # Must be Y
 SELECT password_expired from mysql.user where user='b22551523' and host = 'localhost';
 

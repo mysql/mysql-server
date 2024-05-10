@@ -1,11 +1,11 @@
 
 
 ======================================================================================
-Checking the user access with SSL through user created with mysql_native_password plugin
+Checking the user access with SSL through user created with caching_sha2_password plugin
 ======================================================================================
 
 Creating a user with the mysql_native_plugin
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 **** connecting client using the ssl credentials
@@ -66,11 +66,11 @@ Starting the server with the default authentication sha256_password
 
 
 ======================================================================================
-Checking the user access with SSL through user created with mysql_native_password plugin
+Checking the user access with SSL through user created with caching_sha2_password plugin
 ======================================================================================
 
 Creating a user with the mysql_old_plugin
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 **** connecting client using the ssl credentials

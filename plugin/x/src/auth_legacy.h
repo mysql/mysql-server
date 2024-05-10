@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,25 +23,43 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_SRC_NATIVE_VERIFICATION_H_
-#define PLUGIN_X_SRC_NATIVE_VERIFICATION_H_
+#ifndef PLUGIN_X_SRC_AUTH_LEGACY_H_
+#define PLUGIN_X_SRC_AUTH_LEGACY_H_
 
+#include <memory>
 #include <string>
 
-#include "plugin/x/src/challenge_response_verification.h"
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 
 namespace xpl {
 
-class Native_verification : public Challenge_response_verification {
+class Sasl_legacy_auth : public iface::Authentication {
  public:
-  explicit Native_verification(iface::SHA256_password_cache *cache)
-      : Challenge_response_verification(cache) {}
-  bool verify_authentication_string(
+  explicit Sasl_legacy_auth() {}
+
+  static std::unique_ptr<iface::Authentication> create(
+      iface::Session *session,
+      iface::SHA256_password_cache *sha256_password_cache);
+
+  Response handle_start(const std::string &mechanism, const std::string &data,
+                        const std::string &initial_response) override;
+
+  Response handle_continue(const std::string &data) override;
+
+  ngs::Error_code authenticate_account(
       const std::string &user, const std::string &host,
-      const std::string &client_string,
-      const std::string &db_string) const override;
+      const std::string &passwd) const override;
+
+  iface::Authentication_info get_authentication_info() const override {
+    return m_auth_info;
+  }
+
+ private:
+  iface::Authentication_info m_auth_info;
 };
 
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_NATIVE_VERIFICATION_H_
+#endif  // PLUGIN_X_SRC_AUTH_LEGACY_H_

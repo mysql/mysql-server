@@ -304,6 +304,22 @@ class ProtocolBase {
 
   std::string username() const { return username_; }
 
+  void server_auth_method_name(const std::string &auth_method_name) {
+    server_auth_method_name_ = auth_method_name;
+  }
+
+  std::string server_auth_method_name() const {
+    return server_auth_method_name_;
+  }
+
+  void server_auth_method_data(const std::string &auth_method_data) {
+    server_auth_method_data_ = auth_method_data;
+  }
+
+  std::string server_auth_method_data() const {
+    return server_auth_method_data_;
+  }
+
   void auth_method_name(const std::string &auth_method_name) {
     auth_method_name_ = auth_method_name;
   }
@@ -355,6 +371,10 @@ class ProtocolBase {
   net::steady_timer exec_timer_{io_context()};
 
   std::string username_{};
+
+  std::string server_auth_method_name_{};
+  std::string server_auth_method_data_{};
+
   std::string auth_method_name_{};
   std::string auth_method_data_{};
 

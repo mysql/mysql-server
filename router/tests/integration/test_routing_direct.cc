@@ -807,124 +807,6 @@ TEST_P(ConnectionTest, classic_protocol_list_dbs) {
   ASSERT_NO_ERROR(cli.list_dbs());
 }
 
-TEST_P(ConnectionTest, classic_protocol_change_user_native_empty) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto account = SharedServer::native_empty_password_account();
-
-  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-}
-
-TEST_P(ConnectionTest, classic_protocol_change_user_native) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto account = SharedServer::native_password_account();
-
-  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-}
-
-#if !defined(_WIN32)
-TEST_P(ConnectionTest, classic_protocol_native_over_socket) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  auto account = SharedServer::native_password_account();
-  cli.username(account.username);
-  cli.password(account.password);
-
-  if (GetParam().client_ssl_mode == kRequired) {
-    cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
-  }
-
-  auto connect_res = cli.connect(MysqlClient::unix_socket_t{},
-                                 shared_router()->socket_path(GetParam()));
-  ASSERT_NO_ERROR(connect_res);
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-
-  {
-    auto cmd_res = query_one_result(cli,
-                                    "SELECT VARIABLE_VALUE "
-                                    " FROM performance_schema.session_status "
-                                    "WHERE variable_name LIKE 'Ssl_cipher'");
-    ASSERT_NO_ERROR(cmd_res);
-
-    if (GetParam().server_ssl_mode == kPreferred ||
-        GetParam().server_ssl_mode == kRequired ||
-        (GetParam().server_ssl_mode == kAsClient &&
-         (GetParam().client_ssl_mode == kPreferred ||
-          GetParam().client_ssl_mode == kRequired))) {
-      // some cipher is set
-      EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(Not(IsEmpty()))));
-    } else {
-      // no cipher is set
-      EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(IsEmpty())));
-    }
-  }
-}
-
-TEST_P(ConnectionTest, classic_protocol_change_user_native_over_socket) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  if (GetParam().client_ssl_mode == kRequired) {
-    cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
-  }
-
-  auto connect_res = cli.connect(MysqlClient::unix_socket_t{},
-                                 shared_router()->socket_path(GetParam()));
-  ASSERT_NO_ERROR(connect_res);
-
-  auto account = SharedServer::native_password_account();
-  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
-
-  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-  ASSERT_NO_ERROR(cmd_res);
-
-  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
-                                                "<NULL>")));
-}
-#endif
-
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
   for (auto &srv : shared_servers()) {
     srv->flush_privileges();  // reset the auth-cache
@@ -1219,7 +1101,7 @@ TEST_P(ConnectionTest, classic_protocol_debug_fails) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
   cli.username(account.username);
   cli.password(account.password);
 
@@ -3347,7 +3229,7 @@ TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
   {
     SCOPED_TRACE("// connecting to server");
 
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_empty_password_account();
 
     MysqlClient cli;  // keep it open
     {
@@ -3449,7 +3331,7 @@ TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {
 TEST_P(ConnectionTest, classic_protocol_charset_after_connect) {
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -3482,7 +3364,7 @@ TEST_P(ConnectionTest, classic_protocol_router_trace_set_fails) {
 
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -3512,7 +3394,7 @@ TEST_P(ConnectionTest, classic_protocol_query_attribute_router_trace_ignored) {
 
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -3708,7 +3590,7 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
 
   using clock_type = std::chrono::steady_clock;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   auto admin_account = SharedServer::admin_account();
 
@@ -3809,7 +3691,7 @@ TEST_P(ConnectionTestSlow, classic_protocol_execute_slow_query_abort_client) {
 
   using clock_type = std::chrono::steady_clock;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   auto admin_account = SharedServer::admin_account();
 
@@ -3904,7 +3786,6 @@ INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTestSlow,
 
 static constexpr const char *default_auth_params[] = {
     "default",
-    "mysql_native_password",
     "caching_sha2_password",
     "sha256_password",
 };
@@ -3917,28 +3798,6 @@ struct ConnectTestParam {
 };
 
 static ConnectTestParam connect_test_params[] = {
-    // mysql_native_password
-    //
-    {"native_password_account_with_empty_password",
-     SharedServer::native_empty_password_account(), [](auto) { return 0; }},
-    {"native_password_account_with_empty_password_auth_with_wrong_password",
-     SharedServer::Account{
-         SharedServer::native_empty_password_account().username,
-         "wrong-password",
-         SharedServer::caching_sha2_empty_password_account().auth_method},
-     [](auto) { return 1045; }},
-    {"native_password_account_with_password",
-     SharedServer::native_password_account(), [](auto) { return 0; }},
-    {"native_password_account_with_password_auth_with_wrong_password",
-     SharedServer::Account{SharedServer::native_password_account().username,
-                           "wrong-password",
-                           SharedServer::native_password_account().auth_method},
-     [](auto) { return 1045; }},  // "Access denied for user ..."
-    {"native_password_account_with_password_auth_with_empty_password",
-     SharedServer::Account{SharedServer::native_password_account().username, "",
-                           SharedServer::native_password_account().auth_method},
-     [](auto) { return 1045; }},  // "Access denied for user ..."
-
     // caching_sha2_password
     //
     {"caching_sha2_password_account_with_empty_password",

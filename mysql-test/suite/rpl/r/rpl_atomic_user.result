@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression('Following users were specified in CREATE USER');
 # CREATE USER statement test where user does not exist
 CREATE USER u1 IDENTIFIED WITH 'sha256_password' BY 'pwd1', u2 IDENTIFIED WITH
-'mysql_native_password' BY 'pwd2', u3, u4, u5, u6 REQUIRE SSL;
+'caching_sha2_password' BY 'pwd2', u3, u4, u5, u6 REQUIRE SSL;
 # CREATE USER statement test where few user exist and few does not
 CREATE USER u_ne1, u1 IDENTIFIED WITH 'sha256_password' BY 'auth_string',
 u_ne2 IDENTIFIED WITH 'sha256_password' REQUIRE SSL;
@@ -16,10 +16,10 @@ u_ne2 IDENTIFIED WITH 'invalid_plugin' REQUIRE SSL;
 ERROR HY000: Plugin 'invalid_plugin' is not loaded
 CREATE ROLE r1, r2;
 # ALTER USER statement test
-ALTER USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'pwd1', u2 IDENTIFIED
+ALTER USER u1 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd1', u2 IDENTIFIED
 WITH 'sha256_password' BY 'pwd2' WITH MAX_USER_CONNECTIONS 11 ;
-ALTER USER u3 IDENTIFIED WITH 'mysql_native_password' BY 'pwd3', u4 IDENTIFIED
-WITH 'mysql_native_password' BY 'pwd4' WITH MAX_USER_CONNECTIONS 12;
+ALTER USER u3 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd3', u4 IDENTIFIED
+WITH 'caching_sha2_password' BY 'pwd4' WITH MAX_USER_CONNECTIONS 12;
 # RENAME USER statement test
 RENAME USER u3 TO u33, u5 TO u55, u4 TO u44;
 RENAME USER u3 TO u33, u4 TO u44;

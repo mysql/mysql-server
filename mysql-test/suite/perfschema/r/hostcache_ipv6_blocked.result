@@ -26,7 +26,7 @@ select @@global.max_connect_errors into @saved_max_connect_errors;
 set global max_connect_errors = 3;
 create user 'root'@'santa.claus.ipv6.example.com';
 grant select on test.* to 'root'@'santa.claus.ipv6.example.com';
-create user 'quota'@'santa.claus.ipv6.example.com' identified with 'mysql_native_password';
+create user 'quota'@'santa.claus.ipv6.example.com' identified with 'caching_sha2_password';
 grant select on test.* to 'quota'@'santa.claus.ipv6.example.com';
 select "Con1 is alive";
 Con1 is alive
@@ -34,7 +34,7 @@ Con1 is alive
 select current_user();
 current_user()
 root@localhost
-set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6,native_password_bad_reply";
+set global debug= "+d,vio_peer_addr_fake_ipv6,getnameinfo_fake_ipv6,getaddrinfo_fake_good_ipv6,sha2_password_bad_reply";
 ERROR 08S01: Bad handshake
 "Dumping performance_schema.host_cache"
 IP	2001:db8::6:6
@@ -239,10 +239,10 @@ COUNT_LOCAL_ERRORS	0
 COUNT_UNKNOWN_ERRORS	0
 FIRST_ERROR_SEEN	set
 LAST_ERROR_SEEN	set
-set global debug= "-d,native_password_bad_reply";
+set global debug= "-d,sha2_password_bad_reply";
 message
 Valid connection should reset SUM_CONNECT_ERROR counter
-set global debug= "+d,native_password_bad_reply";
+set global debug= "+d,sha2_password_bad_reply";
 "Dumping performance_schema.host_cache"
 IP	2001:db8::6:6
 HOST	santa.claus.ipv6.example.com

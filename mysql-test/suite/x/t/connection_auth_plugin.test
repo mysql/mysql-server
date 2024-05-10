@@ -1,5 +1,6 @@
 ## Test cases for authorization plugins
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -17,41 +18,35 @@ SHOW STATUS LIKE 'Mysqlx_ssl_active';
 -->endsql
 EOF
 
-CREATE USER xuser_native@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'native';
-CREATE USER xuser_sha256@localhost
-            IDENTIFIED WITH 'sha256_password' BY 'sha256';
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
+CREATE USER xuser_cache@localhost
+            IDENTIFIED WITH 'caching_sha2_password' BY 'cache';
+
+GRANT ALL ON *.* TO xuser_cache@localhost;
 
 --let $XBASIC= --file=$xtest_file 2>&1
 --let $XSSLPARAM= --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' $XBASIC
 
---echo Plain connection as x_root (just check) -> success
---exec $MYSQLXTEST -ux_root                  $XBASIC
-
 --echo Ssl connection as x_root (just check) -> success
 --exec $MYSQLXTEST -ux_root                  $XSSLPARAM
 
---echo Ssl connection by native plugin  -> success
---exec $MYSQLXTEST -uxuser_native -pnative $XSSLPARAM
+# CR_X_AUTH_PLUGIN_ERROR == 2510
+--echo Plain connection as x_root (just check) -> fail (password cache disabled, was not cached in previous step)
+--exec $MYSQLXTEST -ux_root   --expect-error 2510 $XBASIC
 
---echo Plain connection by native plugin -> success
---exec $MYSQLXTEST -uxuser_native -pnative $XBASIC
+--echo Ssl connection by caching_sha2_password plugin  -> success
+--exec $MYSQLXTEST -uxuser_cache -pcache $XSSLPARAM
 
---echo Ssl connection by sha256 plugin  -> success
---exec $MYSQLXTEST -uxuser_sha256 -psha256 $XSSLPARAM
+# CR_X_AUTH_PLUGIN_ERROR == 2510
+--echo Plain connection by caching_sha2_password plugin -> fail (password cache disabled, was not cached in previous step)
+--exec $MYSQLXTEST -uxuser_cache -pcache --expect-error 2510 $XBASIC
 
---echo Plain connection by sha256 plugin  -> fail (ssl is obligatory)
---exec $MYSQLXTEST --expect-error 2510 -uxuser_sha256 -psha256 $XBASIC
-
---echo Ssl connection by native plugin  -> fail (wrong password)
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_native -psha256 $XSSLPARAM
+--echo Ssl connection by caching_sha2_password plugin  -> fail (wrong password)
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_cache -psha256 $XSSLPARAM
 
 --echo Ssl connection by sha256 plugin  -> fail (wrong password)
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_sha256 -pnative $XSSLPARAM
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_sha256 -pcache $XSSLPARAM
 
 ## Cleanup
-DROP USER xuser_native@localhost, xuser_sha256@localhost;
+DROP USER xuser_cache@localhost;
 --source ../include/xplugin_cleanup.inc
 

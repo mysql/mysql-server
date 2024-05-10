@@ -943,10 +943,10 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
   std::array<MysqlClient, 4> clis;
 
   std::array<SharedServer::Account, clis.size()> accounts{
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account()};
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account()};
 
   const bool can_share = GetParam().can_share();
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
@@ -1073,13 +1073,13 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
   std::array<MysqlClient, 7> clis;
 
   std::array<SharedServer::Account, clis.size()> accounts{
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account()};
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account()};
 
   std::array<std::pair<uint16_t, uint64_t>, clis.size()> cli_ids{};
 
@@ -1157,13 +1157,13 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
   std::array<MysqlClient, 7> clis;
 
   std::array<SharedServer::Account, clis.size()> accounts{
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_empty_password_account()};
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_empty_password_account()};
 
   std::array<std::pair<uint16_t, uint64_t>, clis.size()> cli_ids{};
 
@@ -1266,8 +1266,8 @@ TEST_P(ShareConnectionTest,
   std::array<MysqlClient, 4> clis;
 
   std::array<SharedServer::Account, clis.size()> accounts{
-      SharedServer::native_empty_password_account(),
-      SharedServer::native_password_account(),
+      SharedServer::caching_sha2_empty_password_account(),
+      SharedServer::caching_sha2_password_account(),
       SharedServer::caching_sha2_password_account(),
       SharedServer::caching_sha2_empty_password_account()};
 
@@ -1398,7 +1398,7 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_purged) {
   // 4 connections are needed as router does round-robin over 3 endpoints
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   const bool can_share = GetParam().can_share();
 
@@ -1449,7 +1449,7 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_pooled) {
   // 4 connections are needed as router does round-robin over 3 endpoints
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   const bool can_share = GetParam().can_share();
 
@@ -1583,7 +1583,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
   const bool can_share = GetParam().can_share();
 
   {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli1.set_option(MysqlClient::GetServerPublicKey(true));
     cli1.username(account.username);
@@ -3230,7 +3230,7 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_via_query) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -3616,7 +3616,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
 
       MysqlClient cli;
 
-      auto account = SharedServer::native_password_account();
+      auto account = SharedServer::caching_sha2_empty_password_account();
 
       cli.username(account.username);
       cli.password(account.password);
@@ -5314,7 +5314,7 @@ TEST_P(ShareConnectionTest, classic_protocol_register_replica_fail) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
   cli.username(account.username);
   cli.password(account.password);
 
@@ -5382,7 +5382,7 @@ TEST_P(ShareConnectionTest, classic_protocol_register_replica_no_connection) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
   cli.username(account.username);
   cli.password(account.password);
 
@@ -5448,7 +5448,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_no_connection) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
   cli.username(account.username);
   cli.password(account.password);
 
@@ -5948,68 +5948,6 @@ TEST_P(ShareConnectionTest,
     EXPECT_THAT(cmd_res.error().message(),
                 ::testing::StartsWith("Lost connection to MySQL server"))
         << cmd_res.error();
-  }
-}
-
-//
-// mysql_native_password
-//
-
-TEST_P(ShareConnectionTest, classic_protocol_native_user_no_pass) {
-  auto account = SharedServer::native_empty_password_account();
-
-  MysqlClient cli;
-
-  cli.username(account.username);
-  cli.password(account.password);
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_native_user_with_pass) {
-  auto account = SharedServer::native_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-empty-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(empty_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
   }
 }
 
@@ -6764,7 +6702,7 @@ TEST_P(ShareConnectionTest, classic_protocol_unknown_command) {
 TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -6842,111 +6780,8 @@ TEST_P(ShareConnectionTest, php_caching_sha2_password_pass) {
   proc.wait_for_exit();
 }
 
-TEST_P(ShareConnectionTest, php_native_empty_pass) {
-  auto account = SharedServer::native_empty_password_account();
-
-  auto php = find_executable_path("php");
-  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
-
-  auto &proc =
-      spawner(php)
-          .wait_for_sync_point(Spawner::SyncPoint::NONE)
-          .spawn({
-              "-f",
-              get_data_dir().join("routing_sharing_php_query.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
-              account.username,
-              account.password,
-              std::to_string(GetParam().client_ssl_mode == kRequired),
-              std::to_string(GetParam().can_share()),
-          });
-
-  proc.wait_for_exit();
-}
-
-TEST_P(ShareConnectionTest, php_native_pass) {
-  auto account = SharedServer::native_password_account();
-
-  auto php = find_executable_path("php");
-  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
-
-  auto &proc =
-      spawner(php)
-          .wait_for_sync_point(Spawner::SyncPoint::NONE)
-          .spawn({
-              "-f",
-              get_data_dir().join("routing_sharing_php_query.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
-              account.username,
-              account.password,
-              std::to_string(GetParam().client_ssl_mode == kRequired),
-              std::to_string(GetParam().can_share()),
-          });
-
-  proc.wait_for_exit();
-}
-
-TEST_P(ShareConnectionTest, php_sha256_empty_pass) {
-  auto account = SharedServer::sha256_empty_password_account();
-
-  auto php = find_executable_path("php");
-  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
-
-  auto &proc =
-      spawner(php)
-          .wait_for_sync_point(Spawner::SyncPoint::NONE)
-          .spawn({
-              "-f",
-              get_data_dir().join("routing_sharing_php_query.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
-              account.username,
-              account.password,
-              std::to_string(GetParam().client_ssl_mode == kRequired),
-              std::to_string(GetParam().can_share()),
-          });
-
-  proc.wait_for_exit();
-}
-
-TEST_P(ShareConnectionTest, php_sha256_pass) {
-  // - https://github.com/php/php-src/issues/11438 requires
-  // "sha256_short_password_account()"
-  auto account = SharedServer::sha256_short_password_account();
-
-  // - https://github.com/php/php-src/issues/11440 makes PASSTHROUGH fail.
-  if ((GetParam().client_ssl_mode == kDisabled &&
-       (GetParam().server_ssl_mode == kRequired ||
-        GetParam().server_ssl_mode == kPreferred)) ||
-      GetParam().client_ssl_mode == kPassthrough) {
-    // skip it as it is expected to fail to auth.
-    return;
-  }
-
-  auto php = find_executable_path("php");
-  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
-
-  auto &proc =
-      spawner(php)
-          .wait_for_sync_point(Spawner::SyncPoint::NONE)
-          .spawn({
-              "-f",
-              get_data_dir().join("routing_sharing_php_query.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
-              account.username,
-              account.password,
-              std::to_string(GetParam().client_ssl_mode == kRequired),
-              std::to_string(GetParam().can_share()),
-          });
-
-  proc.wait_for_exit();
-}
-
 TEST_P(ShareConnectionTest, php_prepared_statement) {
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   auto php = find_executable_path("php");
   if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
@@ -7059,15 +6894,6 @@ struct ChangeUserParam {
 };
 
 static const ChangeUserParam change_user_params[] = {
-    {"native_empty_password", SharedServer::native_empty_password_account(),
-     [](bool, auto connect_param) {
-       return connect_param.client_ssl_mode != kDisabled;
-     }},
-    {"native_password", SharedServer::native_password_account(),
-
-     [](bool with_ssl, auto connect_param) {
-       return with_ssl && connect_param.client_ssl_mode != kDisabled;
-     }},
     {"caching_sha2_empty_password",
      SharedServer::caching_sha2_empty_password_account(),
      [](bool, auto) { return true; }},
@@ -7090,8 +6916,7 @@ static const ChangeUserParam change_user_params[] = {
  *
  * - client's --ssl-mode=DISABLED|PREFERRED
  * - router's client_ssl_mode,server_ssl_mode
- * - authentication-methods mysql_native_password, caching-sha2-password and
- *   sha256_password
+ * - authentication-methods caching-sha2-password and sha256_password
  * - with and without a schema.
  *
  * reuses the connection to the router if all ssl-mode's stay the same.

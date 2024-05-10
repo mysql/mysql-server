@@ -35,13 +35,13 @@ CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
 CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
 CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
 
-CREATE USER test_user1 IDENTIFIED WITH mysql_native_password BY 'azundris1';
+CREATE USER test_user1 IDENTIFIED WITH caching_sha2_password BY 'azundris1';
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
       test.t1 TO test_user1;
 GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
 GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
 
-CREATE USER test_user3@localhost IDENTIFIED WITH mysql_native_password BY 'meow' REQUIRE SSL;
+CREATE USER test_user3@localhost IDENTIFIED WITH caching_sha2_password BY 'meow' REQUIRE SSL;
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost;
 ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
       REQUIRE X509 WITH
@@ -56,7 +56,7 @@ DROP FUNCTION  func_rewrite_1;
 DROP TABLE     t1;
 
 # 1.1.1.2
-CREATE USER test_user2 IDENTIFIED WITH mysql_native_password BY 'azundris2';
+CREATE USER test_user2 IDENTIFIED WITH caching_sha2_password BY 'azundris2';
 
 # 1.1.1.3
 --disable_warnings
@@ -64,18 +64,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3';
 --enable_warnings
 
 # 1.1.1.4
-CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH mysql_native_password;
+CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH caching_sha2_password;
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
-# 1.1.1.5
-CREATE USER test_user5 IDENTIFIED WITH mysql_native_password AS
-'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user6 IDENTIFIED BY 'test';
-ALTER USER IF EXISTS test_user5 IDENTIFIED BY 'test',
- test_user6 IDENTIFIED WITH mysql_native_password AS
- '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user7 IDENTIFIED BY 'test';
-CREATE USER IF NOT EXISTS test_user6 IDENTIFIED BY 'test',
- test_user7 IDENTIFIED BY 'test';
-ALTER USER test_user7 IDENTIFIED WITH mysql_native_password AS
- '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 # 1.1.1.6 : Literal <secret> must be printed in the log for empty password
 CREATE USER test_user8 IDENTIFIED BY '';
 ALTER USER test_user8 IDENTIFIED BY '';
@@ -100,7 +90,6 @@ DROP USER u1, u2;
 DROP USER 'test_user4'@'localhost';
 DROP USER 'test_user3'@'localhost';
 DROP USER test_user9, test_user8;
-DROP USER test_user7, test_user6,  test_user5;
 DROP USER test_user2;
 DROP USER test_user1;
 

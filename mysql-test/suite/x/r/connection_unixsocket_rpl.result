@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
-CREATE USER user_localhost@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
+CREATE USER user_localhost@localhost IDENTIFIED WITH 'caching_sha2_password' BY '';
 GRANT ALL ON *.* TO user_localhost@localhost;
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 CONNECTION_TYPE

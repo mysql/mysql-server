@@ -2,6 +2,7 @@
 ##
 --source include/not_windows.inc
 --source ../include/have_performance_schema_threads.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 

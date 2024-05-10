@@ -1,8 +1,8 @@
 SELECT password_last_changed into @passwordchanged from mysql.user where host='localhost' and user='x_root';
-create user foo@localhost;
+CREATE USER foo@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY "";
 alter user foo@localhost password expire;
-create user xplugin@localhost identified by 'xplugin';
-grant all on *.* to xplugin@localhost;
+CREATE USER xplugin@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY "xplugin";
+GRANT ALL ON *.* TO xplugin@'localhost';
 alter user xplugin@localhost password expire;
 
 Test: Expired password with no support for sandbox mode (should fail)

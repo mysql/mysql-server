@@ -19,25 +19,39 @@ include/assert.inc [All workers must have NULL in field `PROCESSLIST_STATE`]
 include/assert.inc [All workers must have NULL in field `PROCESSLIST_INFO`]
 include/assert.inc [All workers must have NULL in field `PROCESSLIST_COMMAND`]
 include/assert.inc [All workers must have NULL in field `PROCESSLIST_ID`]
-Login OK
 Verify [Current process needs to have x_root in PROCESSLIST_USER column]
 Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
 Verify [Current process needs to have performance_schema in PROCESSLIST_DB column]
 Verify [Current process needs to have performance_schema in PROCESSLIST_DB column]
-Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
-Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have SSL/TLS in CONNECTION_TYPE column]
+Verify [Current process needs to have SSL/TLS in CONNECTION_TYPE column]
 Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+Mysqlx.Ok {
+  msg: "bye!"
+}
 ok
-Login OK
 Verify [Current process needs to have user_on_127_0_0_1 in PROCESSLIST_USER column]
 Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
 Verify [Current process needs to have mysql in PROCESSLIST_DB column]
 Verify [Current process needs to have mysql in PROCESSLIST_DB column]
-Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
-Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have SSL/TLS in CONNECTION_TYPE column]
+Verify [Current process needs to have SSL/TLS in CONNECTION_TYPE column]
 Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+Mysqlx.Ok {
+  msg: "bye!"
+}
 ok
-Login OK
+Verify [Current process needs to have user_on_localhost in PROCESSLIST_USER column]
+Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
+Verify [Current process needs to have sys in PROCESSLIST_DB column]
+Verify [Current process needs to have sys in PROCESSLIST_DB column]
+Verify [Current process needs to have SSL/TLS in CONNECTION_TYPE column]
+Verify [Current process needs to have SSL/TLS in CONNECTION_TYPE column]
+Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 Verify [Current process needs to have user_on_localhost in PROCESSLIST_USER column]
 Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
 Verify [Current process needs to have sys in PROCESSLIST_DB column]
@@ -45,6 +59,9 @@ Verify [Current process needs to have sys in PROCESSLIST_DB column]
 Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
 Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
 Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+Mysqlx.Ok {
+  msg: "bye!"
+}
 ok
 #
 # Get actual number of worker threads

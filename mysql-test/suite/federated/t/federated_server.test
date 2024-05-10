@@ -356,7 +356,7 @@ INSERT INTO db_remote.t1 VALUES ('1','this is remote');
 
 --character_set utf8mb3
 SET NAMES utf8mb3;
-CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 grant all on *.* to очень_очень_очень_длинный_юзер__@localhost;
 
 connection master;

@@ -237,7 +237,7 @@ x509_subject
 plugin	sha256_password
 password_expired	N
 password_lifetime	NULL
-ALTER USER u3@localhost IDENTIFIED WITH 'mysql_native_password';
+ALTER USER u3@localhost IDENTIFIED WITH 'caching_sha2_password';
 SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u3';
@@ -246,7 +246,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	caching_sha2_password
 password_expired	Y
 password_lifetime	NULL
 CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
@@ -261,7 +261,7 @@ x509_subject
 plugin	sha256_password
 password_expired	N
 password_lifetime	NULL
-ALTER USER u4@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u4@localhost IDENTIFIED WITH 'caching_sha2_password'
            BY 'auth_string';
 SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
@@ -271,7 +271,7 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	caching_sha2_password
 password_expired	N
 password_lifetime	NULL
 CREATE USER u5@localhost REQUIRE SSL;
@@ -335,7 +335,7 @@ x509_subject
 plugin	sha256_password
 password_expired	N
 password_lifetime	NULL
-ALTER USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u7@localhost IDENTIFIED WITH 'caching_sha2_password'
             REQUIRE ISSUER 'issuer';
 SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
@@ -345,7 +345,7 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	issuer
 x509_subject	
-plugin	mysql_native_password
+plugin	caching_sha2_password
 password_expired	Y
 password_lifetime	NULL
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
@@ -361,7 +361,7 @@ x509_subject
 plugin	sha256_password
 password_expired	N
 password_lifetime	NULL
-ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password'
+ALTER USER u8@localhost IDENTIFIED WITH 'caching_sha2_password'
             REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
@@ -371,7 +371,7 @@ ssl_type	SPECIFIED
 ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
+plugin	caching_sha2_password
 password_expired	Y
 password_lifetime	NULL
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
@@ -815,10 +815,10 @@ CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 SHOW CREATE USER u8@localhost;
 CREATE USER for u8@localhost
 CREATE USER `u8`@`localhost` IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
-ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+ALTER USER u8@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 SHOW CREATE USER u8@localhost;
 CREATE USER for u8@localhost
-CREATE USER `u8`@`localhost` IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u8`@`localhost` IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
 SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
@@ -942,7 +942,7 @@ ALTER USER 20553132_u1@localhost, 20553132_u2@localhost IDENTIFIED BY 'abcd' PAS
 ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED BY 'defg' PASSWORD EXPIRE NEVER;
 ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
-ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
+ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
 SELECT USER();
 USER()
 20553132_u1@localhost

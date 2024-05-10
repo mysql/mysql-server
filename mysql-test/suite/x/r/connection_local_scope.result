@@ -34,5 +34,5 @@ ok
 # Account user2 was created without interface name.
 # The authentication must fail because account IP
 # and client IP doesn't match
-in main, line 0:ERROR: Authentication failed, check username and password or try a secure connection (code 2510)
+in main, line 0:ERROR: Access denied for user 'user2'@'localhost' (using password: YES) (code 1045)
 not ok

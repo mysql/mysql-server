@@ -5,11 +5,5 @@
 --let $ERROR_IF_CHANNEL_UNSECURE=0
 --let $NO_SSL_ACCESS_DENIED_ERROR=ER_ACCESS_DENIED_ERROR
 
---let $USER_AUTH_PLUGIN= 'mysql_native_password'
---source ../include/connection_ssl.inc
-
---let $USER_AUTH_PLUGIN= 'sha256_password'
---source ../include/connection_ssl.inc
-
 --let $USER_AUTH_PLUGIN= 'caching_sha2_password'
 --source ../include/connection_ssl.inc

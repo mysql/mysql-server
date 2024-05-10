@@ -5,6 +5,8 @@
 
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 
 # Uses tabular EXPLAIN, which is not supported by hypergraph.
 --source include/not_hypergraph.inc

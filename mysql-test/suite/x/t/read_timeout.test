@@ -3,6 +3,7 @@
 --echo Preamble
 --source include/not_windows.inc
 --source ../include/have_performance_schema_threads.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 ###################################################################
@@ -28,10 +29,10 @@ EOF
 
 SET GLOBAL mysqlx_read_timeout = 5;
 
-eval CREATE USER temp_user@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
-
-GRANT ALL ON *.* TO temp_user@localhost;
+--let $user_auth_name =temp_user
+--let $user_auth_pass ='auth_string'
+--let $user_auth_grant_all=1
+--source ../include/create_user_cached.inc
 
 let $wait_condition=
     SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME

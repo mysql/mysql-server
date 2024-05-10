@@ -379,8 +379,6 @@ INSERT INTO global_suppressions VALUES
  */
  ("'--ssl-fips-mode' is deprecated and will be removed in a future release."),
 
- ("'mysql_native_password' is deprecated and will be removed in a future release."),
-
  ("THE_LAST_SUPPRESSION");
 
 

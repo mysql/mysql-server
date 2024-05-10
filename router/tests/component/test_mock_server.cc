@@ -589,6 +589,31 @@ class MockServerConnectTest
       public ::testing::WithParamInterface<MockServerConnectTestParam> {};
 
 TEST_P(MockServerConnectTest, check) {
+  // detect the plugin-dir
+
+  // parent is either:
+  //
+  // - runtime_output_directory/ or
+  // - runtime_output_directory/Debug/
+  auto bindir = get_origin().real_path();
+
+  // if this is a multi-config-build, remember the build-type.
+  auto build_type = bindir.basename().str();
+  if (build_type == "runtime_output_directory") {
+    // no multi-config build.
+    build_type = {};
+  }
+
+  auto builddir = bindir.dirname();
+  if (!build_type.empty()) {
+    builddir = builddir.dirname();
+  }
+  auto sharedir = builddir.join("share");
+  auto plugindir = builddir.join("plugin_output_directory");
+  if (!build_type.empty()) {
+    plugindir = plugindir.join(build_type);
+  }
+
   auto classic_port = port_pool_.get_next_available();
   std::map<std::string, std::string> config{
       {"http_port", std::to_string(port_pool_.get_next_available())},
@@ -597,6 +622,7 @@ TEST_P(MockServerConnectTest, check) {
       {"datadir", get_data_dir().str()},
       {"certdir", SSL_TEST_DATA_DIR},
       {"hostname", "127.0.0.1"},
+      {"plugin_dir", plugindir.str()},
   };
 
   std::vector<std::string> cmdline_args{"--logging-folder",
@@ -643,6 +669,9 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
        // if auth-method-name is invalid, the connect will fail.
        ASSERT_TRUE(opt_res) << opt_res.error().message();
 
+       sess.set_option(mysqlrouter::MySQLSession::PluginDir(
+           config.at("plugin_dir").c_str()));
+
        try {
          sess.connect(host, port,
                       username,  // user
@@ -650,6 +679,11 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
                       "",        // socket
                       ""         // schema
          );
+       } catch (const mysqlrouter::MySQLSession::Error &e) {
+         // Authentication plugin 'mysql_native_password' cannot be loaded: ...
+         // (2059)
+
+         ASSERT_EQ(e.code(), 2059) << e.what();
        } catch (const std::exception &e) {
          FAIL() << e.what();
        }

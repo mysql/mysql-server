@@ -2765,14 +2765,14 @@ GRANT PROXY ON ''@'' TO user_name_len_22_01234@localhost WITH GRANT OPTION;
 CREATE USER user_name_len_32_012345678901234@localhost;
 GRANT SELECT ON *.* TO user_name_len_32_012345678901234@localhost;
 ** Creating new proxy user **
-CREATE USER proxy_native_0123456789@localhost IDENTIFIED WITH mysql_native_password;
-GRANT PROXY ON user_name_len_32_012345678901234@localhost TO proxy_native_0123456789@localhost;
+CREATE USER proxy_sha2_0123456789@localhost IDENTIFIED WITH caching_sha2_password;
+GRANT PROXY ON user_name_len_32_012345678901234@localhost TO proxy_sha2_0123456789@localhost;
 SELECT USER, PROXIED_USER, GRANTOR FROM mysql.proxies_priv WHERE Proxied_host='localhost';
 USER	PROXIED_USER	GRANTOR
-proxy_native_0123456789	user_name_len_32_012345678901234	user_name_len_22_01234@localhost
+proxy_sha2_0123456789	user_name_len_32_012345678901234	user_name_len_22_01234@localhost
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
-DROP USER proxy_native_0123456789@localhost;
+DROP USER proxy_sha2_0123456789@localhost;
 #
 # Regression test added in WL#8657
 #

@@ -1,9 +1,8 @@
 Preamble
 SET GLOBAL mysqlx_wait_timeout = 5;
 SET GLOBAL mysqlx_interactive_timeout = 10;
-CREATE USER temp_user@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
-GRANT ALL ON *.* TO temp_user@localhost;
+CREATE USER temp_user@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
+GRANT ALL ON *.* TO temp_user@'localhost';
 #
 # Run the test without SSL
 #

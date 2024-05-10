@@ -8,7 +8,7 @@
 # 4. Verify SSL connection to X Plugin with ServerHello notice off
 # 5. Unprivileged user fails to change ServerHello notice configuration;
 #
-CREATE USER 'some_user' @'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'some_user' @'localhost' IDENTIFIED WITH 'caching_sha2_password';
 
 #
 # 1. Raw connection to X Plugin with ServerHello notice on

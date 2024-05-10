@@ -1,9 +1,9 @@
 call mtr.add_suppression("Plugin mysqlx reported: .*Unsuccessful login attempt: Invalid user or password");
 CREATE DATABASE xtest;
 USE xtest;
-CREATE USER user1@'%'         IDENTIFIED WITH 'mysql_native_password' BY 'pass_all_hosts';
-CREATE USER user1@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password' BY 'pass_127.0.0.1';
-CREATE USER user1@'localhost' IDENTIFIED WITH 'mysql_native_password' BY 'pass_localhost';
+CREATE USER user1@'%'         IDENTIFIED WITH 'caching_sha2_password' BY 'pass_all_hosts';
+CREATE USER user1@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password' BY 'pass_127.0.0.1';
+CREATE USER user1@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY 'pass_localhost';
 CREATE TABLE `table_all_hosts`(id integer);
 CREATE TABLE `table_127.0.0.1`(id integer);
 CREATE TABLE `table_localhost`(id integer);

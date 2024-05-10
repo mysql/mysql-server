@@ -14,7 +14,7 @@ user	plugin
 xuser_nologin	mysql_no_login
 xuser_test	test_plugin_server
 user	plugin
-x_root	mysql_native_password
+x_root	caching_sha2_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	OFF
@@ -24,7 +24,7 @@ Mysqlx.Ok {
 }
 ok
 user	plugin
-x_root	mysql_native_password
+x_root	caching_sha2_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	ON

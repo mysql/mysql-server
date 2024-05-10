@@ -34,8 +34,13 @@ call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attemp
 CREATE DATABASE xdb;
 CREATE DATABASE ydb;
 
-CREATE USER 'user_with_access_to_xdb'@'%';
-CREATE USER 'user_with_access_to_ydb'@'%';
+--let $user_auth_name =user_with_access_to_xdb
+--let $user_auth_host='%'
+--source ../include/create_user_cached.inc
+
+--let $user_auth_name =user_with_access_to_ydb
+--let $user_auth_host='%'
+--source ../include/create_user_cached.inc
 
 GRANT SELECT ON xdb.* TO 'user_with_access_to_xdb'@'%';
 GRANT SELECT ON ydb.* TO 'user_with_access_to_ydb'@'%';

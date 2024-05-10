@@ -18,8 +18,8 @@
 # Please note that '%' is going to be interpreted as wildcard character.
 # anyway it doesn't matter for the test-case
 #
---eval CREATE USER user1@`$ip%$interface` identified with 'mysql_native_password' by 'p1'
---eval CREATE USER user2@`$ip` identified with 'mysql_native_password' by 'p2'
+--eval CREATE USER user1@`$ip%$interface` identified with 'caching_sha2_password' by 'p1'
+--eval CREATE USER user2@`$ip` identified with 'caching_sha2_password' by 'p2'
 --enable_result_log
 --enable_query_log
 

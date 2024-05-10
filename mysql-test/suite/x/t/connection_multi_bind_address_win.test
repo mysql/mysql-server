@@ -1,6 +1,7 @@
 ## This is test file for verification binding on multiple addresses
 ##
 --source include/windows.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 

@@ -1,6 +1,6 @@
 CREATE DATABASE xtest;
-CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'user1_pass';
-CREATE USER 'user2'@'127.0.0.1' IDENTIFIED BY 'user2_pass';
+CREATE USER user1@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password' BY "user1_pass";
+CREATE USER user2@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password' BY "user2_pass";
 GRANT SELECT ON xtest.* TO user1@'127.0.0.1';
 GRANT SELECT ON xtest.* TO user2@'127.0.0.1';
 

@@ -19,7 +19,7 @@
 CALL mtr.add_suppression('Following users were specified in CREATE USER');
 --echo # CREATE USER statement test where user does not exist
 CREATE USER u1 IDENTIFIED WITH 'sha256_password' BY 'pwd1', u2 IDENTIFIED WITH
-'mysql_native_password' BY 'pwd2', u3, u4, u5, u6 REQUIRE SSL;
+'caching_sha2_password' BY 'pwd2', u3, u4, u5, u6 REQUIRE SSL;
 
 --echo # CREATE USER statement test where few user exist and few does not
 --error ER_CANNOT_USER
@@ -31,10 +31,10 @@ u_ne2 IDENTIFIED WITH 'invalid_plugin' REQUIRE SSL;
 CREATE ROLE r1, r2;
 
 --echo # ALTER USER statement test
-ALTER USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'pwd1', u2 IDENTIFIED
+ALTER USER u1 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd1', u2 IDENTIFIED
 WITH 'sha256_password' BY 'pwd2' WITH MAX_USER_CONNECTIONS 11 ;
-ALTER USER u3 IDENTIFIED WITH 'mysql_native_password' BY 'pwd3', u4 IDENTIFIED
-WITH 'mysql_native_password' BY 'pwd4' WITH MAX_USER_CONNECTIONS 12;
+ALTER USER u3 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd3', u4 IDENTIFIED
+WITH 'caching_sha2_password' BY 'pwd4' WITH MAX_USER_CONNECTIONS 12;
 
 --echo # RENAME USER statement test
 RENAME USER u3 TO u33, u5 TO u55, u4 TO u44;

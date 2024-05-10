@@ -28,11 +28,11 @@ let $restart_parameters=restart:
 	--mysqlx_ssl_ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem;
 --source restart_mysqld_and_wait_for_xplugin.inc
 
+--exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1
+
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=disabled  2>&1
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=preferred  2>&1
-
---exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
 
@@ -57,11 +57,11 @@ let $restart_parameters=restart:
 	--mysqlx_ssl_ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem;
 --source restart_mysqld_and_wait_for_xplugin.inc
 
+--exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1
+
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=OFF --ssl-mode=disabled  2>&1
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=preferred  2>&1
-
---exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=required  2>&1
 
 --exec $MYSQLXTEST_SSLCA_TEST $USE_SOCKET -v%EXPECT%=ON --ssl-mode=verify_ca  2>&1
 

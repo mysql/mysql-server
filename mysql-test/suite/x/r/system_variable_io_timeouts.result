@@ -1,6 +1,6 @@
-CREATE USER 'regular_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-CREATE USER 'var_admin_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-CREATE USER 'super_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'regular_user'@'%' IDENTIFIED WITH 'caching_sha2_password';
+CREATE USER 'var_admin_user'@'%' IDENTIFIED WITH 'caching_sha2_password';
+CREATE USER 'super_user'@'%' IDENTIFIED WITH 'caching_sha2_password';
 GRANT 'SYSTEM_VARIABLES_ADMIN' ON *.* TO 'var_admin_user'@'%';
 GRANT SUPER ON *.* TO 'super_user'@'%';
 #

@@ -4,6 +4,7 @@
 #TODO After implementing Names Pipes this test should be merged back to connection_skip_networking.test
 
 --source include/windows.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
  
 create user nonblank@localhost identified by 'nonblank';

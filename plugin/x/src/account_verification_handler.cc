@@ -38,22 +38,39 @@
 
 namespace xpl {
 
+bool Account_verification_handler::parse_sasl_message(
+    const std::string &sasl_message,
+    iface::Authentication_info *out_authenication_info, std::string *out_schema,
+    std::string *out_account, std::string *out_passwd) {
+  std::size_t message_position = 0;
+
+  *out_schema = "";
+  *out_account = "";
+  *out_passwd = "";
+
+  if (sasl_message.empty() ||
+      !extract_sub_message(sasl_message, message_position, *out_schema) ||
+      !extract_sub_message(sasl_message, message_position, *out_account) ||
+      !extract_last_sub_message(sasl_message, message_position, *out_passwd))
+    return false;
+
+  out_authenication_info->m_tried_account_name = *out_account;
+  out_authenication_info->m_was_using_password = !out_passwd->empty();
+
+  return true;
+}
+
 ngs::Error_code Account_verification_handler::authenticate(
     const iface::Authentication &account_verificator,
-    iface::Authentication_info *authenication_info,
+    iface::Authentication_info *authentication_info,
     const std::string &sasl_message) const {
-  std::size_t message_position = 0;
   std::string schema = "";
   std::string account = "";
   std::string passwd = "";
-  if (sasl_message.empty() ||
-      !extract_sub_message(sasl_message, message_position, schema) ||
-      !extract_sub_message(sasl_message, message_position, account) ||
-      !extract_last_sub_message(sasl_message, message_position, passwd))
-    return ngs::SQLError_access_denied();
 
-  authenication_info->m_tried_account_name = account;
-  authenication_info->m_was_using_password = !passwd.empty();
+  if (!parse_sasl_message(sasl_message, authentication_info, &schema, &account,
+                          &passwd))
+    return ngs::SQLError_access_denied();
 
   if (account.empty()) return ngs::SQLError_access_denied();
 
@@ -73,7 +90,7 @@ ngs::Error_code Account_verification_handler::authenticate(
 
 bool Account_verification_handler::extract_last_sub_message(
     const std::string &message, std::size_t &element_position,
-    std::string &sub_message) const {
+    std::string &sub_message) {
   if (element_position >= message.size()) return true;
 
   sub_message = message.substr(element_position);
@@ -84,7 +101,7 @@ bool Account_verification_handler::extract_last_sub_message(
 
 bool Account_verification_handler::extract_sub_message(
     const std::string &message, std::size_t &element_position,
-    std::string &sub_message) const {
+    std::string &sub_message) {
   if (element_position >= message.size()) return true;
 
   if (message[element_position] == '\0') {

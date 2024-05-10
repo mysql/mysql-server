@@ -332,12 +332,12 @@ set password for unpriv@localhost = 'x';
 
 -->callmacro Clear_sql_history
 -->echo ######### kill_client #########
-# Perfrom single authentication using mysql41.
+# Perfrom single authentication using plain.
 # One query is going to be execute on mysql.user
 # and must be visible in PFS.
--->newsession_mysql41 unpriv	unpriv	x
+-->newsession_plain unpriv	unpriv	x
 -->varlet %CLIENT_ID% %ACTIVE_CLIENT_ID%
--->newsession_mysql41 x_root	x_root
+-->newsession_plain x_root	x_root
 -->stmtadmin kill_client	{"id": %CLIENT_ID%}
 -->recvresult
 -->setsession unpriv

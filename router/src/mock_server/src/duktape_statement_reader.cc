@@ -1006,7 +1006,7 @@ static classic_protocol::message::server::Greeting default_server_greeting() {
 
   uint16_t status_flags = 0;
   uint8_t character_set = 0;
-  std::string auth_method = MySQLNativePassword::name;
+  std::string auth_method = CachingSha2Password::name;
   std::string nonce = "01234567890123456789";
 
   return {0x0a,

@@ -2,16 +2,16 @@ include/rpl/gtid_utils.inc
 CREATE TABLE t_1 (a int);
 include/rpl/gtid_step_reset.inc
 FLUSH LOGS;
-*** Crash right after 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''  has been prepared in the engine before being logged ***
+*** Crash right after 'CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password''  has been prepared in the engine before being logged ***
 SET @@SESSION.debug="+d,crash_commit_before_log";
-CREATE USER user1 IDENTIFIED WITH 'mysql_native_password';
+CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/rpl/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOGS;
-*** Crash right after 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password'' has been binary-logged before committed in the engine ***
+*** Crash right after 'CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password'' has been binary-logged before committed in the engine ***
 SET @@SESSION.debug="+d,crash_commit_after_log";
-CREATE USER user1 IDENTIFIED WITH 'mysql_native_password';
+CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/rpl/gtid_step_assert.inc [count=1, only_count=0]

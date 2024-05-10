@@ -105,11 +105,9 @@ DROP DATABASE test_grant_db;
 
 # Test effect of variabled on the plugin tested here (WL#7724).
 SELECT @@global.check_proxy_users;
-SELECT @@global.mysql_native_password_proxy_users;
 SELECT @@global.sha256_password_proxy_users;
 
 SET @@global.check_proxy_users=ON;
-SET @@global.mysql_native_password_proxy_users=ON;
 SET @@global.sha256_password_proxy_users=ON;
 
 
@@ -258,7 +256,6 @@ connection default;
 disconnect plug_con;
 
 SET @@global.check_proxy_users=0;
-SET @@global.mysql_native_password_proxy_users=0;
 SET @@global.sha256_password_proxy_users=0;
 
 --echo ## cleanup
@@ -670,7 +667,7 @@ SELECT CURRENT_USER();
 --disconnect con_user22_sha
 DROP USER user_name_len_22_01234@localhost;
 
-CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 --connect(con_user32_native,localhost, user_name_len_32_012345678901234,'auth_string')
 SELECT CURRENT_USER();
 
@@ -698,7 +695,7 @@ SELECT CURRENT_USER();
 --disconnect con_user22_sha
 DROP USER user_name_len_22_01234@localhost;
 
-CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string' REQUIRE SSL;
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string' REQUIRE SSL;
 --connect(con_user32_native,localhost, user_name_len_32_012345678901234,'auth_string',,,,SSL)
 SELECT CURRENT_USER();
 
@@ -729,7 +726,7 @@ SELECT CURRENT_USER();
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 
 # 32 characters user name
-CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 --connect(con_user32_utf_native,localhost, очень_очень_очень_длинный_юзер__,'auth_string')
 SELECT CURRENT_USER();
 
@@ -759,7 +756,7 @@ SELECT CURRENT_USER();
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 
 # 32 characters user name
-CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string' REQUIRE SSL;
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string' REQUIRE SSL;
 --connect(con_user32_utf_native,localhost, очень_очень_очень_длинный_юзер__,'auth_string',,,,SSL)
 SELECT CURRENT_USER();
 

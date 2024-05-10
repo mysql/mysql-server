@@ -16,7 +16,6 @@
 ##  - check sum of these 2 vars with all mysqlx sessions should be as#
 #        that of with mysql client                                   #
 ######################################################################
-
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad file descriptor'");

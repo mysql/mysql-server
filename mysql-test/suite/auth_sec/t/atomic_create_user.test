@@ -52,7 +52,7 @@ CREATE USER userA IDENTIFIED BY 'abcd', userB IDENTIFIED WITH 'blahblah';
 --echo # Case 5 : Try creating user with invalid hash
 --error ER_PASSWORD_FORMAT
 CREATE USER userA IDENTIFIED BY 'abcd',
-            userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
+            userB IDENTIFIED WITH 'caching_sha2_password' AS 'hahaha';
 
 --echo # Must not show userA, userB
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
@@ -137,7 +137,7 @@ CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd', userB IDENTIFIED WITH 'bla
 --echo # Case 4 : Try creating user with invalid hash
 --error ER_PASSWORD_FORMAT
 CREATE USER IF NOT EXISTS userA IDENTIFIED BY 'abcd',
-                          userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha';
+                          userB IDENTIFIED WITH 'caching_sha2_password' AS 'hahaha';
 
 --echo # Must not show userA, userB
 SELECT user FROM mysql.user WHERE user LIKE 'user%';
@@ -212,7 +212,7 @@ SELECT user FROM mysql.default_roles where user LIKE 'user%';
 --echo # Case 3 : Try creating user with invalid hash
 --error ER_PASSWORD_FORMAT
 CREATE USER userA IDENTIFIED BY 'abcd',
-            userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
+            userB IDENTIFIED WITH 'caching_sha2_password' AS 'hahaha'
             DEFAULT ROLE roleX;
 
 --echo # Must not show userA, userB

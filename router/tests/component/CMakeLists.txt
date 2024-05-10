@@ -163,6 +163,14 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   )
 ENDFOREACH()
 
+# the mock-server test needs the mysql_native_password client plugin,
+# if it built (depends on WITH_AUTHENTICATION_CLIENT_PLUGINS)
+IF(TARGET mysql_native_password)
+  ADD_DEPENDENCIES(routertest_component_mock_server
+    mysql_native_password)
+ENDIF()
+
+
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.
 # Since component tests may not have access to directories defined
