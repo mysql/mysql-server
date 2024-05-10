@@ -157,7 +157,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     do {
       try {
         session->query_one("select @@port");
-      } catch (mysqlrouter::MySQLSession::Error &) {
+      } catch (const mysqlrouter::MySQLSession::Error &) {
         // query failed, connection dropped, all good
         return;
       }
