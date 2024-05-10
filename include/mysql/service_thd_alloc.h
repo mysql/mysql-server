@@ -52,7 +52,7 @@ extern "C" struct thd_alloc_service_st {
   void *(*thd_memdup_func)(MYSQL_THD, const void *, size_t);
   MYSQL_LEX_STRING *(*thd_make_lex_string_func)(MYSQL_THD, MYSQL_LEX_STRING *,
                                                 const char *, size_t, int);
-} * thd_alloc_service;
+} *thd_alloc_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

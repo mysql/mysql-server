@@ -135,8 +135,7 @@ Uint32 Dbtup::allocTabDescr(Uint32 allocSize) {
 }  // Dbtup::allocTabDescr()
 
 void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal) {
-  itdaMergeTabDescr(retRef, retNo,
-                    normal); /* MERGE WITH POSSIBLE NEIGHBOURS   */
+  itdaMergeTabDescr(retRef, retNo, normal); /* MERGE WITH POSSIBLE NEIGHBOURS */
   while (retNo >= ZTD_FREE_SIZE) {
     jam();
     Uint32 list = nextHigherTwoLog(retNo);

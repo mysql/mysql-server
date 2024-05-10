@@ -320,9 +320,9 @@ static int run_create_table(NDBT_Context *ctx, NDBT_Step *step) {
 
   if (NDBT_Tables::createTable(
           GETNDB(step), ctx->getTab()->getName(), false, false,
-          max_dks ? add_distribution_key
-                  : userDefined ? setUserDefPartitioning
-                                : setNativePartitioning) == NDBT_OK) {
+          max_dks       ? add_distribution_key
+          : userDefined ? setUserDefPartitioning
+                        : setNativePartitioning) == NDBT_OK) {
     return NDBT_OK;
   }
 

@@ -111,7 +111,7 @@ class Destinations {
    * emplace a Destination at the back of the container.
    */
   template <class... Args>
-  auto emplace_back(Args &&... args) {
+  auto emplace_back(Args &&...args) {
     return destinations_.emplace_back(std::forward<Args>(args)...);
   }
 

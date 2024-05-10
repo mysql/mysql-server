@@ -47,8 +47,8 @@ Compress_status None_comp::do_compress(Managed_buffer_sequence_t &out) {
   return Compress_status::success;
 }
 
-Compress_status None_comp::do_finish([
-    [maybe_unused]] Managed_buffer_sequence_t &out) {
+Compress_status None_comp::do_finish(
+    [[maybe_unused]] Managed_buffer_sequence_t &out) {
   // This will only be called after a successful call to @c compress,
   // so there is nothing to do.
   return Compress_status::success;

@@ -32,7 +32,7 @@
 #include <assert.h>  // not using namespaces yet
 #include <jni.h>
 
-//#include "helpers.hpp"
+// #include "helpers.hpp"
 
 // ---------------------------------------------------------------------------
 // JNI field/method IDs access & caching

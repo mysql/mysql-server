@@ -33,7 +33,7 @@
 #include "portlib/NdbMem.h"
 #include "util/require.h"
 
-//#define TRACE_MALLOC
+// #define TRACE_MALLOC
 #ifdef TRACE_MALLOC
 #include <stdio.h>
 #endif

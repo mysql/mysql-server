@@ -42,7 +42,7 @@
 #endif
 
 #define RETURN(rv) return (rv)
-//#define RETURN(rv) REQUIRE(rv)
+// #define RETURN(rv) REQUIRE(rv)
 
 ndb_zlib::ndb_zlib()
     : mem_begin(nullptr),

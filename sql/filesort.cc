@@ -582,10 +582,9 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
     else
       sort_mode.append("fixed_sort_key");
     sort_mode.append(", ");
-    sort_mode.append(param->using_packed_addons()
-                         ? "packed_additional_fields"
-                         : param->using_addon_fields() ? "additional_fields"
-                                                       : "rowid");
+    sort_mode.append(param->using_packed_addons()  ? "packed_additional_fields"
+                     : param->using_addon_fields() ? "additional_fields"
+                                                   : "rowid");
     sort_mode.append(">");
 
     const char *algo_text[] = {"none", "std::sort", "std::stable_sort"};

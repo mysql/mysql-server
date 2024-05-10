@@ -56,11 +56,11 @@
 #include "m_ctype.h"
 #include "m_string.h"  // IWYU pragma: keep
 
-#define char_val(X)                          \
-  (X >= '0' && X <= '9'                      \
-       ? X - '0'                             \
-       : X >= 'A' && X <= 'Z' ? X - 'A' + 10 \
-                              : X >= 'a' && X <= 'z' ? X - 'a' + 10 : '\177')
+#define char_val(X)                      \
+  (X >= '0' && X <= '9'   ? X - '0'      \
+   : X >= 'A' && X <= 'Z' ? X - 'A' + 10 \
+   : X >= 'a' && X <= 'z' ? X - 'a' + 10 \
+                          : '\177')
 
 const char *str2int(const char *src, int radix, long int lower, long int upper,
                     long int *val) {

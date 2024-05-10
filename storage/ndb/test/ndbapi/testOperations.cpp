@@ -482,7 +482,9 @@ int runOperations(NDBT_Context *ctx, NDBT_Step *step) {
 
     for (unsigned k = 0; k <= i + 1; k++) {
       if (verify_savepoint(ctx, pNdb, k,
-                           k > 0 ? seq[k - 1] : initial_row ? o_INS : o_DONE,
+                           k > 0         ? seq[k - 1]
+                           : initial_row ? o_INS
+                                         : o_DONE,
                            transactionId) != NDBT_OK)
         return NDBT_FAILED;
     }

@@ -58,10 +58,10 @@ if (existsSync(path.join(build, "Debug", "ndb_adapter.node"))) {
 */
 
 module.exports = {
-  "binary": path.join(binary_dir, "ndb_adapter.node"),
-  "root_dir": root_dir,
-  "impl_dir": impl_dir,
-  "impl_js_dir": ndb_dir,
-  "converters_dir": converters_dir,
-  "suites_dir": suites_dir
+  "binary" : path.join(binary_dir, "ndb_adapter.node"),
+  "root_dir" : root_dir,
+  "impl_dir" : impl_dir,
+  "impl_js_dir" : ndb_dir,
+  "converters_dir" : converters_dir,
+  "suites_dir" : suites_dir
 };

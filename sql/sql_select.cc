@@ -1801,8 +1801,10 @@ void JOIN::reset() {
 
   if (!executed) return;
 
-  query_expression()->offset_limit_cnt = (ha_rows)(
-      query_block->offset_limit ? query_block->offset_limit->val_uint() : 0ULL);
+  query_expression()->offset_limit_cnt =
+      (ha_rows)(query_block->offset_limit
+                    ? query_block->offset_limit->val_uint()
+                    : 0ULL);
 
   group_sent = false;
   recursive_iteration_count = 0;

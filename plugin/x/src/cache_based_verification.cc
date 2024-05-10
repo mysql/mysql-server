@@ -41,9 +41,9 @@ namespace xpl {
 void Cache_based_verification::hex2octet(uint8_t *to, const char *str,
                                          uint32_t len) const {
   auto char_val = [](uint8_t X) {
-    return (X >= '0' && X <= '9'
-                ? X - '0'
-                : X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
+    return (X >= '0' && X <= '9'   ? X - '0'
+            : X >= 'A' && X <= 'Z' ? X - 'A' + 10
+                                   : X - 'a' + 10);
   };
 
   const char *str_end = str + len;

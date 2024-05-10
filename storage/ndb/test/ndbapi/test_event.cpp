@@ -2689,12 +2689,10 @@ int dropCharPKTable(NDBT_Context *ctx, NDBT_Step *step) {
 }
 
 static const char *getEventName(NdbDictionary::Event::TableEvent type) {
-  return (type == NdbDictionary::Event::TE_INSERT)
-             ? "INSERT"
-             : (type == NdbDictionary::Event::TE_DELETE)
-                   ? "DELETE"
-                   : (type == NdbDictionary::Event::TE_UPDATE) ? "UPDATE"
-                                                               : "<unknown>";
+  return (type == NdbDictionary::Event::TE_INSERT)   ? "INSERT"
+         : (type == NdbDictionary::Event::TE_DELETE) ? "DELETE"
+         : (type == NdbDictionary::Event::TE_UPDATE) ? "UPDATE"
+                                                     : "<unknown>";
 }
 
 static NdbDictionary::Event::TableEvent getAnEventType(Ndb *ndb) {

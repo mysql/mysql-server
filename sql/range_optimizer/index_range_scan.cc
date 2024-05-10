@@ -169,10 +169,9 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   start_key->key = cur->min_key;
   start_key->length = cur->min_length;
   start_key->keypart_map = cur->min_keypart_map;
-  start_key->flag =
-      ((cur->flag & NEAR_MIN)
-           ? HA_READ_AFTER_KEY
-           : (cur->flag & EQ_RANGE) ? HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
+  start_key->flag = ((cur->flag & NEAR_MIN)   ? HA_READ_AFTER_KEY
+                     : (cur->flag & EQ_RANGE) ? HA_READ_KEY_EXACT
+                                              : HA_READ_KEY_OR_NEXT);
   end_key->key = cur->max_key;
   end_key->length = cur->max_length;
   end_key->keypart_map = cur->max_keypart_map;

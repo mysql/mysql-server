@@ -641,19 +641,16 @@ Col::Col(const struct Tab &tab, uint num, const char *name, bool pk, Type type,
       m_type(type),
       m_length(length),
       m_bytelength(length * (chs == 0 ? 1 : chs->m_cs->mbmaxlen)),
-      m_attrsize(type == Unsigned
-                     ? sizeof(Uint32)
-                     : type == Char
-                           ? sizeof(char)
-                           : type == Varchar
-                                 ? sizeof(char)
-                                 : type == Longvarchar ? sizeof(char) : ~0),
-      m_headsize(type == Unsigned
-                     ? 0
-                     : type == Char
-                           ? 0
-                           : type == Varchar ? 1
-                                             : type == Longvarchar ? 2 : ~0),
+      m_attrsize(type == Unsigned      ? sizeof(Uint32)
+                 : type == Char        ? sizeof(char)
+                 : type == Varchar     ? sizeof(char)
+                 : type == Longvarchar ? sizeof(char)
+                                       : ~0),
+      m_headsize(type == Unsigned      ? 0
+                 : type == Char        ? 0
+                 : type == Varchar     ? 1
+                 : type == Longvarchar ? 2
+                                       : ~0),
       m_bytesize(m_headsize + m_attrsize * m_bytelength),
       m_nullable(nullable),
       m_chs(chs) {

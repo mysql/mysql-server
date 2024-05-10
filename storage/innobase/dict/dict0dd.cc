@@ -1336,9 +1336,9 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
   const ulint zip_ssize_max =
       std::min((ulint)UNIV_PAGE_SSIZE_MAX, (ulint)PAGE_ZIP_SSIZE_MAX);
   const char *zip_refused = zip_allowed ? nullptr
-                                        : srv_page_size <= UNIV_ZIP_SIZE_MAX
-                                              ? "innodb_file_per_table=OFF"
-                                              : "innodb_page_size>16k";
+                            : srv_page_size <= UNIV_ZIP_SIZE_MAX
+                                ? "innodb_file_per_table=OFF"
+                                : "innodb_page_size>16k";
   bool invalid = false;
 
   if (real_type == ROW_TYPE_NOT_USED) {
@@ -1633,7 +1633,7 @@ void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest) {
       src.get(dd_table_key_strings[DD_TABLE_VERSION],
               reinterpret_cast<uint64_t *>(&version))) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   dest.set(dd_table_key_strings[DD_TABLE_VERSION], version);
@@ -7638,7 +7638,7 @@ static void build_partition_low(const std::string part,
 
   if (part.empty()) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   /* Get partition separator strings */

@@ -71,7 +71,7 @@ class Sql_data_result {
   }
 
   template <typename T, typename... R>
-  Sql_data_result &get(T *first, R &&... rest) {
+  Sql_data_result &get(T *first, R &&...rest) {
     get(first).get(std::forward<R>(rest)...);
     return *this;
   }

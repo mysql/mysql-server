@@ -364,10 +364,10 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       recinfo_pos->type =
           (int)((length <= 3 || (found->is_flag_set(ZEROFILL_FLAG)))
                     ? FIELD_NORMAL
-                    : found->type() == MYSQL_TYPE_STRING ||
-                              found->type() == MYSQL_TYPE_VAR_STRING
-                          ? FIELD_SKIP_ENDSPACE
-                          : FIELD_SKIP_PRESPACE);
+                : found->type() == MYSQL_TYPE_STRING ||
+                        found->type() == MYSQL_TYPE_VAR_STRING
+                    ? FIELD_SKIP_ENDSPACE
+                    : FIELD_SKIP_PRESPACE);
     if (found->is_nullable()) {
       recinfo_pos->null_bit = found->null_bit;
       recinfo_pos->null_pos = found->null_offset();
@@ -1124,8 +1124,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
   }
   thd_proc_info(thd, old_proc_info);
   if (!has_old_locks) mi_lock_database(file, F_UNLCK);
-  return error ? HA_ADMIN_FAILED
-               : !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK;
+  return error            ? HA_ADMIN_FAILED
+         : !optimize_done ? HA_ADMIN_ALREADY_DONE
+                          : HA_ADMIN_OK;
 }
 
 /*

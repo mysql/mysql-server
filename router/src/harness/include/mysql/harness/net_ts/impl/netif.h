@@ -112,7 +112,7 @@ class NetworkInterfaceNetworks {
    * object is created directly inplace in the container.
    */
   template <class... Args>
-  auto emplace_back(Args &&... args) {
+  auto emplace_back(Args &&...args) {
     return nets_.emplace_back(std::forward<Args>(args)...);
   }
 

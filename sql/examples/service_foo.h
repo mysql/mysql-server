@@ -54,7 +54,7 @@ extern struct foo_service_st {
     You can add a see-also to the implementation too.
   */
   void (*foo_func2_type)(...);
-} * foo_service;
+} *foo_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

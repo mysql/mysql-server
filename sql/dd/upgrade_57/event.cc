@@ -502,8 +502,9 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
 
   dd::upgrade::Routine_event_context_guard event_ctx_guard(thd);
 
-  thd->variables.sql_mode = (sql_mode_t)(
-      event_table->field[ET_FIELD_SQL_MODE]->val_int() & MODE_ALLOWED_MASK);
+  thd->variables.sql_mode =
+      (sql_mode_t)(event_table->field[ET_FIELD_SQL_MODE]->val_int() &
+                   MODE_ALLOWED_MASK);
 
   // Holders for user name and host name used in parse user.
   char definer_user_name_holder[USERNAME_LENGTH + 1];

@@ -112,7 +112,7 @@ void NdbTick_Init() {
 
 #else
   /* Consider to deprecate platforms not supporting monotonic counters */
-  //#error "A monotonic counter was not available on this platform"
+  // #error "A monotonic counter was not available on this platform"
 
   // gettimeofday() resolution is usec
   NdbDuration::tick_frequency = MICROSEC_PER_SEC;

@@ -49,14 +49,14 @@
 #define JAM_FILE_ID 453
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_START_RES 1
-//#define DEBUG_RES 1
-//#define DEBUG_RES_OPEN 1
-//#define DEBUG_RES_PARTS 1
-//#define DEBUG_RES_STAT 1
-//#define DEBUG_RES_STAT_EXTRA 1
-//#define DEBUG_RES_DEL 1
-//#define DEBUG_HIGH_RES 1
+// #define DEBUG_START_RES 1
+// #define DEBUG_RES 1
+// #define DEBUG_RES_OPEN 1
+// #define DEBUG_RES_PARTS 1
+// #define DEBUG_RES_STAT 1
+// #define DEBUG_RES_STAT_EXTRA 1
+// #define DEBUG_RES_DEL 1
+// #define DEBUG_HIGH_RES 1
 #endif
 
 #ifdef DEBUG_START_RES
@@ -280,9 +280,9 @@ void Restore::sendSTTORRY(Signal *signal) {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
   signal->theData[4] = 255;  // No more start phases from missra
-  BlockReference cntrRef = !isNdbMtLqh()
-                               ? NDBCNTR_REF
-                               : m_is_query_block ? QRESTORE_REF : RESTORE_REF;
+  BlockReference cntrRef = !isNdbMtLqh()      ? NDBCNTR_REF
+                           : m_is_query_block ? QRESTORE_REF
+                                              : RESTORE_REF;
   sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
 }
 

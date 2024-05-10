@@ -347,7 +347,7 @@ class FsReadWriteReq;
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 1.X                                    */
 /* ------------------------------------------------------------------------- */
-//#define ZSCAN_BOOK_ACC_OP_ERROR 1219   // SCAN_FRAGREF error code
+// #define ZSCAN_BOOK_ACC_OP_ERROR 1219   // SCAN_FRAGREF error code
 #define ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR 1220
 #define ZTEMPORARY_REDO_LOG_FAILURE 1221
 #define ZNO_FREE_MARKER_RECORDS_ERROR 1222

@@ -30,7 +30,7 @@
 #define jtie_tconv_object_impl_hpp
 
 #include <assert.h>  // not using namespaces yet
-//#include <stdio.h> // not using namespaces yet
+// #include <stdio.h> // not using namespaces yet
 #include <jni.h>
 
 #include "helpers.hpp"

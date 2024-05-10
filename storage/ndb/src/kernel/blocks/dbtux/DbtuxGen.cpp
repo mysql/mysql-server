@@ -30,7 +30,7 @@
 #include <signaldata/NodeStateSignalData.hpp>
 
 #ifdef VM_TRACE
-//#define DO_TRANSIENT_POOL_STAT
+// #define DO_TRANSIENT_POOL_STAT
 #endif
 
 #define JAM_FILE_ID 365

@@ -44,8 +44,8 @@ static NdbCondition *g_freeze_condition = 0;
 static Uint32 g_freeze_waiters = 0;
 static bool g_freeze_wakeup = 0;
 
-//#define DEBUG_SPIN 1
-//#define DEBUG_SCHED_WEIGHTS 1
+// #define DEBUG_SPIN 1
+// #define DEBUG_SCHED_WEIGHTS 1
 
 #ifdef DEBUG_SPIN
 #define DEB_SPIN(arglist)        \
@@ -70,7 +70,7 @@ static bool g_freeze_wakeup = 0;
 #endif
 
 // define HIGH_DEBUG_CPU_USAGE 1
-//#define DEBUG_CPU_USAGE 1
+// #define DEBUG_CPU_USAGE 1
 
 Thrman::Thrman(Block_context &ctx, Uint32 instanceno)
     : SimulatedBlock(THRMAN, ctx, instanceno),

@@ -598,7 +598,7 @@ class Item_in_subselect : public Item_exists_subselect {
        was done.
     */
     bool dependent_after;
-  } * in2exists_info;
+  } *in2exists_info;
 
   bool mark_as_outer(Item *left_row, size_t col);
 

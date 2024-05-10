@@ -7495,10 +7495,9 @@ static void test_explain_bug() {
   } else {
     verify_prepare_field(
         result, 4, "Default", "Default",
-        mysql_get_server_version(mysql) >= 50027
-            ? MYSQL_TYPE_BLOB
-            : mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_STRING
-                                                       : MYSQL_TYPE_VAR_STRING,
+        mysql_get_server_version(mysql) >= 50027   ? MYSQL_TYPE_BLOB
+        : mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_STRING
+                                                   : MYSQL_TYPE_VAR_STRING,
         0, 0, "mysql", mysql_get_server_version(mysql) >= 50027 ? 0 : 64, 0);
   }
 
@@ -19045,7 +19044,8 @@ static void test_wl6791() {
                                    MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                                    MYSQL_OPT_OPTIONAL_RESULTSET_METADATA},
                     const_char_opts[] =
-  { MYSQL_READ_DEFAULT_FILE,
+  {
+    MYSQL_READ_DEFAULT_FILE,
     MYSQL_READ_DEFAULT_GROUP,
     MYSQL_SET_CHARSET_DIR,
     MYSQL_SET_CHARSET_NAME,
@@ -19064,7 +19064,8 @@ static void test_wl6791() {
     MYSQL_OPT_TLS_CIPHERSUITES,
     MYSQL_OPT_SSL_CRL,
     MYSQL_OPT_SSL_CRLPATH,
-    MYSQL_SERVER_PUBLIC_KEY },
+    MYSQL_SERVER_PUBLIC_KEY
+  },
                     err_opts[] = {
                         MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
                         MYSQL_OPT_CONNECT_ATTR_DELETE, MYSQL_INIT_COMMAND};

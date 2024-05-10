@@ -128,7 +128,7 @@ class Stateless_allocator {
   void deallocate(pointer p, size_type n) { DEALLOC_FUN()(p, n); }
 
   template <class U, class... Args>
-  void construct(U *p, Args &&... args) {
+  void construct(U *p, Args &&...args) {
     assert(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);

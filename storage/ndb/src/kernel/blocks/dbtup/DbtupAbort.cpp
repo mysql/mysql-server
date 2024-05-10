@@ -33,7 +33,7 @@
 #define JAM_FILE_ID 409
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_LCP 1
+// #define DEBUG_LCP 1
 #endif
 
 #ifdef DEBUG_LCP

@@ -338,9 +338,9 @@ constexpr int8_t find_pos_of_char(const alphabet_type &v, uint8_t character,
   static_assert(alphabet_type().size() <= 128,
                 "alphabet MUST less <= 128 chars");
   return (v_ndx >= v.size() ? -1
-                            : (v[v_ndx] == static_cast<char>(character))
-                                  ? static_cast<uint8_t>(v_ndx)
-                                  : find_pos_of_char(v, character, v_ndx + 1));
+          : (v[v_ndx] == static_cast<char>(character))
+              ? static_cast<uint8_t>(v_ndx)
+              : find_pos_of_char(v, character, v_ndx + 1));
 }
 
 // hand-roll std::make_index_sequence<256> as SunCC 12.6 runs into:

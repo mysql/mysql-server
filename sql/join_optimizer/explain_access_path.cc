@@ -83,14 +83,14 @@ struct ExplainChild {
 /// Convenience function to add a json field.
 template <class T, class... Args>
 static bool AddMemberToObject(Json_object *obj, const char *alias,
-                              Args &&... ctor_args) {
+                              Args &&...ctor_args) {
   return obj->add_alias(
       alias, create_dom_ptr<T, Args...>(std::forward<Args>(ctor_args)...));
 }
 
 template <class T, class... Args>
 static bool AddElementToArray(const std::unique_ptr<Json_array> &array,
-                              Args &&... ctor_args) {
+                              Args &&...ctor_args) {
   return array->append_alias(
       create_dom_ptr<T, Args...>(std::forward<Args>(ctor_args)...));
 }

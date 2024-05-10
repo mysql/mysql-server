@@ -45,9 +45,9 @@ static int queue_key_cmp(void *keyseg, uchar *a, uchar *b) {
     rowid). This is used by index_merge access method, grep for ROR in
     sql/opt_range.cc for details.
   */
-  return (ma->file_offset < mb->file_offset)
-             ? -1
-             : (ma->file_offset > mb->file_offset) ? 1 : 0;
+  return (ma->file_offset < mb->file_offset)   ? -1
+         : (ma->file_offset > mb->file_offset) ? 1
+                                               : 0;
 } /* queue_key_cmp */
 
 int _myrg_init_queue(MYRG_INFO *info, int inx,

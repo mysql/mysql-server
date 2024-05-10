@@ -351,7 +351,7 @@ you can write:
 template <size_t iterations>
 struct Loop {
   template <typename Step_executor, typename... Args>
-  static void run(Args &&... args) {
+  static void run(Args &&...args) {
     Loop<iterations - 1>::template run<Step_executor, Args...>(
         std::forward<Args>(args)...);
     Step_executor::template run<iterations - 1>(std::forward<Args>(args)...);

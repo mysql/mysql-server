@@ -11125,9 +11125,9 @@ bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
             goto err;
         }
       } else  // Case 1
-          if (write_bin_log(thd, true, thd->query().str, thd->query().length,
-                            is_trans))
-        goto err;
+        if (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                          is_trans))
+          goto err;
     }
     /*
       Case 3 and 4 does nothing under RBR

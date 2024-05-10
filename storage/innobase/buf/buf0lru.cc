@@ -257,7 +257,7 @@ static void buf_LRU_drop_page_hash_for_tablespace(buf_pool_t *buf_pool,
   if (!found) {
     /* Somehow, the tablespace does not exist.  Nothing to drop. */
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   page_no_t *page_arr = static_cast<page_no_t *>(ut::malloc_withkey(

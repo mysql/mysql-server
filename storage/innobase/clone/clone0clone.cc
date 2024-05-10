@@ -1536,7 +1536,7 @@ void Clone_Task_Manager::reinit_copy_state(const byte *loc, uint loc_len) {
   if (m_current_state == CLONE_SNAPSHOT_NONE) {
     mutex_exit(&m_state_mutex);
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   /* Reset to beginning of current state */

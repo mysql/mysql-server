@@ -91,7 +91,7 @@ typedef enum _thd_wait_type_e {
 extern "C" struct thd_wait_service_st {
   void (*thd_wait_begin_func)(MYSQL_THD, int);
   void (*thd_wait_end_func)(MYSQL_THD);
-} * thd_wait_service;
+} *thd_wait_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

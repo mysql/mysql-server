@@ -38,7 +38,7 @@
  * and Round robin groups.
  * Needs to be defined in SimulatedBlock.hpp as well to work.
  */
-//#define DEBUG_SCHED_STATS 1
+// #define DEBUG_SCHED_STATS 1
 
 #define MAX_MAIN_THREADS 2  // except receiver
 /*

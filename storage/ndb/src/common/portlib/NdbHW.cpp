@@ -37,7 +37,7 @@
 #include "ndb_config.h"
 #include "util/require.h"
 
-//#define DEBUG_HW(arglist) do { printf arglist ; } while (0)
+// #define DEBUG_HW(arglist) do { printf arglist ; } while (0)
 #define DEBUG_HW(arglist) \
   do {                    \
   } while (0)

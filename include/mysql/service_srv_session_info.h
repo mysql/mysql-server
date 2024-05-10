@@ -56,7 +56,7 @@ extern "C" struct srv_session_info_service_st {
 
   unsigned int (*session_count)();
   unsigned int (*thread_count)(const void *plugin);
-} * srv_session_info_service;
+} *srv_session_info_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 #define srv_session_info_get_thd(session) \

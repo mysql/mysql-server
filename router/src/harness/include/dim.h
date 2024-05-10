@@ -562,4 +562,4 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
 };  // class DIM
 
 }  // namespace mysql_harness
-#endif  //#ifndef MYSQL_HARNESS_DIMANAGER_INCLUDED
+#endif  // #ifndef MYSQL_HARNESS_DIMANAGER_INCLUDED

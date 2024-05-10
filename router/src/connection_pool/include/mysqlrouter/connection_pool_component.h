@@ -51,7 +51,7 @@ class CONNECTION_POOL_EXPORT ConnectionPoolComponent {
   void operator=(ConnectionPoolComponent &&) = delete;
 
   template <class... Args>
-  void emplace(Args &&... args) {
+  void emplace(Args &&...args) {
     pools_.emplace(std::forward<Args>(args)...);
   }
 

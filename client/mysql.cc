@@ -2247,15 +2247,11 @@ static int read_and_execute(bool interactive) {
       if (!glob_buffer.length()) status.query_start_line = line_number;
     } else {
       const char *prompt =
-          (ml_comment
-               ? "   /*> "
-               : glob_buffer.is_empty()
-                     ? construct_prompt()
-                     : !in_string
-                           ? "    -> "
-                           : in_string == '\''
-                                 ? "    '> "
-                                 : (in_string == '`' ? "    `> " : "    \"> "));
+          (ml_comment               ? "   /*> "
+           : glob_buffer.is_empty() ? construct_prompt()
+           : !in_string             ? "    -> "
+           : in_string == '\''      ? "    '> "
+                               : (in_string == '`' ? "    `> " : "    \"> "));
       if (opt_outfile && glob_buffer.is_empty()) fflush(OUTFILE);
 
 #if defined(_WIN32)
@@ -3029,7 +3025,8 @@ void add_syslog(const char *line) {
            "CONNECTION_ID:%lu, DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
            /* use the cached user/sudo_user value. */
            current_os_sudouser ? current_os_sudouser
-                               : current_os_user ? current_os_user : "--",
+           : current_os_user   ? current_os_user
+                               : "--",
            current_user ? current_user : "--", mysql_thread_id(&mysql),
            current_host ? current_host : "--", current_db ? current_db : "--",
            line);

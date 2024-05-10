@@ -54,7 +54,7 @@ class File_output {
   }
 
   template <typename... Types>
-  void write_to_context(Context *context, Types &&... values) {
+  void write_to_context(Context *context, Types &&...values) {
     if (!m_file && context) {
       m_file.reset(context->Open(m_name));
 
@@ -91,14 +91,14 @@ class File_output {
   bool write() { return true; }
 
   template <typename... Types>
-  bool write(const std::string &value, Types &&... values) {
+  bool write(const std::string &value, Types &&...values) {
     if (!write_bin(value.c_str(), value.length())) return false;
 
     return write(std::forward<Types>(values)...);
   }
 
   template <typename... Types>
-  bool writeln(Types &&... values) {
+  bool writeln(Types &&...values) {
     return write(std::forward<Types>(values)..., "\n");
   }
 

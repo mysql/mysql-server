@@ -72,7 +72,7 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
   }
 
   template <typename... Types>
-  Mysqlx::Connection::Capabilities *make_capability(const Types &... values) {
+  Mysqlx::Connection::Capabilities *make_capability(const Types &...values) {
     auto result = new Mysqlx::Connection::Capabilities();
     auto cap = result->add_capabilities();
 

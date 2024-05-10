@@ -33,7 +33,7 @@
 #define JAM_FILE_ID 442
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_EXEC_SR 1
+// #define DEBUG_EXEC_SR 1
 #endif
 
 #ifdef DEBUG_EXEC_SR

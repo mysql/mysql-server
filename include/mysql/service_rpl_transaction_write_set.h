@@ -65,7 +65,7 @@ extern "C" struct transaction_write_set_service_st {
   void (*require_full_write_set)(bool requires_ws);
   void (*set_write_set_memory_size_limit)(uint64 size_limit);
   void (*update_write_set_memory_size_limit)(uint64 size_limit);
-} * transaction_write_set_service;
+} *transaction_write_set_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

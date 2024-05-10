@@ -1482,10 +1482,10 @@ void DbUtil::prepareOperation(Signal *signal, PreparePtr prepPtr,
           break;
         }
       } else  // (attributeKey == UtilPrepareReq::AttributeId)
-          if (attrId == attrIdRequested) {
-        attributeFound = true;
-        break;
-      }
+        if (attrId == attrIdRequested) {
+          attributeFound = true;
+          break;
+        }
 
       // Move to next attribute
       ndbassert(dictInfoReader.getKey() == DictTabInfo::AttributeEnd);

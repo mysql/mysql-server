@@ -135,4 +135,4 @@ class UniquePtr : public std::unique_ptr<T, std::function<void(T *)>> {
 };
 
 }  // namespace mysql_harness
-#endif  //#ifndef MYSQL_HARNESS_UNIQUEPTR_INCLUDED
+#endif  // #ifndef MYSQL_HARNESS_UNIQUEPTR_INCLUDED

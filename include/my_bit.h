@@ -56,22 +56,27 @@ static inline uint my_count_bits(ulonglong v) {
   /* The following code is a bit faster on 16 bit machines than if we would
      only shift v */
   ulong v2 = (ulong)(v >> 32);
-  return (uint)(uchar)(
-      _my_bits_nbits[(uchar)v] + _my_bits_nbits[(uchar)(v >> 8)] +
-      _my_bits_nbits[(uchar)(v >> 16)] + _my_bits_nbits[(uchar)(v >> 24)] +
-      _my_bits_nbits[(uchar)(v2)] + _my_bits_nbits[(uchar)(v2 >> 8)] +
-      _my_bits_nbits[(uchar)(v2 >> 16)] + _my_bits_nbits[(uchar)(v2 >> 24)]);
+  return (uint)(uchar)(_my_bits_nbits[(uchar)v] +
+                       _my_bits_nbits[(uchar)(v >> 8)] +
+                       _my_bits_nbits[(uchar)(v >> 16)] +
+                       _my_bits_nbits[(uchar)(v >> 24)] +
+                       _my_bits_nbits[(uchar)(v2)] +
+                       _my_bits_nbits[(uchar)(v2 >> 8)] +
+                       _my_bits_nbits[(uchar)(v2 >> 16)] +
+                       _my_bits_nbits[(uchar)(v2 >> 24)]);
 #else
-  return (uint)(uchar)(
-      _my_bits_nbits[(uchar)v] + _my_bits_nbits[(uchar)(v >> 8)] +
-      _my_bits_nbits[(uchar)(v >> 16)] + _my_bits_nbits[(uchar)(v >> 24)]);
+  return (uint)(uchar)(_my_bits_nbits[(uchar)v] +
+                       _my_bits_nbits[(uchar)(v >> 8)] +
+                       _my_bits_nbits[(uchar)(v >> 16)] +
+                       _my_bits_nbits[(uchar)(v >> 24)]);
 #endif
 }
 
 static inline uint my_count_bits_uint32(uint32 v) {
-  return (uint)(uchar)(
-      _my_bits_nbits[(uchar)v] + _my_bits_nbits[(uchar)(v >> 8)] +
-      _my_bits_nbits[(uchar)(v >> 16)] + _my_bits_nbits[(uchar)(v >> 24)]);
+  return (uint)(uchar)(_my_bits_nbits[(uchar)v] +
+                       _my_bits_nbits[(uchar)(v >> 8)] +
+                       _my_bits_nbits[(uchar)(v >> 16)] +
+                       _my_bits_nbits[(uchar)(v >> 24)]);
 }
 
 /*

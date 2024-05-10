@@ -768,11 +768,10 @@ bool Prepared_statement::insert_parameters(THD *thd, String *query,
       param->set_data_type_actual(MYSQL_TYPE_VARCHAR);
       // see Item_param::set_str() for explanation
       param->set_collation_actual(
-          param->collation_source() == &my_charset_bin
-              ? &my_charset_bin
-              : param->collation.collation != &my_charset_bin
-                    ? param->collation.collation
-                    : current_thd->variables.collation_connection);
+          param->collation_source() == &my_charset_bin ? &my_charset_bin
+          : param->collation.collation != &my_charset_bin
+              ? param->collation.collation
+              : current_thd->variables.collation_connection);
 
     } else if (parameters[i].null_bit) {
       param->set_null();

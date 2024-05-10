@@ -33,8 +33,8 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 
-//#include <iostream>
-//#include <stdio.h>
+// #include <iostream>
+// #include <stdio.h>
 
 #include <NdbSleep.h>
 #include <NdbTick.h>

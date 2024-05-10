@@ -78,7 +78,7 @@ static constexpr Uint32 NUM_JOB_BUFFERS_PER_THREAD = 32;
 static constexpr Uint32 SIGNAL_RNIL = 0xFFFFFFFF;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_MULTI_TRP 1
+// #define DEBUG_MULTI_TRP 1
 #endif
 
 #ifdef DEBUG_MULTI_TRP
@@ -104,8 +104,8 @@ static constexpr Uint32 SIGNAL_RNIL = 0xFFFFFFFF;
  *   These are useful for testing the correctness of the new code, and
  *   the resulting behaviour / debugging output.
  */
-//#define NDB_BAD_SEND
-//#define NDB_LUMPY_SEND
+// #define NDB_BAD_SEND
+// #define NDB_LUMPY_SEND
 
 /**
  * Number indicating that the trp has no current sender thread.
@@ -152,7 +152,7 @@ static constexpr Uint32 MAX_SIGNALS_BEFORE_FLUSH_OTHER = 20;
 
 static constexpr Uint32 MAX_LOCAL_BUFFER_USAGE = 8140;
 
-//#define NDB_MT_LOCK_TO_CPU
+// #define NDB_MT_LOCK_TO_CPU
 
 static Uint32 glob_num_threads = 0;
 static Uint32 glob_num_tc_threads = 1;
@@ -5812,7 +5812,7 @@ static bool insert_prioa_signal(thr_job_queue *q, const SignalHeader *sh,
   return publish_prioa_signal(q, write_pos, write_buffer, new_buffer);
 }
 
-//#define DEBUG_LOAD_INDICATOR 1
+// #define DEBUG_LOAD_INDICATOR 1
 #ifdef DEBUG_LOAD_INDICATOR
 #define debug_load_indicator(selfptr)                          \
   g_eventLogger->info("thr_no:: %u, set load_indicator to %u", \

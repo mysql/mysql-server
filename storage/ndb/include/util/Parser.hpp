@@ -34,7 +34,7 @@ class ParserImpl;
 template <class T>
 struct ParserRow;
 
-//#define PARSER_DEBUG
+// #define PARSER_DEBUG
 #ifdef PARSER_DEBUG
 #include <EventLogger.hpp>
 #define DEBUG(x) g_eventLogger->info("%s:%d:%s", __FILE__, __LINE__, x);

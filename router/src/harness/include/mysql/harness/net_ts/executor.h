@@ -232,7 +232,7 @@ class execution_context {
   std::unordered_map<service_key_type, service *> keys_;
 
   template <typename Service, class... Args>
-  service *add_service(Args &&... args) {
+  service *add_service(Args &&...args) {
     services_.push_back(
         ServicePtr{new Service{*this, std::forward<Args>(args)...}});
 
@@ -246,7 +246,7 @@ class execution_context {
   friend bool has_service(const execution_context &ctx) noexcept;
 
   template <class Service, class... Args>
-  friend Service &make_service(execution_context &ctx, Args &&... args);
+  friend Service &make_service(execution_context &ctx, Args &&...args);
 };
 
 // 13.7.5 [async.exec.ctx.globals]
@@ -273,7 +273,7 @@ typename Service::key_type &use_service(execution_context &ctx) {
 }
 
 template <class Service, class... Args>
-Service &make_service(execution_context &ctx, Args &&... args) {
+Service &make_service(execution_context &ctx, Args &&...args) {
   using Key = typename Service::key_type;
 
   static_assert(std::is_base_of<execution_context::service, Key>::value,

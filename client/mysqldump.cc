@@ -5812,9 +5812,9 @@ static bool get_view_structure(char *table, char *db) {
       search_len =
           (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) - ptr);
       ptr = replace_buf;
-      replace_len = (ulong)(
-          strxmov(ptr, "*/\n/*!50002 WITH ", row[0], " CHECK OPTION", NullS) -
-          ptr);
+      replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
+                                    " CHECK OPTION", NullS) -
+                            ptr);
       replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
     }
 
@@ -5834,19 +5834,23 @@ static bool get_view_structure(char *table, char *db) {
                  host_name_str, &host_name_len);
 
       ptr = search_buf;
-      search_len = (ulong)(
-          strxmov(ptr, "DEFINER=",
-                  quote_name(user_name_str, quoted_user_name_str, false), "@",
-                  quote_name(host_name_str, quoted_host_name_str, false),
-                  " SQL SECURITY ", row[2], NullS) -
-          ptr);
+      search_len =
+          (ulong)(strxmov(
+                      ptr, "DEFINER=",
+                      quote_name(user_name_str, quoted_user_name_str, false),
+                      "@",
+                      quote_name(host_name_str, quoted_host_name_str, false),
+                      " SQL SECURITY ", row[2], NullS) -
+                  ptr);
       ptr = replace_buf;
-      replace_len = (ulong)(
-          strxmov(ptr, "*/\n/*!50013 DEFINER=",
-                  quote_name(user_name_str, quoted_user_name_str, false), "@",
-                  quote_name(host_name_str, quoted_host_name_str, false),
-                  " SQL SECURITY ", row[2], " */\n/*!50001", NullS) -
-          ptr);
+      replace_len =
+          (ulong)(strxmov(
+                      ptr, "*/\n/*!50013 DEFINER=",
+                      quote_name(user_name_str, quoted_user_name_str, false),
+                      "@",
+                      quote_name(host_name_str, quoted_host_name_str, false),
+                      " SQL SECURITY ", row[2], " */\n/*!50001", NullS) -
+                  ptr);
       replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
     }
 

@@ -163,8 +163,8 @@ class RowIterator {
   }
 
   /** @see TimingIterator .*/
-  virtual void SetOverrideProfiler([
-      [maybe_unused]] const IteratorProfiler *profiler) {
+  virtual void SetOverrideProfiler(
+      [[maybe_unused]] const IteratorProfiler *profiler) {
     // Valid for TimingIterator only.
     assert(false);
   }

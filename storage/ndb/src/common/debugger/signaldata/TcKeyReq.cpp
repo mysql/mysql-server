@@ -33,27 +33,16 @@ bool printTCKEYREQ(FILE *output, const Uint32 *theData, Uint32 len,
 
   fprintf(output, " apiConnectPtr: H\'%.8x, apiOperationPtr: H\'%.8x\n",
           sig->apiConnectPtr, sig->apiOperationPtr);
-  fprintf(
-      output, " Operation: %s, Flags: ",
-      sig->getOperationType(requestInfo) == ZREAD
-          ? "Read"
-          : sig->getOperationType(requestInfo) == ZREAD_EX
-                ? "Read-Ex"
-                : sig->getOperationType(requestInfo) == ZUPDATE
-                      ? "Update"
-                      : sig->getOperationType(requestInfo) == ZINSERT
-                            ? "Insert"
-                            : sig->getOperationType(requestInfo) == ZDELETE
-                                  ? "Delete"
-                                  : sig->getOperationType(requestInfo) == ZWRITE
-                                        ? "Write"
-                                        : sig->getOperationType(requestInfo) ==
-                                                  ZUNLOCK
-                                              ? "Unlock"
-                                              : sig->getOperationType(
-                                                    requestInfo) == ZREFRESH
-                                                    ? "Refresh"
-                                                    : "Unknown");
+  fprintf(output, " Operation: %s, Flags: ",
+          sig->getOperationType(requestInfo) == ZREAD      ? "Read"
+          : sig->getOperationType(requestInfo) == ZREAD_EX ? "Read-Ex"
+          : sig->getOperationType(requestInfo) == ZUPDATE  ? "Update"
+          : sig->getOperationType(requestInfo) == ZINSERT  ? "Insert"
+          : sig->getOperationType(requestInfo) == ZDELETE  ? "Delete"
+          : sig->getOperationType(requestInfo) == ZWRITE   ? "Write"
+          : sig->getOperationType(requestInfo) == ZUNLOCK  ? "Unlock"
+          : sig->getOperationType(requestInfo) == ZREFRESH ? "Refresh"
+                                                           : "Unknown");
   {
     if (sig->getDirtyFlag(requestInfo)) {
       fprintf(output, "Dirty ");

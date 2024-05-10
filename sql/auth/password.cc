@@ -115,9 +115,9 @@ void hash_password(ulong *result, const char *password, uint password_len) {
 }
 
 static inline uint8 char_val(uint8 X) {
-  return (uint)(X >= '0' && X <= '9'
-                    ? X - '0'
-                    : X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
+  return (uint)(X >= '0' && X <= '9'   ? X - '0'
+                : X >= 'A' && X <= 'Z' ? X - 'A' + 10
+                                       : X - 'a' + 10);
 }
 
 /* Character to use as version identifier for version 4.1 */

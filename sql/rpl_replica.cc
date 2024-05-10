@@ -4056,9 +4056,8 @@ int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
 #endif
   thd->system_thread = (thd_type == SLAVE_THD_WORKER)
                            ? SYSTEM_THREAD_SLAVE_WORKER
-                           : (thd_type == SLAVE_THD_SQL)
-                                 ? SYSTEM_THREAD_SLAVE_SQL
-                                 : SYSTEM_THREAD_SLAVE_IO;
+                       : (thd_type == SLAVE_THD_SQL) ? SYSTEM_THREAD_SLAVE_SQL
+                                                     : SYSTEM_THREAD_SLAVE_IO;
   thd->get_protocol_classic()->init_net(nullptr);
   thd->slave_thread = true;
   thd->enable_slow_log = opt_log_slow_replica_statements;
@@ -7834,27 +7833,28 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         save_buf = buf;
         buf = rot_buf;
       } else
-          /*
-            RSC_2: If NM \and fake Rotate \and slave does not compute checksum
-            the fake Rotate's checksum is stripped off before relay-logging.
-          */
-          if (uint4korr(&buf[0]) == 0 &&
-              checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-              mi->rli->relay_log.relay_log_checksum_alg ==
-                  binary_log::BINLOG_CHECKSUM_ALG_OFF) {
-        event_len -= BINLOG_CHECKSUM_LEN;
-        memcpy(rot_buf, buf, event_len);
-        int4store(&rot_buf[EVENT_LEN_OFFSET],
-                  uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
-        assert(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-        assert(mi->get_mi_description_event()->common_footer->checksum_alg ==
-               mi->rli->relay_log.relay_log_checksum_alg);
-        /* the first one */
-        assert(mi->checksum_alg_before_fd !=
-               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-        save_buf = buf;
-        buf = rot_buf;
-      }
+        /*
+          RSC_2: If NM \and fake Rotate \and slave does not compute checksum
+          the fake Rotate's checksum is stripped off before relay-logging.
+        */
+        if (uint4korr(&buf[0]) == 0 &&
+            checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+            mi->rli->relay_log.relay_log_checksum_alg ==
+                binary_log::BINLOG_CHECKSUM_ALG_OFF) {
+          event_len -= BINLOG_CHECKSUM_LEN;
+          memcpy(rot_buf, buf, event_len);
+          int4store(
+              &rot_buf[EVENT_LEN_OFFSET],
+              uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
+          assert(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+          assert(mi->get_mi_description_event()->common_footer->checksum_alg ==
+                 mi->rli->relay_log.relay_log_checksum_alg);
+          /* the first one */
+          assert(mi->checksum_alg_before_fd !=
+                 binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+          save_buf = buf;
+          buf = rot_buf;
+        }
       /*
         Now the I/O thread has just changed its mi->get_master_log_name(), so
         incrementing mi->get_master_log_pos() is nonsense.

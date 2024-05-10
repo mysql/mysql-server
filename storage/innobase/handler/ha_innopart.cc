@@ -1271,7 +1271,7 @@ void ha_innopart::set_partition(uint part_id) {
 
   if (part_id >= m_tot_parts) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
   if (m_pcur_parts != nullptr) {
     m_prebuilt->pcur = &m_pcur_parts[m_pcur_map[part_id]];
@@ -1319,7 +1319,7 @@ void ha_innopart::update_partition(uint part_id) {
 
   if (part_id >= m_tot_parts) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   /* Update all m_parts[part_id] fields with corresponding m_prebuilt's fields,
@@ -4105,7 +4105,7 @@ void ha_innopart::get_auto_increment(ulonglong, ulonglong increment,
     /* Only first key part allowed as autoinc for InnoDB tables! */
     *first_value = ULLONG_MAX;
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
   get_auto_increment_first_field(increment, nb_desired_values, first_value,
                                  nb_reserved_values);

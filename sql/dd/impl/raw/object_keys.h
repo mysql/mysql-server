@@ -247,10 +247,9 @@ class Se_private_id_key : public Object_key {
   String_type str() const override;
 
   bool operator<(const Se_private_id_key &rhs) const {
-    return m_private_id < rhs.m_private_id
-               ? true
-               : rhs.m_private_id < m_private_id ? false
-                                                 : m_engine < rhs.m_engine;
+    return m_private_id < rhs.m_private_id   ? true
+           : rhs.m_private_id < m_private_id ? false
+                                             : m_engine < rhs.m_engine;
   }
 
  private:

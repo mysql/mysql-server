@@ -403,8 +403,9 @@ static log_filter_apply log_filter_try_apply(log_line *ll, int ln,
 
     case LOG_FILTER_THROTTLE: {
       ulonglong now = my_micro_time();
-      ulong rate = (ulong)(
-          (r->aux.data.data_integer < 0) ? 0 : r->aux.data.data_integer);
+      ulong rate =
+          (ulong)((r->aux.data.data_integer < 0) ? 0
+                                                 : r->aux.data.data_integer);
       ulong suppressed = 0;
       ulong matches;
 

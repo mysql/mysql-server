@@ -45,7 +45,7 @@ class SectionReader;
 struct QueryNode;
 struct QueryNodeParameters;
 
-//#define SPJ_TRACE_TIME
+// #define SPJ_TRACE_TIME
 
 class Dbspj : public SimulatedBlock {
  public:
