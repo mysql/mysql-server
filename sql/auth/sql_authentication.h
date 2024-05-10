@@ -158,7 +158,6 @@ extern bool allow_all_hosts;
 
 typedef enum {
   PLUGIN_CACHING_SHA2_PASSWORD = 0,
-  PLUGIN_MYSQL_NATIVE_PASSWORD,
   PLUGIN_SHA256_PASSWORD,
   /* Add new plugin before this */
   PLUGIN_LAST

@@ -293,18 +293,3 @@ SET GLOBAL default_password_lifetime = DEFAULT;
 DROP TABLE t1;
 DROP FUNCTION f1;
 DROP USER 'user1'@'%';
-
-
---echo #-----------------------------------------------------------------------
---echo # Test case to verify logical upgrade from 5.7 dump file.
---echo #-----------------------------------------------------------------------
---exec $MYSQL < $MYSQL_TEST_DIR/std_data/mysqldump_57.sql
-SELECT table_schema, table_name, engine FROM information_schema.tables
-                                        WHERE table_schema='mysql'
-                                              AND engine='MyISAM';
---let $restart_parameters = restart:--upgrade=FORCE
---let $wait_counter= 10000
---source include/restart_mysqld.inc
-SELECT table_schema, table_name, engine FROM information_schema.tables
-                                        WHERE table_schema='mysql'
-                                              AND engine='MyISAM';

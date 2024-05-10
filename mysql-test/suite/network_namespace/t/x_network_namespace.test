@@ -9,7 +9,7 @@
 --source include/xplugin_wait_for_interfaces.inc
 --source include/xplugin_preamble.inc
 
-CREATE USER 'x_root' @'10.0.2.1' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'x_root' @'10.0.2.1' IDENTIFIED WITH 'caching_sha2_password';
 GRANT ALL ON *.*TO 'x_root' @'10.0.2.1' WITH GRANT OPTION;
 
 --echo # Check that X-protocol client can establish connection to the address 10.0.2.1 from the network namespace 'red'

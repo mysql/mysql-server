@@ -117,8 +117,6 @@ class SharedServer {
         admin_account().username,
         caching_sha2_empty_password_account().username,
         caching_sha2_password_account().username,
-        native_empty_password_account().username,
-        native_password_account().username,
         sha256_empty_password_account().username,
         sha256_password_account().username,
         sha256_short_password_account().username,
@@ -171,18 +169,6 @@ class SharedServer {
 
   static Account caching_sha2_single_use_password_account() {
     return {"caching_sha2_single_use", "notusedyet", "caching_sha2_password"};
-  }
-
-  static Account native_password_account() {
-    constexpr const std::string_view pass("nativepasswordlongerthan20chars");
-
-    static_assert(pass.size() > 20);
-
-    return {"native", std::string(pass), "mysql_native_password"};
-  }
-
-  static Account native_empty_password_account() {
-    return {"native_empty", "", "mysql_native_password"};
   }
 
   static Account sha256_password_account() {

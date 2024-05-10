@@ -570,27 +570,3 @@ SET GLOBAL default_password_lifetime = DEFAULT;
 DROP TABLE t1;
 DROP FUNCTION f1;
 DROP USER 'user1'@'%';
-#-----------------------------------------------------------------------
-# Test case to verify logical upgrade from 5.7 dump file.
-#-----------------------------------------------------------------------
-SELECT table_schema, table_name, engine FROM information_schema.tables
-WHERE table_schema='mysql'
-                                              AND engine='MyISAM';
-TABLE_SCHEMA	TABLE_NAME	ENGINE
-mysql	columns_priv	MyISAM
-mysql	db	MyISAM
-mysql	event	MyISAM
-mysql	func	MyISAM
-mysql	ndb_binlog_index	MyISAM
-mysql	proc	MyISAM
-mysql	procs_priv	MyISAM
-mysql	proxies_priv	MyISAM
-mysql	tables_priv	MyISAM
-mysql	user	MyISAM
-# restart:--upgrade=FORCE
-SELECT table_schema, table_name, engine FROM information_schema.tables
-WHERE table_schema='mysql'
-                                              AND engine='MyISAM';
-TABLE_SCHEMA	TABLE_NAME	ENGINE
-mysql	event	MyISAM
-mysql	proc	MyISAM

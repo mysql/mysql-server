@@ -33,16 +33,12 @@
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
-#include "plugin/x/src/native_verification.h"
 
 namespace xpl {
 
 template <iface::Account_verification::Account_type Auth_type,
           typename Auth_verificator_t>
 class Sasl_challenge_response_auth;
-
-using Sasl_mysql41_auth = Sasl_challenge_response_auth<
-    iface::Account_verification::Account_type::k_native, Native_verification>;
 
 using Sasl_sha256_memory_auth = Sasl_challenge_response_auth<
     iface::Account_verification::Account_type::k_sha256_memory,

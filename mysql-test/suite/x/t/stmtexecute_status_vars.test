@@ -26,6 +26,8 @@
 #       13) Mysqlx_stmt_list_objects
 #
 ## Preamble
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -163,7 +165,7 @@ SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx%';
 EOF
 
 ## New session will not show values from other session
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 
 --write_file $MYSQL_TMP_DIR/stmtexecute_second_client.xpl
@@ -172,7 +174,7 @@ SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
 SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx%';
 -->endsql
 EOF
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_second_client.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_second_client.xpl 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_second_client.xpl
 
 
@@ -180,7 +182,7 @@ SELECT * FROM `xplugintest`.`scalar_types`;
 
 
 # Run command
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_select.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.xpl 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_select.xpl
 
 
@@ -274,7 +276,7 @@ SHOW STATUS like 'Mysqlx_stmt_list_objects%';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 
 
@@ -565,7 +567,7 @@ SHOW STATUS like 'Mysqlx_expect_open%';
 EOF
 
 ## Test starts here
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
 
 ## Cleanup
 DROP DATABASE xplugintest;

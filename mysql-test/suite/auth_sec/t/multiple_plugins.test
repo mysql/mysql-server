@@ -3,10 +3,6 @@
 let $server_default_authentication_policy=*:caching_sha2_password,,;
 --source ../include/multiple_plugins.inc
 
---echo # Check with mysql_native_password as default first authentication factor
-let $server_default_authentication_policy=*:mysql_native_password,,;
---source ../include/multiple_plugins.inc
-
 --echo # Check with sha256_password as default first authentication factor
 let $server_default_authentication_policy=*:sha256_password,,;
 --source ../include/multiple_plugins.inc

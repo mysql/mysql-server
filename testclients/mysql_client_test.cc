@@ -16544,131 +16544,6 @@ static void test_bug31418() {
 }
 
 /**
-  Bug#31669 Buffer overflow in mysql_change_user()
-*/
-
-#define LARGE_BUFFER_SIZE 2048
-
-static void test_bug31669() {
-  int rc;
-  static char buff[LARGE_BUFFER_SIZE + 1];
-  static char user[USERNAME_CHAR_LENGTH + 1];
-  static char db[NAME_CHAR_LEN + 1];
-  static char query[LARGE_BUFFER_SIZE * 2];
-  MYSQL *l_mysql;
-
-  DBUG_TRACE;
-  myheader("test_bug31669");
-
-  l_mysql = mysql_client_init(nullptr);
-  DIE_UNLESS(l_mysql != nullptr);
-
-  l_mysql = mysql_real_connect(l_mysql, opt_host, opt_user, opt_password,
-                               current_db, opt_port, opt_unix_socket, 0);
-  DIE_UNLESS(l_mysql != nullptr);
-
-  rc = mysql_change_user(l_mysql, nullptr, nullptr, nullptr);
-  DIE_UNLESS(rc);
-
-  reconnect(&l_mysql);
-
-  rc = mysql_change_user(l_mysql, "", "", "");
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  memset(buff, 'a', sizeof(buff));
-  buff[sizeof(buff) - 1] = '\0';
-
-  rc = mysql_change_user(l_mysql, buff, buff, buff);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
-  DIE_UNLESS(!rc);
-
-  memset(db, 'a', sizeof(db));
-  db[NAME_CHAR_LEN] = 0;
-  strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  memset(user, 'b', sizeof(user));
-  user[USERNAME_CHAR_LENGTH] = 0;
-  memset(buff, 'c', sizeof(buff));
-  buff[LARGE_BUFFER_SIZE] = 0;
-
-  strxmov(query, "CREATE USER '", user,
-          "'@'%' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'",
-          NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user,
-          "'@'%' WITH GRANT OPTION", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  strxmov(query, "CREATE USER '", user,
-          "'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY '", buff,
-          "'", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user,
-          "'@'localhost' WITH GRANT OPTION", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  rc = mysql_query(mysql, "FLUSH PRIVILEGES");
-  myquery(rc);
-
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(!rc);
-
-  user[USERNAME_CHAR_LENGTH - 1] = 'a';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  user[USERNAME_CHAR_LENGTH - 1] = 'b';
-  buff[LARGE_BUFFER_SIZE - 1] = 'd';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  buff[LARGE_BUFFER_SIZE - 1] = 'c';
-  db[NAME_CHAR_LEN - 1] = 'e';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  db[NAME_CHAR_LEN - 1] = 'a';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(!rc);
-
-  rc = mysql_change_user(l_mysql, user + 1, buff + 1, db + 1);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
-  DIE_UNLESS(!rc);
-
-  strxmov(query, "DROP DATABASE ", db, NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  strxmov(query, "DROP USER '", user, "'@'localhost'", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 0);
-
-  strxmov(query, "DROP USER '", user, "'@'%'", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 0);
-
-  mysql_close(l_mysql);
-}
-
-/**
   Bug#28386 the general log is incomplete
 */
 
@@ -23799,7 +23674,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug20023", test_bug20023},
     {"test_bug45010", test_bug45010},
     {"test_bug31418", test_bug31418},
-    {"test_bug31669", test_bug31669},
     {"test_bug28386", test_bug28386},
     {"test_wl4166_1", test_wl4166_1},
     {"test_wl4166_2", test_wl4166_2},

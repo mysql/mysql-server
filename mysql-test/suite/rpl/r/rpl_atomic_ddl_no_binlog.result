@@ -21,7 +21,7 @@ include/rpl/stop_applier.inc
 [connection master]
 include/rpl/gtid_step_reset.inc
 FLUSH LOGS;
-CREATE USER user1 IDENTIFIED WITH 'mysql_native_password';
+CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password';
 include/rpl/gtid_step_assert.inc [count=1, only_count=0]
 include/rpl/gtid_step_reset.inc
 FLUSH LOGS;
@@ -217,15 +217,15 @@ START REPLICA SQL_THREAD;
 include/rpl/wait_for_applier_error.inc [errno=1105]
 SET @@GLOBAL.debug="-d,rli_pre_commit_error";
 [connection master]
-Loop: 1 out of 44; current query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'';
+Loop: 1 out of 44; current query: 'CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'';
 [connection slave]
-*** Query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''. Crash right after the query has been committed. ***
+*** Query: 'CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password''. Crash right after the query has been committed. ***
 SET @@GLOBAL.debug="+d,replica_crash_before_commit";
 include/rpl/gtid_step_reset.inc
 START REPLICA SQL_THREAD;
 include/rpl/start_server.inc [server_number=2]
 include/rpl/gtid_step_assert.inc [count=0, only_count=0]
-*** Query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''. Crash right before the query gets committed. ***
+*** Query: 'CREATE USER user1 IDENTIFIED WITH 'caching_sha2_password''. Crash right before the query gets committed. ***
 SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/rpl/gtid_step_reset.inc
 START REPLICA SQL_THREAD;
@@ -233,7 +233,7 @@ include/rpl/start_server.inc [server_number=2]
 [connection slave]
 include/rpl/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 2 out of 44; current query: 'GRANT SELECT ON *.* TO user1'; pre-binlog check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1'';
+Loop: 2 out of 44; current query: 'GRANT SELECT ON *.* TO user1'; pre-binlog check: 'SELECT select_priv = <non-deterministic hash> FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1'';
 [connection slave]
 *** Query: 'GRANT SELECT ON *.* TO user1'. Crash right after the query has been committed. ***
 SET @@GLOBAL.debug="+d,replica_crash_before_commit";
@@ -249,7 +249,7 @@ include/rpl/start_server.inc [server_number=2]
 [connection slave]
 include/rpl/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 3 out of 44; current query: 'REVOKE SELECT ON *.* FROM user1'; pre-binlog check: 'SELECT select_priv = 'Y' FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1'';
+Loop: 3 out of 44; current query: 'REVOKE SELECT ON *.* FROM user1'; pre-binlog check: 'SELECT select_priv = <non-deterministic hash> FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT select_priv = 'N' FROM mysql.user WHERE user = 'user1'';
 [connection slave]
 *** Query: 'REVOKE SELECT ON *.* FROM user1'. Crash right after the query has been committed. ***
 SET @@GLOBAL.debug="+d,replica_crash_before_commit";
@@ -265,7 +265,7 @@ include/rpl/start_server.inc [server_number=2]
 [connection slave]
 include/rpl/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 4 out of 44; current query: 'ALTER USER user1 IDENTIFIED BY '123456''; pre-binlog check: 'SELECT authentication_string = '' FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT authentication_string != '' FROM mysql.user WHERE user LIKE 'user1'';
+Loop: 4 out of 44; current query: 'ALTER USER user1 IDENTIFIED BY '123456''; pre-binlog check: 'SELECT HEX(authentication_string) = <non-deterministic hash> FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT HEX(authentication_string) != <non-deterministic hash> FROM mysql.user WHERE user LIKE 'user1'';
 [connection slave]
 *** Query: 'ALTER USER user1 IDENTIFIED BY '123456''. Crash right after the query has been committed. ***
 SET @@GLOBAL.debug="+d,replica_crash_before_commit";
@@ -281,7 +281,7 @@ include/rpl/start_server.inc [server_number=2]
 [connection slave]
 include/rpl/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 5 out of 44; current query: 'SET PASSWORD FOR user1='abcdef''; pre-binlog check: 'SELECT authentication_string = '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9' FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT authentication_string != '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9' FROM mysql.user WHERE user LIKE 'user1'';
+Loop: 5 out of 44; current query: 'SET PASSWORD FOR user1='abcdef''; pre-binlog check: 'SELECT HEX(authentication_string) = <non-deterministic hash> FROM mysql.user WHERE user LIKE 'user1''; pre-commit check: 'SELECT HEX(authentication_string) != <non-deterministic hash> FROM mysql.user WHERE user LIKE 'user1'';
 [connection slave]
 *** Query: 'SET PASSWORD FOR user1='abcdef''. Crash right after the query has been committed. ***
 SET @@GLOBAL.debug="+d,replica_crash_before_commit";

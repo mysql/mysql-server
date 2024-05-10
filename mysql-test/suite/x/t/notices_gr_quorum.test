@@ -25,7 +25,6 @@
 # * X Protocol GR notices enabled - verify delivery of the notices
 # * X Protocol GR notices disabled - verify that X Plugin doesn't send the notices
 #
-
 --source include/count_sessions.inc
 --source include/force_restart.inc
 --source include/big_test.inc
@@ -291,7 +290,7 @@ while ($i < $ceiling)
 --echo ##########################################################################
 
 exec $MYSQLXTEST
-  -ux_root --ssl-mode=disabled --file=$xtest
+  -ux_root --file=$xtest
   -v %SERVER_NUMBER%=$rpl_server_count
   -v %GR_NAME%=$group_replication_group_name
   -v %ASSERT_NOTICES%=CHK_assert_notice
@@ -323,7 +322,7 @@ exec $MYSQLXTEST
 --echo ##########################################################################
 
 exec $MYSQLXTEST
-  -ux_root --ssl-mode=disabled --file=$xtest
+  -ux_root --file=$xtest
   -v %SERVER_NUMBER%=$rpl_server_count
   -v %GR_NAME%=$group_replication_group_name
   -v %ASSERT_NOTICES%=CHK_assert_notice_none_ignore_args

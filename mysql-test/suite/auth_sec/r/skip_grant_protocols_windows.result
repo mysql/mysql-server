@@ -20,8 +20,8 @@ root	caching_sha2_password
 # Set the password for the root user
 SET PASSWORD = 'passwd';
 
-# Create a new user with non-default plugin
-CREATE USER 'native_user' IDENTIFIED WITH 'mysql_native_password' BY 'passwd';
+# Create a new user
+CREATE USER 'new_user' IDENTIFIED WITH 'caching_sha2_password' BY 'passwd';
 
 
 # Restart the server with --skip-grant-tables, --shared-memory options
@@ -36,7 +36,7 @@ SELECT CURRENT_USER;
 CURRENT_USER
 skip-grants user@skip-grants host
 
-# connect the root user which uses the mysql_native_password auth plugin
+# connect the root user which uses the caching_sha2_password auth plugin
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Shared Memory
@@ -52,8 +52,8 @@ SELECT CURRENT_USER;
 CURRENT_USER
 skip-grants user@skip-grants host
 
-# connect the native_user user which uses corresponding
-# mysql_native_password auth plugin
+# connect the new_user user which uses corresponding
+# caching_sha2_password auth plugin
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Shared Memory
@@ -73,7 +73,7 @@ SELECT CURRENT_USER;
 CURRENT_USER
 skip-grants user@skip-grants host
 
-# connect the root user which uses the mysql_native_password auth plugin
+# connect the root user which uses the caching_sha2_password auth plugin
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Named Pipe
@@ -89,8 +89,8 @@ SELECT CURRENT_USER;
 CURRENT_USER
 skip-grants user@skip-grants host
 
-# connect the native_user user which uses corresponding
-# mysql_native_password auth plugin
+# connect the new_user user which uses corresponding
+# caching_sha2_password auth plugin
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Named Pipe
@@ -104,7 +104,7 @@ skip-grants user@skip-grants host
 # connect the root user which uses the default auth plugin
 # error 1
 
-# connect the root user which uses the mysql_native_password auth plugin
+# connect the root user which uses the caching_sha2_password auth plugin
 # error 1
 
 # connect the root user which uses the non-default auth plugin

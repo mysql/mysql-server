@@ -5,9 +5,9 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
-CREATE USER 'regular_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-CREATE USER 'var_admin_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-CREATE USER 'super_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'regular_user'@'%' IDENTIFIED WITH 'caching_sha2_password';
+CREATE USER 'var_admin_user'@'%' IDENTIFIED WITH 'caching_sha2_password';
+CREATE USER 'super_user'@'%' IDENTIFIED WITH 'caching_sha2_password';
 
 disable_warnings;
 GRANT 'SYSTEM_VARIABLES_ADMIN' ON *.* TO 'var_admin_user'@'%';

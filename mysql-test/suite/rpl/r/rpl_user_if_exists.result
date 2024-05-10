@@ -80,11 +80,11 @@ SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 2
 CREATE USER IF NOT EXISTS slave_user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 CREATE USER IF NOT EXISTS slave_user2@localhost;
 [On MASTER]
 CREATE USER IF NOT EXISTS slave_user1@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 ALTER USER IF EXISTS slave_user2@localhost
 IDENTIFIED WITH 'sha256_password' WITH MAX_CONNECTIONS_PER_HOUR 2;
 Warnings:

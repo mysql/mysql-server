@@ -4,7 +4,6 @@
 #
 # Verify that MySQL Server send notice trough X Protocol connections
 # when it forces the closure at server shutdown.
-
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 

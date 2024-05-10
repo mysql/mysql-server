@@ -11,16 +11,13 @@ SELECT @GLOBAL.print_identified_with_as_hex, @@SESSION.print_identified_with_as_
 --echo # This corresponds to CREATE USER foo@localhost IDENTIFIED BY 'bar'
 --echo # But because of the salt we peg the whole hash instead.
 CREATE USER 'foo'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS 0x244124303035240C4D7A6D25436F2C0A08515310644615383E2A123961484C6276734178425A446172436B58446A582F6178544A692E6F644E4F2F4E596E666276454B563336 REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;
-CREATE USER oldfoo@localhost IDENTIFIED WITH 'mysql_native_password' BY 'bar';
 --echo # Should display hex: unprintable symbols
 SHOW CREATE USER foo@localhost;
 --echo # Should not display hex: native passwords not having non-printable bytes
-SHOW CREATE USER oldfoo@localhost;
 SET SESSION print_identified_with_as_hex=0;
 --echo # Should not display hex: turned off
 SHOW CREATE USER foo@localhost;
 --echo # Should not display hex: turned off
-SHOW CREATE USER oldfoo@localhost;
 
 --echo # Now try to reply the statement produced by SHOW CREATE
 --exec $MYSQL -e "SHOW CREATE USER foo@localhost" -s -s -s > $MYSQLTEST_VARDIR/tmp/hex_user.sql
@@ -36,7 +33,7 @@ disconnect con1;
 
 --echo # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/hex_user.sql
-DROP USER foo@localhost,oldfoo@localhost;
+DROP USER foo@localhost;
 SET GLOBAL print_identified_with_as_hex=default;
 
 # Wait till all disconnects are completed

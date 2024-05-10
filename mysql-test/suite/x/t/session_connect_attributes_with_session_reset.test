@@ -2,12 +2,17 @@
 
 ## Preamble
 --source ../include/have_performance_schema_statements.inc
+
+--let $xplugin_cache_x_root=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
 
-CREATE USER xtest_client@localhost;
-GRANT ALL ON *.* TO xtest_client@localhost;
+
+--let $user_auth_name =xtest_client
+--let $user_auth_pass =""
+--let $user_auth_grant_all=1
+--source ../include/create_user_cached.inc
 
 --write_file $MYSQL_TMP_DIR/session_connect_attrs_with_session_reset.xpl
 -->varlet %TEST_KEY% custom_test_key

@@ -1,6 +1,9 @@
 ## XPLUGIN: Following test cases for mysqlx plugin ssl connection testing
 ##          with SSL cert verification on client side.
-
+--let $xplugin_create_user_cache=USOCKET
+--source include/not_windows.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_ssl_warnings_suppression.inc
 --source include/xplugin_create_user.inc

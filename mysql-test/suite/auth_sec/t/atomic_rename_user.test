@@ -161,24 +161,6 @@ SELECT user(), current_user();
 disconnect con1;
 DROP USER b@1;
 
-
---echo # Proxy user
-CREATE USER a IDENTIFIED with 'mysql_native_password', b;
-GRANT CREATE USER ON *.* TO b;
-GRANT PROXY ON b TO a;
-SET @@global.check_proxy_users = ON;
-SET @@global.mysql_native_password_proxy_users = ON;
---connect(con1, localhost, a)
-SELECT user(), current_user(), @@proxy_user;
-RENAME USER a TO c;
-SELECT user(), current_user(), @@proxy_user;
-
---connection default
-disconnect con1;
-DROP USER b, c;
-SET @@global.check_proxy_users = OFF;
-SET @@global.mysql_native_password_proxy_users = OFF;
-
 --echo # Anonymous user
 CREATE USER ''@'localhost';
 GRANT CREATE USER ON *.* TO ''@'localhost';

@@ -961,6 +961,12 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   */
   if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_AUTH_HANDSHAKE;
 
+  DBUG_EXECUTE_IF("sha2_password_bad_reply", {
+    /* This should cause a HANDSHAKE ERROR */
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
+    return CR_AUTH_HANDSHAKE;
+  });
+
   /*
     If first packet is a 0 byte then the client isn't sending any password
     else the client will send a password.

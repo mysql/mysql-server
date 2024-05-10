@@ -20,8 +20,8 @@ root	caching_sha2_password
 # Set the password for the root user
 SET PASSWORD = 'passwd';
 
-# Create a new user with non-default plugin
-CREATE USER 'native_user' IDENTIFIED WITH 'mysql_native_password' BY 'passwd';
+# Create a new user
+CREATE USER 'new_user' IDENTIFIED WITH 'caching_sha2_password' BY 'passwd';
 
 # Restart server with --skip-grant-tables option and new datadir
 # restart: --skip-grant-tables --datadir=MYSQLD_DATADIR1
@@ -32,7 +32,7 @@ Socket
 current_user
 skip-grants user@skip-grants host
 
-# connect the native_user plugin user which uses the default auth plugin
+# connect the new_user plugin user which uses the default auth plugin
 connection_type
 Socket
 current_user
@@ -44,7 +44,7 @@ Socket
 current_user
 skip-grants user@skip-grants host
 
-# connect the native user plugin user which uses corresponding plugin
+# connect the new user plugin user which uses corresponding plugin
 connection_type
 Socket
 current_user

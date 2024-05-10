@@ -6,6 +6,8 @@
 #  - WL#10645: X Protocol Crud.Find with row locking
 #  - WL#9807: X Protocol Crud.Insert with upsert
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 

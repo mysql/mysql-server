@@ -1,5 +1,6 @@
 ## Test cases for authorization plugins
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 #
@@ -19,30 +20,21 @@
 -->echo #######################################################################
 -->echo ## Check if the account entries are removed after changing the account.
 -->echo #
--->callmacro Login_ok	DISABLED	memory	xuser_native	native
--->stmtsql ALTER USER xuser_native@localhost IDENTIFIED BY 'native2';
--->recvresult
--->callmacro Login_failed	DISABLED	memory	xuser_native	native
--->callmacro Login_failed	DISABLED	memory	xuser_native	native2
-
--->callmacro Login_ok	DISABLED	memory	xuser_sha256	sha256
--->stmtsql RENAME USER xuser_sha256@localhost TO xuser_sha2@localhost;
--->recvresult
--->callmacro Login_failed	DISABLED	memory	xuser_sha2	sha256
--->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256
-
 -->callmacro Login_ok	DISABLED	memory	xuser_cache2	cache2
--->stmtsql DROP USER xuser_cache2@localhost;
+-->stmtsql RENAME USER xuser_cache2@localhost TO xuser_cache@localhost;
 -->recvresult
 -->callmacro Login_failed	DISABLED	memory	xuser_cache2	cache2
+-->callmacro Login_failed	DISABLED	memory	xuser_cache	cache2
+-->callmacro Login_ok	REQUIRED	plain	xuser_cache	cache2
+-->stmtsql DROP USER xuser_cache@localhost;
+-->recvresult
+-->callmacro Login_failed	DISABLED	memory	xuser_cache	cache2
 
 -->echo
 -->echo #######################################################################
 -->echo ## Go back to orginal settings
 -->echo #
 -->sql
-ALTER USER xuser_native@localhost IDENTIFIED BY 'native';
-RENAME USER xuser_sha2@localhost TO xuser_sha256@localhost;
 CREATE USER xuser_cache2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 -->endsql
@@ -54,19 +46,19 @@ GRANT ALL ON *.* TO xuser_cache2@localhost;
 -->echo #
 -->callmacro Login_all_xusers_using_plain_to_fill_the_cache
 
--->callmacro Login_ok	DISABLED	memory	xuser_native	native
--->stmtsql SET PASSWORD FOR 'xuser_native'@'localhost' = 'native3';
+-->callmacro Login_ok	DISABLED	memory	xuser_cache2	cache2
+-->stmtsql SET PASSWORD FOR 'xuser_cache2'@'localhost' = 'cache3';
 -->recvresult
--->callmacro Login_failed	DISABLED	memory	xuser_native	native3
--->callmacro Login_failed	DISABLED	memory	xuser_native	native
+-->callmacro Login_failed	DISABLED	memory	xuser_cache2	cache3
 
--->callmacro Login_ok	DISABLED	memory	xuser_sha256	sha256
+-->callmacro Login_failed	DISABLED	memory	xuser_cache2	cache3
+-->callmacro Login_ok	REQUIRED	plain	xuser_cache2	cache3
 -->sql
-GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost';
-SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new';
+GRANT SELECT,LOCK TABLES ON *.* TO xuser_cache2@'localhost';
+SET PASSWORD FOR 'xuser_cache2'@'localhost' = 'cache4';
 -->endsql
--->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256
--->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256_new
+-->callmacro Login_failed	DISABLED	memory	xuser_cache2	cache3
+-->callmacro Login_failed	DISABLED	memory	xuser_cache2	cache4
 EOF
 
 --let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
@@ -76,8 +68,6 @@ EOF
 
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 

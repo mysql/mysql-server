@@ -1,13 +1,20 @@
-# This is test file for  connection & authentication handling without ssl.
+# This is test file for  connection & authentication handling.
 #
 # Comment:
 #
-#   Mysqlx_connections_closed status variable is incremented after releasing
+#   1. Mysqlx_connections_closed status variable is incremented after releasing
 #   client network resources. Because of it, it is a best suitable for synchronization.
 #   Other session/connection release/error status variables must be checked after waiting
 #   for concrete value on this timer.
 #
-
+#   2. The test was changed from non-ssl to ssl. The cache2 authentication plugin requires first
+#   authentication to be done by SSL. The testing tool by default disables SSL to have more control
+#   what is used in the test, still currently this approach will not work.
+#   The default behavior of mysqlxtest was changed inside "xplugin_preamble.inc" to always use SSL,
+#   and because of that this test is SSL only.
+#
+#   Please note that, there are other non-ssl test, which cover some parts of this test.
+#
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -114,10 +121,10 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try to login with bogus accounts that could match a valid account by collation
 --echo #
-exec $MYSQLXTEST --expect-error 2510 -uX_root --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uX_root --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 
 
-exec $MYSQLXTEST --expect-error 2510 -u"x_root  " --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u"x_root  " --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions',
   'Mysqlx_connections_closed';
@@ -190,7 +197,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with valid user but incorrect password
 --echo #
-exec $MYSQLXTEST --expect-error 2510 -ux_root --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error 1045 -ux_root --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -201,7 +208,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with user doesn't exists when mysqlx installed
 --echo #
-exec $MYSQLXTEST --expect-error 2510 -u rt --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error 1045 -u rt --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -234,7 +241,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with internal user account and expect account is locked error
 --echo #
---exec $MYSQLXTEST --expect-error 2510 -u'mysql.session' --password='' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()"
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u'mysql.session' --password='' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()"
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';

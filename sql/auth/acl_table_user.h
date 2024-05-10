@@ -296,7 +296,7 @@ class Acl_table_user_reader : public Acl_table {
   ~Acl_table_user_reader() override;
   bool driver();
   bool setup_table(bool &is_old_db_layout);
-  bool read_row(bool &is_old_db_layout, bool &super_users_with_empty_plugin);
+  bool read_row(bool &super_users_with_empty_plugin);
   Acl_table_op_status finish_operation(Table_op_error_code &error) override;
 
   /* Set of function to read user table data */
@@ -306,8 +306,7 @@ class Acl_table_user_reader : public Acl_table {
   void read_privileges(ACL_USER &user);
   void read_ssl_fields(ACL_USER &user);
   void read_user_resources(ACL_USER &user);
-  bool read_plugin_info(ACL_USER &user, bool &super_users_with_empty_plugin,
-                        bool &is_old_db_layout);
+  bool read_plugin_info(ACL_USER &user, bool &super_users_with_empty_plugin);
   bool read_password_expiry(ACL_USER &user, bool &password_expired);
   void read_password_locked(ACL_USER &user);
   void read_password_last_changed(ACL_USER &user);

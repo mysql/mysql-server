@@ -1,3 +1,3 @@
 --mysqlx
 $MYSQLXGLOBALRESET_OPT
---authentication_policy=*:mysql_native_password,,
+--authentication_policy=*:caching_sha2_password,,

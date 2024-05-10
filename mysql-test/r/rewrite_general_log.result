@@ -13,12 +13,12 @@ set names default,@dummy='c';
 CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
 CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
 CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
-CREATE USER test_user1 IDENTIFIED WITH mysql_native_password BY 'azundris1';
+CREATE USER test_user1 IDENTIFIED WITH caching_sha2_password BY 'azundris1';
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
 test.t1 TO test_user1;
 GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
 GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
-CREATE USER test_user3@localhost IDENTIFIED WITH mysql_native_password BY 'meow' REQUIRE SSL;
+CREATE USER test_user3@localhost IDENTIFIED WITH caching_sha2_password BY 'meow' REQUIRE SSL;
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost;
 ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
       REQUIRE X509 WITH
@@ -29,23 +29,10 @@ ALTER USER test_user3@localhost REQUIRE NONE;
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
 DROP TABLE     t1;
-CREATE USER test_user2 IDENTIFIED WITH mysql_native_password BY 'azundris2';
+CREATE USER test_user2 IDENTIFIED WITH caching_sha2_password BY 'azundris2';
 CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3';
-CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH mysql_native_password;
+CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH caching_sha2_password;
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
-CREATE USER test_user5 IDENTIFIED WITH mysql_native_password AS
-'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user6 IDENTIFIED BY 'test';
-ALTER USER IF EXISTS test_user5 IDENTIFIED BY 'test',
-test_user6 IDENTIFIED WITH mysql_native_password AS
-'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user7 IDENTIFIED BY 'test';
-Warnings:
-Note	3162	Authorization ID 'test_user7'@'%' does not exist.
-CREATE USER IF NOT EXISTS test_user6 IDENTIFIED BY 'test',
-test_user7 IDENTIFIED BY 'test';
-Warnings:
-Note	3163	Authorization ID 'test_user6'@'%' already exists.
-ALTER USER test_user7 IDENTIFIED WITH mysql_native_password AS
-'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 CREATE USER test_user8 IDENTIFIED BY '';
 ALTER USER test_user8 IDENTIFIED BY '';
 CREATE USER test_user9 IDENTIFIED WITH 'caching_sha2_password' BY '';
@@ -62,7 +49,6 @@ DROP USER u1, u2;
 DROP USER 'test_user4'@'localhost';
 DROP USER 'test_user3'@'localhost';
 DROP USER test_user9, test_user8;
-DROP USER test_user7, test_user6,  test_user5;
 DROP USER test_user2;
 DROP USER test_user1;
 CREATE TABLE test_log (argument TEXT);
@@ -80,16 +66,12 @@ test_log WHERE (argument LIKE '%BY %' OR argument LIKE '%AS %'
                 OR argument LIKE '%PASSWORD %')
 AND argument NOT LIKE '%Prepare%';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY <secret> REQUIRE SSL
 ALTER USER 'test_user3'@'localhost' IDENTIFIED BY <secret> REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
 CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD = <secret>
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY <secret>
-CREATE USER 'test_user5'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user6'@'%' IDENTIFIED BY <secret>
-ALTER USER IF EXISTS 'test_user5'@'%' IDENTIFIED BY <secret>,'test_user6'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user7'@'%' IDENTIFIED BY <secret>
-CREATE USER IF NOT EXISTS 'test_user6'@'%' IDENTIFIED BY <secret>,'test_user7'@'%' IDENTIFIED BY <secret>
-ALTER USER test_user7 IDENTIFIED WITH mysql_native_password AS
 CREATE USER 'test_user8'@'%' IDENTIFIED BY <secret>
 ALTER USER 'test_user8'@'%' IDENTIFIED BY <secret>
 CREATE USER 'test_user9'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
@@ -103,15 +85,12 @@ SELECT argument FROM mysql.general_log WHERE (argument LIKE '%BY %' OR
 argument LIKE '%AS %' OR argument LIKE '%PASSWORD %')
 AND command_type NOT LIKE 'Prepare';
 argument
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY <secret> REQUIRE SSL
 ALTER USER 'test_user3'@'localhost' IDENTIFIED BY <secret> REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
 CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD = <secret>
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY <secret>
-CREATE USER 'test_user5'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user6'@'%' IDENTIFIED BY <secret>
-ALTER USER IF EXISTS 'test_user5'@'%' IDENTIFIED BY <secret>,'test_user6'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user7'@'%' IDENTIFIED BY <secret>
-CREATE USER IF NOT EXISTS 'test_user6'@'%' IDENTIFIED BY <secret>,'test_user7'@'%' IDENTIFIED BY <secret>
 CREATE USER 'test_user8'@'%' IDENTIFIED BY <secret>
 ALTER USER 'test_user8'@'%' IDENTIFIED BY <secret>
 CREATE USER 'test_user9'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
@@ -142,7 +121,7 @@ GRANT CREATE USER ON *.* to 'u1' WITH GRANT OPTION
 ------ done ------ see log_tables.test for more proof! :)
 SELECT COUNT(*)=1 OR COUNT(*)=2 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
 COUNT(*)=1 OR COUNT(*)=2
-1
+0
 Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 EXPLAIN SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

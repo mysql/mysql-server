@@ -11,8 +11,8 @@ if (`SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA
 }
 CREATE DATABASE sbtest;
 
-# Add user for sysbench to connect using plain old native password
-CREATE USER sbuser IDENTIFIED WITH mysql_native_password;
+# Add user for sysbench to connect using default authentication plugin
+CREATE USER sbuser;
 GRANT ALL ON sbtest.* TO sbuser;
 
 --enable_query_log

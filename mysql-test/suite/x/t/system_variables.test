@@ -1,4 +1,5 @@
 ## Preamle
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 ## Test case

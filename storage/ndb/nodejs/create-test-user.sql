@@ -22,7 +22,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 CREATE USER IF NOT EXISTS jstestuser@localhost
-  IDENTIFIED WITH mysql_native_password BY "jstestpass";
+  IDENTIFIED WITH caching_sha2_password BY "jstestpass";
 
 GRANT ALL ON *.* to jstestuser@localhost;
 

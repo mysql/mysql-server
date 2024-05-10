@@ -29,8 +29,8 @@ connection default;
 disconnect shm_con1;
 
 --echo
---echo # connect the root user which uses the mysql_native_password auth plugin
-connect(shm_con1,localhost,root,passwd,,,$shm_name,SHM,mysql_native_password);
+--echo # connect the root user which uses the caching_sha2_password auth plugin
+connect(shm_con1,localhost,root,passwd,,,$shm_name,SHM,caching_sha2_password);
 connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
@@ -40,7 +40,7 @@ disconnect shm_con1;
 
 --echo
 --echo # connect the user which uses the non-default auth plugin
-connect(shm_con1,localhost,native_user,passwd,,,$shm_name,SHM);
+connect(shm_con1,localhost,new_user,passwd,,,$shm_name,SHM);
 connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
@@ -49,9 +49,9 @@ connection default;
 disconnect shm_con1;
 
 --echo
---echo # connect the native_user user which uses corresponding
---echo # mysql_native_password auth plugin
-connect(shm_con1,localhost,native_user,passwd,,,$shm_name,SHM,mysql_native_password);
+--echo # connect the new_user user which uses corresponding
+--echo # caching_sha2_password auth plugin
+connect(shm_con1,localhost,new_user,passwd,,,$shm_name,SHM,caching_sha2_password);
 connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
@@ -75,8 +75,8 @@ connection default;
 disconnect pipe_con1;
 
 --echo
---echo # connect the root user which uses the mysql_native_password auth plugin
-connect(pipe_con1,localhost,root,passwd,,,,PIPE,mysql_native_password);
+--echo # connect the root user which uses the caching_sha2_password auth plugin
+connect(pipe_con1,localhost,root,passwd,,,,PIPE,caching_sha2_password);
 connection pipe_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
@@ -85,7 +85,7 @@ disconnect pipe_con1;
 
 --echo
 --echo # connect the user which uses the non-default auth plugin
-connect(pipe_con1,localhost,native_user,passwd,,,,PIPE);
+connect(pipe_con1,localhost,new_user,passwd,,,,PIPE);
 connection pipe_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
@@ -93,9 +93,9 @@ connection default;
 disconnect pipe_con1;
 
 --echo
---echo # connect the native_user user which uses corresponding
---echo # mysql_native_password auth plugin
-connect(pipe_con1,localhost,native_user,passwd,,,,PIPE,mysql_native_password);
+--echo # connect the new_user user which uses corresponding
+--echo # caching_sha2_password auth plugin
+connect(pipe_con1,localhost,new_user,passwd,,,,PIPE,caching_sha2_password);
 connection pipe_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
@@ -115,22 +115,22 @@ disconnect pipe_con1;
 --exec $MYSQL --host=localhost --user=root --password=passwd --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
---echo # connect the root user which uses the mysql_native_password auth plugin
+--echo # connect the root user which uses the caching_sha2_password auth plugin
 --echo # error 1
 --error 1
---exec $MYSQL --host=localhost --user=native_user --password=passwd --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+--exec $MYSQL --host=localhost --user=new_user --password=passwd --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
 --echo # connect the root user which uses the non-default auth plugin
 --echo # error 1
 --error 1
---exec $MYSQL --host=localhost --user=root --password=passwd --protocol=PIPE --default-auth=mysql_native_password -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+--exec $MYSQL --host=localhost --user=root --password=passwd --protocol=PIPE --default-auth=caching_sha2_password -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
 --echo # connect the native user plugin user which uses corresponding plugin
 --echo # error 1
 --error 1
---exec $MYSQL --host=localhost --user=native_user --password=passwd --default-auth=mysql_native_password --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+--exec $MYSQL --host=localhost --user=new_user --password=passwd --default-auth=caching_sha2_password --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
 --echo # Cleanup

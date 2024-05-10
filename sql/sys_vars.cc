@@ -2375,18 +2375,6 @@ static Sys_var_bool Sys_check_proxy_users(
     "GRANT PROXY privilege definition.",
     GLOBAL_VAR(check_proxy_users), CMD_LINE(OPT_ARG), DEFAULT(false));
 
-static Sys_var_bool Sys_mysql_native_password_proxy_users(
-    "mysql_native_password_proxy_users",
-    "If set to FALSE (the default), then the mysql_native_password "
-    "plugin will not signal for authenticated users to be checked for "
-    "mapping "
-    "to proxy users.  When set to TRUE, the plugin will flag associated "
-    "authenticated accounts to be mapped to proxy users when the server "
-    "option "
-    "check_proxy_users is enabled.",
-    GLOBAL_VAR(mysql_native_password_proxy_users), CMD_LINE(OPT_ARG),
-    DEFAULT(false));
-
 static Sys_var_bool Sys_sha256_password_proxy_users(
     "sha256_password_proxy_users",
     "If set to FALSE (the default), then the sha256_password authentication "

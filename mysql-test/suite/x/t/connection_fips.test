@@ -1,5 +1,6 @@
 --source include/have_tlsv13.inc
 --source include/have_fips.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 # This test requires the ability to turn FIPS mode on/off to test weak ciphers.
 --source include/not_fips_active.inc

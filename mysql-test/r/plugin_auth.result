@@ -71,14 +71,10 @@ DROP DATABASE test_grant_db;
 SELECT @@global.check_proxy_users;
 @@global.check_proxy_users
 0
-SELECT @@global.mysql_native_password_proxy_users;
-@@global.mysql_native_password_proxy_users
-0
 SELECT @@global.sha256_password_proxy_users;
 @@global.sha256_password_proxy_users
 0
 SET @@global.check_proxy_users=ON;
-SET @@global.mysql_native_password_proxy_users=ON;
 SET @@global.sha256_password_proxy_users=ON;
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server'
   AS 'grant_plug_dest';
@@ -184,7 +180,6 @@ SELECT @@LOCAL.proxy_user;
 'plug'@'%'
 # in connection default
 SET @@global.check_proxy_users=0;
-SET @@global.mysql_native_password_proxy_users=0;
 SET @@global.sha256_password_proxy_users=0;
 ## cleanup
 DROP USER plug;
@@ -531,7 +526,7 @@ SELECT CURRENT_USER();
 CURRENT_USER()
 user_name_len_22_01234@localhost
 DROP USER user_name_len_22_01234@localhost;
-CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 SELECT CURRENT_USER();
 CURRENT_USER()
 user_name_len_32_012345678901234@localhost
@@ -547,7 +542,7 @@ SELECT CURRENT_USER();
 CURRENT_USER()
 user_name_len_22_01234@localhost
 DROP USER user_name_len_22_01234@localhost;
-CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string' REQUIRE SSL;
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string' REQUIRE SSL;
 SELECT CURRENT_USER();
 CURRENT_USER()
 user_name_len_32_012345678901234@localhost
@@ -566,7 +561,7 @@ SELECT CURRENT_USER();
 CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
-CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 SELECT CURRENT_USER();
 CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost
@@ -582,7 +577,7 @@ SELECT CURRENT_USER();
 CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
-CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string' REQUIRE SSL;
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string' REQUIRE SSL;
 SELECT CURRENT_USER();
 CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost

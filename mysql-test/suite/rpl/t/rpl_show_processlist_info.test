@@ -27,7 +27,7 @@
 --echo
 --echo ==== Test ====
 # Perform an operation that can cause rewritten query on Source
-CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'caching_sha2_password';
 
 # Verify replica activity using SHOW PROCESSLIST;
 --source include/rpl/sync_to_replica.inc

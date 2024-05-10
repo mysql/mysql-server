@@ -1,5 +1,6 @@
 ## Test cases for errors returned in authentication sequence
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 #

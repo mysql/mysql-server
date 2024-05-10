@@ -1,18 +1,12 @@
 ## Test cases for mysqlx plugin TLS versions
 
 --source ../include/have_performance_schema_threads.inc
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 --source include/xplugin_preamble.inc
 
 call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
 call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
 
---let $USER_AUTH_PLUGIN= 'mysql_native_password'
---source ../include/connection_tls_version.inc
-
-# return to orginal setup of mysqld server
---replace_regex /\.dll/.so/
---let $restart_parameters = restart: --tls_version=TLSv1.2
---source include/restart_mysqld.inc
-
---let $USER_AUTH_PLUGIN= 'sha256_password'
+--let $USER_AUTH_PLUGIN= 'caching_sha2_password'
 --source ../include/connection_tls_version.inc

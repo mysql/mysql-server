@@ -208,12 +208,6 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-IF ((NOT WITHOUT_MYSQL_NATIVE_PASSWORD)
-  OR (WITHOUT_MYSQL_NATIVE_PASSWORD EQUAL 0))
-  LIST(APPEND CLIENT_SOURCES
-    ../sql-common/mysql_native_authentication_client.cc)
-ENDIF()
-
 #
 # Include protocol tracing infrastructure and the test
 # trace plugin if enabled by build options.
@@ -306,6 +300,9 @@ ADD_SUBDIRECTORY(authentication_oci_client)
 
 # Fido and Webauthn clients
 ADD_SUBDIRECTORY(fido_client)
+
+# authentication mysql_native_password client plug-in
+ADD_SUBDIRECTORY(authentication_native_password)
 
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}

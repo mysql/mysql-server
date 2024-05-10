@@ -9,7 +9,8 @@
 ##  - delete message                                                 #
 #######################################################################
 
-
+--let $xplugin_disable_ssl_for_x_at_client_side=1
+--let $xplugin_cache_x_root=1
 --source include/rpl/init_source_replica.inc
 --source include/count_sessions.inc
 --source include/xplugin_create_user.inc
@@ -17,7 +18,6 @@
 
 # Use master connection
 --connection master
-
 --source include/xplugin_preamble.inc
 --source ../include/have_performance_schema_events_waits_history.inc
 call mtr.add_suppression("Error parsing message of type 12: args");

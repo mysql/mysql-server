@@ -131,49 +131,16 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 
 =================================================================================================
-Starting the server with the default authentication mysql_native_password
-=================================================================================================
-
-# Restart server with authentication_policy=*:mysql_native_password,,
-Creating a user with mysql_native_password plugin
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
-Grant all on *.* to 'Tanjotuser1'@'localhost';
-Creating a user with SHA256_password plugin
-CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
-set password for 'Tanjotuser3'@'localhost' ='abc';
-Grant all on *.* to 'Tanjotuser3'@'localhost';
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
-1
-1 Expected
-select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
-(select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
-1
-1 Expected
-DROP USER 'Tanjotuser1'@'localhost';
-DROP USER 'Tanjotuser3'@'localhost';
-
-
-=================================================================================================
 Starting the server with the default authentication sha256_password
 =================================================================================================
 
 # Restart server with authentication_policy=*:sha256_password,,
-Creating a user with mysql_native_password plugin
-CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
-set password for 'Tanjotuser2'@'localhost' ='abc';
-Grant all on *.* to 'Tanjotuser2'@'localhost';
 Creating a user with SHA256_password plugin
 CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED by 'abc';
 Grant all on *.* to 'Tanjotuser3'@'localhost';
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password'
-1
-1 Expected
 select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
 (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
 1
 1 Expected
-DROP USER 'Tanjotuser2'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
 # restart:

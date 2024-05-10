@@ -491,52 +491,6 @@ GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
 
-
---echo
---echo 
---echo =================================================================================================
---echo Starting the server with the default authentication mysql_native_password
---echo =================================================================================================
---echo 
-
---echo # Restart server with authentication_policy=*:mysql_native_password,,
-
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 
---source include/wait_until_disconnected.inc
--- exec echo "restart:--authentication_policy=*:mysql_native_password,,  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- source include/wait_until_connected_again.inc
-
-
-# Creating 3 users with mysql_native_password, mysql_old_password and sha256_password plugins respectively
-
---echo Creating a user with mysql_native_password plugin
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
-
-Grant all on *.* to 'Tanjotuser1'@'localhost';
-
---echo Creating a user with SHA256_password plugin
-CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
-
-set password for 'Tanjotuser3'@'localhost' ='abc';
-
-Grant all on *.* to 'Tanjotuser3'@'localhost';
-
-# Verifying the Authentication plugin for the above created users
-
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
---echo 1 Expected
-
-select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
---echo 1 Expected
-
-# Dropping the created users
-
-DROP USER 'Tanjotuser1'@'localhost';
-DROP USER 'Tanjotuser3'@'localhost';
-
-
 --echo
 --echo 
 --echo =================================================================================================
@@ -553,14 +507,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 -- exec echo "restart:--authentication_policy=*:sha256_password,,  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 
-# Creating 3 users with mysql_native_password, mysql_old_password and sha256_password plugins respectively
-
---echo Creating a user with mysql_native_password plugin
-CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
-
-set password for 'Tanjotuser2'@'localhost' ='abc';
-
-Grant all on *.* to 'Tanjotuser2'@'localhost';
+# Creating 1 user with defaulr authentication plugin
 
 --echo Creating a user with SHA256_password plugin
 CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED by 'abc';
@@ -569,15 +516,11 @@ Grant all on *.* to 'Tanjotuser3'@'localhost';
 
 # Verifying the Authentication plugin for the above created users
 
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password';
---echo 1 Expected
-
 select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
 --echo 1 Expected
 
 # Dropping the created users
 
-DROP USER 'Tanjotuser2'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
 
 # Restore default settings in opt file and clean up

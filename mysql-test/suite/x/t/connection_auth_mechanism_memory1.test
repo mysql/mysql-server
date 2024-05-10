@@ -1,5 +1,6 @@
 ## Test cases for authorization plugins
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -29,8 +30,6 @@ EOF
 
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 

@@ -4,7 +4,7 @@ include/rpl/save_binlog_file_position.inc
 CREATE USER userX, userY, userZ;
 include/rpl/save_binlog_file_position.inc
 ALTER USER IF EXISTS userX, userY, userZ,
-userW IDENTIFIED WITH 'mysql_native_password' BY 'abcd'
+userW IDENTIFIED WITH 'caching_sha2_password' BY 'abcd'
                     ACCOUNT LOCK;
 Warnings:
 Note	3162	Authorization ID 'userW'@'%' does not exist.

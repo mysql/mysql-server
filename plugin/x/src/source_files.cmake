@@ -28,6 +28,7 @@ SET(XPL_SRC
   admin_cmd_handler.cc
   admin_cmd_index.cc
   auth_plain.cc
+  auth_legacy.cc
   buffering_command_delegate.cc
   cache_based_verification.cc
   callback_command_delegate.cc
@@ -73,7 +74,6 @@ SET(XPL_SRC
   mysql_show_variable_wrapper.cc
   mysql_variables.cc
   native_plain_verification.cc
-  native_verification.cc
   ngs/client_list.cc
   ngs/document_id_generator.cc
   ngs/message_cache.cc

@@ -43,6 +43,9 @@ namespace {
 const char *const EMPTY = "";
 const char *const AUTH_DATA = "ALA_MA_KOTA";
 const char *const SALT = "SALT";
+const auto k_account_verificator =
+    iface::Account_verification::Account_type::k_sha256_memory;
+const std::string k_authentication_method = "SHA256_MEMORY";
 
 ::testing::AssertionResult assert_response(
     const char *e1_expr, const char *e2_expr,
@@ -67,37 +70,20 @@ void ASSERT_RESPONSE(const T1 &a, const T2 &b) {
 
 }  // namespace
 
-struct Auth_selector {
-  std::string m_name;
-  iface::Account_verification::Account_type m_verificator_type;
-};
-
-class Sasl_challenge_response_auth_test
-    : public ::testing::TestWithParam<Auth_selector> {
+class Sasl_challenge_response_auth_test : public ::testing::Test {
  public:
-  void SetUp() override {
-    if (GetParam().m_name == "SHA256_MEMORY")
-      auth = std::unique_ptr<Sasl_sha256_memory_auth>(
-          new Sasl_sha256_memory_auth(mock_handler));
-    else if (GetParam().m_name == "MYSQL41")
-      auth = std::unique_ptr<Sasl_mysql41_auth>(
-          new Sasl_mysql41_auth(mock_handler));
-    else
-      throw std::logic_error("Invalid test case auth method");
-  }
-
   ::testing::StrictMock<mock::Account_verification_handler> *mock_handler{
       new ::testing::StrictMock<mock::Account_verification_handler>()};
-  std::unique_ptr<iface::Authentication> auth;
+  std::unique_ptr<iface::Authentication> auth{
+      new Sasl_sha256_memory_auth(mock_handler)};
   ::testing::StrictMock<mock::Account_verification> mock_account_verification;
   ::testing::StrictMock<mock::Authentication> mock_authentication;
 
   using Response = iface::Authentication::Response;
 };
 
-TEST_P(Sasl_challenge_response_auth_test, handle_start_get_salt) {
-  EXPECT_CALL(*mock_handler,
-              get_account_verificator(GetParam().m_verificator_type))
+TEST_F(Sasl_challenge_response_auth_test, handle_start_get_salt) {
+  EXPECT_CALL(*mock_handler, get_account_verificator(k_account_verificator))
       .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
@@ -105,12 +91,11 @@ TEST_P(Sasl_challenge_response_auth_test, handle_start_get_salt) {
 
   ASSERT_RESPONSE(
       Response(iface::Authentication::Status::k_ongoing, ER_SUCCESS, SALT),
-      auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
+      auth->handle_start(k_authentication_method, AUTH_DATA, EMPTY));
 }
 
-TEST_P(Sasl_challenge_response_auth_test, handle_start_call_twice) {
-  EXPECT_CALL(*mock_handler,
-              get_account_verificator(GetParam().m_verificator_type))
+TEST_F(Sasl_challenge_response_auth_test, handle_start_call_twice) {
+  EXPECT_CALL(*mock_handler, get_account_verificator(k_account_verificator))
       .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
@@ -118,22 +103,22 @@ TEST_P(Sasl_challenge_response_auth_test, handle_start_call_twice) {
 
   ASSERT_RESPONSE(
       Response(iface::Authentication::Status::k_ongoing, ER_SUCCESS, SALT),
-      auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
-  ASSERT_RESPONSE(Response(iface::Authentication::Status::k_error,
-                           ER_NET_PACKETS_OUT_OF_ORDER, EMPTY),
-                  auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
+      auth->handle_start(k_authentication_method, AUTH_DATA, EMPTY));
+  ASSERT_RESPONSE(
+      Response(iface::Authentication::Status::k_error,
+               ER_NET_PACKETS_OUT_OF_ORDER, EMPTY),
+      auth->handle_start(k_authentication_method, AUTH_DATA, EMPTY));
 }
 
-TEST_P(Sasl_challenge_response_auth_test,
+TEST_F(Sasl_challenge_response_auth_test,
        handle_continue_without_previous_start) {
   ASSERT_RESPONSE(Response(iface::Authentication::Status::k_error,
                            ER_NET_PACKETS_OUT_OF_ORDER, EMPTY),
                   auth->handle_continue(AUTH_DATA));
 }
 
-TEST_P(Sasl_challenge_response_auth_test, handle_continue_succeeded) {
-  EXPECT_CALL(*mock_handler,
-              get_account_verificator(GetParam().m_verificator_type))
+TEST_F(Sasl_challenge_response_auth_test, handle_continue_succeeded) {
+  EXPECT_CALL(*mock_handler, get_account_verificator(k_account_verificator))
       .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
@@ -141,7 +126,7 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_succeeded) {
 
   ASSERT_RESPONSE(
       Response(iface::Authentication::Status::k_ongoing, ER_SUCCESS, SALT),
-      auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
+      auth->handle_start(k_authentication_method, AUTH_DATA, EMPTY));
 
   EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(::testing::Return(ngs::Success()));
@@ -151,9 +136,8 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_succeeded) {
       auth->handle_continue(AUTH_DATA));
 }
 
-TEST_P(Sasl_challenge_response_auth_test, handle_continue_failed) {
-  EXPECT_CALL(*mock_handler,
-              get_account_verificator(GetParam().m_verificator_type))
+TEST_F(Sasl_challenge_response_auth_test, handle_continue_failed) {
+  EXPECT_CALL(*mock_handler, get_account_verificator(k_account_verificator))
       .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
@@ -161,7 +145,7 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_failed) {
 
   ASSERT_RESPONSE(
       Response(iface::Authentication::Status::k_ongoing, ER_SUCCESS, SALT),
-      auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
+      auth->handle_start(k_authentication_method, AUTH_DATA, EMPTY));
 
   ngs::Error_code expect_error(ER_NO_SUCH_USER, "Invalid user or password");
   EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
@@ -171,15 +155,6 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_failed) {
                            expect_error.error, expect_error.message),
                   auth->handle_continue(AUTH_DATA));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    Instantiation_auth_mechanism, Sasl_challenge_response_auth_test,
-    ::testing::Values(
-        Auth_selector{
-            "SHA256_MEMORY",
-            iface::Account_verification::Account_type::k_sha256_memory},
-        Auth_selector{"MYSQL41",
-                      iface::Account_verification::Account_type::k_native}));
 
 }  // namespace test
 }  // namespace xpl

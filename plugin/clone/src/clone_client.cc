@@ -1055,19 +1055,8 @@ int Client::validate_remote_params() {
       continue;
     }
 
-    /*
-      Regardless of whether a plugin is builtin or not, donor will always
-      send plugin name (always non-empty) and dynamic library name (can be
-      empty).
-
-      The assumption is that if plugin is not installed, it must have
-      a corresponding dynamic library.
-
-      This is true for all plugins except mysql_native_password which
-      does not have a corresponding shared library but is disabled by
-      default.
-    */
-    assert(!so_name.empty() || plugin_name == "mysql_native_password");
+    /* Built-in plugins with no shared object should already be installed. */
+    assert(!so_name.empty());
 
     if (so_name.empty() || plugin_is_loadable(so_name)) {
       continue;

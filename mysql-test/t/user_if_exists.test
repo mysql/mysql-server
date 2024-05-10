@@ -94,41 +94,44 @@ FLUSH PRIVILEGES;
 #
 --echo
 CREATE USER user1@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 
 CREATE USER IF NOT EXISTS user2@localhost
-            IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+            IDENTIFIED WITH 'caching_sha2_password'
+            BY 'not_valid_password';
 
-query_vertical SELECT User,plugin,authentication_string,ssl_type,
+query_vertical SELECT User,plugin,LENGTH(authentication_string),ssl_type,
 password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
+--echo expected of LENGTH(authentication_string) = 70
 
 CREATE USER IF NOT EXISTS user2@localhost
             IDENTIFIED WITH 'sha256_password';
-query_vertical SELECT User,plugin,authentication_string,ssl_type,
+query_vertical SELECT User,plugin,LENGTH(authentication_string),ssl_type,
 password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
+--echo expected of LENGTH(authentication_string) = 70
 
 ALTER USER IF EXISTS user2@localhost
-IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'caching_sha2_password'
+            BY 'not_valid_password_too';
 
-query_vertical SELECT User,plugin,authentication_string,ssl_type,
+query_vertical SELECT User,plugin,LENGTH(authentication_string),ssl_type,
 password_expired,password_lifetime FROM mysql.user WHERE USER='user2';
+--echo expected of LENGTH(authentication_string) = 70
 
 # CREATE USER IF NOT EXISTS statements with plain-text passwords will work
 CREATE USER IF NOT EXISTS user1@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 
 # Operation CREATE USER works but triggers a warning
 CREATE USER IF NOT EXISTS ne_user1@localhost,user1@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 
 # Operation ALTER USER works with a password too
 ALTER USER IF EXISTS ne_user2@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 # Operation ALTER USER works with a password too
 ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 
 # Cleanup
 DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,
@@ -158,24 +161,24 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 # CREATE USER IF NOT EXISTS statements with plain-text passwords should not
 # trigger an error if the user does exist and --log_raw=ON.
 CREATE USER user1@localhost
-            IDENTIFIED WITH 'mysql_native_password';
+            IDENTIFIED WITH 'caching_sha2_password';
 
 CREATE USER IF NOT EXISTS user2@localhost
-            IDENTIFIED WITH 'mysql_native_password'
-            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+            IDENTIFIED WITH 'caching_sha2_password'
+            BY 'not_valid_password';
 
 CREATE USER IF NOT EXISTS user1@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 
 CREATE USER IF NOT EXISTS ne_user1@localhost,user1@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string';
 
 # ALTER USER IF EXISTS statements with plain-text passwords should not trigger
 # an error if the user does not exist and --log_raw=ON
 ALTER USER IF EXISTS ne_user2@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
-            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
+            IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string#%y';
 
 # Cleanup
 DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,

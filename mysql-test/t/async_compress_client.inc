@@ -138,34 +138,34 @@ disconnect sha256_con2;
 connect(sha256_con3,localhost,sha256,auth_string,,,,$COMPRESS_OPTION,sha256_password, $COMPRESS_ALGORITHM);
 
 --disable_async_client
---echo # case4: authenticate user with mysql_native_password
-CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'native';
---let $restart_parameters=restart: --authentication-policy=*:mysql_native_password
+--echo # case4: authenticate user with caching_sha2_password
+CREATE USER sha2_user@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'sha2_pwd';
+--let $restart_parameters=restart: --authentication-policy=*:caching_sha2_password
 --source include/restart_mysqld.inc
 --enable_async_client
 
---echo # connect as native_user
-connect(native_con1,localhost,native_user,native,,,,$COMPRESS_OPTION, mysql_native_password, $COMPRESS_ALGORITHM);
+--echo # connect as sha2_user
+connect(sha2_con1,localhost,sha2_user,sha2_pwd,,,,$COMPRESS_OPTION, caching_sha2_password, $COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
-disconnect native_con1;
+disconnect sha2_con1;
 
 --disable_async_client
 --echo # Change to empty password
-ALTER USER native_user@localhost IDENTIFIED BY '';
+ALTER USER sha2_user@localhost IDENTIFIED BY '';
 --enable_async_client
 
---echo # connect as native_user with empty password
-connect(native_con2,localhost,native_user,,,,,$COMPRESS_OPTION, mysql_native_password, $COMPRESS_ALGORITHM);
+--echo # connect as sha2_user with empty password
+connect(sha2_con2,localhost,sha2_user,,,,,$COMPRESS_OPTION, caching_sha2_password, $COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
-disconnect native_con2;
+disconnect sha2_con2;
 
 #cleanup
 --disable_async_client
-DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
+DROP USER sha256@localhost, sha2_user@localhost, caching_sha2@localhost;
 DROP DATABASE testdb;
 
 # restore default options

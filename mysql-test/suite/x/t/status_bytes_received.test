@@ -1,5 +1,6 @@
 --echo Preamble
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -57,6 +58,8 @@ EOF
 -->expecterror ER_X_CAPABILITY_NOT_FOUND
 -->recvresult
 EOF
+
+--source include/xplugin_reset_global_status.inc
 
 --disable_query_log
 --disable_result_log

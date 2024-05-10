@@ -8,6 +8,7 @@
 #                                                                             #
 ###############################################################################
 
+--let $dont_cache_x_root=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 

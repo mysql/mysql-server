@@ -1,6 +1,7 @@
 ## XPLUGIN: Following test cases for mysqlx plugin ssl connection testing
 ##          with SSL cert verification on client side.
-
+--let $xplugin_create_user_cache=USOCKET
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_ssl_warnings_suppression.inc
 --source include/xplugin_create_user.inc
@@ -25,6 +26,9 @@ EOF
 
 --let $restart_parameters=restart:
 --source include/restart_mysqld.inc
+
+# Cache mysql account, to be usable on non-secure connection
+--exec $MYSQLXTEST -ux_root --socket=$MASTER_X_MYSOCK -e ';' >/dev/null 2>&1
 
 --let $USE_SOCKET=
 --source ../include/mysqlxtest_mode_ssl.inc

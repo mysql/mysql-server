@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -807,12 +807,6 @@ SET(SQL_SOURCE
   aggregated_stats.cc
   )
 
-IF ((NOT WITHOUT_MYSQL_NATIVE_PASSWORD)
-  OR (WITHOUT_MYSQL_NATIVE_PASSWORD EQUAL 0))
-  LIST(APPEND SQL_SOURCE ../sql-common/mysql_native_authentication_client.cc)
-ENDIF()
-
-
 IF(NOT HAVE_SETNS)
   LIST(REMOVE_ITEM SQL_SOURCE ../sql-common/net_ns.cc)
 ENDIF()
@@ -979,12 +973,6 @@ ELSEIF(WITH_SHOW_PARSE_TREE_DEFAULT STREQUAL "default")
   TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE
     $<$<CONFIG:Debug>:WITH_SHOW_PARSE_TREE=1>)
 ENDIF()
-
-MYSQL_ADD_PLUGIN(mysql_native_password
-  auth/mysql_native_password.cc
-  LINK_LIBRARIES extra::boost
-  SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
-  STATIC_ONLY DEFAULT)
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio

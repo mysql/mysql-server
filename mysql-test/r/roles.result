@@ -1068,13 +1068,11 @@ Note	3162	Authorization ID 'admin1'@'%' does not exist.
 Note	3162	Authorization ID 'admin2'@'%' does not exist.
 Note	3162	Authorization ID 'r1'@'%' does not exist.
 Note	3162	Authorization ID 'r2'@'%' does not exist.
-CREATE USER baseuser IDENTIFIED WITH mysql_native_password,
-admin1 IDENTIFIED WITH mysql_native_password,
-admin2 IDENTIFIED WITH mysql_native_password;
+CREATE USER baseuser IDENTIFIED WITH caching_sha2_password,
+admin1 IDENTIFIED WITH caching_sha2_password,
+admin2 IDENTIFIED WITH caching_sha2_password;
 GRANT PROXY ON baseuser TO admin1;
 GRANT PROXY ON baseuser TO admin2;
-SET @@global.check_proxy_users = ON;
-SET @@global.mysql_native_password_proxy_users = ON;
 CREATE ROLE r1, r2;
 GRANT SELECT ON mysql.db to r1;
 GRANT SELECT ON mysql.user to r2;
@@ -1090,21 +1088,19 @@ CURRENT_USER()
 baseuser@%
 SELECT USER(), CURRENT_USER(), CURRENT_ROLE();
 USER()	CURRENT_USER()	CURRENT_ROLE()
-admin1@localhost	baseuser@%	`r2`@`%`
+admin1@localhost	admin1@%	NONE
 SET ROLE ALL;
 SELECT CURRENT_USER();
 CURRENT_USER()
-baseuser@%
+admin1@%
 SELECT USER(), CURRENT_USER(), CURRENT_ROLE();
 USER()	CURRENT_USER()	CURRENT_ROLE()
-admin2@localhost	baseuser@%	`r2`@`%`
+admin2@localhost	admin2@%	NONE
 SET ROLE ALL;
 SELECT CURRENT_USER();
 CURRENT_USER()
-baseuser@%
+admin2@%
 DROP USER baseuser, admin1, admin2, r1, r2;
-SET @@global.check_proxy_users = OFF;
-SET @@global.mysql_native_password_proxy_users = OFF;
 #
 # SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE
 #

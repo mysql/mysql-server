@@ -1,12 +1,20 @@
 ## XPLUGIN: Following test cases for mysqlx plugin ssl connection testing
 ##          with SSL cert verification on client side.
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 
 
 CREATE DATABASE xtest;
-CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'user1_pass';
-CREATE USER 'user2'@'127.0.0.1' IDENTIFIED BY 'user2_pass';
+--let $user_auth_name =user1
+--let $user_auth_host='127.0.0.1'
+--let $user_auth_pass="user1_pass"
+--source ../include/create_user_cached.inc
+
+--let $user_auth_name =user2
+--let $user_auth_host='127.0.0.1'
+--let $user_auth_pass="user2_pass"
+--source ../include/create_user_cached.inc
 
 GRANT SELECT ON xtest.* TO user1@'127.0.0.1';
 GRANT SELECT ON xtest.* TO user2@'127.0.0.1';
@@ -56,7 +64,7 @@ EOF
 --echo ##
 
 exec $MYSQLXTEST
-  -v%EXPECTED_CLIENT_ID%=1
+  -v%EXPECTED_CLIENT_ID%=3
   --no-auth
   --user=user1
   --password=user1_pass
@@ -71,7 +79,7 @@ exec $MYSQLXTEST
 --echo ##
 
 exec $MYSQLXTEST
-  -v%EXPECTED_CLIENT_ID%=3
+  -v%EXPECTED_CLIENT_ID%=5
   --no-auth
   --user=user1
   --password=user1_pass

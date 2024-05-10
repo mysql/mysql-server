@@ -1,7 +1,7 @@
-CREATE USER xtest_client1@localhost;
-CREATE USER xtest_client2@localhost;
-GRANT ALL ON *.* TO xtest_client1@localhost;
-GRANT ALL ON *.* TO xtest_client2@localhost;
+CREATE USER xtest_client1@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY "";
+GRANT ALL ON *.* TO xtest_client1@'localhost';
+CREATE USER xtest_client2@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY "";
+GRANT ALL ON *.* TO xtest_client2@'localhost';
 
 
 ## I. Check valid uses of the session_connect_attrs capability only.

@@ -37,8 +37,8 @@ SELECT user, plugin FROM mysql.user;
 SET PASSWORD = 'passwd';
 
 --echo
---echo # Create a new user with non-default plugin
-CREATE USER 'native_user' IDENTIFIED WITH 'mysql_native_password' BY 'passwd';
+--echo # Create a new user
+CREATE USER 'new_user' IDENTIFIED WITH 'caching_sha2_password' BY 'passwd';
 --echo
 
 --remove_file $BOOTSTRAP_SQL

@@ -1,11 +1,5 @@
-CREATE USER xuser_native@'localhost'
-IDENTIFIED WITH 'mysql_native_password' BY 'native';
-CREATE USER xuser_sha256@'localhost'
-IDENTIFIED WITH 'sha256_password' BY 'sha256';
 CREATE USER xuser_cache2@'localhost'
 IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
-GRANT ALL ON *.* TO xuser_native@localhost;
-GRANT ALL ON *.* TO xuser_sha256@localhost;
 GRANT ALL ON *.* TO xuser_cache2@localhost;
 
 #######################################################################
@@ -20,23 +14,7 @@ GRANT ALL ON *.* TO xuser_cache2@localhost;
 #
 #######################################################################
 # Cache is empty, the sha256_memory request must fail
--- Expecting failure with parameters: DISABLED	memory	xuser_native	native
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
---
-connecting...
-Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
 --
 connecting...
 Got expected error (one of: 1045 2510 )
@@ -51,40 +29,6 @@ ok
 
 #######################################################################
 # Plain auth work as expected, anyway it doesnt fill the cache
--- Expecting success with parameters: REQUIRED	plain	xuser_native	native
---
-connecting...
-active session is now 'sess0'
-RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
-user	plugin
-xuser_native	mysql_native_password
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
--- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
---
-connecting...
-active session is now 'sess0'
-RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
-user	plugin
-xuser_sha256	sha256_password
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
-Variable_name	Value
-Mysqlx_ssl_active	ON
-0 rows affected
-closing session sess0
-Mysqlx.Ok {
-  msg: "bye!"
-}
-switched to session default
 -- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
 --
 connecting...
@@ -109,23 +53,7 @@ ok
 
 #######################################################################
 # Recheck that the cache is empty after plain auth, the sha256_memory request must fail:
--- Expecting failure with parameters: DISABLED	memory	xuser_native	native
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
---
-connecting...
-Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
---
-connecting...
-Got expected error (one of: 1045 2510 )
--- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
 --
 connecting...
 Got expected error (one of: 1045 2510 )
@@ -137,6 +65,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP USER xuser_native@'localhost';
-DROP USER xuser_sha256@'localhost';
 DROP USER xuser_cache2@'localhost';

@@ -50,6 +50,7 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
+#include "router/src/mock_server/src/authentication.h"
 #include "router/src/mock_server/src/statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -140,7 +141,8 @@ void MySQLServerMockSessionClassic::server_greeting() {
     if (auth_method_data.size() == 21) {
       auth_method_data.pop_back();  // strip last char
     }
-    protocol_.auth_method_data(auth_method_data);
+    protocol_.server_auth_method_data(auth_method_data);
+    protocol_.server_auth_method_name(greeting.auth_method_name());
     protocol_.encode_server_greeting(greeting);
 
     protocol_.async_send(
@@ -250,6 +252,45 @@ void MySQLServerMockSessionClassic::client_greeting() {
   if (greeting.capabilities().test(
           classic_protocol::capabilities::pos::plugin_auth)) {
     protocol_.auth_method_name(greeting.auth_method_name());
+
+    /**
+     * if the client client wants to switch to a method the server does not
+     * understand, force the server's method.
+     */
+    if (protocol_.auth_method_name() != protocol_.server_auth_method_name()) {
+      // auth_response() should be empty
+      //
+      // ask for the real full authentication
+      protocol_.auth_method_data(std::string(20, 'a'));
+
+      if (!(protocol_.auth_method_name() == CachingSha2Password::name ||
+            protocol_.auth_method_name() == ClearTextPassword::name)) {
+        protocol_.auth_method_name(CachingSha2Password::name);
+      }
+
+      protocol_.encode_auth_switch_message(
+          {protocol_.auth_method_name(),
+           protocol_.auth_method_data() + std::string(1, '\0')});
+
+      protocol_.async_send([this, to_send = protocol_.send_buffer().size()](
+                               std::error_code ec, size_t transferred) {
+        if (ec) {
+          if (ec != std::errc::operation_canceled) {
+            log_warning("send auth result failed: %s", ec.message().c_str());
+          }
+
+          disconnect();
+          return;
+        }
+
+        if (to_send < transferred) {
+          std::terminate();
+        } else {
+          auth_switched();
+        }
+      });
+      return;
+    }
   } else {
     // 4.1 or so
     protocol_.auth_method_name(MySQLNativePassword::name);
@@ -269,7 +310,7 @@ void MySQLServerMockSessionClassic::client_greeting() {
                              std::error_code ec, size_t transferred) {
       if (ec) {
         if (ec != std::errc::operation_canceled) {
-          log_warning("send auto result failed: %s", ec.message().c_str());
+          log_warning("send auth result failed: %s", ec.message().c_str());
         }
 
         disconnect();

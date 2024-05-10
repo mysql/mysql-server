@@ -19,7 +19,7 @@
 # Usage:
 #
 # --let $INCREMENT=0|1
-# --let $USER_AUTH_PLUGIN=mysql_native_password|sha256_password|caching_sha2_password
+# --let $USER_AUTH_PLUGIN=sha256_password|caching_sha2_password
 # --let $ERROR_IF_CHANNEL_UNSECURE=EXPECTED_ERROR_MESSAGE
 # --let $NO_SSL_ACCESS_DENIED_ERROR=ER_ACCESS_DENIED_ERROR
 # --let $USE_SOCKET=UNIX_SOCKET_CONFIGURATION

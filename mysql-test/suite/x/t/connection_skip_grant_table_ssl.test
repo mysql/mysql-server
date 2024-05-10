@@ -1,5 +1,6 @@
 ## This is test file for connection authentication using mysqlx.
 ##
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/not_windows.inc
 
@@ -8,8 +9,5 @@ call mtr.add_suppression("Internal account mysqlxsys@localhost can't be removed 
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 
---let $USER_AUTH_PLUGIN= 'mysql_native_password'
---source ../include/connection_skip_grant_table.inc
-
---let $USER_AUTH_PLUGIN= 'sha256_password'
+--let $USER_AUTH_PLUGIN= 'caching_sha2_password'
 --source ../include/connection_skip_grant_table.inc

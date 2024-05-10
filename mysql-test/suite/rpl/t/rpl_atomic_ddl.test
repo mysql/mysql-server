@@ -169,12 +169,19 @@ while ($loops)
   --let $current_query=`SELECT ddl_query FROM $master_log_db.$master_log_table WHERE id = $id `
   --let $pre_binlog_check=`SELECT pre_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
   --let $post_binlog_check=`SELECT post_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
+
+  --let $pre_binlog_check_masked=`SELECT REGEXP_REPLACE("$pre_binlog_check", ' = \'(.*)\' FROM', ' = <non-deterministic hash> FROM', 1, 1)`
+  --let $post_binlog_check_masked=`SELECT REGEXP_REPLACE("$post_binlog_check", ' != \'(.*)\' FROM', ' != <non-deterministic hash> FROM', 1, 1)`
+
   if ($rpl_atomic_ddl_print_verbose)
   {
   #
   --let gen_current_query = `SELECT REPLACE("$current_query",'.so','_LIB')`
   --let gen_current_query = `SELECT REPLACE("$gen_current_query",'.dll','_LIB')`
-  --echo Loop: $id out of $count_ddl_queries; current query: '$gen_current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';
+     # [KH] replace test
+     #--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+     #--replace_regex / = '(.*)' FROM/ = '<non-deterministic-password-hash>' FROM/
+  --echo Loop: $id out of $count_ddl_queries; current query: '$gen_current_query'; pre-binlog check: '$pre_binlog_check_masked'; pre-commit check: '$post_binlog_check_masked';
   }
   --source include/rpl/connection_replica.inc
 

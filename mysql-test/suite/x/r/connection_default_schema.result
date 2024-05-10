@@ -7,8 +7,8 @@
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt");
 CREATE DATABASE xdb;
 CREATE DATABASE ydb;
-CREATE USER 'user_with_access_to_xdb'@'%';
-CREATE USER 'user_with_access_to_ydb'@'%';
+CREATE USER user_with_access_to_xdb@'%' IDENTIFIED WITH 'caching_sha2_password' BY "";
+CREATE USER user_with_access_to_ydb@'%' IDENTIFIED WITH 'caching_sha2_password' BY "";
 GRANT SELECT ON xdb.* TO 'user_with_access_to_xdb'@'%';
 GRANT SELECT ON ydb.* TO 'user_with_access_to_ydb'@'%';
 #

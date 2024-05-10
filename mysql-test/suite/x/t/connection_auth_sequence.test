@@ -1,5 +1,6 @@
 ## Test cases for authorization plugins
 
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -24,9 +25,9 @@ callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 
 expecterror ER_ACCESS_DENIED_ERROR;
-login xuser_native	native	test	sha256_memory;
+login xuser_cache2	cache2	test	sha256_memory;
 
-login xuser_native	native	test	plain;
+login xuser_cache2	cache2	test	plain;
 closesession;
 
 
@@ -45,12 +46,9 @@ callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
 
 expecterror ER_ACCESS_DENIED_ERROR;
-login xuser_sha256	sha256	test	sha256_memory;
+login xuser_cache2	cache2	test	mysql41;
 
-expecterror ER_ACCESS_DENIED_ERROR;
-login xuser_sha256	sha256	test	mysql41;
-
-login xuser_sha256	sha256	test	plain;
+login xuser_cache2	cache2	test	plain;
 closesession;
 
 
@@ -95,16 +93,16 @@ peerdisc 30000 30000;
 newsession seq	-;
 callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
-login xuser_sha256	sha256	test	sha256_memory;
+login xuser_cache2	cache2	test	sha256_memory;
 
 Mysqlx.Session.Reset {
 }
 recvtype Mysqlx.Ok;
 
 expecterror ER_ACCESS_DENIED_ERROR;
-login xuser_sha256	sha256	test	mysql41;
+login xuser_cache2	cache2	test	mysql41;
 
-login xuser_sha256	sha256	test	sha256_memory;
+login xuser_cache2	cache2	test	sha256_memory;
 
 closesession;
 
@@ -114,17 +112,17 @@ closesession;
 newsession seq	-;
 callmacro Verify_its_xprotocol_connection;
 callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
-login xuser_sha256	sha256	test	sha256_memory;
+login xuser_cache2	cache2	test	sha256_memory;
 
 Mysqlx.Session.Reset {
 }
 recvtype Mysqlx.Ok;
 
 expecterror ER_ACCESS_DENIED_ERROR;
-login xuser_sha256	wrong_pass	test	mysql41;
+login xuser_cache2	wrong_pass	test	mysql41;
 
 expecterror ER_ACCESS_DENIED_ERROR;
-login xuser_sha256	wrong_pass	test	sha256_memory;
+login xuser_cache2	wrong_pass	test	sha256_memory;
 
 expecterror ER_ACCESS_DENIED_ERROR;
 login xuser_sha256	wrong_pass	test	plain;

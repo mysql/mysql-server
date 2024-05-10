@@ -19,16 +19,16 @@
 --exec $MYSQL --host=localhost --user=root --password=passwd --protocol=SOCKET -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
---echo # connect the native_user plugin user which uses the default auth plugin
---exec $MYSQL --host=localhost --user=native_user --password=passwd --protocol=SOCKET -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+--echo # connect the new_user plugin user which uses the default auth plugin
+--exec $MYSQL --host=localhost --user=new_user --password=passwd --protocol=SOCKET -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
 --echo # connect the root user which uses the non-default auth plugin
---exec $MYSQL --host=localhost --user=root --password=passwd --protocol=SOCKET --default-auth=mysql_native_password -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+--exec $MYSQL --host=localhost --user=root --password=passwd --protocol=SOCKET --default-auth=caching_sha2_password -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
---echo # connect the native user plugin user which uses corresponding plugin
---exec $MYSQL --host=localhost --user=native_user --password=passwd --default-auth=mysql_native_password --protocol=SOCKET -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+--echo # connect the new user plugin user which uses corresponding plugin
+--exec $MYSQL --host=localhost --user=new_user --password=passwd --default-auth=caching_sha2_password --protocol=SOCKET -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
 
 --echo
 --echo # Cleanup

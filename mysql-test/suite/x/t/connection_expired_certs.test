@@ -1,8 +1,11 @@
 ## Tests for checking xplugin behaviour when server is using expired ssl certificates.
 
 ## Preamble
+--let $dont_cache_x_root=1
+--let $xplugin_disable_ssl_for_x_at_client_side=1
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
+--source include/not_windows.inc
 
 # OpenSSL >= 1.1.1 also fail early
 call mtr.add_suppression('Failed to initialize TLS for channel: mysql_main');
@@ -23,8 +26,9 @@ call mtr.add_suppression("Server certificate .* verification has failed. Check l
 
 EOF
 
+# When SSL doesn't work then we can only use unix socket.
 --replace_regex /Mysqlx_ssl_server_not_after([[:space:]]*)[-a-zA-Z0-9: ]*/Mysqlx_ssl_server_not_after\1/ /Mysqlx_ssl_server_not_before([[:space:]]*)[a-zA-Z0-9: ]*/Mysqlx_ssl_server_not_before\1/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expired_ssl_certs.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/expired_ssl_certs.xpl 2>&1
 
 ## Cleanup
 --source ../include/xplugin_cleanup.inc

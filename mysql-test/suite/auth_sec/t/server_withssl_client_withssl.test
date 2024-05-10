@@ -37,33 +37,33 @@ call mtr.add_suppression(".*SSL.*");
 --enable_query_log
 
 
-# The default authentication plugin at the server side is mysql_native_password
+# The default authentication plugin at the server side is caching_sha2_password
 
 --echo
---echo 
+--echo
 --echo ======================================================================================
---echo Checking the user access with SSL through user created with mysql_native_password plugin
+--echo Checking the user access with SSL through user created with caching_sha2_password plugin
 --echo ======================================================================================
---echo 
+--echo
 
-# Creating a user at localhost with mysql_native_password plugin
+# Creating a user at localhost with caching_sha2_password plugin
 
 --echo Creating a user with the mysql_native_plugin
 
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
-# Trying connecting the client with the mysql_native_password user with the SSL credentials.
+# Trying connecting the client with the caching_sha2_password user with the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
@@ -71,14 +71,14 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
 
 
-# Trying connecting the client with the mysql_native_password user with the SSL credentials.
+# Trying connecting the client with the caching_sha2_password user with the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
@@ -92,11 +92,11 @@ DROP USER 'Tanjotuser1'@'localhost';
 
 
 --echo
---echo 
+--echo
 --echo ======================================================================================
 --echo Checking the user access with SSL through user created with sha256_password plugin
 --echo ======================================================================================
---echo 
+--echo
 
 # Creating a user at localhost with sha256_password plugin
 
@@ -115,7 +115,7 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
@@ -130,7 +130,7 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
@@ -144,11 +144,11 @@ DROP USER 'Tanjotuser1'@'localhost';
 
 
 --echo
---echo 
+--echo
 --echo =================================================================================================
 --echo Starting the server with the default authentication sha256_password
 --echo =================================================================================================
---echo 
+--echo
 
 --echo # Restart server with authentication-policy=*:sha256_password
 
@@ -161,30 +161,30 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 
 --echo
---echo 
+--echo
 --echo ======================================================================================
---echo Checking the user access with SSL through user created with mysql_native_password plugin
+--echo Checking the user access with SSL through user created with caching_sha2_password plugin
 --echo ======================================================================================
---echo 
+--echo
 
-# Creating a user at localhost with mysql_native_password plugin
+# Creating a user at localhost with caching_sha2_password plugin
 
 --echo Creating a user with the mysql_old_plugin
 
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 
 set password for 'Tanjotuser1'@'localhost' = 'abc';
 
 GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
-# Trying connecting the client with the mysql_native_password user with the SSL credentials.
+# Trying connecting the client with the caching_sha2_password user with the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
@@ -192,14 +192,14 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
 
 
-# Trying connecting the client with the mysql_native_password user with the SSL credentials.
+# Trying connecting the client with the caching_sha2_password user with the SSL credentials.
 
 --echo **** connecting client using the ssl credentials
 --exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 
 
 --echo **** connecting client using the ssl credentials
@@ -213,11 +213,11 @@ DROP USER 'Tanjotuser1'@'localhost';
 
 
 --echo
---echo 
+--echo
 --echo ======================================================================================
 --echo Checking the user access with SSL through user created with sha256_password plugin
 --echo ======================================================================================
---echo 
+--echo
 
 # Creating a user at localhost with sha256_password plugin
 
@@ -238,7 +238,7 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 
@@ -259,7 +259,7 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=caching_sha2_password --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem -e "select current_user()"
 --echo 2 for GLOBAL Expected
 --echo 2 for SESSION Expected
 

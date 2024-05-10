@@ -72,6 +72,12 @@ class Account_verification_handler
       const iface::Account_verification::Account_type account_type)
       const override;
 
+  static bool parse_sasl_message(
+      const std::string &sasl_message,
+      iface::Authentication_info *out_authentication_info,
+      std::string *out_schema, std::string *out_account,
+      std::string *out_passwd);
+
  private:
   using Account_verificator_list =
       std::map<iface::Account_verification::Account_type,
@@ -88,13 +94,13 @@ class Account_verification_handler
     Sql_user_require user_required;
   };
 
-  bool extract_sub_message(const std::string &message,
-                           std::size_t &element_position,
-                           std::string &sub_message) const;
+  static bool extract_sub_message(const std::string &message,
+                                  std::size_t &element_position,
+                                  std::string &sub_message);
 
-  bool extract_last_sub_message(const std::string &message,
-                                std::size_t &element_position,
-                                std::string &sub_message) const;
+  static bool extract_last_sub_message(const std::string &message,
+                                       std::size_t &element_position,
+                                       std::string &sub_message);
 
   iface::Account_verification::Account_type get_account_verificator_id(
       const std::string &plugin_name) const;

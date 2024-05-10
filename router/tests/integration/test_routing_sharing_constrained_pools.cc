@@ -1297,19 +1297,31 @@ using ShareConnectionSmallPoolFourServersTest = ShareConnectionTestTemp<4, 2>;
  *    - runs query
  */
 TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
-  MysqlClient cli1, cli2, cli3;
-
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
+  MysqlClient cli1;
+  MysqlClient cli2;
+  MysqlClient cli3;
+
   {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli1.username(account.username);
     cli1.password(account.password);
 
-    ASSERT_NO_ERROR(cli1.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+    auto connect_res = cli1.connect(shared_router()->host(),
+                                    shared_router()->port(GetParam()));
+
+    if (!can_fetch_password) {
+      ASSERT_ERROR(connect_res);
+      // Authentication plugin 'caching_sha2_password' reported error:
+      // Authentication requires secure connection.
+      EXPECT_EQ(connect_res.error().value(), 2061);
+
+      return;
+    }
+    ASSERT_NO_ERROR(connect_res);
 
     // wait until the connection is in the pool.
     if (can_share && can_fetch_password) {
@@ -1344,7 +1356,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
   ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(0, 10s));
 
   {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli2.username(account.username);
     cli2.password(account.password);
@@ -1455,7 +1467,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
 
   // cli3 takes connection from the stash from cli2
   {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_empty_password_account();
 
     cli3.username(account.username);
     cli3.password(account.password);
@@ -1522,7 +1534,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
-  auto account = SharedServer::native_empty_password_account();
+  auto account = SharedServer::caching_sha2_empty_password_account();
 
   cli.username(account.username);
   cli.password(account.password);
@@ -1608,19 +1620,33 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
     s->flush_privileges();  // reset the auth-cache
   }
 
-  MysqlClient cli1, cli2, cli3;
+  MysqlClient cli1;
+  MysqlClient cli2;
+  MysqlClient cli3;
 
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
   {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli1.username(account.username);
     cli1.password(account.password);
 
-    ASSERT_NO_ERROR(cli1.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+    auto connect_res = cli1.connect(shared_router()->host(),
+                                    shared_router()->port(GetParam()));
+
+    if (!can_fetch_password) {
+      ASSERT_ERROR(connect_res);
+
+      // Authentication plugin 'caching_sha2_password' reported error:
+      // Authentication requires secure connection.
+      EXPECT_EQ(connect_res.error().value(), 2061);
+
+      return;
+    }
+
+    ASSERT_NO_ERROR(connect_res);
 
     // wait until the connection is in the pool.
     if (can_share && can_fetch_password) {
@@ -1784,7 +1810,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   // cli3 takes connection from the stash.
   {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli3.username(account.username);
     cli3.password(account.password);
@@ -1856,15 +1882,25 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   ASSERT_NO_ERROR(admin_cli.query("DROP USER IF EXISTS changeme"));
   ASSERT_NO_ERROR(
       admin_cli.query("CREATE USER changeme IDENTIFIED WITH "
-                      "mysql_native_password BY 'changeme'"));
+                      "caching_sha2_password BY 'changeme'"));
 
   MysqlClient cli;
 
   cli.username("changeme");
   cli.password("changeme");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  auto connect_res =
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+  if (!can_fetch_password) {
+    ASSERT_ERROR(connect_res);
+
+    // Authentication plugin 'caching_sha2_password' reported error:
+    // Authentication requires secure connection.
+    EXPECT_EQ(connect_res.error().value(), 2061);
+
+    return;
+  }
+  ASSERT_NO_ERROR(connect_res);
 
   auto conn_id_res = query_one<1>(cli, "SELECT CONNECTION_ID()");
   ASSERT_NO_ERROR(conn_id_res);
@@ -2426,23 +2462,21 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
 
   {
     std::vector<SharedServer::Account> accounts;
-    accounts.push_back(SharedServer::native_password_account());
+    accounts.push_back(SharedServer::caching_sha2_password_account());
 
     scenarios.emplace_back("one account", std::move(accounts));
   }
 
   {
     std::vector<SharedServer::Account> accounts;
-    accounts.push_back(SharedServer::native_password_account());
-    accounts.push_back(SharedServer::native_password_account());
+    accounts.push_back(SharedServer::caching_sha2_password_account());
+    accounts.push_back(SharedServer::caching_sha2_password_account());
 
     scenarios.emplace_back("same account, twice", std::move(accounts));
   }
 
   {
     std::vector<SharedServer::Account> accounts;
-    accounts.push_back(SharedServer::native_password_account());
-    accounts.push_back(SharedServer::native_empty_password_account());
     accounts.push_back(SharedServer::caching_sha2_password_account());
     accounts.push_back(SharedServer::caching_sha2_empty_password_account());
     accounts.push_back(SharedServer::sha256_password_account());
@@ -2625,7 +2659,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   {
     SCOPED_TRACE("// connecting, keep open and block sharing");
 
-    auto account = SharedServer::native_empty_password_account();
+    auto account = SharedServer::caching_sha2_empty_password_account();
 
     MysqlClient cli;  // keep it open
     {
@@ -2759,7 +2793,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   {
     SCOPED_TRACE("// connecting, keep open and block sharing");
 
-    auto account = SharedServer::native_empty_password_account();
+    auto account = SharedServer::caching_sha2_empty_password_account();
 
     MysqlClient cli1;  // keep it open
     {
@@ -2827,19 +2861,33 @@ INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTinyPoolOneServerTest,
                          });
 
 TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool) {
+  for (auto &s : shared_servers()) {
+    s->flush_privileges();  // reset the auth-cache
+  }
+
   std::array<MysqlClient, 6> clis;
 
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
   for (auto &cli : clis) {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli.username(account.username);
     cli.password(account.password);
 
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    if (!can_fetch_password) {
+      ASSERT_ERROR(connect_res);
+
+      // Authentication plugin 'caching_sha2_password' reported error:
+      // Authentication requires secure connection.
+      EXPECT_EQ(connect_res.error().value(), 2061);
+
+      return;
+    }
+    ASSERT_NO_ERROR(connect_res);
     // wait for the server-connections to make it to the pool.
     //
     // after a connect() the router sends SET ... to the server before the next
@@ -2884,7 +2932,7 @@ TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool_purge) {
   const bool can_share = GetParam().can_share();
 
   for (auto &cli : clis) {
-    auto account = SharedServer::native_password_account();
+    auto account = SharedServer::caching_sha2_password_account();
 
     cli.username(account.username);
     cli.password(account.password);
@@ -2987,6 +3035,10 @@ using ShareConnectionTinyPoolTwoRoutesTest =
  * 4. route[1] -> s[2] - from-stash, full-stash
  */
 TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_one_route) {
+  for (auto &s : shared_servers()) {
+    s->flush_privileges();  // reset the auth-cache
+  }
+
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
@@ -2994,7 +3046,7 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_one_route) {
 
   std::array<MysqlClient, max_clients> clis{};
 
-  const auto account = SharedServer::native_password_account();
+  const auto account = SharedServer::caching_sha2_password_account();
 
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// ndx = " + std::to_string(ndx));
@@ -3004,8 +3056,19 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_one_route) {
 
     const size_t route_ndx = 1;
 
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam(), route_ndx)));
+    auto connect_res = cli.connect(
+        shared_router()->host(), shared_router()->port(GetParam(), route_ndx));
+
+    if (!can_fetch_password) {
+      ASSERT_ERROR(connect_res);
+
+      // Authentication plugin 'caching_sha2_password' reported error:
+      // Authentication requires secure connection.
+      EXPECT_EQ(connect_res.error().value(), 2061);
+
+      return;
+    }
+    ASSERT_NO_ERROR(connect_res);
 
     if (can_share && can_fetch_password) {
       int expected_stashed = 0;
@@ -3091,6 +3154,10 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_one_route) {
  * 6. route[1] -> s[2] - from-stash, to-stash
  */
 TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_two_routes) {
+  for (auto &s : shared_servers()) {
+    s->flush_privileges();  // reset the auth-cache
+  }
+
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
@@ -3098,7 +3165,7 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_two_routes) {
 
   std::array<MysqlClient, max_clients> clis{};
 
-  const auto account = SharedServer::native_password_account();
+  const auto account = SharedServer::caching_sha2_password_account();
 
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// ndx = " + std::to_string(ndx));
@@ -3109,8 +3176,19 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_two_routes) {
     const size_t route_ndx =
         (ndx == 0 || ndx == 2 || ndx == 4 || ndx == 5) ? 1 : 0;
 
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam(), route_ndx)));
+    auto connect_res = cli.connect(
+        shared_router()->host(), shared_router()->port(GetParam(), route_ndx));
+
+    if (!can_fetch_password) {
+      ASSERT_ERROR(connect_res);
+
+      // Authentication plugin 'caching_sha2_password' reported error:
+      // Authentication requires secure connection.
+      EXPECT_EQ(connect_res.error().value(), 2061);
+
+      return;
+    }
+    ASSERT_NO_ERROR(connect_res);
 
     if (can_share && can_fetch_password) {
       int expected_stashed = 0;
