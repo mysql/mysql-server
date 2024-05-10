@@ -369,6 +369,10 @@ bool Query_result_export::send_data(THD *thd,
     goto err;
   for (Item *item : VisibleFields(items)) {
     Item_result result_type = item->result_type();
+    if (item->actual_data_type() == MYSQL_TYPE_BIT) {
+      /* BIT is output as binary string */
+      result_type = STRING_RESULT;
+    }
     bool enclosed =
         (exchange->field.enclosed->length() &&
          (!exchange->field.opt_enclosed || result_type == STRING_RESULT));
