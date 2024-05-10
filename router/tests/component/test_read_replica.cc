@@ -1435,22 +1435,25 @@ TEST_F(ReadReplicaTest, HidingNodesReadOnlyTargetsAll) {
         make_new_connection_ok(router_port_ro, get_all_ro_classic_ports()));
   }
 
-  // hide first RR (D)
+  SCOPED_TRACE("// hide first RR (D)");
   cluster_nodes_[3].hidden = true;
   update_cluster_metadata();
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // existing connection to D should be dropped, all the rest should be ok
+  SCOPED_TRACE(
+      "// existing connection to D should be dropped, all the rest should be "
+      "ok");
   for (const auto &con : ro_cons) {
     if (con.first == cluster_nodes_[3].classic_port) {
-      verify_existing_connection_dropped(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(
+          verify_existing_connection_dropped(con.second.get()));
     } else {
-      verify_existing_connection_ok(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(verify_existing_connection_ok(con.second.get()));
     }
   }
 
-  // new connections should not reach D
+  SCOPED_TRACE("// new connections should not reach D");
   {
     std::vector<uint16_t> ro_dest_nodes{cluster_nodes_[1].classic_port,
                                         cluster_nodes_[2].classic_port,
@@ -1460,36 +1463,37 @@ TEST_F(ReadReplicaTest, HidingNodesReadOnlyTargetsAll) {
     }
   }
 
-  // hide second RR (E) but make it keep existing connections
+  SCOPED_TRACE("// hide second RR (E) but make it keep existing connections");
   cluster_nodes_[4].hidden = true;
   cluster_nodes_[4].disconnect_existing_sessions_when_hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // connection to D should be dropped but to E should be kept
+  SCOPED_TRACE("// connection to D should be dropped but to E should be kept");
   for (const auto &con : ro_cons) {
     if (con.first == cluster_nodes_[3].classic_port) {
-      verify_existing_connection_dropped(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(
+          verify_existing_connection_dropped(con.second.get()));
     } else {
-      verify_existing_connection_ok(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(verify_existing_connection_ok(con.second.get()));
     }
   }
 
-  // new connections should not reach D nor E
+  SCOPED_TRACE("// new connections should not reach D nor E");
   {
     for (size_t i = 0; i < gr_nodes_count + read_replica_nodes_count; i++) {
       make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
     }
   }
 
-  // un-hide node D
+  SCOPED_TRACE("// un-hide node D");
   cluster_nodes_[3].hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // it should be in the rotation for new connections again
+  SCOPED_TRACE("// it should be in the rotation for new connections again");
   {
     std::vector<uint16_t> ro_dest_nodes{cluster_nodes_[1].classic_port,
                                         cluster_nodes_[2].classic_port,
@@ -1521,53 +1525,59 @@ TEST_F(ReadReplicaTest, HidingNodesReadReplicas) {
         router_port_ro, get_read_replicas_classic_ports()));
   }
 
-  // hide first RR (D)
+  SCOPED_TRACE("// hide first RR (D)");
   cluster_nodes_[3].hidden = true;
   update_cluster_metadata();
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // existing connection to D should be dropped, the one to E should be kept
+  SCOPED_TRACE(
+      "// existing connection to D should be dropped, the one to E should be "
+      "kept");
   for (const auto &con : ro_cons) {
     if (con.first == cluster_nodes_[3].classic_port) {
-      verify_existing_connection_dropped(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(
+          verify_existing_connection_dropped(con.second.get()));
     } else {
-      verify_existing_connection_ok(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(verify_existing_connection_ok(con.second.get()));
     }
   }
 
-  // new connections should not reach D, all should go to E
+  SCOPED_TRACE("// new connections should not reach D, all should go to E");
   for (size_t i = 0; i < replica_nodes_count; i++) {
     make_new_connection_ok(router_port_ro, cluster_nodes_[4].classic_port);
   }
 
-  // hide second RR (E) but make it keep existing connections
+  SCOPED_TRACE("// hide second RR (E) but make it keep existing connections");
   cluster_nodes_[4].hidden = true;
   cluster_nodes_[4].disconnect_existing_sessions_when_hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // connection to D should be dropped but to E should be kept
+  SCOPED_TRACE("// connection to D should be dropped but to E should be kept");
   for (const auto &con : ro_cons) {
     if (con.first == cluster_nodes_[3].classic_port) {
-      verify_existing_connection_dropped(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(
+          verify_existing_connection_dropped(con.second.get()));
     } else {
-      verify_existing_connection_ok(con.second.get());
+      ASSERT_NO_FATAL_FAILURE(verify_existing_connection_ok(con.second.get()));
     }
   }
 
-  // there is no valid RO destination so the port should be closed
+  SCOPED_TRACE(
+      "// there is no valid RO destination so the port should be closed");
   verify_new_connection_fails(router_port_ro);
 
-  // un-hide both read replicas
+  SCOPED_TRACE("// un-hide both read replicas");
   cluster_nodes_[3].hidden = false;
   cluster_nodes_[4].hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // both D and E should be in the rotation for new connections again
+  SCOPED_TRACE(
+      "// both D and E should be in the rotation for new connections again");
   for (size_t i = 0; i < 4; i++) {
     make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }

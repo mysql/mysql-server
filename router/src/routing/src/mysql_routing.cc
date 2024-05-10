@@ -763,28 +763,6 @@ stdx::expected<void, std::string> MySQLRouting::run_acceptor(
             get_context().get_id(), nodes_changed_on_md_refresh, nodes);
       });
 
-  // make sure to stop the acceptors in case of possible exceptions, otherwise
-  // we can deadlock the process
-  Scope_guard stop_acceptors_guard([&]() { stop_socket_acceptors(); });
-
-  if (!destinations()->empty() ||
-      (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
-       is_destination_standalone_)) {
-    // For standalone destination with first-available strategy we always try
-    // to open a listening socket, even if there are no destinations.
-    auto res = start_accepting_connections();
-    // If the routing started at the exact moment as when the metadata had it
-    // initial refresh then it may start the acceptors even if metadata do not
-    // allow for it to happen, in that case we pass that information to the
-    // destination, socket acceptor state should be handled basend on the
-    // destination type.
-    if (!is_destination_standalone_) destination_->handle_sockets_acceptors();
-    // If we failed to start accepting connections on startup then router
-    // should fail.
-    if (!res) return stdx::unexpected(res.error());
-  }
-  mysql_harness::on_service_ready(env);
-
   auto allowed_nodes_changed =
       [&](const AllowedNodes &existing_connections_nodes,
           const AllowedNodes &new_connection_nodes, const bool disconnect,
@@ -829,6 +807,28 @@ stdx::expected<void, std::string> MySQLRouting::run_acceptor(
   allowed_nodes_list_iterator_ =
       destination_->register_allowed_nodes_change_callback(
           allowed_nodes_changed);
+
+  // make sure to stop the acceptors in case of possible exceptions, otherwise
+  // we can deadlock the process
+  Scope_guard stop_acceptors_guard([&]() { stop_socket_acceptors(); });
+
+  if (!destinations()->empty() ||
+      (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
+       is_destination_standalone_)) {
+    // For standalone destination with first-available strategy we always try
+    // to open a listening socket, even if there are no destinations.
+    auto res = start_accepting_connections();
+    // If the routing started at the exact moment as when the metadata had it
+    // initial refresh then it may start the acceptors even if metadata do not
+    // allow for it to happen, in that case we pass that information to the
+    // destination, socket acceptor state should be handled basend on the
+    // destination type.
+    if (!is_destination_standalone_) destination_->handle_sockets_acceptors();
+    // If we failed to start accepting connections on startup then router
+    // should fail.
+    if (!res) return stdx::unexpected(res.error());
+  }
+  mysql_harness::on_service_ready(env);
 
   Scope_guard exit_guard([&]() {
     destination_->unregister_allowed_nodes_change_callback(
