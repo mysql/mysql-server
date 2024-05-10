@@ -84,6 +84,10 @@ EXPLAIN SELECT /*+ NO_JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP
 --replace_regex $elide_costs
 EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 
+# Ignore using i_a to avoid sorting for GROUP BY. Expect temp-table aggregation.
+--replace_regex $elide_costs
+EXPLAIN SELECT /*+ NO_GROUP_INDEX(t1 i_a) */ a, COUNT(*) FROM t1 GROUP BY a;
+
 # Force i_ab index for JOIN, i_ab loose index scan is used.
 --replace_regex $elide_costs
 EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;

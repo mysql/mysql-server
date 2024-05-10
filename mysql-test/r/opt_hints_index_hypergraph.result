@@ -107,6 +107,12 @@ EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=8)
     -> Covering index scan on t1 using i_ab  (rows=256)
 
+EXPLAIN SELECT /*+ NO_GROUP_INDEX(t1 i_a) */ a, COUNT(*) FROM t1 GROUP BY a;
+EXPLAIN
+-> Table scan on <temporary>  (rows=8)
+    -> Aggregate using temporary table  (rows=8)
+        -> Table scan on t1  (rows=256)
+
 EXPLAIN SELECT /*+ JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
 -> Covering index skip scan for grouping on t1 using i_ab  (rows=2.83)
