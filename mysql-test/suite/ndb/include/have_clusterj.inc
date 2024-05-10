@@ -18,6 +18,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
 my $version = $ENV{MYSQL_SERVER_VERSION};
+my $using_tls = $ENV{NDB_TEST_REQUIRES_TLS};
 
 # In the RPM case, binaries and libraries are installed in the
 # default system locations, instead of having our own private base
@@ -126,6 +127,12 @@ sub write_properties {
   add($F, 'password', '');
   add($F, 'database', $db);
   add($F, 'max.transactions', '1024');
+
+  if($using_tls) {
+    add($F, 'tls.path', "$vardir/std_data/ndb-tls/active");
+    add($F, 'tls.strict', '1');
+  }
+
   $F->close();
 }
 

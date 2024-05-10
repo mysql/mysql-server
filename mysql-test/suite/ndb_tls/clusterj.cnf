@@ -1,12 +1,2 @@
 !include suite/ndb/t/clusterj.cnf
-
-# Provide certificates for every node
-
-[mysql_cluster]
-ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
-
-
-# Require MGM TLS
-
-[cluster_config.ndb_mgmd.1.1]
-RequireTls=true
+!include suite/ndb/tls.cnf

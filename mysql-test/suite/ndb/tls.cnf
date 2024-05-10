@@ -3,3 +3,6 @@ RequireTls=On
 
 [mysql_cluster]
 ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ENV]
+NDB_TEST_REQUIRES_TLS=1
