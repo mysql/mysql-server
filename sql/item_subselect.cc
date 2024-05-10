@@ -3100,7 +3100,11 @@ bool Query_expression::replace_items(Item_transformer t, uchar *arg) {
   auto replace_and_update = [t, arg](Item *expr, Item **ref) {
     Item *new_expr = expr->transform(t, arg);
     if (new_expr == nullptr) return true;
-    if (new_expr != expr) current_thd->change_item_tree(ref, new_expr);
+    if (new_expr != expr) {
+      assert(!current_thd->lex->is_exec_started());
+      // We are in prepare phase, no need for change_item_tree
+      *ref = new_expr;
+    }
     new_expr->update_used_tables();
     return false;
   };
