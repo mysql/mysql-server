@@ -705,10 +705,14 @@ class PFS_buffer_scalable_container {
     safe_pfs->m_lock.dirty_to_free(dirty_state);
 
     /* Flag the containing page as not full. */
-    page->m_full = false;
+    if (page->m_full.load()) {
+      page->m_full.store(false);
+    }
 
     /* Flag the overall container as not full. */
-    m_full = false;
+    if (m_full.load()) {
+      m_full.store(false);
+    }
   }
 
   void deallocate(value_type *safe_pfs) {
