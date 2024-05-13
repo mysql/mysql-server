@@ -3590,6 +3590,7 @@ class Item_func_match final : public Item_real_func {
   enum Functype functype() const override { return FT_FUNC; }
   const char *func_name() const override { return "match"; }
   bool fix_fields(THD *thd, Item **ref) override;
+  void update_used_tables() override;
   bool eq_specific(const Item *item) const override;
   /* The following should be safe, even if we compare doubles */
   longlong val_int() override {
