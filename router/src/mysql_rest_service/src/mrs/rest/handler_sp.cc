@@ -219,9 +219,10 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   auto &input_buffer = ctxt->request->get_input_buffer();
   // TODO(lkotula): The API doesn't have input buffer. (Shouldn't be in review)
   auto size = input_buffer.length();
-  auto data = input_buffer.pop_front(size);
+  auto request_body = input_buffer.pop_front(size);
   rapidjson::Document doc;
-  doc.Parse(reinterpret_cast<const char *>(&data[0]), data.size());
+  doc.Parse(reinterpret_cast<const char *>(request_body.data()),
+            request_body.size());
 
   if (!doc.IsObject()) throw http::Error(HttpStatusCode::BadRequest);
 
