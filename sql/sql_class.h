@@ -4819,6 +4819,9 @@ class THD : public MDL_context_owner,
   /// Flag indicating whether this session incremented the number of sessions
   /// with GTID_NEXT set to AUTOMATIC:tag
   bool has_incremented_gtid_automatic_count;
+
+  /// Count of Regular Statement Handles in use.
+  unsigned short m_regular_statement_handle_count{0};
 };
 
 /**

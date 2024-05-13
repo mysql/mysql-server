@@ -48,9 +48,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 int dummy_function_to_ensure_we_are_linked_into_the_server();
 
-/**
- * @brief
- * Statement_handle is extension of Ed_connection. Some of the
+/// Max limit for Regular Statement Handles in use.
+static constexpr unsigned short MAX_REGULAR_STATEMENT_HANDLES_LIMIT{1024};
+
+/** @brief Statement_handle is similar to Ed_connection. Some of the
  * limitations in Ed_connection is that,
  * - It does not support reading result metadata
  * - It does not support prepared statement, parameters and cursors.
@@ -347,6 +348,10 @@ class Regular_statement_handle : public Statement_handle {
   Regular_statement_handle(THD *thd, const char *query, uint length)
       : Statement_handle(thd, query, length) {}
 
+  ~Regular_statement_handle() {
+    if (m_is_executed) m_thd->m_regular_statement_handle_count--;
+  }
+
   /**
    * @brief Execute a regular statement.
    *
@@ -371,8 +376,7 @@ class Regular_statement_handle : public Statement_handle {
   bool is_executed_or_prepared() override { return m_is_executed; }
 
  private:
-  // Flag to show whether statement has been executed. Change to true after
-  // execute is called
+  /// Flag to indicate if statement has been executed. Set to true in execute().
   bool m_is_executed = false;
 
   // Used by execute() above.

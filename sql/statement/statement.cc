@@ -169,7 +169,15 @@ void Statement_handle::send_statement_status() {
 }
 
 bool Regular_statement_handle::execute() {
+  if (m_thd->m_regular_statement_handle_count >=
+      MAX_REGULAR_STATEMENT_HANDLES_LIMIT) {
+    my_error(ER_EXCEEDED_MAX_REGULAR_STATEMENT_HANDLE_LIMIT, MYF(0),
+             MAX_REGULAR_STATEMENT_HANDLES_LIMIT);
+    return true;
+  }
+  m_thd->m_regular_statement_handle_count++;
   m_is_executed = true;
+
   LEX_STRING sql_text{const_cast<char *>(m_query.c_str()), m_query.length()};
   Statement_runnable stmt_runnable(sql_text);
   return execute(&stmt_runnable);

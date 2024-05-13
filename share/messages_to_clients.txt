@@ -10479,6 +10479,9 @@ ER_LH_NO_SEGMENTS_GENERATED
 ER_LH_UNSTRUCTURED_FILE_TOO_LARGE
   eng "File: %s is too large."
 
+ER_EXCEEDED_MAX_REGULAR_STATEMENT_HANDLE_LIMIT
+  eng "Exceeded limit of %u regular SQL statement handles per session."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
