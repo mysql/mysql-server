@@ -55,7 +55,7 @@ exec $MRS_CLIENT_ARGS
 --echo #
 --echo # I.1
 exec $MRS_CLIENT_ARGS
-  --path /svc/basic/table?q={\"id\":{\"\$between\":[1,3]}}
+  --path /svc/basic/table?q=\{\"id\":\{\"\$between\":[1,3]\}\}
   --expected-status BadRequest;
 
 --echo
@@ -83,7 +83,7 @@ exec $MRS_CLIENT_ARGS
 --echo #
 --echo # II.1
 exec $MRS_CLIENT_ARGS
-  --path /svc/basic/table?q={\"my_id\":{\"\$between\":[1,3]}};
+  --path /svc/basic/table?q=\{\"my_id\":\{\"\$between\":[1,3]\}\};
 
 --echo
 --echo #
