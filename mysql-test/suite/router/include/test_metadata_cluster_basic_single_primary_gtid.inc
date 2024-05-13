@@ -48,9 +48,10 @@ exec $MRS_CLIENT_ARGS --path /svc/$test_schema/$test_obj1/20
 --source $MYSQL_TMP_DIR/gtid.inc
 
 
-# Hide GTIDS by setting: BODY,RESULT
+--echo # Hide GTIDS by setting: BODY,RESULT
+--let $asof="\$asof"
 exec $MRS_CLIENT_ARGS
-  --path /svc/$test_schema/$test_obj1?q={\"id\":20,\"\$asof\":\"$mrs_result\"}
+  --path '/svc/$test_schema/$test_obj1?q={"id":20,"$asof":$mrs_result}'
   --display BODY,RESULT
   --json-pointer /count;
 
@@ -70,11 +71,11 @@ exec $MRS_CLIENT_ARGS --path /svc/$test_schema/$test_obj2
 # Place GTID in $mrs_result
 --source $MYSQL_TMP_DIR/gtid.inc
 
---exec $MRS_CLIENT_ARGS --path /svc/$test_schema/$test_obj2?q={\"id\":3000,\"\$asof\":\"$mrs_result\"} --display BODY,RESULT
---exec $MRS_CLIENT_ARGS --expected-status 400 --path /svc/$test_schema/$test_obj2?q={\"id\":3001,\"\$asof\":\"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5\"} --display BODY,RESULT
-exec $MRS_CLIENT_ARGS 
+--exec $MRS_CLIENT_ARGS --path '/svc/$test_schema/$test_obj2?q={"id":3000,"$asof":"$mrs_result"}' --display BODY,RESULT
+--exec $MRS_CLIENT_ARGS --expected-status 400 --path '/svc/$test_schema/$test_obj2?q={"id":3001,$asof:"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}' --display BODY,RESULT
+exec $MRS_CLIENT_ARGS
   --expected-status 400
   --request-type delete
-  --path /svc/$test_schema/$test_obj2?q={\"id\":3001,\"\$asof\":\"3E11FA47-71CA-11E1-9E33-C80AA9429561:1-5\"}
+  --path '/svc/$test_schema/$test_obj2?q={"id":3001,"$asof":"3E11FA47-71CA-11E1-9E33-C80AA9429561:1-5"}'
   --display BODY,RESULT;
 
