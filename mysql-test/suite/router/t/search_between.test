@@ -75,21 +75,21 @@ exec $MRS_CLIENT_ARGS
 --echo #
 --echo # I.4
 exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q={\"id\":{\"\$between\":[1,2,3]}}
+  --path /svc/test_between/table?q=\{\"id\":\{\"\$between\":[1,2,3]\}\}
   --expected-status BadRequest;
 
 --echo
 --echo #
 --echo # II.1
 exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q={\"id\":{\"\$between\":[1,10]}}
+  --path /svc/test_between/table?q=\{\"id\":\{\"\$between\":[1,10]\}\}
   --json-pointer /limit,/offset,/count,/hasMore,/items/*/id,/items/*/comment;
 
 --echo
 --echo #
 --echo # II.2
 exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q={\"\$or\":[{\"id\":{\"\$between\":[1,2]}},{\"comment\":\"ome\ string\"}]}
+  --path /svc/test_between/table?q=\{\"\$or\":[\{\"id\":\{\"\$between\":[1,2]\}\},\{\"comment\":\"ome\ string\"\}]}
   --json-pointer /limit,/offset,/count,/hasMore,/items/*/id,/items/*/comment;
 
 # Cleanup
