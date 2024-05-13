@@ -191,6 +191,9 @@ IF(MSVC)
   CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in
     ${CMAKE_BINARY_DIR}/router_versioninfo_dll.rc)
 
+  SET(VERSION_INFO_RC_EXE_Router ${CMAKE_BINARY_DIR}/router_versioninfo_exe.rc)
+  SET(VERSION_INFO_RC_DLL_Router ${CMAKE_BINARY_DIR}/router_versioninfo_dll.rc)
+
   # ADD_VERSION_INFO: add version info the executables/shared libraries on windows
   #
   # @param target       targetname [ignored]
@@ -199,12 +202,17 @@ IF(MSVC)
   # @param component    component name
   #
   FUNCTION(ADD_VERSION_INFO target target_type sources_var component)
-    IF(component STREQUAL "Router")
-      SET(exe_rc_file ${CMAKE_BINARY_DIR}/router_versioninfo_exe.rc)
-      SET(dll_rc_file ${CMAKE_BINARY_DIR}/router_versioninfo_dll.rc)
-    ELSE()
-      SET(exe_rc_file ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
-      SET(dll_rc_file ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
+    SET(exe_rc_file ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
+    SET(dll_rc_file ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
+
+    # Override default when VERSION_INFO_RC_[EXE|DLL]_{$component} defined
+    IF(component)
+      IF(VERSION_INFO_RC_EXE_${component})
+        SET(exe_rc_file ${VERSION_INFO_RC_EXE_${component}})
+      ENDIF()
+      IF(VERSION_INFO_RC_DLL_${component})
+        SET(dll_rc_file ${VERSION_INFO_RC_DLL_${component}})
+      ENDIF()
     ENDIF()
 
     IF("${target_type}" MATCHES "SHARED" OR "${target_type}" MATCHES "MODULE")
