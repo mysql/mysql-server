@@ -325,14 +325,16 @@ class Ndb_expect_stack {
   static const uint MAX_EXPECT_ITEMS = Item::VALUES_COLUMN_ITEM + 1;
   static const uint MAX_EXPECT_FIELD_TYPES = MYSQL_TYPE_GEOMETRY + 1;
   static const uint MAX_EXPECT_FIELD_RESULTS = DECIMAL_RESULT + 1;
+  static constexpr Uint32 NO_LENGTH = UINT32_MAX;
 
  public:
   Ndb_expect_stack()
       : expect_tables(),
         other_field(nullptr),
         collation(nullptr),
-        length(0),
-        max_length(0),
+        length(NO_LENGTH),
+        min_length(NO_LENGTH),
+        max_length(NO_LENGTH),
         next(nullptr) {
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
@@ -442,12 +444,19 @@ class Ndb_expect_stack {
     return matching;
   }
   void expect_length(Uint32 len) { length = len; }
+  void expect_min_length(Uint32 min) { min_length = min; }
   void expect_max_length(Uint32 max) { max_length = max; }
   bool expecting_length(Uint32 len) {
-    return max_length == 0 || len <= max_length;
+    return (min_length == NO_LENGTH || min_length <= len) &&
+           (max_length == NO_LENGTH || len <= max_length);
   }
-  bool expecting_max_length(Uint32 max) { return max >= length; }
-  void expect_no_length() { length = max_length = 0; }
+  bool expecting_max_length(Uint32 max) {
+    return (length == NO_LENGTH || max >= length);
+  }
+  bool expecting_min_length(Uint32 min) {
+    return (length == NO_LENGTH || min <= length);
+  }
+  void expect_no_length() { length = min_length = max_length = NO_LENGTH; }
 
  private:
   Ndb_bitmap_buf<MAX_EXPECT_ITEMS> m_expect_buf;
@@ -460,6 +469,7 @@ class Ndb_expect_stack {
   const Field *other_field;
   const CHARSET_INFO *collation;
   Uint32 length;
+  Uint32 min_length;
   Uint32 max_length;
   Ndb_expect_stack *next;
 };
@@ -563,6 +573,9 @@ class Ndb_cond_traverse_context {
   inline void expect_length(Uint32 length) {
     expect_stack.expect_length(length);
   }
+  inline void expect_min_length(Uint32 min) {
+    expect_stack.expect_min_length(min);
+  }
   inline void expect_max_length(Uint32 max) {
     expect_stack.expect_max_length(max);
   }
@@ -571,6 +584,9 @@ class Ndb_cond_traverse_context {
   }
   inline bool expecting_max_length(Uint32 max) {
     return expect_stack.expecting_max_length(max);
+  }
+  inline bool expecting_min_length(Uint32 min) {
+    return expect_stack.expecting_min_length(min);
   }
   inline void expect_no_length() { expect_stack.expect_no_length(); }
 
@@ -870,19 +886,27 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                   context->supported = false;
                 break;
 
-              case STRING_RESULT:
+              case STRING_RESULT: {
                 DBUG_PRINT("info", ("STRING 'VALUE' expression: '%s'",
                                     str.c_ptr_safe()));
-                // Check that we do support pushing the item value length
+                size_t item_length = item->max_length;
+                // For BINARY value the actual value length should be used.
+                // If the BINARY value comes from a CHAR value casted to BINARY
+                // it will have max_length as a multiple of connection charset
+                // max character size.
+                if (item->collation.collation == &my_charset_bin) {
+                  String buf, *val = const_cast<Item *>(item)->val_str(&buf);
+                  if (val) item_length = val->length();
+                }
                 if (context->expecting(Item::STRING_ITEM) &&
-                    context->expecting_length(item->max_length)) {
+                    context->expecting_length(item_length)) {
                   ndb_item = new (*THR_MALLOC) Ndb_value(item);
                   if (context->expecting_no_field_result()) {
                     // We have not seen the field argument yet
                     context->expect_only_field_from_table(this_table);
                     context->expect_field_result(STRING_RESULT);
                     context->expect_collation(item->collation.collation);
-                    context->expect_length(item->max_length);
+                    context->expect_length(item_length);
                   } else {
                     // Expect another logical expression
                     context->expect_only(Item::FUNC_ITEM);
@@ -901,7 +925,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 } else
                   context->supported = false;
                 break;
-
+              }
               default:
                 assert(false);
                 context->supported = false;
@@ -1010,7 +1034,9 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 // type.
                 if (field->result_type() == STRING_RESULT &&
                     !is_supported_temporal_type(type)) {
-                  if (!context->expecting_max_length(field->field_length)) {
+                  if (!context->expecting_max_length(field->field_length) ||
+                      (field->binary() &&
+                       !context->expecting_min_length(field->field_length))) {
                     DBUG_PRINT("info", ("Found non-matching string length %s",
                                         field->field_name));
                     context->supported = false;
@@ -1046,6 +1072,13 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                       context->expect(Item::HEX_BIN_ITEM);
                       context->expect_collation(
                           field_item->collation.collation);
+                      /*
+                       * For BINARY columns value length must be exactly the
+                       * same for equality like conditions, since value will be
+                       * zero padded when compared in NdbSqlUtil::cmpBinary.
+                       */
+                      if (type == MYSQL_TYPE_STRING && field->binary())
+                        context->expect_min_length(field->field_length);
                       context->expect_max_length(field->field_length);
                       break;
                     case REAL_RESULT:
