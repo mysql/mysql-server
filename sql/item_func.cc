@@ -4294,6 +4294,8 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (args[0]->const_item() && args[1]->type() == FIELD_ITEM &&
       args[0]->may_eval_const_item(thd)) {
     Field *field = down_cast<Item_field *>(args[1])->field;
+    // Bail during CREATE TABLE/INDEX so we don't look for absent typelib.
+    if (field->is_wrapper_field()) return false;
     if (field->real_type() == MYSQL_TYPE_SET) {
       String *find = args[0]->val_str(&value);
       if (thd->is_error()) return true;

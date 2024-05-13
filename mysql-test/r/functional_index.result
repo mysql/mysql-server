@@ -707,3 +707,65 @@ id	val	tid
 3	3	2
 4	4	NULL
 DROP TABLE t, t2;
+#
+# Bug#35352161: Mysql dies when a functional index on FIND_IN_SET is added
+#
+
+# Create the table without INDEXes first.
+CREATE TABLE t1 (
+id          INT NOT NULL AUTO_INCREMENT,
+roles       SET('Admin', 'Moderator', 'Editor') NOT NULL,
+PRIMARY KEY (id)
+);
+
+# Fill the table.
+INSERT INTO t1 VALUES (NULL, "Admin");
+INSERT INTO t1 VALUES (NULL, "Moderator");
+INSERT INTO t1 VALUES (NULL, "Editor");
+INSERT INTO t1 VALUES (NULL, "Editor,Admin");
+
+# Show operation without index.
+SHOW INDEXES FROM t1 WHERE key_name="i1";
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+EXPLAIN
+-> Filter: (find_in_set('Admin',t1.roles) > 0)  (rows=4)
+    -> Table scan on t1  (rows=4)
+
+SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+id
+1
+4
+
+# ADD function INDEX: If Bug#35352161 is present, this will fail.
+ALTER TABLE t1 ADD INDEX i1 ((FIND_IN_SET('Admin', roles)));
+
+# Show operation using functional index i1.
+# (Prove index exists, we're using it, and it gives correct results.)
+SHOW INDEXES FROM t1 WHERE key_name="i1";
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	i1	1	NULL	A	2	NULL	NULL		BTREE			YES	find_in_set(_utf8mb4\'Admin\',`roles`)
+EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+EXPLAIN
+-> Filter: (find_in_set(_utf8mb4'Admin',roles) > 0)  (rows=2)
+    -> Index range scan on t1 using i1 over (0 < find_in_set(_utf8mb4'Admin',`roles`))  (rows=2)
+
+SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+id
+1
+4
+
+# Clean up.
+DROP TABLE t1;
+
+# Create table including index.
+# If Bug#35352161 is present, the INDEX part will fail.
+CREATE TABLE t1 (
+id    INT NOT NULL AUTO_INCREMENT,
+roles SET('Admin', 'Moderator', 'Editor') NOT NULL,
+PRIMARY KEY (id),
+INDEX i1((FIND_IN_SET('Admin', roles)))
+);
+
+# Clean up.
+DROP TABLE t1;
