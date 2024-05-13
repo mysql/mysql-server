@@ -1,4 +1,7 @@
 -- source include/have_log_bin.inc
+# Hypergraph chooses a different plan, takes different locks, and
+# times out instead of deadlocking.
+-- source include/not_hypergraph.inc
 -- source include/rpl/deprecated/not_binlog_format_row.inc
 
 --echo #
@@ -45,8 +48,6 @@ connection thread1;
 --echo # in thread1
 
 --echo # should not crash
---skip_if_hypergraph  # Chooses different plan, takes different locks,
-                      # and times out instead of deadlocking.
 --error ER_LOCK_DEADLOCK
 SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE; #crashes
 
