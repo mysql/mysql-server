@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 CREATE TABLE t1 (int_col INTEGER, string_col VARCHAR(255));
 INSERT INTO t1 (int_col, string_col) VALUES (-1, "foo"), (1, "bar");
 
@@ -611,3 +613,61 @@ ANALYZE TABLE t,t2;
 --eval EXPLAIN $query
 --eval $query
 DROP TABLE t, t2;
+
+
+--echo #
+--echo # Bug#35352161: Mysql dies when a functional index on FIND_IN_SET is added
+--echo #
+
+--echo
+--echo # Create the table without INDEXes first.
+CREATE TABLE t1 (
+  id          INT NOT NULL AUTO_INCREMENT,
+  roles       SET('Admin', 'Moderator', 'Editor') NOT NULL,
+  PRIMARY KEY (id)
+);
+
+--echo
+--echo # Fill the table.
+INSERT INTO t1 VALUES (NULL, "Admin");
+INSERT INTO t1 VALUES (NULL, "Moderator");
+INSERT INTO t1 VALUES (NULL, "Editor");
+INSERT INTO t1 VALUES (NULL, "Editor,Admin");
+
+--echo
+--echo # Show operation without index.
+SHOW INDEXES FROM t1 WHERE key_name="i1";
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+
+--echo
+--echo # ADD function INDEX: If Bug#35352161 is present, this will fail.
+ALTER TABLE t1 ADD INDEX i1 ((FIND_IN_SET('Admin', roles)));
+
+--echo
+--echo # Show operation using functional index i1.
+--echo # (Prove index exists, we're using it, and it gives correct results.)
+SHOW INDEXES FROM t1 WHERE key_name="i1";
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+
+--echo
+--echo # Clean up.
+DROP TABLE t1;
+
+--echo
+--echo # Create table including index.
+--echo # If Bug#35352161 is present, the INDEX part will fail.
+CREATE TABLE t1 (
+  id    INT NOT NULL AUTO_INCREMENT,
+  roles SET('Admin', 'Moderator', 'Editor') NOT NULL,
+  PRIMARY KEY (id),
+  INDEX i1((FIND_IN_SET('Admin', roles)))
+);
+
+
+--echo
+--echo # Clean up.
+DROP TABLE t1;
