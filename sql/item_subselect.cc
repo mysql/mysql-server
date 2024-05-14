@@ -3031,7 +3031,7 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
     ref = info->m_outer_query_block->add_hidden_item(scalar_item);
   }
   Item *result;
-  if (query_expr()->place() == CTX_HAVING) {
+  if (place() == CTX_HAVING) {
     result = new (mem_root)
         Item_ref(&info->m_outer_query_block->context, ref, scalar_item->db_name,
                  scalar_item->table_name, scalar_item->field_name);

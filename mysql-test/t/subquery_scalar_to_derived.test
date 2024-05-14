@@ -2549,4 +2549,21 @@ DROP TABLE t1;
 
 SET SQL_MODE=default;
 
+--echo #
+--echo # Bug#36079456 Assertion `having_cond->has_subquery() ||
+--echo #              !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS))'
+--echo #              failed.
+CREATE TABLE t(i INT);
+
+let $query=
+SELECT i FROM t
+HAVING i <> ( SELECT MIN(i)
+              FROM t)
+ORDER BY i;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t;
+
 SET optimizer_switch='subquery_to_derived=default';

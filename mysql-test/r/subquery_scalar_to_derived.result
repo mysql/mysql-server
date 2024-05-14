@@ -4870,4 +4870,25 @@ a	MIN(f1)
 NULL	NULL
 DROP TABLE t1;
 SET SQL_MODE=default;
+#
+# Bug#36079456 Assertion `having_cond->has_subquery() ||
+#              !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS))'
+#              failed.
+CREATE TABLE t(i INT);
+SELECT i FROM t
+HAVING i <> ( SELECT MIN(i)
+FROM t)
+ORDER BY i;
+i
+EXPLAIN SELECT i FROM t
+HAVING i <> ( SELECT MIN(i)
+FROM t)
+ORDER BY i;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` left join (/* select#2 */ select min(`test`.`t`.`i`) AS `MIN(i)` from `test`.`t`) `derived_1_2` on(true) where true having (`test`.`t`.`i` <> `derived_1_2`.`MIN(i)`) order by `test`.`t`.`i`
+DROP TABLE t;
 SET optimizer_switch='subquery_to_derived=default';
