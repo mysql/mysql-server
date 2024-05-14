@@ -99,7 +99,7 @@ void CountedMySQLSession::allow_failure_at_next_query() {
 
 CountedMySQLSession::ConnectionParameters
 CountedMySQLSession::get_connection_parameters() const {
-  return connections_;
+  return connection_params_;
 }
 
 void CountedMySQLSession::execute_initial_sqls() {
@@ -114,15 +114,16 @@ CountedMySQLSession::Sqls CountedMySQLSession::get_initial_sqls() const {
 
 void CountedMySQLSession::connect_and_set_opts(
     const ConnectionParameters &connection_params, const Sqls &initial_sqls) {
-  connections_ = connection_params;
+  connection_params_ = connection_params;
   initial_sqls_ = initial_sqls;
-  connect(connections_.conn_opts.host, connections_.conn_opts.port,
-          connections_.conn_opts.username, connections_.conn_opts.password,
-          connections_.conn_opts.unix_socket,
-          connections_.conn_opts.default_schema,
-          connections_.conn_opts.connect_timeout,
-          connections_.conn_opts.read_timeout,
-          connections_.conn_opts.extra_client_flags);
+  connect(connection_params_.conn_opts.host, connection_params_.conn_opts.port,
+          connection_params_.conn_opts.username,
+          connection_params_.conn_opts.password,
+          connection_params_.conn_opts.unix_socket,
+          connection_params_.conn_opts.default_schema,
+          connection_params_.conn_opts.connect_timeout,
+          connection_params_.conn_opts.read_timeout,
+          connection_params_.conn_opts.extra_client_flags);
   reconnect_at_next_query_ = false;
   execute_initial_sqls();
 }
@@ -139,15 +140,15 @@ void CountedMySQLSession::connect(const std::string &host, unsigned int port,
                         extra_client_flags);
   reconnect_at_next_query_ = false;
 
-  connections_.conn_opts.host = host;
-  connections_.conn_opts.port = port;
-  connections_.conn_opts.username = username;
-  connections_.conn_opts.password = password;
-  connections_.conn_opts.unix_socket = unix_socket;
-  connections_.conn_opts.default_schema = default_schema;
-  connections_.conn_opts.connect_timeout = connect_timeout;
-  connections_.conn_opts.read_timeout = read_timeout;
-  connections_.conn_opts.extra_client_flags = extra_client_flags;
+  connection_params_.conn_opts.host = host;
+  connection_params_.conn_opts.port = port;
+  connection_params_.conn_opts.username = username;
+  connection_params_.conn_opts.password = password;
+  connection_params_.conn_opts.unix_socket = unix_socket;
+  connection_params_.conn_opts.default_schema = default_schema;
+  connection_params_.conn_opts.connect_timeout = connect_timeout;
+  connection_params_.conn_opts.read_timeout = read_timeout;
+  connection_params_.conn_opts.extra_client_flags = extra_client_flags;
 }
 
 void CountedMySQLSession::connect(const MySQLSession &other,
@@ -168,9 +169,9 @@ void CountedMySQLSession::change_user(const std::string &user,
                                       const std::string &db) {
   mrs::Counter<kEntityCounterMySQLChangeUser>::increment();
   CHECK_DISCONNECTION_VOID(MySQLSession::change_user(user, password, db));
-  connections_.conn_opts.username = user;
-  connections_.conn_opts.password = password;
-  connections_.conn_opts.default_schema = db;
+  connection_params_.conn_opts.username = user;
+  connection_params_.conn_opts.password = password;
+  connection_params_.conn_opts.default_schema = db;
 }
 
 void CountedMySQLSession::reset() { MySQLSession::reset(); }

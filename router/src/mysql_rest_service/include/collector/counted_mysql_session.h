@@ -50,14 +50,14 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
     } ssl_cert;
     struct ConnOptions {
       std::string host;
-      unsigned int port;
+      unsigned int port{0};
       std::string username;
       std::string password;
       std::string unix_socket;
       std::string default_schema;
-      int connect_timeout;
-      int read_timeout;
-      unsigned long extra_client_flags = 0;
+      int connect_timeout{kDefaultConnectTimeout};
+      int read_timeout{kDefaultReadTimeout};
+      unsigned long extra_client_flags{0};
     } conn_opts;
   };
 
@@ -103,7 +103,7 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
       const std::string &query) override;  // throws Error
 
  private:
-  ConnectionParameters connections_;
+  ConnectionParameters connection_params_;
   bool reconnect_at_next_query_{false};
   Sqls initial_sqls_;
 };

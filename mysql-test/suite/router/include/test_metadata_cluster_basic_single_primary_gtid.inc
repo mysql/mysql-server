@@ -77,6 +77,6 @@ exec $MRS_CLIENT_ARGS --path /svc/$test_schema/$test_obj2
 exec $MRS_CLIENT_ARGS
   --expected-status 400
   --request-type delete
-  --path '/svc/$test_schema/$test_obj2?q={"id":3001,"$asof":"3E11FA47-71CA-11E1-9E33-C80AA9429561:1-5"}'
+  --path '/svc/$test_schema/$test_obj2?q={"id":3001,$asof:"3E11FA47-71CA-11E1-9E33-C80AA9429561:1-5"}'
   --display BODY,RESULT;
 
