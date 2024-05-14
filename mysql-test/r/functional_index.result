@@ -723,14 +723,18 @@ INSERT INTO t1 VALUES (NULL, "Admin");
 INSERT INTO t1 VALUES (NULL, "Moderator");
 INSERT INTO t1 VALUES (NULL, "Editor");
 INSERT INTO t1 VALUES (NULL, "Editor,Admin");
+INSERT INTO t1 (roles) SELECT '' FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 
 # Show operation without index.
 SHOW INDEXES FROM t1 WHERE key_name="i1";
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
 EXPLAIN
--> Filter: (find_in_set('Admin',t1.roles) > 0)  (rows=4)
-    -> Table scan on t1  (rows=4)
+-> Filter: (find_in_set('Admin',t1.roles) > 0)  (rows=8)
+    -> Table scan on t1  (rows=8)
 
 SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
 id
@@ -745,11 +749,14 @@ ALTER TABLE t1 ADD INDEX i1 ((FIND_IN_SET('Admin', roles)));
 SHOW INDEXES FROM t1 WHERE key_name="i1";
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	i1	1	NULL	A	2	NULL	NULL		BTREE			YES	find_in_set(_utf8mb4\'Admin\',`roles`)
-EXPLAIN FORMAT=tree SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
-EXPLAIN
--> Filter: (find_in_set(_utf8mb4'Admin',roles) > 0)  (rows=2)
-    -> Index range scan on t1 using i1 over (0 < find_in_set(_utf8mb4'Admin',`roles`))  (rows=2)
-
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @explain
+SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
+SET explain_json_format_version = DEFAULT;
+SELECT COALESCE(JSON_EXTRACT(@explain, '$.inputs[0].operation'),
+JSON_EXTRACT(@explain, '$.operation')) AS scan;
+scan
+"Index range scan on t1 using i1 over (0 < find_in_set(_utf8mb4'Admin',`roles`))"
 SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;
 id
 1
