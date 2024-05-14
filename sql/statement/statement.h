@@ -348,7 +348,7 @@ class Regular_statement_handle : public Statement_handle {
   Regular_statement_handle(THD *thd, const char *query, uint length)
       : Statement_handle(thd, query, length) {}
 
-  ~Regular_statement_handle() {
+  ~Regular_statement_handle() override {
     if (m_is_executed) m_thd->m_regular_statement_handle_count--;
   }
 
