@@ -41,6 +41,12 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
+%if 0%{?fedora} > 39
+%global compatver 8.0.37
+%global compatlib 21
+%global compatsrc https://cdn.mysql.com/Downloads/MySQL-8.0/mysql-boost-%{compatver}.tar.gz
+%endif
+
 %{!?product_suffix:              %global product_suffix community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
@@ -65,6 +71,9 @@ Version:        @MYSQL_NO_DASH_VERSION@
 Release:        10@MYSQL_VERSION_EXTRA_DOT@%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
+%if 0%{?compatlib}
+Source1:        %{compatsrc}
+%endif
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
@@ -370,6 +379,14 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 This package contains the shared libraries for MySQL client
 applications.
 
+%if 0%{?compatlib}
+%package        libs-compat
+Summary:        Shared compat libraries for MySQL %{compatver} database client applications
+%description    libs-compat
+This package contains the shared compat libraries for MySQL
+%{compatver} client applications.
+%endif
+
 %package        client-plugins
 Summary:        Shared plugins for MySQL client applications
 Group:          Applications/Databases
@@ -488,7 +505,11 @@ strengths of both ClusterJ and JDBC
 %endif # cluster
 
 %prep
+%if 0%{?compatlib}
+%setup -q -T -a 0 -a 1 -c -n %{src_dir}
+%else
 %setup -q -T -a 0 -c -n %{src_dir}
+%endif
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -500,6 +521,37 @@ if [ "x$(id -u)" = "x0" ] ; then
    exit 1
 fi
 %endif
+
+# Build compat libs
+%if 0%{?compatlib}
+(
+  pushd mysql-%{compatver}
+  mkdir build && pushd build
+  cmake .. \
+           -DBUILD_CONFIG=mysql_release \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DMYSQL_MAINTAINER_MODE=0 \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DWITH_SYSTEMD=0 \
+           -DWITH_SYSTEM_LIBS=1 \
+           -DWITH_MECAB=system \
+           -DWITH_FIDO=system \
+           -DWITH_BOOST=../boost \
+           -DWITH_ROUTER=0 \
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITHOUT_SERVER=1 \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  pushd libmysql
+  make %{?_smp_mflags} VERBOSE=1
+  popd && popd && popd
+)
+%endif # 0%{?compatlib}
 
 # Build debug versions of mysqld
 mkdir debug
@@ -577,6 +629,17 @@ mkdir release
 )
 
 %install
+
+%if 0%{?compatlib}
+# Install compat libs
+(
+    pushd mysql-%{compatver}/build/libmysql
+    make DESTDIR=%{buildroot} mysqlclient install
+    rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient.{a,so}
+    popd
+)
+%endif # 0%{?compatlib}
+
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ignore absolute RPATH followed by $ORIGIN in mysqld.
@@ -1020,6 +1083,16 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.24*
+
+%if 0%{?compatlib}
+%files libs-compat
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql
+%attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.*
+%endif
 
 %files client-plugins
 %defattr(-, root, root, -)
