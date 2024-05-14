@@ -38,12 +38,12 @@ inline void left(std::string *to_trim) {
 }
 
 inline void right(std::string *to_trim) {
-  auto size = static_cast<ssize_t>(to_trim->length());
-  for (; size > -1; --size) {
+  auto size = to_trim->length();
+  for (; size > 0; --size) {
     if ((*to_trim)[size - 1] != ' ') break;
   }
 
-  if (size == static_cast<ssize_t>(to_trim->length())) return;
+  if (size == to_trim->length()) return;
 
   to_trim->erase(size);
 }
@@ -62,12 +62,12 @@ inline std::string make_left(const std::string &to_trim) {
 }
 
 inline std::string make_right(const std::string &to_trim) {
-  auto size = static_cast<ssize_t>(to_trim.length());
-  for (; size > -1; --size) {
+  auto size = to_trim.length();
+  for (; size > 0; --size) {
     if (to_trim[size - 1] != ' ') break;
   }
 
-  if (size == static_cast<ssize_t>(to_trim.length())) return to_trim;
+  if (size == to_trim.length()) return to_trim;
 
   if (0 == size) return {};
 
