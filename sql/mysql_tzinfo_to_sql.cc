@@ -310,12 +310,12 @@ static bool scan_tz_dir(char *name_end) {
         }
       } else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode)) {
         bname = basename(fullname);
-        if ((strcmp(bname,"iso3166.tab") == 0) ||
-	  (strcmp(bname,"leap-seconds.list") == 0) ||
-	  (strcmp(bname,"leapseconds") == 0) ||
-	  (strcmp(bname,"tzdata.zi") == 0) ||
-	  (strcmp(bname,"zone.tab") == 0) ||
-	  (strcmp(bname,"zone1970.tab") == 0)) {
+        if ((strcmp(bname, "iso3166.tab") == 0) ||
+            (strcmp(bname, "leap-seconds.list") == 0) ||
+            (strcmp(bname, "leapseconds") == 0) ||
+            (strcmp(bname, "tzdata.zi") == 0) ||
+            (strcmp(bname, "zone.tab") == 0) ||
+            (strcmp(bname, "zone1970.tab") == 0)) {
           continue;
         }
 
