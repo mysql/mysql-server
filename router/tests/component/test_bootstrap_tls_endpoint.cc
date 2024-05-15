@@ -684,7 +684,7 @@ TEST_P(BootstrapTlsEndpoint, succeeds) {
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
       {"# MySQL Router configured"},
-      10s,  // 10 seconds as cert-generation may take a while on slow machines
+      20s,  // 20 seconds as cert-generation may take a while on slow machines
       {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
@@ -727,7 +727,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config) {
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
       {"# MySQL Router configured"},
-      10s,  // 10 seconds as cert-generation may take a while on slow machines
+      20s,  // 20 seconds as cert-generation may take a while on slow machines
       {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
@@ -777,7 +777,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert) {
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
       {"# MySQL Router configured"},
-      10s,  // 10 seconds as cert-generation may take a while on slow machines
+      20s,  // 20 seconds as cert-generation may take a while on slow machines
       {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
@@ -827,7 +827,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_key) {
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
       {"# MySQL Router configured"},
-      10s,  // 10 seconds as cert-generation may take a while on slow machines
+      20s,  // 20 seconds as cert-generation may take a while on slow machines
       {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
@@ -879,7 +879,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert_and_key) {
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
       {"# MySQL Router configured"},
-      10s,  // 10 seconds as cert-generation may take a while on slow machines
+      20s,  // 20 seconds as cert-generation may take a while on slow machines
       {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
