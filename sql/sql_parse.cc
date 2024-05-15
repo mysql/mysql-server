@@ -518,6 +518,7 @@ void init_sql_command_flags() {
   server_command_flags[COM_SLEEP] = CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_INIT_DB] = CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_QUERY] = CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_FIELD_LIST] = CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_STATISTICS] = CF_SKIP_QUESTIONS;
   server_command_flags[COM_PING] = CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_PREPARE] =
@@ -2221,6 +2222,93 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         error = true;
 
       DBUG_PRINT("info", ("query ready"));
+      break;
+    }
+    case COM_FIELD_LIST:  // This isn't actually needed
+    {
+      char *fields;
+      /* Locked closure of all tables */
+      LEX_STRING table_name;
+      LEX_STRING db;
+      push_deprecated_warn(thd, "COM_FIELD_LIST",
+                           "SHOW COLUMNS FROM statement");
+      /*
+        SHOW statements should not add the used tables to the list of tables
+        used in a transaction.
+      */
+      MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
+      thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_SHOW_FIELDS]++;
+      if (thd->copy_db_to(&db.str, &db.length)) break;
+      thd->convert_string(&table_name, system_charset_info,
+                          (char *)com_data->com_field_list.table_name,
+                          com_data->com_field_list.table_name_length,
+                          thd->charset());
+      const Ident_name_check ident_check_status =
+          check_table_name(table_name.str, table_name.length);
+      if (ident_check_status == Ident_name_check::WRONG) {
+        /* this is OK due to convert_string() null-terminating the string */
+        my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
+        break;
+      } else if (ident_check_status == Ident_name_check::TOO_LONG) {
+        my_error(ER_TOO_LONG_IDENT, MYF(0), table_name.str);
+        break;
+      }
+      mysql_reset_thd_for_next_command(thd);
+      lex_start(thd);
+      /* Must be before we init the table list. */
+      if (lower_case_table_names && !is_infoschema_db(db.str, db.length))
+        table_name.length = my_casedn_str(files_charset_info, table_name.str);
+      Table_ref table_list(db.str, db.length, table_name.str, table_name.length,
+                           table_name.str, TL_READ);
+      /*
+        Init Table_ref members necessary when the undelrying
+        table is view.
+      */
+      table_list.query_block = thd->lex->query_block;
+      thd->lex->query_block->m_table_list.link_in_list(&table_list,
+                                                       &table_list.next_local);
+      thd->lex->add_to_query_tables(&table_list);
+      if (is_infoschema_db(table_list.db, table_list.db_length)) {
+        ST_SCHEMA_TABLE *schema_table =
+            find_schema_table(thd, table_list.alias);
+        if (schema_table) table_list.schema_table = schema_table;
+      }
+      if (!(fields =
+                (char *)thd->memdup(com_data->com_field_list.query,
+                                    com_data->com_field_list.query_length)))
+        break;
+      // Don't count end \0
+      thd->set_query(fields, com_data->com_field_list.query_length - 1);
+      query_logger.general_log_print(thd, command, "%s %s",
+                                     table_list.table_name, fields);
+      if (open_temporary_tables(thd, &table_list)) break;
+      if (check_table_access(thd, SELECT_ACL, &table_list, true, UINT_MAX,
+                             false))
+        break;
+      thd->lex->sql_command = SQLCOM_SHOW_FIELDS;
+      // See comment in opt_trace_disable_if_no_security_context_access()
+      const Opt_trace_start ots(thd, &table_list, thd->lex->sql_command,
+                                nullptr, nullptr, 0, nullptr, nullptr);
+      mysqld_list_fields(thd, &table_list, fields);
+      thd->lex->cleanup(true);
+      /* No need to rollback statement transaction, it's not started. */
+      assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+      close_thread_tables(thd);
+      thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+      if (thd->transaction_rollback_request) {
+        /*
+          Transaction rollback was requested since MDL deadlock was
+          discovered while trying to open tables. Rollback transaction
+          in all storage engines including binary log and release all
+          locks.
+        */
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      thd->cleanup_after_query();
+      thd->lex->destroy();
       break;
     }
     case COM_QUIT:

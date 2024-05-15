@@ -1223,9 +1223,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
           break;
         case cmd_byte<classic_protocol::message::client::ListFields>():  // 4
 
-          EXPECT_THAT(msg.error_code(), AnyOf(1047,   // unknown command in 9.0
-                                              1835))  // malformed packet in 8.4
-              << msg.message();
+          // malformed packet
+          EXPECT_THAT(msg.error_code(), 1835) << msg.message();
           break;
         case cmd_byte<classic_protocol::message::client::StmtPrepare>():  // 22
 
