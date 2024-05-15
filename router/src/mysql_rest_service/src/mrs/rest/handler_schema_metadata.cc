@@ -54,9 +54,9 @@ void HandlerSchemaMetadata::authorization(rest::RequestContext *ctxt) {
 HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   log_debug("Schema::handle_get '%s'", requests_uri.get_path().c_str());
-  const uint32_t k_default_limit = 25;
-  uint32_t offset = 0;
-  uint32_t limit = k_default_limit;
+  const uint64_t k_default_limit = 25;
+  uint64_t offset = 0;
+  uint64_t limit = k_default_limit;
   json::ResponseJsonTemplate response_template{false};
 
   Url::parse_offset_limit(requests_uri.get_query_elements(), &offset, &limit);

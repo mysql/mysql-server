@@ -34,7 +34,7 @@ class MockJsonTemplate : public mrs::database::JsonTemplate {
                const std::vector<helper::Column> &columns),
               (override));
   MOCK_METHOD(void, begin_resultset,
-              (uint32_t offset, uint32_t limit, bool is_default_limit,
+              (uint64_t offset, uint64_t limit, bool is_default_limit,
                const std::string &url,
                const std::vector<helper::Column> &columns),
               (override));

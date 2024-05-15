@@ -71,7 +71,7 @@ void QueryRestSPMedia::query_entries(MySQLSession *session, const std::string &,
 
 void QueryRestSPMedia::query_entries(
     MySQLSession *session, const std::string &column, const std::string &schema,
-    const std::string &object, const uint32_t limit, const uint32_t offset) {
+    const std::string &object, const uint64_t limit, const uint64_t offset) {
   assert(0);
   items = 0;
   query_ = {"SELECT ! FROM !.! LIMIT ?,?"};

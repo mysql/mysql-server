@@ -47,8 +47,8 @@ class QueryRestSPMedia : private QueryLog {
 
   virtual void query_entries(MySQLSession *session, const std::string &column,
                              const std::string &schema,
-                             const std::string &object, const uint32_t limit,
-                             const uint32_t offset);
+                             const std::string &object, const uint64_t limit,
+                             const uint64_t offset);
 
   std::string response;
   uint64_t items;

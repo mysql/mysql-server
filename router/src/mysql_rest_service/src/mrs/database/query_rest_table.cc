@@ -60,8 +60,8 @@ QueryRestTable::QueryRestTable(bool encode_bigints_as_strings,
 
 void QueryRestTable::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const uint32_t offset,
-    const uint32_t limit, const std::string &url_route,
+    const ObjectFieldFilter &field_filter, const uint64_t offset,
+    const uint64_t limit, const std::string &url_route,
     const bool is_default_limit, const ObjectRowOwnership &row_ownership,
     const FilterObjectGenerator &fog, const bool compute_etag) {
   create_serializer();
@@ -376,7 +376,7 @@ void extend_where(sqlstring &where, const FilterObjectGenerator &fog) {
 }
 
 void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
-                                 const uint32_t offset, const uint32_t limit,
+                                 const uint64_t offset, const uint64_t limit,
                                  const std::string &url,
                                  const ObjectRowOwnership &row_ownership,
                                  const FilterObjectGenerator &fog) {

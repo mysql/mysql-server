@@ -1,0 +1,558 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+CREATE TABLE test.id_unsigned_int(
+id INTEGER UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+value INTEGER);
+INSERT INTO test.id_unsigned_int(id, value)
+VALUES(1, 1), (2, 2), (3, 3), (4, 4);
+CREATE TABLE test.id_unsigned_bigint(
+id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+value INTEGER);
+INSERT INTO test.id_unsigned_bigint(id, value)
+VALUES(1, 1), (2, 2), (3, 3), (4, 4);
+CREATE TABLE test.id_bigint(
+id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+value INTEGER);
+INSERT INTO test.id_bigint(id, value)
+VALUES(1, 1), (2, 2), (3, 3), (4, 4);
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/test
+# Check the offset & limit on table with INTEGER UNSIGNED PK field
+# Registred DB_OBJECT at path: /svc/test/id_unsigned_int
+GET /svc/test/id_unsigned_int?offset=0&limit=1
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_int?offset=1&limit=1
+{
+    "items": [
+        {
+            "id": 2,
+            "value": 2
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_int?offset=0&limit=4294967295
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_int?offset=0&limit=9223372036854775808
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+# Check the offset out of range of the existing rows
+GET /svc/test/id_unsigned_int?offset=5&limit=1
+{
+    "items": [],
+    "limit": 1,
+    "offset": 5,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_int/?offset=4&limit=1"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_int/?limit=1"
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_int?offset=4294967295&limit=4294967295
+{
+    "items": [],
+    "limit": 4294967295,
+    "offset": 4294967295,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_int/?offset=0&limit=4294967295"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_int/?limit=4294967295"
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_int?offset=9223372036854775808&limit=9223372036854775808
+{
+    "items": [],
+    "limit": 9223372036854775808,
+    "offset": 9223372036854775808,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_int/?offset=0&limit=9223372036854775808"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_int/?limit=9223372036854775808"
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_int?offset=18446744073709551614&limit=18446744073709551615
+{
+    "items": [],
+    "limit": 18446744073709551615,
+    "offset": 18446744073709551614,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_int/?offset=0&limit=18446744073709551615"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_int/?limit=18446744073709551615"
+        }
+    ]
+}
+OK
+# Check the limit on table with BIGINT UNSIGNED PK field
+# Registred DB_OBJECT at path: /svc/test/id_unsigned_bigint
+GET /svc/test/id_unsigned_bigint?offset=0&limit=1
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=1&limit=1
+{
+    "items": [
+        {
+            "id": 2,
+            "value": 2
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=0&limit=4294967295
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=0&limit=9223372036854775808
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=0&limit=18446744073709551614
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+# Check the offset out of range of the existing rows
+GET /svc/test/id_unsigned_bigint?offset=5&limit=1
+{
+    "items": [],
+    "limit": 1,
+    "offset": 5,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_bigint/?offset=4&limit=1"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_bigint/?limit=1"
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=4294967295&limit=4294967295
+{
+    "items": [],
+    "limit": 4294967295,
+    "offset": 4294967295,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_bigint/?offset=0&limit=4294967295"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_bigint/?limit=4294967295"
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=9223372036854775808&limit=9223372036854775808
+{
+    "items": [],
+    "limit": 9223372036854775808,
+    "offset": 9223372036854775808,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_bigint/?offset=0&limit=9223372036854775808"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_bigint/?limit=9223372036854775808"
+        }
+    ]
+}
+OK
+GET /svc/test/id_unsigned_bigint?offset=18446744073709551614&limit=18446744073709551615
+{
+    "items": [],
+    "limit": 18446744073709551615,
+    "offset": 18446744073709551614,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_bigint/?offset=0&limit=18446744073709551615"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_bigint/?limit=18446744073709551615"
+        }
+    ]
+}
+OK
+# Check the limit on table with BIGINT PK field
+# Registred DB_OBJECT at path: /svc/test/id_bigint
+GET /svc/test/id_bigint?offset=0&limit=1
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=1&limit=1
+{
+    "items": [
+        {
+            "id": 2,
+            "value": 2
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=0&limit=4294967295
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=0&limit=9223372036854775808
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=0&limit=18446744073709551614
+{
+    "items": [
+        {
+            "id": 1,
+            "value": 1
+        },
+        {
+            "id": 2,
+            "value": 2
+        },
+        {
+            "id": 3,
+            "value": 3
+        },
+        {
+            "id": 4,
+            "value": 4
+        }
+    ]
+}
+OK
+# Check the offset out of range of the existing rows
+GET /svc/test/id_bigint?offset=5&limit=1
+{
+    "items": [],
+    "limit": 1,
+    "offset": 5,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_bigint/?offset=4&limit=1"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_bigint/?limit=1"
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=4294967295&limit=4294967295
+{
+    "items": [],
+    "limit": 4294967295,
+    "offset": 4294967295,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_bigint/?offset=0&limit=4294967295"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_bigint/?limit=4294967295"
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=9223372036854775808&limit=9223372036854775808
+{
+    "items": [],
+    "limit": 9223372036854775808,
+    "offset": 9223372036854775808,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_bigint/?offset=0&limit=9223372036854775808"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_bigint/?limit=9223372036854775808"
+        }
+    ]
+}
+OK
+GET /svc/test/id_bigint?offset=18446744073709551614&limit=18446744073709551615
+{
+    "items": [],
+    "limit": 18446744073709551615,
+    "offset": 18446744073709551614,
+    "hasMore": false,
+    "count": 0,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_bigint/?offset=0&limit=18446744073709551615"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_bigint/?limit=18446744073709551615"
+        }
+    ]
+}
+OK
+DROP TABLE test.id_unsigned_int;
+DROP TABLE test.id_unsigned_bigint;
+DROP TABLE test.id_bigint;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

@@ -49,7 +49,7 @@ void ResponseSpJsonTemplateUnnest::begin_resultset(
 }
 
 void ResponseSpJsonTemplateUnnest::begin_resultset(
-    uint32_t, uint32_t, bool, const std::string &,
+    uint64_t, uint64_t, bool, const std::string &,
     const std::vector<helper::Column> &) {
   assert(false && "not implemented in sp");
 }

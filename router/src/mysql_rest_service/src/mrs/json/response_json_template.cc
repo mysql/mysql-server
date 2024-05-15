@@ -78,7 +78,7 @@ void ResponseJsonTemplate::begin_resultset(
 }
 
 void ResponseJsonTemplate::begin_resultset(
-    uint32_t offset, uint32_t limit, bool is_default_limit,
+    uint64_t offset, uint64_t limit, bool is_default_limit,
     const std::string &url, const std::vector<helper::Column> &) {
   if (began_) {
     json_root_items_ = JsonSerializer::Array();
