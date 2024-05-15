@@ -53,6 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "router_component_clusterset.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
 
 using mysqlrouter::ClusterType;
@@ -96,12 +97,9 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
         "routing:test_default" + std::to_string(router_port), options);
   }
 
-  auto &launch_router(const ClusterSetTopology &cs_topology,
-                      const int expected_errorcode = EXIT_SUCCESS,
-                      const std::chrono::milliseconds wait_for_notify_ready =
-                          kReadyNotifyTimeout,
-                      const std::chrono::milliseconds metadata_ttl = kTTL,
-                      bool use_gr_notifications = false) {
+  std::string create_config_and_keyring(
+      const ClusterSetTopology &cs_topology,
+      const std::chrono::milliseconds metadata_ttl, bool use_gr_notifications) {
     SCOPED_TRACE("// Prepare the dynamic state file for the Router");
     const auto clusterset_all_nodes_ports =
         cs_topology.get_md_servers_classic_ports();
@@ -115,32 +113,34 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     router_port_rw = port_pool_.get_next_available();
     router_port_ro = port_pool_.get_next_available();
 
-    const std::string masterkey_file =
-        Path(temp_test_dir.name()).join("master.key").str();
-    const std::string keyring_file =
-        Path(temp_test_dir.name()).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
-
     auto default_section = get_DEFAULT_defaults();
-    default_section["keyring_path"] = keyring_file;
-    default_section["master_key_path"] = masterkey_file;
+
+    init_keyring(default_section, temp_test_dir.name());
+
     default_section["dynamic_state"] = router_state_file;
 
     const std::string userfile = create_password_file();
     const std::string rest_sections = mysql_harness::join(
         get_restapi_config("rest_metadata_cache", userfile, true), "\n");
 
-    router_conf_file = create_config_file(
+    return create_config_file(
         temp_test_dir.name(),
         metadata_cache_section(metadata_ttl, use_gr_notifications) +
             routing_section(router_port_rw, "PRIMARY", "first-available") +
             routing_section(router_port_ro, "SECONDARY", "round-robin") +
             rest_sections,
         &default_section);
+  }
+
+  auto &launch_router(const ClusterSetTopology &cs_topology,
+                      const int expected_errorcode = EXIT_SUCCESS,
+                      const std::chrono::milliseconds wait_for_notify_ready =
+                          kReadyNotifyTimeout,
+                      const std::chrono::milliseconds metadata_ttl = kTTL,
+                      bool use_gr_notifications = false) {
+    router_conf_file = create_config_and_keyring(cs_topology, metadata_ttl,
+                                                 use_gr_notifications);
+
     auto &router = ProcessManager::launch_router(
         {"-c", router_conf_file}, expected_errorcode, /*catch_stderr=*/true,
         /*with_sudo=*/false, wait_for_notify_ready);
@@ -761,7 +761,13 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
       R"({"target_cluster" : ")" + target_cluster + "\" }";
   create_clusterset(cs_options);
 
-  auto &router = launch_router(cs_options.topology, EXIT_SUCCESS, -1s);
+  auto config_file =
+      create_config_and_keyring(cs_options.topology, kTTL,
+                                /* use_gr_notifications= */ false);
+
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", config_file});
 
   EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 20s));
 
@@ -826,7 +832,13 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
   cs_options.router_options = R"({"target_cluster" : "" })";
   create_clusterset(cs_options);
 
-  auto &router = launch_router(cs_options.topology, EXIT_SUCCESS, -1s);
+  auto config_file =
+      create_config_and_keyring(cs_options.topology, kTTL,
+                                /* use_gr_notifications= */ false);
+
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", config_file});
 
   EXPECT_TRUE(wait_log_contains(router,
                                 "Target cluster for router_id=1 not set, using "

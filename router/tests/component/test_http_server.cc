@@ -244,9 +244,14 @@ TEST_P(HttpServerPlainTest, ensure) {
           std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
               "http_server", http_section)},
           ""))};
-  ProcessWrapper &http_server{launch_router(
-      {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE, true,
-      false, GetParam().expected_success ? 5s : -1s)};
+
+  auto &http_server =
+      router_spawner()
+          .expected_exit_code(GetParam().expected_success ? 0 : EXIT_FAILURE)
+          .wait_for_sync_point(GetParam().expected_success
+                                   ? Spawner::SyncPoint::READY
+                                   : Spawner::SyncPoint::NONE)
+          .spawn({"-c", conf_file});
 
   if (GetParam().expected_success) {
     std::string rel_uri = GetParam().raw_uri_path;
@@ -1088,7 +1093,7 @@ TEST_P(HttpClientSecureTest, ensure) {
 
   SCOPED_TRACE("// wait http port connectable");
 
-  ProcessWrapper &http_server = launch_router({"-c", conf_file_});
+  auto &http_server = router_spawner().spawn({"-c", conf_file_});
 
   ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
@@ -1219,12 +1224,17 @@ TEST_P(HttpServerSecureTest, ensure) {
       mysql_harness::ConfigBuilder::build_section("http_server", http_section),
       nullptr, "mysqlrouter.conf", "", false)};
 
-  // timeout for waiting for ready notification is increased to address the case
-  // of strong dh params which takes long on overloaded CPUs
-  ProcessWrapper &http_server{
-      launch_router({"-c", conf_file},
-                    GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE,
-                    true, false, GetParam().expected_success ? 20s : -1s)};
+  auto &http_server =
+      router_spawner()
+          .expected_exit_code(GetParam().expected_success ? EXIT_SUCCESS
+                                                          : EXIT_FAILURE)
+          // timeout for waiting for ready notification is increased to address
+          // the case of strong dh params which takes long on overloaded CPUs
+          .wait_for_notify_ready(20s)
+          .wait_for_sync_point(GetParam().expected_success
+                                   ? Spawner::SyncPoint::READY
+                                   : Spawner::SyncPoint::NONE)
+          .spawn({"-c", conf_file});
 
   if (GetParam().expected_success) {
     http::base::Uri u;
@@ -1627,7 +1637,7 @@ class HttpServerAuthTest
  * - make a client connect to the http-server
  */
 TEST_P(HttpServerAuthTest, ensure) {
-  launch_router({"-c", conf_file_});
+  router_spawner().spawn({"-c", conf_file_});
 
   const std::string http_uri = GetParam().url;
   SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
@@ -1735,10 +1745,14 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 
   std::string conf_file = create_config_file(conf_dir_.name(), config_content);
 
-  ProcessWrapper &http_server{
-      launch_router({"-c", conf_file},
-                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE,
-                    true, false, -1s)};
+  auto &http_server =
+      router_spawner()
+          .expected_exit_code(GetParam().check_at_runtime ? EXIT_SUCCESS
+                                                          : EXIT_FAILURE)
+          .wait_for_sync_point(GetParam().check_at_runtime
+                                   ? Spawner::SyncPoint::READY
+                                   : Spawner::SyncPoint::NONE)
+          .spawn({"-c", conf_file});
 
   if (GetParam().check_at_runtime) {
     ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
