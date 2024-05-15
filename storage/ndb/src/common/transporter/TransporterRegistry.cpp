@@ -3025,6 +3025,11 @@ bool TransporterRegistry::is_shm_transporter(TrpId trp_id) {
     return false;
 }
 
+TransporterType TransporterRegistry::get_transporter_type(TrpId trp_id) const {
+  assert(trp_id < maxTransporters);
+  return allTransporters[trp_id]->getTransporterType();
+}
+
 NodeId TransporterRegistry::get_transporter_node_id(TrpId trp_id) const {
   assert(trp_id < maxTransporters);
   Transporter *t = allTransporters[trp_id];
