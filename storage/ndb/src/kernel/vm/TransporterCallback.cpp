@@ -647,13 +647,22 @@ Uint32 TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(
 
   Uint32 count = 0;
   SendBufferPage *page = b->m_first_page;
-  while (page != NULL && count < max) {
+  while (page != nullptr && count < max) {
     dst[count].iov_base = page->m_data + page->m_start;
     dst[count].iov_len = page->m_bytes;
     assert(page->m_start + page->m_bytes <= page->max_data_bytes());
     page = page->m_next;
     count++;
   }
+
+  // For send_buffer_usage we count pages beyond 'max' as well
+  Uint32 pages = count;
+  while (unlikely(page != nullptr)) {
+    page = page->m_next;
+    pages++;
+  }
+  globalTransporterRegistry.update_send_buffer_usage(
+      trp_id, Uint64(pages) * SendBufferPage::PGSIZE, b->m_used_bytes);
 
   return count;
 }

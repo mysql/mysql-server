@@ -3320,6 +3320,17 @@ void TransporterFacade::do_send_buffer(TrpId trp_id, struct TFSendBuffer *b) {
   /* Update pending bytes to be sent. */
   b->m_current_send_buffer_size =
       b->m_buffer.m_bytes_in_buffer + b->m_out_buffer.m_bytes_in_buffer;
+
+  /**
+   * Maintaining send_buffer_usage in API despite :
+   *  - There is no ndbinfo to report it
+   *  - We do not use the slowdown / overload states.
+   * Note that allocBytes is only used by ndbinfo, thus unused by the API,
+   * so not calculated currently.
+   */
+  constexpr Uint64 allocBytes = 0;
+  theTransporterRegistry->update_send_buffer_usage(
+      trp_id, allocBytes, b->m_current_send_buffer_size);
 }
 
 /**

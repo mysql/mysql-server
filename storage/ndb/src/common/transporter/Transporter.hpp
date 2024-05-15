@@ -151,6 +151,23 @@ class Transporter {
                                                used >= m_slowdown_limit);
   }
 
+  /**
+   * Update ndbinfo statistics about sendbuffer bytes allocated and
+   * used by transporter.
+   * Note that allocated bytes may be sparsely populated pages,
+   * resulting in an overallocation of pages as well.
+   * We expect the buffers soon to be packed in such cases.
+   */
+  void update_send_buffer_usage(Uint64 allocBytes, Uint64 usedBytes) {
+    m_send_buffer_alloc_bytes = allocBytes;
+    if (allocBytes > m_send_buffer_max_alloc_bytes)
+      m_send_buffer_max_alloc_bytes = allocBytes;
+
+    m_send_buffer_used_bytes = usedBytes;
+    if (usedBytes > m_send_buffer_max_used_bytes)
+      m_send_buffer_max_used_bytes = usedBytes;
+  }
+
   virtual bool doSend(bool need_wakeup = true) = 0;
 
   /* Get the configured maximum send buffer usage. */
@@ -170,6 +187,12 @@ class Transporter {
   Uint32 get_recv_thread_idx() const { return m_recv_thread_idx; }
 
   TransporterType getTransporterType() const;
+
+  Uint64 get_alloc_bytes() const { return m_send_buffer_alloc_bytes; }
+  Uint64 get_max_alloc_bytes() const { return m_send_buffer_max_alloc_bytes; }
+
+  Uint64 get_used_bytes() const { return m_send_buffer_used_bytes; }
+  Uint64 get_max_used_bytes() const { return m_send_buffer_max_used_bytes; }
 
  protected:
   Transporter(TransporterRegistry &, TrpId transporter_index, TransporterType,
@@ -228,12 +251,19 @@ class Transporter {
   /* Overload limit, as configured with the OverloadLimit config parameter. */
   Uint32 m_overload_limit;
   Uint32 m_slowdown_limit;
-  void resetCounters();
   Uint64 m_bytes_sent;
   Uint64 m_bytes_received;
   Uint32 m_connect_count;
   Uint32 m_overload_count;
   Uint32 m_slowdown_count;
+
+  Uint64 m_send_buffer_alloc_bytes;
+  Uint64 m_send_buffer_max_alloc_bytes;  // Historic max use
+
+  Uint64 m_send_buffer_used_bytes;
+  Uint64 m_send_buffer_max_used_bytes;  // Historic max use
+
+  void resetCounters();
 
   // Sending/Receiving socket used by both client and server
   NdbSocket theSocket;
@@ -361,9 +391,14 @@ inline Uint32 Transporter::fetch_send_iovec_data(struct iovec dst[],
 }
 
 inline void Transporter::iovec_data_sent(int nBytesSent) {
-  Uint32 used_bytes =
+  Uint32 remaining_bytes =
       get_callback_obj()->bytes_sent(m_transporter_index, nBytesSent);
-  update_status_overloaded(used_bytes);
+  update_status_overloaded(remaining_bytes);
+
+  if (remaining_bytes == 0) {
+    m_send_buffer_alloc_bytes = 0;
+    m_send_buffer_used_bytes = 0;
+  }
 }
 
 inline bool Transporter::checksum_state::compute(const void *buf, size_t len) {

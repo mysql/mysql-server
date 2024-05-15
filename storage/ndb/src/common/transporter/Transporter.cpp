@@ -83,6 +83,10 @@ Transporter::Transporter(TransporterRegistry &t_reg, TrpId transporter_index,
       m_connect_count(0),
       m_overload_count(0),
       m_slowdown_count(0),
+      m_send_buffer_alloc_bytes(0),
+      m_send_buffer_max_alloc_bytes(0),
+      m_send_buffer_used_bytes(0),
+      m_send_buffer_max_used_bytes(0),
       isMgmConnection(_isMgmConnection),
       m_connected(false),
       m_type(_type),
@@ -463,6 +467,10 @@ void Transporter::resetCounters() {
   m_bytes_received = 0;
   m_overload_count = 0;
   m_slowdown_count = 0;
+  m_send_buffer_alloc_bytes = 0;
+  m_send_buffer_max_alloc_bytes = 0;
+  m_send_buffer_used_bytes = 0;
+  m_send_buffer_max_used_bytes = 0;
 }
 
 void Transporter::checksum_state::dumpBadChecksumInfo(

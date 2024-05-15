@@ -105,8 +105,8 @@ DECLARE_NDBINFO_TABLE(POOLS, 14) = {
      {"resource_id", Ndbinfo::Number, ""},
      {"type_id", Ndbinfo::Number, "Record type id within resource"}}};
 
-DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 14) = {
-    {"transporter_details", 14, 0,
+DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 18) = {
+    {"transporter_details", 18, 0,
      [](const Ndbinfo::Counts &counts) {
        return (counts.data_nodes) * (counts.all_nodes - 1);
      },
@@ -131,7 +131,15 @@ DECLARE_NDBINFO_TABLE(TRANSPORTER_DETAILS, 14) = {
      {"slowdown", Ndbinfo::Number, "Is link requesting slowdown"},
      {"slowdown_count", Ndbinfo::Number,
       "Number of slowdown onsets since connect"},
-     {"encrypted", Ndbinfo::Number, "Is link using TLS encryption"}}};
+     {"encrypted", Ndbinfo::Number, "Is link using TLS encryption"},
+
+     {"sendbuffer_used_bytes", Ndbinfo::Number64, "SendBuffer bytes in use"},
+     {"sendbuffer_max_used_bytes", Ndbinfo::Number64,
+      "SendBuffer historical max bytes in use"},
+     {"sendbuffer_alloc_bytes", Ndbinfo::Number64,
+      "SendBuffer bytes allocated"},
+     {"sendbuffer_max_alloc_bytes", Ndbinfo::Number64,
+      "SendBuffer historical max bytes allocated"}}};
 
 DECLARE_NDBINFO_TABLE(TRANSPORTERS, 11) = {
     {"transporters", 11, 0,

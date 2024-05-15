@@ -3283,6 +3283,18 @@ void TransporterRegistry::inc_overload_count(NodeId nodeId) {
   theNodeIdTransporters[nodeId]->inc_overload_count();
 }
 
+/**
+ * TR need to inform Transporter about how much pending buffered
+ * send data there is.
+ */
+void TransporterRegistry::update_send_buffer_usage(TrpId trpId,
+                                                   Uint64 allocBytes,
+                                                   Uint64 usedBytes) {
+  assert(trpId < maxTransporters);
+  assert(allTransporters[trpId] != nullptr);
+  allTransporters[trpId]->update_send_buffer_usage(allocBytes, usedBytes);
+}
+
 void TransporterRegistry::inc_slowdown_count(NodeId nodeId) {
   assert(nodeId < MAX_NODES);
   assert(theNodeIdTransporters[nodeId] != nullptr);
@@ -3305,6 +3317,30 @@ Uint32 TransporterRegistry::get_connect_count(TrpId trpId) const {
   assert(trpId < maxTransporters);
   assert(allTransporters[trpId] != nullptr);
   return allTransporters[trpId]->get_connect_count();
+}
+
+Uint64 TransporterRegistry::get_send_buffer_alloc_bytes(TrpId trpId) const {
+  assert(trpId < MAX_NTRANSPORTERS);
+  assert(allTransporters[trpId] != nullptr);
+  return allTransporters[trpId]->get_alloc_bytes();
+}
+
+Uint64 TransporterRegistry::get_send_buffer_max_alloc_bytes(TrpId trpId) const {
+  assert(trpId < MAX_NTRANSPORTERS);
+  assert(allTransporters[trpId] != nullptr);
+  return allTransporters[trpId]->get_max_alloc_bytes();
+}
+
+Uint64 TransporterRegistry::get_send_buffer_used_bytes(TrpId trpId) const {
+  assert(trpId < MAX_NTRANSPORTERS);
+  assert(allTransporters[trpId] != nullptr);
+  return allTransporters[trpId]->get_used_bytes();
+}
+
+Uint64 TransporterRegistry::get_send_buffer_max_used_bytes(TrpId trpId) const {
+  assert(trpId < MAX_NTRANSPORTERS);
+  assert(allTransporters[trpId] != nullptr);
+  return allTransporters[trpId]->get_max_used_bytes();
 }
 
 void TransporterRegistry::get_trps_for_node(NodeId nodeId, TrpId *trp_ids,
