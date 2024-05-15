@@ -451,7 +451,6 @@ void LEX::reset() {
 
   name.str = nullptr;
   name.length = 0;
-  event_parse_data = nullptr;
   profile_options = PROFILE_NONE;
   select_number = 0;
   allow_sum_func = 0;

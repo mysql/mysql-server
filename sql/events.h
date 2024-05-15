@@ -113,7 +113,7 @@ class Events {
   static void init_mutexes();
 
   static bool create_event(THD *thd, Event_parse_data *parse_data,
-                           bool if_exists);
+                           bool if_not_exists);
 
   static bool update_event(THD *thd, Event_parse_data *parse_data,
                            const LEX_CSTRING *new_dbname,

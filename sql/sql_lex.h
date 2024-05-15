@@ -4348,8 +4348,6 @@ struct LEX : public Query_tables_list {
  public:
   st_sp_chistics sp_chistics;
 
-  Event_parse_data *event_parse_data;
-
   bool only_view; /* used for SHOW CREATE TABLE/VIEW */
   /*
     view created to be run from definer (standard behaviour)

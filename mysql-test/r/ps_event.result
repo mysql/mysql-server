@@ -1,0 +1,147 @@
+#
+# WL#16298: Allow EVENT statements to be prepared explicitly
+#
+CREATE TABLE t1(
+id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+user VARCHAR(288) DEFAULT (CURRENT_USER())
+);
+PREPARE ce FROM 'CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 0 SECOND ENABLE DO BEGIN INSERT INTO t1 (id) VALUE (NULL); END';
+EXECUTE ce;
+SELECT * FROM t1;
+id	user
+1	root@localhost
+DEALLOCATE PREPARE ce;
+CREATE PROCEDURE event_creator()
+BEGIN
+PREPARE ce FROM 'CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 0 SECOND ENABLE DO BEGIN INSERT INTO t1 (id) VALUE (NULL); END';
+EXECUTE ce;
+DEALLOCATE PREPARE ce;
+END$
+CALL event_creator();
+SELECT * FROM t1;
+id	user
+1	root@localhost
+2	root@localhost
+PREPARE ce FROM 'CREATE EVENT e1 ON SCHEDULE AT ? ENABLE DO BEGIN INSERT INTO t1 (id) VALUE (NULL); END';
+ERROR HY000: Dynamic parameters can only be used in DML statements.
+PREPARE ae FROM 'ALTER EVENT e1 DISABLE';
+EXECUTE ae;
+ERROR HY000: Unknown event 'e1'
+DEALLOCATE PREPARE ae;
+PREPARE de FROM 'DROP EVENT e1';
+EXECUTE de;
+ERROR HY000: Unknown event 'e1'
+DEALLOCATE PREPARE de;
+# Cleanup
+DROP PROCEDURE event_creator;
+DROP TABLE t1;
+PREPARE ps FROM 'CREATE EVENT e1 ON SCHEDULE EVERY (SELECT \'abcdef\' UNION SELECT \'abcdef\') SECOND DO SELECT 1';
+ERROR HY000: INTERVAL is either not positive or too big
+PREPARE ps FROM 'CREATE EVENT e1 ON SCHEDULE EVERY (SELECT \'abcdef\' UNION SELECT \'abcdef\')+10 SECOND DO SELECT 1';
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DROP EVENT e1;
+SET @event_statement =
+CONCAT('CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO',
+' BEGIN',
+' SELECT GET_LOCK(\'e1_lock\', 60); SELECT RELEASE_LOCK(\'e1_lock\');',
+' INSERT INTO t2 SELECT * FROM t1;',
+' END');
+PREPARE ps FROM @event_statement;
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DROP EVENT e1;
+# With EXIT HANDLER in event body
+SET @event_statement =
+CONCAT('CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO',
+' BEGIN',
+' DECLARE EXIT HANDLER FOR 1136 BEGIN INSERT INTO t3 VALUES (1); END;',
+' SELECT GET_LOCK(\'e1_lock\', 60); SELECT RELEASE_LOCK(\'e1_lock\');',
+' INSERT INTO t2 SELECT * FROM t1;',
+' END');
+PREPARE ps FROM @event_statement;
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DROP EVENT e1;
+#
+# Issue first observed in MLE tests where prepare of CREATE EVENT done inside an SP fails with parse error
+# which triggers ASAN read of heap after free.
+#
+# Behavior with normal CREATE EVENT statement
+CREATE EVENT e1 ON SCHEDULE EVERY 10 SECOND STARTS NOW() ENDS NOW() + INTERVAL 21 SECOND ON COMPLETION NOT PRESERVE DO SELECT * FROM  LIMIT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1' at line 1
+# Behavior with normal prepare
+PREPARE stmt FROM 'CREATE EVENT e1 ON SCHEDULE EVERY 10 SECOND STARTS NOW() ENDS NOW() + INTERVAL 21 SECOND ON COMPLETION NOT PRESERVE DO SELECT * FROM  LIMIT 1';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1' at line 1
+CREATE PROCEDURE p1()
+BEGIN
+PREPARE stmt FROM 'CREATE EVENT e1 ON SCHEDULE EVERY 10 SECOND STARTS NOW() ENDS NOW() + INTERVAL 21 SECOND ON COMPLETION NOT PRESERVE DO SELECT * FROM  LIMIT 1';
+END;
+$
+# Verify same behavior when prepare is done inside an SP
+CALL p1();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1' at line 1
+DROP PROCEDURE p1;
+# Repeated ps execution
+PREPARE ce FROM 'CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO SELECT 1';
+EXECUTE ce;
+DROP EVENT IF EXISTS e1;
+EXECUTE ce;
+DROP EVENT IF EXISTS e1;
+DEALLOCATE PREPARE ce;
+CREATE PROCEDURE event_creator2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1539 SELECT 'Event does not exist' AS 'Error handled:';
+DECLARE CONTINUE HANDLER FOR 1537 SELECT 'Event already exists' AS 'Error handled:';
+PREPARE ce FROM 'CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO SELECT 1';
+PREPARE ae FROM 'ALTER EVENT e1 ON SCHEDULE EVERY 1 SECOND DO SELECT 2';
+PREPARE de FROM 'DROP EVENT e1';
+# Event does not exist
+EXECUTE ae;
+# Event does not exist
+EXECUTE de;
+EXECUTE ce;
+# Event already exists
+EXECUTE ce;
+EXECUTE ae;
+EXECUTE de;
+# Event does not exist
+EXECUTE de;
+DEALLOCATE PREPARE ce;
+DEALLOCATE PREPARE ae;
+DEALLOCATE PREPARE de;
+END$
+CALL event_creator2();
+Error handled:
+Event does not exist
+Error handled:
+Event does not exist
+Error handled:
+Event already exists
+Error handled:
+Event does not exist
+DROP PROCEDURE event_creator2;
+# Repeated execution from concatenated statement variable
+SET @event_statement = CONCAT(
+'CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO',
+' BEGIN',
+' INSERT INTO t2 SELECT * FROM t1;',
+' END');
+PREPARE ps FROM @event_statement;
+EXECUTE ps;
+EXECUTE ps;
+ERROR HY000: Event 'e1' already exists
+DROP EVENT e1;
+DEALLOCATE PREPARE ps;
+# Execution of PS created in SP outside SP
+CREATE PROCEDURE event_creator()
+BEGIN
+PREPARE ce FROM 'CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 0 SECOND ENABLE DO BEGIN INSERT INTO t1 (id) VALUE (NULL); END';
+END$
+CALL event_creator();
+EXECUTE ce;
+DROP EVENT e1;
+EXECUTE ce;
+DROP EVENT e1;
+DEALLOCATE PREPARE ce;
+DROP PROCEDURE event_creator;

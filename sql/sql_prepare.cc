@@ -106,6 +106,7 @@ When one supplies long data for a placeholder:
 #include <utility>
 
 #include "decimal.h"
+#include "event_parse_data.h"
 #include "field_types.h"
 #include "map_helpers.h"
 #include "mem_root_deque.h"
@@ -132,6 +133,7 @@ When one supplies long data for a placeholder:
 #include "mysqld_error.h"
 #include "nulls.h"
 #include "scope_guard.h"
+#include "sp_head.h"
 #include "sql-common/my_decimal.h"
 #include "sql/aggregated_stats.h"
 #include "sql/aggregated_stats_buffer.h"
@@ -1228,7 +1230,12 @@ bool Prepared_statement::prepare_query(THD *thd) {
   const Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
   if ((m_lex->keep_diagnostics == DA_KEEP_COUNTS) ||
-      (m_lex->keep_diagnostics == DA_KEEP_DIAGNOSTICS)) {
+      (m_lex->keep_diagnostics == DA_KEEP_DIAGNOSTICS &&
+       // keep_diagnostics can be set if DECLARE EXIT HANDLER is
+       // used in the event body. But this is ok since the body is
+       // not prepared.
+       sql_command != SQLCOM_CREATE_EVENT &&
+       sql_command != SQLCOM_ALTER_EVENT)) {
     my_error(ER_UNSUPPORTED_PS, MYF(0));
     return true;
   }
@@ -1316,6 +1323,9 @@ bool Prepared_statement::prepare_query(THD *thd) {
       [[fallthrough]];
 #endif
 #endif
+    case SQLCOM_CREATE_EVENT:
+    case SQLCOM_ALTER_EVENT:
+    case SQLCOM_DROP_EVENT:
     case SQLCOM_SELECT:
     case SQLCOM_DO:
     case SQLCOM_DELETE:
@@ -2257,6 +2267,12 @@ Prepared_statement::~Prepared_statement() {
   m_arena.free_items();
   if (m_lex != nullptr) {
     assert(m_lex->sphead == nullptr);
+
+    // Prepared CREATE/ALTER EVENT keep the sp_head for the event body inside
+    // the command object, so that it is not destroyed when lex_end() is
+    // called, and can be referenced when the ps is executed. So
+    // event_parse_data_end() must be called here.
+    cleanup_event_parse_data(m_lex);
     lex_end(m_lex);
     m_lex->destroy();
     delete pointer_cast<st_lex_local *>(m_lex);  // TRASH memory
@@ -2422,9 +2438,16 @@ bool Prepared_statement::prepare(THD *thd, const char *query_str,
   error |= thd->is_error();
   if (!error) {  // We've just created the statement maybe there is a rewrite
     invoke_post_parse_rewrite_plugins(thd, true);
+    error |= thd->is_error();
+  }
+  if (!error && m_lex->param_list.elements > 0 && m_lex->m_sql_cmd != nullptr &&
+      !m_lex->m_sql_cmd->are_dynamic_parameters_allowed()) {
+    my_error(ER_NON_DML_DYNAMIC_PARAMETERS, MYF(0));
+    error = true;
+  }
+  if (!error) {
     error = init_param_array(thd, this);
   }
-  error |= thd->is_error();
 
   // Bind Sql command object with this prepared statement
   if (m_lex->m_sql_cmd != nullptr) m_lex->m_sql_cmd->set_owner(this);
@@ -2483,11 +2506,15 @@ bool Prepared_statement::prepare(THD *thd, const char *query_str,
   assert(error || !thd->is_error());
 
   /*
-    Currently CREATE PROCEDURE/TRIGGER/EVENT are prohibited in prepared
+    Currently CREATE PROCEDURE/TRIGGER are prohibited in prepared
     statements: ensure we have no memory leak here if by someone tries
     to PREPARE stmt FROM "CREATE PROCEDURE ..."
   */
-  assert(m_lex->sphead == nullptr || error != 0);
+
+  assert(m_lex->sphead == nullptr || error != 0 ||
+         m_lex->sql_command == SQLCOM_CREATE_EVENT ||
+         m_lex->sql_command == SQLCOM_ALTER_EVENT);
+
   /* The order is important */
   m_lex->cleanup(true);
 

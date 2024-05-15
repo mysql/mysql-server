@@ -2672,9 +2672,7 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 drop function func_1;
 ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "create event xyz on schedule at now() do select 123";
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 deallocate prepare abc;
-ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
 drop event if exists xyz;
 create event xyz on schedule every 5 minute disable do select 123;
 create procedure proc_1() alter event xyz comment 'xyz';
@@ -2690,9 +2688,7 @@ drop procedure proc_1;
 create function func_1() returns int begin alter event xyz comment 'xyz'; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 prepare abc from "alter event xyz comment 'xyz'";
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 deallocate prepare abc;
-ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
 drop event if exists xyz;
 create event xyz on schedule every 5 minute disable do select 123;
 create procedure proc_1() drop event xyz;
@@ -2705,9 +2701,7 @@ drop procedure proc_1;
 create function func_1() returns int begin drop event xyz; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 prepare abc from "drop event xyz";
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 deallocate prepare abc;
-ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
 drop table if exists t1;
 create table t1 (a int, b char(5)) engine=myisam;
 insert into t1 values (1, "one"), (2, "two"), (3, "three");

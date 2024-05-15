@@ -3161,8 +3161,19 @@ void THD::cleanup_after_parse_error() {
 
   if (sp) {
     sp->m_parser_data.finish_parsing_sp_body(this);
-    //  Do not delete sp_head if is invoked in the context of sp execution.
-    if (sp_runtime_ctx == nullptr) {
+    // Do not delete sp_head if is invoked in the context of sp execution,
+    // unless the parsing happens as part of preparing.
+    // If parsing of a prepared statement fails, thd->lex can be left
+    // referencing a LEX created on the sp_head mem_root, (currently the
+    // only preparable statements which create an sp_head are CREATE
+    // and ALTER EVENT).
+    // It is important to clean up the lex objects belonging to the sp_head
+    // mem_root before returning to Prepared_statement::prepare().
+    // Otherwise, such a LEX will be swapped into m_lex by
+    // stmt_backup.restore_thd(). This would lead to reads of freed memory in
+    // ~Prepared_statement() (when m_lex was accessed after calling
+    // sp_head::destroy() there).
+    if (sp_runtime_ctx == nullptr || m_parser_state->m_lip.stmt_prepare_mode) {
       sp_head::destroy(sp);
       lex->sphead = nullptr;
     }

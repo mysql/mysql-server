@@ -225,13 +225,13 @@ drop event events_test.mysqltest_user1;
 drop user mysqltest_user1@localhost;
 drop database mysqltest_db1;
 create event e_53 on schedule at (select s1 from ttx) do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MySQL doesn't yet support 'Event schedule expressions which contain subqueries or stored function calls'
 create event e_53 on schedule every (select s1 from ttx) second do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MySQL doesn't yet support 'Event schedule expressions which contain subqueries or stored function calls'
 create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MySQL doesn't yet support 'Event schedule expressions which contain subqueries or stored function calls'
 create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MySQL doesn't yet support 'Event schedule expressions which contain subqueries or stored function calls'
 drop event if exists e_16;
 drop procedure if exists p_16;
 create event e_16 on schedule every 1 second do set @a=5;
@@ -272,7 +272,7 @@ begin
 call p22830_wait();
 select 123;
 end|
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MySQL doesn't yet support 'Event schedule expressions which contain subqueries or stored function calls'
 create event e22830_1 on schedule every 1 hour do
 begin
 call p22830_wait();

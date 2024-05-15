@@ -100,6 +100,9 @@ class Sql_cmd_dml : public Sql_cmd {
   /// Signal that root result object needs preparing in next execution
   void set_lazy_result() { m_lazy_result = true; }
 
+  /// Signal that DML statement can have dynamic parameters
+  bool are_dynamic_parameters_allowed() const override final { return true; }
+
  protected:
   Sql_cmd_dml()
       : Sql_cmd(),

@@ -70,6 +70,9 @@ class Sql_cmd_create_table final : public Sql_cmd_ddl_table {
     return SQLCOM_CREATE_TABLE;
   }
 
+  /// Need to allow this for CREATE ... AS SELECT ...
+  bool are_dynamic_parameters_allowed() const override { return true; }
+
   const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine(
       THD *thd) const override;
 

@@ -306,6 +306,21 @@ static int create_query_string(THD *thd, String *buf) {
 }
 
 /**
+  Helper function for checking the state before execution. If the
+  statement is not prepared it is resolved.
+ */
+static bool check_for_execute(THD *thd, Event_parse_data *epd) {
+  // If the statement is not prepared we need to resolve it.
+  if (!thd->lex->m_sql_cmd->is_prepared() && epd->resolve(thd)) {
+    return true;
+  }
+
+  // If it is prepared we can limit ourselves to just the checks that needs to
+  // be done for every execution.
+  return epd->check_for_execute(thd);
+}
+
+/**
   Create a new event.
 
   Atomicity:
@@ -342,12 +357,10 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
   DBUG_EXECUTE_IF("thd_killed_injection", thd->killed = THD::KILL_QUERY;
                   return false;);
 
-  /*
-    Perform semantic checks outside of Event_db_repository:
-    once CREATE EVENT is supported in prepared statements, the
-    checks will be moved to PREPARE phase.
-  */
-  if (parse_data->check_parse_data(thd)) return true;
+  // Perform semantic checks outside of Event_db_repository.
+  if (check_for_execute(thd, parse_data)) {
+    return true;
+  }
 
   /* At create, one of them must be set */
   assert(parse_data->expression || parse_data->execute_at);
@@ -484,7 +497,7 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
 
   DBUG_TRACE;
 
-  if (parse_data->check_parse_data(thd) || parse_data->do_not_create)
+  if (check_for_execute(thd, parse_data) || parse_data->do_not_create)
     return true;
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, nullptr, nullptr,

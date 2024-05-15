@@ -10485,6 +10485,9 @@ ER_EXCEEDED_MAX_REGULAR_STATEMENT_HANDLE_LIMIT
 ER_EXPLAIN_ANALYZE_JSON_FORMAT_VERSION_NOT_SUPPORTED 0A000
   eng "EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1."
 
+ER_NON_DML_DYNAMIC_PARAMETERS
+  eng "Dynamic parameters can only be used in DML statements."
+
 #
 #  End of 9.x error messages (server-to-client).
 #

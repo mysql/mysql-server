@@ -2603,9 +2603,7 @@ delimiter ;|
 select func_1(), func_1(), func_1() from dual;
 --error ER_SP_DOES_NOT_EXIST
 drop function func_1;
---error ER_UNSUPPORTED_PS
 prepare abc from "create event xyz on schedule at now() do select 123";
---error ER_UNKNOWN_STMT_HANDLER
 deallocate prepare abc;
 
 
@@ -2627,9 +2625,7 @@ delimiter |;
 --error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin alter event xyz comment 'xyz'; return 1; end|
 delimiter ;|
---error ER_UNSUPPORTED_PS
 prepare abc from "alter event xyz comment 'xyz'";
---error ER_UNKNOWN_STMT_HANDLER
 deallocate prepare abc;
 
 
@@ -2648,9 +2644,7 @@ delimiter |;
 --error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin drop event xyz; return 1; end|
 delimiter ;|
---error ER_UNSUPPORTED_PS
 prepare abc from "drop event xyz";
---error ER_UNKNOWN_STMT_HANDLER
 deallocate prepare abc;
 
 

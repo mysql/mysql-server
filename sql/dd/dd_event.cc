@@ -121,7 +121,8 @@ int get_old_on_completion(Event::enum_on_completion on_completion) {
            event on completion value.
 */
 
-static Event::enum_on_completion get_on_completion(int on_completion) {
+static Event::enum_on_completion get_on_completion(
+    Event_parse_data::enum_on_completion on_completion) {
   switch (on_completion) {
     case Event_parse_data::ON_COMPLETION_DEFAULT:
     case Event_parse_data::ON_COMPLETION_DROP:
@@ -374,7 +375,9 @@ bool update_event(THD *thd, Event *event, const dd::Schema &schema,
   DBUG_TRACE;
 
   // Check whether alter event was given dates that are in the past.
-  if (event_data->check_dates(thd, static_cast<int>(event->on_completion())))
+  if (event_data->check_dates(thd,
+                              static_cast<Event_parse_data::enum_on_completion>(
+                                  event->on_completion())))
     return true;
 
   // Update Schema Id if there is a dbname change.

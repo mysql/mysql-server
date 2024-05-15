@@ -38,6 +38,7 @@
 #include <utility>
 #include <vector>
 
+#include "my_command.h"
 #include "my_config.h"
 #ifdef HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK
 #include <sanitizer/lsan_interface.h>
@@ -2575,7 +2576,7 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length) {
   return false;
 }
 
-static bool sp_process_definer(THD *thd) {
+bool sp_process_definer(THD *thd) {
   DBUG_TRACE;
 
   LEX *lex = thd->lex;
@@ -3780,64 +3781,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
     }
     case SQLCOM_CREATE_EVENT:
     case SQLCOM_ALTER_EVENT:
-      do {
-        assert(lex->event_parse_data);
-        if (lex->table_or_sp_used()) {
-          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                   "Usage of subqueries or stored "
-                   "function calls as part of this statement");
-          break;
-        }
-
-        // Use the hypergraph optimizer if it's enabled.
-        lex->set_using_hypergraph_optimizer(
-            thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
-
-        res = sp_process_definer(thd);
-        if (res) break;
-
-        switch (lex->sql_command) {
-          case SQLCOM_CREATE_EVENT: {
-            const bool if_not_exists =
-                (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS);
-            res =
-                Events::create_event(thd, lex->event_parse_data, if_not_exists);
-            break;
-          }
-          case SQLCOM_ALTER_EVENT: {
-            LEX_CSTRING name_lex_str = NULL_CSTR;
-            if (lex->spname) {
-              name_lex_str.str = lex->spname->m_name.str;
-              name_lex_str.length = lex->spname->m_name.length;
-            }
-
-            res =
-                Events::update_event(thd, lex->event_parse_data,
-                                     lex->spname ? &lex->spname->m_db : nullptr,
-                                     lex->spname ? &name_lex_str : nullptr);
-            break;
-          }
-          default:
-            assert(0);
-        }
-        DBUG_PRINT("info", ("DDL error code=%d", res));
-        if (!res && !thd->killed) my_ok(thd);
-
-      } while (false);
-      /* Don't do it, if we are inside a SP */
-      if (!thd->sp_runtime_ctx) {
-        sp_head::destroy(lex->sphead);
-        lex->sphead = nullptr;
-      }
-      /* lex->cleanup() is called outside, no need to call it here */
+    case SQLCOM_DROP_EVENT:
+      res = lex->m_sql_cmd->execute(thd) ? 1 : 0;
       break;
-    case SQLCOM_DROP_EVENT: {
-      if (!(res = Events::drop_event(thd, lex->spname->m_db,
-                                     to_lex_cstring(lex->spname->m_name),
-                                     lex->drop_if_exists)))
-        my_ok(thd);
-      break;
-    }
+
     case SQLCOM_CREATE_FUNCTION:  // UDF function
     {
       if (check_access(thd, INSERT_ACL, "mysql", nullptr, nullptr, true, false))

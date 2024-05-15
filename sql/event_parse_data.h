@@ -25,19 +25,18 @@
 #ifndef _EVENT_PARSE_DATA_H_
 #define _EVENT_PARSE_DATA_H_
 
-#include <stddef.h>
-
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"  // interval_type
 
 class Item;
+struct LEX;
 class THD;
+class sp_head;
 class sp_name;
+class Sql_cmd;
 
-#define EVEX_GET_FIELD_FAILED -2
-#define EVEX_BAD_PARAMS -5
 #define EVEX_MICROSECOND_UNSUP -6
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
@@ -60,89 +59,74 @@ class Event_parse_data {
     ON_COMPLETION_PRESERVE
   };
 
-  int on_completion;
-  int status;
-  bool status_changed;
-  longlong originator;
+  enum_on_completion on_completion{ON_COMPLETION_DEFAULT};
+  enum_status status{Event_parse_data::ENABLED};
+  bool status_changed{false};
+
+  std::uint64_t originator{0};
   /*
     do_not_create will be set if STARTS time is in the past and
     on_completion == ON_COMPLETION_DROP.
   */
-  bool do_not_create;
+  bool do_not_create{false};
 
-  bool body_changed;
+  bool body_changed{false};
 
-  LEX_CSTRING dbname;
-  LEX_CSTRING name;
-  LEX_STRING definer;  // combination of user and host
-  LEX_STRING comment;
+  LEX_CSTRING dbname{};
+  LEX_CSTRING name{};
+  LEX_CSTRING definer{};  // combination of user and host
+  LEX_CSTRING comment{};
 
-  Item *item_starts;
-  Item *item_ends;
-  Item *item_execute_at;
+  Item *item_starts{nullptr};
+  Item *item_ends{nullptr};
+  Item *item_execute_at{nullptr};
 
-  my_time_t starts;
-  my_time_t ends;
-  my_time_t execute_at;
-  bool starts_null;
-  bool ends_null;
-  bool execute_at_null;
+  my_time_t starts{0};
+  my_time_t ends{0};
+  my_time_t execute_at{0};
+  bool starts_null{true};
+  bool ends_null{true};
+  bool execute_at_null{true};
 
-  sp_name *identifier;
-  Item *item_expression;
-  longlong expression;
-  interval_type interval;
+  sp_name *identifier{nullptr};
+  Item *item_expression{nullptr};
+  longlong expression{0};
+  interval_type interval{INTERVAL_LAST};
 
-  bool check_parse_data(THD *thd);
+  sp_head *event_body{nullptr};
 
-  bool check_dates(THD *thd, int previous_on_completion);
+  Event_parse_data() = default;
+  Event_parse_data(const Event_parse_data &) = delete;
+  void operator=(Event_parse_data &) = delete;
 
-  Event_parse_data()
-      : on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
-        status(Event_parse_data::ENABLED),
-        status_changed(false),
-        do_not_create(false),
-        body_changed(false),
-        item_starts(nullptr),
-        item_ends(nullptr),
-        item_execute_at(nullptr),
-        starts_null(true),
-        ends_null(true),
-        execute_at_null(true),
-        item_expression(nullptr),
-        expression(0) {
-    DBUG_TRACE;
-
-    /* Actually in the parser STARTS is always set */
-    starts = ends = execute_at = 0;
-
-    comment.str = nullptr;
-    comment.length = 0;
-
-    return;
-  }
-
-  ~Event_parse_data() = default;
+  bool resolve(THD *);
+  bool check_for_execute(THD *);
+  bool check_dates(THD *thd, enum_on_completion previous_on_completion);
 
  private:
   void init_definer(THD *thd);
 
   void init_name(THD *thd, sp_name *spn);
 
-  int init_execute_at(THD *thd);
+  bool init_execute_at(THD *thd);
 
-  int init_interval(THD *thd);
+  bool init_interval(THD *thd);
 
-  int init_starts(THD *thd);
+  bool init_starts(THD *thd);
 
-  int init_ends(THD *thd);
+  bool init_ends(THD *thd);
 
   void report_bad_value(THD *thd, const char *item_name, Item *bad_item);
 
-  void check_if_in_the_past(THD *thd, my_time_t ltime_utc);
+  [[nodiscard("Need to check for errors!")]] bool check_if_in_the_past(
+      THD *thd, my_time_t ltime_utc);
 
-  Event_parse_data(const Event_parse_data &); /* Prevent use of these */
   void check_originator_id(THD *thd);
-  void operator=(Event_parse_data &);
 };
+
+Sql_cmd *make_create_event_sql_cmd(THD *, sp_name *);
+Sql_cmd *make_alter_event_sql_cmd(THD *, sp_name *);
+Sql_cmd *make_drop_event_sql_cmd(THD *, sp_name *);
+Event_parse_data *get_event_parse_data(LEX *);
+void cleanup_event_parse_data(LEX *);
 #endif

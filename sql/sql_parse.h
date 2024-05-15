@@ -296,6 +296,8 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
 bool set_default_collation(HA_CREATE_INFO *create_info,
                            const CHARSET_INFO *value);
 
+bool sp_process_definer(THD *);
+
 /* Bits in sql_command_flags */
 
 #define CF_CHANGES_DATA (1U << 0)
