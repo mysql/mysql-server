@@ -142,7 +142,7 @@ enum enum_server_command {
   COM_QUIT,
   COM_INIT_DB,
   COM_QUERY,
-  COM_UNUSED_3,
+  COM_FIELD_LIST,
   COM_CREATE_DB,
   COM_DROP_DB,
   COM_UNUSED_2,

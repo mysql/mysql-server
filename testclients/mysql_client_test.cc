@@ -18538,6 +18538,7 @@ static void test_wl6791() {
                                    MYSQL_OPT_SSL_MODE},
                     bool_opts[] = {MYSQL_OPT_COMPRESS,
                                    MYSQL_REPORT_DATA_TRUNCATION,
+                                   MYSQL_OPT_RECONNECT,
                                    MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                                    MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                                    MYSQL_OPT_OPTIONAL_RESULTSET_METADATA},
@@ -23212,6 +23213,370 @@ static void test_bug34951115(void) {
   myquery(rc);
 }
 
+static void finish_with_error(MYSQL *con) {
+  fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
+  mysql_close(con);
+  exit(1);
+}
+
+static bool send_query(MYSQL *mysql_con, const char *query) {
+  printf("Sending query: %s\n", query);
+  int res = mysql_query(mysql_con, query);
+  if (res != 0) {
+    fprintf(stderr, "mysql_query error: %i\n", res);
+    return false;
+  }
+  MYSQL_RES *result = mysql_store_result(mysql_con);
+  if (result == nullptr) {
+    printf("No result-set\n");
+  } else {
+    MYSQL_ROW row = mysql_fetch_row(result);
+    printf("Result: %s\n", row[0]);
+    mysql_free_result(result);
+  }
+  printf("\n");
+  return true;
+}
+
+static void test_wl16221_reconnect(void) {
+  /*
+    Uses the following helper functions
+    1. send_query
+    2. finish_with_error
+  */
+  myheader("test_wl16221_reconnect");
+  MYSQL *mysql;
+  bool reconnect = true;
+
+  mysql = mysql_client_init(nullptr);
+  DIE_UNLESS(mysql);
+
+  /* enable auto-reconnect */
+  if (mysql_options(mysql, MYSQL_OPT_RECONNECT, &reconnect))
+    fprintf(stderr, "mysql_options failed.\n");
+
+  if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "failed to connect to database.\n");
+    DIE_UNLESS(0);
+  }
+
+  /* set session wait_timeout */
+  if (!send_query(mysql, "SET SESSION wait_timeout=5"))
+    finish_with_error(mysql);
+
+  /* send query #1 */
+  if (!send_query(mysql, "SELECT 1")) finish_with_error(mysql);
+
+  /* wait until connection times out */
+  printf("Waiting for 10 seconds\n");
+
+  sleep(10);
+
+#ifdef _WIN32
+  // On Windows, it (empirically) takes up to 2 minutes for a socket to
+  // gracefully close after closesocket is called - so we wait longer.
+  printf("Waiting for a further 120s on Windows\n");
+  sleep(120);
+#endif  // _WIN32
+
+  /* send query #2 */
+  if (!send_query(mysql, "SELECT 2")) {
+    finish_with_error(mysql);
+  }
+  printf("Test successfully completed\n");
+  mysql_close(mysql);
+}
+
+static void test_wl16221_set_ssl() {
+  myheader("test_wl16221_set_ssl");
+  MYSQL *mysql;
+  mysql = mysql_client_init(nullptr);
+
+  if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "failed to connect to database.\n");
+    DIE_UNLESS(0);
+  }
+
+  if (!mysql_ssl_set(mysql, nullptr, nullptr, nullptr, nullptr, nullptr))
+    printf("\nmysql_ssl_set passed!\n");
+  else {
+    fprintf(stderr, "\nmysql_ssl_set_failed!\n");
+    finish_with_error(mysql);
+  }
+  mysql_close(mysql);
+}
+
+static void test_wl16221_kill() {
+  myheader("test_wl16221_kill");
+  if (sizeof(unsigned long) > 4) {
+    MYSQL *mysql;
+    mysql = mysql_client_init(nullptr);
+
+    if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                            opt_port, opt_unix_socket, 0)) {
+      fprintf(stderr, "failed to connect to database.\n");
+      DIE_UNLESS(0);
+    }
+
+    DIE_UNLESS((mysql_kill(mysql, (unsigned long)0xff12345678ul) ==
+                CR_INVALID_CONN_HANDLE));
+
+    mysql_close(mysql);
+  }
+}
+
+static void test_wl16221_processes() {
+  myheader("test_wl16221_processes");
+  MYSQL *mysql;
+  mysql = mysql_client_init(nullptr);
+
+  if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "failed to connect to database.\n");
+    DIE_UNLESS(0);
+  }
+
+  MYSQL_RES *res = mysql_list_processes(mysql);
+
+  if (res) {
+    printf("\nmysql_list_processes test succeded!\n");
+    mysql_free_result(res);
+  } else {
+    fprintf(stderr, "\nmysql_list_processes test failed!\n");
+    finish_with_error(mysql);
+  }
+  mysql_close(mysql);
+}
+
+static void test_wl16221_list() {
+  myheader("test_wl16221_list");
+  MYSQL *mysql;
+  mysql = mysql_client_init(nullptr);
+
+  if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "failed to connect to database.\n");
+    DIE_UNLESS(0);
+  }
+
+  // Switch the schema
+  mysql_real_query(mysql, STRING_WITH_LEN("USE mysql"));
+
+  /* Case 1 : Without wildcards */
+  printf("\n Case 1 : Without wildcards \n");
+  MYSQL_RES *table_cols = mysql_list_fields(mysql, "user", nullptr);
+  int field_cnt = mysql_num_fields(table_cols);
+  printf("\nNumber of columns : %d\n", field_cnt);
+
+  for (int i = 0; i < field_cnt; i++) {
+    MYSQL_FIELD *col = mysql_fetch_field_direct(table_cols, i);
+    printf("\nColumn %d : %s\n", i, col->name);
+  }
+  mysql_free_result(table_cols);
+
+  /* Case 2 : Using wildcards */
+  printf("\n Case 2 : Using wildcards \n");
+  table_cols = mysql_list_fields(mysql, "user", "%priv%");
+  field_cnt = mysql_num_fields(table_cols);
+  printf("\nNumber of columns : %d\n", field_cnt);
+
+  for (int i = 0; i < field_cnt; i++) {
+    MYSQL_FIELD *col = mysql_fetch_field_direct(table_cols, i);
+    printf("\nColumn %d : %s\n", i, col->name);
+  }
+  mysql_free_result(table_cols);
+
+  mysql_close(mysql);
+}
+
+static void test_wl16221_refresh() {
+  myheader("test_wl16221_refresh");
+  MYSQL *mysql;
+  mysql = mysql_client_init(nullptr);
+
+  if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "failed to connect to database.\n");
+    DIE_UNLESS(0);
+  }
+
+  int rc = mysql_refresh(mysql, REFRESH_GRANT | REFRESH_LOG);
+  if (!rc)
+    printf("\nmysql_refresh passed!\n");
+  else {
+    printf("\nmysql_refresh failed!\n");
+    finish_with_error(mysql);
+  }
+
+  mysql_close(mysql);
+}
+
+static void test_wl16221_reload() {
+  myheader("test_wl16221_reload");
+  MYSQL *mysql;
+  mysql = mysql_client_init(nullptr);
+
+  if (!mysql_real_connect(mysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "failed to connect to database.\n");
+    DIE_UNLESS(0);
+  }
+
+  int rc = mysql_reload(mysql);
+  if (!rc)
+    printf("\nmysql_reload passed!\n");
+  else {
+    printf("\nmysql_reload failed!\n");
+    finish_with_error(mysql);
+  }
+
+  mysql_close(mysql);
+}
+
+static void test_wl16221_bind_param() {
+  myheader("test_wl16221_bind_param");
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[3];
+  uint64_t affected_rows;
+  const int STRING_SIZE = 50;
+  int param_count;
+  short small_data;
+  int int_data;
+  char str_data[STRING_SIZE];
+  unsigned long str_length;
+  bool is_null;
+
+  const char *DROP_SAMPLE_TABLE = "DROP TABLE IF EXISTS test_table";
+  const char *CREATE_SAMPLE_TABLE =
+      "CREATE TABLE test_table(col1 INT, col2 VARCHAR(40), col3 SMALLINT, col4 "
+      "TIMESTAMP)";
+  const char *INSERT_SAMPLE =
+      "INSERT INTO test_table(col1,col2,col3) VALUES(?,?,?)";
+
+  if (mysql_query(mysql, DROP_SAMPLE_TABLE)) {
+    fprintf(stderr, " DROP TABLE failed\n");
+    finish_with_error(mysql);
+  }
+  if (mysql_query(mysql, CREATE_SAMPLE_TABLE)) {
+    fprintf(stderr, " CREATE TABLE failed\n");
+    finish_with_error(mysql);
+  }
+  stmt = mysql_stmt_init(mysql);
+  if (!stmt) {
+    fprintf(stderr, " mysql_stmt_init(), out of memory\n");
+    finish_with_error(mysql);
+  }
+  if (mysql_stmt_prepare(stmt, INSERT_SAMPLE, strlen(INSERT_SAMPLE))) {
+    fprintf(stderr, " mysql_stmt_prepare(), INSERT failed\n");
+    finish_with_error(mysql);
+  }
+  fprintf(stdout, " prepare, INSERT successful\n");
+
+  /* Get the parameter count from the statement */
+  param_count = mysql_stmt_param_count(stmt);
+  fprintf(stdout, " total parameters in INSERT: %d\n", param_count);
+
+  if (param_count != 3) /* validate parameter count */
+  {
+    fprintf(stderr, " invalid parameter count returned by MySQL\n");
+    finish_with_error(mysql);
+  }
+
+  /* Bind the data for all 3 parameters */
+
+  memset(bind, 0, sizeof(bind));
+  /* INTEGER PARAM */
+  /* This is a number type, so there is no need
+     to specify buffer_length */
+  bind[0].buffer_type = MYSQL_TYPE_LONG;
+  bind[0].buffer = (char *)&int_data;
+  bind[0].is_null = 0;
+  bind[0].length = 0;
+
+  /* STRING PARAM */
+  bind[1].buffer_type = MYSQL_TYPE_STRING;
+  bind[1].buffer = (char *)str_data;
+  bind[1].buffer_length = STRING_SIZE;
+  bind[1].is_null = 0;
+  bind[1].length = &str_length;
+
+  /* SMALLINT PARAM */
+  bind[2].buffer_type = MYSQL_TYPE_SHORT;
+  bind[2].buffer = (char *)&small_data;
+  bind[2].is_null = &is_null;
+  bind[2].length = 0;
+
+  /* Bind the buffers */
+  if (mysql_stmt_bind_param(stmt, bind)) {
+    fprintf(stderr, " mysql_stmt_bind_param() failed\n");
+    finish_with_error(mysql);
+  }
+
+  /* Specify the data values for the first row */
+  int_data = 10; /* integer */
+  int str_size = strlen("MySQL");
+  strncpy(str_data, "MySQL", STRING_SIZE); /* string  */
+  str_data[str_size] = '\0';
+  str_length = strlen(str_data);
+
+  /* INSERT SMALLINT data as NULL */
+  is_null = 1;
+
+  /* Execute the INSERT statement - 1*/
+  if (mysql_stmt_execute(stmt)) {
+    fprintf(stderr, " mysql_stmt_execute(), 1 failed\n");
+    finish_with_error(mysql);
+  }
+
+  /* Get the number of affected rows */
+  affected_rows = mysql_stmt_affected_rows(stmt);
+  fprintf(stdout, " total affected rows(insert 1): %lu\n",
+          (unsigned long)affected_rows);
+
+  if (affected_rows != 1) /* validate affected rows */
+  {
+    fprintf(stderr, " invalid affected rows by MySQL\n");
+    finish_with_error(mysql);
+  }
+
+  /* Specify data values for second row,
+     then re-execute the statement */
+  int_data = 1000;
+  str_size = strlen("test_wl16221_bind_param test going on\n");
+  strncpy(str_data, "test_wl16221_bind_param test going on\n", STRING_SIZE);
+  str_data[str_size] = '\0';
+  str_length = strlen(str_data);
+  small_data = 1000; /* smallint */
+  is_null = 0;       /* reset */
+
+  /* Execute the INSERT statement - 2*/
+  if (mysql_stmt_execute(stmt)) {
+    fprintf(stderr, " mysql_stmt_execute, 2 failed\n");
+    finish_with_error(mysql);
+  }
+
+  /* Get the total rows affected */
+  affected_rows = mysql_stmt_affected_rows(stmt);
+  fprintf(stdout, " total affected rows(insert 2): %lu\n",
+          (unsigned long)affected_rows);
+
+  if (affected_rows != 1) /* validate affected rows */
+  {
+    fprintf(stderr, " invalid affected rows by MySQL\n");
+    finish_with_error(mysql);
+  }
+
+  /* Close the statement */
+  if (mysql_stmt_close(stmt)) {
+    /* mysql_stmt_close() invalidates stmt, so call          */
+    /* mysql_error(mysql) rather than mysql_stmt_error(stmt) */
+    fprintf(stderr, " failed while closing the statement\n");
+    finish_with_error(mysql);
+  }
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"client_query", client_query},
@@ -23517,6 +23882,14 @@ static struct my_tests_st my_tests[] = {
     {"test_server_telemetry_traces_prepared",
      test_server_telemetry_traces_prepared},
     {"test_bug34951115", test_bug34951115},
+    {"test_wl16221_reconnect", test_wl16221_reconnect},
+    {"test_wl16221_set_ssl", test_wl16221_set_ssl},
+    {"test_wl16221_kill", test_wl16221_kill},
+    {"test_wl16221_processes", test_wl16221_processes},
+    {"test_wl16221_list", test_wl16221_list},
+    {"test_wl16221_refresh", test_wl16221_refresh},
+    {"test_wl16221_reload", test_wl16221_reload},
+    {"test_wl16221_bind_param", test_wl16221_bind_param},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
