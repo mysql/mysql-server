@@ -33,7 +33,7 @@ class MockQueryRestTable : public mrs::database::QueryRestTable {
   MOCK_METHOD(void, query_entries,
               (MySQLSession * session, const std::vector<Column> &columns,
                const std::string &schema, const std::string &object,
-               const uint32_t offset, const uint32_t limit,
+               const uint64_t offset, const uint64_t limit,
                const std::string &url, const std::string &primary,
                const bool is_default_limit,
                const RowUserOwnership &user_ownership,

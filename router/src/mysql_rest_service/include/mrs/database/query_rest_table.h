@@ -62,8 +62,8 @@ class QueryRestTable : private QueryLog {
  public:
   virtual void query_entries(
       MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-      const ObjectFieldFilter &field_filter, const uint32_t offset,
-      const uint32_t limit, const std::string &url, const bool is_default_limit,
+      const ObjectFieldFilter &field_filter, const uint64_t offset,
+      const uint64_t limit, const std::string &url, const bool is_default_limit,
       const ObjectRowOwnership &row_ownership = {},
       const FilterObjectGenerator &fog = {}, const bool compute_etag = false);
 
@@ -102,8 +102,8 @@ class QueryRestTable : private QueryLog {
       const std::vector<RowGroupOwnership> &row_groups,
       const std::set<UniversalId> &user_groups);
 
-  void build_query(const ObjectFieldFilter &field_filter, const uint32_t offset,
-                   const uint32_t limit, const std::string &url,
+  void build_query(const ObjectFieldFilter &field_filter, const uint64_t offset,
+                   const uint64_t limit, const std::string &url,
                    const ObjectRowOwnership &row_ownership,
                    const FilterObjectGenerator &fog);
 };

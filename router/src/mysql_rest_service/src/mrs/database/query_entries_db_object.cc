@@ -119,7 +119,7 @@ auto get_map_converter(Map *map, const typename Map::mapped_type value) {
 }
 
 void QueryEntryDbObject::on_row(const ResultRow &row) {
-  const uint32_t k_on_page_default = 25;
+  const uint64_t k_on_page_default = 25;
   entries.emplace_back();
 
   static std::map<std::string, DbObject::PathType> path_types{

@@ -57,7 +57,7 @@ class DbObject {
   std::string service_path;
   std::string schema_path;
   std::string object_path;
-  uint32_t on_page;
+  uint64_t on_page;
   std::string db_schema;
   std::string db_table;
   bool requires_authentication;

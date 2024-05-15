@@ -47,7 +47,7 @@ class ResponseJsonTemplate : public database::JsonTemplate {
 
   void begin_resultset(const std::string &url, const std::string &items_name,
                        const std::vector<helper::Column> &columns) override;
-  void begin_resultset(uint32_t offset, uint32_t limit, bool is_default_limit,
+  void begin_resultset(uint64_t offset, uint64_t limit, bool is_default_limit,
                        const std::string &url,
                        const std::vector<helper::Column> &columns) override;
   bool push_json_document(const char *document) override;
@@ -65,8 +65,8 @@ class ResponseJsonTemplate : public database::JsonTemplate {
 
   // External data needed by the template
   // supplied by call to begin_resultset.
-  uint32_t offset_{0};
-  uint32_t limit_{0};
+  uint64_t offset_{0};
+  uint64_t limit_{0};
   bool is_default_limit_{false};
   bool limit_not_set_{false};
   std::string url_;
@@ -78,7 +78,7 @@ class ResponseJsonTemplate : public database::JsonTemplate {
 
   // Internal state, for use case verification and template filling
   bool has_more_{false};
-  uint32_t pushed_documents_{0};
+  uint64_t pushed_documents_{0};
   bool began_{false};
   const std::vector<helper::Column> *columns_{nullptr};
   bool encode_bigints_as_string_;

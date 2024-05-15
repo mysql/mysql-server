@@ -90,24 +90,23 @@ class Url {
     return result;
   }
 
-  static void parse_offset_limit(const Parameters &query, uint32_t *out_offset,
-                                 uint32_t *out_limit) {
-    using namespace std::literals;
+  static void parse_offset_limit(const Parameters &query, uint64_t *out_offset,
+                                 uint64_t *out_limit) {
     if (query.empty()) return;
 
     auto of = query.find("offset");
     auto li = query.find("limit");
 
     if (of != query.end()) {
-      *out_offset = atol(of->second.c_str());
+      *out_offset = std::stoull(of->second.c_str());
     }
 
     if (li != query.end()) {
-      *out_limit = atol(li->second.c_str());
+      *out_limit = std::stoull(li->second.c_str());
     }
   }
 
-  void parse_offset_limit(uint32_t *out_offset, uint32_t *out_limit) const {
+  void parse_offset_limit(uint64_t *out_offset, uint64_t *out_limit) const {
     parse_offset_limit(uri_.get_query_elements(), out_offset, out_limit);
   }
 

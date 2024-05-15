@@ -48,7 +48,7 @@ class ResponseSpJsonTemplateNest : public database::JsonTemplate {
 
   void begin_resultset(const std::string &url, const std::string &items_name,
                        const std::vector<helper::Column> &columns) override;
-  void begin_resultset(uint32_t offset, uint32_t limit, bool is_default_limit,
+  void begin_resultset(uint64_t offset, uint64_t limit, bool is_default_limit,
                        const std::string &url,
                        const std::vector<helper::Column> &columns) override;
   bool push_json_document(const char *document) override;

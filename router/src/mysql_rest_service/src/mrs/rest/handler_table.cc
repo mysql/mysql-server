@@ -258,8 +258,8 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
   }
 
   if (pk.empty()) {
-    uint32_t offset = 0;
-    uint32_t limit = route_->get_on_page();
+    uint64_t offset = 0;
+    uint64_t limit = route_->get_on_page();
     uri_param.parse_offset_limit(&offset, &limit);
 
     if (raw_value.empty()) {
