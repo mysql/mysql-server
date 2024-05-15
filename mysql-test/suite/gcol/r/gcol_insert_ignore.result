@@ -5987,7 +5987,7 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("200000000000000000000000000000000000000000");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '200000000000000000000000000000000000000000\x00\x00\x00' for column 'b' at row 1
 Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
@@ -6028,12 +6028,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("hello beautiful world");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: 'hello beautiful world' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 hello beautiful world	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: 'hello beautiful world' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: 'hello beautiful world' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: 'hello beautiful world' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6048,12 +6053,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("hello world");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: 'hello world\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 hello world 	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: 'hello world\x00' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: 'hello world\x00' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: 'hello world\x00' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6068,12 +6078,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("hello");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: 'hello' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 hello	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: 'hello' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: 'hello' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: 'hello' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6124,12 +6139,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POINT(1 1)"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 SELECT * FROM t;
 a	b
              ð?      ð?	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6144,12 +6164,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POINT(1 1)"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 SELECT * FROM t;
 a	b
              ð?      ð?	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6164,12 +6189,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("LINESTRING(0 0,1 1,2 2)"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
                                 ð?      ð?       @       @	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6184,12 +6214,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POLYGON((0 0,1 0,1 1,0 1,0 0),(5 5,7 5,7 7,5 7,5 5))"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
                                    ð?              ð?      ð?              ð?                         @      @      @      @      @      @      @      @      @      @	0
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+Warning	1366	Incorrect FLOAT value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6743,7 +6778,7 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("200000000000000000000000000000000000000000");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '200000000000000000000000000000000000000000\x00\x00\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 200000000000000000000000000000000000000000   	2e41
@@ -6781,12 +6816,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("hello beautiful world");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: 'hello beautiful world' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 hello beautiful world	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'hello beautiful world' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'hello beautiful world' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: 'hello beautiful world' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6801,12 +6841,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("hello world");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: 'hello world\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 hello world 	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'hello world\x00' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'hello world\x00' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: 'hello world\x00' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6821,12 +6866,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES ("hello");
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: 'hello' for column 'b' at row 1
 SELECT * FROM t;
 a	b
 hello	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'hello' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: 'hello' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: 'hello' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6877,12 +6927,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POINT(1 1)"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 SELECT * FROM t;
 a	b
              ð?      ð?	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6897,12 +6952,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POINT(1 1)"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 SELECT * FROM t;
 a	b
              ð?      ð?	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6917,12 +6977,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("LINESTRING(0 0,1 1,2 2)"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
                                 ð?      ð?       @       @	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -6937,12 +7002,17 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POLYGON((0 0,1 0,1 1,0 1,0 0),(5 5,7 5,7 7,5 7,5 5))"));
 Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT * FROM t;
 a	b
                                    ð?              ð?      ð?              ð?                         @      @      @      @      @      @      @      @      @      @	0
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 DELETE FROM t;
 DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+Warning	1366	Incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK

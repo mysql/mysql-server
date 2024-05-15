@@ -739,7 +739,7 @@ INSERT INTO t3 VALUES ('11111.11111','4444444444',1),('55555.55555','5555555555'
 UPDATE t2,t3 SET t3.c1='22222.22222' WHERE t2.c1=t3.c1 AND t2.c3=t3.c3;
 UPDATE t1 SET c3='asdf' WHERE c1='11111.11111';
 Warnings:
-Warning	1265	Data truncated for column 'c3' at row 1
+Warning	1366	Incorrect FLOAT value: 'asdf' for column 'c3' at row 1
 SELECT c3 FROM t1;
 c3
 0
@@ -753,7 +753,7 @@ c3
 8888890000
 UPDATE t1 SET c2="1 e 1" WHERE c4=2;
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 2
+Warning	1366	Incorrect FLOAT value: '1 e 1' for column 'c2' at row 2
 SELECT c2 FROM t1;
 c2
 -100.00000
@@ -1138,7 +1138,7 @@ INSERT INTO t3 VALUES ('11111.11111','4444444444',1),('55555.55555','5555555555'
 UPDATE t2,t3 SET t3.c1='22222.22222' WHERE t2.c1=t3.c1 AND t2.c3=t3.c3;
 UPDATE t1 SET c3='asdf' WHERE c1='11111.11111';
 Warnings:
-Warning	1265	Data truncated for column 'c3' at row 1
+Warning	1366	Incorrect DOUBLE value: 'asdf' for column 'c3' at row 1
 SELECT c3 FROM t1;
 c3
 0
@@ -1152,7 +1152,7 @@ c3
 9999999999
 UPDATE t1 SET c2="1 e 1" WHERE c4=2;
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 2
+Warning	1366	Incorrect DOUBLE value: '1 e 1' for column 'c2' at row 2
 SELECT c2 FROM t1;
 c2
 -100.00000

@@ -14179,7 +14179,7 @@ SELECT xx;
 END//
 CALL sp1();
 @err_no	@err_txt
-1265	Data truncated for column 'xx' at row 1
+1366	Incorrect FLOAT value: 'asd' for column 'xx' at row 1
 xx
 0
 DROP PROCEDURE IF EXISTS sp1;

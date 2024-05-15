@@ -1111,9 +1111,9 @@ Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1265	Data truncated for column 'c1' at row 2
-Warning	1265	Data truncated for column 'c2' at row 2
-Warning	1265	Data truncated for column 'c3' at row 2
+Warning	1366	Incorrect FLOAT value: '1e-4294967296' for column 'c1' at row 2
+Warning	1366	Incorrect FLOAT value: '1e-4294967296' for column 'c2' at row 2
+Warning	1366	Incorrect FLOAT value: '1e-4294967296' for column 'c3' at row 2
 insert into t2 values ("1e+18446744073709551615","1e+18446744073709551615","1e+18446744073709551615",30),("1e+18446744073709551616","1e+18446744073709551616","1e+18446744073709551616",31),("1e-9223372036854775807","1e-9223372036854775807","1e-9223372036854775807",32),("1e-9223372036854775809","1e-9223372036854775809","1e-9223372036854775809",33);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1128,12 +1128,12 @@ Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c3' at row 2
 Warning	1264	Out of range value for column 'c3' at row 2
-Warning	1265	Data truncated for column 'c1' at row 3
-Warning	1265	Data truncated for column 'c2' at row 3
-Warning	1265	Data truncated for column 'c3' at row 3
-Warning	1265	Data truncated for column 'c1' at row 4
-Warning	1265	Data truncated for column 'c2' at row 4
-Warning	1265	Data truncated for column 'c3' at row 4
+Warning	1366	Incorrect FLOAT value: '1e-9223372036854775807' for column 'c1' at row 3
+Warning	1366	Incorrect FLOAT value: '1e-9223372036854775807' for column 'c2' at row 3
+Warning	1366	Incorrect FLOAT value: '1e-9223372036854775807' for column 'c3' at row 3
+Warning	1366	Incorrect FLOAT value: '1e-9223372036854775809' for column 'c1' at row 4
+Warning	1366	Incorrect FLOAT value: '1e-9223372036854775809' for column 'c2' at row 4
+Warning	1366	Incorrect FLOAT value: '1e-9223372036854775809' for column 'c3' at row 4
 SELECT * FROM t1;
 c1	c2	c3	c4
 0.00000	-0.10000	-0.1	13
@@ -2017,9 +2017,9 @@ Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
-Warning	1265	Data truncated for column 'c1' at row 2
-Warning	1265	Data truncated for column 'c2' at row 2
-Warning	1265	Data truncated for column 'c3' at row 2
+Warning	1366	Incorrect DOUBLE value: '1e-4294967296' for column 'c1' at row 2
+Warning	1366	Incorrect DOUBLE value: '1e-4294967296' for column 'c2' at row 2
+Warning	1366	Incorrect DOUBLE value: '1e-4294967296' for column 'c3' at row 2
 insert into t2 values ("1e+18446744073709551615","1e+18446744073709551615","1e+18446744073709551615",30),("1e+18446744073709551616","1e+18446744073709551616","1e+18446744073709551616",31),("1e-9223372036854775807","1e-9223372036854775807","1e-9223372036854775807",32),("1e-9223372036854775809","1e-9223372036854775809","1e-9223372036854775809",33);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -2032,12 +2032,12 @@ Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c3' at row 2
-Warning	1265	Data truncated for column 'c1' at row 3
-Warning	1265	Data truncated for column 'c2' at row 3
-Warning	1265	Data truncated for column 'c3' at row 3
-Warning	1265	Data truncated for column 'c1' at row 4
-Warning	1265	Data truncated for column 'c2' at row 4
-Warning	1265	Data truncated for column 'c3' at row 4
+Warning	1366	Incorrect DOUBLE value: '1e-9223372036854775807' for column 'c1' at row 3
+Warning	1366	Incorrect DOUBLE value: '1e-9223372036854775807' for column 'c2' at row 3
+Warning	1366	Incorrect DOUBLE value: '1e-9223372036854775807' for column 'c3' at row 3
+Warning	1366	Incorrect DOUBLE value: '1e-9223372036854775809' for column 'c1' at row 4
+Warning	1366	Incorrect DOUBLE value: '1e-9223372036854775809' for column 'c2' at row 4
+Warning	1366	Incorrect DOUBLE value: '1e-9223372036854775809' for column 'c3' at row 4
 SELECT * FROM t1;
 c1	c2	c3	c4
 0.00000	-0.10000	-0.1	13
