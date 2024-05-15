@@ -291,7 +291,7 @@ char *root_name_end;
 */
 static bool scan_tz_dir(char *name_end) {
   MY_DIR *cur_dir;
-  char *name_end_tmp;
+  char *name_end_tmp, *bname;
   uint i;
 
   if (!(cur_dir = my_dir(fullname, MYF(MY_WANT_STAT)))) return true;
@@ -309,6 +309,16 @@ static bool scan_tz_dir(char *name_end) {
           return true;
         }
       } else if (MY_S_ISREG(cur_dir->dir_entry[i].mystat->st_mode)) {
+        bname = basename(fullname);
+        if ((strcmp(bname,"iso3166.tab") == 0) ||
+	  (strcmp(bname,"leap-seconds.list") == 0) ||
+	  (strcmp(bname,"leapseconds") == 0) ||
+	  (strcmp(bname,"tzdata.zi") == 0) ||
+	  (strcmp(bname,"zone.tab") == 0) ||
+	  (strcmp(bname,"zone1970.tab") == 0)) {
+          continue;
+        }
+
         ::new ((void *)&tz_storage) MEM_ROOT(PSI_NOT_INSTRUMENTED, 32768);
         if (!tz_load(fullname, &tz_info, &tz_storage))
           print_tz_as_sql(root_name_end + 1, &tz_info);
