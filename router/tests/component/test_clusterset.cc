@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/ranges.h"     // enumerate
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
@@ -256,11 +257,9 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     // in the first run pick up how many times the last_check_in update was
     // performed on each node so far
     for (const auto &cluster : cs_topology.clusters) {
-      unsigned node_id = 0;
-      for (const auto &node : cluster.nodes) {
+      for (const auto [node_id, node] : stdx::views::enumerate(cluster.nodes)) {
         count[NodeId(cluster.id, node_id)] =
             get_int_global_value(node.http_port, "update_last_check_in_count");
-        ++node_id;
       }
     }
 
@@ -269,8 +268,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     // make sure the last_check_in update counter was not incremented on any of
     // the nodes
     for (const auto &cluster : cs_topology.clusters) {
-      unsigned node_id = 0;
-      for (const auto &node : cluster.nodes) {
+      for (const auto [node_id, node] : stdx::views::enumerate(cluster.nodes)) {
         EXPECT_EQ(
             get_int_global_value(node.http_port, "update_last_check_in_count"),
             count[NodeId(cluster.id, node_id)]);
