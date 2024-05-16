@@ -133,6 +133,10 @@ TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_delete) {
   EXPECT_CALL(mock_auth_, get_current_session(_, _, _))
       .WillRepeatedly(Return(nullptr));
   EXPECT_CALL(mock_output_headers_,
+              find(StrEq("Access-Control-Allow-Methods")));
+  EXPECT_CALL(mock_output_headers_, add(StrEq("Access-Control-Allow-Methods"),
+                                        StrEq("GET, POST, OPTIONS")));
+  EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("?login=fail")));
   EXPECT_CALL(mock_request_, send_reply(HttpStatusCode::TemporaryRedirect));
 
@@ -146,6 +150,10 @@ TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_put) {
   EXPECT_CALL(mock_output_buffer_, length()).WillRepeatedly(Return(0));
   EXPECT_CALL(mock_auth_, get_current_session(_, _, _))
       .WillRepeatedly(Return(nullptr));
+  EXPECT_CALL(mock_output_headers_,
+              find(StrEq("Access-Control-Allow-Methods")));
+  EXPECT_CALL(mock_output_headers_,
+              add(StrEq("Access-Control-Allow-Methods"), _));
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("?login=fail")));
   EXPECT_CALL(mock_request_, send_reply(HttpStatusCode::TemporaryRedirect));
@@ -168,6 +176,10 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication_get) {
 
   EXPECT_CALL(mock_input_buffer_, length()).WillRepeatedly(Return(0));
   EXPECT_CALL(mock_output_buffer_, length()).WillRepeatedly(Return(0));
+  EXPECT_CALL(mock_output_headers_,
+              find(StrEq("Access-Control-Allow-Methods")));
+  EXPECT_CALL(mock_output_headers_,
+              add(StrEq("Access-Control-Allow-Methods"), _));
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("?login=success")));
 
@@ -195,6 +207,10 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication_post) {
       .WillOnce(Return(std::vector<uint8_t>()));
   EXPECT_CALL(mock_output_buffer_, length()).WillRepeatedly(Return(0));
   EXPECT_CALL(mock_output_headers_,
+              find(StrEq("Access-Control-Allow-Methods")));
+  EXPECT_CALL(mock_output_headers_,
+              add(StrEq("Access-Control-Allow-Methods"), _));
+  EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("?login=success")));
 
   EXPECT_CALL(mock_request_, send_reply(HttpStatusCode::TemporaryRedirect, _));
@@ -215,6 +231,10 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication_fails) {
       }));
 
   EXPECT_CALL(mock_input_buffer_, length()).WillRepeatedly(Return(0));
+  EXPECT_CALL(mock_output_headers_,
+              find(StrEq("Access-Control-Allow-Methods")));
+  EXPECT_CALL(mock_output_headers_,
+              add(StrEq("Access-Control-Allow-Methods"), _));
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("?login=fail")));
 

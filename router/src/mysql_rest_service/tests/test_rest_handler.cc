@@ -125,6 +125,8 @@ TEST_F(RestHandlerTests, handle_request_calls_handle_get) {
   EXPECT_CALL(*sut_, requires_authentication())
       .WillRepeatedly(
           Return(mrs::interface::RestHandler::Authorization::kNotNeeded));
+  EXPECT_CALL(mock_oheaders, find(StrEq("Access-Control-Allow-Methods")));
+  EXPECT_CALL(mock_oheaders, add(StrEq("Access-Control-Allow-Methods"), _));
   EXPECT_CALL(mock_oheaders,
               add(StrEq("Content-Type"), StrEq("application/json")));
   EXPECT_CALL(mock_obuffer, add(_, _));
