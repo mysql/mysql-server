@@ -110,8 +110,9 @@ EXPLAIN
 
 explain select * from t0 force index (i1,i2) where (key1 > 1 or key2  > 2);
 EXPLAIN
--> Filter: ((t0.key1 > 1) or (t0.key2 > 2))  (rows=569)
-    -> Table scan on t0  (rows=1024)
+-> Sort-deduplicate by row ID  (rows=569)
+    -> Index range scan on t0 using i1 over (1 < key1)  (rows=1023)
+    -> Index range scan on t0 using i2 over (2 < key2)  (rows=1022)
 
 # 4. Check if conjuncts are grouped by keyuse
 explain
@@ -300,7 +301,9 @@ or
 ((key3 >4 or key5 < 2) and (key5 < 5 or key6 < 4));
 EXPLAIN
 -> Filter: ((((t0.key3 < 3) or (t0.key5 < 4)) and ((t0.key1 < 3) or (t0.key2 < 3))) or (((t0.key3 > 4) or (t0.key5 < 2)) and ((t0.key5 < 5) or (t0.key6 < 4))))  (rows=534)
-    -> Table scan on t0  (rows=1024)
+    -> Sort-deduplicate by row ID  (rows=534)
+        -> Index range scan on t0 using i3 over (key3 < 3) OR (4 < key3)  (rows=1022)
+        -> Index range scan on t0 using i5 over (key5 < 4)  (rows=3)
 
 # Can't merge any indexes here (predicate on key3 is always true)
 explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
@@ -321,8 +324,10 @@ key1	key2	key3	key4	key5	key6	key7	key8
 explain
 select * from t0 where key1 < 3 or key8 < 2 order by key1;
 EXPLAIN
--> Filter: ((t0.key1 < 3) or (t0.key8 < 2))  (rows=569)
-    -> Index scan on t0 using i1  (rows=1024)
+-> Sort: t0.key1  (rows=569)
+    -> Sort-deduplicate by row ID  (rows=569)
+        -> Index range scan on t0 using i1 over (key1 < 3)  (rows=2)
+        -> Index range scan on t0 using i8 over (key8 < 2)  (rows=2)
 
 # 9. Check that index_merge cost is compared to 'index' where possible
 create table t2 like t0;
@@ -343,7 +348,7 @@ EXPLAIN
 explain select key3 from t2 where key1 <100 or key2 < 100;
 EXPLAIN
 -> Filter: ((t2.key1 < 100) or (t2.key2 < 100))  (rows=569)
-    -> Table scan on t2  (rows=1024)
+    -> Covering index scan on t2 using i321  (rows=1024)
 
 #   index_merge vs 'all', index_merge is better.
 explain select key7 from t2 where key1 <100 or key2 < 100;
@@ -569,11 +574,13 @@ and   (b.key1 < 500000 or b.key2 < 3);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (...)
     -> Inner hash join (no condition)  (...)
-        -> Filter: ((a.key1 < 500000) or (a.key2 < 3))  (...)
-            -> Table scan on a  (...)
+        -> Sort-deduplicate by row ID  (...)
+            -> Index range scan on a using i1 over (key1 < 500000)  (...)
+            -> Index range scan on a using i2 over (key2 < 3)  (...)
         -> Hash
-            -> Filter: ((b.key1 < 500000) or (b.key2 < 3))  (...)
-                -> Table scan on b  (...)
+            -> Sort-deduplicate by row ID  (...)
+                -> Index range scan on b using i1 over (key1 < 500000)  (...)
+                -> Index range scan on b using i2 over (key2 < 3)  (...)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
@@ -819,13 +826,15 @@ explain select * from t1
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
--> Hash semijoin (t1.a = t2.a)  (rows=0.283)
-    -> Table scan on t1  (rows=2)
-    -> Hash
+-> Nested loop inner join  (rows=0.283)
+    -> Remove duplicates from input grouped on t2.a  (rows=1.41)
         -> Nested loop inner join  (rows=2004)
-            -> Table scan on t2  (rows=2)
+            -> Sort: t2.a  (rows=2)
+                -> Table scan on t2  (rows=2)
             -> Filter: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=1002)
                 -> Table scan on t3  (rows=1002)
+    -> Filter: (t1.a = t2.a)  (rows=0.2)
+        -> Table scan on t1  (rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -857,8 +866,12 @@ ORDER BY a,b;
 EXPLAIN
 -> Sort: t1.a, t1.b  (rows=13.4)
     -> Filter: ((t1.a like 'a%') or (t1.b like 'b%'))  (rows=13.4)
-        -> Table scan on t1  (rows=64)
+        -> Sort-deduplicate by row ID  (rows=13.4)
+            -> Index range scan on t1 using a over ('a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' <= a <= 'a???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????')  (rows=64)
+            -> Index range scan on t1 using b over ('b\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0' <= b <= 'b???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????')  (rows=64)
 
+Warnings:
+Warning	1300	Invalid utf8mb3 character string: 'FFFFFF'
 # we don't actually care about the result : we're checking if it crashes
 SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
 ORDER BY a,b;
@@ -1287,12 +1300,14 @@ key1	key2	key3	key4	filler1
 # Check that keys that don't improve selectivity are skipped.
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 EXPLAIN
--> Index lookup on t1 using sta_swt21a (st_a=1, swt1a=1, swt2a=1)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+    -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
 
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
 -> Filter: (t1.swt2b = 1)  (...)
-    -> Index lookup on t1 using stb_swt1a_2b (st_b=1, swt1b=1)  (...)
+    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
@@ -1743,7 +1758,7 @@ drop table t1;
 # BUG#21277: Index Merge/sort_union: wrong query results
 create table t1
 (
-key1 int not null, 
+key1 int not null,
 key2 int not null default 0,
 key3 int not null default 0
 );
@@ -1806,8 +1821,8 @@ SELECT a
 FROM t1
 WHERE c = 1 AND b = 1 AND d = 1;
 EXPLAIN
--> Filter: (t1.c = 1)  (cost=0.172..0.344 rows=2)
-    -> Index lookup on t1 using bd (b=1, d=1)  (cost=0.25..0.25 rows=0.943)
+-> Filter: ((t1.d = 1) and (t1.b = 1) and (t1.c = 1))  (rows=2)
+    -> Table scan on t1  (rows=4)
 
 CREATE TABLE t2 ( a INT )
 SELECT a
@@ -1857,17 +1872,17 @@ INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
 EXPLAIN
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 EXPLAIN
--> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (cost=0.338..0.45 rows=1.33)
-    -> Table scan on t1  (cost=0.125..0.25 rows=2)
+-> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (rows=1.33)
+    -> Table scan on t1  (rows=2)
 
 SELECT col_int_key
 FROM t1
-WHERE col_varchar_key >= 'l' OR 
-(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+WHERE col_varchar_key >= 'l' OR
+(((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l')
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 col_int_key
 DROP TABLE t1;
@@ -2045,8 +2060,8 @@ primary key (pk1, pk2)
 # Column 9, rows, can change depending on innodb-page-size.
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 EXPLAIN
--> Filter: (t1.pk2 < 80)  (...)
-    -> Index lookup on t1 using key1 (key1=0, pk1=1)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using key1 over (key1 = 0 AND pk1 = 1 AND pk2 < 80)  (...)
 
 # CPK scan + 1 ROR range scan is a special case
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
@@ -2192,12 +2207,12 @@ f1
 EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 EXPLAIN
--> Filter: ((select #2) = 0)  (cost=1.4..1.4 rows=1)
-    -> Single-row covering index lookup on t1 using PRIMARY (f1=2)  (cost=0.25..0.25 rows=1)
+-> Filter: ((select #2) = 0)  (rows=1)
+    -> Single-row covering index lookup on t1 using PRIMARY (f1=2)  (rows=1)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: count(0)  (cost=1.05..1.05 rows=1)
-            -> Filter: ((t2.f3 = 'h') and (t2.f2 = t1.f1))  (cost=0.425..0.85 rows=2)
-                -> Table scan on t2  (cost=0.0625..0.25 rows=4)
+        -> Aggregate: count(0)  (rows=1)
+            -> Filter: ((t2.f3 = 'h') and (t2.f2 = t1.f1))  (rows=2)
+                -> Table scan on t2  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -2363,14 +2378,16 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 )
 );
 EXPLAIN
--> Update t1 (buffered)  (cost=0.998..0.998 rows=0.00914)
-    -> Hash semijoin (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (cost=0.997..0.997 rows=0.00914)
-        -> Table scan on t1  (cost=0.125..0.25 rows=2)
-        -> Hash
-            -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (cost=0.527..0.527 rows=0.192)
-                -> Intersect rows sorted by row ID  (cost=0.508..0.508 rows=0.192)
-                    -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.0181..0.253 rows=14)
-                    -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (cost=0.0106..0.255 rows=24)
+-> Update t1 (buffered)  (rows=0.00914)
+    -> Nested loop inner join  (rows=0.00914)
+        -> Remove duplicates from input grouped on t2.col_int_key  (rows=0.192)
+            -> Sort: t2.col_int_key  (rows=0.192)
+                -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (rows=0.192)
+                    -> Intersect rows sorted by row ID  (rows=0.192)
+                        -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (rows=14)
+                        -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (rows=24)
+        -> Filter: ((cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)) and (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double)))  (rows=2)
+            -> Table scan on t1  (rows=2)
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
@@ -2398,8 +2415,10 @@ INSERT INTO t1 SELECT id + 8, id2 + 8, id3 +8 FROM t1;
 INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
 EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 EXPLAIN
--> Aggregate: count(0)  (cost=1.85..1.85 rows=1)
-    -> Covering index lookup on t1 using covering_index (id2=7, id3=0)  (cost=0.0156..0.25 rows=16)
+-> Aggregate: count(0)  (rows=1)
+    -> Intersect rows sorted by row ID  (rows=16)
+        -> Index range scan on t1 using id2 over (id2 = 7)  (rows=17)
+        -> Index range scan on t1 using id3 over (id3 = 0)  (rows=17)
 
 DROP TABLE t1;
 #
@@ -2456,16 +2475,14 @@ FROM t1 WHERE (f3 = 10 OR f2 BETWEEN 5 AND 10) AND f1 = f2;
 EXPLAIN
 -> Aggregate: count(t1.f2)  (...)
     -> Filter: ((t1.f1 = t1.f2) and ((t1.f3 = 10) or (t1.f2 between 5 and 10)))  (...)
-        -> Sort-deduplicate by row ID  (...)
-            -> Index range scan on t1 using f3 over (f3 = 10)  (...)
-            -> Index range scan on t1 using f2 over (5 <= f2 <= 10 AND 5 <= f1 <= 10)  (...)
+        -> Table scan on t1  (...)
 
 SELECT COUNT(f2) FROM t1 WHERE (f3 = 10 OR f2 BETWEEN 5 AND 10) AND f1 = f2;
 COUNT(f2)
 0
 DROP TABLE t1;
 #
-# Bug#35785032 Hypergraph: Wrong first row cost for rowid intersectq
+# Bug#35785032 Hypergraph: Wrong first row cost for rowid intersect
 #
 CREATE TABLE t1 (
 a INT PRIMARY KEY,
@@ -2481,8 +2498,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=0 AND c=0;
 EXPLAIN
--> Intersect rows sorted by row ID  (cost=0.201..0.502 rows=2.5)
-    -> Index range scan on t1 using k_b over (b = 0)  (cost=0.0502..0.251 rows=5)
-    -> Index range scan on t1 using k_c over (c = 0)  (cost=0.0502..0.251 rows=5)
+-> Intersect rows sorted by row ID  (rows=2.5)
+    -> Index range scan on t1 using k_b over (b = 0)  (rows=5)
+    -> Index range scan on t1 using k_c over (c = 0)  (rows=5)
 
 DROP TABLE t1;
