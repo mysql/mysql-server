@@ -79,7 +79,7 @@ Error	Server	Connection closed. Connection memory limit 2097152 bytes exceeded. 
 # Testing temptable memory key allocation
 TRUNCATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
 SET @@tmp_table_size = 32 * 1024 * 1024;
-SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
+SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
 ERROR HY000: Connection closed. Connection memory limit 2097152 bytes exceeded. Consumed SOME bytes.
 SELECT COUNT_STAR > 0 FROM performance_schema.events_waits_summary_by_account_by_event_name
 WHERE USER = 'user1' AND EVENT_NAME LIKE 'wait/synch/mutex/sql/LOCK_global_conn_mem_limit';
@@ -111,7 +111,7 @@ Error	Server	Connection closed. Global connection memory limit 16777216 bytes ex
 # Testing temptable memory key allocation
 TRUNCATE TABLE performance_schema.events_waits_summary_by_account_by_event_name;
 SET @@tmp_table_size = 32 * 1024 * 1024;
-SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
+SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
 ERROR HY000: Connection closed. Global connection memory limit 16777216 bytes exceeded. Consumed SOME bytes.
 SELECT COUNT_STAR > 0 FROM performance_schema.events_waits_summary_by_account_by_event_name
 WHERE USER = 'user1' AND EVENT_NAME LIKE 'wait/synch/mutex/sql/LOCK_global_conn_mem_limit';

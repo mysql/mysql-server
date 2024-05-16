@@ -97,7 +97,7 @@ connect (con1, localhost, user1);
 SET @@tmp_table_size = 32 * 1024 * 1024;
 --replace_regex /Consumed [0-9]+/Consumed SOME/
 --error ER_DA_CONN_LIMIT
-SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
+SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
 disconnect con1;
 connection default;
 eval $query_num_locks;
@@ -130,7 +130,7 @@ connect (con1, localhost, user1);
 SET @@tmp_table_size = 32 * 1024 * 1024;
 --replace_regex /Consumed [0-9]+/Consumed SOME/
 --error ER_DA_GLOBAL_CONN_LIMIT
-SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
+SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2);
 disconnect con1;
 connection default;
 eval $query_num_locks;

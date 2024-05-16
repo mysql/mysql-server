@@ -135,8 +135,8 @@ a
 # Restart the server against the 4k DDIR to make sure it can be started
 SELECT * FROM information_schema.schemata;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 def	information_schema	utf8mb3	utf8mb3_general_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO

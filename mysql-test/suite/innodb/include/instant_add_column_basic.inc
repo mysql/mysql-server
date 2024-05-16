@@ -577,6 +577,7 @@ SELECT count(e) FROM t1 WHERE e LIKE '%world%';
 
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(a, c);
 
+--sorted_result
 SELECT a, c, e FROM t1 WHERE a > 25 AND a < 40;
 
 CHECK TABLE t1;

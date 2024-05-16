@@ -321,6 +321,7 @@ EOF
 --exec echo "restart:--innodb_page_size=4k --datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
+--sorted_result
 SELECT * FROM information_schema.schemata;
 
 --echo # Shut server down
