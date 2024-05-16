@@ -478,10 +478,15 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
                                           cluster_nodes_http_ports_[0]));
 
   SCOPED_TRACE("// [prep] launching router");
-  auto &router = launch_router(router_rw_port_,
-                               config_generator_->build_config_file(
-                                   temp_test_dir_.name(), ClusterType::GR_V2),
-                               -1s);
+
+  auto config_file = config_generator_->build_config_file(temp_test_dir_.name(),
+                                                          ClusterType::GR_V2);
+
+  auto &router = router_spawner()
+                     // wait for RUNNING to have at least the signal handler up
+                     // as the metadata-cache will not succeed.
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", config_file});
   EXPECT_TRUE(wait_for_port_ready(monitoring_port_));
 
   SCOPED_TRACE("// [prep] waiting " +

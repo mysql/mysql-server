@@ -49,6 +49,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
 
 using mysqlrouter::ClusterType;
@@ -121,33 +122,32 @@ class AsyncReplicasetTest : public RouterComponentTest {
     return result;
   }
 
+  std::string create_config_with_keyring(const std::string &temp_test_dir,
+                                         const std::string &config_sections,
+                                         const std::string &state_file_path) {
+    // launch the router with metadata-cache configuration
+    auto default_section = get_DEFAULT_defaults();
+
+    init_keyring(default_section, temp_test_dir);
+
+    default_section["dynamic_state"] = state_file_path;
+
+    return create_config_file(temp_test_dir, config_sections, &default_section);
+  }
+
   auto &launch_router(const std::string &temp_test_dir,
                       const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const std::string &state_file_path,
                       const int expected_errorcode = EXIT_SUCCESS,
                       std::chrono::milliseconds wait_for_notify_ready = 30s) {
-    const std::string masterkey_file =
-        Path(temp_test_dir).join("master.key").str();
-    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
-
-    // launch the router with metadata-cache configuration
-    auto default_section = get_DEFAULT_defaults();
-    default_section["keyring_path"] = keyring_file;
-    default_section["master_key_path"] = masterkey_file;
-    default_section["dynamic_state"] = state_file_path;
-    const std::string conf_file = create_config_file(
+    auto conf_file = create_config_with_keyring(
         temp_test_dir, metadata_cache_section + routing_section,
-        &default_section);
-    auto &router = ProcessManager::launch_router(
+        state_file_path);
+
+    return ProcessManager::launch_router(
         {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
         /*with_sudo=*/false, wait_for_notify_ready);
-    return router;
   }
 
   void set_mock_metadata(uint16_t http_port, const std::string &cluster_id,
@@ -1593,9 +1593,14 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
       routing_section_rw + "\n" + routing_section_ro;
 
   SCOPED_TRACE("// Launch the router with the initial state file");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_SUCCESS,
-                               /*wait_for_notify_ready=*/-1s);
+
+  auto conf_file = create_config_with_keyring(
+      temp_test_dir.name(), metadata_cache_section + routing_section,
+      state_file);
+
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                     .spawn({"-c", conf_file});
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));

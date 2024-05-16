@@ -164,26 +164,30 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
   }
 
   // now promote first SECONDARY to become new PRIMARY
-  // make the old PRIMARY offline (static metadata does not change)
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    if (i == 0) {
-      // old PRIMARY sees itself as OFFLINE, does not see other nodes
-      const auto gr_nodes = std::vector<GRNode>{
-          {md_servers_classic_ports[0], "uuid-1", "OFFLINE", "PRIMARY"}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, 0,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    } else {
-      // remaining nodes see the previous SECONDARY-1 as new primary
-      // they do not see old PRIMARY (it was expelled from the group)
-      const auto gr_nodes = std::vector<GRNode>{
-          {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
-           {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, i - 1,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    }
+    if (i == 0) continue;  // skip the PRIMARY for now.
+
+    // remaining nodes see the previous SECONDARY-1 as new primary
+    // they do not see old PRIMARY (it was expelled from the group)
+    const auto gr_nodes = std::vector<GRNode>{
+        {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
+         {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, i - 1,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
+  }
+
+  // ... make the old PRIMARY offline (static metadata does not change) _after_
+  // the SECONDARIES changed to get a consistent view when the metadata-cache
+  // queries the PRIMARY (and _then_ the SECONDARY)
+  {
+    auto http_port = md_servers_http_ports[0];
+
+    // old PRIMARY sees itself as OFFLINE, does not see other nodes
+    const auto gr_nodes = std::vector<GRNode>{
+        {md_servers_classic_ports[0], "uuid-1", "OFFLINE", "PRIMARY"}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, 0,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
   }
 
   // check that the second metadata server (new PRIMARY) is queried for metadata
@@ -265,28 +269,34 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
   // now promote first SECONDARY to become new PRIMARY
   // make the old PRIMARY see other as OFFLINE and claim it is ONLINE
   // (static metadata does not change)
+  //
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    if (i == 0) {
-      // old PRIMARY still sees itself as ONLINE, but it lost quorum, do not
-      // see other GR members
-      const auto gr_nodes = std::vector<GRNode>{
-          {md_servers_classic_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
-          {md_servers_classic_ports[1], "uuid-2", "UNREACHABLE", "SECONDARY"},
-          {md_servers_classic_ports[2], "uuid-3", "UNREACHABLE", "SECONDARY"}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, 0,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    } else {
-      // remaining nodes see the previous SECONDARY-1 as new primary
-      // they do not see old PRIMARY (it was expelled from the group)
-      const auto gr_nodes = std::vector<GRNode>{
-          {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
-           {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, i - 1,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    }
+    if (i == 0) continue;  // skip the PRIMARY.
+
+    // remaining nodes see the previous SECONDARY-1 as new primary
+    // they do not see old PRIMARY (it was expelled from the group)
+    const auto gr_nodes = std::vector<GRNode>{
+        {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
+         {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, i - 1,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
+  }
+
+  // update the PRIMARY _after_ the SECONDARIES to ensure that the
+  // metadata-cache sees the same state all nodes once it switches
+  // from PRIMARY to SECONDARY
+  {
+    auto http_port = md_servers_http_ports[0];
+
+    // old PRIMARY still sees itself as ONLINE, but it lost quorum, do not
+    // see other GR members
+    const auto gr_nodes = std::vector<GRNode>{
+        {md_servers_classic_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
+        {md_servers_classic_ports[1], "uuid-2", "UNREACHABLE", "SECONDARY"},
+        {md_servers_classic_ports[2], "uuid-3", "UNREACHABLE", "SECONDARY"}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, 0,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
   }
 
   // check that the second metadata server (new PRIMARY) is queried for metadata
