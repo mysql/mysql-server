@@ -2660,22 +2660,6 @@ bool Prepared_statement::set_parameters(THD *thd, String *expanded_query) {
 }
 
 /**
-  Disables the general log for the current session by setting the OPTION_LOG_OFF
-  bit in thd->variables.option_bits.
-
-  @param thd the session
-  @return whether the setting was changed
-  @retval false if the general log was already disabled for this session
-  @retval true if the general log was enabled for the session and is now
-  disabled
-*/
-static bool disable_general_log(THD *thd) {
-  if ((thd->variables.option_bits & OPTION_LOG_OFF) != 0) return false;
-  thd->variables.option_bits |= OPTION_LOG_OFF;
-  return true;
-}
-
-/**
   Check resolved parameter types versus actual parameter types.
   Assumes that parameter values have been assigned to the parameters.
 
@@ -2894,11 +2878,10 @@ bool Prepared_statement::check_parameter_types() {
 bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
                                       bool open_cursor) {
   Reprepare_observer reprepare_observer;
-  bool error;
   bool reprepared_for_types [[maybe_unused]] = false;
 
-  auto scope_guard = create_scope_guard(
-      [thd] { thd->set_secondary_engine_statement_context(nullptr); });
+  // Keep track of operation status
+  bool error = false;
 
   /* Check if we got an error when sending long data */
   if (m_arena.get_state() == Query_arena::STMT_ERROR) {
@@ -2919,13 +2902,15 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   if (m_lex->m_sql_cmd != nullptr) {
     m_lex->m_sql_cmd->enable_secondary_storage_engine();
   }
-  // Remember if the general log was temporarily disabled when repreparing the
-  // statement for a secondary engine.
-  bool general_log_temporarily_disabled = false;
+  // Remember the original state of the general log.
+  const ulonglong orig_log_state = thd->variables.option_bits & OPTION_LOG_OFF;
+
+  // Track whether the statement needs to be reprepared:
+  bool need_reprepare = false;
 
   // Reprepare statement unconditionally if it contains UDF references
-  if (m_lex->has_udf() && reprepare(thd)) {
-    return true;
+  if (m_lex->has_udf()) {
+    need_reprepare = true;
   }
 
   // Reprepare statement if protocol has changed.
@@ -2933,58 +2918,92 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   if (m_active_protocol != nullptr &&
       m_active_protocol != thd->get_protocol()) {
     assert(false);
-    if (reprepare(thd)) return true;
+    need_reprepare = true;
   }
 
-reexecute:
-  /*
-    If the item_list is not empty, we'll wrongly free some externally
-    allocated items when cleaning up after validation of the prepared
-    statement.
-  */
-  assert(thd->item_list() == nullptr);
+  while (true) {
+    if (need_reprepare) {
+      error = reprepare(thd);
+      DEBUG_SYNC(thd, "after_statement_reprepare");
+    }
+    if (error) {
+      if (m_lex->m_sql_cmd == nullptr ||
+          thd->secondary_engine_optimization() !=
+              Secondary_engine_optimization::SECONDARY ||
+          thd->is_secondary_engine_forced()) {
+        break;
+      }
+      /*
+        Some error occurred during resolving in the secondary engine, and
+        secondary engine execution is not forced.
+        Retry execution of the statement in the primary engine.
+      */
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::PRIMARY_ONLY);
+      need_reprepare = true;
+      // Clear diagnostics area before re-preparation
+      thd->clear_error();
+      continue;
+    }
+    /*
+      If the item_list is not empty, we'll wrongly free some externally
+      allocated items when cleaning up after validation of the prepared
+      statement.
+    */
+    assert(thd->item_list() == nullptr);
 
-  if (!check_parameter_types()) {
-    // Only one reprepare is required in case of parameter mismatch
-    assert(!reprepared_for_types);
-    reprepared_for_types = true;
-    if (reprepare(thd)) return true;
-    goto reexecute;
-  }
+    if (!check_parameter_types()) {
+      // Only one reprepare is required in case of parameter mismatch
+      assert(!reprepared_for_types);
+      reprepared_for_types = true;
+      need_reprepare = true;
+      continue;
+    }
+    reprepared_for_types = false;
+    /*
+      Install the metadata observer. If some metadata version is
+      different from prepare time and an observer is installed,
+      the observer method will be invoked to push an error into
+      the error stack.
+    */
+    Reprepare_observer *stmt_reprepare_observer = nullptr;
 
-  reprepared_for_types = false;
-  /*
-    Install the metadata observer. If some metadata version is
-    different from prepare time and an observer is installed,
-    the observer method will be invoked to push an error into
-    the error stack.
-  */
-  Reprepare_observer *stmt_reprepare_observer = nullptr;
+    if (sql_command_flags[m_lex->sql_command] & CF_REEXECUTION_FRAGILE) {
+      reprepare_observer.reset_reprepare_observer();
+      stmt_reprepare_observer = &reprepare_observer;
+    }
 
-  if (sql_command_flags[m_lex->sql_command] & CF_REEXECUTION_FRAGILE) {
-    reprepare_observer.reset_reprepare_observer();
-    stmt_reprepare_observer = &reprepare_observer;
-  }
+    thd->push_reprepare_observer(stmt_reprepare_observer);
 
-  thd->push_reprepare_observer(stmt_reprepare_observer);
+    error = execute(thd, expanded_query, open_cursor);
 
-  error = execute(thd, expanded_query, open_cursor) || thd->is_error();
+    assert(error == thd->is_error());
 
-  thd->pop_reprepare_observer();
+    thd->pop_reprepare_observer();
+    /*
+      Re-enable the general log if it was temporarily disabled while repreparing
+      and executing a statement for a secondary engine.
+    */
+    thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
 
-  // Check if we have a non-fatal error and the statement allows reexecution.
-  if ((sql_command_flags[m_lex->sql_command] & CF_REEXECUTION_FRAGILE) &&
-      error && !thd->is_fatal_error() && !thd->is_killed()) {
-    // If we have an error due to a metadata change, reprepare the
-    // statement and execute it again.
-    if (reprepare_observer.is_invalidated()) {
-      assert(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
+    // Exit immediately if execution is successful
+    if (!error) {
+      break;
+    }
+    // Exit if a fatal error has occurred or statement execution was killed.
+    if (thd->is_fatal_error() || thd->is_killed()) {
+      break;
+    }
+    const int my_errno = thd->get_stmt_da()->mysql_errno();
 
-      if (reprepare_observer.can_retry()) {
-        thd->clear_error();
-        error = reprepare(thd);
-        DEBUG_SYNC(thd, "after_statement_reprepare");
-      } else {
+    if (my_errno == ER_NEED_REPREPARE) {
+      /*
+        Reprepare_observer ensures that the statement is retried
+        a maximum number of times, to avoid an endless loop.
+      */
+      assert(stmt_reprepare_observer != nullptr &&
+             stmt_reprepare_observer->is_invalidated());
+      if (!stmt_reprepare_observer->can_retry()) {
         /*
           Reprepare_observer sets error status in DA but Sql_condition is not
           added. Please check Reprepare_observer::report_error(). Pushing
@@ -2993,57 +3012,61 @@ reexecute:
         Diagnostics_area *da = thd->get_stmt_da();
         da->push_warning(thd, da->mysql_errno(), da->returned_sqlstate(),
                          Sql_condition::SL_ERROR, da->message_text());
+        assert(thd->is_error());
+        break;
+      }
+    } else if (my_errno == ER_PREPARE_FOR_PRIMARY_ENGINE ||
+               my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
+      assert(thd->secondary_engine_optimization() ==
+             Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+      assert(!m_lex->unit->is_executed());
+      if (my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
+        thd->set_secondary_engine_optimization(
+            Secondary_engine_optimization::SECONDARY);
+      } else {
+        thd->set_secondary_engine_optimization(
+            Secondary_engine_optimization::PRIMARY_ONLY);
       }
     } else {
-      // Otherwise, if repreparation was requested, try again in the primary
-      // or secondary engine, depending on cause.
-      const uint err_seen = thd->get_stmt_da()->mysql_errno();
-      if (err_seen == ER_PREPARE_FOR_PRIMARY_ENGINE ||
-          err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE) {
-        assert(thd->secondary_engine_optimization() ==
-               Secondary_engine_optimization::PRIMARY_TENTATIVELY);
-        assert(!m_lex->unit->is_executed());
-        thd->clear_error();
-        thd->set_secondary_engine_optimization(
-            err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE
-                ? Secondary_engine_optimization::SECONDARY
-                : Secondary_engine_optimization::PRIMARY_ONLY);
-        // Disable the general log. The query was written to the general log in
-        // the first attempt to execute it. No need to write it twice.
-        general_log_temporarily_disabled |= disable_general_log(thd);
-        error = reprepare(thd);
+      if (m_lex->m_sql_cmd == nullptr ||
+          thd->secondary_engine_optimization() !=
+              Secondary_engine_optimization::SECONDARY ||
+          m_lex->unit->is_executed() || thd->is_secondary_engine_forced()) {
+        break;
       }
-
-      // If (re-?)preparation or optimization failed and it was for
-      // a secondary storage engine, disable the secondary storage
-      // engine and try again without it.
-      if (error && m_lex->m_sql_cmd != nullptr &&
-          thd->secondary_engine_optimization() ==
-              Secondary_engine_optimization::SECONDARY &&
-          !m_lex->unit->is_executed()) {
-        if (!thd->is_secondary_engine_forced()) {
-          thd->clear_error();
-          thd->set_secondary_engine_optimization(
-              Secondary_engine_optimization::PRIMARY_ONLY);
-          error = reprepare(thd);
-          if (!error) {
-            // The reprepared statement should not use a secondary engine.
-            assert(!m_lex->m_sql_cmd->using_secondary_storage_engine());
-            m_lex->m_sql_cmd->disable_secondary_storage_engine();
-          }
-        }
-      }
+      /*
+        Some error occurred during resolving or optimization in
+        the secondary engine, and secondary engine execution is not forced.
+        Retry execution of the statement in the primary engine.
+      */
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::PRIMARY_ONLY);
     }
-
-    if (!error) /* Success */
-      goto reexecute;
+    /*
+      Disable the general log. The query was written to the general log in
+      the first attempt to execute it. No need to write it twice.
+    */
+    thd->variables.option_bits |= OPTION_LOG_OFF;
+    /*
+      Prepare for re-prepare and re-optimization:
+      - Clear the current diagnostics area.
+      - Clean up the statement's LEX, including release of plugins.
+      - Clean up and free items, both permanent in stmt. and transient in THD.
+    */
+    thd->clear_error();
+    error = false;
+    lex_end(m_lex);
+    cleanup_items(thd->item_list());
+    thd->free_items();
+    cleanup_items(m_arena.item_list());
+    need_reprepare = true;
   }
+
   reset_stmt_parameters(this);
 
   // Re-enable the general log if it was temporarily disabled while repreparing
   // and executing a statement for a secondary engine.
-  if (general_log_temporarily_disabled)
-    thd->variables.option_bits &= ~OPTION_LOG_OFF;
+  thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
 
   // Record in performance schema whether a secondary engine was used.
   const bool used_secondary = thd->secondary_engine_optimization() ==
@@ -3051,6 +3074,7 @@ reexecute:
   MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, used_secondary);
   mysql_thread_set_secondary_engine(used_secondary);
   mysql_statement_set_secondary_engine(thd->m_statement_psi, used_secondary);
+  thd->set_secondary_engine_statement_context(nullptr);
 
   return error;
 }

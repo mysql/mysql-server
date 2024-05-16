@@ -710,34 +710,45 @@ LEX *sp_lex_instr::parse_statement(THD *thd, sp_head *sp) {
 
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
-  // Remember if the general log was temporarily disabled when repreparing the
-  // statement for a secondary engine.
-  bool general_log_temporarily_disabled = false;
+  // Remember the original state of the general log.
+  const ulonglong orig_log_state = thd->variables.option_bits & OPTION_LOG_OFF;
 
   Reprepare_observer reprepare_observer;
+
+  // Keep track of operation status
+  bool error = false;
 
   thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
-  auto scope_guard = create_scope_guard(
-      [thd] { thd->set_secondary_engine_statement_context(nullptr); });
+  // Track whether the statement needs to be reprepared:
+  bool need_reprepare = false;
+
+  // Reprepare statement unconditionally if it contains UDF references
+  if (m_lex != nullptr && m_lex->has_udf() && !m_first_execution) {
+    need_reprepare = true;
+  }
+  DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
   /*
     Retry execution in a loop until successful, or a fatal error has occurred,
     or the statement is killed, or a non-fatal error is encountered but
     no retry option is possible.
   */
   while (true) {
-    DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
-    if (is_invalid() || (m_lex->has_udf() && !m_first_execution)) {
+    if (is_invalid()) {
+      need_reprepare = true;
+    }
+    if (need_reprepare) {
       free_lex();
       LEX *lex = parse_statement(thd, thd->sp_runtime_ctx->sp);
-      if (lex == nullptr) return true;
-
+      if (lex == nullptr) {
+        error = true;
+        break;
+      }
       set_lex(lex, true);
 
       m_first_execution = true;
     }
-
     /*
       Install the metadata observer. If some metadata version is
       different from prepare time and an observer is installed,
@@ -766,7 +777,9 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
     thd->push_reprepare_observer(stmt_reprepare_observer);
 
-    const bool rc = reset_lex_and_exec_core(thd, nextp, open_tables);
+    error = reset_lex_and_exec_core(thd, nextp, open_tables);
+
+    assert(error == thd->is_error());
 
     thd->pop_reprepare_observer();
 
@@ -774,19 +787,17 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       Re-enable the general log if it was temporarily disabled while repreparing
       and executing a statement for a secondary engine.
     */
-    if (general_log_temporarily_disabled) {
-      thd->variables.option_bits &= ~OPTION_LOG_OFF;
-      general_log_temporarily_disabled = false;
-    }
+    thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
 
     m_first_execution = false;
 
     // Exit immediately if execution is successful
-    if (!rc) return false;
-
+    if (!error) {
+      break;
+    }
     // Exit if a fatal error has occurred or statement execution was killed.
     if (thd->is_fatal_error() || thd->is_killed()) {
-      return true;
+      break;
     }
     const int my_errno = thd->get_stmt_da()->mysql_errno();
 
@@ -807,7 +818,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
         da->push_warning(thd, da->mysql_errno(), da->returned_sqlstate(),
                          Sql_condition::SL_ERROR, da->message_text());
         assert(thd->is_error());
-        return true;
+        break;
       }
     } else if (my_errno == ER_PREPARE_FOR_PRIMARY_ENGINE ||
                my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
@@ -825,7 +836,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           thd->secondary_engine_optimization() !=
               Secondary_engine_optimization::SECONDARY ||
           m_lex->unit->is_executed() || thd->is_secondary_engine_forced()) {
-        return true;
+        break;
       }
       /*
         Some error occurred during resolving or optimization in
@@ -839,10 +850,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       Disable the general log. The query was written to the general log in
       the first attempt to execute it. No need to write it twice.
     */
-    if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
-      thd->variables.option_bits |= OPTION_LOG_OFF;
-      general_log_temporarily_disabled = true;
-    }
+    thd->variables.option_bits |= OPTION_LOG_OFF;
     /*
       Prepare for re-prepare and re-optimization:
       - Clear the current diagnostics area.
@@ -851,13 +859,22 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       - Clean up and free items, both permanent in stmt. and transient in THD.
     */
     thd->clear_error();
+    error = false;
     invalidate();
     m_lex->sphead = nullptr;
     lex_end(m_lex);
     cleanup_items(thd->item_list());
     thd->free_items();
     cleanup_items(m_arena.item_list());
+    need_reprepare = true;
   }
+  thd->set_secondary_engine_statement_context(nullptr);
+
+  // Re-enable the general log if it was temporarily disabled while repreparing
+  // and executing a statement for a secondary engine.
+  thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
+
+  return error;
 }
 
 void sp_lex_instr::set_lex(LEX *lex, bool is_lex_owner) {
