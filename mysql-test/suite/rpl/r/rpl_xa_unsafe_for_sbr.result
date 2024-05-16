@@ -39,7 +39,7 @@ XA START 'a';
 INSERT INTO t1 VALUES (5);
 [connection master1]
 XA START 'b';
-DELETE FROM t1 WHERE c1 > 5 AND c1 < 8;
+DELETE t1 FROM t1 FORCE INDEX (PRIMARY) WHERE c1 > 5 AND c1 < 8;
 XA END 'b';
 XA PREPARE 'b';
 [connection master]

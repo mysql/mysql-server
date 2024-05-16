@@ -281,6 +281,7 @@ delimiter ;|
 select fn3();
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
 --replace_column 24 # 25 #
+--sorted_result
 select * from information_schema.routines where routine_schema='mysqltest1';
 select * from t1;
 
@@ -289,6 +290,7 @@ use mysqltest1;
 select * from t1;
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
 --replace_column 24 # 25 #
+--sorted_result
 select * from information_schema.routines where routine_schema='mysqltest1';
 
 # Let's check a failing-in-the-middle function
@@ -315,10 +317,12 @@ do fn1(100);
 --error ER_DUP_ENTRY
 select fn1(20);
 
+--sorted_result
 select * from t2;
 sync_slave_with_master;
 
 # check that this failed-in-the-middle replicated right:
+--sorted_result
 select * from t2;
 
 # ********************** PART 3 : TRIGGERS ***************

@@ -48,35 +48,35 @@ insert into t1 values (NULL),(5),(NULL);
 insert into t1 values (250),(NULL);
 select * from t1;
 a
-5
 10
 110
 250
 310
+5
 insert into t1 values (1000);
 set @@insert_id=400;
 insert into t1 values(NULL),(NULL);
 select * from t1;
 a
-5
 10
+1000
 110
 250
 310
 400
 410
-1000
+5
 include/rpl/sync_to_replica.inc
 select * from t1;
 a
-5
 10
+1000
 110
 250
 310
 400
 410
-1000
+5
 drop table t1;
 set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
@@ -141,20 +141,20 @@ insert into t1 values (3),(NULL),(NULL);
 select * from t1;
 a
 1
-3
 11
 21
+3
 31
 include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
-2
-3
 11
 12
+2
 21
 22
+3
 31
 32
 42
@@ -218,22 +218,22 @@ id
 INSERT INTO t2 VALUES();
 SELECT * FROM t2;
 id
-700
 1700
+700
 INSERT INTO t2 VALUES(0);
 SELECT * FROM t2;
 id
-700
 1700
 2700
+700
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
 INSERT INTO t2 VALUES(0);
 SELECT * FROM t2;
 id
 0
-700
 1700
 2700
+700
 INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
 include/rpl/sync_to_replica.inc

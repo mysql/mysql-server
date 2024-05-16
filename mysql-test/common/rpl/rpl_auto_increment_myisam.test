@@ -33,13 +33,16 @@ eval create table t1 (a int not null auto_increment, primary key (a)) engine=$en
 # Insert with 2 insert statements to get better testing of logging
 insert into t1 values (NULL),(5),(NULL);
 insert into t1 values (250),(NULL);
+--sorted_result
 select * from t1;
 insert into t1 values (1000);
 set @@insert_id=400;
 insert into t1 values(NULL),(NULL);
+--sorted_result
 select * from t1;
 
 --source include/rpl/sync_to_replica.inc
+--sorted_result
 select * from t1;
 connection master;
 drop table t1;
@@ -75,9 +78,11 @@ connection master;
 
 insert into t1 values (NULL),(NULL);
 insert into t1 values (3),(NULL),(NULL);
+--sorted_result
 select * from t1;
 
 --source include/rpl/sync_to_replica.inc
+--sorted_result
 select * from t1;
 
 # Test for BUG#20524 "auto_increment_* not observed when inserting
@@ -143,16 +148,19 @@ INSERT INTO t2 VALUES(NULL);
 SELECT * FROM t2;
 # Value of the id will be 2;
 INSERT INTO t2 VALUES();
+--sorted_result
 SELECT * FROM t2;
 # Value of the id will be 3. The master treats 0 as NULL or empty because
 # NO_AUTO_VALUE_ON_ZERO is not assign to SQL_MODE.
 INSERT INTO t2 VALUES(0);
+--sorted_result
 SELECT * FROM t2;
 
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
 # Value of the id will be 0. The master does not treat 0 as NULL or empty
 # because NO_AUTO_VALUE_ON_ZERO has assigned to SQL_MODE.
 INSERT INTO t2 VALUES(0);
+--sorted_result
 SELECT * FROM t2;
 
 INSERT INTO t2 VALUES(4);
