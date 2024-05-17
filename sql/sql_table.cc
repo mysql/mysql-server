@@ -11082,6 +11082,9 @@ bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
                                 &local_alter_ctx))
     return true;
 
+  /* reset secondary_load information copied from source table */
+  local_create_info.secondary_load = false;
+
   if (prepare_check_constraints_for_create_like_table(thd, src_table, table,
                                                       &local_alter_info))
     return true;

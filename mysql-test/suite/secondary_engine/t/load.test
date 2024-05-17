@@ -147,6 +147,16 @@ ALTER TABLE t1 SECONDARY_LOAD;
 ALTER TABLE t2 SECONDARY_LOAD;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#36482778: Create table like copying secondary_load flag
+--echo #
+CREATE TABLE t1 (c1 int) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+CREATE TABLE t2 LIKE t1;
+SELECT LOCATE('SECONDARY_LOAD="1"', CREATE_OPTIONS) > 0 AS IS_LOADED FROM information_schema.tables WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2';
+DROP TABLE t2;
+DROP TABLE t1;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log
