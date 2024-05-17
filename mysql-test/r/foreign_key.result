@@ -60,13 +60,8 @@ SET @@foreign_key_checks= 1;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
 ERROR HY000: Failed to open the referenced table 'non'
 CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int NOT NULL,
-  `b` int DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ERROR HY000: Failed to open the referenced table 'non'
+CREATE TABLE t1(a INT PRIMARY KEY, b INT);
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
 ERROR HY000: Failed to open the referenced table 'non'
 DROP TABLE t1;
@@ -5501,4 +5496,345 @@ DROP TABLE t1;
 SET restrict_fk_on_non_standard_key=ON;
 Warnings:
 Warning	1681	'restrict_fk_on_non_standard_key' is deprecated and will be removed in a future release.
+# Start:WL#16130 Check fk references on column specification
+# Test case to verify FK references on existing primary key pass
+CREATE TABLE referenced (f1 INT PRIMARY KEY, f2 INT UNIQUE KEY, f3 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f1));
+Check if internal index is created on foreign key using SHOW CREATE
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing;
+# Test case to verify FK references on non existing field fail
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f10));
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f10' for constraint 'referencing_ibfk_1' in the referenced table 'referenced'
+# Test case to verify FK references fails on non index column
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f3));
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'referencing_ibfk_1' in the referenced table 'referenced'
+# Verify FK references on primary key with ADD COLUMN
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES referenced(f1);
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f3` (`f3`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f3`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verify FK references on no index column with ADD COLUMN
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES referenced(f3);
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'referencing_ibfk_2' in the referenced table 'referenced'
+# Verify FK references on non existing column with ADD COLUMN fails
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES referenced(not_exist);
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'not_exist' for constraint 'referencing_ibfk_2' in the referenced table 'referenced'
+DROP TABLE referencing;
+# Verify FK references with MATCH clause passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+f2 INT REFERENCES referenced(f1) MATCH SIMPLE);
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing;
+# Verify FK references with ON DELETE/UPDATE clause passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+f2 INT REFERENCES referenced(f1) MATCH FULL ON UPDATE SET NULL);
+ALTER TABLE referencing ADD COLUMN f3 INT
+REFERENCES referencing(f1) MATCH PARTIAL ON UPDATE RESTRICT
+ON DELETE SET NULL;
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  KEY `f3` (`f3`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`) ON UPDATE SET NULL,
+  CONSTRAINT `referencing_ibfk_2` FOREIGN KEY (`f3`) REFERENCES `referencing` (`f1`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	referencing_ibfk_1	def	test	PRIMARY	FULL	SET NULL	NO ACTION	referencing	referenced
+def	test	referencing_ibfk_2	def	test	PRIMARY	PARTIAL	RESTRICT	SET NULL	referencing	referencing
+SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test	f2	test	referenced	UNIQUE	YES
+def	test	PRIMARY	test	referenced	PRIMARY KEY	YES
+def	test	PRIMARY	test	referencing	PRIMARY KEY	YES
+def	test	referencing_ibfk_1	test	referencing	FOREIGN KEY	YES
+def	test	referencing_ibfk_2	test	referencing	FOREIGN KEY	YES
+DROP TABLE referencing;
+# Verify FK references with multiple column fails
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+f2 INT REFERENCES referenced(f2, f1));
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+# Verify same FK references on column specification and
+# table specification passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f2),
+FOREIGN KEY(f2) REFERENCES referenced(f2));
+DROP TABLE referencing;
+# Verify different FK references on column specification and
+# table specification passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
+f3 INT REFERENCES referenced(f1),
+FOREIGN KEY(f2) REFERENCES referenced(f2));
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f3` (`f3`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f3`) REFERENCES `referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_2` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Verify FK self referencing on column specification
+CREATE TABLE self_ref (f1 INT PRIMARY KEY, f2 INT REFERENCES self_ref(f1));
+DROP TABLE self_ref;
+# Verify FK self referencing with ADD COLUMN
+CREATE TABLE self_ref (f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE self_ref ADD COLUMN f3 INT REFERENCES self_ref(f1);
+DROP TABLE self_ref;
+# Verify FK self referencing same column fails
+# with same error when specified in FOREIGN KEY clause
+CREATE TABLE self_ref(f1 INT PRIMARY KEY REFERENCES self_ref(f1), f2 INT);
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+# Verify Delayed FK Creation fails with foreign_key_checks = 1
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE referencing(f1 INT PRIMARY KEY,
+f2 INT REFERENCES non_existing(f1));
+ERROR HY000: Failed to open the referenced table 'non_existing'
+# Verify Delayed FK Creation fails with foreign_key_checks = 1
+# and ADD COLUMN
+CREATE TABLE referencing(f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES non_existing(f1);
+ERROR HY000: Failed to open the referenced table 'non_existing'
+DROP TABLE referencing;
+# Verify Delayed FK Creation succeeds with foreign_key_checks = 0
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE referencing(f1 INT PRIMARY KEY,
+f2 INT REFERENCES non_existing(f1));
+CREATE TABLE non_existing(f1 INT UNIQUE KEY);
+DROP TABLE referencing;
+DROP TABLE non_existing;
+# Verify Delayed FK Creation succeeds with foreign_key_checks = 0
+# and ADD COLUMN
+CREATE TABLE referencing(f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES non_existing(f1);
+CREATE TABLE non_existing(f1 INT UNIQUE KEY);
+DROP TABLE referencing;
+DROP TABLE non_existing;
+SET FOREIGN_KEY_CHECKS=1;
+# FK on unsupported storage engine should neglect FK creation
+CREATE TABLE self_ref (f1 INT PRIMARY KEY, f2 INT REFERENCES self_ref(f1)) ENGINE=MyISAM;
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE self_ref;
+# FK on temporary table should fail
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+CREATE TEMPORARY TABLE referencing (f1 INT PRIMARY KEY,
+f2 INT REFERENCES referenced(f1));
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE referenced;
+# FK referencing incompatible columns should fail
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+f2 VARCHAR(64) REFERENCES referenced(f1));
+ERROR HY000: Referencing column 'f2' and referenced column 'f1' in foreign key constraint 'referencing_ibfk_1' are incompatible.
+DROP TABLE referenced;
+# FK on virtual generated column index should fail
+CREATE TABLE referenced(f1 VARCHAR(30) PRIMARY KEY, f2 INT);
+CREATE TABLE referencing (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL REFERENCES referenced(f1));
+ERROR HY000: Foreign key 'referencing_ibfk_1' uses virtual column 'f3' which is not supported.
+# FK on stored generated column should pass
+CREATE TABLE referencing (f1 VARCHAR(10), f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED REFERENCES referenced(f1));
+DROP TABLE referencing, referenced;
+# FK referencing virtual generated column should fail
+CREATE TABLE referenced (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL, UNIQUE KEY(f3));
+CREATE TABLE referencing (f1 VARCHAR(30),
+f2 VARCHAR(30) REFERENCES referenced(f3));
+ERROR HY000: Foreign key 'referencing_ibfk_1' uses virtual column 'f3' which is not supported.
+DROP TABLE referenced;
+# FK referencing stored generated column should pass
+CREATE TABLE referenced (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED, UNIQUE KEY(f3));
+CREATE TABLE referencing (f1 VARCHAR(30),
+f2 VARCHAR(30) REFERENCES referenced(f3));
+DROP TABLE referencing, referenced;
+# FK referencing virtual generated column with ON UPDATE
+# should fail
+CREATE TABLE referenced (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL, UNIQUE KEY(f3));
+CREATE TABLE referencing (f1 VARCHAR(30),
+f2 VARCHAR(30) REFERENCES referenced(f3) ON DELETE SET NULL);
+ERROR HY000: Foreign key 'referencing_ibfk_1' uses virtual column 'f3' which is not supported.
+DROP TABLE referenced;
+# FK on virtual generated column with ON UPDATE
+# should fail
+CREATE TABLE referenced (f1 VARCHAR(30) PRIMARY KEY);
+CREATE TABLE referencing (f1 VARCHAR(10), f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL REFERENCES referenced(f1)
+ON UPDATE SET NULL);
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+DROP TABLE referenced;
+# FK on stored generated column with ON UPDATE|DELETE
+# should fail
+CREATE TABLE referenced (f1 VARCHAR(30) PRIMARY KEY);
+CREATE TABLE referencing (f1 VARCHAR(10), f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED REFERENCES referenced(f1)
+ON UPDATE CASCADE);
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+DROP TABLE referenced;
+# FK on base column of stored generated column with
+# ON DELETE|UPDATE should fail
+CREATE TABLE referenced (f1 VARCHAR(30) PRIMARY KEY);
+CREATE TABLE referencing (f1 VARCHAR(10),
+f2 VARCHAR(10) REFERENCES referenced(f1) ON DELETE SET NULL,
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED);
+ERROR HY000: Cannot add foreign key constraint
+# FK on base column of virtual generated column with
+# ON DELETE|UPDATE should pass
+CREATE TABLE referencing (f1 VARCHAR(10),
+f2 VARCHAR(10) REFERENCES referenced(f1) ON DELETE SET NULL,
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL);
+DROP TABLE referencing,referenced;
+# FK on table without REFERENCES privilege should fail
+CREATE DATABASE mtest;
+CREATE USER mysqltest_1@localhost;
+GRANT ALL on mtest.* to mysqltest_1@localhost;
+REVOKE REFERENCES on mtest.* from mysqltest_1@localhost;
+use mtest;
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+f2 INT REFERENCES referenced(f1));
+ERROR 42000: REFERENCES command denied to user 'mysqltest_1'@'localhost' for table 'mtest.referenced'
+DROP TABLE referenced;
+DROP DATABASE mtest;
+DROP USER mysqltest_1@localhost;
+# FK referring to table in another db
+USE test;
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+CREATE DATABASE mtest;
+USE mtest;
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
+f3 INT REFERENCES test.referenced(f1));
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES test.referenced(f1);
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f3` (`f3`),
+  KEY `f4` (`f4`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f3`) REFERENCES `test`.`referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_2` FOREIGN KEY (`f4`) REFERENCES `test`.`referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE referencing ADD COLUMN f5 INT REFERENCES test.referenced(f1), RENAME TO test.referencing;
+USE test;
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
+  `f5` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f3` (`f3`),
+  KEY `f4` (`f4`),
+  KEY `f5` (`f5`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f3`) REFERENCES `referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_2` FOREIGN KEY (`f4`) REFERENCES `referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_3` FOREIGN KEY (`f5`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing;
+DROP TABLE referenced;
+DROP DATABASE mtest;
+# FK referring to table in another db along with RENAME TO
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE db1;
+CREATE TABLE referenced(f1 INT KEY);
+USE db2;
+CREATE TABLE referencing(f1 INT KEY, f2 INT);
+ALTER TABLE referencing ADD CONSTRAINT FOREIGN KEY(f2) REFERENCES db1.referenced(f1), RENAME TO db2.referencing;
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES db1.referenced(f1), RENAME TO db2.referencing1;
+SHOW CREATE TABLE referencing1;
+Table	Create Table
+referencing1	CREATE TABLE `referencing1` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  KEY `f4` (`f4`),
+  CONSTRAINT `referencing1_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`referenced` (`f1`),
+  CONSTRAINT `referencing1_ibfk_2` FOREIGN KEY (`f4`) REFERENCES `db1`.`referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE referencing1 ADD COLUMN f5 INT REFERENCES db1.referenced(f1), RENAME TO db1.referencing;
+SHOW CREATE TABLE db1.referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
+  `f5` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  KEY `f4` (`f4`),
+  KEY `f5` (`f5`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_2` FOREIGN KEY (`f4`) REFERENCES `referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_3` FOREIGN KEY (`f5`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+USE test;
+DROP DATABASE db2;
+DROP DATABASE db1;
+# FK referring to table in same db along with RENAME TO another db
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE db1;
+CREATE TABLE referenced(f1 INT KEY);
+CREATE TABLE referencing(f1 INT KEY, f2 INT);
+ALTER TABLE referencing ADD CONSTRAINT FOREIGN KEY(f1) REFERENCES referenced(f1), RENAME TO db2.referencing;
+ERROR HY000: Failed to open the referenced table 'referenced'
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES referenced(f1), rename to db2.referencing;
+ERROR HY000: Failed to open the referenced table 'referenced'
+ALTER TABLE referencing ADD COLUMN f5 INT REFERENCES referenced(f1), rename to db2.referencing;
+ERROR HY000: Failed to open the referenced table 'referenced'
+drop database db2;
+drop database db1;
+# End:WL#16130 Check fk references on column specification
 SET FOREIGN_KEY_CHECKS = DEFAULT;

@@ -161,7 +161,7 @@ select a,b from t1 order by a;
 drop table t1;
 
 
-create table t2 (a int);
+create table t2 (a int primary key);
 create table t1 (a int, b int generated always as (a % 2) stored references t2(a));
 show create table t1;
 drop table t1;

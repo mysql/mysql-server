@@ -20,7 +20,7 @@ foreign key (a,b) references t3 (c,d) on update cascade,
 foreign key (a,b) references t3 (c,d) on delete set default,
 foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
 create index a on t1 (a);
-create unique index b on t1 (a,b);
+create unique index a_b on t1 (a,b);
 drop table t1;
 #
 # 5) Check how parent table in different storage engine is handled.

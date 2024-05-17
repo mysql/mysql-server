@@ -68,25 +68,12 @@ drop table t1;
 
 #-------------------------------------------------------------
 #
-# Temp table with PK-FK -FK constraint is igonered for temp
+# Temp table with PK-FK -FK constraint gives error for temp
 # tables
 
 --disable_warnings
 drop table if exists parent,child;
 --enable_warnings
 create temporary table parent ( i int primary key ) engine = innodb;
+--error ER_FK_CANNOT_OPEN_PARENT
 create table child ( j int references parent(i)) engine = innodb;
-insert into parent values (1),(2),(3),(4);
-insert into child values (1),(2),(3),(4);
-# We can insert non referencing values as constraint is ignored for temp table
-insert into child values (5),(6);
-select * from parent;
-select * from child;
-#
---source include/restart_mysqld.inc
-#
-# parent table will be removed on restart as its temp table
---error ER_NO_SUCH_TABLE
-select * from parent ;
-select * from child ;
-drop table child;

@@ -4903,4 +4903,18 @@ inline bool is_xa_tran_detached_on_prepare(const THD *thd) {
   return thd->variables.xa_detach_on_prepare;
 }
 
+/**
+   Return if source replication node is older than the given version.
+   @param thd       thread context
+   @param version   version number to compare
+
+   @retval true     if source version is older
+   @retval false    otherwise
+ */
+inline bool is_rpl_source_older(const THD *thd, uint version) {
+  return thd->is_applier_thread() &&
+         (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
+          thd->variables.original_server_version < version);
+}
+
 #endif /* SQL_CLASS_INCLUDED */

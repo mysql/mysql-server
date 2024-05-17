@@ -30,32 +30,4 @@ drop table t1;
 drop table if exists parent,child;
 create temporary table parent ( i int primary key ) engine = innodb;
 create table child ( j int references parent(i)) engine = innodb;
-insert into parent values (1),(2),(3),(4);
-insert into child values (1),(2),(3),(4);
-insert into child values (5),(6);
-select * from parent;
-i
-1
-2
-3
-4
-select * from child;
-j
-1
-2
-3
-4
-5
-6
-# restart
-select * from parent ;
-ERROR 42S02: Table 'test.parent' doesn't exist
-select * from child ;
-j
-1
-2
-3
-4
-5
-6
-drop table child;
+ERROR HY000: Failed to open the referenced table 'parent'

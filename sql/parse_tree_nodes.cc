@@ -1963,11 +1963,22 @@ bool PT_foreign_key_definition::do_contextualize(Table_ddl_parse_context *pc) {
   }
 
   List<Key_part_spec> cols;
-  for (PT_key_part_specification &kp : *m_columns) {
-    if (kp.contextualize(pc)) return true;
+  if (m_columns != nullptr) {
+    // Foreign key specified at the table level.
+    for (PT_key_part_specification &kp : *m_columns) {
+      if (kp.contextualize(pc)) return true;
 
-    Key_part_spec *spec = new (pc->mem_root) Key_part_spec(
-        kp.get_column_name(), kp.get_prefix_length(), kp.get_order());
+      Key_part_spec *spec = new (pc->mem_root) Key_part_spec(
+          kp.get_column_name(), kp.get_prefix_length(), kp.get_order());
+      if (spec == nullptr || cols.push_back(spec)) {
+        return true; /* purecov: deadcode */
+      }
+    }
+  } else {
+    // Foreign key specified at the column level.
+    assert(m_column_name.str != nullptr);
+    Key_part_spec *spec = new (pc->mem_root)
+        Key_part_spec(to_lex_cstring(m_column_name), 0, ORDER_ASC);
     if (spec == nullptr || cols.push_back(spec)) {
       return true; /* purecov: deadcode */
     }
@@ -2289,9 +2300,18 @@ bool PT_column_def::do_contextualize(Table_ddl_parse_context *pc) {
     pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
   });
 
-  if (super::do_contextualize(pc) || field_def->contextualize(pc) ||
-      contextualize_safe(pc, opt_column_constraint))
-    return true;
+  if (super::do_contextualize(pc) || field_def->contextualize(pc)) return true;
+
+  if (opt_column_constraint) {
+    // FK specification at column level is supported from 9.0 version onwards.
+    // If source node version is lesser than 9.0, then ignore FK specification.
+    if (!is_rpl_source_older(pc->thd, 90000)) {
+      PT_foreign_key_definition *fk_def =
+          pointer_cast<PT_foreign_key_definition *>(opt_column_constraint);
+      fk_def->set_column_name(field_ident);
+      if (contextualize_safe(pc, opt_column_constraint)) return true;
+    }
+  }
 
   pc->alter_info->flags |= field_def->alter_info_flags;
   dd::Column::enum_hidden_type field_hidden_type =

@@ -2510,6 +2510,10 @@ class PT_foreign_key_definition : public PT_table_constraint_def {
 
   bool do_contextualize(Table_ddl_parse_context *pc) override;
 
+  void set_column_name(const LEX_STRING &column_name) {
+    m_column_name = column_name;
+  }
+
  private:
   const LEX_STRING m_constraint_name;
   const LEX_STRING m_key_name;
@@ -2519,6 +2523,9 @@ class PT_foreign_key_definition : public PT_table_constraint_def {
   fk_match_opt m_fk_match_option;
   fk_option m_fk_update_opt;
   fk_option m_fk_delete_opt;
+
+  // Column name. Set when FK is specified at the column level.
+  LEX_STRING m_column_name{nullptr, 0};
 };
 
 /**
@@ -2994,7 +3001,6 @@ class PT_check_constraint final : public PT_table_constraint_def {
     cc_spec.check_expr = expr;
     cc_spec.is_enforced = is_enforced;
   }
-  void set_column_name(const LEX_STRING &name) { cc_spec.column_name = name; }
 
   bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
@@ -3004,7 +3010,6 @@ class PT_column_def : public PT_table_element {
 
   const LEX_STRING field_ident;
   PT_field_def_base *field_def;
-  // Currently we ignore that constraint in the executor.
   PT_table_constraint_def *opt_column_constraint;
 
   const char *opt_place;

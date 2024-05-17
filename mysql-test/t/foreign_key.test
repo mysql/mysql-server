@@ -98,9 +98,9 @@ DROP TABLE t2;
 SET @@foreign_key_checks= 1;
 --error ER_FK_CANNOT_OPEN_PARENT
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
-# Works, but no FK created
+--error ER_FK_CANNOT_OPEN_PARENT
 CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
-SHOW CREATE TABLE t1;
+CREATE TABLE t1(a INT PRIMARY KEY, b INT);
 --error ER_FK_CANNOT_OPEN_PARENT
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
 DROP TABLE t1;
@@ -5090,7 +5090,272 @@ SET restrict_fk_on_non_standard_key=OFF;
 CREATE TABLE t2 (pk1 INT PRIMARY KEY, c INT);
 
 DROP TABLE t1;
-
 SET restrict_fk_on_non_standard_key=ON;
-#Cleanup
+
+--echo # Start:WL#16130 Check fk references on column specification
+--echo # Test case to verify FK references on existing primary key pass
+CREATE TABLE referenced (f1 INT PRIMARY KEY, f2 INT UNIQUE KEY, f3 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f1));
+--echo Check if internal index is created on foreign key using SHOW CREATE
+SHOW CREATE TABLE referencing;
+DROP TABLE referencing;
+
+--echo # Test case to verify FK references on non existing field fail
+--error ER_FK_NO_COLUMN_PARENT
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f10));
+
+--echo # Test case to verify FK references fails on non index column
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f3));
+
+--echo # Verify FK references on primary key with ADD COLUMN
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES referenced(f1);
+SHOW CREATE TABLE referencing;
+
+--echo # Verify FK references on no index column with ADD COLUMN
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES referenced(f3);
+
+--echo # Verify FK references on non existing column with ADD COLUMN fails
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES referenced(not_exist);
+DROP TABLE referencing;
+
+--echo # Verify FK references with MATCH clause passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+       f2 INT REFERENCES referenced(f1) MATCH SIMPLE);
+SHOW CREATE TABLE referencing;
+DROP TABLE referencing;
+
+--echo # Verify FK references with ON DELETE/UPDATE clause passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+       f2 INT REFERENCES referenced(f1) MATCH FULL ON UPDATE SET NULL);
+ALTER TABLE referencing ADD COLUMN f3 INT
+      REFERENCES referencing(f1) MATCH PARTIAL ON UPDATE RESTRICT
+      ON DELETE SET NULL;
+SHOW CREATE TABLE referencing;
+SELECT * FROM information_schema.referential_constraints;
+SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
+DROP TABLE referencing;
+
+--echo # Verify FK references with multiple column fails
+--error ER_WRONG_FK_DEF
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+       f2 INT REFERENCES referenced(f2, f1));
+
+--echo # Verify same FK references on column specification and
+--echo # table specification passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced(f2),
+FOREIGN KEY(f2) REFERENCES referenced(f2));
+DROP TABLE referencing;
+
+--echo # Verify different FK references on column specification and
+--echo # table specification passes
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
+       f3 INT REFERENCES referenced(f1),
+       FOREIGN KEY(f2) REFERENCES referenced(f2));
+SHOW CREATE TABLE referencing;
+DROP TABLE referencing;
+DROP TABLE referenced;
+
+--echo # Verify FK self referencing on column specification
+CREATE TABLE self_ref (f1 INT PRIMARY KEY, f2 INT REFERENCES self_ref(f1));
+DROP TABLE self_ref;
+
+--echo # Verify FK self referencing with ADD COLUMN
+CREATE TABLE self_ref (f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE self_ref ADD COLUMN f3 INT REFERENCES self_ref(f1);
+DROP TABLE self_ref;
+
+--echo # Verify FK self referencing same column fails
+--echo # with same error when specified in FOREIGN KEY clause
+--error ER_FK_NO_UNIQUE_INDEX_PARENT
+CREATE TABLE self_ref(f1 INT PRIMARY KEY REFERENCES self_ref(f1), f2 INT);
+
+--echo # Verify Delayed FK Creation fails with foreign_key_checks = 1
+SET FOREIGN_KEY_CHECKS=1;
+--error ER_FK_CANNOT_OPEN_PARENT
+CREATE TABLE referencing(f1 INT PRIMARY KEY,
+       f2 INT REFERENCES non_existing(f1));
+
+--echo # Verify Delayed FK Creation fails with foreign_key_checks = 1
+--echo # and ADD COLUMN
+CREATE TABLE referencing(f1 INT PRIMARY KEY, f2 INT);
+--error ER_FK_CANNOT_OPEN_PARENT
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES non_existing(f1);
+DROP TABLE referencing;
+
+--echo # Verify Delayed FK Creation succeeds with foreign_key_checks = 0
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE referencing(f1 INT PRIMARY KEY,
+       f2 INT REFERENCES non_existing(f1));
+CREATE TABLE non_existing(f1 INT UNIQUE KEY);
+DROP TABLE referencing;
+DROP TABLE non_existing;
+
+--echo # Verify Delayed FK Creation succeeds with foreign_key_checks = 0
+--echo # and ADD COLUMN
+CREATE TABLE referencing(f1 INT PRIMARY KEY, f2 INT);
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES non_existing(f1);
+CREATE TABLE non_existing(f1 INT UNIQUE KEY);
+DROP TABLE referencing;
+DROP TABLE non_existing;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # FK on unsupported storage engine should neglect FK creation
+CREATE TABLE self_ref (f1 INT PRIMARY KEY, f2 INT REFERENCES self_ref(f1)) ENGINE=MyISAM;
+SHOW CREATE TABLE self_ref;
+DROP TABLE self_ref;
+
+--echo # FK on temporary table should fail
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TEMPORARY TABLE referencing (f1 INT PRIMARY KEY,
+       f2 INT REFERENCES referenced(f1));
+DROP TABLE referenced;
+
+--echo # FK referencing incompatible columns should fail
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+       f2 VARCHAR(64) REFERENCES referenced(f1));
+DROP TABLE referenced;
+
+--echo # FK on virtual generated column index should fail
+CREATE TABLE referenced(f1 VARCHAR(30) PRIMARY KEY, f2 INT);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE referencing (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL REFERENCES referenced(f1));
+
+--echo # FK on stored generated column should pass
+CREATE TABLE referencing (f1 VARCHAR(10), f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED REFERENCES referenced(f1));
+DROP TABLE referencing, referenced;
+
+--echo # FK referencing virtual generated column should fail
+CREATE TABLE referenced (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL, UNIQUE KEY(f3));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE referencing (f1 VARCHAR(30),
+       f2 VARCHAR(30) REFERENCES referenced(f3));
+DROP TABLE referenced;
+
+--echo # FK referencing stored generated column should pass
+CREATE TABLE referenced (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED, UNIQUE KEY(f3));
+CREATE TABLE referencing (f1 VARCHAR(30),
+       f2 VARCHAR(30) REFERENCES referenced(f3));
+DROP TABLE referencing, referenced;
+
+--echo # FK referencing virtual generated column with ON UPDATE
+--echo # should fail
+CREATE TABLE referenced (f1 VARCHAR(10) PRIMARY KEY, f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL, UNIQUE KEY(f3));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE referencing (f1 VARCHAR(30),
+       f2 VARCHAR(30) REFERENCES referenced(f3) ON DELETE SET NULL);
+DROP TABLE referenced;
+
+--echo # FK on virtual generated column with ON UPDATE
+--echo # should fail
+CREATE TABLE referenced (f1 VARCHAR(30) PRIMARY KEY);
+--error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+CREATE TABLE referencing (f1 VARCHAR(10), f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL REFERENCES referenced(f1)
+       ON UPDATE SET NULL);
+DROP TABLE referenced;
+
+--echo # FK on stored generated column with ON UPDATE|DELETE
+--echo # should fail
+CREATE TABLE referenced (f1 VARCHAR(30) PRIMARY KEY);
+--error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+CREATE TABLE referencing (f1 VARCHAR(10), f2 VARCHAR(10),
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED REFERENCES referenced(f1)
+       ON UPDATE CASCADE);
+DROP TABLE referenced;
+
+--echo # FK on base column of stored generated column with
+--echo # ON DELETE|UPDATE should fail
+CREATE TABLE referenced (f1 VARCHAR(30) PRIMARY KEY);
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE referencing (f1 VARCHAR(10),
+       f2 VARCHAR(10) REFERENCES referenced(f1) ON DELETE SET NULL,
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED);
+
+--echo # FK on base column of virtual generated column with
+--echo # ON DELETE|UPDATE should pass
+CREATE TABLE referencing (f1 VARCHAR(10),
+       f2 VARCHAR(10) REFERENCES referenced(f1) ON DELETE SET NULL,
+       f3 VARCHAR(30) AS (CONCAT(f1, f2)) VIRTUAL);
+DROP TABLE referencing,referenced;
+
+--echo # FK on table without REFERENCES privilege should fail
+CREATE DATABASE mtest;
+CREATE USER mysqltest_1@localhost;
+GRANT ALL on mtest.* to mysqltest_1@localhost;
+REVOKE REFERENCES on mtest.* from mysqltest_1@localhost;
+use mtest;
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+
+connect (user1,localhost,mysqltest_1,,mtest);
+connection user1;
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TABLE referencing (f1 INT PRIMARY KEY,
+       f2 INT REFERENCES referenced(f1));
+connection default;
+disconnect user1;
+DROP TABLE referenced;
+DROP DATABASE mtest;
+DROP USER mysqltest_1@localhost;
+
+--echo # FK referring to table in another db
+USE test;
+CREATE TABLE referenced(f1 INT PRIMARY KEY, f2 INT);
+CREATE DATABASE mtest;
+USE mtest;
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
+       f3 INT REFERENCES test.referenced(f1));
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES test.referenced(f1);
+SHOW CREATE TABLE referencing;
+ALTER TABLE referencing ADD COLUMN f5 INT REFERENCES test.referenced(f1), RENAME TO test.referencing;
+USE test;
+SHOW CREATE TABLE referencing;
+DROP TABLE referencing;
+DROP TABLE referenced;
+DROP DATABASE mtest;
+
+--echo # FK referring to table in another db along with RENAME TO
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE db1;
+CREATE TABLE referenced(f1 INT KEY);
+USE db2;
+CREATE TABLE referencing(f1 INT KEY, f2 INT);
+ALTER TABLE referencing ADD CONSTRAINT FOREIGN KEY(f2) REFERENCES db1.referenced(f1), RENAME TO db2.referencing;
+ALTER TABLE referencing ADD COLUMN f4 INT REFERENCES db1.referenced(f1), RENAME TO db2.referencing1;
+SHOW CREATE TABLE referencing1;
+ALTER TABLE referencing1 ADD COLUMN f5 INT REFERENCES db1.referenced(f1), RENAME TO db1.referencing;
+SHOW CREATE TABLE db1.referencing;
+USE test;
+DROP DATABASE db2;
+DROP DATABASE db1;
+
+--echo # FK referring to table in same db along with RENAME TO another db
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE db1;
+CREATE TABLE referenced(f1 INT KEY);
+CREATE TABLE referencing(f1 INT KEY, f2 INT);
+--error ER_FK_CANNOT_OPEN_PARENT
+ALTER TABLE referencing ADD CONSTRAINT FOREIGN KEY(f1) REFERENCES referenced(f1), RENAME TO db2.referencing;
+--error ER_FK_CANNOT_OPEN_PARENT
+ALTER TABLE referencing ADD COLUMN f3 INT REFERENCES referenced(f1), rename to db2.referencing;
+--error ER_FK_CANNOT_OPEN_PARENT
+ALTER TABLE referencing ADD COLUMN f5 INT REFERENCES referenced(f1), rename to db2.referencing;
+drop database db2;
+drop database db1;
+
+--echo # End:WL#16130 Check fk references on column specification
+
 SET FOREIGN_KEY_CHECKS = DEFAULT;

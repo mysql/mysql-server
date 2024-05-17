@@ -6789,11 +6789,15 @@ column_def:
         ;
 
 opt_references:
-           %empty { $$= nullptr; }
-        |  references
+          %empty { $$= nullptr; }
+        | references
           {
-            /* Currently we ignore FK references here: */
-            $$= nullptr;
+            $$= NEW_PTN PT_foreign_key_definition(@$, NULL_STR, NULL_STR,
+                                                  nullptr, $1.table_name,
+                                                  $1.reference_list,
+                                                  $1.fk_match_option,
+                                                  $1.fk_update_opt,
+                                                  $1.fk_delete_opt);
           }
         ;
 
