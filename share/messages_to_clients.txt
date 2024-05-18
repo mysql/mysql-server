@@ -10176,7 +10176,7 @@ ER_LH_OUT_OF_RANGE
   eng "Column %d of %s : %s value is out of range."
 
 ER_LH_DATETIME_FORMAT
-  eng "Column %d of %s : Error while applying %s format."
+  eng "Column %d of %s : Error while applying %s."
 
 ER_LH_WARN_TRUNCATED
   eng "Column %d of %s : %s value was truncated."
