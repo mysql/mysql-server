@@ -216,13 +216,13 @@ static Sys_var_bool Sys_var_opt_ssl_session_cache_mode(
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_session_cache_mode),
     CMD_LINE(OPT_ARG), DEFAULT(true), PFS_TRAILING_PROPERTIES);
 
-/* 84600 is 1 day in seconds */
+/* 86400 is 1 day in seconds */
 static Sys_var_long Sys_var_opt_ssl_session_cache_timeout(
     "ssl_session_cache_timeout",
     "The timeout to expire sessions in the TLS session cache",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_session_cache_timeout),
     CMD_LINE(REQUIRED_ARG, OPT_SSL_SESSION_CACHE_TIMEOUT),
-    VALID_RANGE(0, 84600), DEFAULT(300), BLOCK_SIZE(1),
+    VALID_RANGE(0, 86400), DEFAULT(300), BLOCK_SIZE(1),
     PFS_TRAILING_PROPERTIES);
 
 /* Related to admin connection port */
