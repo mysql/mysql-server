@@ -1,0 +1,33 @@
+########################################################################
+# Bug#33503328: Specific table schema causes table to become corrupted
+#               during MySQL 8 upgrade
+########################################################################
+########################################################################
+# Copy and unzip the datadir, and stop the server.
+########################################################################
+########################################################################
+# Restart the server to trigger upgrade.
+########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG --log-error-verbosity=3
+########################################################################
+# Let's see whether we upgrade the MyISAM table t1 correctly.
+########################################################################
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	int	YES		NULL	VIRTUAL GENERATED
+c2	int	YES		NULL	
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int GENERATED ALWAYS AS (0) VIRTUAL,
+  `c2` int DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+c1	c2
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+########################################################################
+# Stop the server and do cleanup.
+########################################################################
+# restart:

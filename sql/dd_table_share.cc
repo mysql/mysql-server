@@ -1142,19 +1142,20 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
                               rec_pos, field_nr))
         return true;
 
+      /*
+        Account for NULL bits if it's a regular column.
+        If it's a generated column, we do it below so the NULL
+        bits end up in the expected order.
+      */
+      if ((null_bit_pos += column_preamble_bits(col_obj)) > 7) {
+        null_pos++;
+        null_bit_pos -= 8;
+      }
+
       rec_pos += share->field[field_nr]->pack_length_in_rec();
     } else
       has_vgc = true;
 
-    /*
-      Virtual generated columns still need to be accounted in null bits and
-      field_nr calculations, since they reside at the normal place in record
-      preamble and TABLE_SHARE::field array.
-    */
-    if ((null_bit_pos += column_preamble_bits(col_obj)) > 7) {
-      null_pos++;
-      null_bit_pos -= 8;
-    }
     field_nr++;
   }
 
@@ -1167,8 +1168,6 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
         static_cast<ulong>(rec_pos - share->default_values))
       share->stored_rec_length = (rec_pos - share->default_values);
 
-    null_pos = share->default_values;
-    null_bit_pos = (share->db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
     field_nr = 0;
 
     for (const dd::Column *col_obj2 : tab_obj->columns()) {
@@ -1181,17 +1180,18 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
                                 rec_pos, field_nr))
           return true;
 
+        /*
+          Account for generated columns -- we do this separately here
+          so the NULL bits end up in the expected order.
+        */
+        if ((null_bit_pos += column_preamble_bits(col_obj2)) > 7) {
+          null_pos++;
+          null_bit_pos -= 8;
+        }
+
         rec_pos += share->field[field_nr]->pack_length_in_rec();
       }
 
-      /*
-        Account for all columns while evaluating null_pos/null_bit_pos and
-        field_nr.
-      */
-      if ((null_bit_pos += column_preamble_bits(col_obj2)) > 7) {
-        null_pos++;
-        null_bit_pos -= 8;
-      }
       field_nr++;
     }
   }

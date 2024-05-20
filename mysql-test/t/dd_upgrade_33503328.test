@@ -1,0 +1,68 @@
+--source include/not_valgrind.inc
+
+--echo ########################################################################
+--echo # Bug#33503328: Specific table schema causes table to become corrupted
+--echo #               during MySQL 8 upgrade
+--echo ########################################################################
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade.log
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir, and stop the server.
+--echo ########################################################################
+
+# The datadir is created by building server version 5.7
+# and executing the following SQL statements:
+#
+# USE test;
+# CREATE TABLE `t1` (
+# `c1` int GENERATED ALWAYS AS (0),
+# `c2` int
+# ) ENGINE=MyISAM;
+#
+# (which SHOW CREATE TABLEs as
+#   `c1` int GENERATED ALWAYS AS (0) VIRTUAL,
+#   `c2` int DEFAULT NULL )
+#
+# Then, move data/ to data_50745_33503328/, and finally zip the entire
+# directory (zip -r data_50745_33503328.zip data_50745_33503328).
+
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_50745_33503328.zip $MYSQL_TMP_DIR/data_50745_33503328.zip
+--file_exists $MYSQL_TMP_DIR/data_50745_33503328.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_50745_33503328.zip -d $MYSQL_TMP_DIR
+--let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_50745_33503328
+
+--echo ########################################################################
+--echo # Restart the server to trigger upgrade.
+--echo ########################################################################
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 10000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG --log-error-verbosity=3
+--replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+--echo ########################################################################
+--echo # Let's see whether we upgrade the MyISAM table t1 correctly.
+--echo ########################################################################
+
+DESC t1;
+
+# Unpatched server will fail with ER_NOT_KEYFILE.
+SHOW CREATE TABLE t1;
+
+# Unpatched server will fail with ER_NOT_KEYFILE.
+SELECT * FROM t1;
+
+REPAIR TABLE t1;
+
+
+--echo ########################################################################
+--echo # Stop the server and do cleanup.
+--echo ########################################################################
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/data_50745_33503328.zip
+--force-rmdir $MYSQL_TMP_DIR/data_50745_33503328
+--remove_file $MYSQLD_LOG
+--let $restart_parameters= restart:
+--source include/start_mysqld.inc
