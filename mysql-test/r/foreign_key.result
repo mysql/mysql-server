@@ -5837,4 +5837,157 @@ ERROR HY000: Failed to open the referenced table 'referenced'
 drop database db2;
 drop database db1;
 # End:WL#16130 Check fk references on column specification
+# Start:WL#16131 Check implicit references for foreign key
+SET FOREIGN_KEY_CHECKS = ON;
+USE test;
+# Verify FK implicit reference on existing primary key
+CREATE TABLE referenced (f1 INT PRIMARY KEY, f2 INT UNIQUE KEY, f3 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f2) REFERENCES referenced);
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.referential_constraints;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	test	referencing_ibfk_1	def	test	PRIMARY	NONE	NO ACTION	NO ACTION	referencing	referenced
+SELECT * FROM information_schema.table_constraints where CONSTRAINT_SCHEMA='test';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	test	f2	test	referenced	UNIQUE	YES
+def	test	PRIMARY	test	referenced	PRIMARY KEY	YES
+def	test	PRIMARY	test	referencing	PRIMARY KEY	YES
+def	test	referencing_ibfk_1	test	referencing	FOREIGN KEY	YES
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Verify FK implicit reference without primary key fails
+CREATE TABLE referenced (f1 INT UNIQUE KEY, f2 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f2) REFERENCES referenced);
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+DROP TABLE referenced;
+# Verify FK implicit reference For ALTER TABLE ADD CONSTRAINT
+CREATE TABLE referenced (f1 INT PRIMARY KEY, f2 INT UNIQUE KEY, f3 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT, f3 INT, f4 INT);
+ALTER TABLE referencing ADD CONSTRAINT FOREIGN KEY(f2) REFERENCES referenced;
+# Verify FK implicit reference For ALTER TABLE ADD COLUMN
+ALTER TABLE referencing ADD COLUMN f5 INT REFERENCES referenced;
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
+  `f5` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  KEY `f5` (`f5`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`),
+  CONSTRAINT `referencing_ibfk_2` FOREIGN KEY (`f5`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Verify FK implicit reference in column specification
+CREATE TABLE referenced (f1 INT PRIMARY KEY, f2 INT UNIQUE KEY, f3 INT);
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT REFERENCES referenced);
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `referenced` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Implicit FK on composite primary key should pass
+CREATE TABLE referenced (f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1, f2));
+CREATE TABLE referencing (f1 INT PRIMARY KEY, f2 INT, f3 INT,
+FOREIGN KEY(f1, f2) REFERENCES referenced);
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Implicit FK references with MATCH clause should pass
+CREATE TABLE referenced (f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1));
+CREATE TABLE referencing (f1 INT, f2 INT,
+FOREIGN KEY(f1) REFERENCES referenced MATCH SIMPLE);
+DROP TABLE referencing;
+# Implicit FK references with ON DELETE/UPDATE clause should pass
+CREATE TABLE referencing (f1 INT, f2 INT,
+FOREIGN KEY(f1) REFERENCES referenced MATCH FULL ON UPDATE SET NULL);
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Implicit FK on stored generated column should pass
+CREATE TABLE referenced (f1 VARCHAR(10), f2 VARCHAR(10),
+f3 VARCHAR(30) AS (CONCAT(f1, f2)) STORED, PRIMARY KEY(f3));
+CREATE TABLE referencing (f1 VARCHAR(30),
+FOREIGN KEY(f1) REFERENCES referenced);
+DROP TABLE referencing;
+DROP TABLE referenced;
+# Implicit Self referencing FK should pass
+CREATE TABLE self_ref(f1 INT PRIMARY KEY, f2 INT, f3 INT,
+FOREIGN KEY (f3) REFERENCES self_ref);
+DROP TABLE self_ref;
+# Implicit Self referencing FK without PK should fail
+CREATE TABLE self_ref(f1 INT UNIQUE KEY, f2 INT, f3 INT,
+FOREIGN KEY (f3) REFERENCES self_ref);
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+# Implicit Multiple referencing FK should pass
+CREATE TABLE referenced (f1 VARCHAR(20), f2 INT, PRIMARY KEY(f1));
+CREATE TABLE self_ref(f1 INT PRIMARY KEY, f2 VARCHAR(20), f3 INT,
+FOREIGN KEY (f2) REFERENCES referenced,
+FOREIGN KEY (f3) REFERENCES self_ref);
+DROP TABLE self_ref;
+DROP TABLE referenced;
+# Implicit FK on prefix index should fail
+CREATE TABLE referenced (f1 VARCHAR(20), f2 INT, PRIMARY KEY(f1(10)));
+CREATE TABLE referencing (f1 VARCHAR(10), f2 INT,
+FOREIGN KEY(f1) REFERENCES referenced);
+ERROR HY000: Failed to add the foreign key constraint. Missing unique key for constraint 'referencing_ibfk_1' in the referenced table 'referenced'
+DROP TABLE referenced;
+# Implicit FK on partial columns of primary key should fail
+CREATE TABLE referenced (f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1, f2));
+CREATE TABLE referencing (f1 INT, f2 INT, f3 INT,
+FOREIGN KEY(f1) REFERENCES referenced);
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+DROP TABLE referenced;
+# Verify Delayed Implicit FK Creation fails with same error
+# code irrespective of FOREIGN_KEY_CHECKS value.
+# Note:With FOREIGN_KEY_CHECKS=0 implicit FK is not supported.
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE referencing(f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f2) REFERENCES non_existing);
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE referencing(f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f2) REFERENCES non_existing);
+ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+# Verify self referencing passes with implicit FK
+# when FOREIGN_KEY_CHECKS  = 0
+CREATE TABLE self_ref(f1 INT PRIMARY KEY, f2 INT,
+FOREIGN KEY(f2) REFERENCES self_ref);
+DROP TABLE self_ref;
+SET FOREIGN_KEY_CHECKS=1;
+# Verify generated invisible primary key works for FK with
+# implicit PK
+SET sql_generate_invisible_primary_key=ON;
+CREATE TABLE referenced (f1 INT, f2 INT);
+CREATE TABLE referencing (f1 BIGINT UNSIGNED, FOREIGN KEY(f1) REFERENCES referenced);
+SHOW CREATE TABLE referencing;
+Table	Create Table
+referencing	CREATE TABLE `referencing` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `f1` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`),
+  KEY `f1` (`f1`),
+  CONSTRAINT `referencing_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `referenced` (`my_row_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE referencing, referenced;
+SET sql_generate_invisible_primary_key=DEFAULT;
+# End:WL#16131 Check implicit references for foreign key
 SET FOREIGN_KEY_CHECKS = DEFAULT;

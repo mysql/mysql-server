@@ -6764,6 +6764,16 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
+  bool is_self_referencing_fk =
+      my_strcasecmp(table_alias_charset, fk_key->ref_db.str, db) == 0 &&
+      my_strcasecmp(table_alias_charset, fk_key->ref_table.str, table_name) ==
+          0;
+
+  if (fk_key->ref_columns.empty() &&
+      fk_key->set_ref_columns_for_implicit_pk(thd, is_self_referencing_fk,
+                                              alter_info->key_list))
+    return true;
+
   // Validate checks (among other things) that index prefixes are
   // not used and that generated columns are not used with
   // SET NULL and ON UPDATE CASCASE. Since this cannot change once
@@ -6952,9 +6962,7 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
       return true;
     }
 
-    if (my_strcasecmp(table_alias_charset, fk_info->ref_db.str, db) == 0 &&
-        my_strcasecmp(table_alias_charset, fk_info->ref_table.str,
-                      table_name) == 0) {
+    if (is_self_referencing_fk) {
       // FK which references the same table on which it is defined.
       for (uint i = 0; i < fk_info->key_parts; i++) {
         List_iterator_fast<Create_field> field_it(alter_info->create_list);

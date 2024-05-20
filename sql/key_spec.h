@@ -299,6 +299,21 @@ class Foreign_key_spec : public Key_spec {
    */
   bool validate(THD *thd, const char *table_name,
                 List<Create_field> &table_fields) const;
+
+  /**
+    Set referenced column list for a FK from the referenced table PK columns.
+
+    @param thd                     Thread handle.
+    @param is_self_referencing_fk  Represents self referencing foreign key.
+    @param key_list                key info list of parent/referenced table.
+
+    @retval false   when ref_columns list is populated successfully or when
+                    ref_columns list is empty since parent table or PK in
+                    parent table is missing.
+    @retval true    if any error
+  */
+  bool set_ref_columns_for_implicit_pk(THD *thd, bool is_self_referencing_fk,
+                                       Mem_root_array<Key_spec *> &key_list);
 };
 
 /**

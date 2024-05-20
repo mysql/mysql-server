@@ -34,14 +34,18 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/create_field.h"   // Create_field
-#include "sql/dd/dd.h"          // dd::get_dictionary
-#include "sql/dd/dictionary.h"  // dd::Dictionary::check_dd...
-#include "sql/derror.h"         // ER_THD
-#include "sql/item.h"           // Item_field
-#include "sql/item_func.h"      // Item_field
-#include "sql/sql_class.h"      // THD
-#include "sql/sql_parse.h"      // check_string_char_length
+#include "sql/create_field.h"                // Create_field
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                       // dd::get_dictionary
+#include "sql/dd/dictionary.h"               // dd::Dictionary::check_dd...
+#include "sql/dd/types/index.h"              // dd::Index
+#include "sql/dd/types/index_element.h"      // dd::Index_element
+#include "sql/dd/types/table.h"              // dd::Table
+#include "sql/derror.h"                      // ER_THD
+#include "sql/item.h"                        // Item_field
+#include "sql/item_func.h"                   // Item_field
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_parse.h"                   // check_string_char_length
 #include "sql/table.h"
 #include "sql_lex.h"  // LEX
 
@@ -170,5 +174,64 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
     }
   }
 
+  return false;
+}
+
+bool Foreign_key_spec::set_ref_columns_for_implicit_pk(
+    THD *thd, bool is_self_referencing_fk,
+    Mem_root_array<Key_spec *> &key_list) {
+  assert(ref_columns.empty());
+
+  if (is_self_referencing_fk) {
+    for (auto key : key_list) {
+      if (key->type != KEYTYPE_PRIMARY) continue;
+
+      for (auto column : key->columns) {
+        ref_columns.push_back(column);
+      }
+      break;
+    }
+  } else {
+    /*
+      For non-self referencing FKs, implicit FK references is not supported with
+      FOREIGN_KEY_CHECKS = 0. Hence ref_columns is not set. Error is reported in
+      FK validate stage.
+    */
+    if (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) return false;
+
+    // Get parent table DD object.
+    const dd::cache::Dictionary_client::Auto_releaser releaser(
+        thd->dd_client());
+    const dd::Table *parent_table_def = nullptr;
+    if (thd->dd_client()->acquire(ref_db.str, ref_table.str, &parent_table_def))
+      return true;
+    if (parent_table_def == nullptr) {
+      /*
+        If parent table does not exists, then an error is reported in the
+        FK validate stage. In this case, ref_columns() is not set.
+      */
+      return false;
+    }
+
+    for (const dd::Index *idx : parent_table_def->indexes()) {
+      if (idx->type() != dd::Index::IT_PRIMARY) continue;
+
+      for (const dd::Index_element *idx_el : idx->elements()) {
+        if (idx_el->is_hidden()) continue;
+
+        Key_part_spec *ref_column = new (thd->mem_root)
+            Key_part_spec(idx_el->column().name().c_str(), 0, ORDER_ASC);
+        if (ref_column == nullptr || ref_columns.push_back(ref_column))
+          return true;  // OOM
+      }
+      break;
+    }
+  }
+
+  /*
+    ref_columns() is set or either parent table or PK in parent table is missing
+    and ref_columns() is not set. Error is reported in FK validate stage if
+    ref_columns() is empty.
+  */
   return false;
 }
