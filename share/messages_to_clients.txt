@@ -10427,10 +10427,12 @@ ER_TO_VECTOR_CONVERSION
 ER_EXTERNAL_UNSUPPORTED_INDEX_ALGORITHM
   eng "This storage engine ignores the %s index algorithm."
 
+ER_TP_CANNOT_DISABLE_MTL_WITH_DL
+  eng "The variable thread_pool_max_transactions_limit cannot be set to 0 when thread_pool_dedicated_listernes is ON."
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
-#
 
 ################################################################################
 # DO NOT add messages for the error-log to this file;
