@@ -293,6 +293,7 @@ EXPLAIN SELECT /*+ BKA(tbl1, tbl2) */ tbl2.f1, tbl2.f2, tbl2.f3 FROM t1 tbl1,t2 
 WHERE tbl1.f1=tbl2.f1 AND tbl2.f2 BETWEEN tbl1.f1 and tbl1.f2 and tbl2.f2 + 1 >= tbl1.f1 + 1;
 
 --echo # Print warnings for nonexistent names
+--replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ BKA(t2) NO_BNL(t1) BKA(t3) NO_RANGE_OPTIMIZATION(t3 idx1) NO_RANGE_OPTIMIZATION(t3) */
 t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -907,28 +908,41 @@ DROP PROCEDURE p1;
 
 create table t1(a int);
 
+--replace_regex $elide_costs
 explain select * from (select * from t1) as dt;
+--replace_regex $elide_costs
 explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+--replace_regex $elide_costs
 explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
 --echo # Also testing that case of letters is irrelevant.
+--replace_regex $elide_costs
 explain select /*+ no_mERge(dt) */ * from (select * from t1) as dt;
 
 create view v1 as (select * from t1);
+--replace_regex $elide_costs
 explain select * from v1;
+--replace_regex $elide_costs
 explain select /*+ merge(v1) */ * from v1;
+--replace_regex $elide_costs
 explain select /*+ no_merge(v1) */ * from v1;
 drop view v1;
 
 --echo # hint is OVERRIDDEN by algorithm=
 create algorithm=merge view v1 as (select * from t1);
+--replace_regex $elide_costs
 explain select * from v1;
+--replace_regex $elide_costs
 explain select /*+ merge(v1) */ * from v1;
+--replace_regex $elide_costs
 explain select /*+ no_merge(v1) */ * from v1;
 drop view v1;
 
 create algorithm=temptable view v1 as (select * from t1);
+--replace_regex $elide_costs
 explain select * from v1;
+--replace_regex $elide_costs
 explain select /*+ merge(v1) */ * from v1;
+--replace_regex $elide_costs
 explain select /*+ no_merge(v1) */ * from v1;
 drop view v1;
 
@@ -936,13 +950,19 @@ drop view v1;
 
 set optimizer_switch="derived_merge=off";
 
+--replace_regex $elide_costs
 explain select * from (select * from t1) as dt;
+--replace_regex $elide_costs
 explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+--replace_regex $elide_costs
 explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
 
 create view v1 as (select * from t1);
+--replace_regex $elide_costs
 explain select * from v1;
+--replace_regex $elide_costs
 explain select /*+ merge(v1) */ * from v1;
+--replace_regex $elide_costs
 explain select /*+ no_merge(v1) */ * from v1;
 drop view v1;
 
@@ -953,28 +973,33 @@ set optimizer_switch=default;
 create table t2(a int, b int);
 create table t3 like t2;
 
+--replace_regex $elide_costs
 explain select /*+ no_merge(dt) merge(dt2) */ *
  from (select * from t1) as dt, (select * from t2) as dt2;
 
 --echo # Or to all:
 
+--replace_regex $elide_costs
 explain select /*+ no_merge() */ *
  from (select * from t1) as dt, (select * from t2) as dt2;
 
 --echo # And be specified in outer blocks, with naming:
 
+--replace_regex $elide_costs
 explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
 (select /*+ qb_name(qb1) */ 3
   from (select * from t1) as dt, (select * from t2) as dt2);
 
 --echo # with another syntax:
 
+--replace_regex $elide_costs
 explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
 (select /*+ qb_name(qb1) */ 3
   from (select * from t1) as dt, (select * from t2) as dt2);
 
 --echo # A hint can list more than one table
 
+--replace_regex $elide_costs
 explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
  from (select * from t1) as dt, (select * from t2) as dt2,
       (select * from t3) as dt3;
@@ -982,6 +1007,7 @@ explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
 --echo # Merge hint OVERRIDES heuristics, for example the one which
 --echo # materializes when user variables are set.
 
+--replace_regex $elide_costs
 explain select * from
 (
  select * from t1
@@ -993,6 +1019,7 @@ explain select * from
 ) as dt2
 ;
 
+--replace_regex $elide_costs
 explain select /*+ merge(dt2) */ * from
 (
  select * from t1
@@ -1009,9 +1036,11 @@ explain select /*+ merge(dt2) */ * from
 let $query_end=
 view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
 eval create $query_end;
+--replace_regex $elide_costs
 explain select * from v1;
 drop view v1;
 eval create algorithm=merge $query_end;
+--replace_regex $elide_costs
 explain select * from v1;
 drop view v1;
 
@@ -1030,12 +1059,14 @@ let $query_part=t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain update $query_part;
 eval update $query_part;
 select * from t3;
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain update /*+ no_merge(v1) */ $query_part;
 eval update /*+ no_merge(v1) */ $query_part;
 select * from t3;
@@ -1049,6 +1080,7 @@ insert into t3 values(1,1),(2,2);
 
 delete from t1;
 insert into t1 values(1),(2);
+--replace_regex $elide_costs
 eval explain update $query_part;
 eval update $query_part;
 select * from t1;
@@ -1068,12 +1100,14 @@ insert into t1 values(1),(2);
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain update $query_part;
 eval update $query_part;
 select * from t3;
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain update /*+ no_merge(dt) */ $query_part;
 eval update /*+ no_merge(dt) */ $query_part;
 select * from t3;
@@ -1093,6 +1127,7 @@ where a in (select /*+ qb_name(sub) */ a
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain update $query_part;
 eval update $query_part;
 select * from t3;
@@ -1100,6 +1135,7 @@ select * from t3;
 delete from t3;
 insert into t3 values(1,1),(2,2);
 
+--replace_regex $elide_costs
 eval explain update /*+ merge(dt@sub) */ $query_part;
 eval update /*+ merge(dt@sub) */ $query_part;
 select * from t3;
@@ -1114,6 +1150,7 @@ where a in (select /*+ qb_name(sub) */ a
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain update $query_part;
 eval update $query_part;
 select * from t3;
@@ -1132,12 +1169,14 @@ let $query_part=t3.* from t3, v1 where t3.a-v1.a=0;
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain delete $query_part;
 eval delete $query_part;
 select * from t3;
 
 delete from t3;
 insert into t3 values(1,1),(2,2);
+--replace_regex $elide_costs
 eval explain delete /*+ no_merge(v1) */ $query_part;
 eval delete /*+ no_merge(v1) */ $query_part;
 select * from t3;

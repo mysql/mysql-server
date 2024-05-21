@@ -525,10 +525,10 @@ t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1;
 EXPLAIN
 -> Batched key access inner join
     -> Batch input rows
-        -> Filter: (t1.f1 is not null)  (cost=0.55 rows=3)
-            -> Table scan on t1  (cost=0.55 rows=3)
-    -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (cost=0.726 rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (cost=0.726 rows=7)
+        -> Filter: (t1.f1 is not null)  (rows=3)
+            -> Table scan on t1  (rows=3)
+    -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
+        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
 
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#1` for BKA hint
@@ -2072,110 +2072,110 @@ DROP PROCEDURE p1;
 create table t1(a int);
 explain select * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on dt  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on dt  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 # Also testing that case of letters is irrelevant.
 explain select /*+ no_mERge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on dt  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on dt  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 create view v1 as (select * from t1);
 explain select * from v1;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 drop view v1;
 # hint is OVERRIDDEN by algorithm=
 create algorithm=merge view v1 as (select * from t1);
 explain select * from v1;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 drop view v1;
 create algorithm=temptable view v1 as (select * from t1);
 explain select * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 drop view v1;
 # hint OVERRIDES optimizer_switch
 set optimizer_switch="derived_merge=off";
 explain select * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on dt  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on dt  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 explain select /*+ merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
 EXPLAIN
--> Table scan on dt  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on dt  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 create view v1 as (select * from t1);
 explain select * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 explain select /*+ merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on t1  (rows=1)
 
 explain select /*+ no_merge(v1) */ * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 drop view v1;
 set optimizer_switch=default;
@@ -2185,72 +2185,72 @@ create table t3 like t2;
 explain select /*+ no_merge(dt) merge(dt2) */ *
 from (select * from t1) as dt, (select * from t2) as dt2;
 EXPLAIN
--> Inner hash join (no condition)  (cost=2.98 rows=1)
-    -> Table scan on dt  (cost=3.09..3.09 rows=1)
-        -> Materialize  (cost=0.58..0.58 rows=1)
-            -> Table scan on t1  (cost=0.35 rows=1)
+-> Inner hash join (no condition)  (rows=1)
+    -> Table scan on dt  (rows=1)
+        -> Materialize  (rows=1)
+            -> Table scan on t1  (rows=1)
     -> Hash
-        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Table scan on t2  (rows=1)
 
 # Or to all:
 explain select /*+ no_merge() */ *
 from (select * from t1) as dt, (select * from t2) as dt2;
 EXPLAIN
--> Inner hash join (no condition)  (cost=5.72 rows=1)
-    -> Table scan on dt2  (cost=3.09..3.09 rows=1)
-        -> Materialize  (cost=0.58..0.58 rows=1)
-            -> Table scan on t2  (cost=0.35 rows=1)
+-> Inner hash join (no condition)  (rows=1)
+    -> Table scan on dt2  (rows=1)
+        -> Materialize  (rows=1)
+            -> Table scan on t2  (rows=1)
     -> Hash
-        -> Table scan on dt  (cost=3.09..3.09 rows=1)
-            -> Materialize  (cost=0.58..0.58 rows=1)
-                -> Table scan on t1  (cost=0.35 rows=1)
+        -> Table scan on dt  (rows=1)
+            -> Materialize  (rows=1)
+                -> Table scan on t1  (rows=1)
 
 # And be specified in outer blocks, with naming:
 explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
 (select /*+ qb_name(qb1) */ 3
 from (select * from t1) as dt, (select * from t2) as dt2);
 EXPLAIN
--> Filter: (t1.a = (select #2))  (cost=0.35 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
+-> Filter: (t1.a = (select #2))  (rows=1)
+    -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; run only once)
-        -> Inner hash join (no condition)  (cost=2.98 rows=1)
-            -> Table scan on dt  (cost=3.09..3.09 rows=1)
-                -> Materialize  (cost=0.58..0.58 rows=1)
-                    -> Table scan on t1  (cost=0.35 rows=1)
+        -> Inner hash join (no condition)  (rows=1)
+            -> Table scan on dt  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Table scan on t1  (rows=1)
             -> Hash
-                -> Table scan on t2  (cost=0.35 rows=1)
+                -> Table scan on t2  (rows=1)
 
 # with another syntax:
 explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
 (select /*+ qb_name(qb1) */ 3
 from (select * from t1) as dt, (select * from t2) as dt2);
 EXPLAIN
--> Filter: (t1.a = (select #2))  (cost=0.35 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
+-> Filter: (t1.a = (select #2))  (rows=1)
+    -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; run only once)
-        -> Inner hash join (no condition)  (cost=2.98 rows=1)
-            -> Table scan on dt  (cost=3.09..3.09 rows=1)
-                -> Materialize  (cost=0.58..0.58 rows=1)
-                    -> Table scan on t1  (cost=0.35 rows=1)
+        -> Inner hash join (no condition)  (rows=1)
+            -> Table scan on dt  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Table scan on t1  (rows=1)
             -> Hash
-                -> Table scan on t2  (cost=0.35 rows=1)
+                -> Table scan on t2  (rows=1)
 
 # A hint can list more than one table
 explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
 from (select * from t1) as dt, (select * from t2) as dt2,
 (select * from t3) as dt3;
 EXPLAIN
--> Inner hash join (no condition)  (cost=5.6 rows=1)
-    -> Table scan on dt3  (cost=3.09..3.09 rows=1)
-        -> Materialize  (cost=0.58..0.58 rows=1)
-            -> Table scan on t3  (cost=0.35 rows=1)
+-> Inner hash join (no condition)  (rows=1)
+    -> Table scan on dt3  (rows=1)
+        -> Materialize  (rows=1)
+            -> Table scan on t3  (rows=1)
     -> Hash
-        -> Inner hash join (no condition)  (cost=2.98 rows=1)
-            -> Table scan on dt  (cost=3.09..3.09 rows=1)
-                -> Materialize  (cost=0.58..0.58 rows=1)
-                    -> Table scan on t1  (cost=0.35 rows=1)
+        -> Inner hash join (no condition)  (rows=1)
+            -> Table scan on dt  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Table scan on t1  (rows=1)
             -> Hash
-                -> Table scan on t2  (cost=0.35 rows=1)
+                -> Table scan on t2  (rows=1)
 
 # Merge hint OVERRIDES heuristics, for example the one which
 # materializes when user variables are set.
@@ -2265,14 +2265,14 @@ group by t2.a
 ) as dt2
 ;
 EXPLAIN
--> Table scan on dt2  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Filter: ((1,t1.a,2) = (select #3))  (cost=0.35 rows=1)
-            -> Table scan on t1  (cost=0.35 rows=1)
+-> Table scan on dt2  (rows=1)
+    -> Materialize  (rows=1)
+        -> Filter: ((1,t1.a,2) = (select #3))  (rows=1)
+            -> Table scan on t1  (rows=1)
             -> Select #3 (subquery in condition; uncacheable)
                 -> Table scan on <temporary>
                     -> Aggregate using temporary table
-                        -> Table scan on t2  (cost=0.35 rows=1)
+                        -> Table scan on t2  (rows=1)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -2288,12 +2288,12 @@ group by t2.a
 ) as dt2
 ;
 EXPLAIN
--> Filter: ((1,t1.a,2) = (select #3))  (cost=0.35 rows=1)
-    -> Table scan on t1  (cost=0.35 rows=1)
+-> Filter: ((1,t1.a,2) = (select #3))  (rows=1)
+    -> Table scan on t1  (rows=1)
     -> Select #3 (subquery in condition; uncacheable)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t2  (cost=0.35 rows=1)
+                -> Table scan on t2  (rows=1)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -2302,12 +2302,12 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 create view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
 explain select * from v1;
 EXPLAIN
--> Table scan on v1  (cost=3.09..3.09 rows=1)
-    -> Materialize  (cost=0.58..0.58 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
+-> Table scan on v1  (rows=1)
+    -> Materialize  (rows=1)
+        -> Table scan on t2  (rows=1)
         -> Select #3 (subquery in projection; dependent)
-            -> Filter: (t1.a = t2.a)  (cost=0.35 rows=1)
-                -> Table scan on t1  (cost=0.35 rows=1)
+            -> Filter: (t1.a = t2.a)  (rows=1)
+                -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
@@ -2315,10 +2315,10 @@ drop view v1;
 create algorithm=merge view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
 explain select * from v1;
 EXPLAIN
--> Table scan on t2  (cost=0.35 rows=1)
+-> Table scan on t2  (rows=1)
 -> Select #3 (subquery in projection; dependent)
-    -> Filter: (t1.a = t2.a)  (cost=0.35 rows=1)
-        -> Table scan on t1  (cost=0.35 rows=1)
+    -> Filter: (t1.a = t2.a)  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
@@ -2341,11 +2341,11 @@ insert into t3 values(1,1),(2,2);
 explain update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 EXPLAIN
 -> Update t3 (buffered)
-    -> Nested loop inner join  (cost=0.9 rows=2)
-        -> Filter: (t1.a <> 0)  (cost=0.45 rows=1)
-            -> Table scan on t1  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - t1.a) = 0)  (cost=0.45 rows=2)
-            -> Table scan on t3  (cost=0.45 rows=2)
+    -> Nested loop inner join  (rows=2)
+        -> Filter: (t1.a <> 0)  (rows=1)
+            -> Table scan on t1  (rows=2)
+        -> Filter: ((t3.a - t1.a) = 0)  (rows=2)
+            -> Table scan on t3  (rows=2)
 
 update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
@@ -2357,13 +2357,13 @@ insert into t3 values(1,1),(2,2);
 explain update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop inner join  (cost=3.38 rows=4)
-        -> Table scan on t3  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - v1.a) = 0)  (cost=1.02..1.36 rows=2)
-            -> Table scan on v1  (cost=3.19..3.19 rows=1)
-                -> Materialize  (cost=0.68..0.68 rows=1)
-                    -> Filter: (t1.a <> 0)  (cost=0.45 rows=1)
-                        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Nested loop inner join  (rows=4)
+        -> Table scan on t3  (rows=2)
+        -> Filter: ((t3.a - v1.a) = 0)  (rows=2)
+            -> Table scan on v1  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Filter: (t1.a <> 0)  (rows=1)
+                        -> Table scan on t1  (rows=2)
 
 update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
@@ -2378,11 +2378,11 @@ insert into t1 values(1),(2);
 explain update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 EXPLAIN
 -> Update t1 (immediate)
-    -> Nested loop inner join  (cost=0.9 rows=2)
-        -> Filter: (t1.a <> 0)  (cost=0.45 rows=1)
-            -> Table scan on t1  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - t1.a) = 0)  (cost=0.45 rows=2)
-            -> Table scan on t3  (cost=0.45 rows=2)
+    -> Nested loop inner join  (rows=2)
+        -> Filter: (t1.a <> 0)  (rows=1)
+            -> Table scan on t1  (rows=2)
+        -> Filter: ((t3.a - t1.a) = 0)  (rows=2)
+            -> Table scan on t3  (rows=2)
 
 update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 select * from t1;
@@ -2405,10 +2405,10 @@ insert into t3 values(1,1),(2,2);
 explain update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop inner join  (cost=1.1 rows=4)
-        -> Table scan on t3  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - t1.a) = 0)  (cost=0.225 rows=2)
-            -> Table scan on t1  (cost=0.225 rows=2)
+    -> Nested loop inner join  (rows=4)
+        -> Table scan on t3  (rows=2)
+        -> Filter: ((t3.a - t1.a) = 0)  (rows=2)
+            -> Table scan on t1  (rows=2)
 
 update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
@@ -2420,12 +2420,12 @@ insert into t3 values(1,1),(2,2);
 explain update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop inner join  (cost=3.38 rows=4)
-        -> Table scan on t3  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - dt.a) = 0)  (cost=1.14..1.36 rows=2)
-            -> Table scan on dt  (cost=2.17..3.44 rows=2)
-                -> Materialize  (cost=0.911..0.911 rows=2)
-                    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Nested loop inner join  (rows=4)
+        -> Table scan on t3  (rows=2)
+        -> Filter: ((t3.a - dt.a) = 0)  (rows=2)
+            -> Table scan on dt  (rows=2)
+                -> Materialize  (rows=2)
+                    -> Table scan on t1  (rows=2)
 
 update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
@@ -2445,13 +2445,13 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop semijoin  (cost=1.65 rows=2)
-        -> Filter: (t3.a is not null)  (cost=0.45 rows=2)
-            -> Table scan on t3  (cost=0.45 rows=2)
-        -> Covering index lookup on dt using <auto_key0> (a=t3.a)  (cost=1.28..1.88 rows=2)
-            -> Materialize  (cost=0.68..0.68 rows=1)
-                -> Filter: (t1.a > 1)  (cost=0.45 rows=1)
-                    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Nested loop semijoin  (rows=2)
+        -> Filter: (t3.a is not null)  (rows=2)
+            -> Table scan on t3  (rows=2)
+        -> Covering index lookup on dt using <auto_key0> (a=t3.a)  (rows=2)
+            -> Materialize  (rows=1)
+                -> Filter: (t1.a > 1)  (rows=1)
+                    -> Table scan on t1  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2467,11 +2467,11 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop semijoin  (cost=1.2 rows=2)
-        -> Filter: (t3.a > 1)  (cost=0.45 rows=2)
-            -> Table scan on t3  (cost=0.45 rows=2)
-        -> Filter: (t1.a = t3.a)  (cost=0.225 rows=1)
-            -> Table scan on t1  (cost=0.225 rows=2)
+    -> Nested loop semijoin  (rows=2)
+        -> Filter: (t3.a > 1)  (rows=2)
+            -> Table scan on t3  (rows=2)
+        -> Filter: (t1.a = t3.a)  (rows=1)
+            -> Table scan on t1  (rows=2)
 
 update /*+ merge(dt@sub) */ t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2489,13 +2489,13 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop semijoin  (cost=1.65 rows=2)
-        -> Filter: (t3.a is not null)  (cost=0.45 rows=2)
-            -> Table scan on t3  (cost=0.45 rows=2)
-        -> Index lookup on dt using <auto_key0> (a=t3.a)  (cost=1.28..1.88 rows=2)
-            -> Materialize  (cost=0.68..0.68 rows=1)
-                -> Filter: (t3.b > 1)  (cost=0.45 rows=1)
-                    -> Table scan on t3  (cost=0.45 rows=2)
+    -> Nested loop semijoin  (rows=2)
+        -> Filter: (t3.a is not null)  (rows=2)
+            -> Table scan on t3  (rows=2)
+        -> Index lookup on dt using <auto_key0> (a=t3.a)  (rows=2)
+            -> Materialize  (rows=1)
+                -> Filter: (t3.b > 1)  (rows=1)
+                    -> Table scan on t3  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2521,12 +2521,12 @@ delete from t3;
 insert into t3 values(1,1),(2,2);
 explain delete t3.* from t3, v1 where t3.a-v1.a=0;
 EXPLAIN
--> Delete from t3 (buffered)  (cost=1.36 rows=2)
-    -> Nested loop inner join  (cost=0.9 rows=2)
-        -> Filter: (t1.a <> 0)  (cost=0.45 rows=1)
-            -> Table scan on t1  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - t1.a) = 0)  (cost=0.45 rows=2)
-            -> Table scan on t3  (cost=0.45 rows=2)
+-> Delete from t3 (buffered)  (rows=2)
+    -> Nested loop inner join  (rows=2)
+        -> Filter: (t1.a <> 0)  (rows=1)
+            -> Table scan on t1  (rows=2)
+        -> Filter: ((t3.a - t1.a) = 0)  (rows=2)
+            -> Table scan on t3  (rows=2)
 
 delete t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
@@ -2535,14 +2535,14 @@ delete from t3;
 insert into t3 values(1,1),(2,2);
 explain delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 EXPLAIN
--> Delete from t3 (immediate)  (cost=3.38 rows=4)
-    -> Nested loop inner join  (cost=3.38 rows=4)
-        -> Table scan on t3  (cost=0.45 rows=2)
-        -> Filter: ((t3.a - v1.a) = 0)  (cost=1.02..1.36 rows=2)
-            -> Table scan on v1  (cost=3.19..3.19 rows=1)
-                -> Materialize  (cost=0.68..0.68 rows=1)
-                    -> Filter: (t1.a <> 0)  (cost=0.45 rows=1)
-                        -> Table scan on t1  (cost=0.45 rows=2)
+-> Delete from t3 (immediate)  (rows=4)
+    -> Nested loop inner join  (rows=4)
+        -> Table scan on t3  (rows=2)
+        -> Filter: ((t3.a - v1.a) = 0)  (rows=2)
+            -> Table scan on v1  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Filter: (t1.a <> 0)  (rows=1)
+                        -> Table scan on t1  (rows=2)
 
 delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
