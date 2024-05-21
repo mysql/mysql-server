@@ -55,3 +55,17 @@ CREATE TABLE t1 ( a TIMESTAMP );
 DROP TABLE t1;
 
 RENAME TABLE time_zone_backup TO mysql.time_zone;
+
+--echo #
+--echo # Bug#36423829: Missing time_zone function
+--echo #
+
+CREATE TABLE t0 (
+  dt DATETIME,
+  CHECK (CAST(TIMESTAMP '2010-01-01 10:00:00' AT TIME ZONE '+00:00' AS DATETIME)
+         = dt)
+);
+
+SHOW CREATE TABLE t0;
+
+DROP TABLE t0;

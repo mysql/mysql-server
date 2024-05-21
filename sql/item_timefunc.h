@@ -997,6 +997,9 @@ class Item_func_at_time_zone final : public Item_datetime_func {
 
   const char *func_name() const override { return "time_zone"; }
 
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+
   bool set_time_zone(THD *thd);
 
   bool get_date(MYSQL_TIME *res, my_time_flags_t) override;

@@ -47,3 +47,18 @@ RENAME TABLE mysql.time_zone TO time_zone_backup;
 CREATE TABLE t1 ( a TIMESTAMP );
 DROP TABLE t1;
 RENAME TABLE time_zone_backup TO mysql.time_zone;
+#
+# Bug#36423829: Missing time_zone function
+#
+CREATE TABLE t0 (
+dt DATETIME,
+CHECK (CAST(TIMESTAMP '2010-01-01 10:00:00' AT TIME ZONE '+00:00' AS DATETIME)
+= dt)
+);
+SHOW CREATE TABLE t0;
+Table	Create Table
+t0	CREATE TABLE `t0` (
+  `dt` datetime DEFAULT NULL,
+  CONSTRAINT `t0_chk_1` CHECK ((cast(TIMESTAMP'2010-01-01 10:00:00' AT TIME ZONE '+00:00' as datetime) = `dt`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t0;

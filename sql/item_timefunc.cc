@@ -991,6 +991,12 @@ bool Item_func_at_time_zone::resolve_type(THD *thd) {
   return set_time_zone(thd);
 }
 
+void Item_func_at_time_zone::print(const THD *thd, String *str,
+                                   enum_query_type query_type) const {
+  args[0]->print(thd, str, query_type);
+  str->append(" AT TIME ZONE '+00:00'");
+}
+
 bool Item_func_at_time_zone::set_time_zone(THD *thd) {
   String s(m_specifier_string, strlen(m_specifier_string),
            &my_charset_utf8mb3_bin);
