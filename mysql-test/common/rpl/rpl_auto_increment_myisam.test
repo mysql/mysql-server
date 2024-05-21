@@ -7,9 +7,11 @@
 
 eval create table t1 (a int not null auto_increment,b int, primary key (a)) engine=$engine_type2 auto_increment=3;
 insert into t1 values (NULL,1),(NULL,2),(NULL,3);
+--sorted_result
 select * from t1;
 
 --source include/rpl/sync_to_replica.inc
+--sorted_result
 select * from t1;
 connection master;
 drop table t1;
@@ -18,9 +20,11 @@ eval create table t1 (a int not null auto_increment,b int, primary key (a)) engi
 insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
 delete from t1 where b=4;
 insert into t1 values (NULL,5),(NULL,6);
+--sorted_result
 select * from t1;
 
 --source include/rpl/sync_to_replica.inc
+--sorted_result
 select * from t1;
 connection master;
 
@@ -52,15 +56,18 @@ eval create table t1 (a int not null auto_increment, primary key (a)) engine=$en
 # Insert with 2 insert statements to get better testing of logging
 insert into t1 values (NULL),(5),(NULL),(NULL);
 insert into t1 values (500),(NULL),(502),(NULL),(NULL);
+--sorted_result
 select * from t1;
 set @@insert_id=600;
 --error ER_DUP_ENTRY
 insert into t1 values(600),(NULL),(NULL);
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+--sorted_result
 select * from t1;
 
 --source include/rpl/sync_to_replica.inc
+--sorted_result
 select * from t1;
 connection master;
 drop table t1;
@@ -145,6 +152,7 @@ eval CREATE TABLE t2 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=$engine
 SET SQL_MODE='';
 # Value of the id will be 1;
 INSERT INTO t2 VALUES(NULL);
+--sorted_result
 SELECT * FROM t2;
 # Value of the id will be 2;
 INSERT INTO t2 VALUES();

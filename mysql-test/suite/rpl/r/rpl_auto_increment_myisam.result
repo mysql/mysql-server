@@ -86,13 +86,13 @@ select * from t1;
 a
 1
 5
-6
-7
 500
 501
 502
 503
 504
+6
+7
 set @@insert_id=600;
 insert into t1 values(600),(NULL),(NULL);
 ERROR 23000: Duplicate entry '600' for key 't1.PRIMARY'
@@ -106,31 +106,31 @@ select * from t1;
 a
 1
 5
-6
-7
 500
 501
 502
 503
 504
+6
 600
 610
 611
+7
 include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
 5
-6
-7
 500
 501
 502
 503
 504
+6
 600
 610
 611
+7
 drop table t1;
 set @@session.auto_increment_increment=10, @@session.auto_increment_offset=1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
