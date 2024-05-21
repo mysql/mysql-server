@@ -10503,6 +10503,24 @@ ER_BULK_BLOB_TOO_BIG
 ER_NO_QUERY_PLAN_FOUND
   eng "No query execution plan was found for the statement."
 
+ER_LH_CP_TOO_MANY_CHANGES
+  eng "More than %llu changes detected. Certain changes are ignored."
+
+ER_LH_CP_NOT_ENABLED
+  eng "Lakehouse Incremental Load is not enabled."
+
+ER_LH_CP_NO_VECTOR_STORE
+  eng "Lakehouse Incremental Load is not supported for vector store tables."
+
+ER_LH_CP_NO_VALIDATION_MODE
+  eng "Lakehouse Incremental Load is not supported with validation mode."
+
+ER_LH_CP_MISSING_FILES_MODE
+  eng "Lakehouse Incremental Load is not supported with allow_missing_files disabled."
+
+ER_LH_CP_COMMIT_FAILED
+  eng "Lakehouse Incremental Load commit operation failed."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
