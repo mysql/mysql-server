@@ -12734,6 +12734,9 @@ ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS
 ER_IB_MSG_INNODB_FLUSH_METHOD
   eng "Using innodb_flush_method=%s"
 
+ER_BULK_SCANNER_INFO
+  eng "Bulk Scanner: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
