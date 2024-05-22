@@ -12295,6 +12295,9 @@ ER_WAITING_FOR_NO_CONNECTIONS
 ER_WAITING_FOR_NO_THDS
   eng "Waiting for THDs in partition %u to be closed, %u still left. %u THDs left in total for all partitions."
 
+ER_IB_INDEX_PART_TOO_LONG
+  eng "Index %s of %s.%s exceeds limit of %lu bytes per column."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
