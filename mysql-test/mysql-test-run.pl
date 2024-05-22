@@ -3087,7 +3087,7 @@ sub find_router_plugin_in_package($) {
   }
 
   return mtr_file_exists("$basedir/lib64/mysqlrouter/" . $plugin_filename,
-                         "$basedir/bin/" . $plugin_filename);
+                         "$basedir/lib/" . $plugin_filename);
 }
 
 # Read plugin defintions file
@@ -6706,7 +6706,7 @@ sub router_create_config_file($$) {
   my $output = $router->value('#log-error');
 
   my $routing_plugin = find_plugin("routing", "plugin_output_directory") or
-     find_router_plugin_in_package("mysqlrouter_routing") or die();
+     find_router_plugin_in_package("routing") or die();
   my $plugin_dir = dirname($routing_plugin);
   my $logdir = dirname($output);
   my $logname = basename($output);
