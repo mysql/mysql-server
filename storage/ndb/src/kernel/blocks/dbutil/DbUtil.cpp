@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1137,6 +1137,10 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
     releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
 		       senderRef, senderData);
+    if (ERROR_INSERTED(19001)) {
+      /* Should never fail to seize a record */
+      ndbrequire(false);
+    }
     return;
   };
   handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
@@ -1355,6 +1359,10 @@ DbUtil::prepareOperation(Signal* signal,
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
     releasePrepare(prepPtr);
+    if (ERROR_INSERTED(19001)) {
+      /* Should never fail to seize a record */
+      ndbrequire(false);
+    }
     return;
   }
   prepPtr.p->prepOpPtr = prepOpPtr;
