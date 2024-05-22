@@ -88,59 +88,64 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    */
   static void sleep_for(std::chrono::milliseconds duration);
 
-  stdx::expected<std::pair<uint16_t, std::unique_ptr<MySQLSession>>,
-                 mysqlrouter::MysqlError>
-  make_new_connection_ok(uint16_t router_port) {
+  static stdx::expected<std::unique_ptr<MySQLSession>, mysqlrouter::MysqlError>
+  make_new_connection(uint16_t router_port) {
     auto session = std::make_unique<MySQLSession>();
 
     try {
       session->connect("127.0.0.1", router_port, "username", "password", "",
                        "");
+      return session;
     } catch (const MySQLSession::Error &e) {
       return stdx::unexpected(
           mysqlrouter::MysqlError{e.code(), e.message(), "HY000"});
     }
-
-    auto result = session->query_one("select @@port");
-    auto node_port = std::strtoul((*result)[0], nullptr, 10);
-
-    return std::make_pair(node_port, std::move(session));
   }
 
-  stdx::expected<std::pair<uint16_t, std::unique_ptr<MySQLSession>>,
-                 mysqlrouter::MysqlError>
-  make_new_connection_ok(const std::string &router_socket) {
-    auto session = std::make_unique<MySQLSession>();
-
+  static stdx::expected<std::unique_ptr<MySQLSession>, mysqlrouter::MysqlError>
+  make_new_connection(const std::string &router_socket) {
     try {
+      auto session = std::make_unique<MySQLSession>();
       session->connect("", 0, "username", "password", router_socket, "");
+      return session;
     } catch (const MySQLSession::Error &e) {
       return stdx::unexpected(
           mysqlrouter::MysqlError{e.code(), e.message(), "HY000"});
     }
-
-    auto result = session->query_one("select @@port");
-    auto node_port = std::strtoul((*result)[0], nullptr, 10);
-
-    return std::make_pair(node_port, std::move(session));
   }
 
-  void verify_new_connection_fails(uint16_t router_port) {
-    MySQLSession session;
-    ASSERT_ANY_THROW(session.connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-  }
-
-  void verify_existing_connection_ok(
-      MySQLSession *session,
-      uint16_t expected_node = 0 /*0 means do not verify the port*/) {
-    auto result{session->query_one("select @@port")};
-    if (expected_node > 0) {
-      EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node);
+  static stdx::expected<uint16_t, mysqlrouter::MysqlError> select_port(
+      MySQLSession *session) {
+    try {
+      auto result = session->query_one("select @@port");
+      return std::strtoul((*result)[0], nullptr, 10);
+    } catch (const MySQLSession::Error &e) {
+      return stdx::unexpected(
+          mysqlrouter::MysqlError{e.code(), e.message(), "HY000"});
     }
   }
 
-  void verify_existing_connection_dropped(
+  static void verify_port(MySQLSession *session, uint16_t expected_port) {
+    auto port_res = select_port(session);
+    ASSERT_TRUE(port_res) << port_res.error().message();
+    ASSERT_EQ(*port_res, expected_port);
+  }
+
+  /*
+   * check if an existing connection allows to execute a query.
+   *
+   * must be wrapped in ASSERT_NO_FATAL_FAILURE
+   */
+  static void verify_existing_connection_ok(MySQLSession *session) {
+    auto select_res = select_port(session);
+    ASSERT_TRUE(select_res) << select_res.error().message();
+  }
+
+  static void verify_new_connection_fails(uint16_t router_port) {
+    ASSERT_FALSE(make_new_connection(router_port));
+  }
+
+  static void verify_existing_connection_dropped(
       MySQLSession *session,
       std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
     if (getenv("WITH_VALGRIND")) {
@@ -150,12 +155,9 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     const auto MSEC_STEP = std::chrono::milliseconds(50);
     const auto started = std::chrono::steady_clock::now();
     do {
-      try {
-        session->query_one("select @@port");
-      } catch (const mysqlrouter::MySQLSession::Error &) {
-        // query failed, connection dropped, all good
-        return;
-      }
+      auto select_res = select_port(session);
+      // query failed, connection dropped, all good
+      if (!select_res) return;
 
       auto step = std::min(timeout, MSEC_STEP);
       RouterComponentTest::sleep_for(step);

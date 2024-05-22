@@ -382,9 +382,11 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
     for (auto expected_node_id : test_params.expected_node_connections) {
-      auto conn_res = make_new_connection_ok(router_port);
+      auto conn_res = make_new_connection(router_port);
       ASSERT_NO_ERROR(conn_res);
-      EXPECT_EQ(conn_res->first, cluster_nodes_ports[expected_node_id]);
+      auto port_res = select_port(conn_res->get());
+      ASSERT_NO_ERROR(port_res);
+      EXPECT_EQ(*port_res, cluster_nodes_ports[expected_node_id]);
     }
   } else {
     const auto expected_nodes = test_params.expected_node_connections;
@@ -510,24 +512,32 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
 
   // expect consecutive connections to be done in round-robin fashion
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[1]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[1]);
   }
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[2]);
   }
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
 
   std::string node_port;
@@ -635,14 +645,18 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
 
   // expect consecutive connections to be done in first-available fashion
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
 
   SCOPED_TRACE("// 'kill' server 1 and 2, expect moving to server 3");
@@ -652,9 +666,11 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   EXPECT_TRUE(wait_for_port_unused(server_ports[1], 200s));
   SCOPED_TRACE("// now we should connect to 3rd server");
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[2]);
   }
   SCOPED_TRACE("// nodes 1 and two should be quarantined at this point");
   for (int i = 0; i < 2; i++) {
@@ -714,9 +730,11 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   SCOPED_TRACE("// we should now succesfully connect to server on port " +
                std::to_string(server_ports[0]));
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
   EXPECT_FALSE(is_port_bindable(router_port));
 }
@@ -756,14 +774,18 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
 
   // expect consecutive connections to be done in first-available fashion
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[0]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[0]);
   }
   EXPECT_FALSE(is_port_bindable(router_port));
 
@@ -773,9 +795,11 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   kill_server(server_instances[1]);
   SCOPED_TRACE("// now we should connect to 3rd server");
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[2]);
   }
   SCOPED_TRACE("// check if 1st and 2nd node are quarantined");
   for (int i = 0; i < 2; i++) {
@@ -938,9 +962,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
 
   SCOPED_TRACE("// 1st server is unreachable and quarantined");
   {
-    auto conn_res = make_new_connection_ok(router_ports[0]);
+    auto conn_res = make_new_connection(router_ports[0]);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[1]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[1]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
@@ -953,9 +979,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
       "next node");
   kill_server(server_instances[1]);
   {
-    auto conn_res = make_new_connection_ok(router_ports[0]);
+    auto conn_res = make_new_connection(router_ports[0]);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[2]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
@@ -967,9 +995,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
   kill_server(server_instances[3]);
   SCOPED_TRACE("// use r2 routing");
   {
-    auto conn_res = make_new_connection_ok(router_ports[1]);
+    auto conn_res = make_new_connection(router_ports[1]);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[4]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[4]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
@@ -992,9 +1022,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
                                 5s));
   SCOPED_TRACE("// 2nd server is available again");
   {
-    auto conn_res = make_new_connection_ok(router_ports[1]);
+    auto conn_res = make_new_connection(router_ports[1]);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_ports[1]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_ports[1]);
   }
 }
 
@@ -1065,9 +1097,11 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
   {
-    auto conn_res = make_new_connection_ok(X_RO_bind_port);
+    auto conn_res = make_new_connection(X_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
@@ -1075,9 +1109,11 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
                                     "' to quarantine",
                                 500ms));
   {
-    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    auto conn_res = make_new_connection(classic_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "skip quarantined destination '.*" +
@@ -1097,9 +1133,11 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   // check that restored (first) RO node got back to the round-robin rotation
   std::vector<uint16_t> ports_used;
   for (size_t i = 0; i < 3; i++) {
-    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    auto conn_res = make_new_connection(classic_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    ports_used.push_back(conn_res->first);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    ports_used.push_back(*port_res);
   }
 
   EXPECT_THAT(ports_used,
@@ -1345,9 +1383,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
   {
-    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    auto conn_res = make_new_connection(classic_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
@@ -1380,9 +1420,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   // check that restored RO node got back to the round-robin rotation
   std::vector<uint16_t> ports_used;
   for (size_t i = 0; i < 3; i++) {
-    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    auto conn_res = make_new_connection(classic_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    ports_used.push_back(conn_res->first);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    ports_used.push_back(*port_res);
   }
 
   EXPECT_THAT(ports_used,
@@ -1468,9 +1510,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
   {
-    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    auto conn_res = make_new_connection(classic_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
@@ -1570,9 +1614,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
   {
-    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    auto conn_res = make_new_connection(classic_RO_bind_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
   }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +

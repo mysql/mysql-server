@@ -281,9 +281,11 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteRoutingPort) {
   launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
 
   {
-    auto conn_res = make_new_connection_ok(router_port_overwrite);
+    auto conn_res = make_new_connection(router_port_overwrite);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_port);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_port);
   }
   verify_new_connection_fails(router_port);
 }
@@ -341,9 +343,11 @@ TEST_P(OverwriteIgnoreUnknownOptionTest, OverwriteIgnoreUnknownOption) {
                 EXIT_SUCCESS, 5s);
 
   {
-    auto conn_res = make_new_connection_ok(router_port1);
+    auto conn_res = make_new_connection(router_port1);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, server_port);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_port);
   }
 }
 

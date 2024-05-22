@@ -617,11 +617,11 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   EXPECT_TRUE(wait_for_port_used(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
-  auto client_res = make_new_connection_ok(router_port);
+  auto client_res = make_new_connection(router_port);
   ASSERT_NO_ERROR(client_res);
-  EXPECT_EQ(client_res->first, md_server_port);
+  ASSERT_NO_FATAL_FAILURE(verify_port(client_res->get(), md_server_port));
 
-  auto client = std::move(client_res->second);
+  auto client = std::move(*client_res);
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
   auto globals = mock_GR_metadata_as_json(
@@ -728,9 +728,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Make a connection to the primary, it should be the first node");
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, node_ports[0]);
+    ASSERT_NO_FATAL_FAILURE(verify_port(conn_res->get(), node_ports[0]));
   }
 
   SCOPED_TRACE(
@@ -758,9 +758,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
 
   SCOPED_TRACE("// let us make some user connection via the router port");
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, node_ports[1]);
+    ASSERT_NO_FATAL_FAILURE(verify_port(conn_res->get(), node_ports[1]));
   }
 }
 
@@ -946,15 +946,17 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
 
   // make sure that Router works
   {
-    auto conn_res = make_new_connection_ok(router_rw_port);
+    auto conn_res = make_new_connection(router_rw_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_servers_classic_ports[0]);
+    ASSERT_NO_FATAL_FAILURE(
+        verify_port(conn_res->get(), md_servers_classic_ports[0]));
   }
 
   {
-    auto conn_res = make_new_connection_ok(router_ro_port);
+    auto conn_res = make_new_connection(router_ro_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+    ASSERT_NO_FATAL_FAILURE(
+        verify_port(conn_res->get(), md_servers_classic_ports[1]));
   }
 
   // now change the cluster name in the metadata
@@ -968,15 +970,17 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
 
   // the Router should still work
   {
-    auto conn_res = make_new_connection_ok(router_rw_port);
+    auto conn_res = make_new_connection(router_rw_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_servers_classic_ports[0]);
+    ASSERT_NO_FATAL_FAILURE(
+        verify_port(conn_res->get(), md_servers_classic_ports[0]));
   }
 
   {
-    auto conn_res = make_new_connection_ok(router_ro_port);
+    auto conn_res = make_new_connection(router_ro_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+    ASSERT_NO_FATAL_FAILURE(
+        verify_port(conn_res->get(), md_servers_classic_ports[1]));
   }
 
   // now stop the Router and start it again, this is to make sure that not only
@@ -991,15 +995,17 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
                                      /*wait_for_notify_ready=*/30s);
 
   {
-    auto conn_res = make_new_connection_ok(router_rw_port);
+    auto conn_res = make_new_connection(router_rw_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_servers_classic_ports[0]);
+    ASSERT_NO_FATAL_FAILURE(
+        verify_port(conn_res->get(), md_servers_classic_ports[0]));
   }
 
   {
-    auto conn_res = make_new_connection_ok(router_ro_port);
+    auto conn_res = make_new_connection(router_ro_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+    ASSERT_NO_FATAL_FAILURE(
+        verify_port(conn_res->get(), md_servers_classic_ports[1]));
   }
 }
 
