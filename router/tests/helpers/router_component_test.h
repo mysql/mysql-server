@@ -29,8 +29,10 @@
 #include <chrono>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "mysql/harness/stdx/attribute.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "process_manager.h"
@@ -86,48 +88,41 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    */
   static void sleep_for(std::chrono::milliseconds duration);
 
-  std::unique_ptr<MySQLSession> make_new_connection_ok(
-      uint16_t router_port, uint16_t expected_node_port) {
-    std::unique_ptr<MySQLSession> session{std::make_unique<MySQLSession>()};
-    EXPECT_NO_THROW(session->connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
+  stdx::expected<std::pair<uint16_t, std::unique_ptr<MySQLSession>>,
+                 mysqlrouter::MysqlError>
+  make_new_connection_ok(uint16_t router_port) {
+    auto session = std::make_unique<MySQLSession>();
 
-    auto result{session->query_one("select @@port")};
-    EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node_port);
+    try {
+      session->connect("127.0.0.1", router_port, "username", "password", "",
+                       "");
+    } catch (const MySQLSession::Error &e) {
+      return stdx::unexpected(
+          mysqlrouter::MysqlError{e.code(), e.message(), "HY000"});
+    }
 
-    return session;
+    auto result = session->query_one("select @@port");
+    auto node_port = std::strtoul((*result)[0], nullptr, 10);
+
+    return std::make_pair(node_port, std::move(session));
   }
 
-  std::pair<uint16_t, std::unique_ptr<MySQLSession>> make_new_connection_ok(
-      uint16_t router_port, std::vector<uint16_t> expected_node_ports) {
-    std::unique_ptr<MySQLSession> session{std::make_unique<MySQLSession>()};
-    EXPECT_NO_THROW(session->connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
+  stdx::expected<std::pair<uint16_t, std::unique_ptr<MySQLSession>>,
+                 mysqlrouter::MysqlError>
+  make_new_connection_ok(const std::string &router_socket) {
+    auto session = std::make_unique<MySQLSession>();
 
-    auto result{session->query_one("select @@port")};
-    const auto port =
-        static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
-    EXPECT_THAT(expected_node_ports, ::testing::Contains(port));
+    try {
+      session->connect("", 0, "username", "password", router_socket, "");
+    } catch (const MySQLSession::Error &e) {
+      return stdx::unexpected(
+          mysqlrouter::MysqlError{e.code(), e.message(), "HY000"});
+    }
 
-    return std::make_pair(port, std::move(session));
-  }
+    auto result = session->query_one("select @@port");
+    auto node_port = std::strtoul((*result)[0], nullptr, 10);
 
-  uint16_t make_new_connection_ok(uint16_t router_port) {
-    MySQLSession session;
-    EXPECT_NO_THROW(session.connect("127.0.0.1", router_port, "username",
-                                    "password", "", ""));
-
-    auto result{session.query_one("select @@port")};
-    return static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
-  }
-
-  uint16_t make_new_connection_ok(const std::string &router_socket) {
-    MySQLSession session;
-    EXPECT_NO_THROW(
-        session.connect("", 0, "username", "password", router_socket, ""));
-
-    auto result{session.query_one("select @@port")};
-    return static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
+    return std::make_pair(node_port, std::move(session));
   }
 
   void verify_new_connection_fails(uint16_t router_port) {

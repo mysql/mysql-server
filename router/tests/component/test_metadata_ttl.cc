@@ -40,6 +40,7 @@
 #include "router_component_testutils.h"
 #include "router_config.h"
 #include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
 
 using mysqlrouter::ClusterType;
 using mysqlrouter::MetadataSchemaVersion;
@@ -47,6 +48,12 @@ using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class MetadataChacheTTLTest : public RouterComponentMetadataTest {};
 
@@ -137,7 +144,11 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
                                classic_ports, EXIT_SUCCESS,
                                /*wait_for_notify_ready=*/30s);
   EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 2));
-  make_new_connection_ok(router_ro_port, classic_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// kill the cluster RO node and wait for it to be added to quarantine");
@@ -373,8 +384,11 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   EXPECT_EQ(1, count_str_occurences(log_content, needle));
 
   // the Router should start handling connections
-  make_new_connection_ok(router_port, md_server_port);
-
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_server_port);
+  }
   // router should exit noramlly
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }

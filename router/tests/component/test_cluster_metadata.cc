@@ -43,6 +43,7 @@
 #include "router_component_testutils.h"
 #include "router_config.h"
 #include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
 
 using mysqlrouter::ClusterType;
 using mysqlrouter::MetadataSchemaVersion;
@@ -50,6 +51,12 @@ using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class RouterComponenClustertMetadataTest : public RouterComponentMetadataTest {
 };
@@ -610,7 +617,11 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   EXPECT_TRUE(wait_for_port_used(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
-  auto client = make_new_connection_ok(router_port, md_server_port);
+  auto client_res = make_new_connection_ok(router_port);
+  ASSERT_NO_ERROR(client_res);
+  EXPECT_EQ(client_res->first, md_server_port);
+
+  auto client = std::move(client_res->second);
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
   auto globals = mock_GR_metadata_as_json(
@@ -716,8 +727,10 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   SCOPED_TRACE(
       "// Make a connection to the primary, it should be the first node");
-  { /*auto client =*/
-    make_new_connection_ok(router_port, node_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[0]);
   }
 
   SCOPED_TRACE(
@@ -744,7 +757,11 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[1], 2));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
-  /*auto client =*/make_new_connection_ok(router_port, node_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[1]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -928,8 +945,17 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
                                /*wait_for_notify_ready=*/30s);
 
   // make sure that Router works
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[0]);
+  }
+
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+  }
 
   // now change the cluster name in the metadata
   for (const auto [i, http_port] :
@@ -941,8 +967,17 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
       wait_for_transaction_count_increase(md_servers_http_ports[0], 2, 5s));
 
   // the Router should still work
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[0]);
+  }
+
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+  }
 
   // now stop the Router and start it again, this is to make sure that not only
   // change of the ClusterName while the Router is running works but also when
@@ -955,8 +990,17 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
                                      md_servers_classic_ports, EXIT_SUCCESS,
                                      /*wait_for_notify_ready=*/30s);
 
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[0]);
+  }
+
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
