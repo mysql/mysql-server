@@ -1,0 +1,66 @@
+--source include/have_hypergraph.inc
+--source include/elide_costs.inc
+
+####################################################
+# Join Order Hints
+####################################################
+CREATE TABLE small_tab (val INT);
+INSERT INTO small_tab VALUES (1), (2), (3), (4);
+
+CREATE TABLE medium_tab (val INT);
+INSERT INTO medium_tab SELECT COUNT(*) FROM small_tab;
+INSERT INTO medium_tab SELECT COUNT(*) FROM medium_tab;
+INSERT INTO medium_tab SELECT COUNT(*) FROM medium_tab;
+
+CREATE TABLE large_tab (val INT);
+INSERT INTO large_tab SELECT COUNT(*) FROM medium_tab;
+INSERT INTO large_tab SELECT COUNT(*) FROM large_tab;
+INSERT INTO large_tab SELECT COUNT(*) FROM large_tab;
+
+SELECT COUNT(*) FROM small_tab;
+SELECT COUNT(*) FROM medium_tab;
+SELECT COUNT(*) FROM large_tab;
+
+ANALYZE TABLE small_tab;
+ANALYZE TABLE medium_tab;
+ANALYZE TABLE large_tab;
+
+--echo JOIN_FIXED_ORDER hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM small_tab JOIN large_tab USING(val) JOIN medium_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN large_tab USING(val) JOIN small_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN medium_tab JOIN small_tab;
+
+--echo SELECT STRAIGHT_JOIN hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM small_tab JOIN large_tab USING(val) JOIN medium_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM medium_tab JOIN large_tab USING(val) JOIN small_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM large_tab JOIN medium_tab JOIN small_tab;
+
+--echo SELECT <table1> STRAIGHT_JOIN <table2> hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM small_tab STRAIGHT_JOIN large_tab USING(val) STRAIGHT_JOIN medium_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM medium_tab STRAIGHT_JOIN small_tab USING(val) STRAIGHT_JOIN large_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM medium_tab STRAIGHT_JOIN large_tab USING(val) STRAIGHT_JOIN small_tab USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN small_tab STRAIGHT_JOIN medium_tab;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN medium_tab STRAIGHT_JOIN small_tab;
+
+DROP TABLE small_tab;
+DROP TABLE medium_tab;
+DROP TABLE large_tab;
