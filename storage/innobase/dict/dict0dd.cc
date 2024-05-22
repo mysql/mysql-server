@@ -2869,8 +2869,8 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 
   index->n_uniq = n_uniq;
 
-  const ulint max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
   DBUG_EXECUTE_IF("ib_create_table_fail_at_create_index",
+                  const ulint max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
                   dict_mem_index_free(index);
                   my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_len);
                   return HA_ERR_TOO_BIG_ROW;);
