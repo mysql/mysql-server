@@ -80,12 +80,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/plugin.h>
 
 #include "../sql/set_var.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
 STR_CHECK_ARG(rules) values_filter_rules;  ///< limits and default for sysvar
@@ -1690,9 +1692,9 @@ mysql_service_status_t log_filter_init() {
           (void *)&values_filter_rules, (void *)&log_error_filter_rules) ||
       mysql_service_status_variable_registration->register_variable(
           (SHOW_VAR *)&show_var_filter_rules_decompile) ||
-      mysql_service_component_sys_variable_register->get_variable(
-          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_SYSVAR_NAME, (void **)&var_value,
-          &var_len) ||
+      mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_SYSVAR_NAME,
+          (void **)&var_value, &var_len) ||
       ((rr = log_filter_dragnet_set(log_filter_dragnet_rules, var_value,
                                     &state)) != 0)) {
     /*
@@ -1757,6 +1759,7 @@ PROVIDES_SERVICE(log_filter_dragnet, log_service), END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
 REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
+    REQUIRES_SERVICE(mysql_system_variable_reader),
     REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(log_builtins_filter), REQUIRES_SERVICE(log_builtins_tmp),

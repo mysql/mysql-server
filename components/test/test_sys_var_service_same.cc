@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/plugin.h>
 
 #include "my_macros.h"
@@ -47,6 +48,7 @@ const char *filename = "test_component_sys_var_service_same.log";
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 
 /**
   This file contains a test (example) component, which tests the services of
@@ -201,8 +203,9 @@ static mysql_service_status_t test_component_sys_var_service_same_init() {
   }
 
   len = VARIABLE_BUFFER_SIZE;
-  if (mysql_service_component_sys_variable_register->get_variable(
-          "test_component", "int_sys_var", (void **)&var_value, &len)) {
+  if (mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", "test_component", "int_sys_var",
+          (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
   } else {
     WRITE_LOG("variable value : %s\n", var_value);
@@ -284,7 +287,7 @@ END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(test_component_sys_var_service)
 REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
-    END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(mysql_system_variable_reader), END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(test_component_sys_var_service)

@@ -28,8 +28,8 @@
 #include <atomic>
 
 #include <mysql/components/my_service.h>
-#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/group_replication_status_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -60,9 +60,6 @@
 #include "sql/system_variables.h"  // System_variables
 #include "sql/tztime.h"            // my_tz_UTC
 #include "string_with_len.h"
-
-REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
-REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 class THD;
 
@@ -625,11 +622,11 @@ std::string get_group_replication_group_name() {
 }
 
 bool get_group_replication_view_change_uuid(std::string &uuid) {
-  my_h_service component_sys_variable_register_service_handler = nullptr;
-  SERVICE_TYPE(component_sys_variable_register)
-  *component_sys_variable_register_service = nullptr;
-  srv_registry->acquire("component_sys_variable_register",
-                        &component_sys_variable_register_service_handler);
+  my_h_service component_sys_variable_reader_service_handler = nullptr;
+  SERVICE_TYPE(mysql_system_variable_reader)
+  *component_sys_variable_reader_service = nullptr;
+  srv_registry->acquire("mysql_system_variable_reader",
+                        &component_sys_variable_reader_service_handler);
 
   char *var_value = nullptr;
   // uuid length + sizeof('\0')
@@ -638,22 +635,23 @@ bool get_group_replication_view_change_uuid(std::string &uuid) {
 
   bool error = false;
 
-  if (nullptr == component_sys_variable_register_service_handler) {
+  if (nullptr == component_sys_variable_reader_service_handler) {
     error = true; /* purecov: inspected */
     goto end;     /* purecov: inspected */
   }
 
-  component_sys_variable_register_service =
-      reinterpret_cast<SERVICE_TYPE(component_sys_variable_register) *>(
-          component_sys_variable_register_service_handler);
+  component_sys_variable_reader_service =
+      reinterpret_cast<SERVICE_TYPE(mysql_system_variable_reader) *>(
+          component_sys_variable_reader_service_handler);
 
   if ((var_value = new char[var_len]) == nullptr) {
     error = true; /* purecov: inspected */
     goto end;     /* purecov: inspected */
   }
 
-  if (!component_sys_variable_register_service->get_variable(
-          "mysql_server", "group_replication_view_change_uuid",
+  if (!component_sys_variable_reader_service->get(
+          nullptr, "GLOBAL", "mysql_server",
+          "group_replication_view_change_uuid",
           reinterpret_cast<void **>(&var_value), &var_len)) {
     uuid.assign(var_value, var_len);
   } else if (var_len != var_buffer_capacity) {
@@ -667,7 +665,7 @@ bool get_group_replication_view_change_uuid(std::string &uuid) {
   }
 
 end:
-  srv_registry->release(component_sys_variable_register_service_handler);
+  srv_registry->release(component_sys_variable_reader_service_handler);
   delete[] var_value;
   return error;
 }

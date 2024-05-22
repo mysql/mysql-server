@@ -93,7 +93,7 @@ class Server_services_references {
   SERVICE_TYPE(mysql_system_variable_update_string) *mysql_system_variable_update_string_service{nullptr};
   SERVICE_TYPE(mysql_global_variable_attributes) *mysql_global_variable_attributes_service{nullptr};
   SERVICE_TYPE(mysql_system_variable_update_integer) *mysql_system_variable_update_integer_service{nullptr};
-  SERVICE_TYPE(component_sys_variable_register) *component_sys_variable_register_service{nullptr};
+  SERVICE_TYPE(mysql_system_variable_reader) *component_sys_variable_reader_service{nullptr};
   /* clang-format on */
 
  private:
@@ -104,7 +104,7 @@ class Server_services_references {
   my_h_service m_mysql_system_variable_update_string_handle{nullptr};
   my_h_service m_mysql_global_variable_attributes_handle{nullptr};
   my_h_service m_mysql_system_variable_update_integer_handle{nullptr};
-  my_h_service m_component_sys_variable_register_handle{nullptr};
+  my_h_service m_component_sys_variable_reader_handle{nullptr};
   /* clang-format on */
 };
 

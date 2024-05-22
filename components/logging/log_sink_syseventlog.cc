@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/plugin.h>
 
 #include "../sql/set_var.h"
@@ -96,6 +97,7 @@ static bool inited = false; /**< component initialized */
 // components we'll be using
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
@@ -491,8 +493,8 @@ static int sysvar_install_tag(void) {
           "default ident of '" PREFIX "', connected by a hyphen.",
           sysvar_check_tag, sysvar_update_tag, (void *)&values_tag,
           (void *)&buffer_tag) ||
-      mysql_service_component_sys_variable_register->get_variable(
-          MY_NAME, OPT_TAG, (void **)&var_value, &var_len))
+      mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", MY_NAME, OPT_TAG, (void **)&var_value, &var_len))
     goto done; /* purecov: inspected */
 
   /*
@@ -620,8 +622,8 @@ static int sysvar_install_fac(void) {
           "identify as a facility of the given type (to aid in log filtering).",
           sysvar_check_fac, sysvar_update_fac, (void *)&values_fac,
           (void *)&buffer_fac) ||
-      mysql_service_component_sys_variable_register->get_variable(
-          MY_NAME, OPT_FAC, (void **)&var_value, &var_len))
+      mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", MY_NAME, OPT_FAC, (void **)&var_value, &var_len))
     goto done; /* purecov: inspected */
 
   /*
@@ -710,8 +712,8 @@ static int sysvar_install_pid(void) {
           (void *)&log_syslog_include_pid) ||
 
       // get variable in case it was PERSISTed
-      mysql_service_component_sys_variable_register->get_variable(
-          MY_NAME, OPT_PID, (void **)&var_value, &var_len))
+      mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", MY_NAME, OPT_PID, (void **)&var_value, &var_len))
     goto done; /* purecov: inspected */
 
   // set the (possibly PERSISTed) value we received from the server
@@ -959,6 +961,7 @@ PROVIDES_SERVICE(log_sink_syseventlog, log_service), END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(log_sink_syseventlog)
 REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
+    REQUIRES_SERVICE(mysql_system_variable_reader),
     REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(log_builtins_syseventlog),
 #ifdef _WIN32

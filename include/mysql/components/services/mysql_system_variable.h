@@ -106,6 +106,81 @@ END_SERVICE_DEFINITION(mysql_system_variable_update_string)
 /**
   @ingroup group_components_services_inventory
 
+  Fetches the session/global/persist value of a system variable
+
+  This is an example of using the service:
+
+  Call this to get the session/global/persist value of a variable.
+  You can access both the component variables
+  (SELECT ["@@"][scope "."]component_name "." variable_name;
+   where scope ::= SESSION | LOCAL | GLOBAL)
+  and the "legacy" system variables
+  (SELECT ["@@"][scope "."].variable_name;
+   where scope ::= SESSION | LOCAL | GLOBAL) that are registered
+  by the server component.
+  To access the latter you need to pass "mysql_server" (lowercase) as a
+  component name.
+
+  A pointer to the value is returned into the val input/output argument. And the
+  length of the value (as applicable) is returned into the out_length_of_val
+  argument.
+
+  In case when the user buffer was too small to copy the value, the call fails
+  and needed buffer size is returned by 'out_length_of_val'.
+
+  Decide on a variable storage type among one of "GLOBAL" or "SESSION"
+
+  Typical use (char * variable):
+  @code
+
+  char *value, buffer_for_value[160];
+  size_t value_length;
+  const char *type = "GLOBAL";
+
+  value= &buffer_for_value[0];
+  value_length= sizeof(buffer_for_value) - 1;
+  mysql_service_mysql_system_variable_reader->get(nullptr, type, "foo", "bar",
+           &value, &value_length);
+  printf("%.*s", (int) value_length, value);
+
+  To get the "SESSION" value the "hthd" should be passed :
+  MYSQL_THD hthd;
+  if (mysql_service_mysql_current_thread_reader->get(&hthd)) {
+    my_error("%s\n", "mysql_current_thread_reader get() api failed");
+  }
+  mysql_service_mysql_system_variable_reader->get(
+          hthd, "SESSION", "foo", "bar",
+          &value, &value_length);
+
+  @endcode
+*/
+BEGIN_SERVICE_DEFINITION(mysql_system_variable_reader)
+/**
+  Gets the value of a system variable.
+
+  @param hthd thread session handle. if NULL, the GLOBAL value of the variable
+  is returned.
+  @param variable_type one of [GLOBAL, SESSION].
+  @param component_name Name of the component or "mysql_server" for the legacy
+  ones.
+  @param variable_name Name of the variable
+  @param[in,out] val On input: a buffer to hold the value. On output a pointer
+  to the value.
+  @param[in,out] out_length_of_val On input: the buffer size. On output the
+  length of the data copied.
+
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(get, (MYSQL_THD hthd, const char *variable_type,
+                          const char *component_name, const char *variable_name,
+                          void **val, size_t *out_length_of_val));
+
+END_SERVICE_DEFINITION(mysql_system_variable_reader)
+
+/**
+  @ingroup group_components_services_inventory
+
   Service to set the value of integer system variables.
 
   Passing non-NULL THD input to setter methods means that the operation will be

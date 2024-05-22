@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/components/services/psi_memory_service.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_registration.h>
@@ -44,6 +45,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 extern REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);

@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef PLUGIN_X_SRC_SERVICES_SERVICE_SYS_VARIABLES_H_
 #define PLUGIN_X_SRC_SERVICES_SERVICE_SYS_VARIABLES_H_
 
-#include "mysql/components/services/component_sys_var_service.h"
+#include "mysql/components/services/mysql_system_variable.h"
 #include "plugin/x/src/interface/service_registry.h"
 #include "plugin/x/src/interface/service_sys_variables.h"
 
@@ -42,7 +42,7 @@ class Service_sys_variables : public iface::Service_sys_variables {
 
  private:
   iface::Service_registry *m_registry;
-  SERVICE_TYPE_NO_CONST(component_sys_variable_register) * m_sys_variable;
+  SERVICE_TYPE_NO_CONST(mysql_system_variable_reader) * m_sys_variable;
 };
 
 }  // namespace xpl

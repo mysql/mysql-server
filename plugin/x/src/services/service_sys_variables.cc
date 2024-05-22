@@ -30,9 +30,9 @@ namespace xpl {
 
 Service_sys_variables::Service_sys_variables(iface::Service_registry *registry)
     : m_registry(registry) {
-  m_sys_variable = reinterpret_cast<SERVICE_TYPE_NO_CONST(
-      component_sys_variable_register) *>(
-      m_registry->acquire("component_sys_variable_register"));
+  m_sys_variable =
+      reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_system_variable_reader) *>(
+          m_registry->acquire("mysql_system_variable_reader"));
 }
 
 Service_sys_variables::~Service_sys_variables() {
@@ -42,8 +42,8 @@ Service_sys_variables::~Service_sys_variables() {
 bool Service_sys_variables::get_variable(const char *component_name,
                                          const char *name, void **val,
                                          size_t *out_length_of_val) {
-  return !m_sys_variable->get_variable(component_name, name, val,
-                                       out_length_of_val);
+  return !m_sys_variable->get(nullptr, "GLOBAL", component_name, name, val,
+                              out_length_of_val);
 }
 
 bool Service_sys_variables::is_valid() const {

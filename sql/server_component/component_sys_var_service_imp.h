@@ -29,6 +29,100 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 void mysql_comp_sys_var_services_init();
 
+#define COPY_MYSQL_PLUGIN_VAR_HEADER(sys_var_type, type, sys_var_check, \
+                                     sys_var_update)                    \
+  sys_var_type->flags = flags;                                          \
+  sys_var_type->name = var_name;                                        \
+  sys_var_type->comment = comment;                                      \
+  sys_var_type->check = check_func ? check_func : sys_var_check;        \
+  sys_var_type->update = update_func ? update_func : sys_var_update;    \
+  sys_var_type->value = (type *)variable_value;
+
+#define COPY_MYSQL_PLUGIN_THDVAR_HEADER(sys_var_type, type, sys_var_check, \
+                                        sys_var_update)                    \
+  sys_var_type->flags = flags;                                             \
+  sys_var_type->name = var_name;                                           \
+  sys_var_type->comment = comment;                                         \
+  sys_var_type->check = check_func ? check_func : sys_var_check;           \
+  sys_var_type->update = update_func ? update_func : sys_var_update;       \
+  sys_var_type->offset = -1;
+
+#define COPY_MYSQL_PLUGIN_VAR_REMAINING(sys_var_type, check_arg_type) \
+  sys_var_type->def_val = check_arg_type->def_val;                    \
+  sys_var_type->min_val = check_arg_type->min_val;                    \
+  sys_var_type->max_val = check_arg_type->max_val;                    \
+  sys_var_type->blk_sz = check_arg_type->blk_sz;
+
+#define THDVAR_FUNC(type) type *(*resolve)(MYSQL_THD thd, int offset)
+
+#define SYSVAR_INTEGRAL_TYPE(type) \
+  struct sysvar_##type##_type {    \
+    MYSQL_PLUGIN_VAR_HEADER;       \
+    type *value;                   \
+    type def_val;                  \
+    type min_val;                  \
+    type max_val;                  \
+    type blk_sz;                   \
+  }
+
+#define THDVAR_INTEGRAL_TYPE(type) \
+  struct thdvar_##type##_type {    \
+    MYSQL_PLUGIN_VAR_HEADER;       \
+    int offset;                    \
+    type def_val;                  \
+    type min_val;                  \
+    type max_val;                  \
+    type blk_sz;                   \
+    THDVAR_FUNC(type);             \
+  }
+
+#define SYSVAR_ENUM_TYPE(type)  \
+  struct sysvar_##type##_type { \
+    MYSQL_PLUGIN_VAR_HEADER;    \
+    unsigned long *value;       \
+    unsigned long def_val;      \
+    TYPE_LIB *typelib;          \
+  }
+
+#define THDVAR_ENUM_TYPE(type)  \
+  struct thdvar_##type##_type { \
+    MYSQL_PLUGIN_VAR_HEADER;    \
+    int offset;                 \
+    unsigned long def_val;      \
+    THDVAR_FUNC(unsigned long); \
+    TYPE_LIB *typelib;          \
+  }
+
+#define SYSVAR_BOOL_TYPE(type)  \
+  struct sysvar_##type##_type { \
+    MYSQL_PLUGIN_VAR_HEADER;    \
+    bool *value;                \
+    bool def_val;               \
+  }
+
+#define THDVAR_BOOL_TYPE(type)  \
+  struct thdvar_##type##_type { \
+    MYSQL_PLUGIN_VAR_HEADER;    \
+    int offset;                 \
+    bool def_val;               \
+    THDVAR_FUNC(type);          \
+  }
+
+#define SYSVAR_STR_TYPE(type)   \
+  struct sysvar_##type##_type { \
+    MYSQL_PLUGIN_VAR_HEADER;    \
+    char **value;               \
+    char *def_val;              \
+  }
+
+#define THDVAR_STR_TYPE(type)   \
+  struct thdvar_##type##_type { \
+    MYSQL_PLUGIN_VAR_HEADER;    \
+    int offset;                 \
+    char *def_val;              \
+    THDVAR_FUNC(char *);        \
+  }
+
 /**
   An implementation of the configuration system variables Service to register
   variable and unregister variable.

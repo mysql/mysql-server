@@ -387,8 +387,8 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   void *p = &mysqlbackup_backupdir;
   size_t var_len = 1023;
 
-  mysql_service_component_sys_variable_register->get_variable(
-      "mysql_server", "datadir", (void **)&p, &var_len);
+  mysql_service_mysql_system_variable_reader->get(
+      nullptr, "GLOBAL", "mysql_server", "datadir", (void **)&p, &var_len);
   if (var_len == 0) return 2;
 
   std::string changed_pages_file_dir =
