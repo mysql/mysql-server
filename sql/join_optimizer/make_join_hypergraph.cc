@@ -89,7 +89,7 @@ namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const Query_block *query_block,
-    const mem_root_deque<Table_ref *> &join_list);
+    const mem_root_deque<Table_ref *> &join_list, bool toplevel = false);
 bool EarlyNormalizeConditions(THD *thd, const RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false);
@@ -329,11 +329,13 @@ RelationalExpression *MakeRelationalExpression(THD *thd,
   @param thd           Current thread
   @param query_block   Current query block
   @param join_list_arg List of tables in this join
+  @param toplevel      False for subqueries, true otherwise
+
   @return              RelationalExpression for all tables in join
 */
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const Query_block *query_block,
-    const mem_root_deque<Table_ref *> &join_list_arg) {
+    const mem_root_deque<Table_ref *> &join_list_arg, bool toplevel) {
   assert(!join_list_arg.empty());
   bool join_order_hinted = false;
   mem_root_deque<Table_ref *> *join_list = nullptr;
@@ -342,7 +344,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
       query_block->opt_hints_qb->has_join_order_hints()) {
     join_order_hinted = true;
     join_list = query_block->opt_hints_qb->sort_tables_in_join_order(
-        join_list_arg, thd->mem_root);
+        query_block->join, &join_list_arg, toplevel);
   }
 
   if (join_list == nullptr) {
@@ -361,9 +363,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
 
     RelationalExpression *join = new (thd->mem_root) RelationalExpression(thd);
     join->left = ret;
-    if (!join_order_hinted && tl->is_sj_or_aj_nest()) {
-      // semijoin and antijoin support for join order hints to be added in
-      // next patch in this series
+    if (tl->is_sj_or_aj_nest()) {
       join->right = MakeRelationalExpressionFromJoinList(
           thd, query_block, tl->nested_join->m_tables);
       join->type = tl->is_sj_nest() ? RelationalExpression::SEMIJOIN
@@ -3635,7 +3635,7 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
   }
 
   RelationalExpression *root = MakeRelationalExpressionFromJoinList(
-      thd, query_block, query_block->m_table_nest);
+      thd, query_block, query_block->m_table_nest, /*toplevel=*/true);
 
   CompanionSetCollection companion_collection(thd, root);
   FlattenInnerJoins(root);

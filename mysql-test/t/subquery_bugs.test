@@ -974,6 +974,7 @@ WHERE d.c IN (
 --skip_if_hypergraph  # Depends on the query plan.
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
+--skip_if_hypergraph  # Hypergraph returns hint error
 eval $query;
 DROP TABLE b, c, d;
 

@@ -959,11 +959,10 @@ SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
 COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
 WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
       ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
-##--replace_regex $elide_costs
-## support for hints with subqueries will be added in patch 3
-##eval EXPLAIN FORMAT=tree $query;
-##eval $query;
-##eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+eval $query;
 
 DROP TABLE t1, t2, t4;
 
@@ -1556,10 +1555,9 @@ let $query = SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
     WHERE t1.col1 <> t2.col1
   ) AND t2.col1 < 49;
 
-##--replace_regex $elide_costs
-## The below queries are not yet supported. Support for hints with subqueries will be added in patch 3.
-##eval EXPLAIN FORMAT=tree $query;
-##eval $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
 
 DROP TABLE t1, t2;
 
