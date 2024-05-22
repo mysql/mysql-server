@@ -23,7 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/semisync/semisync.h"
-#include "mysql/components/services/component_sys_var_service.h"
+#include "mysql/components/services/mysql_system_variable.h"
 
 const unsigned char ReplSemiSyncBase::kPacketMagicNum = 0xef;
 const unsigned char ReplSemiSyncBase::kPacketFlagSync = 0x01;
@@ -42,11 +42,11 @@ bool is_sysvar_defined(const char *name) {
   size_t value_length = sizeof(buffer) - 1;
   auto registry_handle = mysql_plugin_registry_acquire();
   assert(registry_handle != nullptr);
-  my_service<SERVICE_TYPE(component_sys_variable_register)> svc(
-      "component_sys_variable_register", registry_handle);
+  my_service<SERVICE_TYPE(mysql_system_variable_reader)> svc(
+      "mysql_system_variable_reader", registry_handle);
   // Returns true on error, i.e., if the variable does *not* exist.
   bool get_var_error =
-      svc->get_variable("mysql_server", name, &value, &value_length);
+      svc->get(nullptr, "GLOBAL", "mysql_server", name, &value, &value_length);
   mysql_plugin_registry_release(registry_handle);
   return !get_var_error;
 }

@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/plugin.h>
 
 #include "my_macros.h"
@@ -50,6 +51,7 @@ const char *filename = "test_component_sys_var_service_str.log";
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 
 /**
   This file contains a test (example) component, which tests the services of
@@ -86,8 +88,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     size_t len = sizeof(var1) - 1;
 
     pvar = &var1[0];
-    if (mysql_service_component_sys_variable_register->get_variable(
-            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+    if (mysql_service_mysql_system_variable_reader->get(
+            nullptr, "GLOBAL", "mysql_server", "character_set_server",
+            (void **)&pvar, &len)) {
       WRITE_LOG("%s\n",
                 "get_variable mysql_server.character_set_server failed.");
     } else {
@@ -98,8 +101,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     char var2[7];
     len = sizeof(var2);
     pvar = &var2[0];
-    if (mysql_service_component_sys_variable_register->get_variable(
-            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+    if (mysql_service_mysql_system_variable_reader->get(
+            nullptr, "GLOBAL", "mysql_server", "character_set_server",
+            (void **)&pvar, &len)) {
       WRITE_LOG(
           "get_variable mysql_server.character_set_server failed. "
           "The variable requires buffer %i bytes long.\n",
@@ -113,8 +117,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     char var3[8];
     len = sizeof(var3);
     pvar = &var3[0];
-    if (mysql_service_component_sys_variable_register->get_variable(
-            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+    if (mysql_service_mysql_system_variable_reader->get(
+            nullptr, "GLOBAL", "mysql_server", "character_set_server",
+            (void **)&pvar, &len)) {
       WRITE_LOG(
           "get_variable mysql_server.character_set_server failed. \n"
           "The variable requires buffer %i bytes long.\n",
@@ -129,8 +134,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     size_t len = sizeof(var) - 1;
 
     pvar = &var[0];
-    if (mysql_service_component_sys_variable_register->get_variable(
-            "mysql_server", "datadir", (void **)&pvar, &len)) {
+    if (mysql_service_mysql_system_variable_reader->get(
+            nullptr, "GLOBAL", "mysql_server", "datadir", (void **)&pvar,
+            &len)) {
       WRITE_LOG("%s\n", "get_variable mysql_server.datadir failed.");
     } else {
       WRITE_LOG("%s\n", "get_variable mysql_server.datadir success.");
@@ -157,8 +163,9 @@ static mysql_service_status_t test_component_sys_var_service_str_deinit() {
   var_value = new char[1024];
 
   len = 1024;
-  if (mysql_service_component_sys_variable_register->get_variable(
-          "test_component_str", "str_sys_var", (void **)&var_value, &len)) {
+  if (mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", "test_component_str", "str_sys_var",
+          (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
   } else {
     WRITE_LOG("variable value : %s\n", var_value);
@@ -185,7 +192,7 @@ END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(test_component_sys_var_service)
 REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
-    END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(mysql_system_variable_reader), END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(test_component_sys_var_service)

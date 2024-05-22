@@ -368,6 +368,7 @@ for p in \
          component_test_sys_var_service_same.so \
          component_test_sys_var_service.so \
          component_test_sys_var_service_str.so \
+         component_test_session_var_service.so \
          component_test_table_access.so \
          component_test_udf_registration.so \
          component_test_udf_services.so \
@@ -705,6 +706,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Mon May 20 2024 Murthy Sidagam <venkata.sidagam@oracle.com> - 9.0
+- Added component_test_session_var_service.so component
+
 * Mon Feb 12 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
 - Removed keyring_file plugin
 

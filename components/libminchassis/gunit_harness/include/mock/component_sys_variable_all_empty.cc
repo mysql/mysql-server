@@ -22,9 +22,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stdio.h>
+#include "my_compiler.h"
 #include "mysql/components/component_implementation.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/component_sys_var_service.h"
+#include "mysql/components/services/mysql_system_variable.h"
 
 namespace mysql_service_simple_error_log_spc {
 
@@ -44,6 +46,14 @@ static DEFINE_BOOL_METHOD(get_variable, (const char * /*component_name*/,
   return false;
 }
 
+static DEFINE_BOOL_METHOD(get, (MYSQL_THD /*thd handle*/,
+                                const char * /*variable type*/,
+                                const char * /*component_name*/,
+                                const char * /*name*/, void ** /*val*/,
+                                size_t * /*out_length_of_val*/)) {
+  return false;
+}
+
 static DEFINE_BOOL_METHOD(unregister_variable, (const char * /*component_name*/,
                                                 const char * /*name*/)) {
   return false;
@@ -51,11 +61,18 @@ static DEFINE_BOOL_METHOD(unregister_variable, (const char * /*component_name*/,
 
 }  // namespace mysql_service_simple_error_log_spc
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
 BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME,
                              component_sys_variable_register)
 mysql_service_simple_error_log_spc::register_variable,
     mysql_service_simple_error_log_spc::get_variable,
     END_SERVICE_IMPLEMENTATION();
+MY_COMPILER_DIAGNOSTIC_POP()
+
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME,
+                             mysql_system_variable_reader)
+mysql_service_simple_error_log_spc::get, END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME,
                              component_sys_variable_unregister)

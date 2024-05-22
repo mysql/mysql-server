@@ -69,6 +69,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "log_sink_perfschema_imp.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql_audit_print_service_double_data_source_imp.h"
 #include "mysql_audit_print_service_longlong_data_source_imp.h"
@@ -92,6 +93,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_status_variable_reader_imp.h"
 #include "mysql_stored_program_imp.h"
 #include "mysql_string_service_imp.h"
+#include "mysql_system_variable_reader_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
 #include "mysql_thd_store_imp.h"
@@ -299,9 +301,19 @@ mysql_udf_metadata_imp::argument_get, mysql_udf_metadata_imp::result_get,
     mysql_udf_metadata_imp::argument_set,
     mysql_udf_metadata_imp::result_set END_SERVICE_IMPLEMENTATION();
 
+/*
+ Here the new mysql_service_mysql_system_variable_reader->get() service cannot
+ be used instead of get_variable because the below code is for the
+ implementation of the old get_variable() service. Hence adding below
+ suppression deprecated warning code to skip the deprecation warning while
+ compiling the code.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
 mysql_component_sys_variable_imp::register_variable,
     mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
+MY_COMPILER_DIAGNOSTIC_POP()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_connection_attributes_iterator)
 mysql_connection_attributes_iterator_imp::init,
@@ -479,6 +491,9 @@ mysql_system_variable_update_imp::set_signed,
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_default)
 mysql_system_variable_update_imp::set_default END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_reader)
+mysql_system_variable_reader_imp::get END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
 mysql_thd_attributes_imp::get,
@@ -1012,6 +1027,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_string),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_integer),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_default),
+    PROVIDES_SERVICE(mysql_server, mysql_system_variable_reader),
 
     PROVIDES_SERVICE(mysql_server, table_access_factory_v1),
     PROVIDES_SERVICE(mysql_server, table_access_v1),

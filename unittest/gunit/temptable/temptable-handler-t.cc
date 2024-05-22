@@ -68,6 +68,7 @@ class Handler_test : public testing::Test {
   static void TearDownTestCase() {
     plugin_shutdown();  // see a comment in SetUpTestCase() for a reason why
                         // this is needed
+    cleanup_global_system_variables();
   }
   void SetUp() override {
     init_handlerton();

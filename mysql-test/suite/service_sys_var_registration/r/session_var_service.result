@@ -1,0 +1,247 @@
+call mtr.add_suppression("duplicate variable name");
+call mtr.add_suppression("MY-000080");
+call mtr.add_suppression("MY-000081");
+# Simple load test
+INSTALL COMPONENT "file://component_test_session_var_service";
+# Testing integer and bool type variable, using @@session and just variable
+# will get the session value of the variable
+SELECT @@test_component.int_session_var;
+@@test_component.int_session_var
+8
+# To get the global value of the same variable, we use @@global
+SELECT @@global.test_component.int_session_var;
+@@global.test_component.int_session_var
+8
+SELECT @@global.test_component.bool_session_var;
+@@global.test_component.bool_session_var
+1
+SELECT @@test_component.int_session_var, @@test_component.bool_session_var;
+@@test_component.int_session_var	@@test_component.bool_session_var
+8	1
+SET test_component.bool_session_var=1;
+# To check the session value and global value of the same varaible bool_session_var.
+# We should get global value as 1 and session value as 0.
+@@test_component.bool_session_var
+0
+@@session.test_component.bool_session_var
+0
+@@local.test_component.bool_session_var
+0
+@@global.test_component.bool_session_var
+1
+SET SESSION test_component.int_session_var=7;
+SELECT @@test_component.int_session_var;
+@@test_component.int_session_var
+7
+@@test_component.int_session_var
+13
+@@session.test_component.int_session_var
+13
+@@local.test_component.int_session_var
+13
+@@global.test_component.int_session_var
+8
+SELECT @@test_component.int_session_var;
+@@test_component.int_session_var
+7
+SET SESSION test_component.int_session_var=1234;
+Warnings:
+Warning	1292	Truncated incorrect test_component.int_session_var value: '1234'
+SELECT @@test_component.int_session_var;
+@@test_component.int_session_var
+1024
+SET SESSION test_component.int_session_var=-1;
+Warnings:
+Warning	1292	Truncated incorrect test_component.int_session_var value: '-1'
+SELECT @@test_component.int_session_var;
+@@test_component.int_session_var
+0
+SET SESSION test_component.int_session_var=1.25;
+ERROR 42000: Incorrect argument type to variable 'test_component.int_session_var'
+SET SESSION test_component.int_session_var="hello";
+ERROR 42000: Incorrect argument type to variable 'test_component.int_session_var'
+SET SESSION test_component.int_session_var=123, test_component.bool_session_var=0;
+SELECT @@test_component.int_session_var, @@test_component.bool_session_var;
+@@test_component.int_session_var	@@test_component.bool_session_var
+123	0
+SET SESSION test_component.int_session_var=123;
+# Testing enum type variable
+SELECT @@test_component.enum_session_var;
+@@test_component.enum_session_var
+MEDIUM
+SET SESSION test_component.enum_session_var="LOW";
+@@test_component.enum_session_var
+STRONG
+@@session.test_component.enum_session_var
+STRONG
+@@local.test_component.enum_session_var
+STRONG
+@@global.test_component.enum_session_var
+MEDIUM
+SELECT @@test_component.enum_session_var;
+@@test_component.enum_session_var
+LOW
+# Testing string type variable
+SELECT @@test_component.str_session_var;
+@@test_component.str_session_var
+NULL
+SET SESSION test_component.str_session_var="dictionary.txt";
+@@test_component.str_session_var
+session_value
+@@session.test_component.str_session_var
+session_value
+@@local.test_component.str_session_var
+session_value
+@@global.test_component.str_session_var
+NULL
+SELECT @@test_component.str_session_var;
+@@test_component.str_session_var
+dictionary.txt
+SET SESSION test_component.str_session_var=default;
+SELECT @@test_component.str_session_var;
+@@test_component.str_session_var
+NULL
+# Testing unsigned integer type variable
+SELECT @@test_component.uint_session_var;
+@@test_component.uint_session_var
+1024
+SET SESSION test_component.uint_session_var=12345678;
+Warnings:
+Warning	1292	Truncated incorrect test_component.uint_session_var value: '12345678'
+@@test_component.uint_session_var
+2024
+@@session.test_component.uint_session_var
+2024
+@@local.test_component.uint_session_var
+2024
+@@global.test_component.uint_session_var
+1024
+SELECT @@test_component.uint_session_var;
+@@test_component.uint_session_var
+10241024
+SET SESSION test_component.uint_session_var=default;
+SELECT @@test_component.uint_session_var;
+@@test_component.uint_session_var
+1024
+# Testing long type variable
+SELECT @@test_component.long_session_var;
+@@test_component.long_session_var
+100
+SET SESSION test_component.long_session_var=1234567890;
+Warnings:
+Warning	1292	Truncated incorrect test_component.long_session_var value: '1234567890'
+SELECT @@test_component.long_session_var;
+@@test_component.long_session_var
+100
+SET SESSION test_component.long_session_var=default;
+SELECT @@test_component.long_session_var;
+@@test_component.long_session_var
+100
+# Testing unsigned long type variable
+SELECT @@test_component.ulong_session_var;
+@@test_component.ulong_session_var
+8192
+SET SESSION test_component.ulong_session_var=1234567890;
+Warnings:
+Warning	1292	Truncated incorrect test_component.ulong_session_var value: '1234567890'
+SELECT @@test_component.ulong_session_var;
+@@test_component.ulong_session_var
+81928192
+SET SESSION test_component.ulong_session_var=default;
+SELECT @@test_component.ulong_session_var;
+@@test_component.ulong_session_var
+8192
+# Testing long long type variable
+SELECT @@test_component.longlong_session_var;
+@@test_component.longlong_session_var
+8192
+SET SESSION test_component.longlong_session_var=1234567890;
+SELECT @@test_component.longlong_session_var;
+@@test_component.longlong_session_var
+1234567890
+SET SESSION test_component.longlong_session_var=default;
+SELECT @@test_component.longlong_session_var;
+@@test_component.longlong_session_var
+8192
+# Testing unsigned long long type variable
+SELECT @@test_component.ulonglong_session_var;
+@@test_component.ulonglong_session_var
+8192
+SET SESSION test_component.ulonglong_session_var=1234567890;
+SELECT @@test_component.ulonglong_session_var;
+@@test_component.ulonglong_session_var
+1234567890
+SET SESSION test_component.ulonglong_session_var=default;
+SELECT @@test_component.ulonglong_session_var;
+@@test_component.ulonglong_session_var
+8192
+# Testing PERSIST for component session variables
+SET PERSIST test_component.int_session_var=7;
+SELECT @@test_component.int_session_var;
+@@test_component.int_session_var
+123
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+test_component.int_session_var	7
+RESET PERSIST `test_component.int_session_var`;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+########## test_component_session_var_service.log:
+test_component_sys_var init:
+int register_variable failed.
+variable value : 8
+Global variable value : 8
+Session variable value : 8
+variable value : 1024
+variable value : 100
+variable value : 8192
+variable value : 8192
+variable value : 8192
+variable value : ON
+variable value : MEDIUM
+variable value : 
+get_variable test_component.str_session_var_default failed. The variable requires buffer 8 bytes long.
+test_component_session_var end of init:
+test_component_session_var deinit:
+test_component_session_var end of deinit:
+#
+# Coverage/regression tests for component & SP interations
+#
+CREATE PROCEDURE p(x VARCHAR(32)) SET @@SESSION.test_component.str_session_var = x;
+ERROR HY000: Unknown system variable 'test_component.str_session_var'
+CREATE PROCEDURE p() SELECT @@test_component.str_session_var;
+ERROR HY000: Unknown system variable 'test_component.str_session_var'
+INSTALL COMPONENT "file://component_test_session_var_service";
+CREATE PROCEDURE p1(x VARCHAR(32)) SET @@SESSION.test_component.str_session_var = x;
+CREATE PROCEDURE p2() SELECT @@test_component.str_session_var;
+CALL p2();
+@@test_component.str_session_var
+NULL
+CALL p1('test');
+CALL p2();
+@@test_component.str_session_var
+test
+# Try to uninstall the component and fail with a warning since its busy
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+# Check that the component has been uninstalled
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+ERROR HY000: Component specified by URN 'file://component_test_session_var_service' to unload has not been loaded before.
+# Variable is not available any more: the component is uninstalling
+CALL p1('test');
+ERROR HY000: Unknown system variable 'test_component.str_session_var'
+CALL p2();
+ERROR HY000: Unknown system variable 'test_component.str_session_var'
+# Check that the component is uninstalled
+INSTALL COMPONENT "file://component_test_session_var_service";
+# Variable is available again
+CALL p2();
+@@test_component.str_session_var
+test
+CALL p1('test');
+CALL p2();
+@@test_component.str_session_var
+test
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;

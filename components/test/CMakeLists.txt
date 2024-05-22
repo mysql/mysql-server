@@ -186,4 +186,8 @@ MYSQL_ADD_COMPONENT(test_mysql_signal_handler
   MODULE_ONLY
   TEST_ONLY
   )
-
+MYSQL_ADD_COMPONENT(test_session_var_service
+  test_session_var_service.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

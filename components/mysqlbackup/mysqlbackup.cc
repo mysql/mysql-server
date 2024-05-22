@@ -386,6 +386,7 @@ REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
@@ -405,6 +406,7 @@ BEGIN_COMPONENT_REQUIRES(mysqlbackup)
 REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
     REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(component_sys_variable_register),
+    REQUIRES_SERVICE(mysql_system_variable_reader),
     REQUIRES_SERVICE(component_sys_variable_unregister),
     REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(udf_registration),

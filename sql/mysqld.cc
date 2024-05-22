@@ -2818,6 +2818,14 @@ static void clean_up(bool print_message) {
   Singleton_event_tracking_service_to_plugin_mapping::remove_instance();
   component_infrastructure_deinit(print_message);
   /*
+    The component unregister_variable() api for session string type variables
+    depends on global_system_variables. So we yank cleanup of
+    global_system_variables and max_system_variables from plugin_shutdown()
+    code and calling after component_infrastructure_deinit()
+  */
+  cleanup_global_system_variables();
+
+  /*
     component unregister_variable() api depends on system_variable_hash.
     component_infrastructure_deinit() interns calls the deinit function
     of components which are loaded, and the deinit functions can have

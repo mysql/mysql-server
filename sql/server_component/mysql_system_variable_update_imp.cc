@@ -47,7 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   Return the system variable type given a type name.
 */
-static enum_var_type sysvar_type(const char *type_name) {
+enum_var_type sysvar_type(const char *type_name) {
   if (type_name) {
     if (!strcmp(type_name, "GLOBAL"))
       return OPT_GLOBAL;

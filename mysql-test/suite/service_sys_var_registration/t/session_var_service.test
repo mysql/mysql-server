@@ -1,0 +1,159 @@
+# Base test for registration of session variables by components.
+
+--source ../include/have_component_test_session_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+call mtr.add_suppression("MY-000080");
+call mtr.add_suppression("MY-000081");
+--echo # Simple load test
+INSTALL COMPONENT "file://component_test_session_var_service";
+
+--echo # Testing integer and bool type variable, using @@session and just variable
+--echo # will get the session value of the variable
+SELECT @@test_component.int_session_var;
+--echo # To get the global value of the same variable, we use @@global
+SELECT @@global.test_component.int_session_var;
+SELECT @@global.test_component.bool_session_var;
+SELECT @@test_component.int_session_var, @@test_component.bool_session_var;
+SET test_component.bool_session_var=1;
+--echo # To check the session value and global value of the same varaible bool_session_var.
+--echo # We should get global value as 1 and session value as 0.
+--exec $MYSQL -e "SET SESSION test_component.bool_session_var=0; SELECT @@test_component.bool_session_var; SELECT @@session.test_component.bool_session_var; SELECT @@local.test_component.bool_session_var; SELECT @@global.test_component.bool_session_var"
+SET SESSION test_component.int_session_var=7;
+SELECT @@test_component.int_session_var;
+--exec $MYSQL -e "SET SESSION test_component.int_session_var=13; SELECT @@test_component.int_session_var; SELECT @@session.test_component.int_session_var; SELECT @@local.test_component.int_session_var; SELECT @@global.test_component.int_session_var"
+SELECT @@test_component.int_session_var;
+# The max value for the test_component.int_session_var is 1024.  Hence below SET
+# stmt will set the value to 1024.
+SET SESSION test_component.int_session_var=1234;
+SELECT @@test_component.int_session_var;
+# The min value for the test_component.int_session_var is 0.  Hence below SET stmt
+# will set the value to 0.
+SET SESSION test_component.int_session_var=-1;
+SELECT @@test_component.int_session_var;
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION test_component.int_session_var=1.25;
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION test_component.int_session_var="hello";
+SET SESSION test_component.int_session_var=123, test_component.bool_session_var=0;
+SELECT @@test_component.int_session_var, @@test_component.bool_session_var;
+SET SESSION test_component.int_session_var=123;
+
+--echo # Testing enum type variable
+SELECT @@test_component.enum_session_var;
+SET SESSION test_component.enum_session_var="LOW";
+--exec $MYSQL -e "SET SESSION test_component.enum_session_var="STRONG"; SELECT @@test_component.enum_session_var; SELECT @@session.test_component.enum_session_var; SELECT @@local.test_component.enum_session_var; SELECT @@global.test_component.enum_session_var"
+SELECT @@test_component.enum_session_var;
+
+--echo # Testing string type variable
+SELECT @@test_component.str_session_var;
+SET SESSION test_component.str_session_var="dictionary.txt";
+--exec $MYSQL -e "SET SESSION test_component.str_session_var="session_value"; SELECT @@test_component.str_session_var; SELECT @@session.test_component.str_session_var; SELECT @@local.test_component.str_session_var; SELECT @@global.test_component.str_session_var"
+SELECT @@test_component.str_session_var;
+SET SESSION test_component.str_session_var=default;
+SELECT @@test_component.str_session_var;
+
+#--echo # Testing string type variable with default value
+#SELECT @@test_component.str_session_var_default;
+#SET SESSION test_component.str_session_var_default="dictionary.txt";
+#SELECT @@test_component.str_session_var_default;
+#SET SESSION test_component.str_session_var_default=something;
+#SELECT @@test_component.str_session_var_default;
+
+--echo # Testing unsigned integer type variable
+SELECT @@test_component.uint_session_var;
+SET SESSION test_component.uint_session_var=12345678;
+--exec $MYSQL -e "SET SESSION test_component.uint_session_var=2024; SELECT @@test_component.uint_session_var; SELECT @@session.test_component.uint_session_var; SELECT @@local.test_component.uint_session_var; SELECT @@global.test_component.uint_session_var"
+SELECT @@test_component.uint_session_var;
+SET SESSION test_component.uint_session_var=default;
+SELECT @@test_component.uint_session_var;
+
+--echo # Testing long type variable
+SELECT @@test_component.long_session_var;
+SET SESSION test_component.long_session_var=1234567890;
+SELECT @@test_component.long_session_var;
+SET SESSION test_component.long_session_var=default;
+SELECT @@test_component.long_session_var;
+
+--echo # Testing unsigned long type variable
+SELECT @@test_component.ulong_session_var;
+SET SESSION test_component.ulong_session_var=1234567890;
+SELECT @@test_component.ulong_session_var;
+SET SESSION test_component.ulong_session_var=default;
+SELECT @@test_component.ulong_session_var;
+
+--echo # Testing long long type variable
+SELECT @@test_component.longlong_session_var;
+SET SESSION test_component.longlong_session_var=1234567890;
+SELECT @@test_component.longlong_session_var;
+SET SESSION test_component.longlong_session_var=default;
+SELECT @@test_component.longlong_session_var;
+
+--echo # Testing unsigned long long type variable
+SELECT @@test_component.ulonglong_session_var;
+SET SESSION test_component.ulonglong_session_var=1234567890;
+SELECT @@test_component.ulonglong_session_var;
+SET SESSION test_component.ulonglong_session_var=default;
+SELECT @@test_component.ulonglong_session_var;
+
+--echo # Testing PERSIST for component session variables
+SET PERSIST test_component.int_session_var=7;
+SELECT @@test_component.int_session_var;
+SELECT * FROM performance_schema.persisted_variables;
+RESET PERSIST `test_component.int_session_var`;
+SELECT * FROM performance_schema.persisted_variables;
+
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+
+# Write the test results in "test_component_session_var_service.log" into the
+# result file of this test
+--echo ########## test_component_session_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_session_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_session_var_service.log;
+
+--echo #
+--echo # Coverage/regression tests for component & SP interations
+--echo #
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p(x VARCHAR(32)) SET @@SESSION.test_component.str_session_var = x;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p() SELECT @@test_component.str_session_var;
+
+INSTALL COMPONENT "file://component_test_session_var_service";
+
+CREATE PROCEDURE p1(x VARCHAR(32)) SET @@SESSION.test_component.str_session_var = x;
+CREATE PROCEDURE p2() SELECT @@test_component.str_session_var;
+
+CALL p2();
+CALL p1('test');
+CALL p2();
+
+--echo # Try to uninstall the component and fail with a warning since its busy
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+
+--echo # Check that the component has been uninstalled
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+
+--echo # Variable is not available any more: the component is uninstalling
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CALL p1('test');
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CALL p2();
+
+--echo # Check that the component is uninstalled
+--replace_regex /\.dll/.so/
+eval INSTALL COMPONENT "file://component_test_session_var_service";
+
+--echo # Variable is available again
+CALL p2();
+CALL p1('test');
+CALL p2();
+
+UNINSTALL COMPONENT "file://component_test_session_var_service";
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;

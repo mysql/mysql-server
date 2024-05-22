@@ -169,6 +169,7 @@ extern bool plugin_initialize_delayed_after_upgrade();
 
 extern bool is_builtin_and_core_se_initialized();
 extern void plugin_shutdown(void);
+extern void cleanup_global_system_variables(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
 extern bool plugin_is_ready(const LEX_CSTRING &name, int type);
 #define my_plugin_lock_by_name(A, B, C) plugin_lock_by_name(A, B, C)

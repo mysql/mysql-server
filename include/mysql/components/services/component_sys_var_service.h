@@ -106,53 +106,6 @@ typedef int (*mysql_sys_var_check_func)(MYSQL_THD thd, SYS_VAR *var, void *save,
 typedef void (*mysql_sys_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
                                           void *val_ptr, const void *save);
 
-#define COPY_MYSQL_PLUGIN_VAR_HEADER(sys_var_type, type, sys_var_check, \
-                                     sys_var_update)                    \
-  sys_var_type->flags = flags;                                          \
-  sys_var_type->name = var_name;                                        \
-  sys_var_type->comment = comment;                                      \
-  sys_var_type->check = check_func ? check_func : sys_var_check;        \
-  sys_var_type->update = update_func ? update_func : sys_var_update;    \
-  sys_var_type->value = (type *)variable_value;
-
-#define COPY_MYSQL_PLUGIN_VAR_REMAINING(sys_var_type, check_arg_type) \
-  sys_var_type->def_val = check_arg_type->def_val;                    \
-  sys_var_type->min_val = check_arg_type->min_val;                    \
-  sys_var_type->max_val = check_arg_type->max_val;                    \
-  sys_var_type->blk_sz = check_arg_type->blk_sz;
-
-#define SYSVAR_INTEGRAL_TYPE(type) \
-  struct sysvar_##type##_type {    \
-    MYSQL_PLUGIN_VAR_HEADER;       \
-    type *value;                   \
-    type def_val;                  \
-    type min_val;                  \
-    type max_val;                  \
-    type blk_sz;                   \
-  }
-
-#define SYSVAR_ENUM_TYPE(type)  \
-  struct sysvar_##type##_type { \
-    MYSQL_PLUGIN_VAR_HEADER;    \
-    unsigned long *value;       \
-    unsigned long def_val;      \
-    TYPE_LIB *typelib;          \
-  }
-
-#define SYSVAR_BOOL_TYPE(type)  \
-  struct sysvar_##type##_type { \
-    MYSQL_PLUGIN_VAR_HEADER;    \
-    bool *value;                \
-    bool def_val;               \
-  }
-
-#define SYSVAR_STR_TYPE(type)   \
-  struct sysvar_##type##_type { \
-    MYSQL_PLUGIN_VAR_HEADER;    \
-    char **value;               \
-    char *def_val;              \
-  }
-
 /**
   @addtogroup group_components_services_sys_var_service_args Variable
   definitions
@@ -363,6 +316,9 @@ DECLARE_BOOL_METHOD(register_variable,
   @retval true    failure
   @retval false   success
 */
+#if defined(__cplusplus) && (__cplusplus >= 201402L)
+[[deprecated("Use mysql_service_mysql_system_variable_reader->get() instead.")]]
+#endif
 DECLARE_BOOL_METHOD(get_variable, (const char *component_name, const char *name,
                                    void **val, size_t *out_length_of_val));
 

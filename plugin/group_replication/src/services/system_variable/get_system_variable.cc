@@ -170,7 +170,7 @@ int Get_system_variable::internal_get_system_variable(std::string variable,
   int error = false;
 
   if (nullptr == server_services_references_module
-                     ->component_sys_variable_register_service) {
+                     ->component_sys_variable_reader_service) {
     error = 1; /* purecov: inspected */
     goto end;  /* purecov: inspected */
   }
@@ -180,9 +180,9 @@ int Get_system_variable::internal_get_system_variable(std::string variable,
     goto end;  /* purecov: inspected */
   }
 
-  if (server_services_references_module->component_sys_variable_register_service
-          ->get_variable("mysql_server", variable.c_str(),
-                         reinterpret_cast<void **>(&var_value), &var_len)) {
+  if (server_services_references_module->component_sys_variable_reader_service
+          ->get(nullptr, "GLOBAL", "mysql_server", variable.c_str(),
+                reinterpret_cast<void **>(&var_value), &var_len)) {
     error = 1; /* purecov: inspected */
     goto end;  /* purecov: inspected */
   }

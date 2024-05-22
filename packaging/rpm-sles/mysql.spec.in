@@ -1288,6 +1288,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_same.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_session_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_int.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_reg_only.so
@@ -1395,6 +1396,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_same.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_session_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_int.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_reg_only.so
@@ -1549,6 +1551,9 @@ fi
 %endif # with_router
 
 %changelog
+* Mon May 20 2024 Murthy Sidagam <venkata.sidagam@oracle.com> - 9.0
+- Added component_test_session_var_service.so component
+
 * Mon Feb 12 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
 - Removed keyring_file plugin
 

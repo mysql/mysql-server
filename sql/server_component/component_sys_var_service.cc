@@ -141,6 +141,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     THD *thd = current_thd;
     bool option_value_found_in_install = false;
     MEM_ROOT local_root{key_memory_comp_sys_var, 512};
+    unsigned int offset = 0;
 
     com_sys_var_len = strlen(component_name) + strlen(var_name) + 2;
     com_sys_var_name = new (&local_root) char[com_sys_var_len];
@@ -170,142 +171,311 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
     switch (flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
       case PLUGIN_VAR_BOOL:
-        SYSVAR_BOOL_TYPE(bool) * sysvar_bool;
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_BOOL_TYPE(bool) * thdvar_bool;
 
-        sysvar_bool = (sysvar_bool_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_bool_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_bool, bool, check_func_bool,
-                                     update_func_bool)
+          thdvar_bool = (thdvar_bool_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_bool_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_bool, bool, check_func_bool,
+                                          update_func_bool)
 
-        BOOL_CHECK_ARG(bool) * bool_arg;
-        bool_arg = (bool_check_arg_s *)check_arg;
-        sysvar_bool->def_val = bool_arg->def_val;
+          BOOL_CHECK_ARG(bool) * bool_arg;
+          bool_arg = (bool_check_arg_s *)check_arg;
+          thdvar_bool->def_val = bool_arg->def_val;
 
-        opt = (SYS_VAR *)sysvar_bool;
+          opt = (SYS_VAR *)thdvar_bool;
+          ((thdvar_bool_type *)opt)->resolve = mysql_sys_var_bool;
+        } else {
+          SYSVAR_BOOL_TYPE(bool) * sysvar_bool;
 
+          sysvar_bool = (sysvar_bool_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_bool_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_bool, bool, check_func_bool,
+                                       update_func_bool)
+
+          BOOL_CHECK_ARG(bool) * bool_arg;
+          bool_arg = (bool_check_arg_s *)check_arg;
+          sysvar_bool->def_val = bool_arg->def_val;
+
+          opt = (SYS_VAR *)sysvar_bool;
+        }
         break;
       case PLUGIN_VAR_INT:
-        SYSVAR_INTEGRAL_TYPE(int) * sysvar_int;
-        sysvar_int = (sysvar_int_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_int_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_int, int, check_func_int,
-                                     update_func_int)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_INTEGRAL_TYPE(int) * thdvar_int;
+          thdvar_int = (thdvar_int_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_int_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_int, int, check_func_int,
+                                          update_func_int)
 
-        INTEGRAL_CHECK_ARG(int) * int_arg;
-        int_arg = (int_check_arg_s *)check_arg;
-        COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_int, int_arg)
+          INTEGRAL_CHECK_ARG(int) * int_arg;
+          int_arg = (int_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(thdvar_int, int_arg)
 
-        opt = (SYS_VAR *)sysvar_int;
+          opt = (SYS_VAR *)thdvar_int;
+          // All PLUGIN_VAR_INT variables are actually uint,
+          // see struct System_variables
+          // Except: plugin variables declared with MYSQL_THDVAR_INT,
+          // which may actually be signed.
+          ((thdvar_int_type *)opt)->resolve = mysql_sys_var_int;
+        } else {
+          SYSVAR_INTEGRAL_TYPE(int) * sysvar_int;
+          sysvar_int = (sysvar_int_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_int_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_int, int, check_func_int,
+                                       update_func_int)
+
+          INTEGRAL_CHECK_ARG(int) * int_arg;
+          int_arg = (int_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_int, int_arg)
+
+          opt = (SYS_VAR *)sysvar_int;
+        }
         break;
       case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED:
-        SYSVAR_INTEGRAL_TYPE(uint) * sysvar_uint;
-        sysvar_uint = (sysvar_uint_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_uint_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_uint, uint, check_func_int,
-                                     update_func_int)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_INTEGRAL_TYPE(uint) * thdvar_uint;
+          thdvar_uint = (thdvar_uint_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_uint_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_uint, uint, check_func_int,
+                                          update_func_int)
 
-        INTEGRAL_CHECK_ARG(uint) * uint_arg;
-        uint_arg = (uint_check_arg_s *)check_arg;
-        COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_uint, uint_arg)
+          INTEGRAL_CHECK_ARG(uint) * uint_arg;
+          uint_arg = (uint_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(thdvar_uint, uint_arg)
 
-        opt = (SYS_VAR *)sysvar_uint;
+          opt = (SYS_VAR *)thdvar_uint;
+          ((thdvar_uint_type *)opt)->resolve = mysql_sys_var_uint;
+        } else {
+          SYSVAR_INTEGRAL_TYPE(uint) * sysvar_uint;
+          sysvar_uint = (sysvar_uint_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_uint_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_uint, uint, check_func_int,
+                                       update_func_int)
+
+          INTEGRAL_CHECK_ARG(uint) * uint_arg;
+          uint_arg = (uint_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_uint, uint_arg)
+
+          opt = (SYS_VAR *)sysvar_uint;
+        }
         break;
       case PLUGIN_VAR_LONG:
-        SYSVAR_INTEGRAL_TYPE(long) * sysvar_long;
-        sysvar_long = (sysvar_long_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_long_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_long, long, check_func_long,
-                                     update_func_long)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_INTEGRAL_TYPE(long) * thdvar_long;
+          thdvar_long = (thdvar_long_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_long_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_long, long, check_func_long,
+                                          update_func_long)
 
-        INTEGRAL_CHECK_ARG(long) * long_arg;
-        long_arg = (long_check_arg_s *)check_arg;
-        COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_long, long_arg)
+          INTEGRAL_CHECK_ARG(long) * long_arg;
+          long_arg = (long_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(thdvar_long, long_arg)
 
-        opt = (SYS_VAR *)sysvar_long;
+          opt = (SYS_VAR *)thdvar_long;
+          // All PLUGIN_VAR_LONG variables are actually ulong,
+          // see struct System_variables
+          ((thdvar_ulong_t *)opt)->resolve = mysql_sys_var_ulong;
+        } else {
+          SYSVAR_INTEGRAL_TYPE(long) * sysvar_long;
+          sysvar_long = (sysvar_long_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_long_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_long, long, check_func_long,
+                                       update_func_long)
+
+          INTEGRAL_CHECK_ARG(long) * long_arg;
+          long_arg = (long_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_long, long_arg)
+
+          opt = (SYS_VAR *)sysvar_long;
+        }
         break;
       case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED:
-        SYSVAR_INTEGRAL_TYPE(ulong) * sysvar_ulong;
-        sysvar_ulong = (sysvar_ulong_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_ulong_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_ulong, ulong, check_func_long,
-                                     update_func_long)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_INTEGRAL_TYPE(ulong) * thdvar_ulong;
+          thdvar_ulong = (thdvar_ulong_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_ulong_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_ulong, ulong, check_func_long,
+                                          update_func_long)
 
-        INTEGRAL_CHECK_ARG(ulong) * ulong_arg;
-        ulong_arg = (ulong_check_arg_s *)check_arg;
-        COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_ulong, ulong_arg)
+          INTEGRAL_CHECK_ARG(ulong) * ulong_arg;
+          ulong_arg = (ulong_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(thdvar_ulong, ulong_arg)
 
-        opt = (SYS_VAR *)sysvar_ulong;
+          opt = (SYS_VAR *)thdvar_ulong;
+          ((thdvar_ulong_type *)opt)->resolve = mysql_sys_var_ulong;
+        } else {
+          SYSVAR_INTEGRAL_TYPE(ulong) * sysvar_ulong;
+          sysvar_ulong = (sysvar_ulong_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_ulong_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_ulong, ulong, check_func_long,
+                                       update_func_long)
+
+          INTEGRAL_CHECK_ARG(ulong) * ulong_arg;
+          ulong_arg = (ulong_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_ulong, ulong_arg)
+
+          opt = (SYS_VAR *)sysvar_ulong;
+        }
         break;
       case PLUGIN_VAR_LONGLONG:
-        SYSVAR_INTEGRAL_TYPE(longlong) * sysvar_longlong;
-        sysvar_longlong = (sysvar_longlong_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_longlong_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_longlong, longlong,
-                                     check_func_longlong, update_func_longlong)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_INTEGRAL_TYPE(longlong) * thdvar_longlong;
+          thdvar_longlong = (thdvar_longlong_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_longlong_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_longlong, longlong,
+                                          check_func_longlong,
+                                          update_func_longlong)
 
-        INTEGRAL_CHECK_ARG(longlong) * longlong_arg;
-        longlong_arg = (longlong_check_arg_s *)check_arg;
-        COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_longlong, longlong_arg)
+          INTEGRAL_CHECK_ARG(longlong) * longlong_arg;
+          longlong_arg = (longlong_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(thdvar_longlong, longlong_arg)
 
-        opt = (SYS_VAR *)sysvar_longlong;
+          opt = (SYS_VAR *)thdvar_longlong;
+          // All PLUGIN_VAR_LONGLONG variables are actually ulonglong,
+          // see struct System_variables
+          ((thdvar_ulonglong_t *)opt)->resolve = mysql_sys_var_ulonglong;
+        } else {
+          SYSVAR_INTEGRAL_TYPE(longlong) * sysvar_longlong;
+          sysvar_longlong = (sysvar_longlong_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_longlong_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_longlong, longlong,
+                                       check_func_longlong,
+                                       update_func_longlong)
+
+          INTEGRAL_CHECK_ARG(longlong) * longlong_arg;
+          longlong_arg = (longlong_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_longlong, longlong_arg)
+
+          opt = (SYS_VAR *)sysvar_longlong;
+        }
         break;
       case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED:
-        SYSVAR_INTEGRAL_TYPE(ulonglong) * sysvar_ulonglong;
-        sysvar_ulonglong = (sysvar_ulonglong_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_ulonglong_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_ulonglong, ulonglong,
-                                     check_func_longlong, update_func_longlong)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_INTEGRAL_TYPE(ulonglong) * thdvar_ulonglong;
+          thdvar_ulonglong = (thdvar_ulonglong_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_ulonglong_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_ulonglong, ulonglong,
+                                          check_func_longlong,
+                                          update_func_longlong)
 
-        INTEGRAL_CHECK_ARG(ulonglong) * ulonglong_arg;
-        ulonglong_arg = (ulonglong_check_arg_s *)check_arg;
-        COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_ulonglong, ulonglong_arg)
+          INTEGRAL_CHECK_ARG(ulonglong) * ulonglong_arg;
+          ulonglong_arg = (ulonglong_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(thdvar_ulonglong, ulonglong_arg)
 
-        opt = (SYS_VAR *)sysvar_ulonglong;
+          opt = (SYS_VAR *)thdvar_ulonglong;
+          ((thdvar_ulonglong_type *)opt)->resolve = mysql_sys_var_ulonglong;
+        } else {
+          SYSVAR_INTEGRAL_TYPE(ulonglong) * sysvar_ulonglong;
+          sysvar_ulonglong = (sysvar_ulonglong_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_ulonglong_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_ulonglong, ulonglong,
+                                       check_func_longlong,
+                                       update_func_longlong)
+
+          INTEGRAL_CHECK_ARG(ulonglong) * ulonglong_arg;
+          ulonglong_arg = (ulonglong_check_arg_s *)check_arg;
+          COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_ulonglong, ulonglong_arg)
+
+          opt = (SYS_VAR *)sysvar_ulonglong;
+        }
         break;
       case PLUGIN_VAR_STR:
-        SYSVAR_STR_TYPE(str) * sysvar_str;
-        sysvar_str = (sysvar_str_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_str_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_str, char *, check_func_str,
-                                     update_func_str)
-        if (!update_func) {
-          if (!(sysvar_str->flags &
-                (PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY))) {
-            sysvar_str->flags |= PLUGIN_VAR_READONLY;
-            LogErr(WARNING_LEVEL, ER_SYS_VAR_COMPONENT_VARIABLE_SET_READ_ONLY,
-                   var_name, component_name);
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_STR_TYPE(str) * thdvar_str;
+          thdvar_str = (thdvar_str_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_str_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_str, char *, check_func_str,
+                                          update_func_str)
+          if (!update_func) {
+            if (!(thdvar_str->flags &
+                  (PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY))) {
+              thdvar_str->flags |= PLUGIN_VAR_READONLY;
+              LogErr(WARNING_LEVEL, ER_SYS_VAR_COMPONENT_VARIABLE_SET_READ_ONLY,
+                     var_name, component_name);
+            }
           }
+
+          STR_CHECK_ARG(str) * str_arg;
+          str_arg = (str_check_arg_s *)check_arg;
+          thdvar_str->def_val = str_arg->def_val;
+
+          opt = (SYS_VAR *)thdvar_str;
+          ((thdvar_str_type *)opt)->resolve = mysql_sys_var_str;
+        } else {
+          SYSVAR_STR_TYPE(str) * sysvar_str;
+          sysvar_str = (sysvar_str_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_str_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_str, char *, check_func_str,
+                                       update_func_str)
+          if (!update_func) {
+            if (!(sysvar_str->flags &
+                  (PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY))) {
+              sysvar_str->flags |= PLUGIN_VAR_READONLY;
+              LogErr(WARNING_LEVEL, ER_SYS_VAR_COMPONENT_VARIABLE_SET_READ_ONLY,
+                     var_name, component_name);
+            }
+          }
+
+          STR_CHECK_ARG(str) * str_arg;
+          str_arg = (str_check_arg_s *)check_arg;
+          sysvar_str->def_val = str_arg->def_val;
+
+          opt = (SYS_VAR *)sysvar_str;
         }
-
-        STR_CHECK_ARG(str) * str_arg;
-        str_arg = (str_check_arg_s *)check_arg;
-        sysvar_str->def_val = str_arg->def_val;
-
-        opt = (SYS_VAR *)sysvar_str;
         break;
       case PLUGIN_VAR_ENUM:
-        SYSVAR_ENUM_TYPE(enum) * sysvar_enum;
-        sysvar_enum = (sysvar_enum_type *)my_malloc(
-            key_memory_comp_sys_var, sizeof(sysvar_enum_type), MYF(0));
-        COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_enum, ulong, check_func_enum,
-                                     update_func_long)
+        if (flags & PLUGIN_VAR_THDLOCAL) {
+          THDVAR_ENUM_TYPE(enum) * thdvar_enum;
+          thdvar_enum = (thdvar_enum_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(thdvar_enum_type), MYF(0));
+          COPY_MYSQL_PLUGIN_THDVAR_HEADER(thdvar_enum, ulong, check_func_enum,
+                                          update_func_long)
 
-        ENUM_CHECK_ARG(enum) * enum_arg;
-        enum_arg = (enum_check_arg_s *)check_arg;
-        sysvar_enum->def_val = enum_arg->def_val;
-        sysvar_enum->typelib = enum_arg->typelib;
+          ENUM_CHECK_ARG(enum) * enum_arg;
+          enum_arg = (enum_check_arg_s *)check_arg;
+          thdvar_enum->def_val = enum_arg->def_val;
+          thdvar_enum->typelib = enum_arg->typelib;
 
-        opt = (SYS_VAR *)sysvar_enum;
+          opt = (SYS_VAR *)thdvar_enum;
+          ((thdvar_enum_type *)opt)->resolve = mysql_sys_var_ulong;
+        } else {
+          SYSVAR_ENUM_TYPE(enum) * sysvar_enum;
+          sysvar_enum = (sysvar_enum_type *)my_malloc(
+              key_memory_comp_sys_var, sizeof(sysvar_enum_type), MYF(0));
+          COPY_MYSQL_PLUGIN_VAR_HEADER(sysvar_enum, ulong, check_func_enum,
+                                       update_func_long)
+
+          ENUM_CHECK_ARG(enum) * enum_arg;
+          enum_arg = (enum_check_arg_s *)check_arg;
+          sysvar_enum->def_val = enum_arg->def_val;
+          sysvar_enum->typelib = enum_arg->typelib;
+
+          opt = (SYS_VAR *)sysvar_enum;
+        }
         break;
       default:
         LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_UNKNOWN_VARIABLE_TYPE, flags,
                component_name);
         goto end;
     }
-    unique_opt.reset(opt);
 
+    unique_opt.reset(opt);
     plugin_opt_set_limits(opts, opt);
-    opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
+
+    if ((flags & PLUGIN_VAR_THDLOCAL) &&
+        register_var(component_name, var_name, flags)) {
+      st_bookmark *var;
+      if ((var = find_bookmark(component_name, var_name, flags))) {
+        *(int *)(opt + 1) = offset = var->offset;
+      }
+    }
+
+    if (flags & PLUGIN_VAR_THDLOCAL)
+      opts->value = opts->u_max_value =
+          (uchar **)(global_system_variables.dynamic_variables_ptr + offset);
+    else
+      opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
 
     /*
       If this is executed by a SQL executing thread that is executing
@@ -453,8 +623,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
   return true;
 }
 
-const char *get_variable_value(sys_var *system_var, char *val_buf,
-                               size_t *val_length) {
+const char *get_variable_value(THD *thd, sys_var *system_var, char *val_buf,
+                               enum_var_type var_type, size_t *val_length) {
   char show_var_buffer[sizeof(SHOW_VAR)];
   SHOW_VAR *show = (SHOW_VAR *)show_var_buffer;
   const CHARSET_INFO *fromcs;
@@ -484,9 +654,9 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   show->value = (char *)system_var;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  const char *variable_value = get_one_variable(
-      current_thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
-      variable_data_buffer, &out_variable_data_length);
+  const char *variable_value =
+      get_one_variable(thd, show, var_type, show->type, nullptr, &fromcs,
+                       variable_data_buffer, &out_variable_data_length);
 
   /*
      Allocate a buffer that can hold "worst" case byte-length of the value
@@ -534,8 +704,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
         strcmp(component_name, "mysql_server") == 0 ? "" : component_name;
     auto f = [val, out_length_of_val](const System_variable_tracker &,
                                       sys_var *var) -> bool {
-      return get_variable_value(var, (char *)*val, out_length_of_val) ==
-             nullptr;
+      return get_variable_value(current_thd, var, (char *)*val, OPT_GLOBAL,
+                                out_length_of_val) == nullptr;
     };
     return System_variable_tracker::make_tracker(prefix, var_name)
         .access_system_variable<bool>(current_thd, f,
@@ -593,11 +763,12 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
     const int var_flags = sv_pluginvar->plugin_var->flags;
     if (((var_flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
         (var_flags & PLUGIN_VAR_MEMALLOC)) {
-      char **value_addr = *(char ***)(sv_pluginvar->plugin_var + 1);
-      char *var_value = *value_addr;
-      if (var_value != nullptr) {
-        my_free(var_value);
-        *value_addr = nullptr;
+      /* Free the string from global_system_variables. */
+      char **valptr =
+          (char **)sv_pluginvar->real_value_ptr(nullptr, OPT_GLOBAL);
+      if (*valptr != nullptr) {
+        my_free(*valptr);
+        *valptr = nullptr;
       }
     }
 
