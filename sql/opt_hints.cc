@@ -516,6 +516,291 @@ static bool set_join_hint_deps(JOIN *join,
   return false;
 }
 
+/**
+  Checks if any join order hints have been specified in query.
+
+  @return true if join order hints present, false otherwise.
+*/
+bool Opt_hints_qb::has_join_order_hints() const {
+  return join_order_hints.size() > 0;
+}
+
+/**
+  Deletes all the join order hints.
+*/
+void Opt_hints_qb::clear_join_order_hints() { join_order_hints.clear(); }
+
+/**
+  Sorts tables from the join list to create a new join list which contains the
+  tables in an order which complies with join order hints.
+
+  @param join_list     Deque of tables in join
+  @param mem_root_arg  Mem_root for memory allocations
+
+  @return Deque of tables sorted in reverse hinted order.
+*/
+mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
+    const mem_root_deque<Table_ref *> join_list, MEM_ROOT *mem_root_arg) {
+  if (!has_join_order_hints()) return nullptr;
+  mem_root_deque<Table_ref *> *new_join_list =
+      new mem_root_deque<Table_ref *>(mem_root_arg);
+
+  mem_root_deque<Table_ref *> prefix_list(mem_root_arg),
+      suffix_list(mem_root_arg), order_list(mem_root_arg),
+      unhinted_list(mem_root_arg);
+  table_map hinted_table_map = 0, order_table_map = 0;
+  // Iterate through the hint table list for each hint and place the tables
+  // into 3 lists: prefix_list, suffix_list and order_list
+  for (uint hint_idx = 0; hint_idx < join_order_hints.size(); hint_idx++) {
+    PT_qb_level_hint *hint = join_order_hints[hint_idx];
+    Hint_param_table_list *hint_table_list = hint->get_table_list();
+    if (hint_table_list->size() == 0) continue;
+
+    // Push all prefix/suffix tables backwards into join table list
+    for (uint hint_tab_idx = 0; hint_tab_idx < hint_table_list->size();
+         hint_tab_idx++) {
+      const Hint_param_table &hint_table = (*hint_table_list)[hint_tab_idx];
+      Table_ref *match = nullptr;
+      for (auto it = join_list.rbegin(); it != join_list.rend();
+           ++it) {  // The list goes backwards.
+        Table_ref *curr_tab = *it;
+        if (!compare_table_name(&hint_table, curr_tab)) {
+          match = curr_tab;
+          break;
+        }
+      }
+      if ((match == nullptr) || match->outer_join) {
+        join_order_hints_ignored |= 1ULL << hint_idx;
+        break;
+      }
+
+      if (Overlaps(hinted_table_map, match->map())) {
+        // table already hinted, ignore and add remaining hinted tables
+        // for best-effort matching of multiple hints
+        continue;
+      }
+      if (hint->type() == JOIN_PREFIX_HINT_ENUM) {
+        prefix_list.push_front(match);
+      } else if (hint->type() == JOIN_SUFFIX_HINT_ENUM) {
+        suffix_list.push_front(match);
+      } else if (hint->type() == JOIN_ORDER_HINT_ENUM) {
+        order_list.push_front(match);
+        order_table_map |= match->map();
+      }
+      hinted_table_map |= match->map();
+    }
+  }
+
+  // Now that the lists are in place, the new join order is constructed
+  // 1. Add all prefix tables.
+  // 2. Add all non-prefix and non-suffix tables while handling relative
+  //    table orders specified in order_list.
+  // 3. Add all suffix tables.
+  for (auto it = prefix_list.rbegin(); it != prefix_list.rend(); ++it) {
+    Table_ref *tl = *it;
+    new_join_list->push_front(tl);
+  }
+  for (auto it = join_list.rbegin(); it != join_list.rend(); ++it) {
+    Table_ref *tl = *it;
+    if (!Overlaps(tl->map(), hinted_table_map)) {
+      new_join_list->push_front(tl);
+    } else if (Overlaps(tl->map(), order_table_map)) {
+      // if any JOIN_ORDER_HINT table is found, replace it with the
+      // next table in the JOIN_ORDER_HINT order. This will ensure that
+      // all the JOIN_ORDER_HINT tables are present in order.
+      Table_ref *next_table_in_order = order_list.back();
+      order_list.pop_back();
+      new_join_list->push_front(next_table_in_order);
+    }
+  }
+  for (auto it = suffix_list.rbegin(); it != suffix_list.rend(); ++it) {
+    Table_ref *tl = *it;
+    new_join_list->push_front(tl);
+  }
+
+  for (auto it = new_join_list->rbegin(); it != new_join_list->rend(); ++it) {
+    // For debugging, remove in final patch
+    Table_ref *tl = *it;
+    assert(tl != nullptr);
+  }
+  return new_join_list;
+}
+
+/**
+  Checks if a combination of left and right RelationalExpressions satisfy
+  one or more join order hints. If the proposed join does not satisfy a hint,
+  the remaining hints are ignored.
+
+  @param left          Left side of proposed join
+  @param right         Right side of proposed join
+  @param join_list     Deque of tables in join
+
+  @return true if at least one hint matches, false otherwise
+*/
+bool Opt_hints_qb::check_join_order_hints(
+    RelationalExpression *left, RelationalExpression *right,
+    const mem_root_deque<Table_ref *> *join_list) {
+  if (!has_join_order_hints()) return true;
+  if (right->type != RelationalExpression::TABLE)
+    return false;  // right-deep or bushy plan
+
+  uint hint_idx;
+  for (hint_idx = 0; hint_idx < join_order_hints.size(); hint_idx++) {
+    if (join_order_hints_ignored & (1ULL << hint_idx)) continue;
+    PT_qb_level_hint *hint = join_order_hints[hint_idx];
+    if (!hinted_join_order(hint, left, right, join_list)) break;
+  }
+  return hint_idx > 0;
+}
+
+/**
+  Checks if a combination of left and right RelationalExpressions satisfy
+  a hint.
+
+  @param hint          Hint info
+  @param left          Left side of proposed join
+  @param right         Right side of proposed join
+  @param join_list     Deque of tables in join
+
+  @return true if at least one hint matches, false otherwise
+*/
+bool Opt_hints_qb::hinted_join_order(
+    PT_qb_level_hint *hint, RelationalExpression *left,
+    RelationalExpression *right, const mem_root_deque<Table_ref *> *join_list) {
+  if (right->type != RelationalExpression::TABLE)
+    return false;  // right-deep or bushy plan
+
+  Hint_param_table_list *hint_table_list = hint->get_table_list();
+  if (hint_table_list->size() == 0) return false;
+
+  // Special case where both 'left' and 'right' are TABLEs
+  if (left->type == RelationalExpression::TABLE) {
+    uint hint_tbl_idx = 0;
+    const bool left_matched =
+        hint_table_list->size() > hint_tbl_idx &&
+        !compare_table_name(&(*hint_table_list)[hint_tbl_idx], left->table);
+    hint_tbl_idx += (left_matched == true);
+    const bool right_matched =
+        hint_table_list->size() > hint_tbl_idx &&
+        !compare_table_name(&(*hint_table_list)[hint_tbl_idx], right->table);
+    switch (hint->type()) {
+      case JOIN_PREFIX_HINT_ENUM:
+        return left_matched && (right_matched || hint_table_list->size() == 1);
+      case JOIN_SUFFIX_HINT_ENUM:
+        return right_matched;
+      case JOIN_ORDER_HINT_ENUM:
+        return left_matched && right_matched;
+      default:
+        assert(false);
+        break;
+    }
+    return false;
+  }
+  table_map hint_tab_map = 0;
+  uint last_hint_tab_in_left = 0;
+  for (uint hint_tbl_idx = 0; hint_tbl_idx < hint_table_list->size();
+       hint_tbl_idx++) {
+    const Hint_param_table &hint_table = (*hint_table_list)[hint_tbl_idx];
+    for (auto it = join_list->rbegin(); it != join_list->rend();
+         ++it) {  // The list goes backwards.
+      const Table_ref *tl = *it;
+      if (!compare_table_name(&hint_table, tl)) {
+        hint_tab_map |= tl->map();
+        if (Overlaps(left->tables_in_subtree, tl->map()))
+          last_hint_tab_in_left = hint_tbl_idx;
+        break;
+      }
+    }
+  }
+  bool left_hinted =
+      hinted_join_order(hint, left->left, left->right, join_list);
+  switch (hint->type()) {
+    case JOIN_PREFIX_HINT_ENUM: {
+      if (!left_hinted) return false;
+      if (IsSubset(hint_tab_map, left->tables_in_subtree)) {
+        // Hint matches if prefix fully contained in left expr. Non-prefix
+        // tables can be present after prefix tables.
+        // E.g. left = {a, b, c, d}, prefix = {a, b, c}
+        return true;
+      } else if (Overlaps(left->tables_in_subtree, hint_tab_map) &&
+                 Overlaps(right->table->map(), hint_tab_map)) {
+        if (!left_hinted) return false;
+        // hint split across left and right expressions
+        uint next_prefix_tab = last_hint_tab_in_left + 1;
+        if (next_prefix_tab >= hint_table_list->size()) {
+          return false;
+        }
+        if (!compare_table_name(&((*hint_table_list)[next_prefix_tab]),
+                                right->table)) {
+          return true;
+        }
+      }
+      return false;
+      break;
+    }
+    case JOIN_SUFFIX_HINT_ENUM: {
+      if (!left_hinted) {
+        if (!compare_table_name(&((*hint_table_list)[0]), right->table)) {
+          // right expr contains first suffix table
+          return true;
+        } else if (!Overlaps(right->table->map(), hint_tab_map)) {
+          // Hint broken if right table not present
+          return false;
+        }
+      } else if (Overlaps(left->tables_in_subtree, hint_tab_map) &&
+                 Overlaps(right->table->map(), hint_tab_map)) {
+        // hint split across left and right expressions
+        uint next_suffix_tab = last_hint_tab_in_left + 1;
+        if (next_suffix_tab >= hint_table_list->size()) {
+          return false;
+        }
+        if (!compare_table_name(&((*hint_table_list)[next_suffix_tab]),
+                                right->table)) {
+          return true;
+        }
+      }
+      return false;
+      break;
+    }
+    case JOIN_ORDER_HINT_ENUM: {
+      if (!left_hinted && !Overlaps(right->table->map(), hint_tab_map)) {
+        // JOIN_ORDER tables not present in either left or right
+        return false;
+      } else if (left_hinted &&
+                 IsSubset(hint_tab_map, left->tables_in_subtree)) {
+        // All join order tables present in order in left expr, right expr is
+        // not part of hint
+        return false;
+      } else if (Overlaps(left->tables_in_subtree, hint_tab_map) &&
+                 Overlaps(right->table->map(), hint_tab_map)) {
+        // hint split across left and right expressions - get all tables which
+        // should precede right->table in hinted join order
+        table_map prior_map = 0;
+        for (uint hint_tbl_idx = 0; hint_tbl_idx <= last_hint_tab_in_left;
+             hint_tbl_idx++) {
+          const Hint_param_table &hint_table = (*hint_table_list)[hint_tbl_idx];
+          for (auto it = join_list->rbegin(); it != join_list->rend();
+               ++it) {  // The list goes backwards.
+            const Table_ref *tl = *it;
+            if (!compare_table_name(&hint_table, tl)) {
+              prior_map |= tl->map();
+              break;
+            }
+          }
+        }
+        // check that right expr does not contain a table which should
+        // precede any of the left expr tables in the hinted order
+        if (Overlaps(right->table->map(), prior_map)) return false;
+        return true;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return false;
+}
+
 void Opt_hints_qb::apply_join_order_hints(JOIN *join) {
   for (uint hint_idx = 0; hint_idx < join_order_hints.size(); hint_idx++) {
     PT_qb_level_hint *hint = join_order_hints[hint_idx];

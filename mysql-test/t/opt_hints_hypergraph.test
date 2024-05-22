@@ -64,3 +64,51 @@ EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN medium_tab STRA
 DROP TABLE small_tab;
 DROP TABLE medium_tab;
 DROP TABLE large_tab;
+
+CREATE TABLE t1 (id int, val int);
+CREATE TABLE t2 (id int, val int);
+CREATE TABLE t3 (id int, val int);
+CREATE TABLE t4 (id int, val int);
+CREATE TABLE t5 (id int, val int);
+CREATE TABLE t6 (id int, val int);
+
+--echo JOIN_PREFIX hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1,t3,t5) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t4) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t2,t4,t6,t1,t3) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t2,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t3,t1,t2,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+
+--echo JOIN_SUFFIX hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t1,t2,t6) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t6,t3) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t5,t4,t3,t6,t1) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t4,t5,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t3,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t1,t3,t2,t5,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+
+--echo JOIN_ORDER hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t6,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t4,t6,t3,t5,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;

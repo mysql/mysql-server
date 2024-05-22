@@ -1293,37 +1293,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 test.t4	analyze	status	OK
-EXPLAIN FORMAT=tree SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
-COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
-WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
-ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
-EXPLAIN
--> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=2.94)
-        -> Nested loop inner join  (rows=1)
-            -> Remove duplicates from input grouped on t4.f1  (rows=1)
-                -> Sort: t4.f1  (rows=1)
-                    -> Table scan on t4  (rows=1)
-            -> Single-row covering index lookup on ta4 using PRIMARY (f1=t4.f1)  (rows=1)
-        -> Nested loop inner join  (rows=2.94)
-            -> Table scan on t1  (rows=1)
-            -> Nested loop inner join  (rows=2.94)
-                -> Remove duplicates from input grouped on t2.f2  (rows=2.45)
-                    -> Covering index scan on t2 using f2  (rows=6)
-                -> Covering index lookup on ta3 using f2 (f2=t2.f2)  (rows=1.2)
-
-SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
-COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
-WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
-ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
-COUNT(*)
-6
-SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
-COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
-WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
-ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
-COUNT(*)
-6
 DROP TABLE t1, t2, t4;
 #
 # Bug#30035890 SIG 11 IN HASHJOINITERATOR::READJOINEDROW AT
@@ -1962,11 +1931,11 @@ WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
 EXPLAIN
 -> Limit: 10 row(s)  (rows=0.0556)
     -> Nested loop inner join  (rows=0.0556)
-        -> Table scan on t1  (rows=1)
-        -> Filter: (t1.col1 = t2.col1)  (rows=0.0556)
-            -> Sort-deduplicate by row ID  (rows=0.556)
-                -> Index range scan on t2 using idx_a over (0 < col2)  (rows=1)
-                -> Index range scan on t2 using idx_b over (0 < col3)  (rows=1)
+        -> Sort-deduplicate by row ID  (rows=0.556)
+            -> Index range scan on t2 using idx_a over (0 < col2)  (rows=1)
+            -> Index range scan on t2 using idx_b over (0 < col3)  (rows=1)
+        -> Filter: (t1.col1 = t2.col1)  (rows=0.1)
+            -> Table scan on t1  (rows=1)
 
 SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
 FROM t1
@@ -2095,12 +2064,12 @@ JOIN t2 ON t1.i > t2.i
 JOIN t3 ON t2.i = t3.i;
 EXPLAIN
 -> Inner hash join (t2.i = t3.i)  (rows=8737)
-    -> Inner hash join (no condition), extra conditions: (t1.i > t2.i)  (rows=1365)
-        -> Table scan on t1  (rows=64)
-        -> Hash
-            -> Table scan on t2  (rows=64)
+    -> Table scan on t3  (rows=64)
     -> Hash
-        -> Table scan on t3  (rows=64)
+        -> Inner hash join (no condition), extra conditions: (t1.i > t2.i)  (rows=1365)
+            -> Table scan on t2  (rows=64)
+            -> Hash
+                -> Table scan on t1  (rows=64)
 
 SELECT /*+ NO_BNL(t2) JOIN_ORDER(t1, t2, t3) */ * FROM t1
 JOIN t2 ON t1.i > t2.i
@@ -2146,72 +2115,6 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
-RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
-WHERE NOT EXISTS (
-SELECT t1.col1 FROM t1
-INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
-WHERE t1.col1 <> t2.col1
-) AND t2.col1 < 49;
-EXPLAIN
--> Inner hash join (no condition)  (rows=3.4)
-    -> Table scan on const_table  (rows=2)
-        -> Materialize  (rows=2)
-            -> Rows fetched before execution  (rows=2)
-    -> Hash
-        -> Hash antijoin (no condition), extra conditions: (t1_2.col1 <> t2.col1)  (rows=1.7)
-            -> Filter: (t2.col1 < 49)  (rows=17)
-                -> Table scan on t2  (rows=17)
-            -> Hash
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                    -> Filter: (t1_2.col1 = t1.col1)  (rows=1)
-                        -> Table scan on t1_2  (rows=1)
-
-Warnings:
-Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
-SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
-RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
-WHERE NOT EXISTS (
-SELECT t1.col1 FROM t1
-INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
-WHERE t1.col1 <> t2.col1
-) AND t2.col1 < 49;
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
 DROP TABLE t1, t2;
 #
 # Bug#30626264 ASSERTS IN BASIC_ROW_ITERATORS.H:345:

@@ -38,6 +38,7 @@
 #include "my_inttypes.h"
 #include "mysql/strings/m_ctype.h"
 #include "sql/enum_query_type.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/sql_bitmap.h"      // Bitmap
 #include "sql/sql_show.h"        // append_identifier
@@ -472,6 +473,17 @@ class Opt_hints_qb : public Opt_hints {
   Subquery_strategy subquery_strategy() const;
 
   void print_irregular_hints(const THD *thd, String *str) override;
+  mem_root_deque<Table_ref *> *sort_tables_in_join_order(
+      const mem_root_deque<Table_ref *>, MEM_ROOT *mem_root_arg);
+  bool check_join_order_hints(RelationalExpression *left,
+                              RelationalExpression *right,
+                              const mem_root_deque<Table_ref *> *join_list);
+  bool hinted_join_order(PT_qb_level_hint *hint, RelationalExpression *left,
+                         RelationalExpression *right,
+                         const mem_root_deque<Table_ref *> *join_list);
+
+  bool has_join_order_hints() const;
+  void clear_join_order_hints();
 
   /**
     Checks if join order hints are applicable and

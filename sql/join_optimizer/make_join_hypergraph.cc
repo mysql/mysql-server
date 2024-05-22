@@ -323,14 +323,34 @@ RelationalExpression *MakeRelationalExpression(THD *thd,
 
 /**
   Convert the Query_block's join lists into a RelationalExpression,
-  ie., a join tree with tables at the leaves.
- */
+  ie., a join tree with tables at the leaves. If join order hints are
+  specified, use the join order specified in the join order hints.
+
+  @param thd           Current thread
+  @param query_block   Current query block
+  @param join_list_arg List of tables in this join
+  @return              RelationalExpression for all tables in join
+*/
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const Query_block *query_block,
-    const mem_root_deque<Table_ref *> &join_list) {
-  assert(!join_list.empty());
+    const mem_root_deque<Table_ref *> &join_list_arg) {
+  assert(!join_list_arg.empty());
+  bool join_order_hinted = false;
+  mem_root_deque<Table_ref *> *join_list = nullptr;
+
+  if (query_block->opt_hints_qb &&
+      query_block->opt_hints_qb->has_join_order_hints()) {
+    join_order_hinted = true;
+    join_list = query_block->opt_hints_qb->sort_tables_in_join_order(
+        join_list_arg, thd->mem_root);
+  }
+
+  if (join_list == nullptr) {
+    join_list = const_cast<mem_root_deque<Table_ref *> *>(&join_list_arg);
+  }
+
   RelationalExpression *ret = nullptr;
-  for (auto it = join_list.rbegin(); it != join_list.rend();
+  for (auto it = join_list->rbegin(); it != join_list->rend();
        ++it) {  // The list goes backwards.
     const Table_ref *tl = *it;
     if (ret == nullptr) {
@@ -341,7 +361,9 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
 
     RelationalExpression *join = new (thd->mem_root) RelationalExpression(thd);
     join->left = ret;
-    if (tl->is_sj_or_aj_nest()) {
+    if (!join_order_hinted && tl->is_sj_or_aj_nest()) {
+      // semijoin and antijoin support for join order hints to be added in
+      // next patch in this series
       join->right = MakeRelationalExpressionFromJoinList(
           thd, query_block, tl->nested_join->m_tables);
       join->type = tl->is_sj_nest() ? RelationalExpression::SEMIJOIN
@@ -352,6 +374,15 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
         join->type = RelationalExpression::LEFT_JOIN;
       } else if (tl->straight || Overlaps(query_block->active_options(),
                                           SELECT_STRAIGHT_JOIN)) {
+        join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+      } else if (join_order_hinted &&
+                 query_block->opt_hints_qb->check_join_order_hints(
+                     join->left, join->right, join_list)) {
+        join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
+      } else if (join_order_hinted &&
+                 query_block->opt_hints_qb->check_join_order_hints(
+                     join->right, join->left, join_list)) {
+        std::swap(join->left, join->right);
         join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
       } else {
         join->type = RelationalExpression::INNER_JOIN;
