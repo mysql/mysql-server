@@ -336,10 +336,14 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
                    {cluster_nodes_ports[0], cluster_nodes_ports[1]}, view_id);
 
   SCOPED_TRACE("// Make a connection to the secondary");
-  auto client1_res = make_new_connection_ok(router_port_ro);
+  auto client1_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client1_res);
-  EXPECT_EQ(client1_res->first, cluster_nodes_ports[1]);
-  auto client1 = std::move(client1_res->second);
+  auto client1 = std::move(*client1_res);
+  {  // check port
+    auto port_res = select_port(client1.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Now let's change the md on the PRIMARY adding 2nd SECONDARY, also "
@@ -362,15 +366,19 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
   SCOPED_TRACE("// Check that newly added node is used for ro connections ");
 
   {
-    auto client2_res = make_new_connection_ok(router_port_ro);
+    auto client2_res = make_new_connection(router_port_ro);
     ASSERT_NO_ERROR(client2_res);
-    EXPECT_EQ(client2_res->first, cluster_nodes_ports[1]);
+    auto port_res = select_port(client2_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
   }
 
   {
-    auto client3_res = make_new_connection_ok(router_port_ro);
+    auto client3_res = make_new_connection(router_port_ro);
     ASSERT_NO_ERROR(client3_res);
-    EXPECT_EQ(client3_res->first, cluster_nodes_ports[2]);
+    auto port_res = select_port(client3_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
   }
 }
 
@@ -436,15 +444,25 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
   SCOPED_TRACE(
       "// Let's make a connection to the both secondaries, both should be "
       "successful");
-  auto client1_res = make_new_connection_ok(router_port_ro);
+  auto client1_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client1_res);
-  EXPECT_EQ(client1_res->first, cluster_nodes_ports[1]);
-  auto client1 = std::move(client1_res->second);
+  auto client1 = std::move(*client1_res);
 
-  auto client2_res = make_new_connection_ok(router_port_ro);
+  {
+    auto port_res = select_port(client1.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
+
+  auto client2_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client2_res);
-  EXPECT_EQ(client2_res->first, cluster_nodes_ports[2]);
-  auto client2 = std::move(client2_res->second);
+  auto client2 = std::move(*client2_res);
+
+  {
+    auto port_res = select_port(client2.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
+  }
 
   SCOPED_TRACE(
       "// Now let's change the md on the first SECONDARY removing 2nd "
@@ -683,15 +701,25 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
-  auto client1_res = make_new_connection_ok(router_port_rw);
+  auto client1_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client1_res);
-  EXPECT_EQ(client1_res->first, cluster_nodes_ports[0]);
-  auto client1 = std::move(client1_res->second);
+  auto client1 = std::move(*client1_res);
 
-  auto client2_res = make_new_connection_ok(router_port_ro);
+  {
+    auto port_res = select_port(client1.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
+
+  auto client2_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client2_res);
-  EXPECT_EQ(client2_res->first, cluster_nodes_ports[1]);
-  auto client2 = std::move(client2_res->second);
+  auto client2 = std::move(*client2_res);
+
+  {
+    auto port_res = select_port(client2.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Make both members to start returning errors on metadata query now");
@@ -775,15 +803,23 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
-  auto client1_res = make_new_connection_ok(router_port_rw);
+  auto client1_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client1_res);
-  EXPECT_EQ(client1_res->first, cluster_nodes_ports[0]);
-  auto client1 = std::move(client1_res->second);
+  auto client1 = std::move(*client1_res);
+  {
+    auto port_res = select_port(client1.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 
-  auto client2_res = make_new_connection_ok(router_port_ro);
+  auto client2_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client2_res);
-  EXPECT_EQ(client2_res->first, cluster_nodes_ports[1]);
-  auto client2 = std::move(client2_res->second);
+  auto client2 = std::move(*client2_res);
+  {
+    auto port_res = select_port(client2.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Make both members to start returning errors on metadata query now");
@@ -815,9 +851,13 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// We should be able to connect to the PRIMARY again ");
-  auto client3_res = make_new_connection_ok(router_port_rw);
-  ASSERT_NO_ERROR(client3_res);
-  EXPECT_EQ(client3_res->first, cluster_nodes_ports[0]);
+  {
+    auto client3_res = make_new_connection(router_port_rw);
+    ASSERT_NO_ERROR(client3_res);
+    auto port_res = select_port(client3_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 }
 
 /**
@@ -959,15 +999,23 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make 2 RO connections, one for each SECONDARY");
-  auto client1_res = make_new_connection_ok(router_port_ro);
+  auto client1_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client1_res);
-  EXPECT_EQ(client1_res->first, cluster_nodes_ports[1]);
-  auto client1 = std::move(client1_res->second);
+  auto client1 = std::move(*client1_res);
+  {
+    auto port_res = select_port(client1.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
-  auto client2_res = make_new_connection_ok(router_port_ro);
+  auto client2_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client2_res);
-  EXPECT_EQ(client2_res->first, cluster_nodes_ports[2]);
-  auto client2 = std::move(client2_res->second);
+  auto client2 = std::move(*client2_res);
+  {
+    auto port_res = select_port(client2.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[2]);
+  }
 
   SCOPED_TRACE("// Now let's remove the second SECONDARY from the metadata");
   std::vector<uint16_t> new_cluster_members{cluster_nodes_ports[0],
@@ -993,9 +1041,12 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
   SCOPED_TRACE(
       "// Check that new RO connections are made to the first secondary");
   for (int i = 0; i < 2; i++) {
-    auto client_res = make_new_connection_ok(router_port_ro);
+    auto client_res = make_new_connection(router_port_ro);
     ASSERT_NO_ERROR(client_res);
-    EXPECT_EQ(client_res->first, cluster_nodes_ports[1]);
+
+    auto port_res = select_port(client_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
   }
 }
 
@@ -1055,15 +1106,23 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
                    initial_cluster_members, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  auto client_rw_res = make_new_connection_ok(router_port_rw);
+  auto client_rw_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw_res);
-  EXPECT_EQ(client_rw_res->first, cluster_nodes_ports[0]);
-  auto client_rw = std::move(client_rw_res->second);
+  auto client_rw = std::move(*client_rw_res);
+  {
+    auto port_res = select_port(client_rw.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 
-  auto client_ro_res = make_new_connection_ok(router_port_ro);
+  auto client_ro_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client_ro_res);
-  EXPECT_EQ(client_ro_res->first, cluster_nodes_ports[1]);
-  auto client_ro = std::move(client_ro_res->second);
+  auto client_ro = std::move(*client_ro_res);
+  {
+    auto port_res = select_port(client_ro.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Now let's remove old primary and promote a first secondary to become "
@@ -1088,9 +1147,13 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
   verify_existing_connection_ok(client_ro.get());
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
-  auto client_rw2_res = make_new_connection_ok(router_port_rw);
+  auto client_rw2_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw2_res);
-  EXPECT_EQ(client_rw2_res->first, cluster_nodes_ports[1]);
+  {
+    auto port_res = select_port(client_rw2_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 }
 
 /**
@@ -1145,15 +1208,23 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  auto client_rw_res = make_new_connection_ok(router_port_rw);
+  auto client_rw_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw_res);
-  EXPECT_EQ(client_rw_res->first, cluster_nodes_ports[0]);
-  auto client_rw = std::move(client_rw_res->second);
+  auto client_rw = std::move(*client_rw_res);
+  {
+    auto port_res = select_port(client_rw.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 
-  auto client_ro_res = make_new_connection_ok(router_port_ro);
+  auto client_ro_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client_ro_res);
-  EXPECT_EQ(client_ro_res->first, cluster_nodes_ports[1]);
-  auto client_ro = std::move(client_ro_res->second);
+  auto client_ro = std::move(*client_ro_res);
+  {
+    auto port_res = select_port(client_ro.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Now let's change the primary from node[0] to node[1] and let "
@@ -1171,9 +1242,13 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
   verify_existing_connection_ok(client_ro.get());
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
-  auto client_rw2_res = make_new_connection_ok(router_port_rw);
+  auto client_rw2_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw2_res);
-  EXPECT_EQ(client_rw2_res->first, cluster_nodes_ports[1]);
+  {
+    auto port_res = select_port(client_rw2_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 }
 
 /**
@@ -1230,15 +1305,23 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  auto client_rw_res = make_new_connection_ok(router_port_rw);
+  auto client_rw_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw_res);
-  EXPECT_EQ(client_rw_res->first, cluster_nodes_ports[0]);
-  auto client_rw = std::move(client_rw_res->second);
+  auto client_rw = std::move(*client_rw_res);
+  {
+    auto port_res = select_port(client_rw.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 
-  auto client_ro_res = make_new_connection_ok(router_port_ro);
+  auto client_ro_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client_ro_res);
-  EXPECT_EQ(client_ro_res->first, cluster_nodes_ports[1]);
-  auto client_ro = std::move(client_ro_res->second);
+  auto client_ro = std::move(*client_ro_res);
+  {
+    auto port_res = select_port(client_ro.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Now let's change the primary from node[0] to node[1] and let "
@@ -1262,9 +1345,13 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
   EXPECT_TRUE(wait_connection_dropped(*client_ro.get()));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
-  auto client_rw2_res = make_new_connection_ok(router_port_rw);
+  auto client_rw2_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw2_res);
-  EXPECT_EQ(client_rw2_res->first, cluster_nodes_ports[1]);
+  {
+    auto port_res = select_port(client_rw2_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 }
 
 /**
@@ -1319,17 +1406,25 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  auto client_rw_res = make_new_connection_ok(router_port_rw);
+  auto client_rw_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client_rw_res);
-  EXPECT_EQ(client_rw_res->first, cluster_nodes_ports[0]);
-  auto client_rw = std::move(client_rw_res->second);
+  auto client_rw = std::move(*client_rw_res);
+  {
+    auto port_res = select_port(client_rw.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 
   // the ro port is configured for PRIMARY_AND_SECONDARY so the first connection
   // will be directed to the PRIMARY
-  auto client_ro_res = make_new_connection_ok(router_port_ro);
+  auto client_ro_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client_ro_res);
-  EXPECT_EQ(client_ro_res->first, cluster_nodes_ports[0]);
-  auto client_ro = std::move(client_ro_res->second);
+  auto client_ro = std::move(*client_ro_res);
+  {
+    auto port_res = select_port(client_ro.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
 
   SCOPED_TRACE(
       "// Now let's change the primary from node[0] to node[1] and let "
@@ -1350,9 +1445,13 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
 
   SCOPED_TRACE(
       "// Check that new RO connection is now made to the new PRIMARY");
-  auto client_ro2_res = make_new_connection_ok(router_port_ro);
+  auto client_ro2_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client_ro2_res);
-  EXPECT_EQ(client_ro2_res->first, cluster_nodes_ports[1]);
+  {
+    auto port_res = select_port(client_ro2_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 }
 
 /**
@@ -1407,10 +1506,14 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                    cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RO connection");
-  auto client_ro_res = make_new_connection_ok(router_port_ro);
+  auto client_ro_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client_ro_res);
-  EXPECT_EQ(client_ro_res->first, cluster_nodes_ports[1]);
-  auto client_ro = std::move(client_ro_res->second);
+  auto client_ro = std::move(*client_ro_res);
+  {
+    auto port_res = select_port(client_ro.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE("// Now let's bring the only SECONDARY down");
   set_mock_metadata(cluster_http_ports[0], cluster_id, {cluster_nodes_ports[0]},
@@ -1603,9 +1706,12 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
     if (routing_strategy != "round-robin-with-fallback") {
       verify_new_connection_fails(router_port_ro);
     } else {
-      auto client_ro_res = make_new_connection_ok(router_port_ro);
+      auto client_ro_res = make_new_connection(router_port_ro);
       ASSERT_NO_ERROR(client_ro_res);
-      EXPECT_EQ(client_ro_res->first, cluster_nodes_ports[0]);
+
+      auto port_res = select_port(client_ro_res->get());
+      ASSERT_NO_ERROR(port_res);
+      EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
     }
   }
 }
@@ -1760,15 +1866,25 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
-  auto client1_res = make_new_connection_ok(router_port_rw);
+  auto client1_res = make_new_connection(router_port_rw);
   ASSERT_NO_ERROR(client1_res);
-  EXPECT_EQ(client1_res->first, cluster_nodes_ports[0]);
-  auto client1 = std::move(client1_res->second);
+  auto client1 = std::move(*client1_res);
 
-  auto client2_res = make_new_connection_ok(router_port_ro);
+  {
+    auto port_res = select_port(client1.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[0]);
+  }
+
+  auto client2_res = make_new_connection(router_port_ro);
   ASSERT_NO_ERROR(client2_res);
-  EXPECT_EQ(client2_res->first, cluster_nodes_ports[1]);
-  auto client2 = std::move(client2_res->second);
+  auto client2 = std::move(*client2_res);
+
+  {
+    auto port_res = select_port(client2.get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, cluster_nodes_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// Make all members to start returning invalid data when queried for "

@@ -145,9 +145,11 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
                                /*wait_for_notify_ready=*/30s);
   EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 2));
   {
-    auto conn_res = make_new_connection_ok(router_ro_port);
+    auto conn_res = make_new_connection(router_ro_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, classic_ports[1]);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[1]);
   }
 
   SCOPED_TRACE(
@@ -385,9 +387,11 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
 
   // the Router should start handling connections
   {
-    auto conn_res = make_new_connection_ok(router_port);
+    auto conn_res = make_new_connection(router_port);
     ASSERT_NO_ERROR(conn_res);
-    EXPECT_EQ(conn_res->first, md_server_port);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, md_server_port);
   }
   // router should exit noramlly
   ASSERT_THAT(router.kill(), testing::Eq(0));
