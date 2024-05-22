@@ -43,13 +43,17 @@
 #include "router_component_testutils.h"
 #include "router_config.h"
 #include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
 
 using mysqlrouter::ClusterType;
-using mysqlrouter::MetadataSchemaVersion;
-using mysqlrouter::MySQLSession;
-using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class NodeAttributesTest : public RouterComponentMetadataTest {
  protected:
@@ -235,10 +239,10 @@ TEST_P(ClusterNodeAttributesTest, RWRONodeHidden) {
   }
 
   SCOPED_TRACE("// Make rw connection, should be ok");
-  try {
-    make_new_connection_ok(router_rw_port, node_ports[0]);
-  } catch (const std::exception &e) {
-    FAIL() << e.what();
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[0]);
   }
 
   SCOPED_TRACE("// Configure first RO node to hidden=true");
@@ -370,10 +374,10 @@ TEST_P(ClusterNodeAttributesTest, RWRONodeHidden) {
   }
 
   SCOPED_TRACE("// Making new connection should be possible again");
-  try {
-    make_new_connection_ok(router_rw_port, node_ports[0]);
-  } catch (const std::exception &e) {
-    FAIL() << e.what();
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[0]);
   }
 
   SCOPED_TRACE("// Configure RW node again to hidden=true");
@@ -407,7 +411,11 @@ TEST_P(ClusterNodeAttributesTest, RWRONodeHidden) {
     EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
     EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
     SCOPED_TRACE("// Making new connection should be possible again");
-    make_new_connection_ok(router_rw_port, node_ports[0]);
+    {
+      auto conn_res = make_new_connection_ok(router_rw_port);
+      ASSERT_NO_ERROR(conn_res);
+      EXPECT_EQ(conn_res->first, node_ports[0]);
+    }
   } catch (const std::exception &e) {
     FAIL() << e.what();
   }
@@ -472,7 +480,12 @@ TEST_P(RWNodeHiddenDontDisconnectToggleTest, RWNodeHiddenDontDisconnectToggle) {
   // test tags: {hidden, disconnect}
   {
     SCOPED_TRACE("// Make rw connection, should be ok");
-    auto rw_con_1 = make_new_connection_ok(router_rw_port, node_ports[0]);
+
+    auto rw_con_1_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(rw_con_1_res);
+    EXPECT_EQ(rw_con_1_res->first, node_ports[0]);
+
+    auto rw_con_1 = std::move(rw_con_1_res->second);
 
     SCOPED_TRACE(
         "// Configure the first RW node to hidden=true, "
@@ -499,7 +512,11 @@ TEST_P(RWNodeHiddenDontDisconnectToggleTest, RWNodeHiddenDontDisconnectToggle) {
     // test tags: {hidden}
 
     SCOPED_TRACE("// Make rw connection, should be ok");
-    auto rw_con_2 = make_new_connection_ok(router_rw_port, node_ports[0]);
+    auto rw_con_2_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(rw_con_2_res);
+    EXPECT_EQ(rw_con_2_res->first, node_ports[0]);
+
+    auto rw_con_2 = std::move(rw_con_2_res->second);
 
     SCOPED_TRACE(
         "// Now configure the first RW node to hidden=true, "
@@ -542,7 +559,11 @@ TEST_P(RWNodeHiddenDontDisconnectToggleTest, RWNodeHiddenDontDisconnectToggle) {
   // test tags: {hidden}
   {
     SCOPED_TRACE("// Make rw connection, should be ok");
-    auto rw_con_3 = make_new_connection_ok(router_rw_port, node_ports[0]);
+    auto rw_con_3_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(rw_con_3_res);
+    EXPECT_EQ(rw_con_3_res->first, node_ports[0]);
+
+    auto rw_con_3 = std::move(rw_con_3_res->second);
 
     SCOPED_TRACE("// Hide the node again");
     set_nodes_attributes(
@@ -583,7 +604,11 @@ TEST_P(RWNodeHideThenDisconnectTest, RWNodeHideThenDisconnect) {
   setup_router(GetParam().cluster_type, GetParam().ttl);
 
   SCOPED_TRACE("// Make rw connection, should be ok");
-  auto rw_con_1 = make_new_connection_ok(router_rw_port, node_ports[0]);
+  auto rw_con_1_res = make_new_connection_ok(router_rw_port);
+  ASSERT_NO_ERROR(rw_con_1_res);
+  EXPECT_EQ(rw_con_1_res->first, node_ports[0]);
+
+  auto rw_con_1 = std::move(rw_con_1_res->second);
 
   SCOPED_TRACE("// Set disconnect_existing_sessions_when_hidden=false");
   set_nodes_attributes(
@@ -636,10 +661,18 @@ TEST_P(RORoundRobinNodeAttributesTest, RORoundRobinNodeHidden) {
   SCOPED_TRACE(
       "// Make one rw connection to check it's not affected by the RO being "
       "hidden");
-  auto rw_con_1 = make_new_connection_ok(router_rw_port, node_ports[0]);
+  auto rw_con_1_res = make_new_connection_ok(router_rw_port);
+  ASSERT_NO_ERROR(rw_con_1_res);
+  EXPECT_EQ(rw_con_1_res->first, node_ports[0]);
+
+  auto rw_con_1 = std::move(rw_con_1_res->second);
 
   SCOPED_TRACE("// Make ro connection, should be ok and go to the first RO");
-  auto ro_con_1 = make_new_connection_ok(router_ro_port, node_ports[1]);
+  auto ro_con_1_res = make_new_connection_ok(router_ro_port);
+  ASSERT_NO_ERROR(ro_con_1_res);
+  EXPECT_EQ(ro_con_1_res->first, node_ports[1]);
+
+  auto ro_con_1 = std::move(ro_con_1_res->second);
 
   SCOPED_TRACE("// Configure first RO node to be hidden");
   set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })", ""});
@@ -649,8 +682,17 @@ TEST_P(RORoundRobinNodeAttributesTest, RORoundRobinNodeHidden) {
 
   SCOPED_TRACE(
       "// Make 2 new connections, both should go to the second RO node");
-  auto ro_con_2 = make_new_connection_ok(router_ro_port, node_ports[2]);
-  auto ro_con_3 = make_new_connection_ok(router_ro_port, node_ports[2]);
+  auto ro_con_2_res = make_new_connection_ok(router_ro_port);
+  ASSERT_NO_ERROR(ro_con_2_res);
+  EXPECT_EQ(ro_con_2_res->first, node_ports[2]);
+
+  auto ro_con_2 = std::move(ro_con_2_res->second);
+
+  auto ro_con_3_res = make_new_connection_ok(router_ro_port);
+  ASSERT_NO_ERROR(ro_con_3_res);
+  EXPECT_EQ(ro_con_3_res->first, node_ports[2]);
+
+  auto ro_con_3 = std::move(ro_con_3_res->second);
 
   SCOPED_TRACE("// Now hide also the second RO node");
   set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
@@ -669,8 +711,16 @@ TEST_P(RORoundRobinNodeAttributesTest, RORoundRobinNodeHidden) {
   SCOPED_TRACE(
       "// Make 2 new connections, both should go to the first RO node this "
       "time");
-  /*auto ro_con_4 =*/make_new_connection_ok(router_ro_port, node_ports[1]);
-  /*auto ro_con_5 =*/make_new_connection_ok(router_ro_port, node_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[1]);
+  }
 
   SCOPED_TRACE("// Unhide also the second RO node now");
   set_nodes_attributes({"", "", ""});
@@ -678,9 +728,21 @@ TEST_P(RORoundRobinNodeAttributesTest, RORoundRobinNodeHidden) {
   SCOPED_TRACE(
       "// Make more connections to the RO port, they should be assinged in a "
       "round robin fashion as no node is hidden");
-  /*auto ro_con_6 =*/make_new_connection_ok(router_ro_port, node_ports[1]);
-  /*auto ro_con_7 =*/make_new_connection_ok(router_ro_port, node_ports[2]);
-  /*auto ro_con_8 =*/make_new_connection_ok(router_ro_port, node_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[2]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[1]);
+  }
 
   SCOPED_TRACE(
       "// RW connection that we made at the beginning should survive all of "
@@ -904,7 +966,11 @@ TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Now we should be able to connect");
-  make_new_connection_ok(router_rw_port, node_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[0]);
+  }
 }
 
 /**
@@ -959,7 +1025,11 @@ TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Now we should be able to connect");
-  make_new_connection_ok(router_ro_port, node_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, node_ports[0]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(

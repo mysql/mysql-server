@@ -47,14 +47,18 @@
 #include "router_config.h"
 #include "router_test_helpers.h"
 #include "socket_operations.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 using mysqlrouter::ClusterType;
-using mysqlrouter::MetadataSchemaVersion;
-using mysqlrouter::MySQLSession;
-using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class GRStateTest : public RouterComponentMetadataTest {
  protected:
@@ -203,8 +207,16 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
                      1);
 
   // new connections are now handled by new primary and the secon secondary
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[1]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[2]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -311,9 +323,18 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
                          " is not a member of quorum group - skipping.",
                      1);
 
-  // new connections are now handled by new primary and the secon secondary
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[1]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[2]);
+  // new connections are now handled by new primary and the second secondary
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[1]);
+  }
+
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, md_servers_classic_ports[2]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -464,13 +485,19 @@ TEST_P(QuorumTest, Verify) {
 
   for (int i = 0; i < 2; i++) {
     if (expect_rw_ok) {
-      make_new_connection_ok(router_rw_port, param.expected_rw_endpoints);
+      auto conn_res = make_new_connection_ok(router_rw_port);
+      ASSERT_NO_ERROR(conn_res);
+      EXPECT_THAT(param.expected_rw_endpoints,
+                  ::testing::Contains(conn_res->first));
     } else {
       verify_new_connection_fails(router_rw_port);
     }
 
     if (expect_ro_ok) {
-      make_new_connection_ok(router_ro_port, param.expected_ro_endpoints);
+      auto conn_res = make_new_connection_ok(router_ro_port);
+      ASSERT_NO_ERROR(conn_res);
+      EXPECT_THAT(param.expected_ro_endpoints,
+                  ::testing::Contains(conn_res->first));
     } else {
       verify_new_connection_fails(router_ro_port);
     }
@@ -729,8 +756,16 @@ TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
 
   // check that the new rw and rw-split connections don't go to the node that is
   // gone
-  make_new_connection_ok(router_rw_port, classic_ports[1]);
-  make_new_connection_ok(router_rw_split_port, classic_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[2]);
+  }
 }
 
 struct AccessToPartitionWithNoQuorumTestParam {
@@ -817,20 +852,25 @@ TEST_P(AccessToPartitionWithNoQuorum, Spec) {
   }
 
   if (GetParam().expect_rw_connection_ok) {
-    make_new_connection_ok(router_rw_port, classic_ports[2]);
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[2]);
   } else {
     verify_new_connection_fails(router_rw_port);
   }
 
   if (GetParam().expect_ro_connection_ok) {
-    make_new_connection_ok(router_ro_port, classic_ports[2]);
-
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[2]);
   } else {
     verify_new_connection_fails(router_ro_port);
   }
 
   if (GetParam().expect_rw_split_connection_ok) {
-    make_new_connection_ok(router_rw_split_port, classic_ports[2]);
+    auto conn_res = make_new_connection_ok(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[2]);
   } else {
     verify_new_connection_fails(router_rw_split_port);
   }
@@ -968,9 +1008,21 @@ TEST_P(AccessToBothPartitions, Spec) {
   // Regardless of the unreachable_quorum_allowed_traffic option setting, the
   // Router should always use the partition with the quorum for the traffic as
   // it has an access to it
-  make_new_connection_ok(router_rw_port, classic_ports[1]);
-  make_new_connection_ok(router_ro_port, classic_ports[2]);
-  make_new_connection_ok(router_rw_split_port, classic_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[2]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, classic_ports[1]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1164,27 +1216,31 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   }
 
   if (GetParam().expect_rw_connection_ok) {
-    make_new_connection_ok(
-        router_rw_port,
+    auto conn_res = make_new_connection_ok(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(
+        conn_res->first,
         cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
   } else {
     verify_new_connection_fails(router_rw_port);
   }
 
   if (GetParam().expect_ro_connection_ok) {
-    make_new_connection_ok(
-        router_ro_port,
+    auto conn_res = make_new_connection_ok(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(
+        conn_res->first,
         cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
-
   } else {
     verify_new_connection_fails(router_ro_port);
   }
 
   if (GetParam().expect_rw_split_connection_ok) {
-    make_new_connection_ok(
-        router_rw_split_port,
+    auto conn_res = make_new_connection_ok(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(
+        conn_res->first,
         cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
-
   } else {
     verify_new_connection_fails(router_rw_split_port);
   }

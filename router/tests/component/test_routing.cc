@@ -68,6 +68,12 @@ std::ostream &operator<<(std::ostream &os,
 
 }  // namespace std
 
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
+
 using mysql_harness::ConfigBuilder;
 using mysqlrouter::MySQLSession;
 
@@ -452,7 +458,11 @@ TEST_F(RouterRoutingTest, ConnectTimeoutTimerCanceledCorrectly) {
   launch_router({"-c", conf_file}, EXIT_SUCCESS);
 
   // make the connection and close it right away
-  { auto con = make_new_connection_ok(router_port, server_port); }
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_port);
+  }
 
   // wait longer than connect timeout, the process manager will check at exit
   // that the Router exits cleanly

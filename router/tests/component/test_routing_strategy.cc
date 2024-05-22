@@ -37,16 +37,23 @@
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
+
+using mysqlrouter::MySQLSession;
+using namespace std::chrono_literals;
 
 /**
  * assert std::error_code has no 'error'
  */
-#define ASSERT_NO_ERROR(expr) \
+#define ASSERT_NO_ERROR_CODE(expr) \
   ASSERT_THAT(expr, ::testing::Eq(std::error_code{})) << expr.message()
 
-using mysqlrouter::MySQLSession;
-using namespace std::chrono_literals;
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 static const std::string kRestApiUsername("someuser");
 static const std::string kRestApiPassword("somepass");
@@ -369,14 +376,15 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
     for (auto expected_node_id : test_params.expected_node_connections) {
-      make_new_connection_ok(router_port,
-                             cluster_nodes_ports[expected_node_id]);
+      auto conn_res = make_new_connection_ok(router_port);
+      ASSERT_NO_ERROR(conn_res);
+      EXPECT_EQ(conn_res->first, cluster_nodes_ports[expected_node_id]);
     }
   } else {
     const auto expected_nodes = test_params.expected_node_connections;
@@ -501,10 +509,26 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   EXPECT_TRUE(wait_for_port_used(router_port));
 
   // expect consecutive connections to be done in round-robin fashion
-  make_new_connection_ok(router_port, server_ports[0]);
-  make_new_connection_ok(router_port, server_ports[1]);
-  make_new_connection_ok(router_port, server_ports[2]);
-  make_new_connection_ok(router_port, server_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[2]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
 
   std::string node_port;
 
@@ -610,8 +634,16 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   EXPECT_TRUE(wait_for_port_used(router_port));
 
   // expect consecutive connections to be done in first-available fashion
-  make_new_connection_ok(router_port, server_ports[0]);
-  make_new_connection_ok(router_port, server_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
 
   SCOPED_TRACE("// 'kill' server 1 and 2, expect moving to server 3");
   kill_server(server_instances[0]);
@@ -619,7 +651,11 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   kill_server(server_instances[1]);
   EXPECT_TRUE(wait_for_port_unused(server_ports[1], 200s));
   SCOPED_TRACE("// now we should connect to 3rd server");
-  make_new_connection_ok(router_port, server_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[2]);
+  }
   SCOPED_TRACE("// nodes 1 and two should be quarantined at this point");
   for (int i = 0; i < 2; i++) {
     EXPECT_TRUE(wait_log_contains(router,
@@ -677,7 +713,11 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
 
   SCOPED_TRACE("// we should now succesfully connect to server on port " +
                std::to_string(server_ports[0]));
-  make_new_connection_ok(router_port, server_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
   EXPECT_FALSE(is_port_bindable(router_port));
 }
 
@@ -715,8 +755,16 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   EXPECT_TRUE(wait_for_port_used(router_port));
 
   // expect consecutive connections to be done in first-available fashion
-  make_new_connection_ok(router_port, server_ports[0]);
-  make_new_connection_ok(router_port, server_ports[0]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[0]);
+  }
   EXPECT_FALSE(is_port_bindable(router_port));
 
   SCOPED_TRACE(
@@ -724,7 +772,11 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   kill_server(server_instances[0]);
   kill_server(server_instances[1]);
   SCOPED_TRACE("// now we should connect to 3rd server");
-  make_new_connection_ok(router_port, server_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[2]);
+  }
   SCOPED_TRACE("// check if 1st and 2nd node are quarantined");
   for (int i = 0; i < 2; i++) {
     EXPECT_TRUE(wait_log_contains(router,
@@ -885,7 +937,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
   kill_server(server_instances[0]);
 
   SCOPED_TRACE("// 1st server is unreachable and quarantined");
-  make_new_connection_ok(router_ports[0], server_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_ports[0]);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[1]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(server_ports[0]) +
@@ -896,7 +952,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
       "// kill 2nd server so that first-available would have to switch to a "
       "next node");
   kill_server(server_instances[1]);
-  make_new_connection_ok(router_ports[0], server_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(router_ports[0]);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[2]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(server_ports[1]) +
@@ -906,7 +966,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
   SCOPED_TRACE("// kill 4th server");
   kill_server(server_instances[3]);
   SCOPED_TRACE("// use r2 routing");
-  make_new_connection_ok(router_ports[1], server_ports[4]);
+  {
+    auto conn_res = make_new_connection_ok(router_ports[1]);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[4]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(server_ports[3]) +
@@ -927,7 +991,11 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
                                     "' is available, remove it from quarantine",
                                 5s));
   SCOPED_TRACE("// 2nd server is available again");
-  make_new_connection_ok(router_ports[1], server_ports[1]);
+  {
+    auto conn_res = make_new_connection_ok(router_ports[1]);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, server_ports[1]);
+  }
 }
 
 /**
@@ -990,19 +1058,27 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// make first RO node unavailable");
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
-  make_new_connection_ok(X_RO_bind_port, cluster_nodes_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(X_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(cluster_nodes_ports[1]) +
                                     "' to quarantine",
                                 500ms));
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "skip quarantined destination '.*" +
                                     std::to_string(cluster_nodes_ports[1]) +
@@ -1021,7 +1097,9 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   // check that restored (first) RO node got back to the round-robin rotation
   std::vector<uint16_t> ports_used;
   for (size_t i = 0; i < 3; i++) {
-    ports_used.push_back(make_new_connection_ok(classic_RO_bind_port));
+    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    ports_used.push_back(conn_res->first);
   }
 
   EXPECT_THAT(ports_used,
@@ -1108,7 +1186,7 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// make first RO node unavailable");
@@ -1260,13 +1338,17 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// make first RO node unavailable");
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(cluster_nodes_ports[1]) +
@@ -1298,7 +1380,9 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   // check that restored RO node got back to the round-robin rotation
   std::vector<uint16_t> ports_used;
   for (size_t i = 0; i < 3; i++) {
-    ports_used.push_back(make_new_connection_ok(classic_RO_bind_port));
+    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    ports_used.push_back(conn_res->first);
   }
 
   EXPECT_THAT(ports_used,
@@ -1377,13 +1461,17 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// make first RO node unavailable");
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(cluster_nodes_ports[1]) +
@@ -1475,13 +1563,17 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// make first RO node unavailable");
   cluster_nodes[1]->send_clean_shutdown_event();
   EXPECT_EQ(cluster_nodes[1]->wait_for_exit(), 0);
-  make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[2]);
+  {
+    auto conn_res = make_new_connection_ok(classic_RO_bind_port);
+    ASSERT_NO_ERROR(conn_res);
+    EXPECT_EQ(conn_res->first, cluster_nodes_ports[2]);
+  }
   EXPECT_TRUE(wait_log_contains(router,
                                 "add destination '.*" +
                                     std::to_string(cluster_nodes_ports[1]) +
