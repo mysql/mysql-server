@@ -66,15 +66,16 @@ SHOW WARNINGS;
 SET @@global.log_error_suppression_list="10000 10001";
 SHOW WARNINGS;
 
-# too many items
+# The statements below verify that we can have at most 512 rules in the log error suppression list.
+# This count includes the rules specified in log_builtins_filter_set_defaults().
 SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 2), "11111");
-# 508 repeated + 1 tail + 2 automatic rules == 511 total
+# 507 repeated + 1 tail + 4 automatic rules == 512 total. This is OK.
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",507),"ER_PARSER_TRACE");
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",508),"ER_PARSER_TRACE");
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 507), "11111");
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",509),"ER_PARSER_TRACE");
 SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 508), "11111");
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 509), "11111");
 
 # Bug#28145616: PARSER ACCEPTS GARBAGE VALUES IF PREFIXED BY VALID ERROR CODES
 --error ER_WRONG_VALUE_FOR_VAR
