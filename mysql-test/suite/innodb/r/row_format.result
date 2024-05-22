@@ -298,3 +298,96 @@ TABLE_ID = @TID
 # CLEANUP
 SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
 DROP TABLE t_compressed;
+#
+# Bug#35869747: Cannot drop index from upgraded instance
+#
+# Upgrade from 8.4.1 having tables with redundant row format and
+# index longer than supported 767 bytes.
+# Stop the running the server.
+# Unzip the datadir.
+# Restart the server against the unzipped datadir.
+# restart: --datadir=DATADIR --lower_case_table_names=1
+# Verify tables after upgrade.
+# Table with single index of invalid length.
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  KEY `idx1` (`fld1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Table with composite index of invalid length.
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `fld2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  KEY `idx1` (`fld1`,`fld2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Table with two indexes of invalid length.
+SHOW CREATE TABLE test.t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fld1` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `fld2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  KEY `idx1` (`fld1`),
+  KEY `idx2` (`fld2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Table with prefix index of invalid length.
+SHOW CREATE TABLE test.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `fld1` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  KEY `idx1` (`fld1`(250))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# CHECK TABLE should flag indexes as corrupt after fix.
+CHECK TABLE test.t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: Index idx1 is marked as corrupted
+test.t1	check	error	Corrupt
+CHECK TABLE test.t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	Warning	InnoDB: Index idx1 is marked as corrupted
+test.t2	check	error	Corrupt
+CHECK TABLE test.t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	Warning	InnoDB: Index idx1 is marked as corrupted
+test.t3	check	Warning	InnoDB: Index idx2 is marked as corrupted
+test.t3	check	error	Corrupt
+CHECK TABLE test.t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	Warning	InnoDB: Index idx1 is marked as corrupted
+test.t4	check	error	Corrupt
+# TRUNCATE TABLE reports an index too long error since it is DROP + CREATE.
+TRUNCATE TABLE test.t1;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+TRUNCATE TABLE test.t2;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+TRUNCATE TABLE test.t3;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+TRUNCATE TABLE test.t4;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+# SELECT statement which uses the index errors out flagging the corruption.
+SELECT * FROM test.t1 FORCE INDEX (idx1);
+ERROR HY000: Index idx1 is corrupted
+SELECT * FROM test.t2 FORCE INDEX (idx1);
+ERROR HY000: Index idx1 is corrupted
+# SELECT statement which does not use the corrupted index succeeds.
+SELECT * FROM test.t3;
+fld1	fld2
+t3abc	t3efg
+SELECT * FROM test.t4;
+fld1
+t4abc
+# DROP INDEX succeeds after fix.
+ALTER TABLE test.t1 DROP INDEX idx1;
+ALTER TABLE test.t2 DROP INDEX idx1;
+# DROP TABLE succeeds after fix.
+DROP TABLE test.t3;
+DROP TABLE test.t4;
+# Cleanup
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+# Shutdown server
+# Clean up data dir
+# Restarting server to restore server state
+# restart:
