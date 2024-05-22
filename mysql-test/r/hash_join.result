@@ -1309,6 +1309,39 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 test.t4	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Inner hash join (no condition)  (rows=7.2)
+        -> Table scan on t1  (rows=1)
+        -> Hash
+            -> Remove duplicate (ta3, ta4) rows using temporary table (weedout)  (rows=7.2)
+                -> Nested loop inner join  (rows=7.2)
+                    -> Nested loop inner join  (rows=7.2)
+                        -> Inner hash join (no condition)  (rows=6)
+                            -> Filter: (t4.f1 is not null)  (rows=1)
+                                -> Table scan on t4  (rows=1)
+                            -> Hash
+                                -> Filter: (t2.f2 is not null)  (rows=6)
+                                    -> Covering index scan on t2 using f2  (rows=6)
+                        -> Covering index lookup on ta3 using f2 (f2=t2.f2)  (rows=1.2)
+                    -> Single-row covering index lookup on ta4 using PRIMARY (f1=t4.f1)  (rows=1)
+
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+COUNT(*)
+6
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+COUNT(*)
+6
 DROP TABLE t1, t2, t4;
 #
 # Bug#30035890 SIG 11 IN HASHJOINITERATOR::READJOINEDROW AT
@@ -2129,6 +2162,72 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+WHERE NOT EXISTS (
+SELECT t1.col1 FROM t1
+INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+WHERE t1.col1 <> t2.col1
+) AND t2.col1 < 49;
+EXPLAIN
+-> Nested loop antijoin  (rows=34)
+    -> Inner hash join (no condition)  (rows=34)
+        -> Filter: (t2.col1 < 49)  (rows=17)
+            -> Covering index scan on t2 using idx  (rows=17)
+        -> Hash
+            -> Table scan on const_table  (rows=2)
+                -> Materialize  (rows=2)
+                    -> Rows fetched before execution  (rows=2)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Filter: (t1.col1 <> t2.col1)  (rows=1)
+                -> Covering index scan on t1 using idx  (rows=1)
+            -> Covering index lookup on t1_2 using idx (col1=t1.col1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
+SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+WHERE NOT EXISTS (
+SELECT t1.col1 FROM t1
+INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+WHERE t1.col1 <> t2.col1
+) AND t2.col1 < 49;
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
 DROP TABLE t1, t2;
 #
 # Bug#30626264 ASSERTS IN BASIC_ROW_ITERATORS.H:345:

@@ -1293,6 +1293,41 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 test.t4	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=2.94)
+        -> Nested loop semijoin  (rows=1)
+            -> Table scan on ta4  (rows=6)
+            -> Filter: (ta4.f1 = t4.f1)  (rows=0.167)
+                -> Table scan on t4  (rows=1)
+        -> Nested loop inner join  (rows=2.94)
+            -> Table scan on t1  (rows=1)
+            -> Nested loop semijoin  (rows=2.94)
+                -> Table scan on ta3  (rows=6)
+                -> Covering index lookup on t2 using f2 (f2=ta3.f2)  (rows=1.2)
+
+Warnings:
+Warning	3515	Hints aren't supported in hypergraph: first table in join order cannot be semijoin/antijoin nest
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+COUNT(*)
+6
+Warnings:
+Warning	3515	Hints aren't supported in hypergraph: first table in join order cannot be semijoin/antijoin nest
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+COUNT(*)
+6
+Warnings:
+Warning	3515	Hints aren't supported in hypergraph: first table in join order cannot be semijoin/antijoin nest
 DROP TABLE t1, t2, t4;
 #
 # Bug#30035890 SIG 11 IN HASHJOINITERATOR::READJOINEDROW AT
@@ -2115,6 +2150,71 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+WHERE NOT EXISTS (
+SELECT t1.col1 FROM t1
+INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+WHERE t1.col1 <> t2.col1
+) AND t2.col1 < 49;
+EXPLAIN
+-> Hash antijoin (no condition), extra conditions: (t1_2.col1 <> t2.col1)  (rows=3.4)
+    -> Nested loop inner join  (rows=34)
+        -> Table scan on const_table  (rows=2)
+            -> Materialize  (rows=2)
+                -> Rows fetched before execution  (rows=2)
+        -> Filter: (t2.col1 < 49)  (rows=17)
+            -> Table scan on t2  (rows=17)
+    -> Hash
+        -> Nested loop inner join  (rows=1)
+            -> Table scan on t1  (rows=1)
+            -> Filter: (t1_2.col1 = t1.col1)  (rows=1)
+                -> Table scan on t1_2  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
+SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+WHERE NOT EXISTS (
+SELECT t1.col1 FROM t1
+INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+WHERE t1.col1 <> t2.col1
+) AND t2.col1 < 49;
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
 DROP TABLE t1, t2;
 #
 # Bug#30626264 ASSERTS IN BASIC_ROW_ITERATORS.H:345:

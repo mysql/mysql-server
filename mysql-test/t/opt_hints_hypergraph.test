@@ -21,9 +21,7 @@ SELECT COUNT(*) FROM small_tab;
 SELECT COUNT(*) FROM medium_tab;
 SELECT COUNT(*) FROM large_tab;
 
-ANALYZE TABLE small_tab;
-ANALYZE TABLE medium_tab;
-ANALYZE TABLE large_tab;
+ANALYZE TABLE small_tab, medium_tab, large_tab;
 
 --echo JOIN_FIXED_ORDER hint
 --replace_regex $elide_costs
@@ -31,11 +29,13 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM small_tab JOI
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
 --replace_regex $elide_costs
-EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN large_tab USING(val) JOIN small_tab USING(val);
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab WHERE val IN
+                       (SELECT /*+ QB_NAME(subq1) JOIN_FIXED_ORDER(@subq1) */ val FROM small_tab JOIN medium_tab USING(val));
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
 --replace_regex $elide_costs
-EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN medium_tab JOIN small_tab;
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab WHERE val IN
+                       (SELECT /*+ QB_NAME(subq1) JOIN_FIXED_ORDER(@subq1) */ small_tab.val FROM medium_tab JOIN small_tab);
 
 --echo SELECT STRAIGHT_JOIN hint
 --replace_regex $elide_costs
@@ -61,9 +61,7 @@ EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN small_tab STRAI
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN medium_tab STRAIGHT_JOIN small_tab;
 
-DROP TABLE small_tab;
-DROP TABLE medium_tab;
-DROP TABLE large_tab;
+DROP TABLE small_tab, medium_tab, large_tab;
 
 CREATE TABLE t1 (id int, val int);
 CREATE TABLE t2 (id int, val int);
@@ -106,9 +104,289 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t6,t1) */ COUNT(*) FROM t1 JOIN t2 JOI
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t4,t6,t3,t5,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 
+--echo Nested tables as hint tables
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ QB_NAME(q1) JOIN_PREFIX(t2,t1,t2@subq2) */ count(*) FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t2) AND
+t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t2);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t2,t1) JOIN_ORDER(t3,t4@subq1) JOIN_SUFFIX(t4@subq1) */ count(*) FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ t4.val FROM t4 JOIN t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t5@subq2) */ count(*)
+FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t5@subq2,t4@subq1) JOIN_PREFIX(t1) JOIN_SUFFIX(t2,t5@subq2,t4@subq1) */ count(*)
+FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ QB_NAME(q1) JOIN_ORDER(@q1 t2,t3,t1) */ count(*)
+FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ QB_NAME(q1) JOIN_PREFIX(@q1 t2,t3,t1) */ count(*)
+FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--echo Multiple hints,all applicable
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1,t2,t3) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3
+WHERE t1.val IN (SELECT val FROM t4) AND t2.val IN (SELECT val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3) JOIN_ORDER(t1,t2,t5) */ count(*) FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE  SELECT /*+ JOIN_ORDER(t3,t2) JOIN_ORDER(t1,t2,t5) */ count(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE  SELECT /*+ JOIN_ORDER(t3,t2,t1,t6) JOIN_ORDER(t4,t2,t5,t1) */ count(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+
+--echo Conflicting hints
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3,t2,t1) JOIN_PREFIX(t2,t1) */ count(*) FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t3,t2) JOIN_SUFFIX(t2) */ count(*) FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
+AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() JOIN_ORDER(t2,t1) */ t2.val FROM t1 JOIN t2 ON t1.val = t2.val
+WHERE (t1.val > 5 AND t1.val <= 5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_ORDER(t2,t3) */ count(*) FROM t1 JOIN t2 JOIN t3;
+
+--echo Invalid hint which places semijoin table at beginning of table list
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5@subq1,t4@subq1,t2) */ count(*)
+FROM t1 JOIN t2 JOIN t3
+WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ t4.val FROM t4 JOIN t5);
+
+DROP TABLE t1, t2, t3, t4, t5, t6;
+
+--echo Outer joins with hints
+
+CREATE TABLE t1(val INT NOT NULL AUTO_INCREMENT,PRIMARY KEY(val));
+CREATE TABLE t2(val INT DEFAULT NULL);
+CREATE TABLE t3(val INT DEFAULT NULL);
+
+--echo Applicable hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE DELETE /*+ JOIN_PREFIX(t2,t3,ta2) */
+FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
+    RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
+WHERE (9) IN (SELECT val FROM t3);
+
+--echo Hint should be ignored
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE DELETE /*+ JOIN_SUFFIX(ta2,t3,ta1) */
+FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
+    RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
+WHERE (9) IN (SELECT val FROM t3);
+
+--echo Both hints should be ignored
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE DELETE /*+ JOIN_PREFIX(ta1,t2,t3) JOIN_SUFFIX(t3,ta2) */
+FROM ta1.* USING t1 AS ta1 JOIN t1 AS ta2 ON 1
+    RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
+WHERE (9) IN (SELECT val FROM t3);
+
+--echo Lateral joins with hints
+
+--echo # Applicable hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1) */ 1 FROM t1,LATERAL (SELECT DISTINCT t2.val FROM t2 WHERE t1.val = t2.val) AS dt;
+
+--echo # Hint ignored, hypergraph retries optimization after deleting hint
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(dt) */ 1 FROM t1,LATERAL (SELECT DISTINCT t2.val FROM t2 WHERE t1.val = t2.val) AS dt;
+
+DROP TABLE t1,t2,t3;
+
+--echo Bug#36533749 WL#15853:Element_type& mem_root_deque<Element_type>: Assertion `!empty()' failed
+
+CREATE TABLE t1 (f1 INT NOT NULL);
+INSERT INTO t1 VALUES (9),(0), (7);
+
+CREATE TABLE t2 (f1 INT NOT NULL);
+INSERT INTO t2 VALUES
+(5),(3),(0),(3),(1),(0),(1),(7),(1),(0),(0),(8),(4),(9),(0),(2),(0),(8),(5),(1);
+
+CREATE TABLE t3 (f1 INT NOT NULL);
+INSERT INTO t3 VALUES (9),(0), (7), (4), (5);
+
+CREATE TABLE t4 (f1 INT NOT NULL);
+INSERT INTO t4 VALUES (0), (7);
+
+CREATE TABLE t5 (f1 INT NOT NULL, PRIMARY KEY(f1));
+INSERT INTO t5 VALUES (7);
+
+ANALYZE TABLE t1, t2, t3, t4, t5;
+
+--echo # Both hints applicable
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_PREFIX(t3) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_SUFFIX(t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_SUFFIX(t1,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_PREFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_SUFFIX(t2,t3,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+
+--echo # Conflicting hints
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_PREFIX(t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_SUFFIX(t3) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_PREFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_SUFFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_PREFIX(t1,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_SUFFIX(t4,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t3,t2) JOIN_SUFFIX(t3,t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4);
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t2,t4,t1) */ 1 FROM t1 JOIN t2 ON 1 RIGHT JOIN t3 ON 1 JOIN t4 ON 1;
+--replace_regex $elide_costs
+explain format=tree SELECT /*+ JOIN_PREFIX(t3,t1) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
+
+DROP TABLE t1, t2, t3, t4, t5;
+
+--echo Bug#36533931 WL#15853: Result diff seen when using join_prefix hint
+
+CREATE TABLE t1(f1 INT NOT NULL);
+INSERT INTO t1 VALUES (10);
+
+CREATE TABLE t2
+(
+  f1 INT NOT NULL AUTO_INCREMENT,
+  f2 INT DEFAULT NULL,
+  PRIMARY KEY (f1),
+  KEY (f2)
+);
+INSERT INTO t2 VALUES (1, 7), (2, 1), (4, 7);
+
+CREATE TABLE t3(f1 INT DEFAULT NULL);
+INSERT INTO t3 VALUES (2);
+
+ANALYZE TABLE t1, t2, t3;
+
+SELECT /*+ JOIN_PREFIX(t2@qb2,t3@qb1,ta3,ta4) */ COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4 WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t3) AND ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (f1 INT NOT NULL);
+INSERT INTO t1 VALUES (9),(0),(7);
+
+CREATE TABLE t2 (f1 INT NOT NULL);
+INSERT INTO t2 VALUES
+(5),(3),(0),(3),(1),(0),(1),(7),(1),(0),(0),(8),(4),(9),(0),(2),(0),(8),(5),(1);
+
+CREATE TABLE t3 (f1 INT NOT NULL);
+INSERT INTO t3 VALUES (9),(0),(7),(4),(5);
+
+CREATE TABLE t4 (f1 INT NOT NULL);
+INSERT INTO t4 VALUES (0),(7);
+
+CREATE TABLE t5 (f1 INT NOT NULL, PRIMARY KEY(f1));
+INSERT INTO t5 VALUES (7);
+
+CREATE TABLE t6(f1 INT NOT NULL, PRIMARY KEY(f1));
+INSERT INTO t6 VALUES (7);
+
+ANALYZE TABLE t1, t2, t3, t4, t5, t6;
+
+SELECT /*+ QB_NAME(q1) JOIN_PREFIX(t3,t2,t2@subq2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t2) AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t2);
+
+SELECT /*+ JOIN_PREFIX(t2,t5@subq2,t4@subq1) JOIN_ORDER(t4@subq1,t3) JOIN_SUFFIX(t1) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4) AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
+
+SELECT /*+ JOIN_PREFIX(t1,t2) */ count(*) FROM t2 LEFT JOIN t1 on t2.f1=t1.f1;
+
+--echo Bug#36590872 WL#15853: HG doesn't generate the warning when it specifies an unknown table
+
+SELECT /*+ JOIN_ORDER(t1,t7,t5) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4) AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
+
+DROP TABLE t1, t2, t3, t4, t5, t6;
+
+--echo Bug#36592566 WL#15853:: Assertion `table_num_to_node_num[table_num] != -1' failed.
+
+CREATE TABLE base (pk integer auto_increment, a1 int, a2 varchar(10), a3 varchar(255), primary key(pk));
+
+SELECT /*+ JOIN_SUFFIX(t2) */ t1.A1 AS field1 FROM base AS t1 LEFT OUTER JOIN base AS t2 ON t1.a1 = t2.pk LEFT JOIN base AS t3 ON t2.a2 = t3.a3;
+DROP TABLE base;
+
+CREATE TABLE base(pk integer auto_increment, col_int int, col_int_key int, col_varchar_10_character_set_utf8mb4_key varchar(10) character set utf8mb4, col_varchar_255_character_set_latin1 varchar(255) character set latin1, primary key(pk));
+
+SELECT/*+ JOIN_SUFFIX(alias3) */ DISTINCT SQL_SMALL_RESULT alias1.col_int AS field1, alias2.pk AS field2 FROM base AS alias1 RIGHT JOIN base AS alias2 LEFT OUTER JOIN base AS alias3 ON alias2.col_varchar_10_character_set_utf8mb4_key = alias3.col_varchar_255_character_set_latin1 ON alias1.pk = alias3.col_int_key WHERE alias3.pk >= alias2.col_int_key GROUP BY field1, field2 ORDER BY field2 ASC;
+
+DROP TABLE base;
+
+--echo Bug#36605912 WL#15853: Assertion `!join_list.empty()' failed.
+
+CREATE TABLE B (pk integer auto_increment, col_int int, col_int_key int, col_varchar_10_character_set_utf8mb4 varchar(10) character set utf8mb4, col_varchar_10_character_set_latin1_key varchar(10) character set latin1, primary key(pk));
+
+SELECT /*+ JOIN_SUFFIX(alias4) */ alias1.col_int AS field4 FROM B AS alias1 LEFT JOIN B AS alias2 LEFT OUTER JOIN B AS alias3 ON alias2.col_int_key = alias3.col_int_key RIGHT JOIN B AS alias4 ON alias3.col_varchar_10_character_set_latin1_key = alias4.col_varchar_10_character_set_utf8mb4 ON alias1.pk = alias4.pk WHERE (alias4.pk IS NOT NULL OR alias3.pk != alias1.col_int);
+
+DROP TABLE B;
+
+--echo Bug#36604616 WL#15853: Assertion `IsMultipleEquals(cond) || IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS, expr->tables_in_subtree)' failed.
+
+CREATE TABLE t1(c1 mediumint DEFAULT NULL, c2 char(255) DEFAULT NULL, c3 varchar(10) DEFAULT NULL, c4 varchar(500) DEFAULT NULL, c5 char(10) DEFAULT NULL, c6 tinyint DEFAULT NULL, c7 mediumint DEFAULT NULL, c8 int DEFAULT NULL, c9 float DEFAULT NULL, pk int NOT NULL, PRIMARY KEY (pk)) ENGINE=InnoDB;
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias3,alias3,alias1) */  alias1.c1 AS field1 FROM t1 AS alias1 INNER JOIN t1 AS alias2 INNER JOIN t1 AS alias3 INNER JOIN t1 AS alias4 ON alias3.c2 >= alias4.c3 ON alias2.c4 != alias4.c5 ON alias1.c6 <= alias4.c7  LEFT OUTER JOIN t1 AS alias5 ON alias2.c8 = alias5.c9 WHERE alias3.pk <= 3 HAVING (field1 < 8 AND field1 != 8) ORDER BY field1;
+
 DROP TABLE t1;
-DROP TABLE t2;
-DROP TABLE t3;
-DROP TABLE t4;
-DROP TABLE t5;
-DROP TABLE t6;
+
+--echo Bug#36622538 WL#15853:: Assertion `table_num_to_node_num[table_num] != -1' failed.
+
+CREATE TABLE t1 (pk integer auto_increment, col_int int, col_int_key int, col_varchar_10_character_set_latin1 varchar(10) character set latin1, col_varchar_10_character_set_latin1_key varchar(10) character set latin1, primary key(pk));
+
+SELECT /*+ JOIN_ORDER(table1,table3,table3) JOIN_FIXED_ORDER() JOIN_ORDER(table3,table1,table2) */ table2.col_int_key AS field1, table3.col_int AS field2, table2.col_int_key AS field3, table2.pk AS field4 FROM t1 AS table1 LEFT JOIN t1 AS table2 RIGHT JOIN t1 AS table3 ON table2.col_int = table3.pk ON table1.col_varchar_10_character_set_latin1_key = table3.col_varchar_10_character_set_latin1 WHERE table3.col_int_key BETWEEN 1 AND (1 + 2) GROUP BY table2.col_int_key, table3.col_int, table2.col_int_key, table2.pk;
+
+DROP TABLE t1;
+
+--echo Multiple levels of nesting
+
+CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT DEFAULT NULL, KEY (f1), KEY (f2));
+CREATE TABLE t4(f1 INT DEFAULT NULL, f2 INT DEFAULT NULL, KEY (f1));
+CREATE TABLE t5(f1 INT NOT NULL AUTO_INCREMENT, f2 INT DEFAULT NULL, PRIMARY KEY (f1));
+CREATE TABLE t6(f1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1));
+CREATE TABLE t7(f1 VARCHAR(255) DEFAULT NULL);
+CREATE TABLE t10(f1 INT NOT NULL AUTO_INCREMENT,f2 INT DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL, PRIMARY KEY (f1),KEY (f2),KEY (f3));
+CREATE TABLE t11(f1 INT DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL, KEY (f1),KEY (f2));
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias11,alias8) */ 1
+FROM t4 AS alias4
+  LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1
+  LEFT JOIN t7 AS alias7 JOIN t2 AS alias8 ON alias7.f1 = alias8.f1
+    ON alias5.f1 = alias8.f2 ON alias4.f2 = alias6.f1
+  JOIN t10 AS alias10 JOIN t11 AS alias11 ON alias10.f1 = alias11.f1
+    ON alias4.f2 = alias11.f2;
+
+DROP TABLES t2, t4, t5, t6, t7, t10, t11;
+
+--source include/disable_hypergraph.inc

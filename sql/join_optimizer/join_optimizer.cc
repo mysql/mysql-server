@@ -4066,7 +4066,11 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
   // also need to change the rules about associativity or l-asscom.
   bool can_rewrite_semi_to_inner =
       edge->expr->type == RelationalExpression::SEMIJOIN &&
-      edge->ordering_idx_needed_for_semijoin_rewrite != -1;
+      edge->ordering_idx_needed_for_semijoin_rewrite != -1 &&
+      // do not allow semi-to-inner rewrites if join order is
+      // hinted, as this may reverse hinted order
+      !(m_query_block->opt_hints_qb &&
+        m_query_block->opt_hints_qb->has_join_order_hints());
 
   // Enforce that recursive references need to be leftmost.
   if (Overlaps(right, forced_leftmost_table)) {
@@ -8151,6 +8155,18 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
                                /*description_for_trace=*/"");
   }
   if (root_candidates.empty()) {
+    if (query_block->opt_hints_qb &&
+        query_block->opt_hints_qb->has_join_order_hints()) {
+      if (TraceStarted(thd)) {
+        Trace(thd) << "No root candidates found. Retry optimization ignoring "
+                      "join order hints.";
+      }
+      query_block->opt_hints_qb->clear_join_order_hints();
+      // delete all join order hints and retry optimisation
+      AccessPath *result =
+          FindBestQueryPlanInner(thd, query_block, retry, subgraph_pair_limit);
+      if (result != nullptr) return result;
+    }
     assert(secondary_engine_cost_hook != nullptr);
     std::string_view reason = get_secondary_engine_fail_reason(thd->lex);
     if (!reason.empty()) {
