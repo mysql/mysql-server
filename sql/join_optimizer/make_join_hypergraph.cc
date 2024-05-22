@@ -88,7 +88,8 @@ using std::vector;
 namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
-    THD *thd, const mem_root_deque<Table_ref *> &join_list);
+    THD *thd, const Query_block *query_block,
+    const mem_root_deque<Table_ref *> &join_list);
 bool EarlyNormalizeConditions(THD *thd, const RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false);
@@ -300,7 +301,9 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
       });
 }
 
-RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
+RelationalExpression *MakeRelationalExpression(THD *thd,
+                                               const Query_block *query_block,
+                                               const Table_ref *tl) {
   if (tl == nullptr) {
     // No tables.
     return nullptr;
@@ -313,7 +316,8 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
     return ret;
   } else {
     // A join or multijoin.
-    return MakeRelationalExpressionFromJoinList(thd, tl->nested_join->m_tables);
+    return MakeRelationalExpressionFromJoinList(thd, query_block,
+                                                tl->nested_join->m_tables);
   }
 }
 
@@ -322,7 +326,8 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
   ie., a join tree with tables at the leaves.
  */
 RelationalExpression *MakeRelationalExpressionFromJoinList(
-    THD *thd, const mem_root_deque<Table_ref *> &join_list) {
+    THD *thd, const Query_block *query_block,
+    const mem_root_deque<Table_ref *> &join_list) {
   assert(!join_list.empty());
   RelationalExpression *ret = nullptr;
   for (auto it = join_list.rbegin(); it != join_list.rend();
@@ -330,22 +335,23 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     const Table_ref *tl = *it;
     if (ret == nullptr) {
       // The first table in the list.
-      ret = MakeRelationalExpression(thd, tl);
+      ret = MakeRelationalExpression(thd, query_block, tl);
       continue;
     }
 
     RelationalExpression *join = new (thd->mem_root) RelationalExpression(thd);
     join->left = ret;
     if (tl->is_sj_or_aj_nest()) {
-      join->right =
-          MakeRelationalExpressionFromJoinList(thd, tl->nested_join->m_tables);
+      join->right = MakeRelationalExpressionFromJoinList(
+          thd, query_block, tl->nested_join->m_tables);
       join->type = tl->is_sj_nest() ? RelationalExpression::SEMIJOIN
                                     : RelationalExpression::ANTIJOIN;
     } else {
-      join->right = MakeRelationalExpression(thd, tl);
+      join->right = MakeRelationalExpression(thd, query_block, tl);
       if (tl->outer_join) {
         join->type = RelationalExpression::LEFT_JOIN;
-      } else if (tl->straight) {
+      } else if (tl->straight || Overlaps(query_block->active_options(),
+                                          SELECT_STRAIGHT_JOIN)) {
         join->type = RelationalExpression::STRAIGHT_INNER_JOIN;
       } else {
         join->type = RelationalExpression::INNER_JOIN;
@@ -732,9 +738,7 @@ bool OperatorsAreAssociative(const RelationalExpression &a,
 
   // Secondary engine does not want us to treat STRAIGHT_JOINs as
   // associative.
-  if ((current_thd->secondary_engine_optimization() ==
-       Secondary_engine_optimization::SECONDARY) &&
-      (a.type == RelationalExpression::STRAIGHT_INNER_JOIN ||
+  if ((a.type == RelationalExpression::STRAIGHT_INNER_JOIN ||
        b.type == RelationalExpression::STRAIGHT_INNER_JOIN)) {
     return false;
   }
@@ -3524,7 +3528,7 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
       table_ref->table->file->print_error(error, MYF(0));
       return true;
     }
-    root = MakeRelationalExpression(thd, table_ref);
+    root = MakeRelationalExpression(thd, query_block, table_ref);
     MakeJoinGraphFromRelationalExpression(thd, root, graph);
   }
 
@@ -3599,8 +3603,8 @@ bool MakeJoinHypergraph(THD *thd, JoinHypergraph *graph,
                                      where_is_always_false);
   }
 
-  RelationalExpression *root =
-      MakeRelationalExpressionFromJoinList(thd, query_block->m_table_nest);
+  RelationalExpression *root = MakeRelationalExpressionFromJoinList(
+      thd, query_block, query_block->m_table_nest);
 
   CompanionSetCollection companion_collection(thd, root);
   FlattenInnerJoins(root);

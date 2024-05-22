@@ -899,20 +899,20 @@ EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN * FROM t1
 JOIN t2 ON t1.col1 + 999 = t2.col1
 JOIN t3 ON t2.col1 = t3.col1;
 EXPLAIN
--> Nested loop inner join  (rows=72.9)
-    -> Inner hash join (t2.col1 = t3.col1)  (rows=8.1)
-        -> Table scan on t3  (rows=9)
-        -> Hash
+-> Inner hash join (t2.col1 = t3.col1)  (rows=72.9)
+    -> Table scan on t3  (rows=9)
+    -> Hash
+        -> Inner hash join ((t1.col1 + 999) = t2.col1)  (rows=81)
             -> Table scan on t2  (rows=9)
-    -> Filter: ((t1.col1 + 999) = t2.col1)  (rows=9)
-        -> Table scan on t1  (rows=9)
+            -> Hash
+                -> Table scan on t1  (rows=9)
 
 # The test doesn't specify what we expect here, rendering it meaningless and unmaintainable.
 SELECT SUM(variable_value) AS Total_handler_reads
 FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-132
+27
 DROP TABLE t1, t2, t3;
 #
 # Bug#29898802	WL#2241: SIG6 IN HASH_JOIN_BUFFER::LOADINTOTABLEBUFFERS()
@@ -1101,9 +1101,9 @@ EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (<hash>(t1.col1)=<hash>(t2.col1)), extra conditions: (t1.col1 = t2.col1)  (rows=26214)
-        -> Table scan on t1  (rows=512)
+        -> Table scan on t2  (rows=512)
         -> Hash
-            -> Table scan on t2  (rows=512)
+            -> Table scan on t1  (rows=512)
 
 SET join_buffer_size = 1024;
 SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
@@ -3988,11 +3988,11 @@ EXPLAIN
         -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t1.str_col) = c1_1.str_col) or (c1_1.str_col is null)), true) and <if>(outer_field_is_not_null, ((<cache>(t1.str_col) = min(c1_2.str_col)) or (min(c1_2.str_col) is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(c1_1.str_col), true) and <if>(outer_field_is_not_null, <is_not_null_test>(min(c1_2.str_col)), true))  (rows=1)
             -> Aggregate: min(c1_2.str_col)  (rows=1)
                 -> Nested loop inner join  (rows=2)
-                    -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=4)
                         -> Table scan on c1_2  (rows=2)
-                        -> Filter: (t3.i = c1_2.i)  (rows=0.5)
-                            -> Table scan on t3  (rows=1)
-                    -> Table scan on c1_1  (rows=2)
+                        -> Table scan on c1_1  (rows=2)
+                    -> Filter: (t3.i = c1_2.i)  (rows=0.5)
+                        -> Table scan on t3  (rows=1)
 
 SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
 WHERE (t1.str_col, t1.str_col) NOT IN (

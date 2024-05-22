@@ -1,0 +1,187 @@
+CREATE TABLE small_tab (val INT);
+INSERT INTO small_tab VALUES (1), (2), (3), (4);
+CREATE TABLE medium_tab (val INT);
+INSERT INTO medium_tab SELECT COUNT(*) FROM small_tab;
+INSERT INTO medium_tab SELECT COUNT(*) FROM medium_tab;
+INSERT INTO medium_tab SELECT COUNT(*) FROM medium_tab;
+CREATE TABLE large_tab (val INT);
+INSERT INTO large_tab SELECT COUNT(*) FROM medium_tab;
+INSERT INTO large_tab SELECT COUNT(*) FROM large_tab;
+INSERT INTO large_tab SELECT COUNT(*) FROM large_tab;
+SELECT COUNT(*) FROM small_tab;
+COUNT(*)
+4
+SELECT COUNT(*) FROM medium_tab;
+COUNT(*)
+3
+SELECT COUNT(*) FROM large_tab;
+COUNT(*)
+3
+ANALYZE TABLE small_tab;
+Table	Op	Msg_type	Msg_text
+test.small_tab	analyze	status	OK
+ANALYZE TABLE medium_tab;
+Table	Op	Msg_type	Msg_text
+test.medium_tab	analyze	status	OK
+ANALYZE TABLE large_tab;
+Table	Op	Msg_type	Msg_text
+test.large_tab	analyze	status	OK
+JOIN_FIXED_ORDER hint
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM small_tab JOIN large_tab USING(val) JOIN medium_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (small_tab.val = large_tab.val)  (rows=1.2)
+            -> Table scan on large_tab  (rows=3)
+            -> Hash
+                -> Table scan on small_tab  (rows=4)
+        -> Filter: (large_tab.val = medium_tab.val)  (rows=0.3)
+            -> Table scan on medium_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (medium_tab.val = small_tab.val)  (rows=1.2)
+            -> Table scan on small_tab  (rows=4)
+            -> Hash
+                -> Table scan on medium_tab  (rows=3)
+        -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
+            -> Table scan on large_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN large_tab USING(val) JOIN small_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (medium_tab.val = large_tab.val)  (rows=0.9)
+            -> Table scan on large_tab  (rows=3)
+            -> Hash
+                -> Table scan on medium_tab  (rows=3)
+        -> Filter: (large_tab.val = small_tab.val)  (rows=0.4)
+            -> Table scan on small_tab  (rows=4)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=36)
+        -> Nested loop inner join  (rows=12)
+            -> Table scan on large_tab  (rows=3)
+            -> Table scan on small_tab  (rows=4)
+        -> Table scan on medium_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN medium_tab JOIN small_tab;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=36)
+        -> Nested loop inner join  (rows=9)
+            -> Table scan on large_tab  (rows=3)
+            -> Table scan on medium_tab  (rows=3)
+        -> Table scan on small_tab  (rows=4)
+
+SELECT STRAIGHT_JOIN hint
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM small_tab JOIN large_tab USING(val) JOIN medium_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (small_tab.val = large_tab.val)  (rows=1.2)
+            -> Table scan on large_tab  (rows=3)
+            -> Hash
+                -> Table scan on small_tab  (rows=4)
+        -> Filter: (large_tab.val = medium_tab.val)  (rows=0.3)
+            -> Table scan on medium_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (medium_tab.val = small_tab.val)  (rows=1.2)
+            -> Table scan on small_tab  (rows=4)
+            -> Hash
+                -> Table scan on medium_tab  (rows=3)
+        -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
+            -> Table scan on large_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM medium_tab JOIN large_tab USING(val) JOIN small_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (medium_tab.val = large_tab.val)  (rows=0.9)
+            -> Table scan on large_tab  (rows=3)
+            -> Hash
+                -> Table scan on medium_tab  (rows=3)
+        -> Filter: (large_tab.val = small_tab.val)  (rows=0.4)
+            -> Table scan on small_tab  (rows=4)
+
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=36)
+        -> Nested loop inner join  (rows=12)
+            -> Table scan on large_tab  (rows=3)
+            -> Table scan on small_tab  (rows=4)
+        -> Table scan on medium_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM large_tab JOIN medium_tab JOIN small_tab;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=36)
+        -> Nested loop inner join  (rows=9)
+            -> Table scan on large_tab  (rows=3)
+            -> Table scan on medium_tab  (rows=3)
+        -> Table scan on small_tab  (rows=4)
+
+SELECT <table1> STRAIGHT_JOIN <table2> hint
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM small_tab STRAIGHT_JOIN large_tab USING(val) STRAIGHT_JOIN medium_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (small_tab.val = large_tab.val)  (rows=1.2)
+            -> Table scan on large_tab  (rows=3)
+            -> Hash
+                -> Table scan on small_tab  (rows=4)
+        -> Filter: (large_tab.val = medium_tab.val)  (rows=0.3)
+            -> Table scan on medium_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM medium_tab STRAIGHT_JOIN small_tab USING(val) STRAIGHT_JOIN large_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (medium_tab.val = small_tab.val)  (rows=1.2)
+            -> Table scan on small_tab  (rows=4)
+            -> Hash
+                -> Table scan on medium_tab  (rows=3)
+        -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
+            -> Table scan on large_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM medium_tab STRAIGHT_JOIN large_tab USING(val) STRAIGHT_JOIN small_tab USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=0.36)
+        -> Inner hash join (medium_tab.val = large_tab.val)  (rows=0.9)
+            -> Table scan on large_tab  (rows=3)
+            -> Hash
+                -> Table scan on medium_tab  (rows=3)
+        -> Filter: (large_tab.val = small_tab.val)  (rows=0.4)
+            -> Table scan on small_tab  (rows=4)
+
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN small_tab STRAIGHT_JOIN medium_tab;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=36)
+        -> Nested loop inner join  (rows=12)
+            -> Table scan on large_tab  (rows=3)
+            -> Table scan on small_tab  (rows=4)
+        -> Table scan on medium_tab  (rows=3)
+
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN medium_tab STRAIGHT_JOIN small_tab;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=36)
+        -> Nested loop inner join  (rows=9)
+            -> Table scan on large_tab  (rows=3)
+            -> Table scan on medium_tab  (rows=3)
+        -> Table scan on small_tab  (rows=4)
+
+DROP TABLE small_tab;
+DROP TABLE medium_tab;
+DROP TABLE large_tab;
