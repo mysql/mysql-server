@@ -3120,9 +3120,23 @@ sub find_plugin($$) {
                     "$basedir/lib/plugin/" . $plugin_filename,
                     "$basedir/lib64/plugin/" . $plugin_filename,
                     "$basedir/lib/mysql/plugin/" . $plugin_filename,
-                    "$basedir/lib64/mysql/plugin/" . $plugin_filename,
-                    "$basedir/lib64/mysqlrouter/" . $plugin_filename);
+                    "$basedir/lib64/mysql/plugin/" . $plugin_filename);
   return $lib_plugin;
+}
+
+# Separates functionality for router binaries and generic binaries.
+sub find_router_plugin_in_package($) {
+  my ($plugin) = @_;
+  my $plugin_filename;
+
+  if (IS_WINDOWS) {
+    $plugin_filename = $plugin . ".dll";
+  } else {
+    $plugin_filename = $plugin . ".so";
+  }
+
+  return mtr_file_exists("$basedir/lib64/mysqlrouter/" . $plugin_filename,
+                         "$basedir/lib/plugin/" . $plugin_filename);
 }
 
 # Read plugin defintions file
@@ -6741,7 +6755,7 @@ sub router_create_config_file($$) {
   my $output = $router->value('#log-error');
 
   my $routing_plugin = find_plugin("routing", "plugin_output_directory") or
-     find_plugin("mysqlrouter_routing", "plugin_output_directory") or die();
+     find_router_plugin_in_package("mysqlrouter_routing") or die();
   my $plugin_dir = dirname($routing_plugin);
   my $logdir = dirname($output);
   my $logname = basename($output);
