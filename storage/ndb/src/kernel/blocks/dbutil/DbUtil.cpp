@@ -1113,6 +1113,10 @@ void DbUtil::execUTIL_PREPARE_REQ(Signal *signal) {
     releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR, senderRef,
                        senderData);
+    if (ERROR_INSERTED(19001)) {
+      /* Should never fail to seize a record */
+      ndbrequire(false);
+    }
     return;
   };
   ndbrequire(handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION));
@@ -1316,6 +1320,10 @@ void DbUtil::prepareOperation(Signal *signal, PreparePtr prepPtr,
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
                        prepPtr.p->clientRef, prepPtr.p->clientData);
     releasePrepare(prepPtr);
+    if (ERROR_INSERTED(19001)) {
+      /* Should never fail to seize a record */
+      ndbrequire(false);
+    }
     return;
   }
   prepPtr.p->prepOpPtr = prepOpPtr;
