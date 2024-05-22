@@ -185,3 +185,258 @@ EXPLAIN
 DROP TABLE small_tab;
 DROP TABLE medium_tab;
 DROP TABLE large_tab;
+CREATE TABLE t1 (id int, val int);
+CREATE TABLE t2 (id int, val int);
+CREATE TABLE t3 (id int, val int);
+CREATE TABLE t4 (id int, val int);
+CREATE TABLE t5 (id int, val int);
+CREATE TABLE t6 (id int, val int);
+JOIN_PREFIX hint
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1,t3,t5) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join  (rows=100e-6)
+            -> Nested loop inner join  (rows=0.001)
+                -> Nested loop inner join  (rows=0.01)
+                    -> Nested loop inner join  (rows=0.1)
+                        -> Table scan on t1  (rows=1)
+                        -> Filter: (t1.val = t3.val)  (rows=0.1)
+                            -> Table scan on t3  (rows=1)
+                    -> Filter: (t3.val = t5.val)  (rows=0.1)
+                        -> Table scan on t5  (rows=1)
+                -> Filter: (t3.val = t2.val)  (rows=0.1)
+                    -> Table scan on t2  (rows=1)
+            -> Filter: (t2.val = t4.val)  (rows=0.1)
+                -> Table scan on t4  (rows=1)
+        -> Filter: (t2.val = t6.val)  (rows=0.1)
+            -> Table scan on t6  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t4) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join  (rows=100e-6)
+            -> Nested loop inner join  (rows=0.001)
+                -> Nested loop inner join  (rows=0.01)
+                    -> Nested loop inner join  (rows=0.1)
+                        -> Table scan on t5  (rows=1)
+                        -> Filter: (t5.val = t4.val)  (rows=0.1)
+                            -> Table scan on t4  (rows=1)
+                    -> Filter: (t4.val = t1.val)  (rows=0.1)
+                        -> Table scan on t1  (rows=1)
+                -> Filter: (t4.val = t2.val)  (rows=0.1)
+                    -> Table scan on t2  (rows=1)
+            -> Filter: (t2.val = t3.val)  (rows=0.1)
+                -> Table scan on t3  (rows=1)
+        -> Filter: (t2.val = t6.val)  (rows=0.1)
+            -> Table scan on t6  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t2,t4,t6,t1,t3) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join  (rows=100e-6)
+            -> Nested loop inner join  (rows=0.001)
+                -> Nested loop inner join  (rows=0.01)
+                    -> Nested loop inner join  (rows=0.1)
+                        -> Table scan on t2  (rows=1)
+                        -> Filter: (t2.val = t4.val)  (rows=0.1)
+                            -> Table scan on t4  (rows=1)
+                    -> Filter: (t2.val = t6.val)  (rows=0.1)
+                        -> Table scan on t6  (rows=1)
+                -> Filter: (t2.val = t1.val)  (rows=0.1)
+                    -> Table scan on t1  (rows=1)
+            -> Filter: (t2.val = t3.val)  (rows=0.1)
+                -> Table scan on t3  (rows=1)
+        -> Filter: (t2.val = t5.val)  (rows=0.1)
+            -> Table scan on t5  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t2,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t5  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                    -> Table scan on t1  (rows=1)
+                -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
+        -> Table scan on t6  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                        -> Table scan on t4  (rows=1)
+                    -> Table scan on t1  (rows=1)
+                -> Table scan on t2  (rows=1)
+            -> Table scan on t5  (rows=1)
+        -> Table scan on t6  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t3,t1,t2,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t5  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                    -> Table scan on t1  (rows=1)
+                -> Table scan on t2  (rows=1)
+            -> Table scan on t4  (rows=1)
+        -> Table scan on t6  (rows=1)
+
+JOIN_SUFFIX hint
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t1,t2,t6) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join  (rows=100e-6)
+            -> Nested loop inner join  (rows=0.001)
+                -> Nested loop inner join  (rows=0.01)
+                    -> Table scan on t5  (rows=1)
+                    -> Filter: (t3.val = t5.val)  (rows=0.01)
+                        -> Nested loop inner join  (rows=0.1)
+                            -> Table scan on t3  (rows=1)
+                            -> Filter: (t3.val = t4.val)  (rows=0.1)
+                                -> Table scan on t4  (rows=1)
+                -> Filter: (t3.val = t1.val)  (rows=0.1)
+                    -> Table scan on t1  (rows=1)
+            -> Filter: (t3.val = t2.val)  (rows=0.1)
+                -> Table scan on t2  (rows=1)
+        -> Filter: (t2.val = t6.val)  (rows=0.1)
+            -> Table scan on t6  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t6,t3) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join  (rows=100e-6)
+            -> Nested loop inner join  (rows=0.001)
+                -> Table scan on t1  (rows=1)
+                -> Filter: (t1.val = t2.val)  (rows=0.001)
+                    -> Nested loop inner join  (rows=0.01)
+                        -> Table scan on t5  (rows=1)
+                        -> Filter: (t2.val = t5.val)  (rows=0.01)
+                            -> Nested loop inner join  (rows=0.1)
+                                -> Table scan on t2  (rows=1)
+                                -> Filter: (t2.val = t4.val)  (rows=0.1)
+                                    -> Table scan on t4  (rows=1)
+            -> Filter: (t2.val = t6.val)  (rows=0.1)
+                -> Table scan on t6  (rows=1)
+        -> Filter: (t2.val = t3.val)  (rows=0.1)
+            -> Table scan on t3  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t5,t4,t3,t6,t1) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join  (rows=100e-6)
+            -> Nested loop inner join  (rows=0.001)
+                -> Nested loop inner join  (rows=0.01)
+                    -> Nested loop inner join  (rows=0.1)
+                        -> Table scan on t2  (rows=1)
+                        -> Filter: (t2.val = t5.val)  (rows=0.1)
+                            -> Table scan on t5  (rows=1)
+                    -> Filter: (t2.val = t4.val)  (rows=0.1)
+                        -> Table scan on t4  (rows=1)
+                -> Filter: (t2.val = t3.val)  (rows=0.1)
+                    -> Table scan on t3  (rows=1)
+            -> Filter: (t2.val = t6.val)  (rows=0.1)
+                -> Table scan on t6  (rows=1)
+        -> Filter: (t2.val = t1.val)  (rows=0.1)
+            -> Table scan on t1  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t4,t5,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                    -> Table scan on t6  (rows=1)
+                -> Table scan on t4  (rows=1)
+            -> Table scan on t5  (rows=1)
+        -> Table scan on t2  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t3,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                        -> Table scan on t4  (rows=1)
+                    -> Table scan on t5  (rows=1)
+                -> Table scan on t6  (rows=1)
+            -> Table scan on t3  (rows=1)
+        -> Table scan on t2  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t1,t3,t2,t5,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t6  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                    -> Table scan on t3  (rows=1)
+                -> Table scan on t2  (rows=1)
+            -> Table scan on t5  (rows=1)
+        -> Table scan on t4  (rows=1)
+
+JOIN_ORDER hint
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t6,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t6  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                    -> Table scan on t3  (rows=1)
+                -> Table scan on t4  (rows=1)
+            -> Table scan on t5  (rows=1)
+        -> Table scan on t1  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t4,t6,t3,t5,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Nested loop inner join  (rows=1)
+                    -> Nested loop inner join  (rows=1)
+                        -> Table scan on t4  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                    -> Table scan on t6  (rows=1)
+                -> Table scan on t3  (rows=1)
+            -> Table scan on t5  (rows=1)
+        -> Table scan on t1  (rows=1)
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;

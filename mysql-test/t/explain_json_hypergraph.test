@@ -137,15 +137,16 @@ EXPLAIN FORMAT=JSON SELECT * FROM
     (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
     WHERE f1 > 2;
 
---echo # Filter, nested loop
---replace_regex $elide_costs
-EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
-(SELECT f1, f2, f3 FROM t1) as dt, t0
-WHERE f1 > 3 and f2 < 50 and i0 > 3;
---replace_regex $elide_trace_costs_and_rows
-EXPLAIN FORMAT=JSON SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
-(SELECT f1, f2, f3 FROM t1) as dt, t0
-WHERE f1 > 3 and f2 < 50 and i0 > 3;
+##--echo # Filter, nested loop
+##--replace_regex $elide_costs
+## The below queries are not yet supported. Support for hints with subqueries will be added in patch 3.
+##EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
+##(SELECT f1, f2, f3 FROM t1) as dt, t0
+##WHERE f1 > 3 and f2 < 50 and i0 > 3;
+##--replace_regex $elide_trace_costs_and_rows
+##EXPLAIN FORMAT=JSON SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
+##(SELECT f1, f2, f3 FROM t1) as dt, t0
+##WHERE f1 > 3 and f2 < 50 and i0 > 3;
 
 drop table t0, t1;
 
