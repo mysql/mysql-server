@@ -1,0 +1,2 @@
+--loose-debug='+d,background_histogram_update_errors'
+--force-restart

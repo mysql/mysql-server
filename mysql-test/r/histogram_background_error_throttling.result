@@ -1,0 +1,23 @@
+#
+# Bug#36574298: Background histogram update warnings flood error log
+#
+CREATE TABLE t1 (x INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (x INT);
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'x'.
+INSERT INTO t2 VALUES (1), (2), (3);
+DO SLEEP(1);
+FLUSH ERROR LOGS;
+# With throttling of background histogram update warnings we should only
+# see a single warning in the error log even though we have raised
+# multiple ER_BACKGROUND_HISTOGRAM_UPDATE warnings.
+SELECT COUNT(*) AS should_be_one FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-015116';
+should_be_one
+1
+DROP TABLE t1;
+DROP TABLE t2;
