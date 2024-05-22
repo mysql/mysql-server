@@ -3070,7 +3070,8 @@ sub find_plugin($$) {
                     "$basedir/lib/plugin/" . $plugin_filename,
                     "$basedir/lib64/plugin/" . $plugin_filename,
                     "$basedir/lib/mysql/plugin/" . $plugin_filename,
-                    "$basedir/lib64/mysql/plugin/" . $plugin_filename);
+                    "$basedir/lib64/mysql/plugin/" . $plugin_filename,
+                    "$basedir/lib64/mysqlrouter/" . $plugin_filename);
   return $lib_plugin;
 }
 
@@ -3086,7 +3087,7 @@ sub find_router_plugin_in_package($) {
   }
 
   return mtr_file_exists("$basedir/lib64/mysqlrouter/" . $plugin_filename,
-                         "$basedir/lib/plugin/" . $plugin_filename);
+                         "$basedir/bin/" . $plugin_filename);
 }
 
 # Read plugin defintions file
