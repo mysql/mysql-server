@@ -4963,3 +4963,40 @@ SELECT (SELECT f1) FROM t1 GROUP BY f1 HAVING f1 < 1;
 Warnings:
 Warning	1052	Column 'f1' in group statement is ambiguous
 DROP TABLE t1;
+#
+# Bug#36625752 View with ORDER BY misses a row
+#
+CREATE TABLE t1(c0 INT PRIMARY KEY);
+# returns one row as expected
+SELECT 1 FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0));
+1
+1
+CREATE VIEW v AS SELECT 1 FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0));
+# used to return zero rows
+SELECT 1 AS one FROM v;
+one
+1
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select 1 AS `1` from `t1` order by count(0) OVER (PARTITION BY min(`t1`.`c0`) ) 	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v;
+# returns two rows as expected
+(SELECT 1 AS one FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0)))
+UNION ALL
+(SELECT 1        FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0)));
+one
+1
+1
+CREATE VIEW v AS (SELECT 1 AS one FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0)))
+UNION ALL
+(SELECT 1        FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0)));
+# used to return zero rows
+SELECT v.one AS one FROM v;
+one
+1
+1
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS (select 1 AS `one` from `t1` order by count(0) OVER (PARTITION BY min(`t1`.`c0`) ) ) union all (select 1 AS `1` from `t1` order by count(0) OVER (PARTITION BY min(`t1`.`c0`) ) )	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v;
+DROP TABLE t1;

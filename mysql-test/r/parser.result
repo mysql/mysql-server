@@ -2512,7 +2512,7 @@ ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_bin
 CREATE VIEW v1 AS (SELECT 1 ORDER BY 1) UNION (SELECT 3 ORDER BY 1) ORDER BY 1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1` union select 3 AS `3` order by `1`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select 1 AS `1` order by '') union (select 3 AS `3` order by '') order by `1`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 #
 # Bug#29871803: REQUIRED PARENTHESES NO LONGER PRINTED FOR CERTAIN UNION
