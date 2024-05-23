@@ -558,7 +558,10 @@ std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
 
     error = get_address_for_allowlist(ip.second, mask, value);
 
-    if (error) return nullptr;
+    if (error) {
+      delete retval;
+      return nullptr;
+    }
 
     retval->push_back(make_pair(value.first, value.second));
   }
