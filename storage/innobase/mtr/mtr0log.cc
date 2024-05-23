@@ -867,8 +867,8 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 
       if (col->is_instant_added() || col->is_instant_dropped()) {
         continue;
-      } else if (col->get_phy_pos() >= phy_pos) {
-        phy_pos = col->get_phy_pos();
+      } else if (field->get_phy_pos() >= phy_pos) {
+        phy_pos = field->get_phy_pos();
       } else {
         fields_with_changed_order[i] = true;
       }
