@@ -3070,8 +3070,7 @@ sub find_plugin($$) {
                     "$basedir/lib/plugin/" . $plugin_filename,
                     "$basedir/lib64/plugin/" . $plugin_filename,
                     "$basedir/lib/mysql/plugin/" . $plugin_filename,
-                    "$basedir/lib64/mysql/plugin/" . $plugin_filename,
-                    "$basedir/lib64/mysqlrouter/" . $plugin_filename);
+                    "$basedir/lib64/mysql/plugin/" . $plugin_filename);
   return $lib_plugin;
 }
 
@@ -6707,6 +6706,7 @@ sub router_create_config_file($$) {
 
   my $routing_plugin = find_plugin("routing", "plugin_output_directory") or
      find_router_plugin_in_package("routing") or die();
+  mtr_print("Router detected plugin path using: $routing_plugin");
   my $plugin_dir = dirname($routing_plugin);
   my $logdir = dirname($output);
   my $logname = basename($output);
