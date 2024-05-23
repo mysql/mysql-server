@@ -544,7 +544,7 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
   EXPECT_FALSE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
-  assert_rest_config(config_path, false);
+  ASSERT_NO_FATAL_FAILURE(assert_rest_config(config_path, false));
 
   auto &router = ProcessManager::launch_router({"-c", config_path.str()});
 
@@ -716,7 +716,7 @@ class RestApiEnableUserCertificates
  * WL13906:TS_FR04_01
  */
 TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
-  create_cert_files(GetParam());
+  ASSERT_NO_FATAL_FAILURE(create_cert_files(GetParam()));
   auto &router_bootstrap =
       do_bootstrap({"--https-port", std::to_string(custom_port)});
   const auto expected_message =
@@ -727,12 +727,12 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_router_key, cert_file_t::k_router_cert}));
-  assert_rest_config(config_path, true);
+  ASSERT_NO_FATAL_FAILURE(assert_rest_config(config_path, true));
   EXPECT_TRUE(certificate_files_not_changed(GetParam()));
 
   ProcessManager::launch_router({"-c", config_path.str()});
 
-  assert_rest_works(custom_port);
+  ASSERT_NO_FATAL_FAILURE(assert_rest_works(custom_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -873,7 +873,7 @@ TEST_P(RestApiInvalidUserCerts,
             GetParam());
   EXPECT_EQ(get_file_output(datadir_path.join(router_cert_filename).str()),
             GetParam());
-  assert_rest_config(config_path, true);
+  ASSERT_NO_FATAL_FAILURE(assert_rest_config(config_path, true));
 
   auto &router = launch_router({"-c", config_path.str()}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
@@ -1036,11 +1036,11 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
-  assert_rest_config(config_path, true);
+  ASSERT_NO_FATAL_FAILURE(assert_rest_config(config_path, true));
 
   ProcessManager::launch_router({"-c", config_path.str()});
 
-  assert_rest_works(rest_port);
+  ASSERT_NO_FATAL_FAILURE(assert_rest_works(rest_port));
 }
 
 /**
