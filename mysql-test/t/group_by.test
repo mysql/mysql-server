@@ -3638,3 +3638,31 @@ DROP TABLE product;
 CREATE TABLE t1(f1 INTEGER);
 SELECT (SELECT f1) FROM t1 GROUP BY f1 HAVING f1 < 1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36625752 View with ORDER BY misses a row
+--echo #
+CREATE TABLE t1(c0 INT PRIMARY KEY);
+let $query =
+SELECT 1 FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0));
+--echo # returns one row as expected
+eval $query;
+eval CREATE VIEW v AS $query;
+--echo # used to return zero rows
+SELECT 1 AS one FROM v;
+SHOW CREATE VIEW v;
+DROP VIEW v;
+
+let $query=
+(SELECT 1 AS one FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0)))
+UNION ALL
+(SELECT 1        FROM t1 ORDER BY COUNT(*) OVER (PARTITION BY MIN(t1.c0)));
+--echo # returns two rows as expected
+eval $query;
+eval CREATE VIEW v AS $query;
+--echo # used to return zero rows
+SELECT v.one AS one FROM v;
+SHOW CREATE VIEW v;
+DROP VIEW v;
+
+DROP TABLE t1;

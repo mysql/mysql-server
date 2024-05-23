@@ -4529,7 +4529,7 @@ bool Query_block::check_only_full_group_by(THD *thd) {
 */
 bool Query_block::setup_order_final(THD *thd) {
   DBUG_TRACE;
-  if (is_implicitly_grouped()) {
+  if (is_implicitly_grouped() && !parent_lex->is_view_context_analysis()) {
     // Result will contain zero or one row - ordering is redundant
     return empty_order_list(this);
   }
@@ -4538,7 +4538,7 @@ bool Query_block::setup_order_final(THD *thd) {
     std::pair<bool, bool> result =
         master_query_expression()->query_term()->redundant_order_by(this, 0);
     assert(result.first);  // that we found the block
-    if (result.second) {
+    if (result.second && !parent_lex->is_view_context_analysis()) {
       // Part of set operation which requires global ordering may skip local
       // order
       if (empty_order_list(this)) return true;
