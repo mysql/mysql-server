@@ -56,7 +56,7 @@ class default_init_allocator : public A {
     ::new (static_cast<void *>(ptr)) U;
   }
   template <class U, class... Args>
-  void construct(U *ptr, Args &&... args) {
+  void construct(U *ptr, Args &&...args) {
     a_t::construct(static_cast<A &>(*this), ptr, std::forward<Args>(args)...);
   }
 };

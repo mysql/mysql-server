@@ -210,7 +210,7 @@ extern "C" struct mysql_parser_service_st {
   mysql_free_string_t mysql_free_string;
   mysql_get_query_t mysql_get_query;
   mysql_get_normalized_query_t mysql_get_normalized_query;
-} * mysql_parser_service;
+} *mysql_parser_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

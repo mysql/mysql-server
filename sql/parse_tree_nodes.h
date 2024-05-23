@@ -5242,9 +5242,9 @@ class PT_alter_tablespace_option final
   const Option_type m_value;
 };
 
-typedef PT_alter_tablespace_option<decltype(
-                                       Tablespace_options::autoextend_size),
-                                   &Tablespace_options::autoextend_size>
+typedef PT_alter_tablespace_option<
+    decltype(Tablespace_options::autoextend_size),
+    &Tablespace_options::autoextend_size>
     PT_alter_tablespace_option_autoextend_size;
 
 typedef PT_alter_tablespace_option<decltype(Tablespace_options::extent_size),
@@ -5259,14 +5259,14 @@ typedef PT_alter_tablespace_option<decltype(Tablespace_options::max_size),
                                    &Tablespace_options::max_size>
     PT_alter_tablespace_option_max_size;
 
-typedef PT_alter_tablespace_option<decltype(
-                                       Tablespace_options::redo_buffer_size),
-                                   &Tablespace_options::redo_buffer_size>
+typedef PT_alter_tablespace_option<
+    decltype(Tablespace_options::redo_buffer_size),
+    &Tablespace_options::redo_buffer_size>
     PT_alter_tablespace_option_redo_buffer_size;
 
-typedef PT_alter_tablespace_option<decltype(
-                                       Tablespace_options::undo_buffer_size),
-                                   &Tablespace_options::undo_buffer_size>
+typedef PT_alter_tablespace_option<
+    decltype(Tablespace_options::undo_buffer_size),
+    &Tablespace_options::undo_buffer_size>
     PT_alter_tablespace_option_undo_buffer_size;
 
 typedef PT_alter_tablespace_option<

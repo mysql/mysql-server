@@ -29,7 +29,7 @@
 #include <ndb_global.h>
 
 // Enable DEBUG_RSS to measure memory consumption in various parts
-//#define DEBUG_RSS 1
+// #define DEBUG_RSS 1
 struct ndb_rusage {
   Uint64 ru_utime;
   Uint64 ru_stime;

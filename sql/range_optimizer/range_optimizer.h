@@ -122,9 +122,9 @@ class QUICK_RANGE {
     kr->key = (const uchar *)min_key;
     kr->length = min_length;
     kr->keypart_map = min_keypart_map;
-    kr->flag = ((flag & NEAR_MIN) ? HA_READ_AFTER_KEY
-                                  : (flag & EQ_RANGE) ? HA_READ_KEY_EXACT
-                                                      : HA_READ_KEY_OR_NEXT);
+    kr->flag = ((flag & NEAR_MIN)   ? HA_READ_AFTER_KEY
+                : (flag & EQ_RANGE) ? HA_READ_KEY_EXACT
+                                    : HA_READ_KEY_OR_NEXT);
   }
 
   /**

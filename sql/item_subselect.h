@@ -721,7 +721,7 @@ class Item_in_subselect : public Item_exists_subselect {
        was done.
     */
     bool dependent_after;
-  } * m_in2exists_info{nullptr};
+  } *m_in2exists_info{nullptr};
 
   PT_subquery *pt_subselect;
 

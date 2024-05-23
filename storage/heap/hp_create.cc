@@ -273,9 +273,9 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
   for (i = 0; i <= HP_MAX_LEVELS; i++)
     block->level_info[i].records_under_level =
         (!i ? 1
-            : i == 1 ? records_in_block
-                     : HP_PTRS_IN_NOD *
-                           block->level_info[i - 1].records_under_level);
+         : i == 1
+             ? records_in_block
+             : HP_PTRS_IN_NOD * block->level_info[i - 1].records_under_level);
 }
 
 static inline void heap_try_free(HP_SHARE *share) {

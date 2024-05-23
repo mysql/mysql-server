@@ -243,9 +243,9 @@ void AsyncFile::openReq(Request *request) {
          * Also when using CBC-mode we use 512 byte file block size to be
          * compatible with old encrypted backup files.
          */
-        file_block_size =
-            ((use_enc && use_xts) ? xts_data_unit_size
-                                  : (use_gz || (use_enc && use_cbc)) ? 512 : 0);
+        file_block_size = ((use_enc && use_xts) ? xts_data_unit_size
+                           : (use_gz || (use_enc && use_cbc)) ? 512
+                                                              : 0);
       } else {
         key_data_unit_size = page_size;
         file_block_size = page_size;

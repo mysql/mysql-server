@@ -136,7 +136,7 @@ enum class enum_json_type {
   @return a pointer to the allocated object
 */
 template <typename T, typename... Args>
-inline std::unique_ptr<T> create_dom_ptr(Args &&... args) {
+inline std::unique_ptr<T> create_dom_ptr(Args &&...args) {
   return std::unique_ptr<T>(new (std::nothrow) T(std::forward<Args>(args)...));
 }
 
@@ -702,7 +702,7 @@ class Json_string final : public Json_scalar {
     @param args any arguments accepted by std::string's constructors
   */
   template <typename... Args>
-  explicit Json_string(Args &&... args)
+  explicit Json_string(Args &&...args)
       : Json_scalar(), m_str(std::forward<Args>(args)...) {}
 
   enum_json_type json_type() const override { return enum_json_type::J_STRING; }
@@ -1019,7 +1019,7 @@ class Json_opaque final : public Json_scalar {
     @see Class documentation
   */
   template <typename... Args>
-  explicit Json_opaque(enum_field_types mytype, Args &&... args)
+  explicit Json_opaque(enum_field_types mytype, Args &&...args)
       : Json_scalar(), m_mytype(mytype), m_val(std::forward<Args>(args)...) {}
 
   enum_json_type json_type() const override { return enum_json_type::J_OPAQUE; }
@@ -1924,7 +1924,7 @@ class Json_scalar_holder {
     @param args the arguments to T's constructor
   */
   template <typename T, typename... Args>
-  void emplace(Args &&... args) {
+  void emplace(Args &&...args) {
     static_assert(std::is_base_of<Json_scalar, T>::value, "Not a Json_scalar");
     static_assert(sizeof(T) <= sizeof(m_buffer), "Buffer is too small");
     m_scalar_ptr = &m_buffer.m_null;

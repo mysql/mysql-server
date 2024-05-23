@@ -66,7 +66,7 @@
 
 int global_flag_skip_invalidate_cache = 0;
 int global_flag_skip_waiting_for_clean_cache = 0;
-//#define DEBUG_REG
+// #define DEBUG_REG
 
 extern EventLogger *g_eventLogger;
 
@@ -628,7 +628,7 @@ void ClusterMgr::recalcMinDbVersion() {
    */
   newMinDbVersion = (newMinDbVersion == ~(Uint32)0) ? 0 : newMinDbVersion;
 
-  //#ifdef DEBUG_MINVER
+  // #ifdef DEBUG_MINVER
 
 #ifdef DEBUG_MINVER
   if (newMinDbVersion != minDbVersion) {

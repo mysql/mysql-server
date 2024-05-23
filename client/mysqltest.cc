@@ -2881,7 +2881,7 @@ static void var_set_escape(struct st_command *command, VAR *dst) {
     - the second string,
     - a bool that is false if the parsing succeeded; true if it failed.
   */
-  auto parse_args = [&]() -> auto {
+  auto parse_args = [&]() -> auto{
     // command->first_argument contains '(characters,text)'
     char *p = command->first_argument;
     // Find (
@@ -3557,7 +3557,7 @@ static void free_dynamic_strings(T *val) {
 ///              the function, through recursion, end up being
 ///              freed by dynstr_free().
 template <typename T1, typename... T2>
-static void free_dynamic_strings(T1 *first, T2 *... rest) {
+static void free_dynamic_strings(T1 *first, T2 *...rest) {
   free_dynamic_strings(first);
   free_dynamic_strings(rest...);
 }

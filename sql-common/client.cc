@@ -5842,14 +5842,12 @@ static mysql_state_machine_status authsm_handle_first_authenticate_user(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
-  DBUG_PRINT("info",
-             ("authenticate_user returned %s",
-              ctx->res == CR_OK
-                  ? "CR_OK"
-                  : ctx->res == CR_ERROR ? "CR_ERROR"
-                                         : ctx->res == CR_OK_HANDSHAKE_COMPLETE
-                                               ? "CR_OK_HANDSHAKE_COMPLETE"
-                                               : "error"));
+  DBUG_PRINT("info", ("authenticate_user returned %s",
+                      ctx->res == CR_OK      ? "CR_OK"
+                      : ctx->res == CR_ERROR ? "CR_ERROR"
+                      : ctx->res == CR_OK_HANDSHAKE_COMPLETE
+                          ? "CR_OK_HANDSHAKE_COMPLETE"
+                          : "error"));
 
   static_assert(CR_OK == -1, "");
   static_assert(CR_ERROR == 0, "");
@@ -5990,14 +5988,12 @@ static mysql_state_machine_status authsm_handle_second_authenticate_user(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
-  DBUG_PRINT("info",
-             ("second authenticate_user returned %s",
-              ctx->res == CR_OK
-                  ? "CR_OK"
-                  : ctx->res == CR_ERROR ? "CR_ERROR"
-                                         : ctx->res == CR_OK_HANDSHAKE_COMPLETE
-                                               ? "CR_OK_HANDSHAKE_COMPLETE"
-                                               : "error"));
+  DBUG_PRINT("info", ("second authenticate_user returned %s",
+                      ctx->res == CR_OK      ? "CR_OK"
+                      : ctx->res == CR_ERROR ? "CR_ERROR"
+                      : ctx->res == CR_OK_HANDSHAKE_COMPLETE
+                          ? "CR_OK_HANDSHAKE_COMPLETE"
+                          : "error"));
   if (ctx->res > CR_OK) {
     if (ctx->res > CR_ERROR)
       set_mysql_error(mysql, ctx->res, unknown_sqlstate);

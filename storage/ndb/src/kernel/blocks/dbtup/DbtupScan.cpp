@@ -37,21 +37,21 @@
 #define JAM_FILE_ID 408
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_LCP 1
-//#define DEBUG_LCP_DEL2 1
-//#define DEBUG_LCP_DEL_EXTRA 1
-//#define DEBUG_LCP_SKIP_EXTRA 1
-//#define DEBUG_LCP_KEEP 1
-//#define DEBUG_LCP_REL 1
-//#define DEBUG_NR_SCAN 1
-//#define DEBUG_NR_SCAN_EXTRA 1
-//#define DEBUG_LCP_SCANNED_BIT 1
-//#define DEBUG_LCP_FILTER 1
-//#define DEBUG_LCP_DEL 1
-//#define DEBUG_LCP_DELAY 1
-//#define DEBUG_LCP_SKIP 1
-//#define DEBUG_LCP_DEL 1
-//#define DEBUG_LCP_SKIP 1
+// #define DEBUG_LCP 1
+// #define DEBUG_LCP_DEL2 1
+// #define DEBUG_LCP_DEL_EXTRA 1
+// #define DEBUG_LCP_SKIP_EXTRA 1
+// #define DEBUG_LCP_KEEP 1
+// #define DEBUG_LCP_REL 1
+// #define DEBUG_NR_SCAN 1
+// #define DEBUG_NR_SCAN_EXTRA 1
+// #define DEBUG_LCP_SCANNED_BIT 1
+// #define DEBUG_LCP_FILTER 1
+// #define DEBUG_LCP_DEL 1
+// #define DEBUG_LCP_DELAY 1
+// #define DEBUG_LCP_SKIP 1
+// #define DEBUG_LCP_DEL 1
+// #define DEBUG_LCP_SKIP 1
 #endif
 
 #ifdef DEBUG_LCP_DELAY
@@ -2586,12 +2586,12 @@ bool Dbtup::scanNext(Signal *signal, ScanOpPtr scanPtr) {
      * than 100 signals.
      */
     jam();
-    //#ifdef VM_TRACE
+    // #ifdef VM_TRACE
     c_debug_count++;
     if (c_debug_count % 10000 == 0) {
       DEB_LCP_DELAY(("(%u)TupScan delayed 10000 times", instance()));
     }
-    //#endif
+    // #endif
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, BOUNDED_DELAY, 2);
   }
   return false;

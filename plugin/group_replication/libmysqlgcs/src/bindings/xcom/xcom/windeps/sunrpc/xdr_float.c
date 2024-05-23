@@ -73,7 +73,8 @@ static struct sgl_limits {
 };
 #endif /* vax */
 
-bool_t xdr_float(xdrs, fp) XDR *xdrs;
+bool_t xdr_float(xdrs, fp)
+XDR *xdrs;
 float *fp;
 {
 #ifdef vax
@@ -184,7 +185,8 @@ static struct dbl_limits {
 
 #endif /* vax */
 
-bool_t xdr_double(xdrs, dp) XDR *xdrs;
+bool_t xdr_double(xdrs, dp)
+XDR *xdrs;
 double *dp;
 {
 #ifdef vax

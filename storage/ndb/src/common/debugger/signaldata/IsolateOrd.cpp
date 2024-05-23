@@ -31,15 +31,14 @@ bool printISOLATE_ORD(FILE *output, const Uint32 *theData, Uint32 len,
                       Uint16 /*receiverBlockNo*/) {
   const IsolateOrd *const sig = (const IsolateOrd *)theData;
 
-  fprintf(
-      output, " senderRef : %x step : %s delayMillis : %u, nodesToIsolate :",
-      sig->senderRef,
-      (sig->isolateStep == IsolateOrd::IS_REQ
-           ? "Request"
-           : sig->isolateStep == IsolateOrd::IS_BROADCAST
-                 ? "Broadcast"
-                 : sig->isolateStep == IsolateOrd::IS_DELAY ? "Delay" : "??"),
-      sig->delayMillis);
+  fprintf(output,
+          " senderRef : %x step : %s delayMillis : %u, nodesToIsolate :",
+          sig->senderRef,
+          (sig->isolateStep == IsolateOrd::IS_REQ         ? "Request"
+           : sig->isolateStep == IsolateOrd::IS_BROADCAST ? "Broadcast"
+           : sig->isolateStep == IsolateOrd::IS_DELAY     ? "Delay"
+                                                          : "??"),
+          sig->delayMillis);
 
   if (len == sig->SignalLengthWithBitmask48) {
     for (Uint32 i = 0; i < NdbNodeBitmask48::Size; i++) {

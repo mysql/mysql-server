@@ -1549,10 +1549,10 @@ int NdbIndexStatImpl::cache_init(Con &con) {
   c.m_keyBytes = head.m_keyBytes;
   c.m_valueLen = 4 + c.m_keyAttrs * 4;
   c.m_valueBytes = c.m_sampleCount * c.m_valueLen;
-  c.m_addrLen =
-      c.m_keyBytes < (1 << 8)
-          ? 1
-          : c.m_keyBytes < (1 << 16) ? 2 : c.m_keyBytes < (1 << 24) ? 3 : 4;
+  c.m_addrLen = c.m_keyBytes < (1 << 8)    ? 1
+                : c.m_keyBytes < (1 << 16) ? 2
+                : c.m_keyBytes < (1 << 24) ? 3
+                                           : 4;
   c.m_addrBytes = c.m_sampleCount * c.m_addrLen;
 
   // wl4124_todo omit addrArray if keys have fixed size

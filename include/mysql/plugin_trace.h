@@ -253,9 +253,10 @@ struct MYSQL;
   @return A pointer to plugin-specific, per-connection data if any.
 */
 
-typedef void *(tracing_start_callback)(
-    struct st_mysql_client_plugin_TRACE *self, MYSQL *connection_handle,
-    enum protocol_stage stage);
+typedef void *(
+    tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
+                            MYSQL *connection_handle,
+                            enum protocol_stage stage);
 
 /**
   Trace plugin tracing_stop() method.

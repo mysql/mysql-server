@@ -18646,7 +18646,7 @@ int ha_innobase::extra(enum ha_extra_function operation)
       m_prebuilt->no_autoinc_locking = true;
       break;
     default: /* Do nothing */
-             ;
+        ;
   }
 
   return (0);

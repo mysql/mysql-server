@@ -332,7 +332,7 @@ class Prealloced_array {
     @return true if out-of-memory, false otherwise
   */
   template <typename... Args>
-  bool emplace_back(Args &&... args) {
+  bool emplace_back(Args &&...args) {
     const size_t expansion_factor = 2;
     if (size() == capacity() && reserve(capacity() * expansion_factor))
       return true;
@@ -397,7 +397,7 @@ class Prealloced_array {
     @return an iterator pointing to the inserted value
   */
   template <typename... Args>
-  iterator emplace(const_iterator position, Args &&... args) {
+  iterator emplace(const_iterator position, Args &&...args) {
     const difference_type n = position - begin();
     emplace_back(std::forward<Args>(args)...);
     std::rotate(begin() + n, end() - 1, end());

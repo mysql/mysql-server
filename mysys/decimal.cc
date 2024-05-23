@@ -1844,9 +1844,9 @@ static int do_add(const decimal_t *from1, const decimal_t *from2,
   sanity(to);
 
   /* is there a need for extra word because of carry ? */
-  x = intg1 > intg2
-          ? from1->buf[0]
-          : intg2 > intg1 ? from2->buf[0] : from1->buf[0] + from2->buf[0];
+  x = intg1 > intg2   ? from1->buf[0]
+      : intg2 > intg1 ? from2->buf[0]
+                      : from1->buf[0] + from2->buf[0];
   if (unlikely(x > DIG_MAX - 1)) /* yes, there is */
   {
     intg0++;

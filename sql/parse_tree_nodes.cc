@@ -1952,9 +1952,10 @@ bool PT_foreign_key_definition::do_contextualize(Table_ddl_parse_context *pc) {
     is used. If both are missing name of generated supporting index is
     automatically produced.
   */
-  const LEX_CSTRING key_name = to_lex_cstring(
-      m_constraint_name.str ? m_constraint_name
-                            : m_key_name.str ? m_key_name : NULL_STR);
+  const LEX_CSTRING key_name =
+      to_lex_cstring(m_constraint_name.str ? m_constraint_name
+                     : m_key_name.str      ? m_key_name
+                                           : NULL_STR);
 
   if (key_name.str && check_string_char_length(key_name, "", NAME_CHAR_LEN,
                                                system_charset_info, true)) {

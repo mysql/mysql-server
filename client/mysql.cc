@@ -3347,7 +3347,8 @@ void add_syslog(const char *line) {
            "CONNECTION_ID:%lu, DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
            /* use the cached user/sudo_user value. */
            current_os_sudouser ? current_os_sudouser
-                               : current_os_user ? current_os_user : "--",
+           : current_os_user   ? current_os_user
+                               : "--",
            current_user ? current_user : "--", mysql_thread_id(&mysql_handle),
            current_host ? current_host : "--", current_db ? current_db : "--",
            line);

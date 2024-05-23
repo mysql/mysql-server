@@ -594,9 +594,9 @@ static int createFK(NdbDictionary::Dictionary *dict,
       *pChild, (strcmp(childIdx->getName(), PKNAME) == 0 ? 0 : childIdx), cols);
 
   const unsigned alt_update =
-      (strcmp(parentIdx->getName(), PKNAME) == 0)
-          ? 2
-          : (nullonly(pChild, childIdx, parentIdx->getNoOfColumns())) ? 4 : 3;
+      (strcmp(parentIdx->getName(), PKNAME) == 0)                 ? 2
+      : (nullonly(pChild, childIdx, parentIdx->getNoOfColumns())) ? 4
+                                                                  : 3;
 
   if ((((1 << alt_update) - 1) & onupdateactionmask) == 0) {
     return NDBT_WRONGARGS;

@@ -272,9 +272,9 @@ int table_log_status::make_row() {
         DBUG_EVALUATE_IF("log_status_oom_collecting", 1, (*it)->collect_info());
     if (error) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0),
-               (*it)->get_json() == &json_storage_engines
-                   ? "STORAGE_ENGINES"
-                   : (*it)->get_json() == &json_local ? "LOCAL" : "REPLICATION",
+               (*it)->get_json() == &json_storage_engines ? "STORAGE_ENGINES"
+               : (*it)->get_json() == &json_local         ? "LOCAL"
+                                                          : "REPLICATION",
                "failed to allocate memory to collect information");
       goto err_unlock;
     }

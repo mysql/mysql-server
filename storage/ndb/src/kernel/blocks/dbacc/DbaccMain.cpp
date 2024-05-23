@@ -71,7 +71,7 @@ extern EventLogger *g_eventLogger;
 #endif
 
 #ifdef VM_TRACE
-//#define DO_TRANSIENT_POOL_STAT 1
+// #define DO_TRANSIENT_POOL_STAT 1
 #endif
 
 // primary key is stored in TUP

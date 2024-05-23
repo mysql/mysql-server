@@ -57,11 +57,11 @@
 
 #include "mysql/strings/m_ctype.h"
 
-#define char_val(X)                          \
-  (X >= '0' && X <= '9'                      \
-       ? X - '0'                             \
-       : X >= 'A' && X <= 'Z' ? X - 'A' + 10 \
-                              : X >= 'a' && X <= 'z' ? X - 'a' + 10 : '\177')
+#define char_val(X)                      \
+  (X >= '0' && X <= '9'   ? X - '0'      \
+   : X >= 'A' && X <= 'Z' ? X - 'A' + 10 \
+   : X >= 'a' && X <= 'z' ? X - 'a' + 10 \
+                          : '\177')
 
 const char *str2int(const char *src, int radix, long int lower, long int upper,
                     long int *val) {

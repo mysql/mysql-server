@@ -31,7 +31,7 @@
 
 #include <jni.h>
 
-//#include "helpers.hpp"
+// #include "helpers.hpp"
 
 // ---------------------------------------------------------------------------
 // Java <-> C type conversion utilities

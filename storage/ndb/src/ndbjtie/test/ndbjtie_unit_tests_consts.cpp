@@ -32,7 +32,7 @@
 
 #include "NdbApi.hpp"
 #include "ndbjtie_unit_tests_consts.hpp"
-//#include "NdbError.hpp"
+// #include "NdbError.hpp"
 
 // name/value pair
 struct Constant {

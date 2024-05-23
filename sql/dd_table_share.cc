@@ -298,8 +298,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
   if (share->keys) {
     KEY *keyinfo;
     KEY_PART_INFO *key_part;
-    uint primary_key = (uint)(
-        find_type(primary_key_name, &share->keynames, FIND_TYPE_NO_PREFIX) - 1);
+    uint primary_key = (uint)(find_type(primary_key_name, &share->keynames,
+                                        FIND_TYPE_NO_PREFIX) -
+                              1);
     const longlong ha_option = handler_file->ha_table_flags();
     keyinfo = share->key_info;
     key_part = keyinfo->key_part;

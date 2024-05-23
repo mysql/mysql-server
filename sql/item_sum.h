@@ -1233,7 +1233,7 @@ class Item_sum_json : public Item_sum {
   */
   template <typename... Args>
   explicit Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
-                         Args &&... parent_args);
+                         Args &&...parent_args);
 
  public:
   ~Item_sum_json() override;

@@ -2233,9 +2233,9 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   const enum_row_image_type row_image_type =
       get_general_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT
           ? enum_row_image_type::WRITE_AI
-          : get_general_type_code() == mysql::binlog::event::DELETE_ROWS_EVENT
-                ? enum_row_image_type::DELETE_BI
-                : enum_row_image_type::UPDATE_BI;
+      : get_general_type_code() == mysql::binlog::event::DELETE_ROWS_EVENT
+          ? enum_row_image_type::DELETE_BI
+          : enum_row_image_type::UPDATE_BI;
 
   if (m_extra_row_info.have_ndb_info() ||
       DBUG_EVALUATE_IF("simulate_error_in_ndb_info_print", 1, 0)) {

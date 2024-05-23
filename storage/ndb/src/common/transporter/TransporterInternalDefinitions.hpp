@@ -28,7 +28,7 @@
 
 #include <Checksum.hpp>
 
-//#define DEBUG_TRANSPORTER
+// #define DEBUG_TRANSPORTER
 #if defined DEBUG_TRANSPORTER || defined VM_TRACE
 #include <NdbOut.hpp>
 #endif

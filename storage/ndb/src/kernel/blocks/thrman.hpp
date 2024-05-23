@@ -37,7 +37,7 @@
 
 #define JAM_FILE_ID 340
 
-//#define DEBUG_CPU_USAGE 1
+// #define DEBUG_CPU_USAGE 1
 class Thrman : public SimulatedBlock {
   friend class ThrmanProxy;
 

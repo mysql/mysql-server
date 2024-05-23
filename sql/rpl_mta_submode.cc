@@ -810,13 +810,13 @@ void Mts_submode_logical_clock::attach_temp_tables(THD *thd,
       cur_table->next = nullptr;
       mts_move_temp_tables_to_thd(thd, cur_table);
     } else
-        /* We must shift the C->temp_table pointer to the fist table unused in
-           this iteration. If all the tables have ben used C->temp_tables will
-           point to NULL */
-        if (!shifted) {
-      c_rli->info_thd->temporary_tables = cur_table;
-      shifted = true;
-    }
+      /* We must shift the C->temp_table pointer to the fist table unused in
+         this iteration. If all the tables have ben used C->temp_tables will
+         point to NULL */
+      if (!shifted) {
+        c_rli->info_thd->temporary_tables = cur_table;
+        shifted = true;
+      }
   } while (table);
   mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);
 }

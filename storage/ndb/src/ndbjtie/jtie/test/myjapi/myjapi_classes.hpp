@@ -78,7 +78,7 @@ extern "C" {
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_A.h"
+// #include "myjapi_A.h"
 
 JNIEXPORT jobject JNICALL Java_myjapi_A_create_1r__(JNIEnv *env, jclass cls) {
   TRACE("jobject Java_myjapi_A_create_1r__(JNIEnv *, jclass)");
@@ -551,8 +551,8 @@ JNIEXPORT jint JNICALL Java_myjapi_A_g3r(JNIEnv *env, jobject obj, jbyte p0,
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_B0.h"
-//#include "myjapi_B1.h"
+// #include "myjapi_B0.h"
+// #include "myjapi_B1.h"
 
 JNIEXPORT jint JNICALL Java_myjapi_B0_f0s(JNIEnv *env, jclass cls) {
   TRACE("jint Java_myjapi_B0_f0s(JNIEnv *, jclass)");
@@ -694,8 +694,8 @@ JNIEXPORT void JNICALL Java_myjapi_B1_d0__Lmyjapi_B1_2I(JNIEnv *env, jclass cls,
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_CI_C0.h"
-//#include "myjapi_CI_C0C.h"
+// #include "myjapi_CI_C0.h"
+// #include "myjapi_CI_C0C.h"
 
 JNIEXPORT jobject JNICALL Java_myjapi_CI_00024C0_cc(JNIEnv *env, jclass cls) {
   TRACE("jobject Java_myjapi_CI_00024C0_cc(JNIEnv *, jclass)");
@@ -888,8 +888,8 @@ JNIEXPORT void JNICALL Java_myjapi_CI_00024C0_take_1C0r(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_CI_C1.h"
-//#include "myjapi_CI_C1C.h"
+// #include "myjapi_CI_C1.h"
+// #include "myjapi_CI_C1C.h"
 
 JNIEXPORT jobject JNICALL Java_myjapi_CI_00024C1_cc(JNIEnv *env, jclass cls) {
   TRACE("jobject Java_myjapi_CI_00024C1_cc(JNIEnv *, jclass)");
@@ -1059,8 +1059,8 @@ JNIEXPORT void JNICALL Java_myjapi_CI_00024C1_take_1C1r(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_CI_C0Array.h"
-//#include "myjapi_CI_C0CArray.h"
+// #include "myjapi_CI_C0Array.h"
+// #include "myjapi_CI_C0CArray.h"
 
 JNIEXPORT jobject JNICALL Java_myjapi_CI_00024C0Array_create(JNIEnv *env,
                                                              jclass cls,
@@ -1085,8 +1085,8 @@ JNIEXPORT jobject JNICALL Java_myjapi_CI_00024C0Array_at(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_CI_C1Array.h"
-//#include "myjapi_CI_C1CArray.h"
+// #include "myjapi_CI_C1Array.h"
+// #include "myjapi_CI_C1CArray.h"
 
 JNIEXPORT jobject JNICALL Java_myjapi_CI_00024C1Array_create(JNIEnv *env,
                                                              jclass cls,
@@ -1111,9 +1111,9 @@ JNIEXPORT jobject JNICALL Java_myjapi_CI_00024C1Array_at(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_D0.h"
-//#include "myjapi_D1.h"
-//#include "myjapi_D2.h"
+// #include "myjapi_D0.h"
+// #include "myjapi_D1.h"
+// #include "myjapi_D2.h"
 
 JNIEXPORT jint JNICALL Java_myjapi_D0_f_1d0(JNIEnv *env, jobject obj) {
   TRACE("jint Java_myjapi_D0_f_1d0(JNIEnv *, jobject)");

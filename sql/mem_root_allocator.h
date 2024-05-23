@@ -109,7 +109,7 @@ class Mem_root_allocator {
   void deallocate(pointer, size_type) {}
 
   template <class U, class... Args>
-  void construct(U *p, Args &&... args) {
+  void construct(U *p, Args &&...args) {
     assert(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);

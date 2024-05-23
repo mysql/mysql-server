@@ -723,11 +723,10 @@ static ha_rkey_function get_search_mode(QUICK_RANGE *cur_range, bool is_asc,
       if (cur_range->flag & NO_MIN_RANGE)
         return HA_READ_PREFIX_LAST;  // 4
       else
-        return (cur_range->flag & EQ_RANGE)
-                   ? HA_READ_KEY_EXACT  // 5
-                   : (cur_range->flag & NEAR_MIN)
-                         ? HA_READ_BEFORE_KEY            // 6
-                         : HA_READ_PREFIX_LAST_OR_PREV;  // 7
+        return (cur_range->flag & EQ_RANGE) ? HA_READ_KEY_EXACT  // 5
+               : (cur_range->flag & NEAR_MIN)
+                   ? HA_READ_BEFORE_KEY            // 6
+                   : HA_READ_PREFIX_LAST_OR_PREV;  // 7
     }
   }
 
@@ -736,19 +735,17 @@ static ha_rkey_function get_search_mode(QUICK_RANGE *cur_range, bool is_asc,
     if (cur_range->flag & NO_MAX_RANGE)
       return HA_READ_PREFIX_LAST;  // 8
     else
-      return (cur_range->flag & EQ_RANGE)
-                 ? HA_READ_KEY_EXACT  // 9
-                 : (cur_range->flag & NEAR_MAX)
-                       ? HA_READ_BEFORE_KEY            // 10
-                       : HA_READ_PREFIX_LAST_OR_PREV;  // 11
-  } else {  // key parts is descending
+      return (cur_range->flag & EQ_RANGE) ? HA_READ_KEY_EXACT  // 9
+             : (cur_range->flag & NEAR_MAX)
+                 ? HA_READ_BEFORE_KEY            // 10
+                 : HA_READ_PREFIX_LAST_OR_PREV;  // 11
+  } else {                                       // key parts is descending
     if (cur_range->flag & NO_MAX_RANGE)
       return HA_READ_KEY_EXACT;  // 12a
     else
-      return (cur_range->flag & EQ_RANGE)
-                 ? HA_READ_KEY_EXACT                                    // 12b
-                 : (cur_range->flag & NEAR_MAX) ? HA_READ_AFTER_KEY     // 13
-                                                : HA_READ_KEY_OR_NEXT;  // 14
+      return (cur_range->flag & EQ_RANGE)   ? HA_READ_KEY_EXACT     // 12b
+             : (cur_range->flag & NEAR_MAX) ? HA_READ_AFTER_KEY     // 13
+                                            : HA_READ_KEY_OR_NEXT;  // 14
   }
 }
 

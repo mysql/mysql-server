@@ -850,7 +850,7 @@ Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
     &is_gtid_specified, &gtid_global_sidno, &gtid_group_sidno, &gtid_gno,
     local_transaction,
     this
-  ](Certification_result result) -> auto {
+  ](Certification_result result) -> auto{
     update_certified_transaction_count(result == Certification_result::positive,
                                        local_transaction);
     return end_certification_result(gtid_global_sidno, gtid_group_sidno,

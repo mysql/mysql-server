@@ -33,7 +33,7 @@
 #define JAM_FILE_ID 421
 
 #ifdef VM_TRACE
-//#define DEBUG_899_ERROR 1
+// #define DEBUG_899_ERROR 1
 #endif
 
 #ifdef DEBUG_899_ERROR

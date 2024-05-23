@@ -108,7 +108,7 @@ typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
 extern "C" struct mysql_locking_service_st {
   mysql_acquire_locks_t mysql_acquire_locks;
   mysql_release_locks_t mysql_release_locks;
-} * mysql_locking_service;
+} *mysql_locking_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

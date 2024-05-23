@@ -64,7 +64,7 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
   }
 
   template <typename... Args>
-  TraceStream(Args &&... args)  // NOLINT(runtime/explicit)
+  TraceStream(Args &&...args)  // NOLINT(runtime/explicit)
       : lower_layer_{std::forward<Args>(args)...}, out_{NameType::get_out()} {
     print("ctor");
   }
@@ -133,7 +133,7 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
   }
 
   template <typename... Args>
-  void print(const Args &... args) {
+  void print(const Args &...args) {
     std::unique_lock<std::mutex> l{mutex_};
     *out_ << "this:" << parent_ << ", thread:" << std::this_thread::get_id()
           << ", " << NameType::get_name() << ": ";

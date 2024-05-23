@@ -262,9 +262,7 @@ using std_mem_root_deque = std::deque<T, Mem_root_allocator<T>>;
 static void BM_EmptyConstruct(size_t num_iterations) {
   MEM_ROOT mem_root;
   for (size_t i = 0; i < num_iterations; ++i) {
-    {
-      mem_root_deque<int> d(&mem_root);
-    }
+    { mem_root_deque<int> d(&mem_root); }
     mem_root.ClearForReuse();
   }
 }
@@ -273,9 +271,7 @@ BENCHMARK(BM_EmptyConstruct)
 static void BM_EmptyConstructStdDeque(size_t num_iterations) {
   MEM_ROOT mem_root;
   for (size_t i = 0; i < num_iterations; ++i) {
-    {
-      std_mem_root_deque<int> d{Mem_root_allocator<int>(&mem_root)};
-    }
+    { std_mem_root_deque<int> d{Mem_root_allocator<int>(&mem_root)}; }
     mem_root.ClearForReuse();
   }
 }

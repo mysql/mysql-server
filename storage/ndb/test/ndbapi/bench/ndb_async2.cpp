@@ -23,7 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-//#define DEBUG_ON
+// #define DEBUG_ON
 
 #include <ndb_global.h>
 #include <string.h>

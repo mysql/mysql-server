@@ -274,12 +274,10 @@ static const uint8_t sort_order_euc_kr[] = {
 extern "C" {
 static unsigned ismbchar_euc_kr(const CHARSET_INFO *cs [[maybe_unused]],
                                 const char *p, const char *e) {
-  return ((static_cast<uint8_t>(*p) < 0x80)
-              ? 0
-              : iseuc_kr_head(*(p)) && (e) - (p) > 1 &&
-                        iseuc_kr_tail(*((p) + 1))
-                    ? 2
-                    : 0);
+  return ((static_cast<uint8_t>(*p) < 0x80) ? 0
+          : iseuc_kr_head(*(p)) && (e) - (p) > 1 && iseuc_kr_tail(*((p) + 1))
+              ? 2
+              : 0);
 }
 
 static unsigned mbcharlen_euc_kr(const CHARSET_INFO *cs [[maybe_unused]],

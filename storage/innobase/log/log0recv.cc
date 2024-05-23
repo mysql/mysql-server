@@ -149,10 +149,10 @@ void meb_print_page_header(const page_t *page) {
 }
 #endif /* UNIV_HOTBACKUP */
 
-//#ifndef UNIV_HOTBACKUP
+// #ifndef UNIV_HOTBACKUP
 PSI_memory_key mem_log_recv_page_hash_key;
 PSI_memory_key mem_log_recv_space_hash_key;
-//#endif /* !UNIV_HOTBACKUP */
+// #endif /* !UNIV_HOTBACKUP */
 
 /** true when recv_init_crash_recovery() has been called. */
 bool recv_needed_recovery;

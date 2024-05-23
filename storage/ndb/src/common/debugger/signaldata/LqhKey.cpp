@@ -48,27 +48,16 @@ bool printLQHKEYREQ(FILE *output, const Uint32 *theData, Uint32 len,
   const Uint32 reqInfo = sig->requestInfo;
   const Uint32 attrLen = sig->attrLen;
 
-  fprintf(
-      output, " Operation: %s\n",
-      LqhKeyReq::getOperation(reqInfo) == ZREAD
-          ? "Read"
-          : LqhKeyReq::getOperation(reqInfo) == ZREAD_EX
-                ? "Read-Ex"
-                : LqhKeyReq::getOperation(reqInfo) == ZUPDATE
-                      ? "Update"
-                      : LqhKeyReq::getOperation(reqInfo) == ZINSERT
-                            ? "Insert"
-                            : LqhKeyReq::getOperation(reqInfo) == ZDELETE
-                                  ? "Delete"
-                                  : LqhKeyReq::getOperation(reqInfo) == ZWRITE
-                                        ? "Write"
-                                        : LqhKeyReq::getOperation(reqInfo) ==
-                                                  ZUNLOCK
-                                              ? "Unlock"
-                                              : LqhKeyReq::getOperation(
-                                                    reqInfo) == ZREFRESH
-                                                    ? "Refresh"
-                                                    : "Unknown");
+  fprintf(output, " Operation: %s\n",
+          LqhKeyReq::getOperation(reqInfo) == ZREAD      ? "Read"
+          : LqhKeyReq::getOperation(reqInfo) == ZREAD_EX ? "Read-Ex"
+          : LqhKeyReq::getOperation(reqInfo) == ZUPDATE  ? "Update"
+          : LqhKeyReq::getOperation(reqInfo) == ZINSERT  ? "Insert"
+          : LqhKeyReq::getOperation(reqInfo) == ZDELETE  ? "Delete"
+          : LqhKeyReq::getOperation(reqInfo) == ZWRITE   ? "Write"
+          : LqhKeyReq::getOperation(reqInfo) == ZUNLOCK  ? "Unlock"
+          : LqhKeyReq::getOperation(reqInfo) == ZREFRESH ? "Refresh"
+                                                         : "Unknown");
 
   fprintf(output, " Op: %d Lock: %d Flags: ", LqhKeyReq::getOperation(reqInfo),
           LqhKeyReq::getLockType(reqInfo));

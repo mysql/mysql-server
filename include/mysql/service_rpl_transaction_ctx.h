@@ -63,7 +63,7 @@ struct Transaction_termination_ctx {
 extern "C" struct rpl_transaction_ctx_service_st {
   int (*set_transaction_ctx)(
       Transaction_termination_ctx transaction_termination_ctx);
-} * rpl_transaction_ctx_service;
+} *rpl_transaction_ctx_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

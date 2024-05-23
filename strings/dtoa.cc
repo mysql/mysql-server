@@ -341,9 +341,9 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
      2. 0 < decpt < len, i.e. we have "NNN.NNN" => F = len + 1
      3. len <= decpt, i.e. we have "NNN00" => F = decpt
   */
-  have_space =
-      (decpt <= 0 ? len - decpt + 2
-                  : decpt > 0 && decpt < len ? len + 1 : decpt) <= width;
+  have_space = (decpt <= 0                 ? len - decpt + 2
+                : decpt > 0 && decpt < len ? len + 1
+                                           : decpt) <= width;
   /*
     The following is true when no significant digits can be placed with the
     specified field width using the 'f' format, and the 'e' format
@@ -824,8 +824,7 @@ static Bigint *s2b(const char *s, int nd0, int nd, uint32_t y9,
   i = 9;
   if (9 < nd0) {
     s += 9;
-    do
-      b = multadd(b, 10, *s++ - '0', alloc);
+    do b = multadd(b, 10, *s++ - '0', alloc);
     while (++i < nd0);
     s++; /* skip '.' */
   } else
@@ -1048,8 +1047,7 @@ static Bigint *lshift(Bigint *b, int k, Stack_alloc *alloc) {
     } while (x < xe);
     if ((*x1 = z)) ++n1;
   } else
-    do
-      *x1++ = *x++;
+    do *x1++ = *x++;
     while (x < xe);
   b1->wds = n1 - 1;
   Bfree(b, alloc);

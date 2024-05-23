@@ -114,7 +114,7 @@ extern "C" struct plugin_registry_service_st {
   */
   int (*mysql_plugin_registry_release_func)(SERVICE_TYPE(registry) *
                                             registry_ptr);
-} * plugin_registry_service;
+} *plugin_registry_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 #define mysql_plugin_registry_acquire() \

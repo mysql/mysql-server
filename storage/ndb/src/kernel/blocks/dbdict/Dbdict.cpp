@@ -119,10 +119,10 @@
 #define ZRESTART_OPS_PER_TRANS 25
 #define ZRESTART_NO_WRITE_AFTER_READ 1
 
-//#define EVENT_PH2_DEBUG
-//#define EVENT_PH3_DEBUG
-//#define EVENT_DEBUG
-//#define DEBUG_API_FAIL
+// #define EVENT_PH2_DEBUG
+// #define EVENT_PH3_DEBUG
+// #define EVENT_DEBUG
+// #define DEBUG_API_FAIL
 
 #ifdef DEBUG_API_FAIL
 #define DEB_API_FAIL(arglist)    \
@@ -4236,7 +4236,7 @@ void Dbdict::checkSchemaStatus(Signal *signal) {
     D("own" << *ownEntry);
     D("mst" << *masterEntry);
 
-//#define PRINT_SCHEMA_RESTART
+// #define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
     printf("checkSchemaStatus: pass: %d table: %d", c_restartRecord.m_pass,
            tableId);
@@ -21671,9 +21671,9 @@ void Dbdict::createFile_parse(Signal *signal, bool master, SchemaOpPtr op_ptr,
         "Dbdict: %u: create name=%s,id=%u,obj_ptr_i=%d,"
         "type=%s,bytes=%llu,warn=0x%x",
         __LINE__, f.FileName, impl_req->file_id, filePtr.p->m_obj_ptr_i,
-        f.FileType == DictTabInfo::Datafile
-            ? "datafile"
-            : f.FileType == DictTabInfo::Undofile ? "undofile" : "<unknown>",
+        f.FileType == DictTabInfo::Datafile   ? "datafile"
+        : f.FileType == DictTabInfo::Undofile ? "undofile"
+                                              : "<unknown>",
         filePtr.p->m_file_size, createFilePtr.p->m_warningFlags);
   }
 

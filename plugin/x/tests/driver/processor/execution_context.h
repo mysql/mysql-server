@@ -81,22 +81,22 @@ class Execution_context {
   xcl::XSession *session() { return m_connection->active_xsession(); }
 
   template <typename... T>
-  void print(T &&... values) {
+  void print(T &&...values) {
     m_console.print(std::forward<T>(values)...);
   }
 
   template <typename... T>
-  void print_verbose(T &&... values) {
+  void print_verbose(T &&...values) {
     m_console.print_verbose(std::forward<T>(values)...);
   }
 
   template <typename... T>
-  void print_error(T &&... values) const {
+  void print_error(T &&...values) const {
     m_console.print_error(std::forward<T>(values)...);
   }
 
   template <typename... T>
-  void print_error_red(T &&... values) const {
+  void print_error_red(T &&...values) const {
     m_console.print_error_red(std::forward<T>(values)...);
   }
 };

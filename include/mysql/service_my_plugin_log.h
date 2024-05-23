@@ -53,7 +53,7 @@ extern "C" struct my_plugin_log_service {
   int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level,
                                const char *, ...)
       MY_ATTRIBUTE((format(printf, 3, 4)));
-} * my_plugin_log_service;
+} *my_plugin_log_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

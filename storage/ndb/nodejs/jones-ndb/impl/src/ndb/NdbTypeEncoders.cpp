@@ -309,14 +309,15 @@ void NdbTypeEncoders_initOnLoad(Local<Object> target) {
   Type tmp_value = (Type)x;           \
   memcpy(buf, &tmp_value, sizeof(tmp_value));
 
-#define sint3korr(A)                                                           \
-  ((int32_t)(                                                                  \
-      (((uint8_t)(A)[2]) & 128)                                                \
-          ? (((uint32_t)255L << 24) | (((uint32_t)(uint8_t)(A)[2]) << 16) |    \
-             (((uint32_t)(uint8_t)(A)[1]) << 8) | ((uint32_t)(uint8_t)(A)[0])) \
-          : (((uint32_t)(uint8_t)(A)[2]) << 16) |                              \
-                (((uint32_t)(uint8_t)(A)[1]) << 8) |                           \
-                ((uint32_t)(uint8_t)(A)[0])))
+#define sint3korr(A)                                        \
+  ((int32_t)((((uint8_t)(A)[2]) & 128)                      \
+                 ? (((uint32_t)255L << 24) |                \
+                    (((uint32_t)(uint8_t)(A)[2]) << 16) |   \
+                    (((uint32_t)(uint8_t)(A)[1]) << 8) |    \
+                    ((uint32_t)(uint8_t)(A)[0]))            \
+                 : (((uint32_t)(uint8_t)(A)[2]) << 16) |    \
+                       (((uint32_t)(uint8_t)(A)[1]) << 8) | \
+                       ((uint32_t)(uint8_t)(A)[0])))
 
 #define uint3korr(A)                                \
   (uint32_t)(((uint32_t)((uint8_t)(A)[0])) +        \

@@ -88,7 +88,7 @@ class udf_list {
 
  private:
   udf_list_t set;
-} * list;
+} *list;
 
 /* actual test material */
 namespace udf_impl {

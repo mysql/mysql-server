@@ -70,9 +70,9 @@
 #include "../dbdih/Dbdih.hpp"
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_MULTI_TRP 1
-//#define DEBUG_STARTUP 1
-//#define DEBUG_ARBIT 1
+// #define DEBUG_MULTI_TRP 1
+// #define DEBUG_STARTUP 1
+// #define DEBUG_ARBIT 1
 #endif
 
 #ifdef DEBUG_ARBIT
@@ -108,7 +108,7 @@
   } while (0)
 #endif
 
-//#define DEBUG_QMGR_START
+// #define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
 #include <DebuggerNames.hpp>
 #define QMGR_DEBUG(x) ndbout << "QMGR " << __LINE__ << ": " << x << endl

@@ -1927,15 +1927,12 @@ bool Item_sum_sum::resolve_type(THD *thd) {
 
   hybrid_type = Item::type_to_result(data_type());
 
-  DBUG_PRINT("info",
-             ("Type: %s (%d, %d)",
-              (hybrid_type == REAL_RESULT
-                   ? "REAL_RESULT"
-                   : hybrid_type == DECIMAL_RESULT
-                         ? "DECIMAL_RESULT"
-                         : hybrid_type == INT_RESULT ? "INT_RESULT"
-                                                     : "--ILLEGAL!!!--"),
-              max_length, (int)decimals));
+  DBUG_PRINT("info", ("Type: %s (%d, %d)",
+                      (hybrid_type == REAL_RESULT      ? "REAL_RESULT"
+                       : hybrid_type == DECIMAL_RESULT ? "DECIMAL_RESULT"
+                       : hybrid_type == INT_RESULT     ? "INT_RESULT"
+                                                       : "--ILLEGAL!!!--"),
+                      max_length, (int)decimals));
   return false;
 }
 
@@ -5787,7 +5784,7 @@ bool Item_lead_lag::compute() {
 
 template <typename... Args>
 Item_sum_json::Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
-                             Args &&... parent_args)
+                             Args &&...parent_args)
     : Item_sum(std::forward<Args>(parent_args)...),
       m_wrapper(std::move(wrapper)) {
   set_data_type_json();

@@ -105,9 +105,10 @@ static void do_test(int loops, int dist[5]) {
           rec.data[i] = rand();
         }
         ndbout << "Alloc hi: " << page.high_index << " ("
-               << ((rnd < 30)
-                       ? "any"
-                       : (rnd < 60) ? "dir" : (rnd < 80) ? "exp" : "fail")
+               << ((rnd < 30)   ? "any"
+                   : (rnd < 60) ? "dir"
+                   : (rnd < 80) ? "exp"
+                                : "fail")
                << ") ";
         ndbout << rec.size << flush;
         if (rnd < 30) {

@@ -49,10 +49,10 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_SHIFT 2
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_TSMAN 1
-//#define DEBUG_TSMAN_NUM_EXTENTS 1
-//#define DEBUG_TSMAN_RESTART 1
-//#define DEBUG_TSMAN_IO 1
+// #define DEBUG_TSMAN 1
+// #define DEBUG_TSMAN_NUM_EXTENTS 1
+// #define DEBUG_TSMAN_RESTART 1
+// #define DEBUG_TSMAN_IO 1
 #endif
 
 #ifdef DEBUG_TSMAN

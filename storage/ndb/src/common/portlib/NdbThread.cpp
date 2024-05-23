@@ -1572,9 +1572,7 @@ thread_local NdbThread *NDB_THREAD_TLS_NDB_THREAD = nullptr;
 thread_local Uint32 NDB_THREAD_TLS_RES_OWNER = 0;
 #endif
 
-struct NdbThread *NdbThread_GetNdbThread() {
-  return NDB_THREAD_TLS_NDB_THREAD;
-}
+struct NdbThread *NdbThread_GetNdbThread() { return NDB_THREAD_TLS_NDB_THREAD; }
 
 static bool cpu_set_working;
 #if defined(HAVE_LINUX_SCHEDULING)

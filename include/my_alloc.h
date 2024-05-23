@@ -478,7 +478,7 @@ using unique_ptr_destroy_only = std::unique_ptr<T, Destroy_only<T>>;
 
 template <typename T, typename... Args>
 unique_ptr_destroy_only<T> make_unique_destroy_only(MEM_ROOT *mem_root,
-                                                    Args &&... args) {
+                                                    Args &&...args) {
   return unique_ptr_destroy_only<T>(new (mem_root)
                                         T(std::forward<Args>(args)...));
 }

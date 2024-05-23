@@ -1167,7 +1167,7 @@ my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value) {
 */
 template <typename T, typename... Args>
 static bool create_scalar(Json_scalar_holder *scalar, Json_dom_ptr *dom,
-                          Args &&... args) {
+                          Args &&...args) {
   if (scalar != nullptr) {
     scalar->emplace<T>(std::forward<Args>(args)...);
     return false;

@@ -111,8 +111,7 @@ Config *create_config(const char *first, ...) {
 
   va_start(args, first);
   const char *str = first;
-  do
-    fprintf(config_file, "%s\n", str);
+  do fprintf(config_file, "%s\n", str);
   while ((str = va_arg(args, const char *)) != NULL);
   va_end(args);
 
@@ -157,8 +156,7 @@ Config *create_mycnf(const char *first, ...) {
 
   va_start(args, first);
   const char *str = first;
-  do
-    fprintf(config_file, "%s\n", str);
+  do fprintf(config_file, "%s\n", str);
   while ((str = va_arg(args, const char *)) != NULL);
   va_end(args);
 

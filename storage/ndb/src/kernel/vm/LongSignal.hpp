@@ -51,7 +51,7 @@
  *   - This can help understand usage, leaks etc...
  *   - The owner tag idea may be useful for other resources in future
  */
-//#define NDB_DEBUG_RES_OWNERSHIP
+// #define NDB_DEBUG_RES_OWNERSHIP
 
 /**
  * Section handling

@@ -58,10 +58,10 @@
 #define JAM_FILE_ID 424
 
 #ifdef VM_TRACE
-//#define DEBUG_DISK 1
-//#define DEBUG_TUP_META 1
-//#define DEBUG_TUP_META_EXTRA 1
-//#define DEBUG_DROP_TAB 1
+// #define DEBUG_DISK 1
+// #define DEBUG_TUP_META 1
+// #define DEBUG_TUP_META_EXTRA 1
+// #define DEBUG_DROP_TAB 1
 #endif
 
 #ifdef DEBUG_DROP_TAB

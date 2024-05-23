@@ -37,7 +37,7 @@ extern "C" struct my_thread_scheduler_service {
   int (*connection_handler_set)(struct Connection_handler_functions *,
                                 struct THD_event_functions *);
   int (*connection_handler_reset)();
-} * my_thread_scheduler_service;
+} *my_thread_scheduler_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

@@ -1121,18 +1121,18 @@ class Gtid_event : public Binary_log_event,
         mysql::serialization::define_field(sequence_number),
         mysql::serialization::define_field(immediate_commit_timestamp),
         mysql::serialization::define_field(
-            original_commit_timestamp, Field_missing_functor([this]() -> auto {
+            original_commit_timestamp, Field_missing_functor([this]() -> auto{
               this->original_commit_timestamp =
                   this->immediate_commit_timestamp;
             })),
         mysql::serialization::define_field(transaction_length),
         mysql::serialization::define_field(immediate_server_version),
         mysql::serialization::define_field(
-            original_server_version, Field_missing_functor([this]() -> auto {
+            original_server_version, Field_missing_functor([this]() -> auto{
               this->original_server_version = this->immediate_server_version;
             })),
         mysql::serialization::define_field(
-            commit_group_ticket, Field_missing_functor([this]() -> auto {
+            commit_group_ticket, Field_missing_functor([this]() -> auto{
               this->commit_group_ticket = Gtid_event::kGroupTicketUnset;
             })));
   }

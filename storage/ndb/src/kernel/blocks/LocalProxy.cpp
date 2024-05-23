@@ -27,7 +27,7 @@
 
 #include <signaldata/RouteOrd.hpp>
 
-//#define DBINFO_SCAN_TRACE
+// #define DBINFO_SCAN_TRACE
 #ifdef DBINFO_SCAN_TRACE
 #include <debugger/DebuggerNames.hpp>
 #endif

@@ -3529,11 +3529,10 @@ static int test_plugin_options(
        (force_load_option.value() != PLUGIN_FORCE &&
         force_load_option.value() != PLUGIN_FORCE_PLUS_PERMANENT));
 
-  tmp->load_option = force_load_option.has_value()
-                         ? force_load_option.value()
-                         : (tmp->plugin->flags & PLUGIN_OPT_DEFAULT_OFF)
-                               ? PLUGIN_OFF
-                               : PLUGIN_ON;
+  tmp->load_option = force_load_option.has_value() ? force_load_option.value()
+                     : (tmp->plugin->flags & PLUGIN_OPT_DEFAULT_OFF)
+                         ? PLUGIN_OFF
+                         : PLUGIN_ON;
 
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++)
     count += 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */

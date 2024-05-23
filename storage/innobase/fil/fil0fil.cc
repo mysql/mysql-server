@@ -11209,7 +11209,7 @@ static void fil_rename_partition_file(const std::string &old_path,
 
   if (!fil_get_partition_file(old_path, extn, new_path)) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   ut_ad(!new_path.empty());
@@ -11249,7 +11249,7 @@ static void fil_rename_partition_file(const std::string &old_path,
   if (!ret) {
     /* File rename failed. */
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   if (import) {

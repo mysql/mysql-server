@@ -41,16 +41,18 @@ struct CHARSET_INFO;
 
 /** FTS default parser init
  @return 0 */
-static int fts_default_parser_init(MYSQL_FTPARSER_PARAM *param [
-    [maybe_unused]]) /*!< in: plugin parser param */
+static int fts_default_parser_init(
+    MYSQL_FTPARSER_PARAM *param
+    [[maybe_unused]]) /*!< in: plugin parser param */
 {
   return (0);
 }
 
 /** FTS default parser deinit
  @return 0 */
-static int fts_default_parser_deinit(MYSQL_FTPARSER_PARAM *param [
-    [maybe_unused]]) /*!< in: plugin parser param */
+static int fts_default_parser_deinit(
+    MYSQL_FTPARSER_PARAM *param
+    [[maybe_unused]]) /*!< in: plugin parser param */
 {
   return (0);
 }

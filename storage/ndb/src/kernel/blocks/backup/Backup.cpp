@@ -90,20 +90,20 @@ static const Uint32 WaitScanTempErrorRetryMillis = 10;
 static NDB_TICKS startTime;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_EMPTY_LCP 1
-//#define DEBUG_END_LCP 1
-//#define DEBUG_LCP_DEL_FILES 1
-//#define DEBUG_LCP 1
-//#define DEBUG_EMPTY_LCP 1
-//#define DEBUG_UNDO_LCP 1
-//#define DEBUG_LCP_ROW 1
-//#define DEBUG_LCP_DEL 1
-//#define DEBUG_EXTRA_LCP 1
-//#define DEBUG_REDO_CONTROL 1
-//#define DEBUG_REDO_CONTROL_DETAIL 1
-//#define DEBUG_LCP_DD 1
-//#define DEBUG_LCP_STAT 1
-//#define DEBUG_LCP_LAG 1
+// #define DEBUG_EMPTY_LCP 1
+// #define DEBUG_END_LCP 1
+// #define DEBUG_LCP_DEL_FILES 1
+// #define DEBUG_LCP 1
+// #define DEBUG_EMPTY_LCP 1
+// #define DEBUG_UNDO_LCP 1
+// #define DEBUG_LCP_ROW 1
+// #define DEBUG_LCP_DEL 1
+// #define DEBUG_EXTRA_LCP 1
+// #define DEBUG_REDO_CONTROL 1
+// #define DEBUG_REDO_CONTROL_DETAIL 1
+// #define DEBUG_LCP_DD 1
+// #define DEBUG_LCP_STAT 1
+// #define DEBUG_LCP_LAG 1
 #endif
 
 #ifdef DEBUG_END_LCP
@@ -244,8 +244,8 @@ static NDB_TICKS startTime;
 #define DEBUG_OUT(x)
 #endif
 
-//#define DEBUG_ABORT
-//#define dbg globalSignalLoggers.log
+// #define DEBUG_ABORT
+// #define dbg globalSignalLoggers.log
 
 static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 
@@ -415,8 +415,9 @@ void Backup::sendSTTORRY(Signal *signal) {
     signal->theData[6] = 255;  // No more start phases from missra
     sig_len = 7;
   }
-  BlockReference cntrRef =
-      !isNdbMtLqh() ? NDBCNTR_REF : m_is_query_block ? QBACKUP_REF : BACKUP_REF;
+  BlockReference cntrRef = !isNdbMtLqh()      ? NDBCNTR_REF
+                           : m_is_query_block ? QBACKUP_REF
+                                              : BACKUP_REF;
   sendSignal(cntrRef, GSN_STTORRY, signal, sig_len, JBB);
 }
 

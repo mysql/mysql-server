@@ -106,12 +106,12 @@
 static const Uint32 WaitTableStateChangeMillis = 10;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_MULTI_TRP 1
-//#define DEBUG_NODE_STOP 1
-//#define DEBUG_REDO_CONTROL 1
-//#define DEBUG_LCP 1
-//#define DEBUG_LCP_COMP 1
-//#define DEBUG_COPY_ACTIVE 1
+// #define DEBUG_MULTI_TRP 1
+// #define DEBUG_NODE_STOP 1
+// #define DEBUG_REDO_CONTROL 1
+// #define DEBUG_LCP 1
+// #define DEBUG_LCP_COMP 1
+// #define DEBUG_COPY_ACTIVE 1
 #endif
 
 #ifdef DEBUG_COPY_ACTIVE
@@ -5041,7 +5041,7 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal *signal) {
 
 /* Debug Node Recovery Status module */
 #define DBG_NRS(a)
-//#define DBG_NRS(a) ndbout << a << endl
+// #define DBG_NRS(a) ndbout << a << endl
 
 void Dbdih::initNodeRecoveryStatus() {
   NodeRecordPtr nodePtr;
@@ -19667,11 +19667,11 @@ void Dbdih::storeNewLcpIdLab(Signal *signal) {
 
   DEB_LCP_COMP(("Set to LCP_COPY_GCI"));
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
-  //#ifdef VM_TRACE
-  //  infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
-  //  signal->theData[0] = 7012;
-  //  execDUMP_STATE_ORD(signal);
-  //#endif
+  // #ifdef VM_TRACE
+  //   infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
+  //   signal->theData[0] = 7012;
+  //   execDUMP_STATE_ORD(signal);
+  // #endif
 
   copyGciLab(signal, CopyGCIReq::LOCAL_CHECKPOINT);
 }  // Dbdih::storeNewLcpIdLab()
@@ -19889,7 +19889,7 @@ void Dbdih::master_lcp_fragmentMutex_locked(Signal *signal,
   startLcpRoundLoopLab(signal, 0, 0);
 }
 
-//#define DIH_DEBUG_REPLICA_SEARCH
+// #define DIH_DEBUG_REPLICA_SEARCH
 #ifdef DIH_DEBUG_REPLICA_SEARCH
 static Uint32 totalScheduled;
 static Uint32 totalExamined;

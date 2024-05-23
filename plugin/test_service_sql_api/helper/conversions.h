@@ -39,7 +39,7 @@ inline std::string to_string(const Value_type &value) {
 }
 
 template <typename FirstArg, typename... Args>
-inline std::string to_string(const FirstArg &arg, const Args &... args) {
+inline std::string to_string(const FirstArg &arg, const Args &...args) {
   return to_string(arg) + to_string(args...);
 }
 

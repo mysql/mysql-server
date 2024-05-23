@@ -23,7 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-//#define DBTC_MAIN
+// #define DBTC_MAIN
 #define DBTC_C
 
 #include <NdbSpin.h>
@@ -114,18 +114,18 @@
 #define JAM_FILE_ID 353
 
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-//#define DO_TRANSIENT_POOL_STAT
-//#define ABORT_TRACE 1
-//#define DEBUG_NODE_FAILURE 1
-//#define DEBUG_RR_INIT 1
-//#define DEBUG_EXEC_WRITE_COUNT 1
+// #define DO_TRANSIENT_POOL_STAT
+// #define ABORT_TRACE 1
+// #define DEBUG_NODE_FAILURE 1
+// #define DEBUG_RR_INIT 1
+// #define DEBUG_EXEC_WRITE_COUNT 1
 #endif
 
 #define TC_TIME_SIGNAL_DELAY 50
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
-//#define USE_TC_DEBUG
+// #define USE_TC_DEBUG
 #ifdef USE_TC_DEBUG
 #define DEBUG(x) ndbout << "DBTC: " << x << endl;
 #else
@@ -13215,10 +13215,11 @@ bool Dbtc::sendDihGetNodeReq(Signal *signal, ScanRecordPtr scanptr,
    * theData[0] is always '0' in a DiGetNodesCONF,
    * else it is a REF, with errorCode in theData[1]
    */
-  const Uint32 errorCode =
-      (signal->theData[0] != 0) ? signal->theData[1] :         // DIH error
-          (ERROR_INSERTED_CLEAR(8095)) ? ZGET_DATAREC_ERROR :  // Fake error
-              0;
+  const Uint32 errorCode = (signal->theData[0] != 0) ? signal->theData[1]
+                                                     :  // DIH error
+                               (ERROR_INSERTED_CLEAR(8095)) ? ZGET_DATAREC_ERROR
+                                                            :  // Fake error
+                               0;
 
   if (errorCode != 0) {
     scanError(signal, scanptr, errorCode);

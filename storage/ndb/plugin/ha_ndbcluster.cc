@@ -5149,19 +5149,17 @@ static int handle_row_conflict(
      * We now take steps to generate a refresh Binlog event so that
      * other clusters will be re-aligned.
      */
-    DBUG_PRINT(
-        "info",
-        ("Conflict on table %s.  Operation type : %s, "
-         "conflict cause :%s, conflict error : %u : %s",
-         table_name,
-         ((op_type == WRITE_ROW)
-              ? "WRITE_ROW"
-              : (op_type == UPDATE_ROW) ? "UPDATE_ROW" : "DELETE_ROW"),
-         ((conflict_cause == ROW_ALREADY_EXISTS)
-              ? "ROW_ALREADY_EXISTS"
-              : (conflict_cause == ROW_DOES_NOT_EXIST) ? "ROW_DOES_NOT_EXIST"
-                                                       : "ROW_IN_CONFLICT"),
-         conflict_error.code, conflict_error.message));
+    DBUG_PRINT("info",
+               ("Conflict on table %s.  Operation type : %s, "
+                "conflict cause :%s, conflict error : %u : %s",
+                table_name,
+                ((op_type == WRITE_ROW)    ? "WRITE_ROW"
+                 : (op_type == UPDATE_ROW) ? "UPDATE_ROW"
+                                           : "DELETE_ROW"),
+                ((conflict_cause == ROW_ALREADY_EXISTS)   ? "ROW_ALREADY_EXISTS"
+                 : (conflict_cause == ROW_DOES_NOT_EXIST) ? "ROW_DOES_NOT_EXIST"
+                                                          : "ROW_IN_CONFLICT"),
+                conflict_error.code, conflict_error.message));
 
     assert(key_rec != nullptr);
     assert(row != nullptr);
@@ -7214,10 +7212,9 @@ double ha_ndbcluster::read_time(uint index, uint ranges, ha_rows rows) {
   assert(rows >= ranges);
 
   const NDB_INDEX_TYPE index_type =
-      (index < MAX_KEY)
-          ? get_index_type(index)
-          : (index == MAX_KEY) ? PRIMARY_KEY_INDEX  // Hidden primary key
-                               : UNDEFINED_INDEX;   // -> worst index
+      (index < MAX_KEY)    ? get_index_type(index)
+      : (index == MAX_KEY) ? PRIMARY_KEY_INDEX  // Hidden primary key
+                           : UNDEFINED_INDEX;   // -> worst index
 
   // fanout_factor is intended to compensate for the amount
   // of roundtrips between API <-> data node and between data nodes

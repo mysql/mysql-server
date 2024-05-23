@@ -3544,7 +3544,7 @@ static void ibuf_insert_to_index_page(
 
     ut_d(ut_error);
 
-    ut_o(return );
+    ut_o(return);
   }
 
   low_match = page_cur_search(block, index, entry, &page_cur);
@@ -3761,7 +3761,7 @@ static void ibuf_delete(const dtuple_t *entry, /*!< in: entry */
               (ulonglong)btr_page_get_index_id(page));
 
       ut_d(ut_error);
-      ut_o(return );
+      ut_o(return);
     }
 
     lock_update_delete(block, rec);

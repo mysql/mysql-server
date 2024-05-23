@@ -1616,9 +1616,9 @@ struct TABLE {
     m_set_counter = set_counter;
     m_last_operation_is_distinct = distinct;
     assert(m_set_op_type == SOT_NONE);
-    m_set_op_type = except
-                        ? (distinct ? SOT_EXCEPT_DISTINCT : SOT_EXCEPT_ALL)
-                        : distinct ? SOT_INTERSECT_DISTINCT : SOT_INTERSECT_ALL;
+    m_set_op_type = except ? (distinct ? SOT_EXCEPT_DISTINCT : SOT_EXCEPT_ALL)
+                    : distinct ? SOT_INTERSECT_DISTINCT
+                               : SOT_INTERSECT_ALL;
   }
 
   Field_longlong *set_counter() { return m_set_counter; }

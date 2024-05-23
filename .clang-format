@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We currently use clang-format version 10.
+# We currently use clang-format version 15.
 #
 # This is the output of
 #
@@ -98,7 +98,6 @@ ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
 DeriveLineEnding: true
-#DerivePointerAlignment: true
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
@@ -106,7 +105,6 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-#IncludeBlocks:   Regroup
 IncludeCategories:
   - Regex:           '^<ext/.*\.h>'
     Priority:        2
@@ -146,7 +144,6 @@ PenaltyBreakString: 1000
 PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
-#PointerAlignment: Left
 RawStringFormats:
   - Language:        Cpp
     Delimiters:
@@ -197,7 +194,6 @@ SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 SpaceBeforeSquareBrackets: false
-#Standard:        Auto
 StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION
@@ -210,7 +206,6 @@ UseTab:          Never
 DerivePointerAlignment: false
 PointerAlignment: Right
 
-# MySQL source code is allowed to use the latest c++ features.
 Standard:        Latest
 
 # MySQL includes frequently are not order-independent (e.g. my_config.h needs
@@ -277,7 +272,6 @@ ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
 DeriveLineEnding: true
-DerivePointerAlignment: true
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
@@ -285,7 +279,6 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-IncludeBlocks:   Regroup
 IncludeCategories:
   - Regex:           '^<ext/.*\.h>'
     Priority:        2
@@ -325,7 +318,6 @@ PenaltyBreakString: 1000
 PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
-PointerAlignment: Left
 RawStringFormats:
   - Language:        Cpp
     Delimiters:
@@ -376,7 +368,6 @@ SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 SpaceBeforeSquareBrackets: false
-Standard:        Auto
 StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION

@@ -2229,9 +2229,9 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
   if (item) return item;
 
   if (send_error) {
-    const char *typestr = (type == MYSQL_TYPE_DATE)
-                              ? "DATE"
-                              : (type == MYSQL_TYPE_TIME) ? "TIME" : "DATETIME";
+    const char *typestr = (type == MYSQL_TYPE_DATE)   ? "DATE"
+                          : (type == MYSQL_TYPE_TIME) ? "TIME"
+                                                      : "DATETIME";
     const ErrConvString err(str, length, thd->variables.character_set_client);
     my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
   }

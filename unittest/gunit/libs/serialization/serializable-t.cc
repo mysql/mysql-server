@@ -306,10 +306,10 @@ struct Format_optional_field : public Serializable<Format_optional_field> {
   decltype(auto) define_fields() {
     return std::make_tuple(
         define_field(field_a),
-        define_field(field_b, Field_missing_functor([this]() -> auto {
+        define_field(field_b, Field_missing_functor([this]() -> auto{
                        this->field_b = 10;
                      })),
-        define_field(field_c, Field_missing_functor([this]() -> auto {
+        define_field(field_c, Field_missing_functor([this]() -> auto{
                        this->field_c = 100;
                      })));
   }
@@ -317,7 +317,7 @@ struct Format_optional_field : public Serializable<Format_optional_field> {
   decltype(auto) define_fields() const {
     return std::make_tuple(
         define_field(field_a),
-        define_field(field_b, Field_encode_predicate([this]() -> auto {
+        define_field(field_b, Field_encode_predicate([this]() -> auto{
                        return this->field_a == 2;
                      })),
         define_field(field_c));
@@ -368,7 +368,7 @@ struct Format_optional_field_2 : public Serializable<Format_optional_field_2> {
   decltype(auto) define_fields() {
     return std::make_tuple(
         define_compound_field(field_1), define_field(field_a),
-        define_field(field_b, Field_missing_functor([this]() -> auto {
+        define_field(field_b, Field_missing_functor([this]() -> auto{
                        this->field_b = 10;
                      })),
         define_field(field_c));
@@ -377,7 +377,7 @@ struct Format_optional_field_2 : public Serializable<Format_optional_field_2> {
   decltype(auto) define_fields() const {
     return std::make_tuple(
         define_compound_field(field_1), define_field(field_a),
-        define_field(field_b, Field_encode_predicate([this]() -> auto {
+        define_field(field_b, Field_encode_predicate([this]() -> auto{
                        return this->field_a == 0;
                      })),
         define_field(field_c));
@@ -1111,20 +1111,19 @@ struct Format_internal_v1 : public Serializable<Format_internal_v1> {
   uint64_t field_1b = 0;
   decltype(auto) define_fields() const {
     return std::make_tuple(
-        define_field(field_1a, Field_encode_predicate([this]() -> auto {
+        define_field(field_1a, Field_encode_predicate([this]() -> auto{
                        return field_1a == 5;
                      })),
-        define_field(field_1b, Field_encode_predicate([this]() -> auto {
+        define_field(field_1b, Field_encode_predicate([this]() -> auto{
                        return field_1b == 5;
                      })));
   }
   decltype(auto) define_fields() {
     return std::make_tuple(
         define_field(field_1a,
-                     Field_missing_functor([this]() -> auto { field_1a = 6; })),
-        define_field(field_1b, Field_missing_functor([this]() -> auto {
-                       field_1b = 6;
-                     })));
+                     Field_missing_functor([this]() -> auto{ field_1a = 6; })),
+        define_field(field_1b,
+                     Field_missing_functor([this]() -> auto{ field_1b = 6; })));
   }
 };
 
@@ -1137,28 +1136,28 @@ struct Format_internal_v2 : public Serializable<Format_internal_v2> {
   std::vector<uint32_t> field_1d;  // added 2 field to Format_internal_v1
   decltype(auto) define_fields() const {
     return std::make_tuple(
-        define_field(field_1a, Field_encode_predicate([this]() -> auto {
+        define_field(field_1a, Field_encode_predicate([this]() -> auto{
                        return field_1a == 5;
                      })),
-        define_field(field_1b, Field_encode_predicate([this]() -> auto {
+        define_field(field_1b, Field_encode_predicate([this]() -> auto{
                        return field_1b == 5;
                      })),
-        define_field(field_1c, Field_encode_predicate([this]() -> auto {
+        define_field(field_1c, Field_encode_predicate([this]() -> auto{
                        return field_1c == 5;
                      })),
-        define_field(field_1d, Field_encode_predicate([this]() -> auto {
+        define_field(field_1d, Field_encode_predicate([this]() -> auto{
                        return field_1d.size() > 0;
                      })));
   }
   decltype(auto) define_fields() {
     return std::make_tuple(
         define_field(field_1a,
-                     Field_missing_functor([this]() -> auto { field_1a = 6; })),
+                     Field_missing_functor([this]() -> auto{ field_1a = 6; })),
         define_field(field_1b,
-                     Field_missing_functor([this]() -> auto { field_1b = 6; })),
+                     Field_missing_functor([this]() -> auto{ field_1b = 6; })),
         define_field(field_1c,
-                     Field_missing_functor([this]() -> auto { field_1c = 7; })),
-        define_field(field_1d, Field_missing_functor([this]() -> auto {
+                     Field_missing_functor([this]() -> auto{ field_1c = 7; })),
+        define_field(field_1d, Field_missing_functor([this]() -> auto{
                        field_1d.push_back(9);
                      })));
   }
@@ -1173,11 +1172,11 @@ struct Format_v1 : public Serializable<Format_v1> {
   decltype(auto) define_fields() const {
     return std::make_tuple(
         define_field_with_size<sizeof(uint32_t)>(
-            field_aa, Field_encode_predicate([this]() -> auto {
+            field_aa, Field_encode_predicate([this]() -> auto{
               return field_aa.size() > 0;
             })),
         define_compound_field(field_bb),
-        define_field(field_cc, Field_encode_predicate([this]() -> auto {
+        define_field(field_cc, Field_encode_predicate([this]() -> auto{
                        return field_cc == 9;
                      })));
   }
@@ -1185,9 +1184,9 @@ struct Format_v1 : public Serializable<Format_v1> {
     return std::make_tuple(
         define_field_with_size<sizeof(uint32_t)>(
             field_aa,
-            Field_missing_functor([this]() -> auto { field_aa.push_back(7); })),
+            Field_missing_functor([this]() -> auto{ field_aa.push_back(7); })),
         define_compound_field(field_bb),
-        define_field(field_cc, Field_missing_functor([this]() -> auto {
+        define_field(field_cc, Field_missing_functor([this]() -> auto{
                        field_cc = 19;
                      })));
   }
@@ -1204,11 +1203,11 @@ struct Format_v2 : public Serializable<Format_v2> {
   decltype(auto) define_fields() const {
     return std::make_tuple(
         define_field_with_size<sizeof(uint32_t)>(
-            field_aa, Field_encode_predicate([this]() -> auto {
+            field_aa, Field_encode_predicate([this]() -> auto{
               return field_aa.size() > 0;
             })),
         define_compound_field(field_bb),
-        define_field(field_cc, Field_encode_predicate([this]() -> auto {
+        define_field(field_cc, Field_encode_predicate([this]() -> auto{
                        return field_cc == 9;
                      })));
   }
@@ -1216,9 +1215,9 @@ struct Format_v2 : public Serializable<Format_v2> {
     return std::make_tuple(
         define_field_with_size<sizeof(uint32_t)>(
             field_aa,
-            Field_missing_functor([this]() -> auto { field_aa.push_back(7); })),
+            Field_missing_functor([this]() -> auto{ field_aa.push_back(7); })),
         define_compound_field(field_bb),
-        define_field(field_cc, Field_missing_functor([this]() -> auto {
+        define_field(field_cc, Field_missing_functor([this]() -> auto{
                        field_cc = 19;
                      })));
   }
@@ -1425,9 +1424,9 @@ struct Nested : public Serializable<Nested> {
   decltype(auto) define_fields() {
     return std::make_tuple(
         define_field(field_na,
-                     Field_missing_functor([this]() -> auto { field_na = 1; })),
+                     Field_missing_functor([this]() -> auto{ field_na = 1; })),
         define_field(field_nb,
-                     Field_missing_functor([this]() -> auto { field_nb = 2; }))
+                     Field_missing_functor([this]() -> auto{ field_nb = 2; }))
 
     );
   }
@@ -1667,17 +1666,15 @@ struct Unknown_fields_version_1
 
   decltype(auto) define_fields() const {
     return std::make_tuple(
-        define_field(a, Field_encode_predicate([this]() -> auto {
-                       return this->a != 1;
-                     }),
-                     Unknown_field_policy::error),
-        define_field(b, Field_encode_predicate([this]() -> auto {
+        define_field(
+            a, Field_encode_predicate([this]() -> auto{ return this->a != 1; }),
+            Unknown_field_policy::error),
+        define_field(b, Field_encode_predicate([this]() -> auto{
                        return this->b != 2;
                      })),
-        define_field(c, Field_encode_predicate([this]() -> auto {
-                       return this->c != 3;
-                     }),
-                     Unknown_field_policy::error));
+        define_field(
+            c, Field_encode_predicate([this]() -> auto{ return this->c != 3; }),
+            Unknown_field_policy::error));
   }
 };
 
@@ -1697,24 +1694,21 @@ struct Unknown_fields_version_2
   }
   decltype(auto) define_fields() const {
     return std::make_tuple(
-        define_field(a, Field_encode_predicate([this]() -> auto {
-                       return this->a != 4;
-                     }),
-                     Unknown_field_policy::error),
-        define_field(b, Field_encode_predicate([this]() -> auto {
+        define_field(
+            a, Field_encode_predicate([this]() -> auto{ return this->a != 4; }),
+            Unknown_field_policy::error),
+        define_field(b, Field_encode_predicate([this]() -> auto{
                        return this->b != 5;
                      })),
-        define_field(c, Field_encode_predicate([this]() -> auto {
-                       return this->c != 6;
-                     }),
-                     Unknown_field_policy::error),
-        define_field(d, Field_encode_predicate([this]() -> auto {
+        define_field(
+            c, Field_encode_predicate([this]() -> auto{ return this->c != 6; }),
+            Unknown_field_policy::error),
+        define_field(d, Field_encode_predicate([this]() -> auto{
                        return this->d != 7;
                      })),
-        define_field(e, Field_encode_predicate([this]() -> auto {
-                       return this->e != 8;
-                     }),
-                     Unknown_field_policy::error));
+        define_field(
+            e, Field_encode_predicate([this]() -> auto{ return this->e != 8; }),
+            Unknown_field_policy::error));
   }
 };
 
@@ -1846,14 +1840,14 @@ struct Unknown_fields_version_v1_nested
 
   decltype(auto) define_fields() const {
     return std::make_tuple(
-        define_field(aa, Field_encode_predicate([this]() -> auto {
+        define_field(aa, Field_encode_predicate([this]() -> auto{
                        return this->aa.a != 1;
                      }),
                      Unknown_field_policy::error),
-        define_field(bb, Field_encode_predicate([this]() -> auto {
+        define_field(bb, Field_encode_predicate([this]() -> auto{
                        return this->bb.b != 2;
                      })),
-        define_field(cc, Field_encode_predicate([this]() -> auto {
+        define_field(cc, Field_encode_predicate([this]() -> auto{
                        return this->cc.c != 3;
                      }),
                      Unknown_field_policy::error));
@@ -1881,21 +1875,21 @@ struct Unknown_fields_version_v2_nested
 
   decltype(auto) define_fields() const {
     return std::make_tuple(
-        define_field(aa, Field_encode_predicate([this]() -> auto {
+        define_field(aa, Field_encode_predicate([this]() -> auto{
                        return this->aa_provided == true;
                      }),
                      Unknown_field_policy::error),
-        define_field(bb, Field_encode_predicate([this]() -> auto {
+        define_field(bb, Field_encode_predicate([this]() -> auto{
                        return this->bb_provided == true;
                      })),
-        define_field(cc, Field_encode_predicate([this]() -> auto {
+        define_field(cc, Field_encode_predicate([this]() -> auto{
                        return this->cc_provided == true;
                      }),
                      Unknown_field_policy::error),
-        define_field(dd, Field_encode_predicate([this]() -> auto {
+        define_field(dd, Field_encode_predicate([this]() -> auto{
                        return this->dd_provided == true;
                      })),
-        define_field(ee, Field_encode_predicate([this]() -> auto {
+        define_field(ee, Field_encode_predicate([this]() -> auto{
                        return this->ee_provided == true;
                      }),
                      Unknown_field_policy::error));

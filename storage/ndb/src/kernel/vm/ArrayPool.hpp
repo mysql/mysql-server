@@ -44,7 +44,7 @@
 template <class T>
 class Array;
 
-//#define ARRAY_CHUNK_GUARD
+// #define ARRAY_CHUNK_GUARD
 
 /**
  * Template class used for implementing an

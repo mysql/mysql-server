@@ -52,7 +52,7 @@
 // if they are declared to receive "C" linkage here.
 extern "C" {
 
-//#include "test_NdbJTieConstantsTest.h"
+// #include "test_NdbJTieConstantsTest.h"
 
 /*
  * Class:     test_NdbJTieConstantsTest

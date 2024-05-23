@@ -38,7 +38,7 @@
     }                                                                    \
   } while (0)
 #endif
-//#define RETURN(rv) REQUIRE(rv)
+// #define RETURN(rv) REQUIRE(rv)
 #define RETURN(rv) return (rv)
 
 const char ndb_ndbxfrm1::magic[8] = {'N', 'D', 'B', 'X', 'F', 'R', 'M', '1'};

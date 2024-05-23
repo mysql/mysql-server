@@ -618,7 +618,8 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
     aggr_impossible = true;  // We didn't remove all tables
 
   *decision = aggr_impossible ? AGGR_REGULAR
-                              : aggr_delayed ? AGGR_DELAYED : AGGR_COMPLETE;
+              : aggr_delayed  ? AGGR_DELAYED
+                              : AGGR_COMPLETE;
   return false;
 }
 

@@ -463,7 +463,7 @@ SEL_ROOT::SEL_ROOT(SEL_ARG *root_arg)
       elements(count_elements(root_arg)) {}
 
 SEL_ROOT::SEL_ROOT(MEM_ROOT *mem_root, Type type_arg)
-    : type(type_arg), root(new (mem_root) SEL_ARG()), elements(1) {
+    : type(type_arg), root(new(mem_root) SEL_ARG()), elements(1) {
   assert(type_arg == Type::MAYBE_KEY || type_arg == Type::IMPOSSIBLE);
   root->make_root();
   if (type_arg == Type::MAYBE_KEY) {

@@ -969,9 +969,9 @@ class Backup : public SimulatedBlock {
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
 
-  //#ifdef VM_TRACE
+  // #ifdef VM_TRACE
   Uint64 m_debug_redo_log_count;
-  //#endif
+  // #endif
 
   /* Keep track of disk data usage in checkpoints */
   Uint64 m_current_dd_time_us;
@@ -1393,10 +1393,9 @@ class Backup : public SimulatedBlock {
    * - single-threaded backup: return instance 1, i.e. route signal to LDM1
    */
   Uint32 instanceNo(BackupRecordPtr ptr) {
-    return ptr.p->is_lcp()
-               ? instance()
-               : (ptr.p->flags & BackupReq::MT_BACKUP) ? BackupProxyInstanceKey
-                                                       : UserBackupInstanceKey;
+    return ptr.p->is_lcp()                         ? instance()
+           : (ptr.p->flags & BackupReq::MT_BACKUP) ? BackupProxyInstanceKey
+                                                   : UserBackupInstanceKey;
   }
 
   /* map a fragment to an LDM
