@@ -30,9 +30,12 @@
 using std::snprintf;
 bool opt_authentication_webauthn_client_preserve_privacy = false;
 
+static unsigned int opt_authentication_webauthn_client_device = 0;
+
 static int set_authentication_webauthn_options(MYSQL *mysql, char *error,
                                                size_t error_size) {
-  if (opt_authentication_webauthn_client_preserve_privacy) {
+  if (opt_authentication_webauthn_client_preserve_privacy ||
+      opt_authentication_webauthn_client_device > 0) {
     struct st_mysql_client_plugin *webauthn_client_plugin =
         mysql_client_find_plugin(mysql, "authentication_webauthn_client",
                                  MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
@@ -42,14 +45,25 @@ static int set_authentication_webauthn_options(MYSQL *mysql, char *error,
       return 1;
     }
 
-    if (mysql_plugin_options(
-            webauthn_client_plugin,
-            "authentication_webauthn_client_preserve_privacy",
-            &opt_authentication_webauthn_client_preserve_privacy)) {
-      snprintf(error, error_size,
-               "Failed to set value 'TRUE' for "
-               "--plugin-authentication-webauthn-client-preserve-privacy");
-      return 1;
+    if (opt_authentication_webauthn_client_preserve_privacy) {
+      if (mysql_plugin_options(
+              webauthn_client_plugin,
+              "authentication_webauthn_client_preserve_privacy",
+              &opt_authentication_webauthn_client_preserve_privacy)) {
+        snprintf(error, error_size,
+                 "Failed to set value 'TRUE' for "
+                 "--plugin-authentication-webauthn-client-preserve-privacy");
+        return 1;
+      }
+    }
+
+    if (opt_authentication_webauthn_client_device > 0) {
+      if (mysql_plugin_options(webauthn_client_plugin, "device",
+                               &opt_authentication_webauthn_client_device)) {
+        snprintf(error, error_size,
+                 "Failed to set device id for the webauthn client plugin");
+        return 1;
+      }
     }
   }
   return 0;

@@ -47,4 +47,6 @@ class webauthn_registration : public client_registration::registration {
   std::string m_client_data_json;
 };
 
+extern unsigned int libfido_device_id;
+
 #endif  // FIDO_REGISTRATION_H_

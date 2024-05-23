@@ -32,10 +32,16 @@
 #include <fido.h>
 #include <string>
 
-/**
-  Capability bit to support resident keys(aka discoverable credentials)
-*/
-#define RESIDENT_KEYS 1
+enum capacity_bits {
+  /**
+    Capability bit to support resident keys(aka discoverable credentials)
+  */
+  RESIDENT_KEYS = 0x1,
+  /**
+    Capability bit is to support sending the full attestation blob
+  */
+  SEND_FULL_ATTESTATION_BLOB = 0x2
+};
 
 namespace client_registration {
 /**
@@ -64,6 +70,12 @@ class registration {
   const char *get_rp_id();
   /* check if authenticator has resident keys support */
   bool is_fido2();
+  /* the full attestation statement */
+  const unsigned char *get_attestation_statement_ptr();
+  size_t get_attestation_statement_length();
+
+  /* get the credentials format */
+  const char *get_fmt();
 
   /* abstract methods to be implemented by specific client plugins */
   virtual bool parse_challenge(const char *challenge) = 0;
