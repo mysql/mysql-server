@@ -210,7 +210,7 @@ struct PFS_notification_registry {
                      "handle %d, refcount %d",
                      handle, refcount);
 
-            log_errlog(ER_LOG_PRINTF_MSG, buffer);
+            log_errlog(ERROR_LEVEL, ER_LOG_PRINTF_MSG, buffer);
             return 1;
           }
           my_sleep(timeout);
@@ -226,7 +226,7 @@ struct PFS_notification_registry {
     char buffer[128];
     snprintf(buffer, sizeof(buffer),
              "pfs_unregister_notification() unknown handle %d", handle);
-    log_errlog(ER_LOG_PRINTF_MSG, buffer);
+    log_errlog(ERROR_LEVEL, ER_LOG_PRINTF_MSG, buffer);
     return 2;
   }
 

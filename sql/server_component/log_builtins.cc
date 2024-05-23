@@ -1326,6 +1326,15 @@ int log_line_submit(log_line *ll) {
                (ec >= ER_SERVER_RANGE_START));
       }
     }
+
+    // Assert that log priority value is within a valid range
+    if (ll->seen & LOG_ITEM_LOG_PRIO) {
+      const int n = log_line_index_by_type(ll, LOG_ITEM_LOG_PRIO);
+      if (n >= 0) {
+        const int prio = ll->item[n].data.data_integer;
+        assert(SYSTEM_LEVEL <= prio && prio <= INFORMATION_LEVEL);
+      }
+    }
 #endif
 
     // release any memory that might need it
