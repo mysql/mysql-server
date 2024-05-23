@@ -60,4 +60,6 @@ class webauthn_assertion : public client_authentication::assertion {
   bool m_preserve_privacy;
 };
 
+extern unsigned int libfido_device_id;
+
 #endif  // WEBAUTHN_ASSERTION_H_

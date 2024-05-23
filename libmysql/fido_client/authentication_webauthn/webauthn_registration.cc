@@ -44,7 +44,6 @@
 
 namespace {
 const unsigned int PIN_BUFFER_SIZE = 256;
-const size_t NUM_DEVICES = 1;
 }  // namespace
 /**
   Helper method to parse the challenge received from server during registration
@@ -114,9 +113,13 @@ bool webauthn_registration::parse_challenge(const char *challenge) {
   fido_cred_t struct, construct a buffer holding this data which
   will be converted to base64 format before passing to server. Format of
   challenge response is:
-  [1 byte capability] [length encoded authenticator data]
-  [length encoded signature] [length encoded certificate]
+  [1 byte capability]
+  [length encoded authenticator data]
+  [length encoded signature: not used if attestation present]
+  [length encoded certificate: not used if attestation present]
   [length encoded serialized client data JSON]
+  [length encoded serialized attestation statement CBOR]
+  [length encoded format string]
 
   @param [out] challenge_response     buffer to hold challenge response
 
@@ -132,13 +135,18 @@ bool webauthn_registration::make_challenge_response(
   unsigned long client_data_json_len = get_client_data_json_len();
   unsigned short capability = 0;
   unsigned short capability_len = 1;
+  unsigned long attstmt_len = get_attestation_statement_length();
+  const char *fmt = get_fmt();
+  unsigned long fmt_len = strlen(fmt);
 
   /* calculate total required buffer length */
   size_t len = capability_len + net_length_size(authdata_len) +
                net_length_size(sig_len) +
                (cert_len ? net_length_size(cert_len) + cert_len : 0) +
                authdata_len + sig_len + net_length_size(client_data_json_len) +
-               client_data_json_len;
+               client_data_json_len + attstmt_len +
+               net_length_size(attstmt_len) + fmt_len +
+               net_length_size(fmt_len);
   unsigned char *str = new (std::nothrow) unsigned char[len];
   if (!str) return true;
   unsigned char *pos = str;
@@ -149,9 +157,10 @@ bool webauthn_registration::make_challenge_response(
   if (is_fido2()) {
     capability |= RESIDENT_KEYS;
   }
+  capability |= SEND_FULL_ATTESTATION_BLOB;
+
   memcpy(pos, reinterpret_cast<char *>(&capability), sizeof(char));
   pos++;
-  memcpy(pos, get_authdata_ptr(), authdata_len);
   pos = net_store_length(pos, authdata_len);
   /* copy authenticator data */
   memcpy(pos, get_authdata_ptr(), authdata_len);
@@ -170,12 +179,23 @@ bool webauthn_registration::make_challenge_response(
                         message_type::ERROR);
     return true;
   }
-  /* send client data hash to server */
+  /* send client data JSON to server */
   pos = net_store_length(pos, client_data_json_len);
   memcpy(pos, get_client_data_json().c_str(), client_data_json_len);
   pos += client_data_json_len;
-  assert(len == (size_t)(pos - str));
 
+  /* send the full attestation ptr */
+  pos = net_store_length(pos, attstmt_len);
+  memcpy(pos, get_attestation_statement_ptr(), attstmt_len);
+  pos += attstmt_len;
+
+  /** send the fmt */
+  pos = net_store_length(pos, fmt_len);
+  memcpy(pos, fmt, fmt_len);
+  pos += fmt_len;
+
+  /* base64 encode the whole thing */
+  assert(len == (size_t)(pos - str));
   uint64 needed = base64_needed_encoded_length((uint64)len);
   unsigned char *tmp_value = new unsigned char[needed];
   base64_encode(str, len, reinterpret_cast<char *>(tmp_value));
@@ -217,11 +237,7 @@ void webauthn_registration::set_client_data(const unsigned char *salt,
       "\"%s\",\"origin\":\"https://%s\",\"crossOrigin\":false}",
       url_compatible_salt, rp);
 
-  unsigned char clientdata_hash[EVP_MAX_MD_SIZE] = {0};
-  unsigned int clientdata_hash_len = 0;
-  generate_sha256(client_data_buf, client_data_len, clientdata_hash,
-                  clientdata_hash_len);
-  fido_cred_set_clientdata_hash(m_cred, clientdata_hash, clientdata_hash_len);
+  fido_cred_set_clientdata(m_cred, client_data_buf, client_data_len);
 
   /* save clientdataJSON to be passed to server */
   m_client_data_json = reinterpret_cast<char *>(client_data_buf);
@@ -239,9 +255,9 @@ void webauthn_registration::set_client_data(const unsigned char *salt,
 */
 bool webauthn_registration::generate_signature() {
   bool ret_code = false;
-  fido_dev_info_t *dev_infos = discover_fido2_devices(NUM_DEVICES);
+  fido_dev_info_t *dev_infos = discover_fido2_devices(libfido_device_id + 1);
   if (!dev_infos) return true;
-  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, 0);
+  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, libfido_device_id);
   const char *path = fido_dev_info_path(curr);
   /* open the device */
   fido_dev_t *dev = fido_dev_new();
@@ -250,6 +266,11 @@ bool webauthn_registration::generate_signature() {
     ret_code = true;
     goto end;
   } else {
+    std::stringstream message;
+    message << "Using device " << libfido_device_id << " Product=["
+            << fido_dev_info_product_string(curr) << "] Manufacturer=["
+            << fido_dev_info_manufacturer_string(curr) << "]\n";
+    get_plugin_messages(message.str(), message_type::INFO);
     /* check if device supports CTAP 2.1 Credential Management */
     m_is_fido2 = fido_dev_supports_credman(dev);
     /*
@@ -292,7 +313,7 @@ bool webauthn_registration::generate_signature() {
 end:
   fido_dev_close(dev);
   fido_dev_free(&dev);
-  fido_dev_info_free(&dev_infos, NUM_DEVICES + 1);
+  fido_dev_info_free(&dev_infos, libfido_device_id + 1);
   return ret_code;
 }
 

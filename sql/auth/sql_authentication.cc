@@ -871,7 +871,12 @@ page_webauthn_authentication_exchanges
    <li>
    Server sends a challenge comprising of 1 byte capability bit, 32 bytes random salt, relying party ID
    Format of challenge is:
-   | 1 byte capability | length encoded 32 bytes random salt | length encoded relying party ID | length encoded user id (`user name`\@`host name`) |
+    <ul>
+      <li>1 byte capability</li>
+      <li>length encoded 32 bytes random salt</li>
+      <li>length encoded relying party ID</li>
+      <li>length encoded user id (`user name`\@`host name`)
+    </ul>
 
    Server also sends name of the client plugin - In this case authentication_webauthn_client.
    </li>
@@ -891,14 +896,22 @@ page_webauthn_authentication_exchanges
    </li>
    <li>
     Once gesture action (touching the token) is performed,
-    FIDO authenticator generates a public/private key pair, a credential ID(
+    FIDO authenticator generates a public/private key pair, a credential attestation statement (
     X.509 certificate, signature) and authenticator data.
    </li>
    <li>
-   Client extracts credential ID(aka challenge response) from authentication_webauthn_client
+   Client extracts registration response(aka challenge response) from authentication_webauthn_client
    plugin with option "registration_response" using mysql_plugin_get_option()
    Response is encoded in base64. Format of challenge response is:
-   | 1 bytes capability | length encoded authenticator data | length encoded signature | length encoded x509 certificate | length encoded Client data JSON |
+    <ul>
+       <li>1 bytes capability</li>
+       <li>length encoded authenticator data</li>
+       <li>length encoded signature</li>
+       <li>length encoded x509 certificate</li>
+       <li>length encoded Client data JSON</li>
+       <li>length encoded full credential attestation statement CBOR, if capability has the SEND_FULL_ATTESTATION_BLOB on</li>
+       <li>length encoded algoritm used for the authentication data, if capability has the SEND_FULL_ATTESTATION_BLOB on</li>
+    </ul>
    </li>
   </ol>
 
@@ -927,7 +940,7 @@ page_webauthn_authentication_exchanges
          client -> server : ALTER USER USER() nth FACTOR INITIATE REGISTRATION
          server -> client : random challenge (capability, 32 byte random salt, relying party ID, user id)
          client -> authenticator : random challenge
-         authenticator -> client : challenge response (capability, authenticator data, signature, x509 certificate, client data json)
+         authenticator -> client : challenge response (capability, authenticator data, signature, x509 certificate, client data json, attestation, algorithm id)
 
          == Finish registration ==
 
@@ -942,7 +955,11 @@ page_webauthn_authentication_exchanges
     <li>
      Server sends a 32 byte random salt, relying party ID to client.
      Format is:
-     | 1 byte capability | length encoded 32 byte random salt | length encoded relying party ID |
+     <ul>
+       <li>1 byte capability</li>
+       <li>length encoded 32 byte random salt</li>
+       <li>length encoded relying party ID</li>
+     </ul>
     </li>
     <li>
      Client receives them and checks if FIDO device has CTAP2(aka fido2) capability.
@@ -983,7 +1000,15 @@ page_webauthn_authentication_exchanges
     <li>
      Client sends signed challenge to server.
      Format:
-     | 0x02 | length encoded number of assertions | length encoded authenticator data | length encoded signature | ... | length encoded authenticator data | length encoded signature | client data json |
+     <ul>
+       <li>0x02</li>
+       <li>length encoded number of assertions</li>
+       <li>length encoded authenticator data</li>
+       <li>length encoded signature, ...</li>
+       <li>length encoded authenticator data</li>
+       <li>length encoded signature</li>
+       <li>client data json</li>
+     </ul>
     </li>
     <li>
      Server side webauthn authentication plugin verifies the signature with the
@@ -1027,8 +1052,8 @@ page_webauthn_authentication_exchanges
   <caption>Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-    <td>0x01 </td>
-    <td>capability</td></tr>
+    <td>capability flags</td>
+    <td>Can be a combination of RESIDENT_KEYS(0x01) and SEND_FULL_ATTESTATION_BLOB(0x02)</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string[32]"</td>
     <td>random data</td>
     <td>32 bytes random string </td></tr>
@@ -1048,17 +1073,25 @@ page_webauthn_authentication_exchanges
   <caption>Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-    <td>0x01 </td>
-    <td>capability</td></tr>
+    <td>capability flags</td>
+    <td>Can be a combination of RESIDENT_KEYS(0x01) and SEND_FULL_ATTESTATION_BLOB(0x02)</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string[32]"</td>
     <td>authenticator data</td>
-    <td>length encoded challenge response received as a part of FIDO registration </td></tr>
+    <td>length encoded challenge response received as a part of FIDO registration. Not used if attestation blob is sent</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
     <td>X509 Certificate</td>
-    <td>length encoded X509 certificate received as a part of FIDO registration</td></tr>
+    <td>length encoded X509 certificate received as a part of FIDO registration. Not used if attestation blob is sent</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
     <td>ClientDataJSON</td>
     <td>length encoded client data JSON used for calculating response</td></tr>
+  <tr><td colspan="3">if capabilities @& SEND_FULL_ATTESTATION_BLOB {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>Attestation blob</td>
+    <td>length encoded CBOR formatted attestation statenment blob serialization</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>authentication data format</td>
+    <td>length encoded format name string. Can be packed, fido-u2f, tpm or none</td></tr>
+  <tr><td colspan="3">} // SEND_FULL_ATTESTATION_BLOB</td></tr>
   </table>
 
   @subsection subsect_webauthn_packet_authentication Packets related to authentication

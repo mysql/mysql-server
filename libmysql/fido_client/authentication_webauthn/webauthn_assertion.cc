@@ -44,7 +44,6 @@
 
 namespace {
 const unsigned int PIN_BUFFER_SIZE = 256;
-const size_t NUM_DEVICES = 1;
 }  // namespace
 /**
   This method will calculate length of the buffer
@@ -145,9 +144,9 @@ bool webauthn_assertion::get_signed_challenge(unsigned char **challenge_res,
 */
 bool webauthn_assertion::sign_challenge() {
   bool ret_code = false;
-  fido_dev_info_t *dev_infos = discover_fido2_devices(NUM_DEVICES);
-  if (!dev_infos) return true;
-  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, 0);
+  fido_dev_info_t *dev_info = discover_fido2_devices(libfido_device_id + 1);
+  if (!dev_info) return true;
+  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_info, libfido_device_id);
   const char *path = fido_dev_info_path(curr);
   /* open the device */
   fido_dev_t *dev = fido_dev_new();
@@ -156,6 +155,11 @@ bool webauthn_assertion::sign_challenge() {
     ret_code = true;
     goto end;
   } else {
+    std::stringstream message;
+    message << "Using device " << libfido_device_id << " Product=["
+            << fido_dev_info_product_string(curr) << "] Manufacturer=["
+            << fido_dev_info_manufacturer_string(curr) << "]\n";
+    get_plugin_messages(message.str(), message_type::INFO);
     std::string s(
         "Please insert FIDO device and perform gesture action for"
         " authentication to complete.");
@@ -171,7 +175,7 @@ bool webauthn_assertion::sign_challenge() {
 end:
   fido_dev_close(dev);
   fido_dev_free(&dev);
-  fido_dev_info_free(&dev_infos, NUM_DEVICES + 1);
+  fido_dev_info_free(&dev_info, libfido_device_id + 1);
   return ret_code;
 }
 
@@ -208,12 +212,7 @@ void webauthn_assertion::set_client_data(const unsigned char *salt,
       "\"%s\",\"origin\":\"https://%s\",\"crossOrigin\":false}",
       url_compatible_salt, rp);
 
-  unsigned char clientdata_hash[EVP_MAX_MD_SIZE] = {0};
-  unsigned int clientdata_hash_len = 0;
-  generate_sha256(client_data_buf, client_data_len, clientdata_hash,
-                  clientdata_hash_len);
-  fido_assert_set_clientdata_hash(m_assert, clientdata_hash,
-                                  clientdata_hash_len);
+  fido_assert_set_clientdata(m_assert, client_data_buf, client_data_len);
   /* save clientdataJSON */
   m_client_data_json = reinterpret_cast<char *>(client_data_buf);
 }
@@ -272,16 +271,16 @@ err:
     @retval true  Failure
 */
 bool webauthn_assertion::check_fido2_device(bool &is_fido2) {
-  fido_dev_info_t *dev_infos = discover_fido2_devices(NUM_DEVICES);
-  if (!dev_infos) return true;
-  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, 0);
+  fido_dev_info_t *dev_info = discover_fido2_devices(libfido_device_id + 1);
+  if (!dev_info) return true;
+  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_info, libfido_device_id);
   const char *path = fido_dev_info_path(curr);
   /* open the device */
   fido_dev_t *dev = fido_dev_new();
   auto cleanup = create_scope_guard([&] {
     fido_dev_close(dev);
     fido_dev_free(&dev);
-    fido_dev_info_free(&dev_infos, NUM_DEVICES + 1);
+    fido_dev_info_free(&dev_info, libfido_device_id + 1);
   });
 
   if (fido_dev_open(dev, path) != FIDO_OK) {
@@ -314,7 +313,7 @@ bool webauthn_assertion::select_credential_id() {
   fido_credman_rk_t *rk{nullptr};
   const char *rp_id = get_rp_id();
   auto cleanup_guard = create_scope_guard([&] {
-    if (dev_infos) fido_dev_info_free(&dev_infos, NUM_DEVICES + 1);
+    if (dev_infos) fido_dev_info_free(&dev_infos, libfido_device_id + 1);
     if (rk) fido_credman_rk_free(&rk);
     if (dev) {
       fido_dev_close(dev);
@@ -322,10 +321,10 @@ bool webauthn_assertion::select_credential_id() {
     }
   });
 
-  dev_infos = discover_fido2_devices(NUM_DEVICES);
+  dev_infos = discover_fido2_devices(libfido_device_id + 1);
   if (!dev_infos) return true;
 
-  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, 0);
+  const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, libfido_device_id);
   const char *path = fido_dev_info_path(curr);
   /* open the device */
   if (!(dev = fido_dev_new())) {

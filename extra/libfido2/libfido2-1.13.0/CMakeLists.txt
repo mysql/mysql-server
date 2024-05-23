@@ -44,7 +44,7 @@ option(BUILD_TOOLS       "Build tool programs"                     OFF)
 option(FUZZ              "Enable fuzzing instrumentation"          OFF)
 option(USE_HIDAPI        "Use hidapi as the HID backend"           OFF)
 option(USE_PCSC          "Enable experimental PCSC support"        OFF)
-option(USE_WINHELLO      "Abstract Windows Hello as a FIDO device" OFF)
+option(USE_WINHELLO      "Abstract Windows Hello as a FIDO device" ON)
 option(NFC_LINUX         "Enable NFC support on Linux"             OFF)
 
 add_definitions(-D_FIDO_MAJOR=${FIDO_MAJOR})

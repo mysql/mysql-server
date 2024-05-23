@@ -35,8 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "mysql/service_mysql_alloc.h"  // my_malloc
 #include "mysqld_error.h"
 
-#define QUERY_LENGTH 2048
-#define MAX_QUERY_LENGTH 4096
+#define QUERY_LENGTH 32768
+#define MAX_QUERY_LENGTH 65536
 #define ENCODING_LENGTH 4
 #define CAPABILITY_BIT_LENGTH 1
 
@@ -224,7 +224,8 @@ bool user_device_registration(MYSQL *mysql_handle, char *register_option,
                      "CHALLENGE_RESPONSE AS ",
                      f);
     size_t tot_query_len =
-        n + strlen(reinterpret_cast<char *>(server_challenge_response));
+        n + strlen(reinterpret_cast<char *>(server_challenge_response)) +
+        2 /* quotes */;
     if (tot_query_len >= MAX_QUERY_LENGTH) {
       err << "Finish registration for " << f
           << " factor: registration_response length exceeds max "
