@@ -6754,9 +6754,10 @@ sub router_create_config_file($$) {
   my $router_server_ssl_mode = $router->value("server_ssl_mode");
   my $output = $router->value('#log-error');
 
-  my $routing_plugin = find_plugin("routing", "plugin_output_directory") or
-     find_router_plugin_in_package("routing") or die();
-  mtr_print("Router detected plugin path using: $routing_plugin");
+  my $routing_plugin = find_plugin("routing", "plugin_output_directory");
+  if (!$routing_plugin) {
+     $routing_plugin = find_router_plugin_in_package("routing") or die();
+  }
   my $plugin_dir = dirname($routing_plugin);
   my $logdir = dirname($output);
   my $logname = basename($output);
