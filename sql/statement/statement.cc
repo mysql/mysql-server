@@ -206,12 +206,95 @@ bool Regular_statement_handle::execute(Server_runnable *server_runnable) {
   m_thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
-  bool rc = false;
+  bool error = false;
   {
     Diagnostics_area_handler_raii da_handler(m_thd);
+    bool general_log_temporarily_disabled = true;
 
     Prepared_statement stmt(m_thd);
-    rc = stmt.execute_server_runnable(m_thd, server_runnable);
+    while (true) {
+      error = stmt.execute_server_runnable(m_thd, server_runnable);
+
+      /*
+        Re-enable the general log if it was temporarily disabled while
+        re-executing a statement for a secondary engine.
+      */
+      if (general_log_temporarily_disabled) {
+        m_thd->variables.option_bits &= ~OPTION_LOG_OFF;
+        general_log_temporarily_disabled = false;
+      }
+
+      // Exit immediately if execution is successful.
+      if (!error) {
+        break;
+      }
+
+      // Exit if a fatal error has occurred or statement execution was killed.
+      if (m_thd->is_fatal_error() || m_thd->is_killed()) {
+        break;
+      }
+
+      LEX *lex = stmt.m_lex;
+      Query_arena *arena = &stmt.m_arena;
+      const int my_errno = m_thd->get_stmt_da()->mysql_errno();
+      if (my_errno == ER_PREPARE_FOR_PRIMARY_ENGINE ||
+          my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
+        assert(m_thd->secondary_engine_optimization() ==
+               Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+        assert(!lex->unit->is_executed());
+        if (my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
+          m_thd->set_secondary_engine_optimization(
+              Secondary_engine_optimization::SECONDARY);
+        } else {
+          m_thd->set_secondary_engine_optimization(
+              Secondary_engine_optimization::PRIMARY_ONLY);
+        }
+      } else {
+        if (lex->m_sql_cmd == nullptr ||
+            m_thd->secondary_engine_optimization() !=
+                Secondary_engine_optimization::SECONDARY ||
+            lex->unit->is_executed() || m_thd->is_secondary_engine_forced()) {
+          break;
+        }
+        /*
+          Some error occurred during resolving or optimization in
+          the secondary engine, and secondary engine execution is not forced.
+          Retry execution of the statement in the primary engine.
+        */
+        m_thd->set_secondary_engine_optimization(
+            Secondary_engine_optimization::PRIMARY_ONLY);
+      }
+
+      /*
+        Disable the general log. The query was written to the general log in
+        the first attempt to execute it. No need to write it twice.
+      */
+      if ((m_thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
+        m_thd->variables.option_bits |= OPTION_LOG_OFF;
+        general_log_temporarily_disabled = true;
+      }
+
+      /*
+        Prepare for re-prepare and re-optimization:
+        - Clear the current diagnostics area.
+        - Clean up the statement's LEX, including release of plugins.
+        - Clean up and free items, both permanent in stmt. and transient in THD.
+      */
+      m_thd->clear_error();
+      error = false;
+      lex_end(lex);
+      cleanup_items(m_thd->item_list());
+      m_thd->free_items();
+      cleanup_items(arena->item_list());
+      stmt.m_lex = nullptr;
+    }
+    m_thd->set_secondary_engine_statement_context(nullptr);
+
+    // Re-enable the general log if it was temporarily disabled while
+    // re-executing a statement for a secondary engine.
+    if (general_log_temporarily_disabled)
+      m_thd->variables.option_bits &= ~OPTION_LOG_OFF;
+
     send_statement_status();
   }
 
@@ -241,7 +324,7 @@ bool Regular_statement_handle::execute(Server_runnable *server_runnable) {
 
   DEBUG_SYNC(m_thd, "wait_after_query_execution");
 
-  return rc;
+  return error;
 }
 
 void Statement_handle::add_result_set(Result_set *result_set) {
