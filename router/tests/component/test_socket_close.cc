@@ -591,10 +591,11 @@ TEST_P(SocketCloseOnMetadataUnavailable, 1RW2RO) {
 #endif
 
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
-  setup_cluster(3, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(3, GetParam().tracefile));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, GetParam().acceptors);
+  ASSERT_NO_FATAL_FAILURE(
+      setup_router(GetParam().cluster_type, GetParam().acceptors));
   SCOPED_TRACE("// check if both RO and RW ports are used");
   if (use_tcp_port_acceptors) {
     for (const auto &port :
@@ -742,10 +743,11 @@ TEST_P(SocketCloseOnMetadataUnavailable, 1RW) {
 #endif
 
   SCOPED_TRACE("// launch cluster with only RW node");
-  setup_cluster(1, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(1, GetParam().tracefile));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, GetParam().acceptors);
+  ASSERT_NO_FATAL_FAILURE(
+      setup_router(GetParam().cluster_type, GetParam().acceptors));
 
   SCOPED_TRACE("// check if RW port is used");
   if (use_tcp_port_acceptors) {
@@ -829,11 +831,13 @@ TEST_P(SocketCloseOnMetadataUnavailable, 1RO) {
 #endif
 
   SCOPED_TRACE("// launch cluster with only RO node");
-  setup_cluster(1, GetParam().tracefile, /*no_primary*/ true);
+  ASSERT_NO_FATAL_FAILURE(
+      setup_cluster(1, GetParam().tracefile, /*no_primary*/ true));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, GetParam().acceptors,
-               /*read_only*/ true);
+  ASSERT_NO_FATAL_FAILURE(setup_router(GetParam().cluster_type,
+                                       GetParam().acceptors,
+                                       /*read_only*/ true));
 
   SCOPED_TRACE("// check if RO port is used");
   if (use_tcp_port_acceptors) {
@@ -917,11 +921,13 @@ TEST_P(SocketCloseOnMetadataUnavailable, 2RO) {
 #endif
 
   SCOPED_TRACE("// launch cluster with 2 RO nodes");
-  setup_cluster(2, GetParam().tracefile, /*no_primary*/ true);
+  ASSERT_NO_FATAL_FAILURE(
+      setup_cluster(2, GetParam().tracefile, /*no_primary*/ true));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, GetParam().acceptors,
-               /*read_only*/ true);
+  ASSERT_NO_FATAL_FAILURE(setup_router(GetParam().cluster_type,
+                                       GetParam().acceptors,
+                                       /*read_only*/ true));
 
   SCOPED_TRACE("// check if RO port is used");
   if (use_tcp_port_acceptors) {
@@ -1253,7 +1259,7 @@ class UnixSocketUser
 
 TEST_F(SocketCloseTest, StaticRoundRobinTCPPort) {
   SCOPED_TRACE("// launch cluster with one node");
-  setup_cluster(1, "my_port.js");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(1, "my_port.js"));
 
   router_rw_port = port_pool_.get_next_available();
   const auto router_rw_port_str = std::to_string(*router_rw_port);
@@ -1333,7 +1339,7 @@ TEST_F(SocketCloseTest, StaticRoundRobinTCPPort) {
 
 TEST_F(SocketCloseTest, StaticRoundRobinUnixSocket) {
   SCOPED_TRACE("// launch cluster with one node");
-  setup_cluster(1, "my_port.js");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(1, "my_port.js"));
 
   router_rw_socket = get_test_temp_dir_name() + "/mysql.socket";
 
@@ -1459,11 +1465,12 @@ class FailToOpenROSocketAfterStartup
 
 TEST_P(FailToOpenROSocketAfterStartup, ROportTaken) {
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
-  setup_cluster(3, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(3, GetParam().tracefile));
   const auto test_port = port_mapping.at(GetParam().unavailable_ports[0]);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, Acceptors(AcceptorType::TcpSocket));
+  ASSERT_NO_FATAL_FAILURE(setup_router(GetParam().cluster_type,
+                                       Acceptors(AcceptorType::TcpSocket)));
   EXPECT_TRUE(wait_for_port_used(*router_ro_port));
 
   SCOPED_TRACE("// RO nodes hidden");
@@ -1535,11 +1542,12 @@ class FailToOpenRWSocketAfterStartup
 
 TEST_P(FailToOpenRWSocketAfterStartup, RWportTaken) {
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
-  setup_cluster(3, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(3, GetParam().tracefile));
   const auto test_port = port_mapping.at(GetParam().unavailable_ports[0]);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type, Acceptors(AcceptorType::TcpSocket));
+  ASSERT_NO_FATAL_FAILURE(setup_router(GetParam().cluster_type,
+                                       Acceptors(AcceptorType::TcpSocket)));
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
 
   SCOPED_TRACE("// RW node hidden");
@@ -1609,7 +1617,7 @@ class FailToOpenSocketOnStartup
 
 TEST_P(FailToOpenSocketOnStartup, FailOnStartup) {
   SCOPED_TRACE("// launch cluster with 1RW/2RO nodes");
-  setup_cluster(3, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(3, GetParam().tracefile));
 
   SCOPED_TRACE("// bind sockets");
   std::vector<std::unique_ptr<TCPPortUser>> socket_users;
@@ -1696,7 +1704,7 @@ class RoundRobinFallback
 TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
   const size_t NUM_NODES = 3;
   SCOPED_TRACE("// launch cluster with 1RW/2RO nodes");
-  setup_cluster(NUM_NODES, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(NUM_NODES, GetParam().tracefile));
 
   router_rw_port = port_pool_.get_next_available();
   router_ro_port = port_pool_.get_next_available();
@@ -1774,7 +1782,7 @@ class FirstAvailableDestMetadataCache
 TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   const size_t NUM_NODES = 3;
   SCOPED_TRACE("// launch cluster with 1RW/2RO nodes");
-  setup_cluster(NUM_NODES, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(NUM_NODES, GetParam().tracefile));
 
   router_rw_port = port_pool_.get_next_available();
   router_ro_port = port_pool_.get_next_available();
@@ -1923,7 +1931,7 @@ class SharedQuarantineSocketClose
       public ::testing::WithParamInterface<SharedQuarantineSocketCloseParam> {};
 
 TEST_P(SharedQuarantineSocketClose, cross_plugin_socket_shutdown) {
-  setup_cluster(1, "metadata_dynamic_nodes_v2_gr.js");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(1, "metadata_dynamic_nodes_v2_gr.js"));
   const auto bind_port_r1 = port_pool_.get_next_available();
   const auto bind_port_r2 = port_pool_.get_next_available();
   const std::string routing_section{

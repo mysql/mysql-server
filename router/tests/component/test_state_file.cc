@@ -515,7 +515,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
 
-  SCOPED_TRACE("// Launch ther router with the initial state file");
+  SCOPED_TRACE("// Launch the router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
                                routing_section, state_file, EXIT_SUCCESS, -1s);
 
@@ -1038,6 +1038,8 @@ class StateFileDirectoryBootstrapTest : public StateFileTest {
  */
 TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   TempDirectory temp_test_dir;
+
+  prepare_config_dir_with_default_certs(temp_test_dir.name());
 
   SCOPED_TRACE("// Launch our metadata server we bootstrap against");
 

@@ -42,6 +42,7 @@
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/ranges.h"     // enumerate
 #include "mysql/harness/utility/string.h"  // ::join
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
@@ -135,8 +136,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
-  size_t i = 0;
-  for (const auto &route_name : route_names) {
+  for (const auto [i, route_name] : stdx::views::enumerate(route_names)) {
     // let's make "_" route a metadata cache one, all other are static
     const std::string destinations =
         (route_name == "_") ? "metadata-cache://test/default?role=PRIMARY"
@@ -153,7 +153,6 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
             {"max_connect_errors", "3"},
             {"max_connections", "1000"},
         }));
-    ++i;
   }
 
   // create a "dead" metadata-cache referenced by the routing "_" to check
@@ -183,8 +182,12 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
       &default_section, "mysqlrouter.conf", "connect_timeout=1")};
 
   SCOPED_TRACE("// starting router");
-  ProcessWrapper &http_server =
-      launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false, -1s);
+  auto &http_server =
+      router_spawner()
+          // wait for the signal-handler to be ready.
+          // Router will be reach "READY" as metadata-cache is dead.
+          .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+          .spawn({"-c", conf_file});
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
@@ -967,8 +970,10 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -991,8 +996,10 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -1035,8 +1042,10 @@ TEST_F(RestRoutingApiTest, rest_routing_section_twice) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -1059,8 +1068,10 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -1156,8 +1167,9 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
       conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section)};
 
-  ProcessWrapper &http_server =
-      launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false, -1s);
+  auto &http_server = router_spawner()
+                          .wait_for_sync_point(Spawner::SyncPoint::RUNNING)
+                          .spawn({"-c", conf_file});
 
   // wait for both (rw and ro) routes being available
   for (size_t i = 0; i < 2; ++i) {
