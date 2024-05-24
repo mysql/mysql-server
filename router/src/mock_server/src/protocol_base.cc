@@ -134,6 +134,12 @@ void ProtocolBase::cancel() {
   exec_timer_.cancel();
 }
 
+void ProtocolBase::terminate() {
+  is_terminated_([](auto &val) { val = true; });
+
+  cancel();
+}
+
 stdx::expected<void, std::error_code> ProtocolBase::tls_accept() {
   auto ssl = ssl_.get();
   auto rbio = SSL_get_rbio(ssl);
