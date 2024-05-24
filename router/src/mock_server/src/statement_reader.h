@@ -49,6 +49,7 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
 
@@ -102,16 +103,10 @@ class ProtocolBase {
                TlsServerContext &tls_ctx);
 
   ProtocolBase(const ProtocolBase &) = delete;
-  ProtocolBase(ProtocolBase &&) = default;
+  ProtocolBase(ProtocolBase &&) = delete;
 
   ProtocolBase &operator=(const ProtocolBase &) = delete;
-  ProtocolBase &operator=(ProtocolBase &&rhs) {
-    client_socket_ = std::move(rhs.client_socket_);
-    ssl_ = std::move(rhs.ssl_);
-    tls_ctx_ = std::move(rhs.tls_ctx_);
-
-    return *this;
-  }
+  ProtocolBase &operator=(ProtocolBase &&rhs) = delete;
 
   virtual ~ProtocolBase() = default;
 
@@ -242,12 +237,24 @@ class ProtocolBase {
 
   template <class CompletionToken>
   void async_receive(CompletionToken &&token) {
-    if (is_tls()) {
-      return async_receive_tls(std::forward<CompletionToken>(token));
-    } else {
-      return net::async_read(client_socket_, net::dynamic_buffer(recv_buffer_),
-                             std::forward<CompletionToken>(token));
-    }
+    is_terminated_([&](const bool killed) {
+      if (killed) {
+        net::async_completion<CompletionToken, void(std::error_code, size_t)>
+            init{token};
+
+        net::defer(client_socket_.get_executor(),
+                   [compl_handler = std::move(init.completion_handler)]() {
+                     compl_handler(
+                         make_error_code(std::errc::operation_canceled), 0);
+                   });
+      } else if (is_tls()) {
+        return async_receive_tls(std::forward<CompletionToken>(token));
+      } else {
+        return net::async_read(client_socket_,
+                               net::dynamic_buffer(recv_buffer_),
+                               std::forward<CompletionToken>(token));
+      }
+    });
   }
 
   template <class CompletionToken>
@@ -326,9 +333,21 @@ class ProtocolBase {
 
   void cancel();
 
+  /**
+   * terminate the current connection.
+   *
+   * sets is_terminated(true) and cancels the current operation.
+   *
+   * may be called from another thread.
+   */
+  void terminate();
+
   net::io_context &io_context() {
     return client_socket_.get_executor().context();
   }
+
+ private:
+  Monitor<bool> is_terminated_{false};
 
  protected:
   socket_type client_socket_;
