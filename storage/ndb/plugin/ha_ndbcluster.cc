@@ -8375,7 +8375,6 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       break;
     // mysql_type_blob:
     case MYSQL_TYPE_GEOMETRY:
-    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_BLOB:
       if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
         col.setType(NDBCOL::Blob);
@@ -8479,6 +8478,11 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     }
     case MYSQL_TYPE_NULL:
       goto mysql_type_unsupported;
+    case MYSQL_TYPE_VECTOR:
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_EXTENSION,
+          "VECTOR type is not supported by NDB in this MySQL version");
+      return HA_ERR_UNSUPPORTED;
     mysql_type_unsupported:
     default:
       return HA_ERR_UNSUPPORTED;

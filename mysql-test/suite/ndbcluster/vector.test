@@ -1,0 +1,5 @@
+source include/have_ndb.inc;
+
+--error ER_UNSUPPORTED_EXTENSION
+create table t1 (pk int primary key, v vector) engine ndb;
+show warnings;

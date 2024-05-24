@@ -1,0 +1,6 @@
+create table t1 (pk int primary key, v vector) engine ndb;
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+show warnings;
+Level	Code	Message
+Warning	1112	VECTOR type is not supported by NDB in this MySQL version
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
