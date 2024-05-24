@@ -743,7 +743,12 @@ int main_app(int argc, char *argv[]) {
   std::vector<std::string> arguments;
 
   for (int arg_idx = 1; arg_idx < argc; ++arg_idx) {
-    arguments.emplace_back(argv[arg_idx]);
+    auto &arg_ref = arguments.emplace_back(argv[arg_idx]);
+    if (arg_ref.length() > 1) {
+      // Remove quotes, implemented for windows MTR tests.
+      if (*arg_ref.begin() == '\'' && *arg_ref.rbegin() == '\'')
+        arg_ref = arg_ref.substr(1, arg_ref.size() - 2);
+    }
   }
 
   for (auto &o : g_options) {
