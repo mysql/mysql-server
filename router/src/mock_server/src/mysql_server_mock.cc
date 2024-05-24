@@ -85,7 +85,7 @@ MySQLServerMock::MySQLServerMock(net::io_context &io_ctx,
 void MySQLServerMock::close_all_connections() {
   client_sessions_([](auto &socks) {
     for (auto &conn : socks) {
-      conn->cancel();
+      conn->terminate();
     }
   });
 }
@@ -145,12 +145,11 @@ class Acceptor {
     auto session_it = client_sessions_([&](auto &socks) {
       if (protocol_name_ == "classic") {
         socks.emplace_back(std::make_unique<MySQLServerMockSessionClassic>(
-            MySQLClassicProtocol{std::move(client_sock), client_ep_,
-                                 tls_server_ctx_},
+            std::move(client_sock), client_ep_, tls_server_ctx_,
             std::move(reader), false, with_tls_));
       } else {
         socks.emplace_back(std::make_unique<MySQLServerMockSessionX>(
-            MySQLXProtocol{std::move(client_sock), client_ep_, tls_server_ctx_},
+            std::move(client_sock), client_ep_, tls_server_ctx_,
             std::move(reader), false, with_tls_));
       }
       return std::prev(socks.end());

@@ -259,12 +259,13 @@ void MySQLXProtocol::encode_async_notice(const AsyncNotice &async_notice) {
 }
 
 MySQLServerMockSessionX::MySQLServerMockSessionX(
-    MySQLXProtocol protocol,
+    ProtocolBase::socket_type client_sock,
+    ProtocolBase::endpoint_type client_ep, TlsServerContext &tls_server_ctx,
     std::unique_ptr<StatementReaderBase> statement_processor,
     const bool debug_mode, bool with_tls)
     : MySQLServerMockSession(std::move(statement_processor), debug_mode),
       async_notices_(this->json_reader_->get_async_notices()),
-      protocol_{std::move(protocol)},
+      protocol_{std::move(client_sock), client_ep, tls_server_ctx},
       with_tls_{with_tls} {}
 
 void MySQLServerMockSessionX::send_response_then_handshake() {

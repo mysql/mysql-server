@@ -45,6 +45,8 @@ class MySQLServerMockSession {
 
   virtual void cancel() = 0;
 
+  virtual void terminate() = 0;
+
   bool debug_mode() const { return debug_mode_; }
 
   void disconnector(std::function<void()> func) {

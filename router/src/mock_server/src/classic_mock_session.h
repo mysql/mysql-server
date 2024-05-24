@@ -102,16 +102,19 @@ class MySQLClassicProtocol : public ProtocolBase {
 class MySQLServerMockSessionClassic : public MySQLServerMockSession {
  public:
   MySQLServerMockSessionClassic(
-      MySQLClassicProtocol protocol,
+      ProtocolBase::socket_type client_sock,
+      ProtocolBase::endpoint_type client_ep, TlsServerContext &tls_server_ctx,
       std::unique_ptr<StatementReaderBase> statement_processor,
       const bool debug_mode, const bool with_tls)
       : MySQLServerMockSession(std::move(statement_processor), debug_mode),
-        protocol_{std::move(protocol)},
+        protocol_{std::move(client_sock), client_ep, tls_server_ctx},
         with_tls_{with_tls} {}
 
   void run() override;
 
   void cancel() override { protocol_.cancel(); }
+
+  void terminate() override { protocol_.terminate(); }
 
  private:
   void server_greeting();
