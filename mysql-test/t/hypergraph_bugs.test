@@ -467,3 +467,27 @@ ANALYZE TABLE t2;
 EXPLAIN ANALYZE SELECT 1 FROM t2 WHERE a=b;
 
 DROP TABLE t2;
+
+--echo #
+--echo # Bug#36578613: Hypergraph result difference when querying I_S.TABLES
+--echo #
+
+# Create a table with a LONGTEXT column, to ensure that filesort uses
+# row IDs, and with enough rows to make a hash join look more
+# attractive than a nested loop join.
+CREATE TABLE t(x INT, y LONGTEXT);
+INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e'), (6, 'f');
+ANALYZE TABLE t;
+
+let $query =
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2 WHERE t1.x = t2.x
+ORDER BY -t1.x;
+
+# To reproduce the bug, the plan should have two SORT nodes (one for
+# ORDER BY and one for DISTINCT) on top of a HASH_JOIN node.
+--replace_regex $elide_metrics
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t;
