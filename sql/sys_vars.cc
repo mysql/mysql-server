@@ -135,6 +135,7 @@
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
+#include "sql/statement/statement.h"  // STMT_HANDLE_PSI_STATEMENT_INFO_COUNT
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
 #include "sql/transaction.h"  // trans_commit_stmt
@@ -914,6 +915,7 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - CLONE_PSI_STATEMENT_COUNT for "statement/clone/...".
   - 1 for "statement/rpl/relay_log", for replicated statements.
   - 1 for "statement/scheduler/event", for scheduled events.
+  - STMT_HANDLE_PSI_STATEMENT_INFO_COUNT for "statement/stmt_handle/...".
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
     "performance_schema_max_statement_classes",
@@ -921,7 +923,8 @@ static Sys_var_ulong Sys_pfs_max_statement_classes(
     READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
     DEFAULT((ulong)SQLCOM_END + (ulong)COM_END + 5 +
-            SP_PSI_STATEMENT_INFO_COUNT + CLONE_PSI_STATEMENT_COUNT),
+            SP_PSI_STATEMENT_INFO_COUNT + CLONE_PSI_STATEMENT_COUNT +
+            STMT_HANDLE_PSI_STATEMENT_INFO_COUNT),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(

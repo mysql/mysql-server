@@ -51,7 +51,21 @@ int dummy_function_to_ensure_we_are_linked_into_the_server();
 /// Max limit for Regular Statement Handles in use.
 static constexpr unsigned short MAX_REGULAR_STATEMENT_HANDLES_LIMIT{1024};
 
-/** @brief Statement_handle is similar to Ed_connection. Some of the
+/**
+  Number of PSI_statement_info instruments for Statement handles.
+*/
+#define STMT_HANDLE_PSI_STATEMENT_INFO_COUNT 6
+
+#ifdef HAVE_PSI_INTERFACE
+/**
+  Initializes Statement Handles PFS statement instrumentation information
+  instances.
+*/
+void init_statement_handle_interface_psi_keys();
+#endif
+
+/**
+ * @brief Statement_handle is similar to Ed_connection. Some of the
  * limitations in Ed_connection is that,
  * - It does not support reading result metadata
  * - It does not support prepared statement, parameters and cursors.
@@ -375,6 +389,12 @@ class Regular_statement_handle : public Statement_handle {
    */
   bool is_executed_or_prepared() override { return m_is_executed; }
 
+ public:
+#ifdef HAVE_PSI_INTERFACE
+  // PSI_statement_info instances for regular statement handle.
+  static PSI_statement_info stmt_psi_info;
+#endif
+
  private:
   /// Flag to indicate if statement has been executed. Set to true in execute().
   bool m_is_executed = false;
@@ -545,6 +565,15 @@ class Prepared_statement_handle : public Statement_handle {
    */
   virtual ~Prepared_statement_handle() override { internal_close(); }
 
+#ifdef HAVE_PSI_INTERFACE
+  // PSI_statement_info instances for prepared statement handle.
+  static PSI_statement_info prepare_psi_info;
+  static PSI_statement_info execute_psi_info;
+  static PSI_statement_info fetch_psi_info;
+  static PSI_statement_info reset_psi_info;
+  static PSI_statement_info close_psi_info;
+#endif
+
  private:
   /**
    * @brief This is a wrapper function used to execute
@@ -554,11 +583,13 @@ class Prepared_statement_handle : public Statement_handle {
    *
    * @tparam Function type of function to run
    * @param exec_func function to run
+   * @param psi_info  PSI_statement_info instance.
+   *
    * @return true
    * @return false
    */
   template <typename Function>
-  bool run(Function exec_func);
+  bool run(Function exec_func, PSI_statement_info *psi_info);
 
   // See prepare()
   bool internal_prepare();

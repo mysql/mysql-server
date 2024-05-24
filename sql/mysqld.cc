@@ -14026,6 +14026,8 @@ static void init_server_psi_keys(void) {
   init_vio_psi_keys();
   /* TLS interfaces */
   init_tls_psi_keys();
+  /* Statement handle interface PSI keys */
+  init_statement_handle_interface_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
 
