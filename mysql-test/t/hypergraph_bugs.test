@@ -1444,4 +1444,33 @@ FROM t WHERE x IN (
 ) OR x = 1;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#36578613: Hypergraph result difference when querying I_S.TABLES
+--echo #
+
+# Create a table with a LONGTEXT column, to ensure that filesort uses
+# row IDs, and with enough rows to make a hash join look more
+# attractive than a nested loop join.
+CREATE TABLE t(x INT, y LONGTEXT);
+INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e'), (6, 'f');
+ANALYZE TABLE t;
+
+let $query =
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2 WHERE t1.x = t2.x
+ORDER BY -t1.x;
+
+# To reproduce the bug, the plan should have two SORT nodes (one for
+# ORDER BY and one for DISTINCT) on top of a HASH_JOIN node.
+--eval EXPLAIN FORMAT=JSON INTO @explain $query
+query_vertical
+SELECT
+  JSON_EXTRACT(@explain, '$.access_type') AS sort_for_order_by,
+  JSON_EXTRACT(@explain, '$.inputs[0].access_type') AS sort_for_distinct,
+  JSON_EXTRACT(@explain, '$.inputs[0].inputs[0].join_algorithm') AS hash_join;
+
+--eval $query
+
+DROP TABLE t;
+
 --source include/disable_hypergraph.inc

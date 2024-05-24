@@ -4,8 +4,6 @@
 #
 ################################################################################
 
---source include/not_hypergraph.inc  # Appears susceptible to Bug#36578613.
-
 --echo #################
 --echo # INITIAL STATE #
 --echo #################

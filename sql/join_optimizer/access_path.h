@@ -1813,6 +1813,23 @@ AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
 /**
   Modifies "path" and the paths below it so that they provide row IDs for
   all tables.
+
+  This also figures out how the row IDs should be retrieved for each table in
+  the input to the path. If the handler of the table is positioned on the
+  correct row while reading the input, handler::position() can be called to get
+  the row ID from the handler. However, if the input iterator returns rows
+  without keeping the position of the underlying handlers in sync, calling
+  handler::position() will not be able to provide the row IDs. Specifically,
+  hash join and BKA join do not keep the underlying handlers positioned on the
+  right row. Therefore, this function will instruct every hash join or BKA join
+  below "path" to maintain row IDs in the join buffer, and updating handler::ref
+  in every input table for each row they return. Then "path" does not need to
+  call handler::position() to get it (nor should it, since calling it would
+  overwrite the correct row ID with a stale one).
+
+  The tables on which "path" should call handler::position() are stored in a
+  `tables_to_get_rowid_for` bitset in "path". For all the other tables, it can
+  assume that handler::ref already contains the correct row ID.
  */
 void FindTablesToGetRowidFor(AccessPath *path);
 
