@@ -263,8 +263,10 @@ TEST_F(RestConnectionPoolApiTest, section_twice) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -290,8 +292,10 @@ TEST_F(RestConnectionPoolApiTest, section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -315,8 +319,10 @@ TEST_F(RestConnectionPoolApiTest, no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
@@ -340,8 +346,10 @@ TEST_F(RestConnectionPoolApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router =
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", conf_file});
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 

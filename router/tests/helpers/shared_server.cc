@@ -120,7 +120,7 @@ void SharedServer::initialize_server(const std::string &datadir) {
           });
   proc.set_logging_path(datadir, "mysqld-init.err");
   try {
-    proc.wait_for_exit(90s);  // throws when it times out.
+    proc.wait_for_exit(120s);  // throws when it times out.
   } catch (const std::exception &e) {
     process_manager().dump_logs();
 
@@ -138,7 +138,7 @@ void SharedServer::prepare_datadir() {
   if (mysqld_init_once_dir_ == nullptr) {
     mysqld_init_once_dir_ = new TempDirectory("mysqld-init-once");
 
-    initialize_server(mysqld_init_once_dir_name());
+    ASSERT_NO_FATAL_FAILURE(initialize_server(mysqld_init_once_dir_name()));
   }
 
   // copy the init-once dir to the datadir.

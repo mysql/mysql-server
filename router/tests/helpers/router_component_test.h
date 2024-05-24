@@ -167,6 +167,11 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     FAIL() << "Timed out waiting for the connection to drop";
   }
 
+  static void prepare_config_dir_with_default_certs(
+      const std::string &config_dir);
+
+  static void copy_default_certs_to_datadir(const std::string &dst_dir);
+
  protected:
   TcpPortPool port_pool_;
 };
@@ -227,6 +232,12 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
   }
 
   static constexpr const char kRootPassword[] = "fake-pass";
+};
+
+class RouterComponentBootstrapWithDefaultCertsTest
+    : public RouterComponentBootstrapTest {
+ public:
+  void SetUp() override;
 };
 
 std::ostream &operator<<(

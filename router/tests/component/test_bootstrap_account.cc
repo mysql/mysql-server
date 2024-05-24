@@ -1175,6 +1175,8 @@ TEST_F(AccountReuseTest, simple) {
   // no config exists yet
   TempDirectory bootstrap_directory;
 
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   // test params
   const std::vector<std::string> args;
   const std::set<std::string>
@@ -1222,6 +1224,8 @@ TEST_F(AccountReuseTest, simple) {
 TEST_F(AccountReuseTest, no_host_patterns) {
   for (bool root_password_on_cmdline : {true, false}) {
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
 
     // extract test params
     const std::vector<std::string> args = {
@@ -1274,6 +1278,8 @@ TEST_F(AccountReuseTest, no_host_patterns) {
 TEST_F(AccountReuseTest, multiple_host_patterns) {
   for (bool root_password_on_cmdline : {true, false}) {
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
 
     // extract test params
     const std::vector<std::string> args = {
@@ -1762,10 +1768,12 @@ class AccountReuseCreateComboTestP
     };
   }
 };
+
 INSTANTIATE_TEST_SUITE_P(
     foo, AccountReuseCreateComboTestP,
     ::testing::ValuesIn(AccountReuseCreateComboTestP::gen_testcases()),
     [](auto p) -> std::string { return p.param.test_name; });
+
 TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
   // extract test params
   std::vector<std::string> extra_args = GetParam().extra_args;
@@ -1850,6 +1858,9 @@ TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password, username);
@@ -1892,6 +1903,8 @@ TEST_F(AccountReuseReconfigurationTest, user_exists_then_account) {
   for (bool root_password_on_cmdline : {true, false}) {
     // no config exists yet
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
 
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser};
@@ -1956,6 +1969,8 @@ TEST_F(AccountReuseReconfigurationTest,
   for (bool root_password_on_cmdline : {true, false}) {
     // no config exists yet
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
 
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser,
@@ -2027,6 +2042,8 @@ TEST_F(AccountReuseReconfigurationTest,
     // no config exists yet
     TempDirectory bootstrap_directory;
 
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser};
     const std::set<std::string> existing_hosts = {
@@ -2090,6 +2107,8 @@ TEST_F(AccountReuseReconfigurationTest,
     // no config exists yet
     TempDirectory bootstrap_directory;
 
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser};
     const std::set<std::string> existing_hosts =
@@ -2147,6 +2166,9 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
   for (bool root_password_on_cmdline : {true, false}) {
     // emulate past bootstrap without --account
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     create_config(bootstrap_directory.name(), kAutoGenUser);
     create_keyring(bootstrap_directory.name(), kAutoGenUser,
                    kAutoGenUserPassword);
@@ -2207,6 +2229,9 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
   for (bool root_password_on_cmdline : {true, false}) {
     // emulate past bootstrap with --account
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     create_config(bootstrap_directory.name(), kAccountUser);
     create_keyring(bootstrap_directory.name(), kAccountUser,
                    kAccountUserPassword);
@@ -2269,6 +2294,9 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
   for (bool root_password_on_cmdline : {true, false}) {
     // emulate past bootstrap without --account
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     create_config(bootstrap_directory.name(), kAutoGenUser);
     create_keyring(bootstrap_directory.name(), kAutoGenUser,
                    kAutoGenUserPassword);
@@ -2328,6 +2356,9 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
 TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
   // emulate past bootstrap with --account and deleted keyring
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   create_config(bootstrap_directory.name(), kAccountUser);
 
   // test params
@@ -2393,6 +2424,9 @@ TEST_F(AccountReuseReconfigurationTest,
 
   // emulate past bootstrap with --account and keyring without user->password
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   create_config(bootstrap_directory.name(), kAccountUser);
   create_keyring(bootstrap_directory.name(), kBogusUser, kAccountUserPassword);
   check_keyring(bootstrap_directory.name(), true, kBogusUser,
@@ -2466,6 +2500,9 @@ TEST_F(AccountReuseReconfigurationTest,
 
   // emulate past bootstrap with --account and keyring containing bad password
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   create_config(bootstrap_directory.name(), kAccountUser);
   create_keyring(bootstrap_directory.name(), kAccountUser, kIncorrectPassword);
   check_keyring(bootstrap_directory.name(), true, kAccountUser,
@@ -2601,6 +2638,9 @@ TEST_F(ShowWarningsProcessorTest, no_accounts_exist) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -2683,6 +2723,9 @@ TEST_F(ShowWarningsProcessorTest, one_account_exists) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -2765,6 +2808,9 @@ TEST_F(ShowWarningsProcessorTest, two_accounts_exist) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -2837,6 +2883,9 @@ TEST_F(ShowWarningsProcessorTest, all_accounts_exist) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -2934,6 +2983,9 @@ TEST_F(ShowWarningsProcessorTest,
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3023,6 +3075,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_unrecognised_hostname) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3122,6 +3177,9 @@ TEST_F(ShowWarningsProcessorTest,
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3211,6 +3269,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_invalid_column_names) {
       extra_args.push_back(h);
     }
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     ProcessWrapper &router =
         launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                          extra_args, password);
@@ -3327,6 +3388,9 @@ TEST_F(ShowWarningsProcessorTest,
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3407,6 +3471,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_fails_to_execute) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3613,6 +3680,9 @@ TEST_P(UndoCreateUserTestP, grant_fails) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3758,6 +3828,9 @@ TEST_P(UndoCreateUserTestP, grant_fails_and_drop_user_also_fails) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        extra_args, password);
@@ -3831,6 +3904,8 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
   const std::vector<std::string> unexp_sql = {};
 
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
 
   // expectations: other
   int exp_exit_code = EXIT_FAILURE;
@@ -3938,6 +4013,8 @@ TEST_F(UndoCreateUserTest,
 
   TempDirectory bootstrap_directory;
 
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   // expectations: other
   int exp_exit_code = EXIT_FAILURE;
   std::vector<std::string> exp_output = undo_create_user_msg(
@@ -4036,6 +4113,9 @@ TEST_F(AccountValidationTest, sunny_day_scenario) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        args, exp_password, exp_username);
@@ -4102,6 +4182,9 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        args, exp_password, exp_username);
@@ -4167,6 +4250,9 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        args, exp_password, exp_username);
@@ -4230,6 +4316,9 @@ TEST_F(AccountValidationTest, warn_on_conn_failure) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        args, exp_password, exp_username);
@@ -4292,6 +4381,9 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
+
+  // test exists empty config: no prepare_config_dir_...;
+
   ProcessWrapper &router =
       launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                        args, exp_password, exp_username);
@@ -4356,6 +4448,9 @@ TEST_F(AccountValidationTest, warn_on_query_failure) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     ProcessWrapper &router =
         launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                          args, exp_password, exp_username);
@@ -4424,6 +4519,9 @@ TEST_F(AccountValidationTest, error_on_query_failure) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     ProcessWrapper &router =
         launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                          args, exp_password, exp_username);
@@ -4494,6 +4592,9 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     ProcessWrapper &router =
         launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                          args, exp_password, exp_username);
@@ -4565,6 +4666,9 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
+
+    // test exists empty config: no prepare_config_dir_...;
+
     ProcessWrapper &router =
         launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
                          args, exp_password, exp_username);
@@ -4632,6 +4736,9 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // --bootstrap before --account-host
   {
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
              bootstrap_directory.name(),    //
              "--account-host", "host1",     // 2nd CREATE USER
@@ -4644,6 +4751,9 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // --bootstrap after --account-host
   {
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     test_it({"-d", bootstrap_directory.name(), "--account-host",
              "host1",                     // 2nd CREATE USER
              "--account-host", "%",       // 1st CREATE USER
@@ -4703,6 +4813,9 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   const std::string json_stmts =
       get_data_dir().join("bootstrap_account_host_pattern_too_long.js").str();
   TempDirectory bootstrap_directory;
+
+  prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
   const auto server_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
 
@@ -4768,6 +4881,9 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
   {
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     // --bootstrap before --report-host
     test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
              bootstrap_directory.name(), "--report-host", "host.foo.bar"});
@@ -4775,6 +4891,9 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
   {
     TempDirectory bootstrap_directory;
+
+    prepare_config_dir_with_default_certs(bootstrap_directory.name());
+
     // --bootstrap after --report-host
     test_it({"-d", bootstrap_directory.name(), "--report-host", "host.foo.bar",
              "--bootstrap=127.0.0.1:" + std::to_string(server_port)});

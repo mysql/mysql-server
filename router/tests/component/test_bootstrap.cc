@@ -76,7 +76,8 @@ using namespace std::string_literals;
 using mysqlrouter::ClusterType;
 
 // for the test with no param
-class RouterBootstrapTest : public RouterComponentBootstrapTest {};
+class RouterBootstrapTest
+    : public RouterComponentBootstrapWithDefaultCertsTest {};
 
 // if we plan to run the Router after the bootstrap we want to overwrite the
 // bind adddresses to prevent MacOS firewall pop ups
@@ -174,7 +175,7 @@ auto get_test_description(
 }
 
 class RouterBootstrapOkTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -567,7 +568,7 @@ struct BootstrapOkBasePortTestParam {
 };
 
 class RouterBootstrapOkBasePortTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapOkBasePortTestParam> {};
 
 namespace {
@@ -684,7 +685,7 @@ struct BootstrapErrorBasePortTestParam {
 };
 
 class RouterBootstrapErrorBasePortTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapErrorBasePortTestParam> {};
 
 /**
@@ -753,7 +754,7 @@ struct ReBootstrapOkBasePortTestParam {
 };
 
 class RouterReBootstrapOkBasePortTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<ReBootstrapOkBasePortTestParam> {};
 
 /**
@@ -928,7 +929,7 @@ INSTANTIATE_TEST_SUITE_P(
  *       - PRIMARY
  */
 class RouterBootstrapUserIsCurrentUser
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
@@ -965,7 +966,7 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 class RouterBootstrapailoverClusterIdDiffers
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1013,7 +1014,7 @@ INSTANTIATE_TEST_SUITE_P(
  *       - PRIMARY
  */
 class RouterBootstrapOnlySockets
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
@@ -1055,7 +1056,7 @@ INSTANTIATE_TEST_SUITE_P(
     get_test_description);
 
 class BootstrapUnsupportedSchemaVersionTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<mysqlrouter::MetadataSchemaVersion> {
 };
 
@@ -1103,7 +1104,7 @@ INSTANTIATE_TEST_SUITE_P(
  *       verify that the router errors out cleanly when received some unexpected
  *       error from the metadata server
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapErrorOnFirstQuery) {
+TEST_F(RouterBootstrapTest, BootstrapErrorOnFirstQuery) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -1121,7 +1122,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapErrorOnFirstQuery) {
  *       verify that the router's \c --bootstrap detects an upgrade
  *       metadata schema version and gives a proper message
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
+TEST_F(RouterBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -1141,7 +1142,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
  *       command line correctly
  *       TS_FR12_01
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapPidfileOpt) {
+TEST_F(RouterBootstrapTest, BootstrapPidfileOpt) {
   std::string pidfile =
       mysql_harness::Path(get_test_temp_dir_name()).join("test.pid").str();
 
@@ -1170,7 +1171,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileOpt) {
  *       config file correctly
  *       TS_FR13_01
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapPidfileCfg) {
+TEST_F(RouterBootstrapTest, BootstrapPidfileCfg) {
   std::string pidfile = mysql_harness::Path(get_test_temp_dir_name())
                             .real_path()
                             .join("test.pid")
@@ -1214,7 +1215,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileCfg) {
  *       ROUTER_PID is specified
  *       TS_FR13_02
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapPidfileEnv) {
+TEST_F(RouterBootstrapTest, BootstrapPidfileEnv) {
   // Set ROUTER_PID
   std::string pidfile = mysql_harness::Path(get_test_temp_dir_name())
                             .real_path()
@@ -1262,7 +1263,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileEnv) {
 }
 
 class RouterBootstrapFailoverSuperReadonly
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1304,7 +1305,7 @@ INSTANTIATE_TEST_SUITE_P(
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonly2ndNodeDead
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1370,7 +1371,7 @@ INSTANTIATE_TEST_SUITE_P(
     get_test_description);
 
 class RouterBootstrapFailoverPrimaryUnreachable
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1423,7 +1424,7 @@ INSTANTIATE_TEST_SUITE_P(
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonlyCreateAccountFails
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1475,7 +1476,7 @@ INSTANTIATE_TEST_SUITE_P(
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1562,7 +1563,7 @@ TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
 }
 
 class RouterBootstrapFailoverSuperReadonlyNewPrimaryCrash
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -1725,7 +1726,7 @@ TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
 }
 
 class RouterBootstrapBootstrapNoGroupReplicationSetup
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
 
 /**
@@ -2013,7 +2014,7 @@ INSTANTIATE_TEST_SUITE_P(
                                      "auth_cache_refresh_interval=2"},
                                     {2, 1, 0}}));
 
-class ErrorReportTest : public RouterComponentBootstrapTest {};
+class ErrorReportTest : public RouterComponentBootstrapWithDefaultCertsTest {};
 
 /**
  * @test
@@ -2834,7 +2835,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
  *       verify that Router can be re-bootstrapped using the same directory if
  * the cluster name has changed in the meantime
  */
-TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusterNameChange) {
+TEST_F(RouterBootstrapTest, RouterReBootstrapClusterNameChange) {
   const std::string tracefile = "bootstrap_gr.js";
 
   const std::string kInitialClusterName = "initial_cluster_name";
@@ -2876,7 +2877,7 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusterNameChange) {
  *       verify that using --force-password-validation is still supported for
  * backward compatibility
  */
-TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
+TEST_F(RouterBootstrapTest, ForcePasswordValidation) {
   const std::string tracefile = "bootstrap_gr.js";
 
   const auto classic_port = port_pool_.get_next_available();
@@ -2899,7 +2900,7 @@ TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
   check_exit_code(router_bs, EXIT_SUCCESS);
 }
 
-TEST_F(RouterComponentBootstrapTest, ShowCipherInvalidResult) {
+TEST_F(RouterBootstrapTest, ShowCipherInvalidResult) {
   const std::string tracefile =
       get_data_dir()
           .join("bootstrap_show_cipher_status_invalid_result.js")
@@ -2934,7 +2935,7 @@ struct BootstrapErrorTestParam {
 };
 
 class BootstrapErrorTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapErrorTestParam> {};
 
 TEST_P(BootstrapErrorTest, Spec) {
@@ -2978,7 +2979,7 @@ INSTANTIATE_TEST_SUITE_P(
             "a non-'localhost' hostname: abc.nodomain.com"}));
 
 class BootstrapErrorTestWithMock
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<BootstrapErrorTestParam> {};
 
 TEST_P(BootstrapErrorTestWithMock, Spec) {
@@ -3065,7 +3066,7 @@ struct AuthPluginTestParam {
 };
 
 class BootstrapChangeAuthPluginTest
-    : public RouterComponentBootstrapTest,
+    : public RouterComponentBootstrapWithDefaultCertsTest,
       public ::testing::WithParamInterface<AuthPluginTestParam> {};
 
 /**
@@ -3266,7 +3267,7 @@ INSTANTIATE_TEST_SUITE_P(
  *       Verify that when the Router is bootstrapped over existing confuguration
  * it removes unsupported bootstrap_server_addresses from the configuration file
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapRemoveServerAddressesOption) {
+TEST_F(RouterBootstrapTest, BootstrapRemoveServerAddressesOption) {
   RecordProperty("Worklog", "15867");
   RecordProperty("RequirementId", "FR2");
   RecordProperty(
