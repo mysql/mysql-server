@@ -655,8 +655,6 @@ class ParseOptions
       result_.query.wait = to_uint(vt);
     } else if (key == "query.embed_wait") {
       result_.query.embed_wait = to_bool(vt);
-    } else if (key == "cache.gtid") {
-      result_.cache.gtid_cache = to_bool(vt);
     } else if (key == "http.allowedOrigin") {
       if (mysql_harness::make_lower(cvt::to_string(vt)) == "auto")
         result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;

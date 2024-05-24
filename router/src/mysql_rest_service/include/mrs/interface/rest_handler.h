@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_REST_HANDLER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_REST_HANDLER_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_REST_HANDLER_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_REST_HANDLER_H_
 
 #include <map>
 #include <optional>
@@ -111,11 +111,6 @@ class Options {
     bool embed_wait{false};
   } query;
 
-  class Cache {
-   public:
-    bool gtid_cache{false};
-  } cache;
-
   class Result {
    public:
     bool include_links{true};
@@ -159,4 +154,4 @@ class RestHandler {
 }  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_REST_HANDLER_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_REST_HANDLER_H_
