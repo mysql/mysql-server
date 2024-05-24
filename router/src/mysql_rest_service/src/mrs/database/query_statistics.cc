@@ -36,8 +36,6 @@ namespace database {
 void QueryStatistics::update_statistics(MySQLSession *session,
                                         uint64_t router_id, uint64_t timespan,
                                         const Snapshot &snap) {
-  // TODO(lkotula): NOW() is wrong, it accumulates delays that occurs on
-  // connection. (Shouldn't be in review)
   query_.reset(
       "INSERT INTO "
       "mysql_rest_service_metadata.router_status("
