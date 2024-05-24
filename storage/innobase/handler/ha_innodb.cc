@@ -3430,8 +3430,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                            size_t thread_id) {
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
 
-  auto heap = mem_heap_create(FN_REFLEN * 2 + 1, UT_LOCATION_HERE);
-
   /* Validate all tablespaces if innodb_validate_tablespace_paths=ON OR
   server is in recovery  OR Change buffer is not empty. Change buffer
   applier background thread will skip the change buffer entries of the
@@ -3772,8 +3770,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         ++m_n_missing;
     }
   }
-
-  mem_heap_free(heap);
 }
 
 dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
