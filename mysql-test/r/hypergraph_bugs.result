@@ -1739,3 +1739,32 @@ SELECT NULL FROM t AS t1, t AS t2 STRAIGHT_JOIN t AS t3 ON t2.x = t3.x
 ) OR x = 1;
 1
 DROP TABLE t;
+#
+# Bug#36578613: Hypergraph result difference when querying I_S.TABLES
+#
+CREATE TABLE t(x INT, y LONGTEXT);
+INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e'), (6, 'f');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @explain SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2 WHERE t1.x = t2.x
+ORDER BY -t1.x;
+SELECT
+JSON_EXTRACT(@explain, '$.access_type') AS sort_for_order_by,
+JSON_EXTRACT(@explain, '$.inputs[0].access_type') AS sort_for_distinct,
+JSON_EXTRACT(@explain, '$.inputs[0].inputs[0].join_algorithm') AS hash_join;
+sort_for_order_by	"sort"
+sort_for_distinct	"sort"
+hash_join	"hash"
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2 WHERE t1.x = t2.x
+ORDER BY -t1.x;
+x	y
+6	f
+5	e
+4	d
+3	c
+2	b
+1	a
+DROP TABLE t;

@@ -1339,6 +1339,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
 }
 
 void FindTablesToGetRowidFor(AccessPath *path) {
+  // A map of the tables for which other paths further down in the tree will
+  // take care of copying the correct row ID into table->file->ref. The hash
+  // join iterators and the BKA join iterators do that, so iterators higher up
+  // should not call handler::position(), as that would overwrite the copied row
+  // ID with the row ID of the last row that was read by the join. Sorting
+  // iterators, on the other hand, do not
   table_map handled_by_others = 0;
 
   auto add_tables_handled_by_others = [path, &handled_by_others](
@@ -1367,6 +1373,13 @@ void FindTablesToGetRowidFor(AccessPath *path) {
         // Doesn't really matter, we don't cross query blocks anyway.
         return true;
       }
+      case AccessPath::SORT:
+        // The sorting iterators do not populate handler::ref with the row ID
+        // while returning rows, so row IDs in any tables handled by paths below
+        // it have to be fetched again from the handler by the paths above the
+        // sort. Therefore, we don't add any of the tables in the subtree below
+        // SORT to handled_by_others.
+        return true;  // Skip the rest of the subtree.
       default:
         return false;
     }
