@@ -6,13 +6,13 @@ include/install_replication_observers_example.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
-# 2. Lock a table so one query will block, this one is not counted
+# 2. Lock a table so one query will block
 [connection con2]
 LOCK TABLE t1 WRITE;
 [connection con3]
 INSERT INTO t1 VALUES (2);;
 
-# 3. Leave a transaction open without commit (counted)
+# 3. Leave a transaction open without commit
 [connection con4]
 BEGIN;
 INSERT INTO t2 VALUES(1);
@@ -43,5 +43,4 @@ COMMIT;
 [connection con1]
 DROP TABLE t1;
 DROP TABLE t2;
-SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 include/uninstall_replication_observers_example.inc
