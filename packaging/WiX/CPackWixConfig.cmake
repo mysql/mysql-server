@@ -40,7 +40,7 @@ SET(CPACK_COMPONENTS_USED
 IF(WITH_NDB)
   MESSAGE(STATUS "This is Cluster build, append additional components")
   SET(CPACK_COMPONENTS_USED
-    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ")
 ENDIF()
 
 # Some components are optional
@@ -163,8 +163,4 @@ IF(WITH_NDB)
   SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
   SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
 
-  #Subfeature "nodejs"
-  SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
-  SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
-  SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
 ENDIF()
