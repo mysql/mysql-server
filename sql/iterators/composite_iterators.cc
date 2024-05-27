@@ -232,8 +232,7 @@ bool AggregateIterator::Init() {
   // the slice coming from there might be wrongly set on Read(), and thus,
   // we need to properly restore it before returning any rows.
   //
-  // This is a hack. It would be good to get rid of the slice system altogether
-  // (the hypergraph join optimizer does not use it).
+  // This is a hack. It would be good to get rid of the slice system altogether.
   if (!(m_join->implicit_grouping || m_join->group_optimized_away) &&
       !thd()->lex->using_hypergraph_optimizer()) {
     m_output_slice = m_join->get_ref_item_slice();

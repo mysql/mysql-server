@@ -61,6 +61,11 @@ using std::min;
 using std::popcount;
 using std::string;
 
+namespace {
+double EstimateAggregateRows(THD *thd, const AccessPath *child,
+                             const Query_block *query_block, bool rollup);
+}
+
 void EstimateSortCost(THD *thd, AccessPath *path, double distinct_rows) {
   const auto &sort{path->sort()};
   assert(sort.remove_duplicates || distinct_rows == kUnknownRowCount);
@@ -172,24 +177,48 @@ FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
   return cost;
 }
 
-// Very rudimentary (assuming no deduplication; it's better to overestimate
-// than to understimate), so that we get something that isn't “unknown”.
+// Very rudimentary (it's better to overestimate than to understimate), so that
+// we get something that isn't “unknown”.
 void EstimateMaterializeCost(THD *thd, AccessPath *path) {
   AccessPath *table_path = path->materialize().table_path;
   double &subquery_cost = path->materialize().subquery_cost;
-
-  path->set_num_output_rows(0);
+  const bool is_distinct_or_group_by =
+      path->materialize().param->deduplication_reason !=
+      MaterializePathParameters::NO_DEDUP;
   double cost_for_cacheable = 0.0;
   bool left_operand = true;
+
+  // There are three different strategies for estimating the row count. If it's
+  // for DISTINCT, it's always preset. If it's for GROUP BY, it can be preset,
+  // but we have to calculate it if it's not. For everything else, calculate it
+  // afresh.
+  if (!is_distinct_or_group_by) {
+    path->set_num_output_rows(0);  // Reset any possibly set output rows.
+  } else if (path->num_output_rows() == kUnknownRowCount) {
+    // For DISTINCT, num_output_rows is always preset, so it has to be GROUP BY.
+    assert(path->materialize().param->deduplication_reason ==
+           MaterializePathParameters::DEDUP_FOR_GROUP_BY);
+
+    // Calculate estimate of output rows, which is same as number of groups.
+    path->set_num_output_rows(EstimateAggregateRows(
+        thd, path->materialize().param->m_operands.at(0).subquery_path,
+        path->materialize().param->m_operands.at(0).join->query_block,
+        /*rollup=*/false));  // We anyway don't temp table support with ROLLUP.
+  }
+
   subquery_cost = 0.0;
+
   for (const MaterializePathParameters::Operand &operand :
        path->materialize().param->m_operands) {
     if (operand.subquery_path->num_output_rows() >= 0.0) {
+      if (is_distinct_or_group_by) {
+        // Output rows for deduplication is separately handled above.
+      }
       // For INTERSECT and EXCEPT we can never get more rows than we have in
       // the left block, so do not add unless we are looking at left block or
       // we have a UNION.
-      if (left_operand || path->materialize().param->table == nullptr ||
-          path->materialize().param->table->is_union_or_table()) {
+      else if (left_operand || path->materialize().param->table == nullptr ||
+               path->materialize().param->table->is_union_or_table()) {
         path->set_num_output_rows(path->num_output_rows() +
                                   operand.subquery_path->num_output_rows());
       } else if (!left_operand &&

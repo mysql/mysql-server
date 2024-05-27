@@ -4214,8 +4214,10 @@ TEST_F(HypergraphOptimizerTest, FullTextDescSortNoPredicate) {
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1", /*nullable=*/true);
+  Query_block *query_block = ParseAndResolve(
+      "SELECT SQL_BIG_RESULT "  // Make sure temp table is not used
+      "DISTINCT t1.y, t1.x FROM t1",
+      /*nullable=*/true);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);
@@ -4238,7 +4240,8 @@ TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
 
 TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
+      "SELECT SQL_BIG_RESULT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, "
+      "t1.y",
       /*nullable=*/true);
 
   TraceGuard trace(m_thd);
@@ -4257,9 +4260,9 @@ TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
 
 TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
   m_thd->variables.sql_mode &= ~MODE_ONLY_FULL_GROUP_BY;
-  Query_block *query_block =
-      ParseAndResolve("SELECT DISTINCT t1.y FROM t1 ORDER BY t1.x, t1.y",
-                      /*nullable=*/true);
+  Query_block *query_block = ParseAndResolve(
+      "SELECT SQL_BIG_RESULT DISTINCT t1.y FROM t1 ORDER BY t1.x, t1.y",
+      /*nullable=*/true);
   m_thd->variables.sql_mode |= MODE_ONLY_FULL_GROUP_BY;
 
   TraceGuard trace(m_thd);
@@ -4290,9 +4293,9 @@ TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1 ORDER BY t1.x",
-                      /*nullable=*/true);
+  Query_block *query_block = ParseAndResolve(
+      "SELECT SQL_BIG_RESULT DISTINCT t1.y, t1.x FROM t1 ORDER BY t1.x",
+      /*nullable=*/true);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);
@@ -4316,7 +4319,7 @@ TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
 
 TEST_F(HypergraphOptimizerTest, DistinctWithEquivalence) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT DISTINCT t1.x, t2.x FROM t1, t2 WHERE t1.x = t2.x",
+      "SELECT SQL_BIG_RESULT DISTINCT t1.x, t2.x FROM t1, t2 WHERE t1.x = t2.x",
       /*nullable=*/true);
 
   m_fake_tables["t1"]->file->stats.records = 100;
@@ -4849,7 +4852,8 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantPartsOfSortKey) {
 
 TEST_F(HypergraphOptimizerTest, ElideRedundantSortAfterGrouping) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT 1 FROM t1 LEFT JOIN t2 ON t1.x = t2.x WHERE t2.x IS NULL "
+      "SELECT SQL_BIG_RESULT 1 FROM t1 LEFT JOIN t2 ON t1.x = t2.x WHERE t2.x "
+      "IS NULL "
       "GROUP BY t1.x ORDER BY t2.x",
       /*nullable=*/true);
 
@@ -4899,7 +4903,7 @@ TEST_F(HypergraphOptimizerTest, NoMaterializationForElidedSortAfterGrouping) {
 
 TEST_F(HypergraphOptimizerTest, ElideRedundantSortForDistinct) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT DISTINCT t2.x FROM t1 LEFT JOIN t2 ON t1.x = t2.x "
+      "SELECT SQL_BIG_RESULT DISTINCT t2.x FROM t1 LEFT JOIN t2 ON t1.x = t2.x "
       "WHERE t2.x IS NULL",
       /*nullable=*/true);
 
@@ -4923,7 +4927,8 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantSortForDistinct) {
 
 TEST_F(HypergraphOptimizerTest, NoMaterializationForElidedSortForDistinct) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT DISTINCT t1.x FROM t1 GROUP BY t1.x, t1.y HAVING COUNT(*) < 10",
+      "SELECT SQL_BIG_RESULT DISTINCT t1.x FROM t1 GROUP BY t1.x, t1.y HAVING "
+      "COUNT(*) < 10",
       /*nullable=*/true);
 
   // Add an index that can be used to get the desired ordering for GROUP BY
@@ -4992,7 +4997,8 @@ TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
 
 TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT t1.x FROM t1, t2 GROUP BY t1.x, t1.y ORDER BY t1.y DESC",
+      "SELECT SQL_BIG_RESULT t1.x FROM t1, t2 GROUP BY t1.x, t1.y ORDER BY "
+      "t1.y DESC",
       /*nullable=*/true);
 
   m_fake_tables["t1"]->file->stats.records = 100;
@@ -5032,7 +5038,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
 
 TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   Query_block *query_block =
-      ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x",
+      ParseAndResolve("SELECT SQL_BIG_RESULT t1.x FROM t1 GROUP BY t1.x",
                       /*nullable=*/true);
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
@@ -5055,7 +5061,7 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
 
 TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
   Query_block *query_block =
-      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1",
+      ParseAndResolve("SELECT SQL_BIG_RESULT DISTINCT t1.y, t1.x FROM t1",
                       /*nullable=*/true);
 
   CreateOrderedCoveringIndex(
@@ -6670,7 +6676,8 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiPredicate) {
 
 TEST_F(HypergraphOptimizerTest, GroupIndexSkipScanAgg) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT t1.x, t1.y FROM t1 GROUP BY t1.x, t1.y", /*nullable=*/true);
+      "SELECT SQL_BIG_RESULT t1.x, t1.y FROM t1 GROUP BY t1.x, t1.y",
+      /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 10000;
   t1->file->stats.block_size = 4096;
@@ -6828,8 +6835,8 @@ TEST_F(HypergraphSecondaryEngineTest, SimpleInnerJoin) {
 }
 
 TEST_F(HypergraphSecondaryEngineTest, OrderedAggregation) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x", /*nullable=*/true);
+  Query_block *query_block = ParseAndResolve(
+      "SELECT SQL_BIG_RESULT t1.x FROM t1 GROUP BY t1.x", /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 100;
 
   EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
@@ -6861,9 +6868,9 @@ TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregation) {
 
 TEST_F(HypergraphSecondaryEngineTest,
        OrderedAggregationCoversDistinctWithOrder) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT DISTINCT t1.x, t1.y FROM t1 ORDER BY t1.y",
-                      /*nullable=*/true);
+  Query_block *query_block = ParseAndResolve(
+      "SELECT SQL_BIG_RESULT DISTINCT t1.x, t1.y FROM t1 ORDER BY t1.y",
+      /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 100;
 
   EnableSecondaryEngine(/*aggregation_is_unordered=*/false);

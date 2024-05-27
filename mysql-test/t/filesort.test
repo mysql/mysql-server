@@ -92,7 +92,7 @@ INSERT INTO t1 VALUES (581101, '581101');
 
 ANALYZE TABLE t1;
 
-let $query = SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
+let $query = SELECT SQL_BIG_RESULT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
 eval $query;
 --replace_regex $elide_metrics
 --skip_if_hypergraph  # Uses an index scan instead of a sort.

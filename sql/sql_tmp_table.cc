@@ -894,14 +894,18 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
   if (group != nullptr) distinct = false;  // Can't use distinct
 
-  for (ORDER *tmp = group; tmp; tmp = tmp->next) {
+  // It's best to skip this if caller has forced a hash strategy. Apart from
+  // being unnecessary, another reason to skip this is: possibly the caller has
+  // forced hash to avoid this very thing of converting bit to long.
+  if (!param->force_hash_field_for_unique) {
     /*
       marker == MARKER_BIT means two things:
       - store NULLs in the key, and
       - convert BIT fields to 64-bit long, needed because MEMORY tables
         can't index BIT fields.
     */
-    (*tmp->item)->marker = Item::MARKER_BIT;
+    for (ORDER *tmp = group; tmp; tmp = tmp->next)
+      (*tmp->item)->marker = Item::MARKER_BIT;
   }
 
   /**
@@ -913,6 +917,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     (4) we have INTERSECT or EXCEPT, i.e. not UNION.
   */
   bool unique_constraint_via_hash_field =
+      param->force_hash_field_for_unique ||
       param->m_operation != Temp_table_param::TTP_UNION_OR_TABLE;
 
   /*

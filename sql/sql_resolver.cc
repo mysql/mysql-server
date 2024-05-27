@@ -559,12 +559,13 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     }
   }
 
-  if (group_list.elements) {
+  if (!thd->lex->using_hypergraph_optimizer() && group_list.elements) {
     /*
       Because HEAP tables can't index BIT fields we need to use an
       additional hidden field for grouping because later it will be
       converted to a LONG field. Original field will remain of the
-      BIT type and will be returned to a client.
+      BIT type and will be returned to a client. Hypergraph optimizer
+      uses hash deduplication for bit types so this is not necessary.
     */
     for (ORDER *ord = group_list.first; ord; ord = ord->next) {
       if ((*ord->item)->type() == Item::FIELD_ITEM &&

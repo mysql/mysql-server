@@ -1175,6 +1175,7 @@ set @old_opt_switch=@@optimizer_switch;
 # With BNL, a temp table is used for GROUP BY, we don't want this
 SET optimizer_switch="block_nested_loop=off";
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 SET @@optimizer_switch=@old_opt_switch;

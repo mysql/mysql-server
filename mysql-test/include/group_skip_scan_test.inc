@@ -12,6 +12,9 @@
 # - C IS NOT NULL
 # - HAVING clause
 
+# Note: Wherever temp table is cheaper than index skip scan, the latter is
+# forced by sql_big_result so that we don't defeat the purpose of the test.
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -610,7 +613,7 @@ select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1
 
 # plans
 --replace_regex $elide_costs
-explain format=tree select distinct a1,a2,b from t1;
+explain format=tree select sql_big_result distinct a1,a2,b from t1;
 --replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
 --replace_regex $elide_costs
@@ -622,10 +625,10 @@ explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 
 --replace_column 10 #
 --replace_regex $elide_costs
-explain format=tree select distinct a1,a2,b from t2;
+explain format=tree select sql_big_result distinct a1,a2,b from t2;
 --replace_column 10 #
 --replace_regex $elide_costs
-explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
+explain format=tree select sql_big_result distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 --replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 --replace_column 10 #
@@ -635,13 +638,13 @@ explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > '
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a');
 
 # queries
-select distinct a1,a2,b from t1;
-select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
+select sql_big_result distinct a1,a2,b from t1;
+select sql_big_result distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
 select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 select distinct b from t1 where (a2 >= 'b') and (b = 'a');
 
-select distinct a1,a2,b from t2;
+select sql_big_result distinct a1,a2,b from t2;
 select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
@@ -669,7 +672,7 @@ select distinct t1.a1,t2.a1 from t1,t2;
 #--source include/turn_off_only_full_group_by.inc
 
 --replace_regex $elide_costs
-explain format=tree select distinct a1,a2,b from t1;
+explain format=tree select sql_big_result distinct a1,a2,b from t1;
 --replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 --replace_regex $elide_costs
@@ -681,7 +684,7 @@ explain format=tree select distinct b from t1 where (a2 >= 'b') and (b = 'a') gr
 
 --replace_column 10 #
 --replace_regex $elide_costs
-explain format=tree select distinct a1,a2,b from t2;
+explain format=tree select sql_big_result distinct a1,a2,b from t2;
 --replace_column 10 #
 --replace_regex $elide_costs
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
@@ -696,13 +699,13 @@ explain format=tree select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > '
 explain format=tree select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
 # queries
-select distinct a1,a2,b from t1;
+select distinct sql_big_result a1,a2,b from t1;
 select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
-select distinct a1,a2,b from t2;
+select sql_big_result distinct a1,a2,b from t2;
 select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
@@ -824,8 +827,8 @@ explain format=tree select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,
 #
 
 --replace_regex $elide_costs
-explain format=tree select distinct(a1) from t1 where ord(a2) = 98;
-select distinct(a1) from t1 where ord(a2) = 98;
+explain format=tree select sql_big_result distinct(a1) from t1 where ord(a2) = 98;
+select sql_big_result distinct(a1) from t1 where ord(a2) = 98;
 
 #
 # BUG#11044: DISTINCT or GROUP BY queries with equality predicates instead of MIN/MAX.

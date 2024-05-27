@@ -149,10 +149,12 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
                        const char *description_for_trace);
 void PrintJoinOrder(const AccessPath *path, string *join_order);
 
-AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
-                                      TABLE *temp_table,
-                                      Temp_table_param *temp_table_param,
-                                      bool copy_items);
+AccessPath *CreateMaterializationPath(
+    THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
+    Temp_table_param *temp_table_param, bool copy_items,
+    double *distinct_rows = nullptr,
+    MaterializePathParameters::DedupType dedup_reason =
+        MaterializePathParameters::NO_DEDUP);
 
 AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
                               bool need_rowid,
@@ -6002,11 +6004,22 @@ AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
 /**
   Sets up an access path for materializing the results returned from a path in a
   temporary table.
+
+  @param distinct_rows If non-null, it may contain pre-calculated
+         number of distinct rows or number of groups; or if kUnknownRowCount,
+         it should be calculated here and returned through this parameter.
  */
-AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
-                                      TABLE *temp_table,
-                                      Temp_table_param *temp_table_param,
-                                      bool copy_items) {
+AccessPath *CreateMaterializationPath(
+    THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
+    Temp_table_param *temp_table_param, bool copy_items, double *distinct_rows,
+    MaterializePathParameters::DedupType dedup_reason) {
+  // For GROUP BY, we require slices to handle subqueries in HAVING clause.
+  // For DISTINCT, we don't require slices. See InitTmpTableSliceRefs()
+  // comments.
+  int ref_slice = (dedup_reason == MaterializePathParameters::DEDUP_FOR_GROUP_BY
+                       ? REF_SLICE_TMP1
+                       : -1);
+
   AccessPath *table_path =
       NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
   AccessPath *materialize_path = NewMaterializeAccessPath(
@@ -6014,10 +6027,28 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
       SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
                                   copy_items, temp_table_param),
       /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
-      /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
-      /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
+      /*unit=*/nullptr, ref_slice,
+      /*rematerialize=*/true,
+      /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false,
+      dedup_reason);
 
+  // If this is for DISTINCT/GROUPBY, distinct_rows has to be non-null.
+  assert(!(dedup_reason != MaterializePathParameters::NO_DEDUP &&
+           distinct_rows == nullptr));
+  // If this is for anything other than DISTINCT/GROUPBY, distinct_rows has to
+  // be null.
+  assert(!(dedup_reason == MaterializePathParameters::NO_DEDUP &&
+           distinct_rows != nullptr));
+
+  // Estimate the cost using a possibly cached distinct row count.
+  if (distinct_rows != nullptr)
+    materialize_path->set_num_output_rows(*distinct_rows);
   EstimateMaterializeCost(thd, materialize_path);
+
+  // Cache the distinct row count.
+  if (distinct_rows != nullptr)
+    *distinct_rows = materialize_path->num_output_rows();
+
   materialize_path->ordering_state = path->ordering_state;
   materialize_path->delayed_predicates = path->delayed_predicates;
   materialize_path->has_group_skip_scan = path->has_group_skip_scan;
@@ -6890,7 +6921,19 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
                                 /*obsolete_orderings=*/0, "");
     return;
   }
-  if (!aggregation_is_unordered &&
+
+  // Don't propose materialization when using a secondary engine that can do
+  // streaming aggregation without sorting; it will anyways be ignored.
+  const bool materialize_plan_possible =
+      !aggregation_is_unordered &&
+      !(query_block->active_options() & SELECT_BIG_RESULT);
+
+  // Force a materialization plan with deduplication, if requested and possible.
+  const bool force_materialize_plan =
+      materialize_plan_possible &&
+      (query_block->active_options() & SELECT_SMALL_RESULT);
+
+  if (!force_materialize_plan && !aggregation_is_unordered &&
       orderings->DoesFollowOrder(root_path->ordering_state,
                                  distinct_ordering_idx)) {
     // We don't need the sort, and can do with a simpler deduplication.
@@ -6911,6 +6954,20 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
     receiver->ProposeAccessPath(dedup_path, new_root_candidates,
                                 /*obsolete_orderings=*/0, "sort elided");
     return;
+  }
+
+  // Propose materialization with deduplication.
+  if (materialize_plan_possible) {
+    receiver->ProposeAccessPath(
+        CreateMaterializationPath(
+            thd, query_block->join, root_path, /*temp_table=*/nullptr,
+            /*temp_table_param=*/nullptr,
+            /*copy_items=*/true, &output_rows,
+            MaterializePathParameters::DEDUP_FOR_DISTINCT),
+        new_root_candidates, /*obsolete_orderings=*/0,
+        "materialize with deduplication");
+
+    if (force_materialize_plan) return;
   }
 
   root_path = GetSafePathToSort(
@@ -7791,22 +7848,33 @@ bool ApplyAggregation(
   AccessPathArray new_root_candidates(PSI_NOT_INSTRUMENTED);
   double aggregate_rows = kUnknownRowCount;
 
-  // We don't use Temp table aggregation with ROLLUP or JSON aggregate functions
+  // Disallow temp table when indicated by param.allow_group_via_temp_table
+  // (e.g. ROLLUP, UDF aggregate functions etc; these basically set
+  // this flag to false)
   // (1) Also avoid it when using a secondary engine that can do streaming
   // aggregation without sorting.
   // (2) Continue using SQL_BIG_RESULT in hypergraph as well. At least in the
-  // initial phase, there should be a means to force streaming aggregate.
-  const bool propose_temptable_aggregation =
-      (!join->with_json_agg &&
-       join->tmp_table_param.allow_group_via_temp_table &&
-       join->tmp_table_param.sum_func_count &&
+  // initial phase, there should be a means to force streaming plan.
+  const bool group_via_temp_table_possible =
+      (join->tmp_table_param.allow_group_via_temp_table &&
        !join->tmp_table_param.precomputed_group_by &&
        !join->group_list.empty() && !aggregation_is_unordered &&  // (1)
        !(query_block->active_options() & SELECT_BIG_RESULT));     // (2)
 
-  // Force a temp-table aggregate plan if requested and possible.
-  const bool force_temptable_aggregation =
-      propose_temptable_aggregation &&
+  // For temp table aggregation, we don't allow JSON aggregate functions. See
+  // make_tmp_tables_info().
+  const bool propose_temptable_aggregation =
+      group_via_temp_table_possible && !join->with_json_agg &&
+      join->tmp_table_param.sum_func_count;
+
+  // Similarly have a flag for temp table grouping without aggregation.
+  const bool propose_temptable_without_aggregation =
+      group_via_temp_table_possible && !join->tmp_table_param.sum_func_count;
+
+  // Force a temp-table plan if requested and possible.
+  const bool force_temptable_plan =
+      (propose_temptable_aggregation ||
+       propose_temptable_without_aggregation) &&
       (query_block->active_options() & SELECT_SMALL_RESULT);
 
   for (AccessPath *root_path : root_candidates) {
@@ -7817,10 +7885,9 @@ bool ApplyAggregation(
                                     group_by_ordering_idx) &&
           ObeysIndexOrderHints(root_path, join, /*grouping=*/true));
 
-    // If temp table aggregation is forced, avoid streaming aggregation even if
-    // it does not need sorting, so that we get *only* temp table aggregation
-    // plans to choose from.
-    if (!group_needs_sort && !force_temptable_aggregation) {
+    // If temp table plan is forced, avoid streaming plan even if it does not
+    // need sorting, so that we get *only* temp table plans to choose from.
+    if (!group_needs_sort && !force_temptable_plan) {
       AccessPath aggregate_path = CreateStreamingAggregationPath(
           thd, root_path, join, query_block->olap, aggregate_rows);
       aggregate_rows = aggregate_path.num_output_rows();
@@ -7832,6 +7899,9 @@ bool ApplyAggregation(
       continue;
     }
 
+    assert(!(propose_temptable_aggregation &&
+             propose_temptable_without_aggregation));
+
     if (propose_temptable_aggregation) {
       receiver.ProposeAccessPath(
           CreateTemptableAggregationPath(thd, query_block, root_path,
@@ -7839,8 +7909,20 @@ bool ApplyAggregation(
           &new_root_candidates, /*obsolete_orderings=*/0,
           "temp table aggregate");
 
-      // Skip sort plans if we want to force temp table aggregation.
-      if (force_temptable_aggregation) continue;
+      // Skip sort plans if we want to force temp table plan.
+      if (force_temptable_plan) continue;
+    } else if (propose_temptable_without_aggregation) {
+      receiver.ProposeAccessPath(
+          CreateMaterializationPath(
+              thd, join, root_path, /*temp_table=*/nullptr,
+              /*temp_table_param=*/nullptr,
+              /*copy_items=*/true, &aggregate_rows,
+              MaterializePathParameters::DEDUP_FOR_GROUP_BY),
+          &new_root_candidates, /*obsolete_orderings=*/0,
+          "materialize with deduplication");
+
+      // Skip sort plans if we want to force temp table plan.
+      if (force_temptable_plan) continue;
     }
 
     root_path = GetSafePathToSort(thd, join, root_path, need_rowid);

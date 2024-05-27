@@ -957,6 +957,7 @@ SELECT * FROM t1;
 drop table  t1,t2;
 eval create table t1  ( pk         int primary key,    parent     int not null,    child      int not null,       index (parent)  ) engine = $engine_type;
 insert into t1 values   (1,0,4),  (2,1,3),  (3,2,1),  (4,1,2);
+--partially_sorted_result 1
 select distinct  parent,child   from t1   order by parent;
 drop table t1;
 

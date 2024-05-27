@@ -89,7 +89,7 @@ INSERT INTO t1 VALUES (581101, '581101');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
+SELECT SQL_BIG_RESULT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
 JSON_ARRAYAGG(char_field)	JSON_ARRAYAGG(2)
 ["580801"]	[2]
 ["580901"]	[2]
@@ -97,7 +97,7 @@ JSON_ARRAYAGG(char_field)	JSON_ARRAYAGG(2)
 ["581101"]	[2]
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-EXPLAIN FORMAT=tree SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
+EXPLAIN FORMAT=tree SELECT SQL_BIG_RESULT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
 EXPLAIN
 -> Sort: t1.id
     -> Sort with duplicate removal: `JSON_ARRAYAGG(char_field)`, `JSON_ARRAYAGG(2)`

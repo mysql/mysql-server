@@ -1368,6 +1368,7 @@ select distinct substring(fld3,1,3) from t2 where fld3 like "A%";
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" order by a limit 10;
 --replace_result abr Abr
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%" limit 10;
+--skip_if_hypergraph  # LIMIT without ORDER BY is non-deterministic.
 --replace_result abr Abr
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" limit 10;
 
@@ -1449,6 +1450,7 @@ select distinct companynr, fld3,count(*) from t2 group by companynr,fld3  order 
 SET BIG_TABLES=1;
 select distinct companynr, fld3,count(*) from t2 group by companynr,fld3 order by companynr, fld3 limit 10;
 SET BIG_TABLES=0;
+--skip_if_hypergraph  # LIMIT without ORDER BY is non-deterministic.
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 
 #

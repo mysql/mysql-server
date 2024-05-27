@@ -67,7 +67,7 @@ EXPLAIN
                 -> Sort: t1.a
                     -> Table scan on t1
 
-EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
+EXPLAIN FORMAT=tree SELECT SQL_BIG_RESULT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
 EXPLAIN
 -> Sort with duplicate removal: t1.a, `SUM(c) OVER (ORDER BY b)`
     -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b )
@@ -81,7 +81,7 @@ EXPLAIN
         -> Sort: t1.a, t1.b
             -> Table scan on t1
 
-EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
+EXPLAIN FORMAT=tree SELECT SQL_BIG_RESULT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
 EXPLAIN
 -> Sort with duplicate removal: t1.a, `SUM(c) OVER (ORDER BY b)`
     -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b )

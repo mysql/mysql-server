@@ -604,6 +604,7 @@ EXPLAIN
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
@@ -631,6 +632,7 @@ EXPLAIN SELECT * FROM t1 JOIN v2 ON f1=f2;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 JOIN v2 ON f1=f2;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';

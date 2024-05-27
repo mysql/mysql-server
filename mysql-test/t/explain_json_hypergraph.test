@@ -130,11 +130,11 @@ ANALYZE TABLE t0, t1;
 set sql_mode="";
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM
-    (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
+    (SELECT SQL_BIG_RESULT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
     WHERE f1 > 2;
 --replace_regex $elide_trace_costs_and_rows
 EXPLAIN FORMAT=JSON SELECT * FROM
-    (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
+    (SELECT SQL_BIG_RESULT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
     WHERE f1 > 2;
 
 ##--echo # Filter, nested loop

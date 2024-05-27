@@ -302,26 +302,26 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a;
 EXPLAIN
--> Group (no aggregates)  (rows=32.3) (actual rows=55 loops=1)
-    -> Sort: t1.c, t1.a  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=32.3) (actual rows=55 loops=1)
+    -> Temporary table with deduplication  (rows=32.3) (actual rows=55 loops=1)
         -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,b;
 EXPLAIN
--> Group (no aggregates)  (rows=93) (actual rows=100 loops=1)
-    -> Sort: t1.c, t1.b  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=93) (actual rows=100 loops=1)
+    -> Temporary table with deduplication  (rows=93) (actual rows=100 loops=1)
         -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=320) (actual rows=143 loops=1)
-    -> Sort: t1.e, t1.f  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=320) (actual rows=143 loops=1)
+    -> Temporary table with deduplication  (rows=320) (actual rows=143 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY g,h,i,j,k,l;
 EXPLAIN
--> Group (no aggregates)  (rows=46.8) (actual rows=10 loops=1)
-    -> Sort: t1.g, t1.h, t1.i, t1.j, t1.k, t1.l  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=46.8) (actual rows=10 loops=1)
+    -> Temporary table with deduplication  (rows=46.8) (actual rows=10 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON a,b,c,d,e,f,g,h,i;
@@ -340,40 +340,40 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e;
 EXPLAIN
--> Group (no aggregates)  (rows=11) (actual rows=11 loops=1)
-    -> Sort: t1.e  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=11) (actual rows=11 loops=1)
+    -> Temporary table with deduplication  (rows=11) (actual rows=11 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=64.8) (actual rows=143 loops=1)
-    -> Sort: t1.e, t1.f  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=64.8) (actual rows=143 loops=1)
+    -> Temporary table with deduplication  (rows=64.8) (actual rows=143 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=27.7) (actual rows=40 loops=1)
-    -> Sort: t1.e, t1.f  (rows=40) (actual rows=40 loops=1)
+-> Table scan on <temporary>  (rows=27.7) (actual rows=40 loops=1)
+    -> Temporary table with deduplication  (rows=27.7) (actual rows=40 loops=1)
         -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
             -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c+0,e+0;
 EXPLAIN
--> Group (no aggregates)  (rows=100) (actual rows=55 loops=1)
-    -> Sort: (t1.c + 0), (t1.e + 0)  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=100) (actual rows=55 loops=1)
+    -> Temporary table with deduplication  (rows=100) (actual rows=55 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY c+0,e+0;
 EXPLAIN
--> Group (no aggregates)  (rows=11.7) (actual rows=40 loops=1)
-    -> Sort: (t1.c + 0), (t1.e + 0)  (rows=40) (actual rows=40 loops=1)
+-> Table scan on <temporary>  (rows=11.7) (actual rows=40 loops=1)
+    -> Temporary table with deduplication  (rows=11.7) (actual rows=40 loops=1)
         -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
             -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY a,e,c+0;
 EXPLAIN
--> Group (no aggregates)  (rows=501) (actual rows=595 loops=1)
-    -> Sort: t1.a, t1.e, (t1.c + 0)  (rows=1000) (actual rows=1000 loops=1)
+-> Table scan on <temporary>  (rows=501) (actual rows=595 loops=1)
+    -> Temporary table with deduplication  (rows=501) (actual rows=595 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 CREATE TABLE t2 (
@@ -391,31 +391,35 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c1;
 EXPLAIN
--> Group (no aggregates)  (rows=5) (actual rows=5 loops=1)
-    -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
-        -> Covering index scan on t2 using PRIMARY  (rows=10) (actual rows=10 loops=1)
-        -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
+-> Table scan on <temporary>  (rows=5) (actual rows=5 loops=1)
+    -> Temporary table with deduplication  (rows=5) (actual rows=5 loops=1)
+        -> Inner hash join (no condition)  (rows=10000) (actual rows=10000 loops=1)
+            -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
 EXPLAIN
--> Group (no aggregates)  (rows=3.16) (actual rows=3 loops=1)
-    -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
-        -> Sort: t2.c2  (rows=10) (actual rows=10 loops=1)
-            -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
-        -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
+-> Table scan on <temporary>  (rows=3.16) (actual rows=3 loops=1)
+    -> Temporary table with deduplication  (rows=3.16) (actual rows=3 loops=1)
+        -> Inner hash join (no condition)  (rows=10000) (actual rows=10000 loops=1)
+            -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c3;
 EXPLAIN
--> Group (no aggregates)  (rows=3) (actual rows=3 loops=1)
-    -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
-        -> Sort: t2.c3  (rows=10) (actual rows=10 loops=1)
-            -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
-        -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
+-> Table scan on <temporary>  (rows=3) (actual rows=3 loops=1)
+    -> Temporary table with deduplication  (rows=3) (actual rows=3 loops=1)
+        -> Inner hash join (no condition)  (rows=10000) (actual rows=10000 loops=1)
+            -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY a,c3;
 EXPLAIN
--> Group (no aggregates)  (rows=23) (actual rows=33 loops=1)
-    -> Sort: t1.a, t2.c3  (rows=10000) (actual rows=10000 loops=1)
+-> Table scan on <temporary>  (rows=23) (actual rows=33 loops=1)
+    -> Temporary table with deduplication  (rows=23) (actual rows=33 loops=1)
         -> Inner hash join (no condition)  (rows=10000) (actual rows=10000 loops=1)
             -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
             -> Hash
@@ -775,10 +779,9 @@ avg(id2*2)  over()	id2
 EXPLAIN FORMAT=TREE select avg(id2*2)  over(), id2 from tb1 group by id2;
 EXPLAIN
 -> Window aggregate with buffering: avg(`(tb1.id2 * 2)`) OVER ()   (rows=3.46)
-    -> Stream results  (rows=3.46)
-        -> Group (no aggregates)  (rows=3.46)
-            -> Sort: tb1.id2  (rows=12)
-                -> Table scan on tb1  (rows=12)
+    -> Table scan on <temporary>  (rows=3.46)
+        -> Temporary table with deduplication  (rows=3.46)
+            -> Table scan on tb1  (rows=12)
 
 EXPLAIN FORMAT=TREE select sql_small_result avg(id), JSON_ARRAYAGG(id) from tb1 t1 group by id2 ;
 EXPLAIN

@@ -513,8 +513,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT b FROM t1 GROUP BY b;
 EXPLAIN
--> Group (no aggregates)  (rows=10) (actual rows=100 loops=1)
-    -> Sort: t1.b  (rows=101) (actual rows=101 loops=1)
+-> Table scan on <temporary>  (rows=10) (actual rows=100 loops=1)
+    -> Temporary table with deduplication  (rows=10) (actual rows=100 loops=1)
         -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
 
 EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
@@ -529,8 +529,8 @@ test.t1	histogram	status	Histogram statistics created for column 'b'.
 test.t1	histogram	status	Histogram statistics created for column 'c'.
 EXPLAIN FORMAT=TREE SELECT a,b FROM t1 GROUP BY a,b;
 EXPLAIN
--> Group (no aggregates)  (rows=63.7)
-    -> Sort: t1.a, t1.b  (rows=101)
+-> Table scan on <temporary>  (rows=63.7)
+    -> Temporary table with deduplication  (rows=63.7)
         -> Table scan on t1  (rows=101)
 
 EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
@@ -540,8 +540,8 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT c FROM t1 GROUP BY c;
 EXPLAIN
--> Group (no aggregates)  (rows=2) (actual rows=2 loops=1)
-    -> Sort: t1.c  (rows=101) (actual rows=101 loops=1)
+-> Table scan on <temporary>  (rows=2) (actual rows=2 loops=1)
+    -> Temporary table with deduplication  (rows=2) (actual rows=2 loops=1)
         -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
 
 DROP TABLE num10, t1;
@@ -807,13 +807,15 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
 EXPLAIN
--> Sort with duplicate removal: t1.c  (rows=7) (actual rows=7 loops=1)
-    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+-> Table scan on <temporary>  (rows=7) (actual rows=7 loops=1)
+    -> Temporary table with deduplication  (rows=7) (actual rows=7 loops=1)
+        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT DISTINCT b,c FROM t1;
 EXPLAIN
--> Sort with duplicate removal: t1.b, t1.c  (rows=20.6) (actual rows=35 loops=1)
-    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+-> Table scan on <temporary>  (rows=20.6) (actual rows=35 loops=1)
+    -> Temporary table with deduplication  (rows=20.6) (actual rows=35 loops=1)
+        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
 
 DROP TABLE t1;
 #
@@ -1599,7 +1601,7 @@ INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), (), (), ();
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
-EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=7.96)
@@ -1607,7 +1609,17 @@ EXPLAIN
         -> Table scan on t2  (rows=12)
         -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
 
-EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
+EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
+WHERE t1.pk = t2.x ORDER BY t2.x;
+EXPLAIN
+-> Sort: t.x  (rows=7.96)
+    -> Table scan on <temporary>  (rows=7.96)
+        -> Temporary table with deduplication  (rows=7.96)
+            -> Nested loop inner join  (rows=12)
+                -> Table scan on t2  (rows=12)
+                -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
 EXPLAIN
 -> Sort with duplicate removal: t1.x, t1.pk  (rows=9.36)
@@ -1615,13 +1627,33 @@ EXPLAIN
         -> Table scan on t2  (rows=12)
         -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
 
-EXPLAIN FORMAT=TREE SELECT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
+EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
+WHERE t1.pk = t2.x ORDER BY t1.x;
+EXPLAIN
+-> Sort: t.x  (rows=9.36)
+    -> Table scan on <temporary>  (rows=9.36)
+        -> Temporary table with deduplication  (rows=9.36)
+            -> Nested loop inner join  (rows=12)
+                -> Table scan on t2  (rows=12)
+                -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=3.46)
     -> Nested loop inner join  (rows=12)
         -> Table scan on t2  (rows=12)
         -> Single-row covering index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
+WHERE t1.pk = t2.x ORDER BY t2.x;
+EXPLAIN
+-> Sort: t.x  (rows=3.46)
+    -> Table scan on <temporary>  (rows=3.46)
+        -> Temporary table with deduplication  (rows=3.46)
+            -> Nested loop inner join  (rows=12)
+                -> Table scan on t2  (rows=12)
+                -> Single-row covering index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
 
 DROP TABLE t;
 #
