@@ -519,6 +519,9 @@ class Table_access_impl {
   int rollback();
   TABLE *get_table(size_t index);
 
+  bool binlog_get();
+  void binlog_set(bool binlog);
+
  private:
   /** Array of size m_max_count. */
   Table_ref *m_table_array;
@@ -789,6 +792,19 @@ TABLE *Table_access_impl::get_table(size_t index) {
   }
 
   return nullptr;
+}
+
+bool Table_access_impl::binlog_get() {
+  assert(!m_in_tx);
+  return 0 != (m_child_thd->variables.option_bits & OPTION_BIN_LOG);
+}
+
+void Table_access_impl::binlog_set(bool binlog) {
+  assert(!m_in_tx);
+  if (binlog)
+    m_child_thd->variables.option_bits |= OPTION_BIN_LOG;
+  else
+    m_child_thd->variables.option_bits &= ~OPTION_BIN_LOG;
 }
 
 int Table_access_impl::commit() {
@@ -1345,6 +1361,17 @@ int impl_get_field_any_value(Table_access /* api_ta */, TA_table api_table,
   return 0;
 }
 
+static bool impl_ta_binlog_get(Table_access api_ta) {
+  Table_access_impl *ta = Table_access_impl::from_api(api_ta);
+  assert(ta != nullptr);
+  return ta->binlog_get();
+}
+static void impl_ta_binlog_set(Table_access api_ta, bool binlog) {
+  Table_access_impl *ta = Table_access_impl::from_api(api_ta);
+  assert(ta != nullptr);
+  ta->binlog_set(binlog);
+}
+
 SERVICE_TYPE(table_access_factory_v1)
 SERVICE_IMPLEMENTATION(mysql_server, table_access_factory_v1) = {
     impl_create_table_access, impl_destroy_table_access};
@@ -1382,3 +1409,7 @@ SERVICE_IMPLEMENTATION(mysql_server, field_varchar_access_v1) = {
 SERVICE_TYPE(field_any_access_v1)
 SERVICE_IMPLEMENTATION(mysql_server, field_any_access_v1) = {
     impl_set_field_any_value, impl_get_field_any_value};
+
+SERVICE_TYPE(table_access_binlog)
+SERVICE_IMPLEMENTATION(mysql_server, table_access_binlog) = {
+    impl_ta_binlog_get, impl_ta_binlog_set};

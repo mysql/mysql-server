@@ -722,6 +722,8 @@ MySQL clients support the protocol:
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
+#include "mysql/components/util/weak_service_reference.h"
+#include "mysql/components/services/mysql_option_tracker.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -1995,6 +1997,10 @@ SERVICE_TYPE(mysql_psi_system_v1) * system_service;
 SERVICE_TYPE(mysql_rwlock_v1) * rwlock_service;
 SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
+SERVICE_TYPE_NO_CONST(registry_registration) * srv_registry_registration{
+                                                   nullptr};
+SERVICE_TYPE_NO_CONST(registry_registration) *
+    srv_registry_registration_no_lock{nullptr};
 SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 using runtime_error_type_t = SERVICE_TYPE_NO_CONST(mysql_runtime_error);
@@ -2043,15 +2049,20 @@ static bool component_infrastructure_init() {
                         reinterpret_cast<my_h_service *>(
                             const_cast<loader_type_t **>(&dynamic_loader_srv)));
 
-  my_service<SERVICE_TYPE(registry_registration)> registrator(
-      "registry_registration", srv_registry);
+  srv_registry->acquire(
+      "registry_registration",
+      reinterpret_cast<my_h_service *>(&srv_registry_registration));
+
+  srv_registry->acquire(
+      "registry_registration.mysql_minimal_chassis_no_lock",
+      reinterpret_cast<my_h_service *>(&srv_registry_registration_no_lock));
 
   // Sets default file scheme loader for MySQL server.
-  registrator->set_default(
+  srv_registry_registration->set_default(
       "dynamic_loader_scheme_file.mysql_server_path_filter");
 
   // Sets default rw_lock for MySQL server.
-  registrator->set_default("mysql_rwlock_v1.mysql_server");
+  srv_registry_registration->set_default("mysql_rwlock_v1.mysql_server");
   srv_registry->acquire("mysql_rwlock_v1.mysql_server",
                         reinterpret_cast<my_h_service *>(
                             const_cast<rwlock_type_t **>(&rwlock_service)));
@@ -2059,7 +2070,7 @@ static bool component_infrastructure_init() {
       reinterpret_cast<SERVICE_TYPE(mysql_rwlock_v1) *>(rwlock_service);
 
   // Sets default psi_system event service for MySQL server.
-  registrator->set_default("mysql_psi_system_v1.mysql_server");
+  srv_registry_registration->set_default("mysql_psi_system_v1.mysql_server");
   srv_registry->acquire("mysql_psi_system_v1.mysql_server",
                         reinterpret_cast<my_h_service *>(
                             const_cast<psi_system_type_t **>(&system_service)));
@@ -2068,7 +2079,7 @@ static bool component_infrastructure_init() {
       reinterpret_cast<SERVICE_TYPE(mysql_psi_system_v1) *>(system_service);
 
   // Sets default mysql_runtime_error for MySQL server.
-  registrator->set_default("mysql_runtime_error.mysql_server");
+  srv_registry_registration->set_default("mysql_runtime_error.mysql_server");
   srv_registry->acquire(
       "mysql_runtime_error.mysql_server",
       reinterpret_cast<my_h_service *>(
@@ -2081,12 +2092,22 @@ static bool component_infrastructure_init() {
   return retval;
 }
 
+static const std::string c_name("mysql_server"),
+    s_name("mysql_option_tracker_option");
+typedef weak_service_reference<SERVICE_TYPE(mysql_option_tracker_option),
+                               c_name, s_name>
+    srv_weak_option_option;
 /**
   This function is used to initialize the mysql_server component services.
 */
 static void server_component_init() {
   mysql_comp_sys_var_services_init();
   init_thd_store_service();
+  srv_weak_option_option::init(
+      srv_registry, srv_registry_registration,
+      [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
+        return 0 != opt->define("MySQL Server", "mysql_server", 1);
+      });
 }
 
 /**
@@ -2141,6 +2162,12 @@ static bool component_infrastructure_deinit(bool print_message) {
     LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START);
     sysd::notify("Shutdown of components in progress\n");
   }
+
+  srv_weak_option_option::deinit(
+      srv_registry_no_lock, srv_registry_registration_no_lock,
+      [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
+        return 0 != opt->undefine("MySQL Server");
+      });
   persistent_dynamic_loader_deinit();
   bool retval = false;
 
@@ -2155,6 +2182,10 @@ static bool component_infrastructure_deinit(bool print_message) {
       const_cast<psi_system_type_t *>(system_service)));
   srv_registry->release(reinterpret_cast<my_h_service>(
       const_cast<rwlock_type_t *>(rwlock_service)));
+  srv_registry->release(
+      reinterpret_cast<my_h_service>(srv_registry_registration));
+  srv_registry->release(
+      reinterpret_cast<my_h_service>(srv_registry_registration_no_lock));
 
   if (deinitialize_minimal_chassis(srv_registry)) {
     if (print_message)

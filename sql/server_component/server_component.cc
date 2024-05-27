@@ -1124,7 +1124,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_debug_sync_service),
 #endif
     PROVIDES_SERVICE(mysql_server, dynamic_privilege_deprecation),
-    PROVIDES_SERVICE(mysql_server, my_signal_handler), END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, my_signal_handler),
+
+    PROVIDES_SERVICE(mysql_server, table_access_binlog),
+    END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

@@ -1341,11 +1341,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_option_tracker.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/option_tracker_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/option_tracker_uninstall.sql
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -1429,6 +1432,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mle.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_scheduler.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_option_tracker.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif # aws_sdk
@@ -1992,6 +1996,9 @@ fi
 %endif # with_router
 
 %changelog
+* Mon May 27 2024 Georgi "Joro" Kodinov <georgi.kodinov@oracle.com> - 9.0.0-1
+- Added the option usage tracker component
+
 * Mon May 20 2024 Murthy Sidagam <venkata.sidagam@oracle.com> - 9.0
 - Added component_test_session_var_service.so component
 

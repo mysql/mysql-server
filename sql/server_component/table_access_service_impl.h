@@ -56,4 +56,7 @@ extern SERVICE_TYPE(field_varchar_access_v1)
 extern SERVICE_TYPE(field_any_access_v1)
     SERVICE_IMPLEMENTATION(mysql_server, field_any_access_v1);
 
+extern SERVICE_TYPE(table_access_binlog)
+    SERVICE_IMPLEMENTATION(mysql_server, table_access_binlog);
+
 #endif /* TABLE_ACCESS_SERVICE_IMPL_INCLUDED */

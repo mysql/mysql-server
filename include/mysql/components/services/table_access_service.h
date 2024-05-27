@@ -114,6 +114,16 @@ delete_row_v1_t delete_row;
 END_SERVICE_DEFINITION(table_access_update_v1)
 
 /**
+ Table access service, control binlogging
+*/
+BEGIN_SERVICE_DEFINITION(table_access_binlog)
+/** @sa table_access_binlog_get_t */
+table_access_binlog_get_t get;
+/** @sa table_access_binlog_set_t */
+table_access_binlog_set_t set;
+END_SERVICE_DEFINITION(table_access_binlog)
+
+/**
   Table access service, all columns.
   Version 1.
   Status: active

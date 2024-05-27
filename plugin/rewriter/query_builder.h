@@ -134,7 +134,7 @@ bool Query_builder::add_next_literal(MYSQL_ITEM item) {
                                             *m_slots_iter - m_previous_slot);
       m_built_query += query_literal;
 
-      m_previous_slot = *m_slots_iter++ + sizeof('?');
+      m_previous_slot = *m_slots_iter++ + 1;
     }
   } else if (pattern_literal.compare(query_literal) != 0) {
     // The literal does not match the pattern nor a parameter marker, we

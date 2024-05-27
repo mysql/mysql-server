@@ -225,6 +225,7 @@ usr/lib/mysql/plugin/debug/component_masking_functions.so
 usr/lib/mysql/plugin/debug/component_mle.so
 usr/lib/mysql/plugin/debug/component_scheduler.so
 usr/lib/mysql/plugin/debug/component_telemetry.so
+usr/lib/mysql/plugin/debug/component_option_tracker.so
 usr/lib/mysql/plugin/debug/authentication_webauthn.so
 ")
   ENDIF()
