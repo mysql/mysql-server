@@ -6561,8 +6561,8 @@ static AccessPath *CreateTemptableAggregationPath(THD *thd,
       NewTableScanAccessPath(thd, /*temp_table=*/nullptr,
                              /*count_examined_rows=*/false);
   AccessPath *aggregate_path = NewTemptableAggregateAccessPath(
-      thd, child_path, /*temp_table_param=*/nullptr, /*table=*/nullptr,
-      table_path, REF_SLICE_TMP1);
+      thd, child_path, query_block->join, /*temp_table_param=*/nullptr,
+      /*table=*/nullptr, table_path, REF_SLICE_TMP1);
 
   // Use a possibly cached row count.
   aggregate_path->set_num_output_rows(*aggregate_rows);

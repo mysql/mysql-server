@@ -3251,8 +3251,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewTemptableAggregateAccessPath(
-          thd, path, qep_tab->tmp_table_param, qep_tab->table(), table_path,
-          qep_tab->ref_item_slice);
+          thd, path, /*join=*/this, qep_tab->tmp_table_param, qep_tab->table(),
+          table_path, qep_tab->ref_item_slice);
       if (qep_tab->having != nullptr) {
         path = NewFilterAccessPath(thd, path, qep_tab->having);
       }

@@ -1207,6 +1207,7 @@ struct AccessPath {
     } aggregate;
     struct {
       AccessPath *subquery_path;
+      JOIN *join;
       Temp_table_param *temp_table_param;
       TABLE *table;
       AccessPath *table_path;
@@ -1526,11 +1527,13 @@ inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
 }
 
 inline AccessPath *NewTemptableAggregateAccessPath(
-    THD *thd, AccessPath *subquery_path, Temp_table_param *temp_table_param,
-    TABLE *table, AccessPath *table_path, int ref_slice) {
+    THD *thd, AccessPath *subquery_path, JOIN *join,
+    Temp_table_param *temp_table_param, TABLE *table, AccessPath *table_path,
+    int ref_slice) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::TEMPTABLE_AGGREGATE;
   path->temptable_aggregate().subquery_path = subquery_path;
+  path->temptable_aggregate().join = join;
   path->temptable_aggregate().temp_table_param = temp_table_param;
   path->temptable_aggregate().table = table;
   path->temptable_aggregate().table_path = table_path;

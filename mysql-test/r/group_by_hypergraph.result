@@ -740,6 +740,20 @@ right join tb2 as alias2 on alias1.col_varchar = alias2.col_varchar
 where (alias2.col_int = alias1.col_int and alias1.pk IS NULL) group by field2;
 field1	field2
 drop table tb2;
+#
+# Bug#36388816: 'm_index_cursor.is_positioned()' in temptable::Handler::position at src/handler
+#
+CREATE TABLE t1 (pk INTEGER, f1 INTEGER, f2 LONGTEXT, f3 VARCHAR(10),
+f4 TIMESTAMP, PRIMARY KEY(pk));
+INSERT INTO t1 VALUES (1, NULL,  'fsfd', NULL, NULL),
+(2, 34, 'fsfsfd', NULL, "1993-07-20 08:10:46");
+SELECT MIN(t1.f1) AS field1 FROM (t1 JOIN (t1 t2) ON (TRUE),
+LATERAL (SELECT t2.f3 AS field2 FROM t1 t3 WHERE (t2.f3 <=> t2.f4)
+GROUP BY field2 ORDER BY t1.f2) AS t4)
+GROUP BY field2 ORDER BY field1;
+field1
+34
+DROP TABLE t1;
 select avg(id) , id2 from tb1 where id2 != 5 group by id2 with rollup;
 avg(id)	id2
 5.5000	10
