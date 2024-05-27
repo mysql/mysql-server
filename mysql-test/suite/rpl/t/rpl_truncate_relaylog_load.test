@@ -63,6 +63,9 @@
 
 --source include/rpl/connection_replica.inc
 
+CALL mtr.add_suppression("GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
+CALL mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from source");
+
 --echo
 --echo # T1.2. On the replica: set mysqlslap to periodically flush relay logs
 --echo #       in background
@@ -82,11 +85,12 @@
 --let $string_length=5000000
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
+CREATE TABLE src_wait_for_flush_to_finish (c INT) ENGINE=InnoDB;
 
 --source include/rpl/sync_to_replica.inc
 --source include/rpl/connection_source.inc
 
---exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$num_rotates --query="DO SLEEP(2); FLUSH LOGS" --concurrency=1 --silent 2>&1
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$num_rotates --query="DO SLEEP(2); FLUSH LOGS; INSERT INTO src_wait_for_flush_to_finish (c) VALUES (1)" --concurrency=1 --silent 2>&1
 --exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=$trx_iterations --query="BEGIN; INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); INSERT INTO t1 (c2) VALUES (REPEAT('a', $string_length)); COMMIT" --concurrency=1 --silent 2>&1
 
 --echo
@@ -135,6 +139,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE
 --echo #
 
 --source include/rpl/connection_source.inc
+
+--let $wait_timeout = 30
+--let $wait_condition=SELECT COUNT(*)=$num_rotates FROM src_wait_for_flush_to_finish
+--source include/wait_condition.inc
+DROP TABLE src_wait_for_flush_to_finish;
 DROP TABLE t1;
 
 --source include/rpl/deinit.inc

@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # T1.1. On the replica: set up test configuration
 
 [connection slave]
+CALL mtr.add_suppression("GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
+CALL mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from source");
 
 # T1.2. On the replica: set mysqlslap to periodically flush relay logs
 #       in background
@@ -17,6 +19,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 [connection master]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, c2 LONGTEXT) ENGINE=InnoDB;
+CREATE TABLE src_wait_for_flush_to_finish (c INT) ENGINE=InnoDB;
 include/rpl/sync_to_replica.inc
 [connection master]
 
@@ -38,5 +41,6 @@ include/rpl/start_replica.inc
 # Clean-up
 #
 [connection master]
+DROP TABLE src_wait_for_flush_to_finish;
 DROP TABLE t1;
 include/rpl/deinit.inc
