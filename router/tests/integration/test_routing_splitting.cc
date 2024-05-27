@@ -2336,6 +2336,122 @@ TEST_P(SplittingConnectionTest, set_option_succeeds) {
   }
 }
 
+TEST_P(SplittingConnectionTest, init_schema_propagates) {
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // connection goes out of the pool and back to the pool again.
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(1, 1s));
+
+  SCOPED_TRACE("// force SELECT from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  // SELECT from PRIMARY and SECONDARY to ensure a connection to each is
+  // established.
+
+  SCOPED_TRACE("// check schema-change is propagated.");
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("<NULL>")));
+  }
+
+  SCOPED_TRACE("// force SELECT from SECONDARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_only'"));
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("<NULL>")));
+  }
+
+  // switch schema and check it is applied to both
+
+  SCOPED_TRACE("// switch schema with COM_INIT_DB");
+  ASSERT_NO_ERROR(cli.use_schema("testing"));
+
+  SCOPED_TRACE("// check schema change is noticed.");
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("testing")));
+  }
+
+  SCOPED_TRACE("// force SELECT from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check schema-change is propagated.");
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("testing")));
+  }
+}
+
+TEST_P(SplittingConnectionTest, use_schema_propagates) {
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // connection goes out of the pool and back to the pool again.
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(1, 1s));
+
+  SCOPED_TRACE("// force SELECT from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  // SELECT from PRIMARY and SECONDARY to ensure a connection to each is
+  // established.
+
+  SCOPED_TRACE("// check schema-change is propagated.");
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("<NULL>")));
+  }
+
+  SCOPED_TRACE("// force SELECT from SECONDARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_only'"));
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("<NULL>")));
+  }
+
+  // switch schema and check it is applied to both
+
+  SCOPED_TRACE("// switch schema with USE");
+  ASSERT_NO_ERROR(cli.query("USE testing"));
+
+  SCOPED_TRACE("// check schema change is noticed.");
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("testing")));
+  }
+
+  SCOPED_TRACE("// force SELECT from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check schema-change is propagated.");
+  {
+    auto query_res = query_one_result(cli, "SELECT SCHEMA()");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("testing")));
+  }
+}
+
 TEST_P(SplittingConnectionTest, clone_fails) {
   RecordProperty("Worklog", "12794");
   RecordProperty("RequirementId", "FR9.4");
