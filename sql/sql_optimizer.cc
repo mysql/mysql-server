@@ -1741,6 +1741,13 @@ void JOIN::test_skip_sort() {
              tab, order, m_select_limit, false,
              &tab->table()->keys_in_use_for_order_by, &dummy))) {
       m_ordered_index_usage = ORDERED_INDEX_ORDER_BY;
+      /*
+        Update plan cost if there is only one table. Multi-table/join scenarios
+        are more complex and will not reflect updated costs after access change.
+      */
+      if (primary_tables == 1 && tab->table()->s->has_secondary_engine()) {
+        best_read = qep_tab->position()->prefix_cost + sort_cost;
+      }
     }
   }
 }
@@ -2231,6 +2238,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   THD *const thd = join->thd;
   AccessPath *const save_range_scan = tab->range_scan();
   int best_key = -1;
+  double best_read_time = 0;
   bool set_up_ref_access_to_key = false;
   bool can_skip_sorting = false;  // used as return value
   int changed_key = -1;
@@ -2482,7 +2490,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       test_if_cheaper_ordering(tab, &order, table, usable_keys, ref_key_hint,
                                select_limit, &best_key, &best_key_direction,
                                &select_limit, &best_key_parts,
-                               &saved_best_key_parts);
+                               &saved_best_key_parts, &best_read_time);
 
     // Try backward scan for previously found key
     if (best_key < 0 && order_direction < 0) goto check_reverse_order;
@@ -2754,6 +2762,28 @@ fix_ICP:
         select_limit < table->file->stats.records) {
       assert(select_limit > 0);
       tab->position()->rows_fetched = select_limit;
+      /*
+        Update the cost data if secondary engine is active as it is needed to
+        make the query offload decision later.
+      */
+      if (best_read_time > 0 && join->primary_tables == 1 &&
+          table->s->has_secondary_engine()) {
+        tab->position()->read_cost = best_read_time;
+        /*
+          Assume no filter at this point to calculate the access cost. This
+          will be updated later to proper values when/if filter_effect is
+          updated. The logic is to ensure the cost covers accessing at least
+          LIMIT number of rows using the access method. If there exists a WHERE
+          clause, then more than LIMIT number of rows needs to be accessed.
+          Ideally we should calculate proper filtering effect and update
+          rows_fetched to include the filtering effect as well. Eg:
+          tab->position()->rows_fetched = select_limit / filter_effect;
+        */
+        tab->position()->filter_effect = COND_FILTER_ALLPASS;
+        // Update the cost values accordingly.
+        tab->position()->set_prefix_join_cost(tab->idx(), join->cost_model());
+      }
+      // Update filter effect to reflect the access change.
       tab->position()->filter_effect = COND_FILTER_STALE_NO_CONST;
     }
 

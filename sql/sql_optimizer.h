@@ -328,7 +328,9 @@ class JOIN {
   /**
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
-    account the changes made by test_if_skip_sort_order()).
+    account the changes made by test_if_skip_sort_order(). Exception: Single
+    table query cost is updated after access change in
+    test_if_skip_sort_order()).
   */
   double best_read{0.0};
   /**
