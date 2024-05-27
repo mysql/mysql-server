@@ -329,7 +329,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::from_stash() {
             trace_span_end(ev);
           }
 
-          stage(Stage::WaitGtidExecuted);
+          stage(Stage::SetSchema);
           return Result::Again;
         }
 
