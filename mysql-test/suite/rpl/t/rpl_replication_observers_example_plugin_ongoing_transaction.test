@@ -4,8 +4,8 @@
 # Test:
 #   0. The test requires two servers
 #   1. Establish 5 connections and create 2 tables
-#   2. Lock a table so one query will block, this one is not counted
-#   3. Leave a transaction open without commit (counted)
+#   2. Lock a table so one query will block
+#   3. Leave a transaction open without commit
 #   4. Leave a transaction stuck on after commit
 #   5. Execute a query that on a server hook will count the number of queries
 #   6. Clean up
@@ -13,7 +13,7 @@
 ###############################################################################
 
 --source include/have_debug.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 --source include/have_replication_observers_example_plugin.inc
 --source include/install_replication_observers_example.inc
 
@@ -34,7 +34,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --echo
---echo # 2. Lock a table so one query will block, this one is not counted
+--echo # 2. Lock a table so one query will block
 
 --let $rpl_connection_name= con2
 --source include/connection.inc
@@ -47,7 +47,7 @@ LOCK TABLE t1 WRITE;
 --send INSERT INTO t1 VALUES (2);
 
 --echo
---echo # 3. Leave a transaction open without commit (counted)
+--echo # 3. Leave a transaction open without commit
 
 --let $rpl_connection_name= con4
 --source include/connection.inc
@@ -78,7 +78,7 @@ SET @@GLOBAL.DEBUG='-d,bgc_after_after_commit_stage';
 --echo # 5. Execute a query that on a server hook will count the number of
 --echo #    queries
 
-# It should count 3, the 2 above stuck ones plus the one invoking the hook.
+# It should count 4, the 3 above stuck ones plus the one invoking the hook.
 
 SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_counts_transactions';
 
@@ -88,10 +88,10 @@ SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_counts_transaction
 --let $rpl_connection_name= con6
 --source include/connection.inc
 
-SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
-
 --let $wait_condition=SELECT COUNT(*)=2 FROM test.t2
 --source include/wait_condition.inc
+
+SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 
 --echo #
 --echo # 6. Clean up
@@ -136,8 +136,6 @@ COMMIT;
 
 DROP TABLE t1;
 DROP TABLE t2;
-
-SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 
 --disconnect con1
 

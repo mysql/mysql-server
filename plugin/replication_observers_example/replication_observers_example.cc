@@ -1044,7 +1044,7 @@ bool test_server_count_transactions() {
   bool error = service->get_ongoing_server_transactions(&ids, &size);
   assert(!error);
 
-  assert(size == 3);
+  assert(size == 4);
 
   my_free(ids);
 
