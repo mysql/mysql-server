@@ -220,6 +220,7 @@ select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select @var;
 create table t2 as select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select * from t2;
+--skip_if_hypergraph  # Bug#36506918.
 select @var;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;

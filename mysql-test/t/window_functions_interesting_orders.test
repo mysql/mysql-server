@@ -55,7 +55,7 @@ EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (ORDER BY b), AVG(c) OVER (ORDER BY a)
 
 # DISTINCT cannot normally remove anything...
 --replace_regex $elide_metrics
-EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
+EXPLAIN FORMAT=tree SELECT SQL_BIG_RESULT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
 
 # ...but if the window frame is static, we can use sortahead
 # (or an index).
@@ -65,7 +65,7 @@ EXPLAIN FORMAT=tree SELECT DISTINCT a, b, SUM(b) OVER (PARTITION BY a) FROM t1 O
 # DISTINCT and ORDER BY together. This one is incompatible with window ordering,
 # but DISTINCT and ORDER BY should be collapsed into one (duplicate-removing) sort.
 --replace_regex $elide_metrics
-EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
+EXPLAIN FORMAT=tree SELECT SQL_BIG_RESULT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
 
 # Demonstrate elision by functional dependencies from WHERE.
 --replace_regex $elide_metrics

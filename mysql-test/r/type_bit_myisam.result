@@ -839,3 +839,71 @@ select bin(0b11111111), oct(0b11111111), hex(0b11111111),
 bin(0xFF), oct(0xFF), hex(0xFF);
 bin(0b11111111)	oct(0b11111111)	hex(0b11111111)	bin(0xFF)	oct(0xFF)	hex(0xFF)
 11111111	377	FF	11111111	377	FF
+#
+# Test with DISTINCT and GROUP BY that involve hash-based temp table
+# deduplication in hypergraph (WL#16122).
+#
+CREATE TABLE t1(a INT, b BIT(19));
+CREATE TABLE t2(a INT, b INT);
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t1 values
+(10, 0x40002), (10, 0x50002), (11, 0x40002), (11, 0x50002),
+(10, NULL), (11, NULL),
+(10, 0), (11, 0), (10, 1), (11, 1);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 VALUES
+(10, 0x4fff2), (10, 0x4fef2),
+(10, 0x7fff2), (10, 0x6fef2),
+(11, 0x4fff2), (11, 0x4fef2),
+(11, 0x7fff2), (11, 0x6fef2);
+INSERT INTO t1 SELECT * FROM t1;
+SELECT SQL_SMALL_RESULT DISTINCT b FROM t1 WHERE b <= 1 AND b > 0;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	b	b	16	19	3	Y	32	0	63
+b
+#
+SELECT SQL_SMALL_RESULT b FROM t1 WHERE b <= 1 AND b > 0 GROUP BY b ORDER BY b;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	b	b	16	19	3	Y	32	0	63
+b
+#
+INSERT INTO t2(b) SELECT SQL_SMALL_RESULT DISTINCT b FROM t1;
+INSERT INTO t3(b) SELECT SQL_SMALL_RESULT b FROM t1 GROUP BY b ORDER BY b;
+SELECT hex(b) FROM t2 ORDER BY 1;
+hex(b)
+NULL
+0
+1
+40002
+4FEF2
+4FFF2
+50002
+6FEF2
+7FFF2
+SELECT * FROM t2 EXCEPT SELECT * FROM t3;
+a	b
+SELECT * FROM t3 EXCEPT SELECT * FROM t2;
+a	b
+TRUNCATE t2;
+INSERT INTO t2 SELECT SQL_SMALL_RESULT DISTINCT * FROM t1;
+SELECT a, hex(b) FROM t2 ORDER BY 1,2;
+a	hex(b)
+10	NULL
+10	0
+10	1
+10	40002
+10	4FEF2
+10	4FFF2
+10	50002
+10	6FEF2
+10	7FFF2
+11	NULL
+11	0
+11	1
+11	40002
+11	4FEF2
+11	4FFF2
+11	50002
+11	6FEF2
+11	7FFF2
+DROP TABLE t1, t2, t3;

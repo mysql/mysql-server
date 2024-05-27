@@ -2,6 +2,7 @@
 --source suite/information_schema/include/roles_schema.inc
 
 --let $TEST_TABLE=ROLE_ROUTINE_GRANTS
+--let $ORDER_BY=ORDER BY GRANTEE, SPECIFIC_NAME, ROUTINE_NAME, PRIVILEGE_TYPE
 
 --echo # USER WITH ROLES.
 

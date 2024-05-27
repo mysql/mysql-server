@@ -1049,10 +1049,10 @@ FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7
 GROUP BY field1;
 field1
-4
-6
 100
 200
+4
+6
 SET @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;
 #

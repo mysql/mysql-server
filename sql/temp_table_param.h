@@ -186,10 +186,11 @@ class Temp_table_param {
   /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
 
-  /// Whether UNIQUE keys should always be implemented by way of a hidden
-  /// hash field, never a unique index. Needed for materialization of mixed
-  /// UNION ALL / UNION DISTINCT queries (see comments in
-  /// create_result_table()).
+  /// Whether UNIQUE keys should always be implemented by way of a hidden hash
+  /// field, never a unique index. Needed for materialization of mixed
+  /// UNION ALL / UNION DISTINCT queries (see comments in create_result_table())
+  /// and for DISTINCT deduplication using materialization (See
+  /// CreateTemporaryTableFromSelectList()).
   bool force_hash_field_for_unique{false};
 
   /// This tmp table is used for a window's frame buffer

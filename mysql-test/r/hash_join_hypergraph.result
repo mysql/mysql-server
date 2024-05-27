@@ -946,14 +946,14 @@ alias2.col_varchar_key >= t1.col_varchar
 GROUP BY
 field1;
 EXPLAIN
--> Group (no aggregates)  (rows=2.57)
-    -> Nested loop inner join  (rows=6.61)
-        -> Sort: t1.col_varchar_key  (rows=1.1)
+-> Table scan on <temporary>  (rows=2.57)
+    -> Temporary table with deduplication  (rows=2.57)
+        -> Nested loop inner join  (rows=6.61)
             -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (rows=1.1)
                 -> Table scan on t1  (rows=6)
                 -> Hash
                     -> Table scan on alias2  (rows=6)
-        -> Table scan on alias1  (rows=6)
+            -> Table scan on alias1  (rows=6)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -1704,11 +1704,11 @@ alias1.col_int_key DESC, field1
 LIMIT 2 OFFSET 2;
 EXPLAIN
 -> Limit/Offset: 2/2 row(s)  (rows=2)
-    -> Sort: alias1.col_int_key DESC, alias1.pk, limit input to 4 row(s) per chunk  (rows=4)
-        -> Filter: (field1 <> 0)  (rows=4.59)
-            -> Group (no aggregates)  (rows=5.1)
-                -> Nested loop semijoin  (rows=24)
-                    -> Sort: alias1.pk  (rows=24)
+    -> Sort: cc.col_int_key DESC, cc.field1, limit input to 4 row(s) per chunk  (rows=4)
+        -> Filter: (cc.field1 <> 0)  (rows=4.59)
+            -> Table scan on <temporary>  (rows=5.1)
+                -> Temporary table with deduplication  (rows=5.1)
+                    -> Nested loop semijoin  (rows=24)
                         -> Filter: (alias1.col_varchar_key <> alias1.col_varchar)  (rows=24)
                             -> Table scan on alias1  (rows=26.7)
                                 -> Materialize  (rows=26.7)
@@ -1716,9 +1716,9 @@ EXPLAIN
                                         -> Nested loop left join  (rows=26.7)
                                             -> Table scan on sq1_alias2  (rows=20)
                                             -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (rows=1.33)
-                    -> Nested loop inner join  (rows=26.7)
-                        -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key=alias1.col_varchar_key)  (rows=1.33)
-                        -> Covering index scan on sq2_alias2 using col_date_key  (rows=20)
+                        -> Nested loop inner join  (rows=26.7)
+                            -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key=alias1.col_varchar_key)  (rows=1.33)
+                            -> Covering index scan on sq2_alias2 using col_date_key  (rows=20)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1

@@ -1642,7 +1642,9 @@ inline AccessPath *NewMaterializeAccessPath(
     Mem_root_array<const AccessPath *> *invalidators, TABLE *table,
     AccessPath *table_path, Common_table_expr *cte, Query_expression *unit,
     int ref_slice, bool rematerialize, ha_rows limit_rows,
-    bool reject_multiple_rows) {
+    bool reject_multiple_rows,
+    MaterializePathParameters::DedupType dedup_reason =
+        MaterializePathParameters::NO_DEDUP) {
   MaterializePathParameters *param =
       new (thd->mem_root) MaterializePathParameters;
   param->m_operands = std::move(operands);
@@ -1665,6 +1667,7 @@ inline AccessPath *NewMaterializeAccessPath(
                            // see its constructor
                            HA_POS_ERROR);
   param->reject_multiple_rows = reject_multiple_rows;
+  param->deduplication_reason = dedup_reason;
 
 #ifndef NDEBUG
   for (MaterializePathParameters::Operand &operand : param->m_operands) {

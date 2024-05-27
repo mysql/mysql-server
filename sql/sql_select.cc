@@ -4009,9 +4009,12 @@ bool test_if_subpart(ORDER *a, ORDER *b) {
   calc how big buffer we need for comparing group entries.
 */
 
-void calc_group_buffer(JOIN *join, ORDER *group) {
+void calc_group_buffer(JOIN *join, ORDER *group,
+                       Temp_table_param *tmp_table_param) {
   DBUG_TRACE;
   uint key_length = 0, parts = 0, null_parts = 0;
+
+  if (tmp_table_param == nullptr) tmp_table_param = &join->tmp_table_param;
 
   if (group) join->grouped = true;
   for (; group; group = group->next) {
@@ -4070,9 +4073,9 @@ void calc_group_buffer(JOIN *join, ORDER *group) {
     parts++;
     if (group_item->is_nullable()) null_parts++;
   }
-  join->tmp_table_param.group_length = key_length + null_parts;
-  join->tmp_table_param.group_parts = parts;
-  join->tmp_table_param.group_null_parts = null_parts;
+  tmp_table_param->group_length = key_length + null_parts;
+  tmp_table_param->group_parts = parts;
+  tmp_table_param->group_null_parts = null_parts;
 }
 
 /**

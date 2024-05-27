@@ -580,7 +580,7 @@ test.t0	analyze	status	OK
 test.t1	analyze	status	OK
 set sql_mode="";
 EXPLAIN FORMAT=TREE SELECT * FROM
-(SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
+(SELECT SQL_BIG_RESULT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
 EXPLAIN
 -> Filter: (dt.f1 > 2)  (rows=0.816)
@@ -591,11 +591,11 @@ EXPLAIN
                     -> Covering index skip scan for deduplication on t1 using f1_2  (rows=2.45)
 
 EXPLAIN FORMAT=JSON SELECT * FROM
-(SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
+(SELECT SQL_BIG_RESULT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER()` AS `SUM(f2) OVER()` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER ()  AS `SUM(f2) OVER()` from `test`.`t1` group by `test`.`t1`.`f1`) `dt` where (`dt`.`f1` > 2)",
+  "query": "/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER()` AS `SUM(f2) OVER()` from (/* select#2 */ select sql_big_result `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER ()  AS `SUM(f2) OVER()` from `test`.`t1` group by `test`.`t1`.`f1`) `dt` where (`dt`.`f1` > 2)",
   "inputs": [
     {
       "inputs": [

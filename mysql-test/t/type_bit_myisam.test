@@ -502,3 +502,46 @@ DROP TABLE t1;
 
 select bin(0b11111111), oct(0b11111111), hex(0b11111111),
        bin(0xFF), oct(0xFF), hex(0xFF);
+
+--echo #
+--echo # Test with DISTINCT and GROUP BY that involve hash-based temp table
+--echo # deduplication in hypergraph (WL#16122).
+--echo #
+# Some bit values are deliberately chosen such that only the uneven bits (first
+# three high bits in this case) differ. These bits are stored in the record's
+# null bytes.
+CREATE TABLE t1(a INT, b BIT(19));
+CREATE TABLE t2(a INT, b INT);
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t1 values
+  (10, 0x40002), (10, 0x50002), (11, 0x40002), (11, 0x50002),
+  (10, NULL), (11, NULL),
+  (10, 0), (11, 0), (10, 1), (11, 1);
+INSERT INTO t1 SELECT * FROM t1; # Create duplicates
+INSERT INTO t1 VALUES
+  (10, 0x4fff2), (10, 0x4fef2),
+  (10, 0x7fff2), (10, 0x6fef2),
+  (11, 0x4fff2), (11, 0x4fef2),
+  (11, 0x7fff2), (11, 0x6fef2);
+INSERT INTO t1 SELECT * FROM t1; # Create duplicates
+
+# Verify bit data type does not change.
+--enable_metadata
+--replace_column 1 #
+SELECT SQL_SMALL_RESULT DISTINCT b FROM t1 WHERE b <= 1 AND b > 0;
+--replace_column 1 #
+SELECT SQL_SMALL_RESULT b FROM t1 WHERE b <= 1 AND b > 0 GROUP BY b ORDER BY b;
+--disable_metadata
+
+INSERT INTO t2(b) SELECT SQL_SMALL_RESULT DISTINCT b FROM t1;
+INSERT INTO t3(b) SELECT SQL_SMALL_RESULT b FROM t1 GROUP BY b ORDER BY b;
+SELECT hex(b) FROM t2 ORDER BY 1;
+# t2 and t3 should be identical
+SELECT * FROM t2 EXCEPT SELECT * FROM t3;
+SELECT * FROM t3 EXCEPT SELECT * FROM t2;
+TRUNCATE t2;
+
+INSERT INTO t2 SELECT SQL_SMALL_RESULT DISTINCT * FROM t1;
+SELECT a, hex(b) FROM t2 ORDER BY 1,2;
+
+DROP TABLE t1, t2, t3;

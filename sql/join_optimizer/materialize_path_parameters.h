@@ -97,6 +97,18 @@ struct MaterializePathParameters {
      run-time cardinality check.
   */
   bool reject_multiple_rows;
+
+  /**
+     The context for which deduplication is being used. Note: this
+     deduplication is different than the deduplication for UNION which is
+     handled separately, not through this enum.
+  */
+  enum DedupType : uint8_t {
+    DEDUP_FOR_DISTINCT,  // materialization is for DISTINCT clause.
+    DEDUP_FOR_GROUP_BY,  // materialization is for GROUP BY clause.
+    NO_DEDUP             // for anything else, including UNION/INTERSECT.
+  };
+  DedupType deduplication_reason{NO_DEDUP};
 };
 
 #endif  // !defined(MATERIALIZE_PATH_PARAMETERS_H)
