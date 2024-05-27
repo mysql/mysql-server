@@ -363,6 +363,14 @@ typedef int (*set_field_any_value_v1_t)(Table_access ta, TA_table table,
 typedef int (*get_field_any_value_v1_t)(Table_access ta, TA_table table,
                                         size_t index, my_h_string v);
 
+/**
+  Turns on or off the binlogging flag for the current thread
+*/
+typedef void (*table_access_binlog_set_t)(Table_access ta, bool is_binlogging);
+/**
+  Gets the binlogging flag for the current thread
+*/
+typedef bool (*table_access_binlog_get_t)(Table_access ta);
 /** @} (end of group_table_access_services) */
 
 #endif /* COMPONENTS_SERVICES_TABLE_ACCESS_BITS_H */

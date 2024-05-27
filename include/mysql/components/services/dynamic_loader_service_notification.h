@@ -36,6 +36,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   A service to notify consumers about services loaded
   through dynamic loader.
+
+  @sa The convenience class @ref weak_service_reference
 */
 
 BEGIN_SERVICE_DEFINITION(dynamic_loader_services_loaded_notification)
