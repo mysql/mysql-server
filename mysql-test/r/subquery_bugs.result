@@ -509,11 +509,11 @@ FROM t1 AS alias1 RIGHT JOIN t1 AS alias2
 ON alias1.cv = alias2.cv
 );
 cv
-h
-Q
 I
-q
+Q
 W
+h
+q
 DROP TABLE t1;
 # Bug#28970261: Sig6 in decorrelate_equality()
 CREATE TABLE t1 (col_varchar_key varchar(1) DEFAULT NULL);

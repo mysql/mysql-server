@@ -338,11 +338,11 @@ EXPLAIN
     -> Filter: <in_optimizer>((t3.f1,t3.f2,t3.f3),<exists>(select #2))  (rows=2)
         -> Index range scan on t3 using PRIMARY over (30 < f1 < 33)  (rows=2)
         -> Select #2 (subquery in condition; dependent)
-            -> Nested loop inner join  (rows=0.00833)
-                -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
-                    -> Table scan on t2  (rows=28)
-                -> Filter: ((t1.f1 = t2.f1) and (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.0833)
-                    -> Table scan on t1  (rows=3)
+            -> Inner hash join (t1.f1 = t2.f1), extra conditions: (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1))  (rows=0.00833)
+                -> Table scan on t1  (rows=3)
+                -> Hash
+                    -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
+                        -> Table scan on t2  (rows=28)
 
 # Turn off range access for PRIMARY key.
 # Range access should be used for f2_idx key.
@@ -355,11 +355,11 @@ EXPLAIN
     -> Filter: <in_optimizer>((t3.f1,t3.f2,t3.f3),<exists>(select #2))  (rows=2)
         -> Index range scan on t3 using f2_idx over (30 < f1 < 33)  (rows=2)
         -> Select #2 (subquery in condition; dependent)
-            -> Nested loop inner join  (rows=0.00833)
-                -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
-                    -> Table scan on t2  (rows=28)
-                -> Filter: ((t1.f1 = t2.f1) and (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.0833)
-                    -> Table scan on t1  (rows=3)
+            -> Inner hash join (t1.f1 = t2.f1), extra conditions: (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1))  (rows=0.00833)
+                -> Table scan on t1  (rows=3)
+                -> Hash
+                    -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
+                        -> Table scan on t2  (rows=28)
 
 EXPLAIN DELETE FROM t3
 WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
@@ -370,11 +370,11 @@ EXPLAIN
     -> Filter: <in_optimizer>((t3.f1,t3.f2,t3.f3),<exists>(select #2))  (rows=2)
         -> Index range scan on t3 using PRIMARY over (30 < f1 < 33)  (rows=2)
         -> Select #2 (subquery in condition; dependent)
-            -> Nested loop inner join  (rows=0.00833)
-                -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
-                    -> Table scan on t2  (rows=28)
-                -> Filter: ((t1.f1 = t2.f1) and (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.0833)
-                    -> Table scan on t1  (rows=3)
+            -> Inner hash join (t1.f1 = t2.f1), extra conditions: (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1))  (rows=0.00833)
+                -> Table scan on t1  (rows=3)
+                -> Hash
+                    -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
+                        -> Table scan on t2  (rows=28)
 
 # Turn off range access. Range access should not be used.
 # Turn off BNL. BNL should not be used.
@@ -387,11 +387,11 @@ EXPLAIN
     -> Filter: ((t3.f1 > 30) and (t3.f1 < 33) and <in_optimizer>((t3.f1,t3.f2,t3.f3),<exists>(select #2)))  (rows=6.22)
         -> Table scan on t3  (rows=56)
         -> Select #2 (subquery in condition; dependent)
-            -> Nested loop inner join  (rows=0.00833)
-                -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
-                    -> Table scan on t2  (rows=28)
-                -> Filter: ((t1.f1 = t2.f1) and (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.0833)
-                    -> Table scan on t1  (rows=3)
+            -> Inner hash join (t1.f1 = t2.f1), extra conditions: (t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1))  (rows=0.00833)
+                -> Table scan on t1  (rows=3)
+                -> Hash
+                    -> Filter: ((<cache>(t3.f2) = t2.f2) and (<cache>(t3.f1) = t2.f1) and (<cache>(t3.f3) = t2.f3))  (rows=0.1)
+                        -> Table scan on t2  (rows=28)
 
 EXPLAIN INSERT INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -554,9 +554,10 @@ EXPLAIN SELECT * FROM
 (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=4704)
-    -> Nested loop inner join  (rows=84)
+    -> Inner hash join (no condition)  (rows=84)
         -> Table scan on t2  (rows=28)
-        -> Table scan on t1  (rows=3)
+        -> Hash
+            -> Table scan on t1  (rows=3)
     -> Hash
         -> Covering index scan on t3 using f2_idx  (rows=56)
 
@@ -668,13 +669,13 @@ a	b
 2	2
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
-Handler_read_first	7
-Handler_read_key	7
+Handler_read_first	3
+Handler_read_key	3
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	21
+Handler_read_rnd_next	9
 # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
@@ -689,85 +690,103 @@ a	b
 2	2
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
-Handler_read_first	7
-Handler_read_key	7
+Handler_read_first	3
+Handler_read_key	3
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	21
+Handler_read_rnd_next	9
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ NO_BNL(t2, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ NO_BNL(t1, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 set optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ BNL() */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ BNL(t1, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 EXPLAIN SELECT /*+ BNL(t2) BNL(t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
--> Nested loop inner join  (rows=8)
-    -> Nested loop inner join  (rows=4)
+-> Inner hash join (no condition)  (rows=8)
+    -> Inner hash join (no condition)  (rows=4)
         -> Table scan on t1  (rows=2)
-        -> Table scan on t2  (rows=2)
-    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on t2  (rows=2)
+    -> Hash
+        -> Table scan on t3  (rows=2)
 
 DROP TABLE t1, t2, t3;
 # BNL in subquery
@@ -788,129 +807,105 @@ EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL() */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t1, t2) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t3@subq1,t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1 t3, t4) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
 -> Nested loop inner join  (rows=1.73)
-    -> Nested loop inner join  (rows=1.73)
-        -> Remove duplicates from input grouped on t4.b  (rows=1.73)
-            -> Sort: t4.b  (rows=3)
-                -> Nested loop inner join  (rows=3)
+    -> Hash semijoin (t1.b = t4.b)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Inner hash join (t3.b = t4.b)  (rows=3)
+                -> Table scan on t4  (rows=4)
+                -> Hash
                     -> Table scan on t3  (rows=3)
-                    -> Filter: (t3.b = t4.b)  (rows=1)
-                        -> Table scan on t4  (rows=4)
-        -> Filter: (t1.b = t4.b)  (rows=1)
-            -> Table scan on t1  (rows=4)
-    -> Filter: (t1.b = t2.a)  (rows=1)
-        -> Table scan on t2  (rows=4)
+    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
 
 SET optimizer_prune_level = DEFAULT;
 DROP TABLE t1, t2, t3;
@@ -1039,63 +1034,81 @@ INSERT INTO t VALUES (1);
 SET optimizer_switch='block_nested_loop=on';
 EXPLAIN SELECT 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
-    -> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
+    -> Left hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
-        -> Table scan on t2  (rows=1)
-    -> Nested loop left join  (rows=1)
-        -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+        -> Hash
+            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (rows=1)
+            -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t1) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
-    -> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
+    -> Left hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
-        -> Table scan on t2  (rows=1)
-    -> Nested loop left join  (rows=1)
-        -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+        -> Hash
+            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (rows=1)
+            -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t2) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
-    -> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
+    -> Left hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
-        -> Table scan on t2  (rows=1)
-    -> Nested loop left join  (rows=1)
-        -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+        -> Hash
+            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (rows=1)
+            -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
-    -> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
+    -> Left hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
-        -> Table scan on t2  (rows=1)
-    -> Nested loop left join  (rows=1)
-        -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+        -> Hash
+            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (rows=1)
+            -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
-    -> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
+    -> Left hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
-        -> Table scan on t2  (rows=1)
-    -> Nested loop left join  (rows=1)
-        -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+        -> Hash
+            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (rows=1)
+            -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop left join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
 1
@@ -1106,491 +1119,515 @@ SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JO
 SET optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (no condition)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Table scan on t2  (rows=1)
-            -> Table scan on t3  (rows=1)
-        -> Table scan on t4  (rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (rows=1)
+            -> Left hash join (no condition)  (rows=1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
+            -> Hash
+                -> Table scan on t4  (rows=1)
 
 DROP TABLE t;
 CREATE TABLE t(a INT, b INT, KEY k(a));
 INSERT INTO t VALUES (1,1);
 EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
-            -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.a = t4.a)  (rows=1)
+            -> Left hash join (t2.a = t3.a)  (rows=1)
                 -> Table scan on t2  (rows=1)
-                -> Filter: (t2.a = t3.a)  (rows=1)
+                -> Hash
                     -> Table scan on t3  (rows=1)
-            -> Filter: (t2.a = t4.a)  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
 
 SET optimizer_switch='block_nested_loop=on,batched_key_access=on,mrr_cost_based=off';
 EXPLAIN SELECT * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BKA(t1) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BKA(t2) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (t1.a = t2.a)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.a = t2.a)  (rows=1)
-        -> Nested loop left join  (rows=1)
+    -> Hash
+        -> Left hash join (t2.b = t3.b)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t2.b = t3.b)  (rows=0.1)
-                -> Nested loop left join  (rows=1)
+            -> Hash
+                -> Left hash join (t3.b = t4.b)  (rows=1)
                     -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.b = t4.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t4  (rows=1)
 
 SET optimizer_switch='batched_key_access=off';
 EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 SET optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
--> Nested loop left join  (rows=1)
+-> Left hash join (t1.b = t3.b)  (rows=1)
     -> Table scan on t1  (rows=1)
-    -> Filter: (t1.b = t3.b)  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
+    -> Hash
+        -> Inner hash join (t3.a = t4.a)  (rows=0.1)
             -> Table scan on t4  (rows=1)
-            -> Filter: (t3.a = t4.a)  (rows=0.1)
-                -> Nested loop inner join  (rows=0.1)
+            -> Hash
+                -> Inner hash join (t2.b = t3.b)  (rows=0.1)
                     -> Table scan on t2  (rows=1)
-                    -> Filter: (t2.b = t3.b)  (rows=0.1)
+                    -> Hash
                         -> Table scan on t3  (rows=1)
 
 DROP TABLE t;
@@ -2190,23 +2227,25 @@ create table t3 like t2;
 explain select /*+ no_merge(dt) merge(dt2) */ *
 from (select * from t1) as dt, (select * from t2) as dt2;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (no condition)  (rows=1)
     -> Table scan on dt  (rows=1)
         -> Materialize  (rows=1)
             -> Table scan on t1  (rows=1)
-    -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Table scan on t2  (rows=1)
 
 # Or to all:
 explain select /*+ no_merge() */ *
 from (select * from t1) as dt, (select * from t2) as dt2;
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Inner hash join (no condition)  (rows=1)
     -> Table scan on dt  (rows=1)
         -> Materialize  (rows=1)
             -> Table scan on t1  (rows=1)
-    -> Table scan on dt2  (rows=1)
-        -> Materialize  (rows=1)
-            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Table scan on dt2  (rows=1)
+            -> Materialize  (rows=1)
+                -> Table scan on t2  (rows=1)
 
 # And be specified in outer blocks, with naming:
 explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
@@ -2216,11 +2255,12 @@ EXPLAIN
 -> Filter: (t1.a = (select #2))  (rows=0.1)
     -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; run only once)
-        -> Nested loop inner join  (rows=1)
+        -> Inner hash join (no condition)  (rows=1)
             -> Table scan on dt  (rows=1)
                 -> Materialize  (rows=1)
                     -> Table scan on t1  (rows=1)
-            -> Table scan on t2  (rows=1)
+            -> Hash
+                -> Table scan on t2  (rows=1)
 
 # with another syntax:
 explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
@@ -2230,26 +2270,29 @@ EXPLAIN
 -> Filter: (t1.a = (select #2))  (rows=0.1)
     -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; run only once)
-        -> Nested loop inner join  (rows=1)
+        -> Inner hash join (no condition)  (rows=1)
             -> Table scan on dt  (rows=1)
                 -> Materialize  (rows=1)
                     -> Table scan on t1  (rows=1)
-            -> Table scan on t2  (rows=1)
+            -> Hash
+                -> Table scan on t2  (rows=1)
 
 # A hint can list more than one table
 explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
 from (select * from t1) as dt, (select * from t2) as dt2,
 (select * from t3) as dt3;
 EXPLAIN
--> Nested loop inner join  (rows=1)
-    -> Nested loop inner join  (rows=1)
+-> Inner hash join (no condition)  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on dt  (rows=1)
             -> Materialize  (rows=1)
                 -> Table scan on t1  (rows=1)
-        -> Table scan on t2  (rows=1)
-    -> Table scan on dt3  (rows=1)
-        -> Materialize  (rows=1)
-            -> Table scan on t3  (rows=1)
+        -> Hash
+            -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Table scan on dt3  (rows=1)
+            -> Materialize  (rows=1)
+                -> Table scan on t3  (rows=1)
 
 # Merge hint OVERRIDES heuristics, for example the one which
 # materializes when user variables are set.
@@ -2270,12 +2313,13 @@ EXPLAIN
             -> Table scan on t1  (rows=1)
             -> Select #3 (subquery in condition; uncacheable)
                 -> Group aggregate: sum(t2.b)  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Sort: t2.a  (rows=1)
-                            -> Table scan on t2  (rows=1)
-                        -> Table scan on dt  (rows=1)
-                            -> Materialize  (rows=1)
-                                -> Rows fetched before execution  (rows=1)
+                    -> Sort: t2.a  (rows=1)
+                        -> Inner hash join (no condition)  (rows=1)
+                            -> Table scan on dt  (rows=1)
+                                -> Materialize  (rows=1)
+                                    -> Rows fetched before execution  (rows=1)
+                            -> Hash
+                                -> Table scan on t2  (rows=1)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -2295,12 +2339,13 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Select #3 (subquery in condition; uncacheable)
         -> Group aggregate: sum(t2.b)  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Sort: t2.a  (rows=1)
-                    -> Table scan on t2  (rows=1)
-                -> Table scan on dt  (rows=1)
-                    -> Materialize  (rows=1)
-                        -> Rows fetched before execution  (rows=1)
+            -> Sort: t2.a  (rows=1)
+                -> Inner hash join (no condition)  (rows=1)
+                    -> Table scan on dt  (rows=1)
+                        -> Materialize  (rows=1)
+                            -> Rows fetched before execution  (rows=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=1)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -2347,11 +2392,12 @@ delete from t3;
 insert into t3 values(1,1),(2,2);
 explain update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 EXPLAIN
--> Update t3 (immediate)  (rows=3.6)
-    -> Nested loop inner join  (rows=3.6)
+-> Update t3 (buffered)  (rows=3.6)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - t1.a) = 0)  (rows=3.6)
         -> Table scan on t3  (rows=2)
-        -> Filter: ((t1.a <> 0) and ((t3.a - t1.a) = 0))  (rows=1.8)
-            -> Table scan on t1  (rows=2)
+        -> Hash
+            -> Filter: (t1.a <> 0)  (rows=1.8)
+                -> Table scan on t1  (rows=2)
 
 update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
@@ -2363,13 +2409,13 @@ insert into t3 values(1,1),(2,2);
 explain update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 EXPLAIN
 -> Update t3 (buffered)  (rows=3.6)
-    -> Nested loop inner join  (rows=3.6)
-        -> Table scan on v1  (rows=1.8)
-            -> Materialize  (rows=1.8)
-                -> Filter: (t1.a <> 0)  (rows=1.8)
-                    -> Table scan on t1  (rows=2)
-        -> Filter: ((t3.a - v1.a) = 0)  (rows=2)
-            -> Table scan on t3  (rows=2)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - v1.a) = 0)  (rows=3.6)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on v1  (rows=1.8)
+                -> Materialize  (rows=1.8)
+                    -> Filter: (t1.a <> 0)  (rows=1.8)
+                        -> Table scan on t1  (rows=2)
 
 update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
 select * from t3;
@@ -2383,12 +2429,12 @@ delete from t1;
 insert into t1 values(1),(2);
 explain update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 EXPLAIN
--> Update t1 (immediate)  (rows=3.6)
-    -> Nested loop inner join  (rows=3.6)
-        -> Filter: (t1.a <> 0)  (rows=1.8)
-            -> Table scan on t1  (rows=2)
-        -> Filter: ((t3.a - t1.a) = 0)  (rows=2)
-            -> Table scan on t3  (rows=2)
+-> Update t1 (buffered)  (rows=3.6)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - t1.a) = 0)  (rows=3.6)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Filter: (t1.a <> 0)  (rows=1.8)
+                -> Table scan on t1  (rows=2)
 
 update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
 select * from t1;
@@ -2410,10 +2456,10 @@ delete from t3;
 insert into t3 values(1,1),(2,2);
 explain update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 EXPLAIN
--> Update t3 (immediate)  (rows=4)
-    -> Nested loop inner join  (rows=4)
+-> Update t3 (buffered)  (rows=4)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - t1.a) = 0)  (rows=4)
         -> Table scan on t3  (rows=2)
-        -> Filter: ((t3.a - t1.a) = 0)  (rows=2)
+        -> Hash
             -> Table scan on t1  (rows=2)
 
 update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
@@ -2426,12 +2472,12 @@ insert into t3 values(1,1),(2,2);
 explain update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 EXPLAIN
 -> Update t3 (buffered)  (rows=4)
-    -> Nested loop inner join  (rows=4)
-        -> Table scan on dt  (rows=2)
-            -> Materialize  (rows=2)
-                -> Table scan on t1  (rows=2)
-        -> Filter: ((t3.a - dt.a) = 0)  (rows=2)
-            -> Table scan on t3  (rows=2)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - dt.a) = 0)  (rows=4)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on dt  (rows=2)
+                -> Materialize  (rows=2)
+                    -> Table scan on t1  (rows=2)
 
 update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
@@ -2451,15 +2497,13 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
 -> Update t3 (buffered)  (rows=0.133)
-    -> Nested loop inner join  (rows=0.133)
-        -> Remove duplicates from input grouped on dt.a  (rows=0.667)
-            -> Sort: dt.a  (rows=0.667)
-                -> Table scan on dt  (rows=0.667)
-                    -> Materialize  (rows=0.667)
-                        -> Filter: (t1.a > 1)  (rows=0.667)
-                            -> Table scan on t1  (rows=2)
-        -> Filter: (t3.a = dt.a)  (rows=0.2)
-            -> Table scan on t3  (rows=2)
+    -> Hash semijoin (t3.a = dt.a)  (rows=0.133)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on dt  (rows=0.667)
+                -> Materialize  (rows=0.667)
+                    -> Filter: (t1.a > 1)  (rows=0.667)
+                        -> Table scan on t1  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2475,13 +2519,11 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
 -> Update t3 (buffered)  (rows=0.133)
-    -> Nested loop inner join  (rows=0.133)
-        -> Remove duplicates from input grouped on t1.a  (rows=0.667)
-            -> Sort: t1.a  (rows=0.667)
-                -> Filter: (t1.a > 1)  (rows=0.667)
-                    -> Table scan on t1  (rows=2)
-        -> Filter: (t3.a = t1.a)  (rows=0.2)
-            -> Table scan on t3  (rows=2)
+    -> Hash semijoin (t3.a = t1.a)  (rows=0.133)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Filter: (t1.a > 1)  (rows=0.667)
+                -> Table scan on t1  (rows=2)
 
 update /*+ merge(dt@sub) */ t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2499,15 +2541,13 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
 EXPLAIN
 -> Update t3 (buffered)  (rows=0.133)
-    -> Nested loop inner join  (rows=0.133)
-        -> Remove duplicates from input grouped on dt.a  (rows=0.667)
-            -> Sort: dt.a  (rows=0.667)
-                -> Table scan on dt  (rows=0.667)
-                    -> Materialize  (rows=0.667)
-                        -> Filter: (t3.b > 1)  (rows=0.667)
-                            -> Table scan on t3  (rows=2)
-        -> Filter: (t3.a = dt.a)  (rows=0.2)
-            -> Table scan on t3  (rows=2)
+    -> Hash semijoin (t3.a = dt.a)  (rows=0.133)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on dt  (rows=0.667)
+                -> Materialize  (rows=0.667)
+                    -> Filter: (t3.b > 1)  (rows=0.667)
+                        -> Table scan on t3  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2533,11 +2573,12 @@ delete from t3;
 insert into t3 values(1,1),(2,2);
 explain delete t3.* from t3, v1 where t3.a-v1.a=0;
 EXPLAIN
--> Delete from t3 (immediate)  (rows=3.6)
-    -> Nested loop inner join  (rows=3.6)
+-> Delete from t3 (buffered)  (rows=3.6)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - t1.a) = 0)  (rows=3.6)
         -> Table scan on t3  (rows=2)
-        -> Filter: ((t1.a <> 0) and ((t3.a - t1.a) = 0))  (rows=1.8)
-            -> Table scan on t1  (rows=2)
+        -> Hash
+            -> Filter: (t1.a <> 0)  (rows=1.8)
+                -> Table scan on t1  (rows=2)
 
 delete t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;
@@ -2547,13 +2588,13 @@ insert into t3 values(1,1),(2,2);
 explain delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 EXPLAIN
 -> Delete from t3 (buffered)  (rows=3.6)
-    -> Nested loop inner join  (rows=3.6)
-        -> Table scan on v1  (rows=1.8)
-            -> Materialize  (rows=1.8)
-                -> Filter: (t1.a <> 0)  (rows=1.8)
-                    -> Table scan on t1  (rows=2)
-        -> Filter: ((t3.a - v1.a) = 0)  (rows=2)
-            -> Table scan on t3  (rows=2)
+    -> Inner hash join (no condition), extra conditions: ((t3.a - v1.a) = 0)  (rows=3.6)
+        -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on v1  (rows=1.8)
+                -> Materialize  (rows=1.8)
+                    -> Filter: (t1.a <> 0)  (rows=1.8)
+                        -> Table scan on t1  (rows=2)
 
 delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
 select * from t3;

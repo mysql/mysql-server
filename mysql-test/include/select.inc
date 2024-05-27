@@ -4220,6 +4220,7 @@ SELECT table4 . `time_nokey` AS field1 FROM
             table1 . `int_nokey` != 'f')
   GROUP BY field1  ORDER BY field1 , field1;
 
+--sorted_result
 SELECT table1 .`time_key` field2  FROM B table1  LEFT JOIN  BB JOIN A table5 ON table5 .`date_nokey`  ON table5 .`int_nokey` GROUP  BY field2;
 --enable_warnings
 

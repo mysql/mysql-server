@@ -531,6 +531,7 @@ select straight_join * from t1, t2, lateral (select t1.a) as dt;
 --replace_regex $elide_costs
 eval explain $query;
 flush status;
+--sorted_result
 eval $query;
 --echo # when a row of t1 produces two rows of t2 passed to "dt",
 --echo # it still makes one materialization.
@@ -582,6 +583,7 @@ select * from t1, t2, lateral (select t1.a) as dt;
 --replace_regex $elide_costs
 eval explain $query;
 flush status;
+--sorted_result
 eval $query;
 --skip_if_hypergraph  # Uses streaming, so no writes done.
 show status like "handler_write";
@@ -645,6 +647,7 @@ select * from t2, t1, lateral (select t1.a) as dt,
                       lateral (select t2.a) as dt2;
 --replace_regex $elide_costs
 eval explain $query;
+--sorted_result
 eval $query;
 
 --echo # Two LDTs depending on one same table
@@ -668,6 +671,7 @@ select * from t2, t1, lateral (select t1.a+t2.a) as dt;
 eval explain $query;
 --skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
+--sorted_result
 eval $query;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_trace;

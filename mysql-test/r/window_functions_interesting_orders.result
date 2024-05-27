@@ -102,10 +102,11 @@ EXPLAIN FORMAT=tree SELECT t1.a, SUM(t1.a) OVER (ORDER BY t1.a), SUM(t2.b) OVER 
 EXPLAIN
 -> Window aggregate with buffering: sum(t2.b) OVER (ORDER BY t2.b )
     -> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.a )
-        -> Nested loop inner join
-            -> Covering index scan on t1 using idx
-            -> Filter: (t1.a = t2.b)
-                -> Table scan on t2
+        -> Sort: t1.a
+            -> Inner hash join (t1.a = t2.b)
+                -> Table scan on t1
+                -> Hash
+                    -> Table scan on t2
 
 DROP TABLE t1;
 #
@@ -127,10 +128,10 @@ EXPLAIN
     -> Sort: t1.x
         -> Stream results
             -> Group (no aggregates)
-                -> Nested loop inner join
-                    -> Sort: t1.pk
+                -> Sort: t1.pk
+                    -> Inner hash join (t1.x = t2.pk)
                         -> Table scan on t1
-                    -> Filter: (t1.x = t2.pk)
-                        -> Table scan on t2
+                        -> Hash
+                            -> Table scan on t2
 
 DROP TABLE t1, t2;

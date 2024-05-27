@@ -36,11 +36,13 @@ UPDATE t2, (SELECT a FROM t1 ORDER BY a) AS t SET t2.b = t.a+5 ;
 SET @@optimizer_switch=@optimizer_switch_saved;
 
 SELECT * FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Non-deterministic multi-table update of t2 above.
 SELECT * FROM t2 ORDER BY a;
 
 --source include/rpl/sync_to_replica.inc
 connection slave;
 SELECT * FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Non-deterministic multi-table update of t2 above.
 SELECT * FROM t2 ORDER BY a;
 
 connection master;

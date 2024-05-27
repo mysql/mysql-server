@@ -1549,6 +1549,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
+--skip_if_hypergraph  # Different plan.
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_external_lock';
 

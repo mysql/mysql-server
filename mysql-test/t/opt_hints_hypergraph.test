@@ -356,7 +356,9 @@ DROP TABLE B;
 --echo Bug#36604616 WL#15853: Assertion `IsMultipleEquals(cond) || IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS, expr->tables_in_subtree)' failed.
 
 CREATE TABLE t1(c1 mediumint DEFAULT NULL, c2 char(255) DEFAULT NULL, c3 varchar(10) DEFAULT NULL, c4 varchar(500) DEFAULT NULL, c5 char(10) DEFAULT NULL, c6 tinyint DEFAULT NULL, c7 mediumint DEFAULT NULL, c8 int DEFAULT NULL, c9 float DEFAULT NULL, pk int NOT NULL, PRIMARY KEY (pk)) ENGINE=InnoDB;
+ANALYZE TABLE t1;
 
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias3,alias3,alias1) */  alias1.c1 AS field1 FROM t1 AS alias1 INNER JOIN t1 AS alias2 INNER JOIN t1 AS alias3 INNER JOIN t1 AS alias4 ON alias3.c2 >= alias4.c3 ON alias2.c4 != alias4.c5 ON alias1.c6 <= alias4.c7  LEFT OUTER JOIN t1 AS alias5 ON alias2.c8 = alias5.c9 WHERE alias3.pk <= 3 HAVING (field1 < 8 AND field1 != 8) ORDER BY field1;
 
 DROP TABLE t1;
@@ -379,6 +381,9 @@ CREATE TABLE t7(f1 VARCHAR(255) DEFAULT NULL);
 CREATE TABLE t10(f1 INT NOT NULL AUTO_INCREMENT,f2 INT DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL, PRIMARY KEY (f1),KEY (f2),KEY (f3));
 CREATE TABLE t11(f1 INT DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL, KEY (f1),KEY (f2));
 
+ANALYZE TABLE t2, t4, t5, t6, t7, t10, t11;
+
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias11,alias8) */ 1
 FROM t4 AS alias4
   LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1

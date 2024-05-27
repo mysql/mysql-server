@@ -445,20 +445,22 @@ explain
 select * from t0,t1 where (t0.key1=t1.key1) and
 (t0.key1=3 or t0.key2<4) and t1.key1=2;
 EXPLAIN
--> Nested loop inner join  (rows=0.00391)
-    -> Filter: (t0.key2 < 4)  (rows=0.00391)
-        -> Index lookup on t0 using i1 (key1=2)  (rows=1)
+-> Inner hash join (no condition)  (rows=0.00391)
     -> Index lookup on t1 using i1 (key1=2)  (rows=1)
+    -> Hash
+        -> Filter: (t0.key2 < 4)  (rows=0.00391)
+            -> Index lookup on t0 using i1 (key1=2)  (rows=1)
 
 #  index_merge on second table in join
 explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 EXPLAIN
--> Nested loop inner join  (rows=2)
-    -> Index lookup on t0 using i1 (key1=5)  (rows=1)
+-> Inner hash join (no condition)  (rows=2)
     -> Deduplicate rows sorted by row ID  (rows=2)
         -> Index range scan on t1 using i1 over (key1 = 5)  (rows=1)
         -> Index range scan on t1 using i8 over (key8 = 5)  (rows=1)
+    -> Hash
+        -> Index lookup on t0 using i1 (key1=5)  (rows=1)
 
 # Fix for bug#1974
 explain select * from t0,t1 where t0.key1 < 3 and
@@ -596,13 +598,14 @@ where (a.key1 = 2 or a.key2 = 2)
 and   (b.key1 = 2 or b.key2 = 2);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Nested loop inner join  (rows=1.04e+6)
+    -> Inner hash join (no condition)  (rows=1.04e+6)
         -> Deduplicate rows sorted by row ID  (rows=1021)
             -> Index range scan on a using i1 over (key1 = 2)  (rows=1)
             -> Index range scan on a using i2 over (key2 = 2)  (rows=1)
-        -> Deduplicate rows sorted by row ID  (rows=1021)
-            -> Index range scan on b using i1 over (key1 = 2)  (rows=1)
-            -> Index range scan on b using i2 over (key2 = 2)  (rows=1)
+        -> Hash
+            -> Deduplicate rows sorted by row ID  (rows=1021)
+                -> Index range scan on b using i1 over (key1 = 2)  (rows=1)
+                -> Index range scan on b using i2 over (key2 = 2)  (rows=1)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
@@ -621,7 +624,7 @@ where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Nested loop inner join  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Filter: (((a.key1 = 1) and (a.key2 = 1) and (a.key3 = 1) and (a.key4 = 1) and (a.key5 = 1) and (a.key6 = 1) and (a.key7 = 1)) or (a.key8 = 1))  (rows=1)
             -> Deduplicate rows sorted by row ID  (rows=1)
                 -> Intersect rows sorted by row ID  (rows=17.2)
@@ -631,15 +634,16 @@ EXPLAIN
                     -> Index range scan on a using i5 over (key5 = 1)  (rows=451)
                     -> Index range scan on a using i6,i7? over (key6 = 1)  (rows=451)
                 -> Index range scan on a using i8 over (key8 = 1)  (rows=1)
-        -> Filter: (((b.key1 = 1) and (b.key2 = 1) and (b.key3 = 1) and (b.key4 = 1) and (b.key5 = 1) and (b.key6 = 1) and (b.key7 = 1)) or (b.key8 = 1))  (rows=1)
-            -> Deduplicate rows sorted by row ID  (rows=1)
-                -> Intersect rows sorted by row ID  (rows=17.2)
-                    -> Index range scan on b using i2 over (key2 = 1)  (rows=451)
-                    -> Index range scan on b using i3 over (key3 = 1)  (rows=451)
-                    -> Index range scan on b using i4 over (key4 = 1)  (rows=451)
-                    -> Index range scan on b using i5 over (key5 = 1)  (rows=451)
-                    -> Index range scan on b using i6,i7? over (key6 = 1)  (rows=451)
-                -> Index range scan on b using i8 over (key8 = 1)  (rows=1)
+        -> Hash
+            -> Filter: (((b.key1 = 1) and (b.key2 = 1) and (b.key3 = 1) and (b.key4 = 1) and (b.key5 = 1) and (b.key6 = 1) and (b.key7 = 1)) or (b.key8 = 1))  (rows=1)
+                -> Deduplicate rows sorted by row ID  (rows=1)
+                    -> Intersect rows sorted by row ID  (rows=17.2)
+                        -> Index range scan on b using i2 over (key2 = 1)  (rows=451)
+                        -> Index range scan on b using i3 over (key3 = 1)  (rows=451)
+                        -> Index range scan on b using i4 over (key4 = 1)  (rows=451)
+                        -> Index range scan on b using i5 over (key5 = 1)  (rows=451)
+                        -> Index range scan on b using i6,i7? over (key6 = 1)  (rows=451)
+                    -> Index range scan on b using i8 over (key8 = 1)  (rows=1)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a, t0 as b
@@ -858,14 +862,14 @@ explain select * from t1
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
--> Nested loop inner join  (rows=0.283)
+-> Inner hash join (t1.a = t2.a)  (rows=0.283)
     -> Remove duplicates from input grouped on t2.a  (rows=1.41)
-        -> Nested loop inner join  (rows=2004)
-            -> Sort: t2.a  (rows=2)
-                -> Table scan on t2  (rows=2)
-            -> Filter: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=1002)
+        -> Sort: t2.a  (rows=2004)
+            -> Inner hash join (no condition), extra conditions: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=2004)
                 -> Table scan on t3  (rows=1002)
-    -> Filter: (t1.a = t2.a)  (rows=0.2)
+                -> Hash
+                    -> Table scan on t2  (rows=2)
+    -> Hash
         -> Table scan on t1  (rows=2)
 
 Warnings:
@@ -2420,15 +2424,13 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 );
 EXPLAIN
 -> Update t1 (buffered)  (rows=0.01)
-    -> Nested loop inner join  (rows=0.01)
-        -> Remove duplicates from input grouped on t2.col_int_key  (rows=0.192)
-            -> Sort: t2.col_int_key  (rows=0.192)
-                -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (rows=0.192)
-                    -> Intersect rows sorted by row ID  (rows=0.192)
-                        -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (rows=14)
-                        -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (rows=24)
-        -> Filter: ((cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)) and (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double)))  (rows=2)
-            -> Table scan on t1  (rows=2)
+    -> Hash semijoin (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (rows=0.01)
+        -> Table scan on t1  (rows=2)
+        -> Hash
+            -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (rows=0.192)
+                -> Intersect rows sorted by row ID  (rows=0.192)
+                    -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (rows=14)
+                    -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (rows=24)
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (

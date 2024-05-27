@@ -22,6 +22,10 @@ CREATE TABLE `t2` (
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset binary logs and gtids;
+if ($HYPERGRAPH_TEST) {
+  # Hypergraph uses hash join and updates the rows in a different order.
+  --replace_result "'4'" "'3'"
+}
 --error ER_DUP_ENTRY
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check

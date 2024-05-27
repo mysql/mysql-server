@@ -31,6 +31,7 @@
 #include <iterator>
 #include <memory>
 #include <regex>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -1780,8 +1781,7 @@ TEST_F(HypergraphOptimizerTest, NumberOfAccessPaths) {
   EXPECT_LT(paths, 100);
 }
 
-TEST_F(HypergraphOptimizerTest,
-       PredicatePushdown) {  // Also tests nested loop join.
+TEST_F(HypergraphOptimizerTest, PredicatePushdown) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x WHERE t2.y=3", /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 200;
@@ -1794,33 +1794,31 @@ TEST_F(HypergraphOptimizerTest,
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  // The pushed-down filter makes the optimal plan be t2 on the left side,
-  // with a nested loop.
-  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
-  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+  // The pushed-down filter makes the optimal plan a hash join with t2 as build
+  // table.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN,
+            root->hash_join().join_predicate->expr->type);
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemsToString(
+                root->hash_join().join_predicate->expr->equijoin_conditions));
   EXPECT_FLOAT_EQ(6.0F, root->num_output_rows());  // 60 rows, 10% selectivity.
 
+  // The larger table (t1) is the probe table, with no filter.
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_STREQ("t1", outer->table_scan().table->alias);
+
   // The condition should be posted directly on t2.
-  AccessPath *outer = root->nested_loop_join().outer;
-  ASSERT_EQ(AccessPath::FILTER, outer->type);
-  EXPECT_EQ("(t2.y = 3)", ItemToString(outer->filter().condition));
-  EXPECT_FLOAT_EQ(0.3F, outer->num_output_rows());  // 10% default selectivity.
-
-  AccessPath *outer_child = outer->filter().child;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
-  EXPECT_EQ(m_fake_tables["t2"], outer_child->table_scan().table);
-  EXPECT_FLOAT_EQ(3.0F, outer_child->num_output_rows());
-
-  // The inner part should have a join condition as a filter.
-  AccessPath *inner = root->nested_loop_join().inner;
+  AccessPath *inner = root->hash_join().inner;
   ASSERT_EQ(AccessPath::FILTER, inner->type);
-  EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner->filter().condition));
-  EXPECT_FLOAT_EQ(20.0F,
-                  inner->num_output_rows());  // 10% default selectivity.
+  EXPECT_EQ("(t2.y = 3)", ItemToString(inner->filter().condition));
+  EXPECT_FLOAT_EQ(0.3F, inner->num_output_rows());  // 10% default selectivity.
 
   AccessPath *inner_child = inner->filter().child;
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
-  EXPECT_EQ(m_fake_tables["t1"], inner_child->table_scan().table);
+  EXPECT_EQ(m_fake_tables["t2"], inner_child->table_scan().table);
+  EXPECT_FLOAT_EQ(3.0F, inner_child->num_output_rows());
 }
 
 TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
@@ -2250,7 +2248,8 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   // against the index on t1. The t4 table somehow needs to be present
   // to trigger the issue; it doesn't really matter whether it's on the
   // left or right side (since it doesn't have a join condition),
-  // but it happens to be put on the right.
+  // and it doesn't matter what kind of join it is, but it happens to
+  // be a hash join with t4 as build table.
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t2"]->file->stats.records = 100000000;
   m_fake_tables["t3"]->file->stats.records = 1000000;
@@ -2280,22 +2279,23 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
                               /*is_root_of_join=*/true));
 
   // t4 needs to come in on the top (since we've put it as a Cartesian product);
-  // either left or right side. It happens to be on the left (outer) side.
+  // either left or right side. It happens to be the build table of a hash join.
   // We don't verify costs.
-  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
-  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN,
+            root->hash_join().join_predicate->expr->type);
 
-  AccessPath *outer = root->nested_loop_join().outer;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
-  EXPECT_EQ(m_fake_tables["t4"], outer->table_scan().table);
+  AccessPath *build = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, build->type);
+  EXPECT_EQ(m_fake_tables["t4"], build->table_scan().table);
 
   // Now for the meat of the plan. There should be a nested loop,
   // with t2/t3 on the inside and t1 on the outside.
-  AccessPath *inner = root->nested_loop_join().inner;
-  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->type);
+  AccessPath *probe = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, probe->type);
 
   // We don't check the t2/t3 part very thoroughly.
-  EXPECT_EQ(AccessPath::HASH_JOIN, inner->nested_loop_join().outer->type);
+  EXPECT_EQ(AccessPath::HASH_JOIN, probe->nested_loop_join().outer->type);
 
   // Now for the point of the test: We should have t1 on the inner side,
   // with t1=t2 pushed down into the index, and it should _not_ have a t1=t3
@@ -2304,7 +2304,7 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   // not permitted. (Well, it would be permitted, but we'd have to add code
   // not to apply the selectivity twice, and then it would just be extra cost
   // applying a redundant filter.)
-  AccessPath *inner_inner = inner->nested_loop_join().inner;
+  AccessPath *inner_inner = probe->nested_loop_join().inner;
   ASSERT_EQ(AccessPath::REF, inner_inner->type);
   EXPECT_STREQ("t1", inner_inner->ref().table->alias);
   EXPECT_EQ(0, inner_inner->ref().ref->key);
@@ -2641,7 +2641,9 @@ TEST_F(HypergraphOptimizerTest, DoNotExpandJoinFiltersMultipleTimes) {
       "  JOIN t4 ON t2.y = t4.x",
       /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 1;
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0]);
   m_fake_tables["t2"]->file->stats.records = 1;
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0]);
   m_fake_tables["t3"]->file->stats.records = 10;
   m_fake_tables["t4"]->file->stats.records = 10;
 
@@ -2825,9 +2827,10 @@ TEST_F(HypergraphOptimizerTest, OrderingOfJoinPredicates) {
     ASSERT_NE(nullptr, subquery_path);
   }
 
-  // Use small tables so that a nested loop join is preferred.
-  m_fake_tables["t1"]->file->stats.records = 1;
-  m_fake_tables["t2"]->file->stats.records = 1;
+  // Force use of nested loop join by disabling support for hash join.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlan(m_thd, query_block);
@@ -3423,6 +3426,11 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
   m_fake_tables["t4"]->file->stats.records = 1;
   m_fake_tables["t5"]->file->stats.records = 1000;
 
+  // Force use of nested loop join by disabling support for hash join.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
+
   // Build a multiple equality from the WHERE condition:
   // t2.x = t3.x = t4.x = t5.x
   COND_EQUAL *cond_equal = nullptr;
@@ -3522,6 +3530,11 @@ TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithDegenerateJoinCondition) {
   m_fake_tables["t1"]->file->stats.data_file_length = 1e8;
   m_fake_tables["t2"]->file->stats.records = 1000000;
   m_fake_tables["t2"]->file->stats.data_file_length = 1e8;
+
+  // Force use of nested loop join by disabling support for hash join.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlan(m_thd, query_block);
@@ -4347,14 +4360,22 @@ TEST_F(HypergraphOptimizerTest, DistinctWithEquivalence) {
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
-  Query_block *query_block =
-      ParseAndResolve("SELECT t1.x, t2.x FROM t1, t2 ORDER BY t2.x",
-                      /*nullable=*/true);
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t2.x FROM t1, t2 WHERE t1.y = t2.y ORDER BY t2.x",
+      /*nullable=*/true);
 
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t2"]->file->stats.records = 10000;
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+  Fake_TABLE *const t1 = m_fake_tables["t1"];
+  Fake_TABLE *const t2 = m_fake_tables["t2"];
+  t1->file->stats.records = 100000;
+  t2->file->stats.records = 100;
+  t1->file->stats.data_file_length = 1e7;
+  t2->file->stats.data_file_length = 1e4;
+  t1->create_index(t1->field[1]);  // Index on t1.y for the join condition.
+  // We set rec_per_key to be relatively low on the index in order to ensure
+  // that index access appears viable to the optimizer.
+  ulong rec_per_key_int[] = {3};
+  float rec_per_key[] = {3.0F};
+  t1->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);
@@ -4378,10 +4399,10 @@ TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
   EXPECT_STREQ("t2", outer_child->table_scan().table->alias);
 
-  // The inner side should just be t1, no sort.
+  // The inner side should just be index lookup on t1, no sort.
   AccessPath *inner = root->nested_loop_join().inner;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
-  EXPECT_STREQ("t1", inner->table_scan().table->alias);
+  ASSERT_EQ(AccessPath::REF, inner->type);
+  EXPECT_STREQ("t1", inner->ref().table->alias);
 
   query_block->cleanup(/*full=*/true);
 }
@@ -4429,6 +4450,11 @@ TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
   m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
   m_fake_tables["t3"]->file->stats.data_file_length = 100e6;
+
+  // Force use of nested loop join by disabling support for hash join.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);
@@ -4498,10 +4524,15 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
       "LIMIT 10",
       /*nullable=*/true);
 
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t2"]->file->stats.records = 10000;
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+  {
+    Fake_TABLE *const t1 = m_fake_tables["t1"];
+    Fake_TABLE *const t2 = m_fake_tables["t2"];
+    t1->file->stats.records = 100;
+    t2->file->stats.records = 10000;
+    t1->file->stats.data_file_length = 1e6;
+    t2->file->stats.data_file_length = 100e6;
+    t2->create_index(t2->field[0]);
+  }
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);
@@ -4531,14 +4562,13 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
   EXPECT_STREQ("t1", t1->table_scan().table->alias);
 
-  // The inner side should be t2, with the join condition as filter.
+  // The inner side should be t2, as an index lookup on the join condition
+  // t1.x = t2.x.
   AccessPath *inner = join->nested_loop_join().inner;
-  ASSERT_EQ(AccessPath::FILTER, inner->type);
-  EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner->filter().condition));
-
-  AccessPath *t2 = inner->filter().child;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
-  EXPECT_STREQ("t2", t2->table_scan().table->alias);
+  ASSERT_EQ(AccessPath::REF, inner->type);
+  EXPECT_STREQ("t2", inner->ref().table->alias);
+  EXPECT_EQ("t1.x", ItemsToString(std::span(inner->ref().ref->items,
+                                            inner->ref().ref->key_parts)));
 
   query_block->cleanup(/*full=*/true);
 }
@@ -4606,6 +4636,7 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
   // and we should resort to sorting the largest table (t2).
   // The rest of the test is equal to SortAheadDueToUniqueIndex,
   // and we don't really verify it.
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0]);
   m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0]);
 
   m_fake_tables["t1"]->file->stats.records = 200;
@@ -4997,14 +5028,22 @@ TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
 
 TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
   Query_block *query_block = ParseAndResolve(
-      "SELECT SQL_BIG_RESULT t1.x FROM t1, t2 GROUP BY t1.x, t1.y ORDER BY "
-      "t1.y DESC",
+      "SELECT SQL_BIG_RESULT t1.x FROM t1, t2 WHERE t1.x = t2.z "
+      "GROUP BY t1.x, t1.y ORDER BY t1.y DESC",
       /*nullable=*/true);
 
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-  m_fake_tables["t2"]->file->stats.records = 100;
-  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+  Fake_TABLE *const t1 = m_fake_tables["t1"];
+  Fake_TABLE *const t2 = m_fake_tables["t2"];
+  t1->file->stats.records = 100;
+  t1->file->stats.data_file_length = 1e6;
+  t2->file->stats.records = 10000;
+  t2->file->stats.data_file_length = 1e8;
+  t2->create_index(t2->field[2]);  // Index on t2.z for the join condition.
+  // We set rec_per_key to be relatively low on the index in order to ensure
+  // that index access appears viable to the optimizer.
+  ulong rec_per_key_int[] = {3};
+  float rec_per_key[] = {3.0F};
+  t2->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
 
   TraceGuard trace(m_thd);
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);

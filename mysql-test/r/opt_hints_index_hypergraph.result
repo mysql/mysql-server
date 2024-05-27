@@ -215,13 +215,13 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX(tb i_a) */ tb.a FROM v2, t1 tb WHERE tb.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=6.55e+6)
-    -> Nested loop inner join  (rows=40960)
-        -> Nested loop inner join  (rows=256)
-            -> Remove duplicates from input grouped on t1.a  (rows=8)
-                -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
-            -> Filter: (t1.b = t1.a)  (rows=32)
-                -> Covering index scan on t1 using i_ab  (rows=256)
-        -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
+    -> Inner hash join (no condition)  (rows=40960)
+        -> Nested loop semijoin  (rows=256)
+            -> Covering index scan on t1 using i_ab  (rows=256)
+            -> Filter: (t1.a > 3)  (rows=20)
+                -> Covering index lookup on t1 using i_a (a=t1.b)  (rows=32)
+        -> Hash
+            -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
     -> Hash
         -> Covering index range scan on tb using i_a over (3 < a)  (rows=160)
 

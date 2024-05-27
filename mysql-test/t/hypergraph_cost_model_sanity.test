@@ -74,7 +74,11 @@ EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE p = 0;
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t2 WHERE t3.c = t2.c;
 
---echo # Should choose a nested loop join with table scans.
+--echo # Should choose a hash join with table scans.
+# This choice is not so much about cost (nested loop join is actually
+# slightly cheaper), but about safety. If t0 is bigger than expected,
+# the nested loop join will quickly become much more expensive than
+# the hash join.
 --replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t0 WHERE t3.c = t0.c;
 

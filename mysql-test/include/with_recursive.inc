@@ -338,6 +338,14 @@ select 1 from t1 straight_join qn
 )
 select * from qn;
 
+WITH RECURSIVE qn(n) AS
+(
+SELECT 1 FROM t1
+UNION ALL
+SELECT n+1 FROM qn STRAIGHT_JOIN t1 WHERE n < 3
+)
+SELECT COUNT(*) FROM qn;
+
 --error ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
 WITH RECURSIVE qn AS
 (
