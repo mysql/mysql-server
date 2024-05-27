@@ -3409,6 +3409,14 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
 
     if (tab->position()->filter_effect <= COND_FILTER_STALE) {
       /*
+        Cost and rows produced needs to be updated to match the logic
+        in test_if_skip_sort_order().
+      */
+      bool need_cost_update =
+          join->primary_tables == 1 &&
+          tab->position()->filter_effect == COND_FILTER_STALE_NO_CONST &&
+          table->s->has_secondary_engine();
+      /*
         Give a proper value for EXPLAIN.
         For performance reasons, we do not recalculate the filter for
         non-EXPLAIN queries; thus, EXPLAIN CONNECTION may show 100%
@@ -3420,7 +3428,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         applied.
       */
       tab->position()->filter_effect =
-          (join->thd->lex->is_explain() ||
+          (join->thd->lex->is_explain() || need_cost_update ||
            (join->m_select_limit != HA_POS_ERROR &&
             !Overlaps(join->thd->variables.option_bits, OPTION_BIG_SELECTS)))
               ? calculate_condition_filter(
@@ -3430,6 +3438,12 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
                     tab->position()->rows_fetched, false, false,
                     trace_refine_table)
               : COND_FILTER_ALLPASS;
+      /*
+        Update the cost/rows data accordingly for single table queries. Updating
+        Multi-table queries here can lead to inconsistencies.
+      */
+      if (need_cost_update)
+        tab->position()->set_prefix_join_cost(tab->idx(), join->cost_model());
     }
 
     assert(!table_ref->is_recursive_reference() || qep_tab->type() == JT_ALL);
@@ -5041,6 +5055,9 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   @param [out]  saved_best_key_parts  NULL by default, otherwise preserve the
                                       value for further use in
                                       ReverseIndexRangeScanIterator
+  @param [out]    new_read_time       NULL by default, otherwise return the
+                                      cost of access using new_key if success
+                                      or undefined if the function fails
 
   @note
     This function takes into account table->quick_condition_rows statistic
@@ -5058,7 +5075,8 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                               ha_rows select_limit, int *new_key,
                               int *new_key_direction, ha_rows *new_select_limit,
                               uint *new_used_key_parts,
-                              uint *saved_best_key_parts) {
+                              uint *saved_best_key_parts,
+                              double *new_read_time) {
   DBUG_TRACE;
   /*
     Check whether there is an index compatible with the given order
@@ -5073,6 +5091,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
   uint best_key_parts = 0;
   int best_key_direction = 0;
   ha_rows best_records = 0;
+  double best_read_time = 0;
   double read_time;
   int best_key = -1;
   bool is_best_covering = false;
@@ -5252,6 +5271,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
             best_key = nr;
             best_key_parts = keyinfo->user_defined_key_parts;
             if (saved_best_key_parts) *saved_best_key_parts = used_key_parts;
+            best_read_time = index_scan_time;
             best_records = quick_records;
             is_best_covering = is_covering;
             best_key_direction = direction;
@@ -5268,6 +5288,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
   *new_key_direction = best_key_direction;
   *new_select_limit = has_limit ? best_select_limit : table_records;
   if (new_used_key_parts != nullptr) *new_used_key_parts = best_key_parts;
+  if (new_read_time) *new_read_time = best_read_time;
 
   return true;
 }

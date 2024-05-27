@@ -504,3 +504,41 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#35930969 MDS offloads to HW based on Incorrect Costings
+--echo #              from Optimizer
+--echo #
+CREATE TABLE t1(id INT AUTO_INCREMENT,
+                c1 VARCHAR(10), c2 VARCHAR(10), c3 VARCHAR(10),
+                PRIMARY KEY(id)) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 (c1, c2, c3) values ('132456','456789','789123'),
+                                  ('132456','456789','789123'),
+                                  ('132456','456789','789123'),
+                                  ('132456','456789','789123'),
+                                  ('132456','456789','789123');
+INSERT INTO t1(c1,c2,c3) SELECT t1.c1, t1.c2, t1.c3
+  from t1, t1 as t11, t1 as t12, t1 as t13, t1 as t14;
+ANALYZE TABLE t1;
+
+let query =SELECT * FROM t1 ORDER BY id LIMIT 10;
+eval EXPLAIN FORMAT=Tree $query;
+eval $query;
+SHOW SESSION STATUS LIKE '%cost%';
+
+let query =SELECT * FROM t1 FORCE INDEX(PRIMARY) ORDER BY id LIMIT 10;
+eval EXPLAIN FORMAT=Tree $query;
+eval $query;
+SHOW SESSION STATUS LIKE '%cost%';
+
+let query =SELECT * FROM t1 use index() ORDER BY id LIMIT 10;
+eval EXPLAIN FORMAT=Tree $query;
+eval $query;
+SHOW SESSION STATUS LIKE '%cost%';
+
+let query =SELECT * FROM t1 WHERE c1 != 'asd' ORDER BY id LIMIT 10;
+eval EXPLAIN FORMAT=Tree $query;
+eval $query;
+SHOW SESSION STATUS LIKE '%cost%';
+
+DROP TABLE t1;
