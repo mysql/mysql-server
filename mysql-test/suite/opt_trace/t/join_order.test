@@ -21,7 +21,7 @@ let $select_stmt = select jt.t from
 
 # Testcase 1: More than two tables.
 
-create table t1(id int);
+create table t1(id int primary key);
 insert into t1 values (1), (2), (3);
 analyze table t1;
 select * from t1, t1 t2, t1 t3 where t1.id = t2.id and t2.id = t3.id;

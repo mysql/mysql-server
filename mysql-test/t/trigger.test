@@ -3888,6 +3888,9 @@ UPDATE t1, t2 SET t1.b= t2.d;
 
 SELECT * FROM t1;
 --echo # Without the patch, x contained old timestamp
+# Depends on the query plan. With "UPDATE t2 STRAIGHT_JOIN t1 ..."
+# above, the old timestamp is seen with the old optimizer too.
+--skip_if_hypergraph  # Depends on query plan.
 SELECT @x;
 
 DROP TABLE t1, t2;

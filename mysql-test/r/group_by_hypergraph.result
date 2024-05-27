@@ -14,9 +14,9 @@ EXPLAIN
 -> Remove duplicates from input grouped on t1.x, min(t2.x)
     -> Group aggregate: min(t2.x)
         -> Sort: t2.x
-            -> Nested loop inner join
+            -> Inner hash join (t1.x = t2.x)
                 -> Table scan on t1
-                -> Filter: (t1.x = t2.x)
+                -> Hash
                     -> Table scan on t2
 
 DROP TABLE t;

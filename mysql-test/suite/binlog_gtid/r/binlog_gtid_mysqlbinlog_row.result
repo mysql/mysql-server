@@ -379,12 +379,12 @@ SET timestamp=1000000000;
 SET time_zone=default;
 SET sql_mode = default;
 CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
-CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
+CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0, UNIQUE (b));
 INSERT INTO t1 SET a=1;
 INSERT INTO t1 SET b=1;
 INSERT INTO t2 SET a=1;
 INSERT INTO t2 SET b=1;
-UPDATE t1, t2 SET t1.a=10, t2.a=20;
+UPDATE t1, t2 SET t1.a=10, t2.a=20 WHERE t1.b = t2.b;
 DROP TABLE t1,t2;
 CREATE TABLE t1(a BINARY(16), b VARBINARY(32));
 INSERT INTO t1 VALUES (0x275c275c3132,0x5c78276566);
@@ -6996,7 +6996,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
-CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0)
+CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0, UNIQUE (b))
 /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#

@@ -26,24 +26,24 @@ JOIN_FIXED_ORDER hint
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM small_tab JOIN large_tab USING(val) JOIN medium_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=1.2)
-            -> Table scan on small_tab  (rows=4)
-            -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
+    -> Inner hash join (large_tab.val = medium_tab.val)  (rows=0.36)
+        -> Table scan on medium_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (small_tab.val = large_tab.val)  (rows=1.2)
                 -> Table scan on large_tab  (rows=3)
-        -> Filter: (large_tab.val = medium_tab.val)  (rows=0.3)
-            -> Table scan on medium_tab  (rows=3)
+                -> Hash
+                    -> Table scan on small_tab  (rows=4)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=1.2)
-            -> Table scan on medium_tab  (rows=3)
-            -> Filter: (medium_tab.val = small_tab.val)  (rows=0.4)
+    -> Inner hash join (small_tab.val = large_tab.val)  (rows=0.36)
+        -> Table scan on large_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (medium_tab.val = small_tab.val)  (rows=1.2)
                 -> Table scan on small_tab  (rows=4)
-        -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
-            -> Table scan on large_tab  (rows=3)
+                -> Hash
+                    -> Table scan on medium_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab WHERE val IN
 (SELECT /*+ QB_NAME(subq1) JOIN_FIXED_ORDER(@subq1) */ val FROM small_tab JOIN medium_tab USING(val));
@@ -56,19 +56,21 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Index lookup on <materialized_subquery> using <auto_distinct_key> (val=large_tab.val)
                         -> Materialize with deduplication  (rows=1.2)
-                            -> Nested loop inner join  (rows=1.2)
-                                -> Table scan on small_tab  (rows=4)
-                                -> Filter: (small_tab.val = medium_tab.val)  (rows=0.3)
-                                    -> Table scan on medium_tab  (rows=3)
+                            -> Inner hash join (small_tab.val = medium_tab.val)  (rows=1.2)
+                                -> Table scan on medium_tab  (rows=3)
+                                -> Hash
+                                    -> Table scan on small_tab  (rows=4)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() */ COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=36)
-        -> Nested loop inner join  (rows=12)
-            -> Table scan on large_tab  (rows=3)
-            -> Table scan on small_tab  (rows=4)
+    -> Inner hash join (no condition)  (rows=36)
         -> Table scan on medium_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=12)
+                -> Table scan on small_tab  (rows=4)
+                -> Hash
+                    -> Table scan on large_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab WHERE val IN
 (SELECT /*+ QB_NAME(subq1) JOIN_FIXED_ORDER(@subq1) */ small_tab.val FROM medium_tab JOIN small_tab);
@@ -81,113 +83,122 @@ EXPLAIN
                 -> Limit: 1 row(s)  (rows=1)
                     -> Index lookup on <materialized_subquery> using <auto_distinct_key> (val=large_tab.val)
                         -> Materialize with deduplication  (rows=12)
-                            -> Nested loop inner join  (rows=12)
-                                -> Table scan on medium_tab  (rows=3)
+                            -> Inner hash join (no condition)  (rows=12)
                                 -> Table scan on small_tab  (rows=4)
+                                -> Hash
+                                    -> Table scan on medium_tab  (rows=3)
 
 SELECT STRAIGHT_JOIN hint
 EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM small_tab JOIN large_tab USING(val) JOIN medium_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=1.2)
-            -> Table scan on small_tab  (rows=4)
-            -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
+    -> Inner hash join (large_tab.val = medium_tab.val)  (rows=0.36)
+        -> Table scan on medium_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (small_tab.val = large_tab.val)  (rows=1.2)
                 -> Table scan on large_tab  (rows=3)
-        -> Filter: (large_tab.val = medium_tab.val)  (rows=0.3)
-            -> Table scan on medium_tab  (rows=3)
+                -> Hash
+                    -> Table scan on small_tab  (rows=4)
 
 EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM medium_tab JOIN small_tab USING(val) JOIN large_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=1.2)
-            -> Table scan on medium_tab  (rows=3)
-            -> Filter: (medium_tab.val = small_tab.val)  (rows=0.4)
+    -> Inner hash join (small_tab.val = large_tab.val)  (rows=0.36)
+        -> Table scan on large_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (medium_tab.val = small_tab.val)  (rows=1.2)
                 -> Table scan on small_tab  (rows=4)
-        -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
-            -> Table scan on large_tab  (rows=3)
+                -> Hash
+                    -> Table scan on medium_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM medium_tab JOIN large_tab USING(val) JOIN small_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=0.9)
-            -> Table scan on medium_tab  (rows=3)
-            -> Filter: (medium_tab.val = large_tab.val)  (rows=0.3)
+    -> Inner hash join (large_tab.val = small_tab.val)  (rows=0.36)
+        -> Table scan on small_tab  (rows=4)
+        -> Hash
+            -> Inner hash join (medium_tab.val = large_tab.val)  (rows=0.9)
                 -> Table scan on large_tab  (rows=3)
-        -> Filter: (large_tab.val = small_tab.val)  (rows=0.4)
-            -> Table scan on small_tab  (rows=4)
+                -> Hash
+                    -> Table scan on medium_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM large_tab JOIN small_tab JOIN medium_tab;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=36)
-        -> Nested loop inner join  (rows=12)
-            -> Table scan on large_tab  (rows=3)
-            -> Table scan on small_tab  (rows=4)
+    -> Inner hash join (no condition)  (rows=36)
         -> Table scan on medium_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=12)
+                -> Table scan on small_tab  (rows=4)
+                -> Hash
+                    -> Table scan on large_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT STRAIGHT_JOIN COUNT(*) FROM large_tab JOIN medium_tab JOIN small_tab;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=36)
-        -> Nested loop inner join  (rows=9)
-            -> Table scan on large_tab  (rows=3)
-            -> Table scan on medium_tab  (rows=3)
+    -> Inner hash join (no condition)  (rows=36)
         -> Table scan on small_tab  (rows=4)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=9)
+                -> Table scan on medium_tab  (rows=3)
+                -> Hash
+                    -> Table scan on large_tab  (rows=3)
 
 SELECT <table1> STRAIGHT_JOIN <table2> hint
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM small_tab STRAIGHT_JOIN large_tab USING(val) STRAIGHT_JOIN medium_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=1.2)
-            -> Table scan on small_tab  (rows=4)
-            -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
+    -> Inner hash join (large_tab.val = medium_tab.val)  (rows=0.36)
+        -> Table scan on medium_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (small_tab.val = large_tab.val)  (rows=1.2)
                 -> Table scan on large_tab  (rows=3)
-        -> Filter: (large_tab.val = medium_tab.val)  (rows=0.3)
-            -> Table scan on medium_tab  (rows=3)
+                -> Hash
+                    -> Table scan on small_tab  (rows=4)
 
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM medium_tab STRAIGHT_JOIN small_tab USING(val) STRAIGHT_JOIN large_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=1.2)
-            -> Table scan on medium_tab  (rows=3)
-            -> Filter: (medium_tab.val = small_tab.val)  (rows=0.4)
+    -> Inner hash join (small_tab.val = large_tab.val)  (rows=0.36)
+        -> Table scan on large_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (medium_tab.val = small_tab.val)  (rows=1.2)
                 -> Table scan on small_tab  (rows=4)
-        -> Filter: (small_tab.val = large_tab.val)  (rows=0.3)
-            -> Table scan on large_tab  (rows=3)
+                -> Hash
+                    -> Table scan on medium_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM medium_tab STRAIGHT_JOIN large_tab USING(val) STRAIGHT_JOIN small_tab USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.36)
-        -> Nested loop inner join  (rows=0.9)
-            -> Table scan on medium_tab  (rows=3)
-            -> Filter: (medium_tab.val = large_tab.val)  (rows=0.3)
+    -> Inner hash join (large_tab.val = small_tab.val)  (rows=0.36)
+        -> Table scan on small_tab  (rows=4)
+        -> Hash
+            -> Inner hash join (medium_tab.val = large_tab.val)  (rows=0.9)
                 -> Table scan on large_tab  (rows=3)
-        -> Filter: (large_tab.val = small_tab.val)  (rows=0.4)
-            -> Table scan on small_tab  (rows=4)
+                -> Hash
+                    -> Table scan on medium_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN small_tab STRAIGHT_JOIN medium_tab;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=36)
-        -> Nested loop inner join  (rows=12)
-            -> Table scan on large_tab  (rows=3)
-            -> Table scan on small_tab  (rows=4)
+    -> Inner hash join (no condition)  (rows=36)
         -> Table scan on medium_tab  (rows=3)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=12)
+                -> Table scan on small_tab  (rows=4)
+                -> Hash
+                    -> Table scan on large_tab  (rows=3)
 
 EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM large_tab STRAIGHT_JOIN medium_tab STRAIGHT_JOIN small_tab;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=36)
-        -> Nested loop inner join  (rows=9)
-            -> Table scan on large_tab  (rows=3)
-            -> Table scan on medium_tab  (rows=3)
+    -> Inner hash join (no condition)  (rows=36)
         -> Table scan on small_tab  (rows=4)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=9)
+                -> Table scan on medium_tab  (rows=3)
+                -> Hash
+                    -> Table scan on large_tab  (rows=3)
 
 DROP TABLE small_tab, medium_tab, large_tab;
 CREATE TABLE t1 (id int, val int);
@@ -200,244 +211,284 @@ JOIN_PREFIX hint
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1,t3,t5) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=10e-6)
-        -> Nested loop inner join  (rows=100e-6)
-            -> Nested loop inner join  (rows=0.001)
-                -> Nested loop inner join  (rows=0.01)
-                    -> Nested loop inner join  (rows=0.1)
-                        -> Table scan on t1  (rows=1)
-                        -> Filter: (t1.val = t3.val)  (rows=0.1)
-                            -> Table scan on t3  (rows=1)
-                    -> Filter: (t3.val = t5.val)  (rows=0.1)
-                        -> Table scan on t5  (rows=1)
-                -> Filter: (t3.val = t2.val)  (rows=0.1)
-                    -> Table scan on t2  (rows=1)
-            -> Filter: (t2.val = t4.val)  (rows=0.1)
+    -> Inner hash join (t2.val = t6.val)  (rows=10e-6)
+        -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (t2.val = t4.val)  (rows=100e-6)
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t6.val)  (rows=0.1)
-            -> Table scan on t6  (rows=1)
+                -> Hash
+                    -> Inner hash join (t3.val = t2.val)  (rows=0.001)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Inner hash join (t3.val = t5.val)  (rows=0.01)
+                                -> Table scan on t5  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (t1.val = t3.val)  (rows=0.1)
+                                        -> Table scan on t3  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t1  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t4) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=10e-6)
-        -> Nested loop inner join  (rows=100e-6)
-            -> Nested loop inner join  (rows=0.001)
-                -> Nested loop inner join  (rows=0.01)
-                    -> Nested loop inner join  (rows=0.1)
-                        -> Table scan on t5  (rows=1)
-                        -> Filter: (t5.val = t4.val)  (rows=0.1)
-                            -> Table scan on t4  (rows=1)
-                    -> Filter: (t4.val = t1.val)  (rows=0.1)
-                        -> Table scan on t1  (rows=1)
-                -> Filter: (t4.val = t2.val)  (rows=0.1)
-                    -> Table scan on t2  (rows=1)
-            -> Filter: (t2.val = t3.val)  (rows=0.1)
+    -> Inner hash join (t2.val = t6.val)  (rows=10e-6)
+        -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (t2.val = t3.val)  (rows=100e-6)
                 -> Table scan on t3  (rows=1)
-        -> Filter: (t2.val = t6.val)  (rows=0.1)
-            -> Table scan on t6  (rows=1)
+                -> Hash
+                    -> Inner hash join (t4.val = t2.val)  (rows=0.001)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Inner hash join (t4.val = t1.val)  (rows=0.01)
+                                -> Table scan on t1  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (t5.val = t4.val)  (rows=0.1)
+                                        -> Table scan on t4  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t2,t4,t6,t1,t3) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=10e-6)
-        -> Nested loop inner join  (rows=100e-6)
-            -> Nested loop inner join  (rows=0.001)
-                -> Nested loop inner join  (rows=0.01)
-                    -> Nested loop inner join  (rows=0.1)
-                        -> Table scan on t2  (rows=1)
-                        -> Filter: (t2.val = t4.val)  (rows=0.1)
-                            -> Table scan on t4  (rows=1)
-                    -> Filter: (t2.val = t6.val)  (rows=0.1)
-                        -> Table scan on t6  (rows=1)
-                -> Filter: (t2.val = t1.val)  (rows=0.1)
-                    -> Table scan on t1  (rows=1)
-            -> Filter: (t2.val = t3.val)  (rows=0.1)
+    -> Inner hash join (t2.val = t5.val)  (rows=10e-6)
+        -> Table scan on t5  (rows=1)
+        -> Hash
+            -> Inner hash join (t2.val = t3.val)  (rows=100e-6)
                 -> Table scan on t3  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
-            -> Table scan on t5  (rows=1)
+                -> Hash
+                    -> Inner hash join (t2.val = t1.val)  (rows=0.001)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Inner hash join (t2.val = t6.val)  (rows=0.01)
+                                -> Table scan on t6  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (t2.val = t4.val)  (rows=0.1)
+                                        -> Table scan on t4  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t2  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t2,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t5  (rows=1)
-                        -> Table scan on t2  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                -> Table scan on t3  (rows=1)
-            -> Table scan on t4  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t4  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t1  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (no condition)  (rows=1)
+                                        -> Table scan on t2  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t3  (rows=1)
-                        -> Table scan on t4  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                -> Table scan on t2  (rows=1)
-            -> Table scan on t5  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t5  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t1  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (no condition)  (rows=1)
+                                        -> Table scan on t4  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t3  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5,t3,t1,t2,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t5  (rows=1)
-                        -> Table scan on t3  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                -> Table scan on t2  (rows=1)
-            -> Table scan on t4  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t4  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t1  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (no condition)  (rows=1)
+                                        -> Table scan on t3  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t5  (rows=1)
 
 JOIN_SUFFIX hint
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t1,t2,t6) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=10e-6)
-        -> Nested loop inner join  (rows=100e-6)
-            -> Nested loop inner join  (rows=0.001)
-                -> Nested loop inner join  (rows=0.01)
-                    -> Table scan on t5  (rows=1)
-                    -> Filter: (t3.val = t5.val)  (rows=0.01)
-                        -> Nested loop inner join  (rows=0.1)
-                            -> Table scan on t3  (rows=1)
-                            -> Filter: (t3.val = t4.val)  (rows=0.1)
-                                -> Table scan on t4  (rows=1)
-                -> Filter: (t3.val = t1.val)  (rows=0.1)
-                    -> Table scan on t1  (rows=1)
-            -> Filter: (t3.val = t2.val)  (rows=0.1)
+    -> Inner hash join (t2.val = t6.val)  (rows=10e-6)
+        -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (t3.val = t2.val)  (rows=100e-6)
                 -> Table scan on t2  (rows=1)
-        -> Filter: (t2.val = t6.val)  (rows=0.1)
-            -> Table scan on t6  (rows=1)
+                -> Hash
+                    -> Inner hash join (t3.val = t1.val)  (rows=0.001)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Inner hash join (t3.val = t4.val)  (rows=0.01)
+                                -> Table scan on t4  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (t3.val = t5.val)  (rows=0.1)
+                                        -> Table scan on t3  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t6,t3) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=10e-6)
-        -> Nested loop inner join  (rows=100e-6)
-            -> Nested loop inner join  (rows=0.001)
-                -> Table scan on t1  (rows=1)
-                -> Filter: (t1.val = t2.val)  (rows=0.001)
-                    -> Nested loop inner join  (rows=0.01)
-                        -> Table scan on t5  (rows=1)
-                        -> Filter: (t2.val = t5.val)  (rows=0.01)
-                            -> Nested loop inner join  (rows=0.1)
-                                -> Table scan on t2  (rows=1)
-                                -> Filter: (t2.val = t4.val)  (rows=0.1)
-                                    -> Table scan on t4  (rows=1)
-            -> Filter: (t2.val = t6.val)  (rows=0.1)
+    -> Inner hash join (t2.val = t3.val)  (rows=10e-6)
+        -> Table scan on t3  (rows=1)
+        -> Hash
+            -> Inner hash join (t2.val = t6.val)  (rows=100e-6)
                 -> Table scan on t6  (rows=1)
-        -> Filter: (t2.val = t3.val)  (rows=0.1)
-            -> Table scan on t3  (rows=1)
+                -> Hash
+                    -> Inner hash join (t1.val = t2.val)  (rows=0.001)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Inner hash join (t2.val = t4.val)  (rows=0.01)
+                                -> Table scan on t4  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (t2.val = t5.val)  (rows=0.1)
+                                        -> Table scan on t2  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t5,t4,t3,t6,t1) */ COUNT(*) FROM t1 JOIN t2 USING(val) JOIN t3 USING(val) JOIN t4 USING(val) JOIN t5 USING(val) JOIN t6 USING(val);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=10e-6)
-        -> Nested loop inner join  (rows=100e-6)
-            -> Nested loop inner join  (rows=0.001)
-                -> Nested loop inner join  (rows=0.01)
-                    -> Nested loop inner join  (rows=0.1)
-                        -> Table scan on t2  (rows=1)
-                        -> Filter: (t2.val = t5.val)  (rows=0.1)
-                            -> Table scan on t5  (rows=1)
-                    -> Filter: (t2.val = t4.val)  (rows=0.1)
-                        -> Table scan on t4  (rows=1)
-                -> Filter: (t2.val = t3.val)  (rows=0.1)
-                    -> Table scan on t3  (rows=1)
-            -> Filter: (t2.val = t6.val)  (rows=0.1)
+    -> Inner hash join (t2.val = t1.val)  (rows=10e-6)
+        -> Table scan on t1  (rows=1)
+        -> Hash
+            -> Inner hash join (t2.val = t6.val)  (rows=100e-6)
                 -> Table scan on t6  (rows=1)
-        -> Filter: (t2.val = t1.val)  (rows=0.1)
-            -> Table scan on t1  (rows=1)
+                -> Hash
+                    -> Inner hash join (t2.val = t3.val)  (rows=0.001)
+                        -> Table scan on t3  (rows=1)
+                        -> Hash
+                            -> Inner hash join (t2.val = t4.val)  (rows=0.01)
+                                -> Table scan on t4  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (t2.val = t5.val)  (rows=0.1)
+                                        -> Table scan on t5  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t2  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t4,t5,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t1  (rows=1)
-                        -> Table scan on t3  (rows=1)
-                    -> Table scan on t6  (rows=1)
-                -> Table scan on t4  (rows=1)
-            -> Table scan on t5  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t2  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t5  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t4  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Inner hash join (no condition)  (rows=1)
+                                    -> Table scan on t1  (rows=1)
+                                    -> Hash
+                                        -> Table scan on t3  (rows=1)
+                                -> Hash
+                                    -> Table scan on t6  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t3,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t1  (rows=1)
-                        -> Table scan on t4  (rows=1)
-                    -> Table scan on t5  (rows=1)
-                -> Table scan on t6  (rows=1)
-            -> Table scan on t3  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t2  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t3  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Inner hash join (no condition)  (rows=1)
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t1  (rows=1)
+                                -> Hash
+                                    -> Table scan on t4  (rows=1)
+                            -> Hash
+                                -> Table scan on t5  (rows=1)
+                        -> Hash
+                            -> Table scan on t6  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t1,t3,t2,t5,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t6  (rows=1)
-                        -> Table scan on t1  (rows=1)
-                    -> Table scan on t3  (rows=1)
-                -> Table scan on t2  (rows=1)
-            -> Table scan on t5  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t4  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t5  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t3  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (no condition)  (rows=1)
+                                        -> Table scan on t1  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t6  (rows=1)
 
 JOIN_ORDER hint
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t6,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t6  (rows=1)
-                        -> Table scan on t2  (rows=1)
-                    -> Table scan on t3  (rows=1)
-                -> Table scan on t4  (rows=1)
-            -> Table scan on t5  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Inner hash join (no condition)  (rows=1)
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Inner hash join (no condition)  (rows=1)
+                            -> Table scan on t6  (rows=1)
+                            -> Hash
+                                -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Table scan on t3  (rows=1)
+                    -> Hash
+                        -> Table scan on t4  (rows=1)
+                -> Hash
+                    -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t4,t6,t3,t5,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t4  (rows=1)
-                        -> Table scan on t2  (rows=1)
-                    -> Table scan on t6  (rows=1)
-                -> Table scan on t3  (rows=1)
-            -> Table scan on t5  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t1  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t5  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t6  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (no condition)  (rows=1)
+                                        -> Table scan on t4  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t2  (rows=1)
 
 Nested tables as hint tables
 EXPLAIN FORMAT=TREE SELECT /*+ QB_NAME(q1) JOIN_PREFIX(t2,t1,t2@subq2) */ count(*) FROM t1 JOIN t2 JOIN t3
@@ -445,32 +496,37 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t2) AND
 t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t2);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop inner join  (rows=0.1)
-            -> Nested loop semijoin  (rows=0.1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t2  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                -> Filter: (t2.val = t2.val)  (rows=0.1)
-                    -> Table scan on t2  (rows=1)
+    -> Hash semijoin (t1.val = t2.val)  (rows=0.01)
+        -> Inner hash join (no condition)  (rows=0.1)
             -> Table scan on t3  (rows=1)
-        -> Filter: (t1.val = t2.val)  (rows=0.1)
+            -> Hash
+                -> Hash semijoin (t2.val = t2.val)  (rows=0.1)
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=1)
+        -> Hash
             -> Table scan on t2  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t2,t1) JOIN_ORDER(t3,t4@subq1) JOIN_SUFFIX(t4@subq1) */ count(*) FROM t1 JOIN t2 JOIN t3
 WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ t4.val FROM t4 JOIN t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Table scan on t1  (rows=1)
+    -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+        -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t3  (rows=1)
-        -> Filter: (t1.val = t4.val)  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Table scan on t5  (rows=1)
+            -> Hash
+                -> Inner hash join (no condition)  (rows=1)
+                    -> Table scan on t1  (rows=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t4  (rows=1)
+                -> Hash
+                    -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_SUFFIX(t5@subq2) */ count(*)
 FROM t1 JOIN t2 JOIN t3
@@ -478,17 +534,19 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
+    -> Inner hash join (no condition)  (rows=0.01)
+        -> Table scan on t3  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=0.01)
+                -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
                     -> Table scan on t1  (rows=1)
-                    -> Table scan on t2  (rows=1)
-                -> Table scan on t3  (rows=1)
-            -> Filter: (t2.val = t5.val)  (rows=0.1)
-                -> Table scan on t5  (rows=1)
-        -> Filter: (t1.val = t4.val)  (rows=0.1)
-            -> Table scan on t4  (rows=1)
+                    -> Hash
+                        -> Table scan on t4  (rows=1)
+                -> Hash
+                    -> Hash semijoin (t2.val = t5.val)  (rows=0.1)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t5@subq2,t4@subq1) JOIN_PREFIX(t1) JOIN_SUFFIX(t2,t5@subq2,t4@subq1) */ count(*)
 FROM t1 JOIN t2 JOIN t3
@@ -496,16 +554,18 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                    -> Table scan on t3  (rows=1)
+    -> Hash semijoin (t1.val = t4.val)  (rows=0.01)
+        -> Hash semijoin (t2.val = t5.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t2  (rows=1)
-            -> Filter: (t2.val = t5.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                        -> Hash
+                            -> Table scan on t1  (rows=1)
+            -> Hash
                 -> Table scan on t5  (rows=1)
-        -> Filter: (t1.val = t4.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t4  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ QB_NAME(q1) JOIN_ORDER(@q1 t2,t3,t1) */ count(*)
@@ -514,16 +574,18 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t2  (rows=1)
-                    -> Table scan on t3  (rows=1)
+    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ QB_NAME(q1) JOIN_PREFIX(@q1 t2,t3,t1) */ count(*)
@@ -532,16 +594,18 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t2  (rows=1)
-                    -> Table scan on t3  (rows=1)
+    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t3  (rows=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 Multiple hints,all applicable
@@ -549,16 +613,18 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1,t2,t3) */ count(*) FROM t1 JOIN t2
 WHERE t1.val IN (SELECT val FROM t4) AND t2.val IN (SELECT val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                    -> Table scan on t2  (rows=1)
+    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t3  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Table scan on t1  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3) JOIN_ORDER(t1,t2,t5) */ count(*) FROM t1 JOIN t2 JOIN t3
@@ -566,45 +632,56 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t3  (rows=1)
-                    -> Table scan on t1  (rows=1)
+    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t2  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Table scan on t3  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE  SELECT /*+ JOIN_ORDER(t3,t2) JOIN_ORDER(t1,t2,t5) */ count(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t3  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                -> Table scan on t2  (rows=1)
-            -> Table scan on t4  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t5  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Inner hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Inner hash join (no condition)  (rows=1)
+                            -> Table scan on t3  (rows=1)
+                            -> Hash
+                                -> Table scan on t1  (rows=1)
+                -> Hash
+                    -> Table scan on t4  (rows=1)
 
 EXPLAIN FORMAT=TREE  SELECT /*+ JOIN_ORDER(t3,t2,t1,t6) JOIN_ORDER(t4,t2,t5,t1) */ count(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Nested loop inner join  (rows=1)
-                        -> Table scan on t3  (rows=1)
-                        -> Table scan on t4  (rows=1)
-                    -> Table scan on t2  (rows=1)
-                -> Table scan on t5  (rows=1)
-            -> Table scan on t1  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t6  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t1  (rows=1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t5  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t2  (rows=1)
+                                -> Hash
+                                    -> Inner hash join (no condition)  (rows=1)
+                                        -> Table scan on t3  (rows=1)
+                                        -> Hash
+                                            -> Table scan on t4  (rows=1)
 
 Conflicting hints
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t3,t2,t1) JOIN_PREFIX(t2,t1) */ count(*) FROM t1 JOIN t2 JOIN t3
@@ -612,16 +689,18 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t3  (rows=1)
-                    -> Table scan on t2  (rows=1)
+    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t2  (rows=1)
+                        -> Hash
+                            -> Table scan on t3  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 Warnings:
@@ -631,16 +710,18 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=0.01)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t1  (rows=1)
-                    -> Table scan on t2  (rows=1)
+    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t3  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=1)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=1)
+            -> Hash
                 -> Table scan on t4  (rows=1)
-        -> Filter: (t2.val = t5.val)  (rows=0.1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 Warnings:
@@ -649,22 +730,24 @@ Warning	3515	Hints aren't supported in hypergraph: semijoin/antijoin table prece
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_FIXED_ORDER() JOIN_ORDER(t2,t1) */ t2.val FROM t1 JOIN t2 ON t1.val = t2.val
 WHERE (t1.val > 5 AND t1.val <= 5);
 EXPLAIN
--> Nested loop inner join  (rows=0.0111)
-    -> Filter: ((t1.val > 5) and (t1.val <= 5))  (rows=0.111)
-        -> Table scan on t1  (rows=1)
-    -> Filter: (t1.val = t2.val)  (rows=0.1)
-        -> Table scan on t2  (rows=1)
+-> Inner hash join (t1.val = t2.val)  (rows=0.0111)
+    -> Table scan on t2  (rows=1)
+    -> Hash
+        -> Filter: ((t1.val > 5) and (t1.val <= 5))  (rows=0.111)
+            -> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3126	Hint JOIN_ORDER( `t2`,`t1`) is ignored as conflicting/duplicated
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_ORDER(t2,t3) */ count(*) FROM t1 JOIN t2 JOIN t3;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=1)
-        -> Nested loop inner join  (rows=1)
-            -> Table scan on t1  (rows=1)
-            -> Table scan on t3  (rows=1)
+    -> Inner hash join (no condition)  (rows=1)
         -> Table scan on t2  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on t1  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=1)
 
 Invalid hint which places semijoin table at beginning of table list
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t5@subq1,t4@subq1,t2) */ count(*)
@@ -672,16 +755,19 @@ FROM t1 JOIN t2 JOIN t3
 WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ t4.val FROM t4 JOIN t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=0.1)
-        -> Nested loop semijoin  (rows=0.1)
-            -> Nested loop inner join  (rows=1)
-                -> Table scan on t1  (rows=1)
-                -> Table scan on t2  (rows=1)
-            -> Filter: (t1.val = t4.val)  (rows=0.1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on t5  (rows=1)
-                    -> Table scan on t4  (rows=1)
+    -> Inner hash join (no condition)  (rows=0.1)
         -> Table scan on t3  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=0.1)
+                -> Table scan on t2  (rows=1)
+                -> Hash
+                    -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+                        -> Table scan on t1  (rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on t5  (rows=1)
+                                -> Hash
+                                    -> Table scan on t4  (rows=1)
 
 Warnings:
 Warning	3515	Hints aren't supported in hypergraph: first table in join order cannot be semijoin/antijoin nest
@@ -697,15 +783,17 @@ RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
 WHERE (9) IN (SELECT val FROM t3);
 EXPLAIN
 -> Delete from ta1 (buffered)  (rows=0.1)
-    -> Nested loop left join  (rows=0.1)
-        -> Nested loop semijoin  (rows=0.1)
+    -> Left hash join (ta1.val = t2.val)  (rows=0.1)
+        -> Hash semijoin (no condition)  (rows=0.1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t3.val = 9)  (rows=0.1)
-                -> Table scan on t3  (rows=1)
-        -> Filter: (ta1.val = t2.val)  (rows=1)
-            -> Nested loop inner join  (rows=1)
+            -> Hash
+                -> Filter: (t3.val = 9)  (rows=0.1)
+                    -> Table scan on t3  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on ta2  (rows=1)
-                -> Table scan on ta1  (rows=1)
+                -> Hash
+                    -> Table scan on ta1  (rows=1)
 
 Hint should be ignored
 EXPLAIN FORMAT=TREE DELETE /*+ JOIN_SUFFIX(ta2,t3,ta1) */
@@ -714,15 +802,17 @@ RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
 WHERE (9) IN (SELECT val FROM t3);
 EXPLAIN
 -> Delete from ta1 (buffered)  (rows=0.1)
-    -> Nested loop semijoin  (rows=0.1)
-        -> Nested loop left join  (rows=1)
+    -> Hash semijoin (no condition)  (rows=0.1)
+        -> Left hash join (ta1.val = t2.val)  (rows=1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (ta1.val = t2.val)  (rows=1)
-                -> Nested loop inner join  (rows=1)
-                    -> Table scan on ta1  (rows=1)
+            -> Hash
+                -> Inner hash join (no condition)  (rows=1)
                     -> Table scan on ta2  (rows=1)
-        -> Filter: (t3.val = 9)  (rows=0.1)
-            -> Table scan on t3  (rows=1)
+                    -> Hash
+                        -> Table scan on ta1  (rows=1)
+        -> Hash
+            -> Filter: (t3.val = 9)  (rows=0.1)
+                -> Table scan on t3  (rows=1)
 
 Both hints should be ignored
 EXPLAIN FORMAT=TREE DELETE /*+ JOIN_PREFIX(ta1,t2,t3) JOIN_SUFFIX(t3,ta2) */
@@ -731,15 +821,17 @@ RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
 WHERE (9) IN (SELECT val FROM t3);
 EXPLAIN
 -> Delete from ta1 (buffered)  (rows=0.1)
-    -> Nested loop left join  (rows=0.1)
-        -> Nested loop semijoin  (rows=0.1)
+    -> Left hash join (ta1.val = t2.val)  (rows=0.1)
+        -> Hash semijoin (no condition)  (rows=0.1)
             -> Table scan on t2  (rows=1)
-            -> Filter: (t3.val = 9)  (rows=0.1)
-                -> Table scan on t3  (rows=1)
-        -> Filter: (ta1.val = t2.val)  (rows=1)
-            -> Nested loop inner join  (rows=1)
+            -> Hash
+                -> Filter: (t3.val = 9)  (rows=0.1)
+                    -> Table scan on t3  (rows=1)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on ta1  (rows=1)
-                -> Table scan on ta2  (rows=1)
+                -> Hash
+                    -> Table scan on ta2  (rows=1)
 
 Warnings:
 Warning	3515	Hints aren't supported in hypergraph: first table in join order cannot be semijoin/antijoin nest
@@ -792,33 +884,36 @@ test.t5	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_PREFIX(t3) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
         -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
-                    -> Nested loop inner join  (rows=15)
-                        -> Table scan on t3  (rows=5)
+                    -> Inner hash join (no condition)  (rows=15)
                         -> Table scan on t1  (rows=3)
+                        -> Hash
+                            -> Table scan on t3  (rows=5)
             -> Hash
                 -> Table scan on t4  (rows=2)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_SUFFIX(t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=42.4)
-        -> Nested loop semijoin  (rows=8.49)
+    -> Inner hash join (no condition)  (rows=42.4)
+        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
             -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
-                -> Nested loop inner join  (rows=60)
-                    -> Table scan on t1  (rows=3)
+                -> Inner hash join (no condition)  (rows=60)
                     -> Table scan on t2  (rows=20)
+                    -> Hash
+                        -> Table scan on t1  (rows=3)
                 -> Hash
                     -> Table scan on t4  (rows=2)
-            -> Filter: (t2.f1 = t5.f1)  (rows=1)
+            -> Hash
                 -> Table scan on t5  (rows=1)
-        -> Table scan on t3  (rows=5)
+        -> Hash
+            -> Table scan on t3  (rows=5)
 
 Warnings:
 Warning	3515	Hints aren't supported in hypergraph: semijoin/antijoin table precedes a table which it depends on
@@ -826,45 +921,51 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_SUFFIX(t1,t4) */ count(
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
-        -> Nested loop inner join  (rows=300)
-            -> Nested loop semijoin  (rows=100)
-                -> Nested loop inner join  (rows=100)
-                    -> Table scan on t3  (rows=5)
-                    -> Table scan on t2  (rows=20)
-                -> Filter: (t2.f1 = t5.f1)  (rows=1)
-                    -> Table scan on t5  (rows=1)
+        -> Inner hash join (no condition)  (rows=300)
             -> Table scan on t1  (rows=3)
+            -> Hash
+                -> Hash semijoin (t2.f1 = t5.f1)  (rows=100)
+                    -> Inner hash join (no condition)  (rows=100)
+                        -> Table scan on t2  (rows=20)
+                        -> Hash
+                            -> Table scan on t3  (rows=5)
+                    -> Hash
+                        -> Table scan on t5  (rows=1)
         -> Hash
             -> Table scan on t4  (rows=2)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_PREFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
-        -> Nested loop inner join  (rows=42.4)
-            -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
-                -> Nested loop inner join  (rows=60)
-                    -> Table scan on t1  (rows=3)
-                    -> Table scan on t2  (rows=20)
-                -> Hash
-                    -> Table scan on t4  (rows=2)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
+        -> Inner hash join (no condition)  (rows=42.4)
             -> Table scan on t3  (rows=5)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+            -> Hash
+                -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
+                    -> Inner hash join (no condition)  (rows=60)
+                        -> Table scan on t2  (rows=20)
+                        -> Hash
+                            -> Table scan on t1  (rows=3)
+                    -> Hash
+                        -> Table scan on t4  (rows=2)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_SUFFIX(t2,t3,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
         -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
-            -> Nested loop inner join  (rows=300)
-                -> Nested loop inner join  (rows=60)
-                    -> Table scan on t1  (rows=3)
-                    -> Table scan on t2  (rows=20)
+            -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t3  (rows=5)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=60)
+                        -> Table scan on t2  (rows=20)
+                        -> Hash
+                            -> Table scan on t1  (rows=3)
             -> Hash
                 -> Table scan on t4  (rows=2)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 Warnings:
@@ -873,133 +974,149 @@ Warning	3515	Hints aren't supported in hypergraph: semijoin/antijoin table prece
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_PREFIX(t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
         -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
-                    -> Nested loop inner join  (rows=15)
-                        -> Table scan on t1  (rows=3)
+                    -> Inner hash join (no condition)  (rows=15)
                         -> Table scan on t3  (rows=5)
+                        -> Hash
+                            -> Table scan on t1  (rows=3)
             -> Hash
                 -> Table scan on t4  (rows=2)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_SUFFIX(t3) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
         -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
-                    -> Nested loop inner join  (rows=15)
-                        -> Table scan on t1  (rows=3)
+                    -> Inner hash join (no condition)  (rows=15)
                         -> Table scan on t3  (rows=5)
+                        -> Hash
+                            -> Table scan on t1  (rows=3)
             -> Hash
                 -> Table scan on t4  (rows=2)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_PREFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
         -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
-                    -> Nested loop inner join  (rows=15)
-                        -> Table scan on t1  (rows=3)
+                    -> Inner hash join (no condition)  (rows=15)
                         -> Table scan on t3  (rows=5)
+                        -> Hash
+                            -> Table scan on t1  (rows=3)
             -> Hash
                 -> Table scan on t4  (rows=2)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_SUFFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=42.4)
-        -> Nested loop semijoin  (rows=8.49)
-            -> Nested loop inner join  (rows=8.49)
-                -> Nested loop semijoin  (rows=0.424)
-                    -> Table scan on t1  (rows=3)
-                    -> Filter: (t1.f1 = t4.f1)  (rows=0.2)
-                        -> Table scan on t4  (rows=2)
+    -> Inner hash join (no condition)  (rows=42.4)
+        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
+            -> Inner hash join (no condition)  (rows=8.49)
                 -> Table scan on t2  (rows=20)
-            -> Filter: (t2.f1 = t5.f1)  (rows=1)
+                -> Hash
+                    -> Hash semijoin (t1.f1 = t4.f1)  (rows=0.424)
+                        -> Table scan on t1  (rows=3)
+                        -> Hash
+                            -> Table scan on t4  (rows=2)
+            -> Hash
                 -> Table scan on t5  (rows=1)
-        -> Table scan on t3  (rows=5)
+        -> Hash
+            -> Table scan on t3  (rows=5)
 
 Warnings:
 Warning	3515	Hints aren't supported in hypergraph: semijoin/antijoin table precedes a table which it depends on
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_PREFIX(t1,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=42.4)
-        -> Nested loop semijoin  (rows=8.49)
+    -> Inner hash join (no condition)  (rows=42.4)
+        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
             -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
-                -> Nested loop inner join  (rows=60)
-                    -> Table scan on t1  (rows=3)
+                -> Inner hash join (no condition)  (rows=60)
                     -> Table scan on t2  (rows=20)
+                    -> Hash
+                        -> Table scan on t1  (rows=3)
                 -> Hash
                     -> Table scan on t4  (rows=2)
-            -> Filter: (t2.f1 = t5.f1)  (rows=1)
+            -> Hash
                 -> Table scan on t5  (rows=1)
-        -> Table scan on t3  (rows=5)
+        -> Hash
+            -> Table scan on t3  (rows=5)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_SUFFIX(t4,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=42.4)
-        -> Nested loop semijoin  (rows=8.49)
+    -> Inner hash join (no condition)  (rows=42.4)
+        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
             -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
-                -> Nested loop inner join  (rows=60)
-                    -> Table scan on t1  (rows=3)
+                -> Inner hash join (no condition)  (rows=60)
                     -> Table scan on t2  (rows=20)
+                    -> Hash
+                        -> Table scan on t1  (rows=3)
                 -> Hash
                     -> Table scan on t4  (rows=2)
-            -> Filter: (t2.f1 = t5.f1)  (rows=1)
+            -> Hash
                 -> Table scan on t5  (rows=1)
-        -> Table scan on t3  (rows=5)
+        -> Hash
+            -> Table scan on t3  (rows=5)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t3,t2) JOIN_SUFFIX(t3,t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop inner join  (rows=42.4)
-        -> Nested loop inner join  (rows=8.49)
-            -> Nested loop semijoin  (rows=0.424)
-                -> Table scan on t1  (rows=3)
-                -> Filter: (t1.f1 = t4.f1)  (rows=0.2)
-                    -> Table scan on t4  (rows=2)
+    -> Inner hash join (no condition)  (rows=42.4)
+        -> Inner hash join (no condition)  (rows=8.49)
             -> Table scan on t2  (rows=20)
-        -> Table scan on t3  (rows=5)
+            -> Hash
+                -> Hash semijoin (t1.f1 = t4.f1)  (rows=0.424)
+                    -> Table scan on t1  (rows=3)
+                    -> Hash
+                        -> Table scan on t4  (rows=2)
+        -> Hash
+            -> Table scan on t3  (rows=5)
 
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t2,t4,t1) */ 1 FROM t1 JOIN t2 ON 1 RIGHT JOIN t3 ON 1 JOIN t4 ON 1;
 EXPLAIN
--> Nested loop inner join  (rows=600)
-    -> Table scan on t4  (rows=2)
-    -> Nested loop left join  (rows=300)
+-> Inner hash join (no condition)  (rows=600)
+    -> Left hash join (no condition)  (rows=300)
         -> Table scan on t3  (rows=5)
-        -> Nested loop inner join  (rows=60)
-            -> Table scan on t1  (rows=3)
-            -> Table scan on t2  (rows=20)
+        -> Hash
+            -> Inner hash join (no condition)  (rows=60)
+                -> Table scan on t2  (rows=20)
+                -> Hash
+                    -> Table scan on t1  (rows=3)
+    -> Hash
+        -> Table scan on t4  (rows=2)
 
 explain format=tree SELECT /*+ JOIN_PREFIX(t3,t1) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Nested loop semijoin  (rows=42.4)
+    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
         -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
-            -> Nested loop inner join  (rows=300)
-                -> Nested loop inner join  (rows=60)
-                    -> Table scan on t1  (rows=3)
-                    -> Table scan on t2  (rows=20)
+            -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t3  (rows=5)
+                -> Hash
+                    -> Inner hash join (no condition)  (rows=60)
+                        -> Table scan on t2  (rows=20)
+                        -> Hash
+                            -> Table scan on t1  (rows=3)
             -> Hash
                 -> Table scan on t4  (rows=2)
-        -> Filter: (t2.f1 = t5.f1)  (rows=1)
+        -> Hash
             -> Table scan on t5  (rows=1)
 
 DROP TABLE t1, t2, t3, t4, t5;
@@ -1082,22 +1199,27 @@ field4
 DROP TABLE B;
 Bug#36604616 WL#15853: Assertion `IsMultipleEquals(cond) || IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS, expr->tables_in_subtree)' failed.
 CREATE TABLE t1(c1 mediumint DEFAULT NULL, c2 char(255) DEFAULT NULL, c3 varchar(10) DEFAULT NULL, c4 varchar(500) DEFAULT NULL, c5 char(10) DEFAULT NULL, c6 tinyint DEFAULT NULL, c7 mediumint DEFAULT NULL, c8 int DEFAULT NULL, c9 float DEFAULT NULL, pk int NOT NULL, PRIMARY KEY (pk)) ENGINE=InnoDB;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias3,alias3,alias1) */  alias1.c1 AS field1 FROM t1 AS alias1 INNER JOIN t1 AS alias2 INNER JOIN t1 AS alias3 INNER JOIN t1 AS alias4 ON alias3.c2 >= alias4.c3 ON alias2.c4 != alias4.c5 ON alias1.c6 <= alias4.c7  LEFT OUTER JOIN t1 AS alias5 ON alias2.c8 = alias5.c9 WHERE alias3.pk <= 3 HAVING (field1 < 8 AND field1 != 8) ORDER BY field1;
 EXPLAIN
--> Filter: ((field1 < 8) and (field1 <> 8))  (cost=38.2..38.2 rows=0.03)
-    -> Nested loop left join  (cost=38.2..38.2 rows=0.1)
-        -> Nested loop inner join  (cost=30.7..30.7 rows=0.1)
-            -> Sort: alias1.c1  (cost=23..23 rows=1)
-                -> Nested loop inner join  (cost=22.6..22.6 rows=1)
-                    -> Nested loop inner join  (cost=15.1..15.1 rows=1)
-                        -> Filter: (alias3.pk <= 3)  (cost=7.59..7.59 rows=1)
-                            -> Table scan on alias3  (cost=7.53..7.53 rows=1)
-                        -> Table scan on alias2  (cost=7.53..7.53 rows=1)
-                    -> Table scan on alias1  (cost=7.53..7.53 rows=1)
-            -> Filter: ((alias1.c6 <= alias4.c7) and (alias2.c4 <> alias4.c5) and (alias3.c2 >= alias4.c3))  (cost=7.67..7.67 rows=0.1)
-                -> Table scan on alias4  (cost=7.58..7.58 rows=1)
-        -> Filter: (alias2.c8 = alias5.c9)  (cost=7.54..7.54 rows=0.1)
-            -> Table scan on alias5  (cost=7.48..7.48 rows=1)
+-> Sort: alias1.c1  (rows=0.03)
+    -> Filter: ((field1 < 8) and (field1 <> 8))  (rows=0.03)
+        -> Left hash join (alias2.c8 = alias5.c9)  (rows=0.1)
+            -> Inner hash join (no condition), extra conditions: (alias1.c6 <= alias4.c7) and (alias2.c4 <> alias4.c5) and (alias3.c2 >= alias4.c3)  (rows=0.1)
+                -> Inner hash join (no condition)  (rows=1)
+                    -> Table scan on alias1  (rows=1)
+                    -> Hash
+                        -> Inner hash join (no condition)  (rows=1)
+                            -> Filter: (alias3.pk <= 3)  (rows=1)
+                                -> Table scan on alias3  (rows=1)
+                            -> Hash
+                                -> Table scan on alias2  (rows=1)
+                -> Hash
+                    -> Table scan on alias4  (rows=1)
+            -> Hash
+                -> Table scan on alias5  (rows=1)
 
 DROP TABLE t1;
 Bug#36622538 WL#15853:: Assertion `table_num_to_node_num[table_num] != -1' failed.
@@ -1115,6 +1237,15 @@ CREATE TABLE t6(f1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1));
 CREATE TABLE t7(f1 VARCHAR(255) DEFAULT NULL);
 CREATE TABLE t10(f1 INT NOT NULL AUTO_INCREMENT,f2 INT DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL, PRIMARY KEY (f1),KEY (f2),KEY (f3));
 CREATE TABLE t11(f1 INT DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL, KEY (f1),KEY (f2));
+ANALYZE TABLE t2, t4, t5, t6, t7, t10, t11;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t10	analyze	status	OK
+test.t11	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias11,alias8) */ 1
 FROM t4 AS alias4
 LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1
@@ -1123,24 +1254,24 @@ ON alias5.f1 = alias8.f2 ON alias4.f2 = alias6.f1
 JOIN t10 AS alias10 JOIN t11 AS alias11 ON alias10.f1 = alias11.f1
 ON alias4.f2 = alias11.f2;
 EXPLAIN
--> Nested loop inner join  (cost=7.49..7.49 rows=1)
-    -> Table scan on alias10  (cost=0.406..0.406 rows=1)
-    -> Filter: (alias10.f1 = alias11.f1)  (cost=7.08..7.08 rows=1)
-        -> Nested loop left join  (cost=7.03..7.03 rows=1)
-            -> Nested loop inner join  (cost=0.804..0.804 rows=1)
-                -> Table scan on alias4  (cost=0.313..0.313 rows=1)
-                -> Filter: (cast(alias4.f2 as double) = cast(alias11.f2 as double))  (cost=0.491..0.491 rows=1)
-                    -> Table scan on alias11  (cost=0.433..0.433 rows=1)
-            -> Filter: (alias4.f2 = alias5.f2)  (cost=6.22..6.22 rows=1)
-                -> Nested loop inner join  (cost=6.16..6.16 rows=1)
-                    -> Nested loop left join  (cost=5.81..5.81 rows=1)
-                        -> Table scan on alias5  (cost=0.359..0.359 rows=1)
-                        -> Filter: (alias5.f1 = alias8.f2)  (cost=5.45..5.45 rows=1)
-                            -> Nested loop inner join  (cost=5.39..5.39 rows=1)
-                                -> Table scan on alias7  (cost=2.64..2.64 rows=1)
-                                -> Filter: (alias7.f1 = alias8.f1)  (cost=2.76..2.76 rows=1)
-                                    -> Table scan on alias8  (cost=2.7..2.7 rows=1)
-                    -> Filter: (alias5.f2 = alias6.f1)  (cost=0.353..0.353 rows=1)
-                        -> Table scan on alias6  (cost=0.295..0.295 rows=1)
+-> Inner hash join (alias10.f1 = alias11.f1)  (rows=1)
+    -> Table scan on alias10  (rows=1)
+    -> Hash
+        -> Inner hash join (cast(alias4.f2 as double) = cast(alias11.f2 as double))  (rows=1)
+            -> Left hash join (alias4.f2 = alias5.f2)  (rows=1)
+                -> Table scan on alias4  (rows=1)
+                -> Hash
+                    -> Left hash join (alias5.f1 = alias8.f2)  (rows=1)
+                        -> Inner hash join (alias5.f2 = alias6.f1)  (rows=1)
+                            -> Table scan on alias5  (rows=1)
+                            -> Hash
+                                -> Table scan on alias6  (rows=1)
+                        -> Hash
+                            -> Inner hash join (<hash>(alias7.f1)=<hash>(alias8.f1)), extra conditions: (alias7.f1 = alias8.f1)  (rows=1)
+                                -> Table scan on alias7  (rows=1)
+                                -> Hash
+                                    -> Table scan on alias8  (rows=1)
+            -> Hash
+                -> Table scan on alias11  (rows=1)
 
 DROP TABLES t2, t4, t5, t6, t7, t10, t11;

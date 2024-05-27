@@ -389,6 +389,7 @@ WHERE EXISTS (SELECT alias1.cv AS field1
              );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;

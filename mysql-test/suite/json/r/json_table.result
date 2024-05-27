@@ -784,6 +784,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`jt1`.`data1` AS `data1`,`jt2`.`id2` AS `id2` from `test`.`t1` join json_table(`test`.`t1`.`jd`, '$' columns (`data1` json path '$')) `jt1` join json_table(`jt1`.`data1`, '$[*]' columns (`id2` int path '$')) `jt2`
+SELECT jt.i FROM
+JSON_TABLE(JSON_ARRAY(RAND(0) <= 1, RAND(1) <= 1),
+'$[*]' COLUMNS (i INT PATH '$')) AS jt
+STRAIGHT_JOIN t1;
+i
+1
+1
+1
+1
+SELECT jt.i FROM
+t1 STRAIGHT_JOIN
+JSON_TABLE(JSON_ARRAY(RAND(0) <= 1, RAND(1) <= 1),
+'$[*]' COLUMNS (i INT PATH '$')) AS jt;
+i
+1
+1
+1
+1
 DROP TABLE t1;
 SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
 tm TIME PATH '$',

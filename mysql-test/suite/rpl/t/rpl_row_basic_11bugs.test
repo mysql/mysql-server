@@ -209,12 +209,18 @@ insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 
 connection master;
+if ($HYPERGRAPH_TEST) {
+  # Hypergraph uses hash join and updates the rows in a different order.
+  --replace_result "'4'" "'3'"
+}
 error ER_DUP_ENTRY;
 UPDATE t2,t1 SET t2.a=t1.a+2;
+--skip_if_hypergraph  # Different plan above; no rows changed before the error.
 select * from t2 /* must be (3,1), (4,4) */;
 --source include/rpl/sync_to_replica.inc
 
 connection slave;
+--skip_if_hypergraph  # Different plan above; no rows changed before the error.
 select * from t2 /* must be (3,1), (4,4) */;
 
 connection master;

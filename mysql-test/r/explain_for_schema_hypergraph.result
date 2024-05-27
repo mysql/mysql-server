@@ -117,11 +117,11 @@ EXPLAIN FORMAT=TREE FOR SCHEMA test_explain_for_schema SELECT * FROM t1 JOIN t2 
 END|
 CALL p;
 EXPLAIN
--> Nested loop inner join  (...)
-    -> Filter: (t1.i2 = 2)  (...)
-        -> Table scan on t1  (...)
-    -> Filter: (t1.i1 = t2.i3)  (...)
-        -> Table scan on t2  (...)
+-> Inner hash join (t1.i1 = t2.i3)  (...)
+    -> Table scan on t2  (...)
+    -> Hash
+        -> Filter: (t1.i2 = 2)  (...)
+            -> Table scan on t1  (...)
 
 DROP PROCEDURE p;
 # Check that correct schema is used to qualify functions in an SP

@@ -433,6 +433,15 @@ select 1 from t1 straight_join qn
 )
 select * from qn;
 ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+WITH RECURSIVE qn(n) AS
+(
+SELECT 1 FROM t1
+UNION ALL
+SELECT n+1 FROM qn STRAIGHT_JOIN t1 WHERE n < 3
+)
+SELECT COUNT(*) FROM qn;
+COUNT(*)
+14
 WITH RECURSIVE qn AS
 (
 select 1 from t1
@@ -1785,6 +1794,15 @@ select 1 from t1 straight_join qn
 )
 select * from qn;
 ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+WITH RECURSIVE qn(n) AS
+(
+SELECT 1 FROM t1
+UNION ALL
+SELECT n+1 FROM qn STRAIGHT_JOIN t1 WHERE n < 3
+)
+SELECT COUNT(*) FROM qn;
+COUNT(*)
+14
 WITH RECURSIVE qn AS
 (
 select 1 from t1

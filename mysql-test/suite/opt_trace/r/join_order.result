@@ -4,7 +4,7 @@
 #
 SET optimizer_trace="enabled=on,one_line=off";
 create table json_tab(je json);
-create table t1(id int);
+create table t1(id int primary key);
 insert into t1 values (1), (2), (3);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -21,15 +21,15 @@ select jt.t from
 json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt
 where jt.t like '%current access paths%join_order%' order by t;
 t
- - current access paths for {t1,t2,t3}: {HASH_JOIN, cost=6.95, init_cost=5.41, rescan_cost=1.54, rows=0.27, join_order=(t1,(t2,t3))}, {NESTED_LOOP_JOIN, cost=5.12, init_cost=0, rows=0.27, join_order=((t2,t3),t1)})
- - current access paths for {t1,t2,t3}: {HASH_JOIN, cost=6.95, init_cost=5.41, rescan_cost=1.54, rows=0.27, join_order=(t1,(t2,t3))}, {NESTED_LOOP_JOIN, cost=5.12, init_cost=0, rows=0.27, join_order=((t2,t3),t1)})
- - current access paths for {t1,t2,t3}: {HASH_JOIN, cost=6.95, init_cost=5.41, rescan_cost=1.54, rows=0.27, join_order=(t1,(t2,t3))}, {NESTED_LOOP_JOIN, cost=5.12, init_cost=0, rows=0.27, join_order=((t2,t3),t1)})
- - current access paths for {t1,t2,t3}: {HASH_JOIN, cost=6.95, init_cost=5.41, rescan_cost=1.54, rows=0.27, join_order=(t1,(t2,t3))}, {NESTED_LOOP_JOIN, cost=5.12, init_cost=0, rows=0.27, join_order=((t2,t3),t1)})
- - current access paths for {t1,t2,t3}: {HASH_JOIN, cost=6.95, init_cost=5.41, rescan_cost=1.54, rows=0.27, join_order=(t1,(t2,t3))}, {NESTED_LOOP_JOIN, cost=5.12, init_cost=0, rows=0.27, join_order=((t2,t3),t1)})
- - current access paths for {t1,t2,t3}: {HASH_JOIN, cost=6.95, init_cost=5.41, rescan_cost=1.54, rows=0.27, join_order=(t1,(t2,t3))}, {NESTED_LOOP_JOIN, cost=5.12, init_cost=0, rows=0.27, join_order=((t2,t3),t1)})
- - current access paths for {t1,t2}: {HASH_JOIN, cost=7.01, init_cost=5.38, rescan_cost=1.63, rows=0.9, join_order=(t1,t2)}, {NESTED_LOOP_JOIN, cost=4.06, init_cost=0, rows=0.9, join_order=(t1,t2)})
- - current access paths for {t1,t3}: {HASH_JOIN, cost=7.01, init_cost=5.38, rescan_cost=1.63, rows=0.9, join_order=(t1,t3)}, {NESTED_LOOP_JOIN, cost=4.06, init_cost=0, rows=0.9, join_order=(t1,t3)})
- - current access paths for {t2,t3}: {HASH_JOIN, cost=7.01, init_cost=5.38, rescan_cost=1.63, rows=0.9, join_order=(t2,t3)}, {NESTED_LOOP_JOIN, cost=4.06, init_cost=0, rows=0.9, join_order=(t2,t3)})
+ - current access paths for {t1,t2,t3}: {NESTED_LOOP_JOIN, cost=12.4, init_cost=0, rows=3, join_order=((t2,t3),t1)}, {HASH_JOIN, cost=13.1, init_cost=11.1, rescan_cost=1.92, rows=3, join_order=(t1,(t2,t3))}, {HASH_JOIN, cost=13.1, init_cost=5.38, rescan_cost=7.69, rows=3, join_order=((t1,t2),t3)}, {HASH_JOIN, cost=13.7, init_cost=10.8, rescan_cost=2.96, rows=3, join_order=((t1,t2),t3)})
+ - current access paths for {t1,t2,t3}: {NESTED_LOOP_JOIN, cost=12.4, init_cost=0, rows=3, join_order=((t2,t3),t1)}, {HASH_JOIN, cost=13.1, init_cost=11.1, rescan_cost=1.92, rows=3, join_order=(t1,(t2,t3))}, {HASH_JOIN, cost=13.1, init_cost=5.38, rescan_cost=7.69, rows=3, join_order=((t1,t2),t3)}, {HASH_JOIN, cost=13.7, init_cost=10.8, rescan_cost=2.96, rows=3, join_order=((t1,t2),t3)})
+ - current access paths for {t1,t2,t3}: {NESTED_LOOP_JOIN, cost=12.4, init_cost=0, rows=3, join_order=((t2,t3),t1)}, {HASH_JOIN, cost=13.1, init_cost=11.1, rescan_cost=1.92, rows=3, join_order=(t1,(t2,t3))}, {HASH_JOIN, cost=13.1, init_cost=5.38, rescan_cost=7.69, rows=3, join_order=((t1,t2),t3)}, {HASH_JOIN, cost=13.7, init_cost=10.8, rescan_cost=2.96, rows=3, join_order=((t1,t2),t3)})
+ - current access paths for {t1,t2,t3}: {NESTED_LOOP_JOIN, cost=12.4, init_cost=0, rows=3, join_order=((t2,t3),t1)}, {HASH_JOIN, cost=13.1, init_cost=11.1, rescan_cost=1.92, rows=3, join_order=(t1,(t2,t3))}, {HASH_JOIN, cost=13.1, init_cost=5.38, rescan_cost=7.69, rows=3, join_order=((t1,t2),t3)}, {HASH_JOIN, cost=13.7, init_cost=10.8, rescan_cost=2.96, rows=3, join_order=((t1,t2),t3)})
+ - current access paths for {t1,t2,t3}: {NESTED_LOOP_JOIN, cost=12.4, init_cost=0, rows=3, join_order=((t2,t3),t1)}, {HASH_JOIN, cost=13.1, init_cost=11.1, rescan_cost=1.92, rows=3, join_order=(t1,(t2,t3))})
+ - current access paths for {t1,t2,t3}: {NESTED_LOOP_JOIN, cost=12.4, init_cost=0, rows=3, join_order=((t2,t3),t1)}, {HASH_JOIN, cost=13.1, init_cost=11.1, rescan_cost=1.92, rows=3, join_order=(t1,(t2,t3))})
+ - current access paths for {t1,t2}: {NESTED_LOOP_JOIN, cost=6.65, init_cost=0, rows=3, join_order=(t1,t2)}, {HASH_JOIN, cost=7.3, init_cost=5.38, rescan_cost=1.92, rows=3, join_order=(t1,t2)})
+ - current access paths for {t1,t3}: {NESTED_LOOP_JOIN, cost=6.65, init_cost=0, rows=3, join_order=(t1,t3)}, {HASH_JOIN, cost=7.3, init_cost=5.38, rescan_cost=1.92, rows=3, join_order=(t1,t3)})
+ - current access paths for {t2,t3}: {NESTED_LOOP_JOIN, cost=6.65, init_cost=0, rows=3, join_order=(t2,t3)}, {HASH_JOIN, cost=7.3, init_cost=5.38, rescan_cost=1.92, rows=3, join_order=(t2,t3)})
 drop table t1;
 truncate table json_tab;
 create table t1 (a int primary key, b int);
@@ -48,6 +48,6 @@ select jt.t from
 json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt
 where jt.t like '%current access paths%join_order%' order by t;
 t
- - current access paths for {y1,y2}: {HASH_JOIN, cost=2.62, init_cost=1.86, rescan_cost=0.763, rows=1, join_order=(y1,y2)}, {NESTED_LOOP_JOIN, cost=8.02, init_cost=0, rows=1, join_order=(y1,y2)})
+ - current access paths for {y1,y2}: {HASH_JOIN, cost=2.62, init_cost=1.86, rescan_cost=0.763, rows=1, join_order=(y1,y2)})
 drop table t1;
 drop table json_tab;

@@ -470,12 +470,12 @@ SET sql_mode = default;
 # Check multi-table update
 #
 CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
-CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
+CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0, UNIQUE (b));
 INSERT INTO t1 SET a=1;
 INSERT INTO t1 SET b=1;
 INSERT INTO t2 SET a=1;
 INSERT INTO t2 SET b=1;
-UPDATE t1, t2 SET t1.a=10, t2.a=20;
+UPDATE t1, t2 SET t1.a=10, t2.a=20 WHERE t1.b = t2.b;
 DROP TABLE t1,t2;
 
 

@@ -4655,8 +4655,8 @@ ON table1.col_varchar_10_utf8_key <=
 table2.col_varchar
 WHERE table1.pk >= 6);
 field1	field2
-time	time
 lpjdzvkp	lpjdzvkp
+time	time
 DROP TABLE t1,t2,t3;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);

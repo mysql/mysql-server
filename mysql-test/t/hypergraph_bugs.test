@@ -1148,7 +1148,7 @@ SET SESSION OPTIMIZER_TRACE="enabled=on";
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3, t1 x4;
 
-SELECT REGEXP_SUBSTR(trace, " - \\{NESTED_LOOP_JOIN[^\n]*keeping",1,1,'n')
+SELECT REGEXP_SUBSTR(trace, " - \\{HASH_JOIN[^\n]*keeping",1,1,'n')
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 --replace_regex $elide_costs
@@ -1374,6 +1374,7 @@ ANALYZE TABLE t1;
 # first-row cost of that NLJ.
 # Note: The plan depends on the cost model and is no longer stable.
 # We likely need a way to fix a specific plan to make this test maintainable/valid.
+# Look into adding hints to get the desired plan after WL#16006.
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN
   (SELECT MAX(x2.c) k FROM t1 x2 JOIN t1 x3 ON x2.c < x3.b GROUP BY x3.c) d1

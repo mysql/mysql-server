@@ -39,6 +39,19 @@ SELECT @v1, JSON_VALID(@v1);
   "query": "/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`i3` AS `i3`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`i2` = 2) and (`test`.`t1`.`i1` = `test`.`t2`.`i3`))",
   "inputs": [
     {
+      "operation": "Table scan on t2",
+      "table_name": "t2",
+      "access_type": "table",
+      "schema_name": "test",
+      "used_columns": [
+        "i3",
+        "i4"
+      ],
+      "estimated_rows": 3.0,
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
+    },
+    {
       "inputs": [
         {
           "operation": "Table scan on t1",
@@ -54,6 +67,7 @@ SELECT @v1, JSON_VALID(@v1);
           "estimated_first_row_cost": "elided"
         }
       ],
+      "heading": "Hash",
       "condition": "(t1.i2 = 2)",
       "operation": "Filter: (t1.i2 = 2)",
       "access_type": "filter",
@@ -63,41 +77,21 @@ SELECT @v1, JSON_VALID(@v1);
       ],
       "estimated_total_cost": "elided",
       "estimated_first_row_cost": "elided"
-    },
-    {
-      "inputs": [
-        {
-          "operation": "Table scan on t2",
-          "table_name": "t2",
-          "access_type": "table",
-          "schema_name": "test",
-          "used_columns": [
-            "i3",
-            "i4"
-          ],
-          "estimated_rows": 3.0,
-          "estimated_total_cost": "elided",
-          "estimated_first_row_cost": "elided"
-        }
-      ],
-      "condition": "(t1.i1 = t2.i3)",
-      "operation": "Filter: (t1.i1 = t2.i3)",
-      "access_type": "filter",
-      "estimated_rows": 1.0,
-      "filter_columns": [
-        "test.t1.i1",
-        "test.t2.i3"
-      ],
-      "estimated_total_cost": "elided",
-      "estimated_first_row_cost": "elided"
     }
   ],
   "join_type": "inner join",
-  "operation": "Nested loop inner join",
+  "operation": "Inner hash join (t1.i1 = t2.i3)",
   "query_type": "select",
   "access_type": "join",
+  "join_columns": [
+    "test.t1.i1",
+    "test.t2.i3"
+  ],
   "estimated_rows": 0.30000000447034836,
-  "join_algorithm": "nested_loop",
+  "hash_condition": [
+    "(t1.i1 = t2.i3)"
+  ],
+  "join_algorithm": "hash",
   "estimated_total_cost": "elided",
   "estimated_first_row_cost": "elided"
 }	1
@@ -173,6 +167,23 @@ SELECT @v1, JSON_VALID(@v1);
   "query": "/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`i3` AS `i3`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`i2` = 2) and (`test`.`t1`.`i1` = `test`.`t2`.`i3`))",
   "inputs": [
     {
+      "operation": "Table scan on t2",
+      "table_name": "t2",
+      "access_type": "table",
+      "actual_rows": 3.0,
+      "schema_name": "test",
+      "actual_loops": 1,
+      "used_columns": [
+        "i3",
+        "i4"
+      ],
+      "estimated_rows": 3.0,
+      "actual_last_row_ms": "elided",
+      "actual_first_row_ms": "elided",
+      "estimated_total_cost": "elided",
+      "estimated_first_row_cost": "elided"
+    },
+    {
       "inputs": [
         {
           "operation": "Table scan on t1",
@@ -192,6 +203,7 @@ SELECT @v1, JSON_VALID(@v1);
           "estimated_first_row_cost": "elided"
         }
       ],
+      "heading": "Hash",
       "condition": "(t1.i2 = 2)",
       "operation": "Filter: (t1.i2 = 2)",
       "access_type": "filter",
@@ -205,51 +217,23 @@ SELECT @v1, JSON_VALID(@v1);
       "actual_first_row_ms": "elided",
       "estimated_total_cost": "elided",
       "estimated_first_row_cost": "elided"
-    },
-    {
-      "inputs": [
-        {
-          "operation": "Table scan on t2",
-          "table_name": "t2",
-          "access_type": "table",
-          "actual_rows": 3.0,
-          "schema_name": "test",
-          "actual_loops": 1,
-          "used_columns": [
-            "i3",
-            "i4"
-          ],
-          "estimated_rows": 3.0,
-          "actual_last_row_ms": "elided",
-          "actual_first_row_ms": "elided",
-          "estimated_total_cost": "elided",
-          "estimated_first_row_cost": "elided"
-        }
-      ],
-      "condition": "(t1.i1 = t2.i3)",
-      "operation": "Filter: (t1.i1 = t2.i3)",
-      "access_type": "filter",
-      "actual_rows": 0.0,
-      "actual_loops": 1,
-      "estimated_rows": 1.0,
-      "filter_columns": [
-        "test.t1.i1",
-        "test.t2.i3"
-      ],
-      "actual_last_row_ms": "elided",
-      "actual_first_row_ms": "elided",
-      "estimated_total_cost": "elided",
-      "estimated_first_row_cost": "elided"
     }
   ],
   "join_type": "inner join",
-  "operation": "Nested loop inner join",
+  "operation": "Inner hash join (t1.i1 = t2.i3)",
   "query_type": "select",
   "access_type": "join",
   "actual_rows": 0.0,
   "actual_loops": 1,
+  "join_columns": [
+    "test.t1.i1",
+    "test.t2.i3"
+  ],
   "estimated_rows": 0.30000000447034836,
-  "join_algorithm": "nested_loop",
+  "hash_condition": [
+    "(t1.i1 = t2.i3)"
+  ],
+  "join_algorithm": "hash",
   "actual_last_row_ms": "elided",
   "actual_first_row_ms": "elided",
   "estimated_total_cost": "elided",

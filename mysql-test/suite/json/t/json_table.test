@@ -416,6 +416,17 @@ EXPLAIN SELECT id, jt1.*, jt2.*
   FROM t1, JSON_TABLE(jd, '$' COLUMNS (data1 JSON PATH '$')) AS jt1,
     JSON_TABLE(data1, '$[*]' COLUMNS (id2 INT PATH '$')) AS jt2;
 
+# JSON_TABLE with STRAIGHT_JOIN.
+SELECT jt.i FROM
+  JSON_TABLE(JSON_ARRAY(RAND(0) <= 1, RAND(1) <= 1),
+             '$[*]' COLUMNS (i INT PATH '$')) AS jt
+  STRAIGHT_JOIN t1;
+
+SELECT jt.i FROM
+  t1 STRAIGHT_JOIN
+  JSON_TABLE(JSON_ARRAY(RAND(0) <= 1, RAND(1) <= 1),
+             '$[*]' COLUMNS (i INT PATH '$')) AS jt;
+
 DROP TABLE t1;
 
 SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(

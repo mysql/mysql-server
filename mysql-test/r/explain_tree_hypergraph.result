@@ -139,14 +139,15 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.c<721 AND x2.c<900;
 EXPLAIN
--> Nested loop inner join  (rows=649e+6)
-    -> Table scan on x3  (rows=1000)
+-> Inner hash join (no condition)  (rows=649e+6)
     -> Inner hash join (no condition)  (rows=648900)
         -> Filter: (x2.c < 900)  (rows=900)
             -> Table scan on x2  (rows=1000)
         -> Hash
             -> Filter: (x1.c < 721)  (rows=721)
                 -> Table scan on x1  (rows=1000)
+    -> Hash
+        -> Table scan on x3  (rows=1000)
 
 EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.c=x2.d AND x1.d>900 AND x2.a=x2.b;
 EXPLAIN
@@ -157,14 +158,15 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.c<921 AND x2.c<900;
 EXPLAIN
--> Nested loop inner join  (rows=829e+6)
-    -> Table scan on x3  (rows=1000)
+-> Inner hash join (no condition)  (rows=829e+6)
     -> Inner hash join (no condition)  (rows=828900)
         -> Filter: (x1.c < 921)  (rows=921)
             -> Table scan on x1  (rows=1000)
         -> Hash
             -> Filter: (x2.c < 900)  (rows=900)
                 -> Table scan on x2  (rows=1000)
+    -> Hash
+        -> Table scan on x3  (rows=1000)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE e=0 AND c=0;
 EXPLAIN
@@ -199,9 +201,10 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 LIMIT 999500000;
 EXPLAIN
 -> Limit: 999500000 row(s)  (rows=1e+9)
     -> Inner hash join (no condition)  (rows=1e+9)
-        -> Nested loop inner join  (rows=1e+6)
+        -> Inner hash join (no condition)  (rows=1e+6)
             -> Table scan on x1  (rows=1000)
-            -> Table scan on x2  (rows=1000)
+            -> Hash
+                -> Table scan on x2  (rows=1000)
         -> Hash
             -> Table scan on x3  (rows=1000)
 
@@ -209,9 +212,10 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 LIMIT 999499999;
 EXPLAIN
 -> Limit: 999499999 row(s)  (rows=999e+6)
     -> Inner hash join (no condition)  (rows=1e+9)
-        -> Nested loop inner join  (rows=1e+6)
+        -> Inner hash join (no condition)  (rows=1e+6)
             -> Table scan on x1  (rows=1000)
-            -> Table scan on x2  (rows=1000)
+            -> Hash
+                -> Table scan on x2  (rows=1000)
         -> Hash
             -> Table scan on x3  (rows=1000)
 

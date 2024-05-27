@@ -684,6 +684,10 @@ class CostingReceiver {
                              FunctionalDependencySet new_fd_set,
                              OrderingSet new_obsolete_orderings,
                              bool *wrote_trace);
+  bool AllowNestedLoopJoin(NodeMap left, NodeMap right,
+                           const AccessPath &left_path,
+                           const AccessPath &right_path,
+                           const JoinPredicate &edge) const;
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
                        FunctionalDependencySet new_fd_set,
@@ -4872,6 +4876,111 @@ pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
   return {applied, subsumed};
 }
 
+/**
+  Check if an access path returns at most one row, and it's constant throughout
+  the query. This includes single-row index lookups which use constant key
+  values only, and zero-rows paths. Such access paths can be performed once per
+  query and be cached, and are known to return at most one row, so they can
+  safely be used on either side of a nested loop join without risk of becoming
+  much more expensive than expected because of inaccurate row estimates.
+ */
+bool IsConstantSingleRowPath(const AccessPath &path) {
+  if (path.parameter_tables != 0) {
+    // If an EQ_REF is parameterized, it is for a join condition and not for a
+    // constant lookup.
+    return false;
+  }
+
+  switch (path.type) {
+    case AccessPath::ZERO_ROWS:
+    case AccessPath::EQ_REF:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
+  Check if a nested loop join between two access paths should be allowed.
+
+  Don't allow a nested loop join if it is unlikely to be much cheaper than a
+  hash join. The actual cost of a nested loop join can be much higher than the
+  estimated cost if the selectivity estimates are inaccurate. Hash joins are not
+  as sensitive to inaccurate estimates, so it's safer to prefer hash joins.
+
+  Consider nested loop joins if the join condition can be evaluated as an index
+  lookup, as that could in many cases make a nested loop join faster than a hash
+  join. Also consider a nested loop join if either side of the join is a
+  constant single-row index lookup, as in that case each side of the join can be
+  read exactly once.
+
+  If the join cannot be performed as a hash join, a nested loop join has to be
+  considered even if the conditions above are not satisfied. Otherwise, no valid
+  plan would be found for the query.
+ */
+bool CostingReceiver::AllowNestedLoopJoin(NodeMap left, NodeMap right,
+                                          const AccessPath &left_path,
+                                          const AccessPath &right_path,
+                                          const JoinPredicate &edge) const {
+#ifndef NDEBUG
+  // Manual preference overrides everything else.
+  if (left_path.forced_by_dbug || right_path.forced_by_dbug) {
+    return true;
+  }
+#endif
+
+  // If the left path provides one of the parameters of the right path, it is
+  // either a join that uses an index lookup for the join condition, which is a
+  // good case for nested loop joins, or it's a lateral derived table which is
+  // joined with its lateral dependency, in which case a hash join is not an
+  // alternative. In either case, we should permit nested loop joins.
+  if (Overlaps(left, right_path.parameter_tables)) {
+    return true;
+  }
+
+  // If either side is a constant single-row index lookup, even a nested loop
+  // join gets away with reading each side once, so we permit it.
+  if (IsConstantSingleRowPath(left_path) ||
+      IsConstantSingleRowPath(right_path)) {
+    return true;
+  }
+
+  // If one of the tables in the join is full-text searched, hash join is not
+  // supported currently. See comments in ProposeHashJoin(). Nested loop join
+  // has to be permitted.
+  if (Overlaps(left | right, m_fulltext_tables)) {
+    return true;
+  }
+
+  // If "left" contains a recursive reference, and the join order is forced with
+  // STRAIGHT_JOIN, the corresponding hash join must use "left" as build table.
+  // But recursive references cannot be hashed, so no valid hash join plan is
+  // found. Respect the STRAIGHT_JOIN hint and allow the nested loop join.
+  if (Overlaps(left, forced_leftmost_table) &&
+      edge.expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+    return true;
+  }
+
+  // If right_path is not allowed in the build table of a hash join (typically a
+  // table function which either has outer references or is non-deterministic),
+  // we won't be able to do the corresponding hash join. Alternatively, if the
+  // join order is forced with STRAIGHT_JOIN, it is left_path that will be used
+  // as build table for the hash join and has to be checked.
+  if (Overlaps(right_path.parameter_tables, RAND_TABLE_BIT) ||
+      (Overlaps(left_path.parameter_tables, RAND_TABLE_BIT) &&
+       edge.expr->type == RelationalExpression::STRAIGHT_INNER_JOIN)) {
+    return true;
+  }
+
+  // If hash joins are not supported by the executor, we have to allow nested
+  // loop joins. Only expected to happen in unit tests.
+  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) {
+    return true;
+  }
+
+  return false;
+}
+
 void CostingReceiver::ProposeNestedLoopJoin(
     NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
     const JoinPredicate *edge, bool rewrite_semi_to_inner,
@@ -4891,6 +5000,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
   // FULL OUTER JOIN is not possible with nested-loop join.
   assert(edge->expr->type != RelationalExpression::FULL_OUTER_JOIN);
+
+  if (!AllowNestedLoopJoin(left, right, *left_path, *right_path, *edge)) {
+    return;
+  }
 
   AccessPath join_path;
   join_path.type = AccessPath::NESTED_LOOP_JOIN;
@@ -5207,9 +5320,9 @@ PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
   // If we have a parameterized path, this means that at some point, it _must_
   // be on the right side of a nested-loop join. This destroys ordering
   // information (at least in our implementation -- see comment in
-  // NestedLoopJoin()), so in this situation, consider all orderings as equal.
-  // (This is a trick borrowed from Postgres to keep the number of unique access
-  // paths down in such situations.)
+  // ProposeNestedLoopJoin()), so in this situation, consider all orderings as
+  // equal. (This is a trick borrowed from Postgres to keep the number of unique
+  // access paths down in such situations.)
   const int a_ordering_state = (a.parameter_tables == 0) ? a.ordering_state : 0;
   const int b_ordering_state = (b.parameter_tables == 0) ? b.ordering_state : 0;
   if (orderings.MoreOrderedThan(a_ordering_state, b_ordering_state,

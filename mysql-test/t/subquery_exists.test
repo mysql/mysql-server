@@ -51,6 +51,7 @@ let $query=
 SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t1 AS it);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=

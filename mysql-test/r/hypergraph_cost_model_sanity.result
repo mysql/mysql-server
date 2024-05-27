@@ -92,13 +92,13 @@ EXPLAIN
     -> Hash
         -> Table scan on t2
 
-# Should choose a nested loop join with table scans.
+# Should choose a hash join with table scans.
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t0 WHERE t3.c = t0.c;
 EXPLAIN
--> Nested loop inner join
-    -> Table scan on t0
-    -> Filter: (t3.c = t0.c)
-        -> Table scan on t3
+-> Inner hash join (t3.c = t0.c)
+    -> Table scan on t3
+    -> Hash
+        -> Table scan on t0
 
 # Should choose a nested loop join with t1 as the outer table and index lookups into t3.
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.p = t1.p;

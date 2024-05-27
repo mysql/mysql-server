@@ -661,6 +661,7 @@ INSERT INTO t3 VALUES (22,'come','h'),
  (24,'lpjdzvkp','ababa'),
  (25,'d','GGDD');
 
+--sorted_result
 SELECT * FROM t1 WHERE (field1, field2) IN (
   SELECT table1.col_varchar_255_utf8_key AS field1,
          table1.col_varchar_255_utf8_key AS field2
@@ -2905,6 +2906,7 @@ INSERT INTO t1 VALUES(10),(20);
 create table t2 select * from t1;
 create table t3 select * from t1;
 
+--sorted_result
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -4190,6 +4192,7 @@ SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
              FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -4336,7 +4339,14 @@ WHERE col_varchar_10_latin1_key IN (
     WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 ANALYZE TABLE t1, t2, t3;
 eval EXPLAIN $query;
+if ($HYPERGRAPH_TEST) {
+  # Different warnings with hypergraph than with old optimizer.
+  --disable_warnings
+}
 eval $query;
+if ($HYPERGRAPH_TEST) {
+  --enable_warnings
+}
 
 DROP TABLE t1, t2, t3;
 
@@ -5129,6 +5139,7 @@ eval $query;
 ALTER TABLE t1 ENGINE=Innodb;
 ALTER TABLE t2 ENGINE=Innodb;
 
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
