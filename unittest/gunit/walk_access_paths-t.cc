@@ -352,6 +352,16 @@ TEST(WalkAccessPathsTest, TemptableAggregate) {
                     return false;
                   });
   EXPECT_THAT(paths, ElementsAre(&temptable_aggregate, &ts1, &ts2));
+  paths.clear();
+
+  WalkAccessPaths(&temptable_aggregate, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&paths](AccessPath *path, const JOIN *) {
+                    paths.push_back(path);
+                    return false;
+                  });
+  // Should not traverse the subquery_path.
+  EXPECT_THAT(paths, ElementsAre(&temptable_aggregate, &ts2));
 }
 
 TEST(WalkAccessPathsTest, PushedJoinRef) {

@@ -465,6 +465,19 @@ select count(alias2.col_int) as field1, alias1.pk as field2 from tb2 as alias1
   where (alias2.col_int = alias1.col_int and alias1.pk IS NULL) group by field2;
 drop table tb2;
 
+--echo #
+--echo # Bug#36388816: 'm_index_cursor.is_positioned()' in temptable::Handler::position at src/handler
+--echo #
+CREATE TABLE t1 (pk INTEGER, f1 INTEGER, f2 LONGTEXT, f3 VARCHAR(10),
+                 f4 TIMESTAMP, PRIMARY KEY(pk));
+INSERT INTO t1 VALUES (1, NULL,  'fsfd', NULL, NULL),
+                      (2, 34, 'fsfsfd', NULL, "1993-07-20 08:10:46");
+SELECT MIN(t1.f1) AS field1 FROM (t1 JOIN (t1 t2) ON (TRUE),
+  LATERAL (SELECT t2.f3 AS field2 FROM t1 t3 WHERE (t2.f3 <=> t2.f4)
+           GROUP BY field2 ORDER BY t1.f2) AS t4)
+  GROUP BY field2 ORDER BY field1;
+DROP TABLE t1;
+
 # Temptable aggregates should not be used with ROLLUP.
 let $query=
   select avg(id) , id2 from tb1 where id2 != 5 group by id2 with rollup;

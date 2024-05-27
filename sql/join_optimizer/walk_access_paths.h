@@ -30,12 +30,13 @@
 #include "sql/range_optimizer/range_optimizer.h"
 
 enum class WalkAccessPathPolicy {
-  // Stop on _any_ MATERIALIZE or STREAM path, even if they do not cross query
-  // blocks.
+  // Stop on _any_ MATERIALIZE, STREAM or TEMPTABLE_AGGREGATE paths, even if
+  // they do not cross query blocks.
   // Also stops on APPEND paths, which always cross query blocks.
   STOP_AT_MATERIALIZATION,
 
-  // Stop on MATERIALIZE, STREAM or APPEND paths that cross query blocks.
+  // Stop on MATERIALIZE, STREAM, TEMPTABLE_AGGREGATE or APPEND paths that
+  // cross query blocks.
   ENTIRE_QUERY_BLOCK,
 
   // Do not stop at any kind of access path, unless func() returns true.
@@ -143,9 +144,13 @@ void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
     case AccessPath::TEMPTABLE_AGGREGATE:
-      WalkAccessPaths(path->temptable_aggregate().subquery_path, join,
-                      cross_query_blocks, std::forward<Func &&>(func),
-                      post_order_traversal);
+      if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
+          (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
+           path->temptable_aggregate().join == join)) {
+        WalkAccessPaths(path->temptable_aggregate().subquery_path, join,
+                        cross_query_blocks, std::forward<Func &&>(func),
+                        post_order_traversal);
+      }
       WalkAccessPaths(path->temptable_aggregate().table_path, join,
                       cross_query_blocks, std::forward<Func &&>(func),
                       post_order_traversal);
