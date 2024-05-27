@@ -1,0 +1,252 @@
+###############################################################################
+# ==== Purpose ====
+# The purpose of this test is to ensure the resilience of a replica when
+# a table features a stored generated column populated using JSON function,
+# with binlog_row_image setting as MINIMAL/FULL and subsequent update or
+# deletion operations are executed on the underlying base column.
+#
+# ==== Requirement ====
+# When a table features a stored generated column populated using a JSON
+# function, with binlog_row_image setting as MINIMAL/FULL, the replica
+# should successfully apply the update/delete transactions performed
+# on the underlying base column.
+#
+# ==== Implementation ====
+# 0. Create source-replica topology
+# 1. Create table on the source with primary key
+#    and binlog_row_image = 'MINIMAL'
+#  1.1 Insert row on the source and ensure that row is inserted on the replica
+#  1.2 Update row on the source and ensure that row is updated on the replica
+#  1.3 Delete row on the source and ensure that row is deleted on the replica
+# 2. Create table on the source without keys and binlog_row_image = 'MINIMAL'
+#  2.1 Insert row on the source and ensure that row is inserted on the replica
+#  2.2 Update row on the source and ensure that row is updated on the replica
+#  2.3 Delete row on the source and ensure that row is deleted on the replica
+# 3. Create table on the source with primary and binlog_row_image = 'FULL'
+#  3.1 Insert row on the source and ensure that row is inserted on the replica
+#  3.2 Update row on the source and ensure that row is updated on the replica
+#  3.3 Delete row on the source and ensure that row is deleted on the replica
+# 4. Create table on the source without keys and binlog_row_image = 'FULL'
+#  4.1 Insert row on the source and ensure that row is inserted on the replica
+#  4.2 Update row on the source and ensure that row is updated on the replica
+#  4.3 Delete row on the source and ensure that row is deleted on the replica
+# 5. Create table on the replica with an an extra stored column
+#    and binlog_row_image = 'MINIMAL'
+#  5.1 Insert row on the source and ensure that row is inserted on the replica
+#  5.2 Update row on the source and ensure that row is updated on the replica
+#  5.3 Delete row on the source and ensure that row is deleted on the replica
+# 6. The replica has REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE, then create
+#    table on the source without keys and binlog_row_image = 'MINIMAL'
+#  6.1 Insert row on the source and ensure that row is inserted on the replica
+#  6.2 Update row on the source and ensure that row is updated on the replica
+#  6.3 Delete row on the source and ensure that row is deleted on the replica
+# 7. The replica has REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE, then create
+#    table on the source without keys and binlog_row_image = 'FULL'
+#  7.1 Insert row on the source and ensure that row is inserted on the replica
+#  7.2 Update row on the source and ensure that row is updated on the replica
+#  7.3 Delete row on the source and ensure that row is deleted on the replica
+# 8. Clean up
+#
+# ==== References ====
+# BUG#36515172:ERROR 3141 (22032): Invalid JSON text in argument 1 to function
+#              json_extract
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 0. Create source-replica topology
+--source include/rpl/init_source_replica.inc
+
+--echo # Store the initial values
+--let $sysvars_to_save = [ "SESSION.binlog_row_image" ]
+--source include/save_sysvars.inc
+
+--source include/rpl/connection_replica.inc
+--let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name = ""`
+
+--echo # Setup and test each case and verify the result
+--let $case = 1
+while ($case <= 7)
+{
+  --source include/rpl/connection_source.inc
+
+  if ($case == 1) {
+    --echo #
+    --echo # $case. Create table on the source with primary key
+    --echo #        and binlog_row_image = 'MINIMAL'
+    SET @@SESSION.binlog_row_image = 'MINIMAL';
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED,
+      KEY `idx` ((cast(json_extract(`gcol`,_utf8mb4'$') as char(128) array))),
+      PRIMARY KEY (`id`)
+    ) ENGINE = InnoDB;
+  }
+  if ($case == 2) {
+    --echo #
+    --echo # $case. Create table on the source without keys
+    --echo #        and binlog_row_image = 'MINIMAL'
+    SET @@SESSION.binlog_row_image = 'MINIMAL';
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED
+    ) ENGINE = InnoDB;
+  }
+  if ($case == 3) {
+    --echo #
+    --echo # $case. Create table on the source with primary key
+    --echo #        and binlog_row_image = 'FULL'
+    SET @@SESSION.binlog_row_image = 'FULL';
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED,
+      KEY `idx` ((cast(json_extract(`gcol`,_utf8mb4'$') as char(128) array))),
+      PRIMARY KEY (`id`)
+    ) ENGINE = InnoDB;
+  }
+  if ($case == 4) {
+    --echo #
+    --echo # $case. Create table on the source without keys
+    --echo #        and binlog_row_image = 'FULL'
+    SET @@SESSION.binlog_row_image = 'FULL';
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED
+    ) ENGINE = InnoDB;
+  }
+
+  if ($case == 5) {
+    --echo #
+    --echo # $case. Create table on the replica with an an extra stored
+    --echo #        column and binlog_row_image = 'MINIMAL'
+    --source include/rpl/connection_source.inc
+    --source include/rpl/disable_binlog.inc
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      PRIMARY KEY (`id`)
+    ) ENGINE = InnoDB;
+    --source include/rpl/restore_binlog.inc
+
+    --source include/rpl/connection_replica.inc
+    --source include/rpl/disable_binlog.inc
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED,
+      PRIMARY KEY (`id`)
+    ) ENGINE = InnoDB;
+    --source include/rpl/restore_binlog.inc
+
+    --source include/rpl/connection_source.inc
+    SET @@SESSION.binlog_row_image = 'MINIMAL';
+  }
+  if ($case == 6) {
+    --echo #
+    --echo # $case. The replica has REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE,
+    --echo #        then create table on the source without keys
+    --echo #        and binlog_row_image = 'MINIMAL'
+    --source include/rpl/connection_replica.inc
+    --source include/rpl/stop_replica.inc
+    CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+    --source include/rpl/start_replica.inc
+
+    --source include/rpl/connection_source.inc
+    SET @@SESSION.binlog_row_image = 'MINIMAL';
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED
+    ) ENGINE = InnoDB;
+  }
+  if ($case == 7) {
+    --echo #
+    --echo # $case. The replica has REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE,
+    --echo #        then create table on the source without keys
+    --echo #        and binlog_row_image = 'FULL'
+
+    --source include/rpl/connection_replica.inc
+    --let $row_count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'GENERATE'`
+    --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to GENERATE
+    --let $assert_cond = $row_count = 1
+    --source include/assert.inc
+
+    --source include/rpl/connection_source.inc
+    SET @@SESSION.binlog_row_image='FULL';
+    CREATE TABLE `log_data` (
+      `id` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT NOT NULL,
+      `gcol` JSON GENERATED ALWAYS AS (json_extract(`data`,'$.x')) STORED
+    ) ENGINE = InnoDB;
+  }
+
+  --echo #
+  --echo # $case.1. Insert row on the source
+  INSERT INTO log_data (id, data) VALUES(1, '{"x":"aaa"}');
+  --source include/rpl/sync_to_replica.inc
+  --echo # verify that log_data has the correct values in the replica
+  --let $row_count = `SELECT COUNT(*) FROM log_data WHERE id = 1 AND data = '{"x":"aaa"}' AND gcol = 'aaa';`
+  --let $assert_text = The table contains a row with generated column populated
+  --let $assert_cond = $row_count = 1
+  --source include/assert.inc
+
+  --echo #
+  --echo # $case.2. Update row on the source and ensure that row is
+  --echo #          updated on the replica
+  --source include/rpl/connection_source.inc
+  UPDATE log_data SET data = '{}';
+
+  --source include/rpl/sync_to_replica.inc
+  --echo # verify that log_data has the correct values in the replica
+  --let $row_count= `SELECT COUNT(*) FROM log_data WHERE id =1 AND data = '{}' AND gcol IS NULL;`
+  --let $assert_text = The table contains a row with generated column updated to null
+  --let $assert_cond = $row_count = 1
+  --source include/assert.inc
+
+  --source include/rpl/connection_source.inc
+  UPDATE log_data SET data='{"x":"a"}';
+
+  --source include/rpl/sync_to_replica.inc
+  --echo # verify that log_data has the correct values in the replica
+  --let $row_count= `SELECT COUNT(*) FROM log_data WHERE id = 1 AND data = '{"x":"a"}' AND gcol = 'a';`
+  --let $assert_text= The table contains a row with generated column updated
+  --let $assert_cond= $row_count = 1
+  --source include/assert.inc
+
+  --echo #
+  --echo # $case.3. Delete row on the source and ensure that row is
+  --echo #          deleted on the replica
+  --source include/rpl/connection_source.inc
+  DELETE FROM log_data WHERE data = '{"x":"a"}';
+
+  --source include/rpl/sync_to_replica.inc
+  --echo # verify that log_data has the correct values in the replica
+  --let $row_count= `SELECT COUNT(*) FROM log_data WHERE id = 1;`
+  --let $assert_text= The table doesn't contain any row
+  --let $assert_cond= $row_count = 0
+  --source include/assert.inc
+
+  --echo # Clean up
+  --source include/rpl/connection_source.inc
+  DROP TABLE log_data;
+  --source include/rpl/sync_to_replica.inc
+
+  --inc $case
+}
+
+--echo #
+--echo # 6. Clean up
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/restore_sysvars.inc
+--source include/rpl/deinit.inc
