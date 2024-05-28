@@ -9,7 +9,7 @@
 #  * MySQL Rest Service
 # Connection "router.1" active
 # restart:generated_router_1.cnf
-# DB `basic_schema` - created 
+# DB `basic_schema` - created
 CREATE USER 'u1'@'%' IDENTIFIED BY 'p1';
 CREATE USER 'u2'@'%' IDENTIFIED BY 'p2';
 CREATE USER 'u3'@'%' IDENTIFIED BY 'p3';

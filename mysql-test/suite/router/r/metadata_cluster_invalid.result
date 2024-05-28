@@ -15,7 +15,7 @@
 #  * MySQL Rest Service
 # Connection "router.1" active
 # restart:generated_router_2.cnf
-# DB `basic_schema` - created 
+# DB `basic_schema` - created
 # Registred SERVICE at path: /svc
 # restart:generated_router_2.cnf
 DROP SCHEMA mysql_innodb_cluster_metadata;

@@ -9,7 +9,7 @@
 #  * MySQL Rest Service
 # Connection "router.1" active
 # restart:generated_router_1.cnf
-# DB `basic_schema` - created 
+# DB `basic_schema` - created
 
 
 ## I. Verify the error message search was conducted on not existing/registred field

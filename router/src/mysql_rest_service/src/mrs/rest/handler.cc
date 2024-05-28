@@ -28,6 +28,8 @@
 #include <string>
 #include <utility>
 
+#include "mysqld_error.h"
+
 #include "http/base/request_handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
@@ -441,6 +443,16 @@ class RestRequestHandler : public ::http::base::RequestHandler {
   }
 
  private:
+  static const http::Error err_to_http_error(
+      const mysqlrouter::MySQLSession::Error &err) {
+    if (ER_GTID_MODE_OFF == err.code()) {
+      return {HttpStatusCode::BadRequest,
+              "'Asof' requirement was not fulfilled, GTID_MODE is not "
+              "configured properly on the MySQL Server."};
+    }
+    return {HttpStatusCode::InternalError};
+  }
+
   static const http::Error &err_to_http_error(const http::Error &err) {
     return err;
   }

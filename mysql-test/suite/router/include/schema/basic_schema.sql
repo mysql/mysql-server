@@ -217,6 +217,6 @@ END;$$
 --enable_query_log
 --enable_result_log
 
---echo # DB `basic_schema` - created 
+--echo # DB `basic_schema` - created
 
 DELIMITER ;$$

@@ -10,19 +10,23 @@
 # Connection "router.1" active
 # restart:generated_router_1.cnf
 # DB `basic_schema` - created
+
+
+## I. Verify returned errors by
+#
+# 1. use of 'asof' query FilterObject parameter on badly
+#    configured MySQL Server (gtid_mode set to off).
+#
 # Registred SERVICE at path: /svc
-# Registred DB_SCHEMA at path: /svc/basic
-# Registred DB_OBJECT at path: /svc/basic/t1
-GET /svc/basic/t1/1
+# Registred DB_SCHEMA at path: /svc/sch
+# Registred DB_OBJECT at path: /svc/sch/t1
+
+#
+# I.1
+GET /svc/sch/t1?q={"$asof":"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}
 {
-    "message": "Internal Error",
-    "status": 500
-}
-OK
-GET /svc/basic/t1?limit=2
-{
-    "message": "Internal Error",
-    "status": 500
+    "message": "'Asof' requirement was not fulfilled, GTID_MODE is not configured properly on the MySQL Server.",
+    "status": 400
 }
 OK
 DROP SCHEMA basic_schema;
