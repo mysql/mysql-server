@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQL_GTID_GLOBALS_H
-#define MYSQL_GTID_GLOBALS_H
+#ifndef MYSQL_GTID_GLOBAL_H
+#define MYSQL_GTID_GLOBAL_H
 
 #include <cstdint>
 #include <set>
@@ -41,4 +41,4 @@ typedef mysql::gtid::Uuid Uuid;
 
 /// @}
 
-#endif  // MYSQL_GTID_GLOBALS_H
+#endif  // MYSQL_GTID_GLOBAL_H

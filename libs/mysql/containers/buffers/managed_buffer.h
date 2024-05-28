@@ -33,14 +33,13 @@
 
 #include <limits>
 
-#include "grow_calculator.h"                   // Grow_calculator
-#include "grow_status.h"                       // Grow_status
-#include "mysql/allocators/allocator.h"        // Allocator
-#include "mysql/allocators/memory_resource.h"  // Memory_resource
-#include "mysql/utils/nodiscard.h"             // NODISCARD
-#include "rw_buffer.h"                         // Rw_buffer
-
-#include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
+#include "mysql/allocators/allocator.h"                // Allocator
+#include "mysql/allocators/memory_resource.h"          // Memory_resource
+#include "mysql/binlog/event/wrapper_functions.h"      // BAPI_TRACE
+#include "mysql/containers/buffers/grow_calculator.h"  // Grow_calculator
+#include "mysql/containers/buffers/grow_status.h"      // Grow_status
+#include "mysql/containers/buffers/rw_buffer.h"        // Rw_buffer
+#include "mysql/utils/nodiscard.h"                     // NODISCARD
 
 /// @addtogroup GroupLibsMysqlContainers
 /// @{

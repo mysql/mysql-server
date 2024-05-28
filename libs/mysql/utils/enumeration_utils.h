@@ -21,15 +21,15 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#ifndef MYSQL_UTILS_ENUMERATION_UTILS_INCLUDED
-#define MYSQL_UTILS_ENUMERATION_UTILS_INCLUDED
+#ifndef MYSQL_UTILS_ENUMERATION_UTILS_H
+#define MYSQL_UTILS_ENUMERATION_UTILS_H
 
 /// @file
 /// Experimental API header
 
-#include <mysql/utils/return_status.h>
 #include <string>
 #include <utility>
+#include "mysql/utils/return_status.h"
 
 /// @addtogroup GroupLibsMysqlUtils
 /// @{
@@ -80,4 +80,4 @@ constexpr inline std::pair<Enum_type, Return_status> to_enumeration(
 
 /// @}
 
-#endif  // MYSQL_UTILS_ENUMERATION_UTILS_INCLUDED
+#endif  // MYSQL_UTILS_ENUMERATION_UTILS_H

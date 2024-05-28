@@ -21,8 +21,8 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#ifndef MYSQL_UTILS_DEPRECATE_HEADER
-#define MYSQL_UTILS_DEPRECATE_HEADER
+#ifndef MYSQL_UTILS_DEPRECATE_HEADER_H
+#define MYSQL_UTILS_DEPRECATE_HEADER_H
 
 /// @file
 /// Experimental API header
@@ -41,4 +41,4 @@
 
 /// @}
 
-#endif  // MYSQL_UTILS_DEPRECATE_HEADER
+#endif  // MYSQL_UTILS_DEPRECATE_HEADER_H

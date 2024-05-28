@@ -21,8 +21,8 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#ifndef MYSQL_SERIALIZATION_SERIALIZER_TYPES_H
-#define MYSQL_SERIALIZATION_SERIALIZER_TYPES_H
+#ifndef MYSQL_SERIALIZATION_SERIALIZATION_TYPES_H
+#define MYSQL_SERIALIZATION_SERIALIZATION_TYPES_H
 
 /// @file
 /// Experimental API header
@@ -46,4 +46,4 @@ using Field_size = std::size_t;
 
 /// @}
 
-#endif  // MYSQL_SERIALIZATION_SERIALIZER_TYPES_H
+#endif  // MYSQL_SERIALIZATION_SERIALIZATION_TYPES_H

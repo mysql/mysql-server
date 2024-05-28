@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/binlog/event/control_events.h"
-#include <mysql_com.h>  // net_field_length
 #include <sstream>
 #include "mysql/binlog/event/codecs/factory.h"
 #include "mysql/binlog/event/compression/base.h"
@@ -31,6 +30,7 @@
 #include "mysql/serialization/serialization_error_type.h"
 #include "mysql/serialization/serializer_default.h"
 #include "mysql/serialization/write_archive_binary.h"
+#include "mysql_com.h"  // net_field_length
 #include "sql/log.h"
 
 using mysql::serialization::Serialization_error_type;

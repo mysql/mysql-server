@@ -26,8 +26,8 @@
 /// Convenience function that concatenates arbitrary arguments, by
 /// feeding them to an ostringstream.
 
-#ifndef MYSQL_STRING_CONCAT_H_
-#define MYSQL_STRING_CONCAT_H_
+#ifndef MYSQL_UTILS_CONCAT_H
+#define MYSQL_UTILS_CONCAT_H
 
 #include <sstream>  // std::ostringstream
 #include <string>   // std::string
@@ -71,4 +71,4 @@ std::string concat(Args... args) {
 
 /// @}
 
-#endif  // MYSQL_STRING_CONCAT_H_
+#endif  // MYSQL_UTILS_CONCAT_H

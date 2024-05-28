@@ -31,7 +31,7 @@
 
 #include <cassert>
 
-#include "buffer_view.h"
+#include "mysql/containers/buffers/buffer_view.h"
 
 /// @addtogroup GroupLibsMysqlContainers
 /// @{

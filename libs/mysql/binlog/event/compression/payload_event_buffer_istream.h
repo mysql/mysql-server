@@ -21,9 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef BINARY_LOG_TRANSACTION_COMPRESSION_PAYLOAD_EVENT_BUFFER_ISTREAM_H_
-#define BINARY_LOG_TRANSACTION_COMPRESSION_PAYLOAD_EVENT_BUFFER_ISTREAM_H_
-
+#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_PAYLOAD_EVENT_BUFFER_ISTREAM_H
+#define MYSQL_BINLOG_EVENT_COMPRESSION_PAYLOAD_EVENT_BUFFER_ISTREAM_H
 #include <memory>
 #include <string>
 
@@ -372,4 +371,4 @@ class Payload_event_buffer_istream {
 /// @}
 
 #endif  // ifndef
-        // BINARY_LOG_TRANSACTION_COMPRESSION_PAYLOAD_EVENT_BUFFER_ISTREAM_H_
+        // MYSQL_BINLOG_EVENT_COMPRESSION_PAYLOAD_EVENT_BUFFER_ISTREAM_H
