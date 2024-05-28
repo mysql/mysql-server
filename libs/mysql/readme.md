@@ -41,6 +41,7 @@ Libraries defined on this level:
 - \subpage PageLibsMysqlBinlog
 - \subpage PageLibsMysqlContainers
 - \subpage PageLibsMysqlGtid
+- \subpage PageLibsMysqlMath
 - \subpage PageLibsMysqlSerialization
 - \subpage PageLibsMysqlUtils
 

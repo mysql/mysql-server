@@ -31,3 +31,8 @@ MySQL Math Library
 -->
 
 Code documentation: @ref GroupLibsMysqlMath.
+
+This is a header-only library, containing mathematical functions. Currently it
+has the following headers:
+
+- bounded_arithmetic.h: multiplication and addition, capped at a max value
