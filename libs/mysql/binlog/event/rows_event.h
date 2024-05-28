@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file rows_event.h
+  @file
 
   @brief Contains the classes representing events which are used for row based
   replication. In row-based replication, the master writes events to the binary

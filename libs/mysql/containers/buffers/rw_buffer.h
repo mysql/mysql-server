@@ -21,7 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @file rw_buffer.h
+/// @file
 ///
 /// Non-owning manager for a fixed memory buffer, which is split into
 /// a read part and a write part, with a movable split position.

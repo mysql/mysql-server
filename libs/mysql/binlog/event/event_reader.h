@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file event_reader.h
+  @file
 
   @brief Contains the class responsible for deserializing fields of an event
          previously stored in a buffer.

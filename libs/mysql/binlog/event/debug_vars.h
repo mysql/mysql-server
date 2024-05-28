@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file debug_vars.h
+  @file
 
   @brief This header file contains the status of variables used by MySQL tests
   for debug operations. The variables are set to true by the MySQL server if

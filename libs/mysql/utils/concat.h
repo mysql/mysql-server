@@ -21,7 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @file concat.h
+/// @file
 ///
 /// Convenience function that concatenates arbitrary arguments, by
 /// feeding them to an ostringstream.

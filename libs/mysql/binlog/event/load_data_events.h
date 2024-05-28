@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file load_data_events.h
+  @file
 
   @brief LOAD DATA INFILE is not written to the binary log like other
   statements. It is written as one or more events in a packed format,

@@ -37,7 +37,7 @@
 /// @addtogroup GroupLibsMysqlBinlogEvent
 /// @{
 ///
-/// @file payload_event_buffer_istream.h
+/// @file
 ///
 /// Stream class that yields decompressed event byte buffers from a
 /// Transaction_payload_log_event.

@@ -21,7 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @file buffer_sequence_view.h
+/// @file
 ///
 /// Container class that provides a sequence of buffers to the caller.
 /// This is intended for capturing the output from compressors.

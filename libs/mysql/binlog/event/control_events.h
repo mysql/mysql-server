@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file control_events.h
+  @file
 
   @brief Contains the classes representing events operating in the replication
   stream properties. Each event is represented as a byte sequence with logical

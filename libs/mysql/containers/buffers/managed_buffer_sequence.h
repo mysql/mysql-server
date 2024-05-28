@@ -21,7 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @file managed_buffer_sequence.h
+/// @file
 ///
 /// @brief Container class that provides a sequence of buffers to
 /// the caller.

@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysql/binlog/event/byteorder.h
+  @file
 
   @brief The file contains functions to convert the byte encoding of integer
   values to and from little-endian and big-endian byte order.

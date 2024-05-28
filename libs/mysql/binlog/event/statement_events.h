@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file statement_events.h
+  @file
 
   @brief Contains the classes representing statement events occurring in the
   replication stream. Each event is represented as a byte sequence with logical
