@@ -92,7 +92,10 @@ class Explain_format_tree : public Explain_format {
     assert(false);
     return nullptr;
   }
-  bool is_iterator_based() const override { return true; }
+  bool is_iterator_based(THD *explain_thd [[maybe_unused]],
+                         const THD *query_thd [[maybe_unused]]) const override {
+    return true;
+  }
 
   /* Convert Json object to string */
   std::string ExplainJsonToString(Json_object *json) override;

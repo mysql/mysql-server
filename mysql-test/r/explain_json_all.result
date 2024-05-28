@@ -8930,9 +8930,9 @@ explain_json_format_version
 explain_json_format_version
 2
 explain_json_format_version
-2
+1
 explain_json_format_version
-2
+1
 explain_json_format_version
 1
 SELECT @@explain_json_format_version;
@@ -8940,13 +8940,13 @@ SELECT @@explain_json_format_version;
 1
 CALL p(2);
 explain_json_format_version
-2
+1
 explain_json_format_version
 1
 explain_json_format_version
 2
 explain_json_format_version
-1
+2
 explain_json_format_version
 2
 SELECT @@explain_json_format_version;

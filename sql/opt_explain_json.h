@@ -40,21 +40,14 @@ class context;
 
 class Explain_format_JSON : public Explain_format {
  public:
-  enum class FormatVersion { kLinear, kIteratorBased };
-
-  Explain_format_JSON(
-      FormatVersion version,
+  explicit Explain_format_JSON(
       std::optional<std::string_view> explain_into_variable_name)
-      : Explain_format(explain_into_variable_name),
-        current_context(nullptr),
-        m_version(version) {}
+      : Explain_format(explain_into_variable_name), current_context(nullptr) {}
 
   bool is_hierarchical() const override { return true; }
 
   /// Format versions newer than Linear are always going to be iterator-based.
-  bool is_iterator_based() const override {
-    return m_version >= FormatVersion::kIteratorBased;
-  }
+  bool is_iterator_based(THD *explain_thd, const THD *query_thd) const override;
 
   bool send_headers(Query_result *result) override;
   bool begin_context(enum_parsing_context context, Query_expression *subquery,
@@ -68,7 +61,6 @@ class Explain_format_JSON : public Explain_format {
 
  private:
   opt_explain_json_namespace::context *current_context;  ///< current tree node
-  FormatVersion m_version;
 };
 
 #endif  // OPT_EXPLAIN_FORMAT_JSON_INCLUDED

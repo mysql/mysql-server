@@ -2115,3 +2115,10 @@ std::string Explain_format_JSON::ExplainJsonToString(Json_object *json) {
   }
   return {explain.ptr(), explain.length()};
 }
+
+bool Explain_format_JSON::is_iterator_based(THD *explain_thd,
+                                            const THD *query_thd) const {
+  return query_thd->optimizer_switch_flag(
+             OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) ||
+         explain_thd->variables.explain_json_format_version == 2;
+}

@@ -1912,7 +1912,8 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   const bool is_explain_into =
       explain_thd->lex->explain_format->is_explain_into();
 
-  if (explain_thd->lex->explain_format->is_iterator_based()) {
+  if (explain_thd->lex->explain_format->is_iterator_based(explain_thd,
+                                                          query_thd)) {
     // These kinds of queries don't have a JOIN with an iterator tree.
     return ExplainIterator(explain_thd, query_thd, nullptr);
   }
@@ -2254,7 +2255,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   const bool is_explain_into = lex->explain_format->is_explain_into();
 
-  if (lex->explain_format->is_iterator_based()) {
+  if (lex->explain_format->is_iterator_based(explain_thd, query_thd)) {
     if (lex->is_explain_analyze) {
       if (secondary_engine) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),

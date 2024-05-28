@@ -3663,12 +3663,8 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       }
       break;
     case Explain_format_type::JSON: {
-      lex->explain_format = new (thd->mem_root) Explain_format_JSON(
-          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) ||
-                  thd->variables.explain_json_format_version == 2
-              ? Explain_format_JSON::FormatVersion::kIteratorBased
-              : Explain_format_JSON::FormatVersion::kLinear,
-          m_explain_into_variable_name);
+      lex->explain_format =
+          new (thd->mem_root) Explain_format_JSON(m_explain_into_variable_name);
       break;
     }
     case Explain_format_type::TREE:
