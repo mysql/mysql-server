@@ -327,12 +327,12 @@ OK
 }
 OK
 {
-    "message": "'Asof' requirement was not fulfilled, timeout occur.",
+    "message": "'Asof' requirement was not fulfilled, timeout occured.",
     "status": 400
 }
 OK
 {
-    "message": "'Asof' requirement was not fulfilled, timeout occur.",
+    "message": "'Asof' requirement was not fulfilled, timeout occured.",
     "status": 400
 }
 OK

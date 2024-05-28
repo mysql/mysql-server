@@ -31,7 +31,7 @@ namespace database {
 
 void throw_rest_error_asof_timeout([[maybe_unused]] const std::string &gtid) {
   throw mrs::interface::RestError(
-      "'Asof' requirement was not fulfilled, timeout occur.");
+      "'Asof' requirement was not fulfilled, timeout occured.");
 }
 
 }  // namespace database

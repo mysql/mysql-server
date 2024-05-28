@@ -37,7 +37,7 @@ namespace database {
 namespace entry {
 
 /**
- Representation of  entries in `auth_privilege`..
+ Representation of entries in `auth_privilege`.
 
  This class doesn't have row-id, primary key etc, because it may represent
  several aggregated entries.
