@@ -23,6 +23,7 @@
 
 #include "mysql/gtid/tag_plain.h"
 #include <cstring>
+#include "mysql/gtid/tag.h"  // Tag member functions
 
 using namespace std;
 

@@ -37,6 +37,7 @@
 #include "mysql/gtid/global.h"
 #include "mysql/gtid/gtid.h"
 #include "mysql/gtid/tsid.h"
+#include "mysql/gtid/tsid_plain.h"
 #include "mysql/gtid/uuid.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t

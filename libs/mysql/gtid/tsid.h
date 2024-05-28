@@ -27,15 +27,12 @@
 #include "mysql/gtid/gtid_constants.h"
 #include "mysql/gtid/gtid_format.h"
 #include "mysql/gtid/tag.h"
-#include "mysql/gtid/tsid_plain.h"
 #include "mysql/gtid/uuid.h"
 
 /// @addtogroup GroupLibsMysqlGtid
 /// @{
 
 namespace mysql::gtid {
-
-class Tsid;
 
 /// @brief Maximum TSID text length (without null character)
 inline constexpr auto tsid_max_length = Uuid::TEXT_LENGTH + 1 + tag_max_length;

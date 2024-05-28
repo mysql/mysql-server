@@ -44,7 +44,8 @@
 #include "mysql/binlog/event/compression/base.h"  // mysql::binlog::event::compression::type
 #include "mysql/containers/buffers/buffer_sequence_view.h"  // Buffer_sequence_view
 #include "mysql/gtid/gtid_constants.h"
-#include "mysql/gtid/tsid.h"
+#include "mysql/gtid/tsid.h"        // Tsid
+#include "mysql/gtid/tsid_plain.h"  // Tsid_plain
 #include "mysql/gtid/uuid.h"
 #include "mysql/serialization/field_definition_helpers.h"
 #include "mysql/serialization/field_functor.h"

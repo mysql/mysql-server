@@ -25,7 +25,6 @@
 #define MYSQL_GTID_TSID_PLAIN_H
 
 #include "mysql/gtid/tag_plain.h"
-#include "mysql/gtid/tsid.h"
 #include "mysql/gtid/uuid.h"
 
 /// @addtogroup GroupLibsMysqlGtid

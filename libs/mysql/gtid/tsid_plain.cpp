@@ -23,6 +23,7 @@
 
 #include "mysql/gtid/tsid_plain.h"
 #include <sstream>
+#include "mysql/gtid/tsid.h"  // Tsid members
 
 using namespace std;
 

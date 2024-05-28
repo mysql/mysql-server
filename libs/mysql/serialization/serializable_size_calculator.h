@@ -28,7 +28,6 @@
 #include <unordered_set>
 
 #include "mysql/serialization/field_definition.h"
-#include "mysql/serialization/serializable.h"
 
 /// @file
 /// Experimental API header

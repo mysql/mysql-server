@@ -27,6 +27,7 @@
 #include <cstring>
 #include <iostream>
 #include "mysql/gtid/internal/parsing_helpers.h"
+#include "mysql/gtid/tag_plain.h"
 #include "mysql/serialization/primitive_type_codec.h"
 
 using namespace std;
