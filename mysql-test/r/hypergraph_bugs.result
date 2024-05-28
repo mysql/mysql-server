@@ -565,8 +565,8 @@ EXPLAIN FORMAT=TREE SELECT DISTINCT t1.x, t1.y
 FROM t AS t1, t AS t2 WHERE t1.x = t2.x
 ORDER BY -t1.x;
 EXPLAIN
--> Sort: -(t1.x)
-    -> Sort with duplicate removal: t1.x, t1.y
+-> Sort row IDs: -(t1.x)
+    -> Sort row IDs with duplicate removal: t1.x, t1.y
         -> Inner hash join (t1.x = t2.x)
             -> Table scan on t1
             -> Hash
@@ -583,3 +583,43 @@ x	y
 2	b
 1	a
 DROP TABLE t;
+#
+# Bug#36678321: Hypergraph: Sort-ahead doesn't provide row IDs to later
+#               sort that needs them.
+#
+CREATE TABLE t1(int_col1 INT, int_col2 INT);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+CREATE TABLE t2 (int_col_key INT, longtext_col LONGTEXT, KEY (int_col_key));
+INSERT INTO t2
+WITH RECURSIVE src(n) AS (
+SELECT 1 UNION ALL SELECT n + 1 FROM src WHERE n < 50
+)
+SELECT n, n FROM src;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.int_col2
+FROM t1, t2 WHERE t1.int_col1 = t2.int_col_key
+ORDER BY ANY_VALUE(t2.longtext_col);
+EXPLAIN
+-> Sort row IDs: any_value(t2.longtext_col)
+    -> Remove duplicates from input grouped on t1.int_col2
+        -> Nested loop inner join
+            -> Sort row IDs: t1.int_col2
+                -> Table scan on t1
+            -> Index lookup on t2 using int_col_key (int_col_key=t1.int_col1)
+
+SELECT SQL_BIG_RESULT DISTINCT t1.int_col2
+FROM t1, t2 WHERE t1.int_col1 = t2.int_col_key
+ORDER BY ANY_VALUE(t2.longtext_col);
+int_col2
+1
+2
+3
+4
+5
+6
+DROP TABLE t1, t2;

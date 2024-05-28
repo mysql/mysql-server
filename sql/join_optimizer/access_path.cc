@@ -1235,6 +1235,7 @@ void FindTablesToGetRowidFor(AccessPath *path) {
         // it have to be fetched again from the handler by the paths above the
         // sort. Therefore, we don't add any of the tables in the subtree below
         // SORT to handled_by_others.
+        FindTablesToGetRowidFor(subpath);
         return true;  // Skip the rest of the subtree.
       default:
         return false;
@@ -1272,6 +1273,12 @@ void FindTablesToGetRowidFor(AccessPath *path) {
           ~handled_by_others;
       break;
     case AccessPath::SORT:
+      // Enabling use of row IDs must happen before the Filesort object is
+      // created, so assert that we either have not created the Filesort object,
+      // or the Filesort object already has row IDs enabled.
+      assert(path->sort().filesort == nullptr ||
+             !path->sort().filesort->using_addon_fields());
+      path->sort().force_sort_rowids = true;
       WalkAccessPaths(path, /*join=*/nullptr,
                       WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
                       add_tables_handled_by_others);
