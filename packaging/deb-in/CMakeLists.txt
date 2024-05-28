@@ -127,6 +127,7 @@ usr/lib/mysql/private/libpolyglot.so
 "
 usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
+usr/lib/mysql/plugin/component_test_option_tracker.so
 ")
 
   SET (DEB_INSTALL_CLIENT_PLUGINS
