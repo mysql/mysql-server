@@ -282,7 +282,9 @@ class SelectSessionCollationConnectionHandler : public QuerySender::Handler {
       connection_->some_state_changed(true);
     } else {
       // all rows received,
-      connection_->execution_context().system_variables().set(
+      connection_->client_protocol().system_variables().set(
+          "collation_connection", collation_connection_);
+      connection_->server_protocol().system_variables().set(
           "collation_connection", collation_connection_);
 
       connection_->collation_connection_maybe_dirty(false);
@@ -307,7 +309,7 @@ class SelectSessionCollationConnectionHandler : public QuerySender::Handler {
 
   bool something_failed_{false};
 
-  Value collation_connection_{std::nullopt};
+  std::optional<std::string> collation_connection_{std::nullopt};
 };
 
 stdx::expected<Processor::Result, std::error_code>

@@ -331,8 +331,8 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserForwarder::ok() {
     // if connection sharing is enabled in the config, enable the
     // session-tracker.
     connection()->push_processor(std::make_unique<QuerySender>(connection(), R"(
-SET @@SESSION.session_track_schema           = 'ON',
-    @@SESSION.session_track_system_variables = '*',
+SET @@SESSION.session_track_system_variables = '*',
+    @@SESSION.session_track_schema           = 'ON',
     @@SESSION.session_track_transaction_info = 'CHARACTERISTICS',
     @@SESSION.session_track_gtids            = 'OWN_GTID',
     @@SESSION.session_track_state_change     = 'ON')"));

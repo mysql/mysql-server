@@ -7015,8 +7015,8 @@ TEST_P(ChangeUserTest, classic_protocol) {
     expected_change_user_ = 0;
 
     if (can_share) {
-      expected_select_ += 1;      // SELECT collation
       expected_set_option_ += 1;  // SET session-track-system-vars
+      expected_select_ += 1;      // SELECT collation
     }
   }
 
@@ -7033,6 +7033,9 @@ TEST_P(ChangeUserTest, classic_protocol) {
     expected_change_user_ += 1;
     if (can_share) {
       expected_set_option_ += 1;  // SET session-track-system-vars
+      if (can_fetch_password) {
+        expected_select_ += 1;  // SELECT collation
+      }
     }
 
     if (!account.password.empty() &&
@@ -7126,6 +7129,9 @@ TEST_P(ChangeUserTest, classic_protocol) {
     expected_change_user_ += 1;
     if (can_share) {
       expected_set_option_ += 1;  // SET session-track-system-vars
+      if (can_fetch_password) {
+        expected_select_ += 1;  // SELECT collation
+      }
     }
 
     if (can_share && expect_success) {
@@ -7304,13 +7310,8 @@ struct Stmt {
   static Event restore_session_vars() {
     return Event::sql_set_option(
         "SET "
-        "@@SESSION . `session_track_system_variables` = ? , "
         "@@SESSION . `character_set_client` = ? , "
         "@@SESSION . `collation_connection` = ? , "
-        "@@SESSION . `session_track_gtids` = ? , "
-        "@@SESSION . `session_track_schema` = ? , "
-        "@@SESSION . `session_track_state_change` = ? , "
-        "@@SESSION . `session_track_transaction_info` = ? , "
         "@@SESSION . `sql_mode` = ?");
   }
 
@@ -8615,7 +8616,6 @@ static const StatementSharableParam statement_sharable_params[] = {
 
        if (connect_param.can_share()) {
          expected_stmts.emplace_back(Stmt::set_session_tracker());
-
          expected_stmts.emplace_back(Stmt::select_session_vars());
        }
 
