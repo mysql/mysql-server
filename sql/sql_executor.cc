@@ -81,6 +81,7 @@
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/replace_item.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/key.h"  // key_cmp
@@ -4334,22 +4335,13 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
       field = item->get_tmp_table_field();
       if (field != nullptr) {
         /*
-          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
-          would re-evaluate <expression>, and if expression were a subquery,
-          this would access already-unlocked tables.
+          Replace "@:=<expr>" with "@:=<tmp_table_column>" rather than
+          "<tmp_table_column>".
           We do not perform the special handling for tmp tables used for
           windowing, though.
-          TODO: remove this code cf. deprecated setting of variable in
-          expressions when it is finally disallowed.
         */
-        Item_func_set_user_var *suv =
-            new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
-        Item_field *new_field = new Item_field(field);
-        if (!suv || !new_field) return true;  // Fatal error
-        mem_root_deque<Item *> list(thd->mem_root);
-        if (list.push_back(new_field)) return true;
-        if (suv->set_arguments(&list, true)) return true;
-        new_item = suv;
+        new_item = ReplaceSetVarItem(thd, item, new Item_field(field));
+        if (new_item == nullptr) return true;
       } else
         new_item = item;
     } else if ((field = item->get_tmp_table_field())) {

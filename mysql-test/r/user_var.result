@@ -408,6 +408,91 @@ select @var;
 @var
 3
 drop table t1,t2;
+#
+# Bug#36506918 Hypergraph: User variable gets wrong value in case of temp table aggregation
+#
+create table tb1(id int , id2 int, primary key (id));
+insert into tb1 values (1, 10), (2, 11), (3, 12), (4, 10), (5, 11), (6, 12),
+(7, 10), (8, 11), (9, 12), (10, 10), (11, 11), (12, 12);
+analyze table tb1;
+Table	Op	Msg_type	Msg_text
+test.tb1	analyze	status	OK
+select sql_small_result @var:=(2*id2) from tb1 group by id2 limit 1;
+@var:=(2*id2)
+20
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var;
+@var
+20
+select sql_small_result @var:=id2, @var1:=(2*id2) from tb1 group by id2 limit 1;
+@var:=id2	@var1:=(2*id2)
+10	20
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var, @var1;
+@var	@var1
+10	20
+select sql_small_result @var:=id2, @var1:=(2*id2) from tb1 group by id2 limit 2;
+@var:=id2	@var1:=(2*id2)
+10	20
+11	22
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var, @var1;
+@var	@var1
+11	22
+select sql_small_result @var:=id2, @var1:=(2*id2)
+from tb1 group by id2 order by -id2;
+@var:=id2	@var1:=(2*id2)
+12	24
+11	22
+10	20
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var, @var1;
+@var	@var1
+10	20
+select sql_small_result @var:=id2, @var1:=(2*id2)
+from tb1 group by id2 order by id2 desc limit 2;
+@var:=id2	@var1:=(2*id2)
+12	24
+11	22
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var, @var1;
+@var	@var1
+11	22
+select sql_small_result @var:=(id2+avg(id)) from tb1 group by id2 limit 1;
+@var:=(id2+avg(id))
+15.5000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var;
+@var
+15.500000000
+select sql_small_result @var:=avg(id), @var1:=id2 from tb1 group by id2 limit 1;
+@var:=avg(id)	@var1:=id2
+5.5000	10
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+select @var, @var1;
+@var	@var1
+5.500000000	10
+select sql_small_result
+distinct @var:=id2, @var1:=cast((avg(id) over(partition by id2)) as signed)
+from tb1 order by 1 limit 1;
+@var:=id2	@var1:=cast((avg(id) over(partition by id2)) as signed)
+10	6
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+drop table tb1;
 insert into city 'blah';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''blah'' at line 1
 SHOW COUNT(*) WARNINGS;
