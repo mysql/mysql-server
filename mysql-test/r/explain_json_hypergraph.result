@@ -1295,3 +1295,29 @@ JSON_EXTRACT(@v1, '$.query_type') = 'delete'
 1
 DROP TABLE t1, t2;
 SET @v1=NULL;
+#
+# Bug#35443375 Explain format=json gives error when optimizer hint hypergraph_optimizer=ON
+#
+SET @saved_optimizer_switch = @@optimizer_switch;
+CREATE TABLE t1 (i int);
+SET optimizer_switch="hypergraph_optimizer=OFF";
+EXPLAIN FORMAT=JSON INTO @v1 SELECT /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=OFF')*/ * FROM t1;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query_type') AS using_hypergraph;
+using_hypergraph
+0
+EXPLAIN FORMAT=JSON INTO @v1 SELECT /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=ON')*/ * FROM t1;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query_type') AS using_hypergraph;
+using_hypergraph
+1
+SET optimizer_switch="hypergraph_optimizer=ON";
+EXPLAIN FORMAT=JSON INTO @v1 SELECT /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=OFF')*/ * FROM t1;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query_type') AS using_hypergraph;
+using_hypergraph
+0
+EXPLAIN FORMAT=JSON INTO @v1 SELECT /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=ON')*/ * FROM t1;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query_type') AS using_hypergraph;
+using_hypergraph
+1
+DROP TABLE t1;
+SET @v1 = NULL;
+SET optimizer_switch = @saved_optimizer_switch;

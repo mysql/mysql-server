@@ -883,7 +883,8 @@ void pushed_table::compute_type_and_index() {
         // Align possible 'EXPLAIN_NO_PUSH' with explain format being used.
         // MRR is explained as a 'Multi range' with iterator-based formats
         // else 'Batched..'
-        if (m_table->in_use->lex->explain_format->is_iterator_based()) {
+        if (m_table->in_use->lex->explain_format->is_iterator_based(
+                m_table->in_use, m_table->in_use)) {
           m_other_access_reason = "Multi-range";
         } else {
           m_other_access_reason = "Batched-key";

@@ -3805,7 +3805,7 @@ bool LEX::can_not_use_merged() {
 */
 
 bool LEX::need_correct_ident() {
-  if (is_explain() && explain_format->is_iterator_based()) return true;
+  if (is_explain() && explain_format->is_iterator_based(thd, thd)) return true;
   switch (sql_command) {
     case SQLCOM_SHOW_CREATE:
     case SQLCOM_SHOW_TABLES:
