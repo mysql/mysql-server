@@ -39,6 +39,7 @@ For now, we build only the static libraries.
 Libraries defined on this level:
 - \subpage PageLibsMysqlAllocators
 - \subpage PageLibsMysqlBinlog
+- \subpage PageLibsMysqlContainers
 - \subpage PageLibsMysqlGtid
 - \subpage PageLibsMysqlSerialization
 - \subpage PageLibsMysqlUtils
