@@ -185,9 +185,15 @@ ENDIF()
 
 MACRO(DOWNGRADE_STRINGOP_WARNINGS target)
   IF(MY_COMPILER_IS_GNU AND WITH_LTO AND FPROFILE_USE)
-    TARGET_LINK_OPTIONS(${target} PRIVATE
-      -Wno-error=stringop-overflow
-      -Wno-error=stringop-overread
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+      TARGET_LINK_OPTIONS(${target} PRIVATE
+        -Wno-error=stringop-overflow
+        -Wno-error=stringop-overread
       )
+    ELSE()
+      TARGET_LINK_OPTIONS(${target} PRIVATE
+        -Wno-error=stringop-overflow
+      )
+    ENDIF()
   ENDIF()
 ENDMACRO()
