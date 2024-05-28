@@ -532,7 +532,7 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             set_names_sysvar.set(3);
           }
 
-          auto value_from_kv = [](auto kv) -> Value {
+          auto value_from_kv = [](auto kv) -> std::optional<std::string> {
             // the session tracker can't report NULL. Instead it reports "".
             //
             // In the case of 'character_set_results' setting "" leads to an
@@ -545,8 +545,10 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             return {std::string(kv.value())};
           };
 
-          exec_ctx_.system_variables().set(std::string(kv.key()),
-                                           value_from_kv(kv));
+          client_protocol().system_variables().set(std::string(kv.key()),
+                                                   value_from_kv(kv));
+          server_protocol().system_variables().set(std::string(kv.key()),
+                                                   value_from_kv(kv));
 
           if (auto &tr = tracer()) {
             std::ostringstream oss;
@@ -836,7 +838,7 @@ void MysqlRoutingClassicConnectionBase::loop() {
 }
 
 bool MysqlRoutingClassicConnectionBase::connection_sharing_possible() const {
-  const auto &sysvars = exec_ctx_.system_variables();
+  const auto &sysvars = client_protocol().system_variables();
 
   return context_.connection_sharing() &&             // config must allow it.
          client_protocol().password().has_value() &&  // a password is required
@@ -955,18 +957,18 @@ bool MysqlRoutingClassicConnectionBase::connection_sharing_allowed() const {
 
 std::string MysqlRoutingClassicConnectionBase::connection_sharing_blocked_by()
     const {
-  const auto &sysvars = exec_ctx_.system_variables();
+  const auto &sysvars = client_protocol().system_variables();
 
   // "possible"
   if (!context_.connection_sharing()) return "config";
   if (!client_protocol().password().has_value()) return "no-password";
-  if (sysvars.get("session_track_gtids") != Value("OWN_GTID"))
+  if (sysvars.get("session_track_gtids") != "OWN_GTID")
     return "session-track-gtids";
-  if (sysvars.get("session_track_state_change") != Value("ON"))
+  if (sysvars.get("session_track_state_change") != "ON")
     return "session-track-state-change";
-  if (sysvars.get("session_track_system_variables") != Value("*"))
+  if (sysvars.get("session_track_system_variables") != "*")
     return "session-track-system-variables";
-  if (sysvars.get("session_track_transaction_info") != Value("CHARACTERISTICS"))
+  if (sysvars.get("session_track_transaction_info") != "CHARACTERISTICS")
     return "session-track-transaction-info";
 
   // "allowed"
@@ -1001,7 +1003,8 @@ void MysqlRoutingClassicConnectionBase::reset_to_initial() {
   execution_context().diagnostics_area().warnings().clear();
 
   // clear the tracked-system-vars like sql_mode, ...
-  execution_context().system_variables().clear();
+  src_protocol.system_variables().clear();
+  server_protocol().system_variables().clear();
 
   // clear the prepared statements.
   src_protocol.prepared_statements().clear();

@@ -252,8 +252,37 @@ var status_vars = {
               value: "ON"
             },
             {
+              type: "system_variable",
+              name: "session_track_schema",
+              value: "ON"
+            },
+            {
               type: "trx_characteristics",
               value: "",
+            },
+          ]
+        }
+      };
+    } else if (
+        stmt.indexOf('SET @@SESSION.character_set_client = "utf8mb4"') !== -1) {
+      // the trackers that are needed for connection-sharing.
+      return {
+        ok: {
+          session_trackers: [
+            {
+              type: "system_variable",
+              name: "character_set_client",
+              value: "utf8mb4",
+            },
+            {
+              type: "system_variable",
+              name: "collation_connection",
+              value: "utf8mb4_0900_ai_ci",
+            },
+            {
+              type: "system_variable",
+              name: "sql_mode",
+              value: "bar",
             },
           ]
         }

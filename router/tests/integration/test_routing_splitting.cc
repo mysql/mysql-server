@@ -956,7 +956,7 @@ class SplittingConnectionTest
   }
 
   void TearDown() override {
-    if (HasFatalFailure()) {
+    if (HasFailure()) {
       shared_router()->process_manager().dump_logs();
     }
   }
@@ -2017,18 +2017,25 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
       SharedServer::caching_sha2_empty_password_account();
 
   // change-user sets the wait_for_my_writes to '1'
+  //
+  // executed on the secondary:
+  //
+  // - change-user
+  // - SET trackers
   ASSERT_NO_ERROR(cli.change_user(change_user_account.username,
                                   change_user_account.password, ""));
 
   // primary
+  //
+  // - SELECT sql_mode ...
+  // - INSERT
   ASSERT_NO_ERROR(cli.query("INSERT INTO testing.t1 VALUES ()"));
 
   // secondary, waits for executed gtid.
   //
-  // executed on the secondary:
-  //
-  // - reset-connection
-  // - SET trackers
+  // - (change-user)
+  // - (SET trackers)
+  // - SET sql_mode
   // - SELECT GTID...
   // - SELECT * FROM testing...
   {
@@ -2036,12 +2043,6 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
     ASSERT_NO_ERROR(stmt_res);
   }
 
-  // executed on the secondary:
-  //
-  // - reset-connection (from pool)
-  // - SET trackers
-  // - SELECT GTID...
-  // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
     ASSERT_NO_ERROR(events_res);
@@ -2051,11 +2052,11 @@ TEST_P(SplittingConnectionTest, change_user_resets_session_wait_for_my_writes) {
                     // started on read-write
                     ElementsAre(Pair("statement/com/Change user", 1),
                                 Pair("statement/sql/select", 5),
-                                Pair("statement/sql/set_option", 2)),
+                                Pair("statement/sql/set_option", 3)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Change user", 1),
                                 Pair("statement/sql/select", 6),
-                                Pair("statement/sql/set_option", 2))));
+                                Pair("statement/sql/set_option", 3))));
   }
 }
 
@@ -2088,7 +2089,9 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
 
   // executed on the secondary:
   //
+  // - connect
   // - SET trackers
+  // - SELECT sql_mode
   // - SELECT * FROM performance_schema... [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
@@ -2100,9 +2103,8 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
                     ElementsAre(Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 1)),
                     // started on read-only
-                    ElementsAre(Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 2),
-                                Pair("statement/sql/set_option", 2))));
+                    ElementsAre(Pair("statement/sql/select", 2),
+                                Pair("statement/sql/set_option", 1))));
   }
 
   SCOPED_TRACE("// change-user to secondary");
@@ -2111,8 +2113,14 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
 
   // executed on the secondary:
   //
+  // - (connect)
+  // - (SET trackers)
+  // - (SELECT sql_mode)
+  // - SELECT * FROM performance_schema
+  // - change-user
   // - SET trackers
-  // - SELECT * FROM performance_schema... [not seen by this query]
+  // - SELECT sql_mode
+  // - (SELECT * FROM performance_schema...) [not seen by this query]
   {
     auto events_res = changed_event_counters(cli);
     ASSERT_NO_ERROR(events_res);
@@ -2121,13 +2129,12 @@ TEST_P(SplittingConnectionTest, change_user_targets_the_current_destination) {
                 AnyOf(
                     // started on read-write
                     ElementsAre(Pair("statement/com/Change user", 1),
-                                Pair("statement/sql/select", 2),
+                                Pair("statement/sql/select", 3),
                                 Pair("statement/sql/set_option", 2)),
                     // started on read-only
                     ElementsAre(Pair("statement/com/Change user", 1),
-                                Pair("statement/com/Reset Connection", 2),
                                 Pair("statement/sql/select", 4),
-                                Pair("statement/sql/set_option", 4))));
+                                Pair("statement/sql/set_option", 2))));
   }
 
   {
@@ -2449,6 +2456,72 @@ TEST_P(SplittingConnectionTest, use_schema_propagates) {
     auto query_res = query_one_result(cli, "SELECT SCHEMA()");
     ASSERT_NO_ERROR(query_res);
     EXPECT_THAT(*query_res, ElementsAre(ElementsAre("testing")));
+  }
+}
+
+TEST_P(SplittingConnectionTest, set_sys_vars_propagates) {
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // connection goes out of the pool and back to the pool again.
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(1, 1s));
+
+  SCOPED_TRACE("// force SELECT from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  // SELECT from PRIMARY and SECONDARY to ensure a connection to each is
+  // established.
+
+  SCOPED_TRACE("// check schema-change is propagated.");
+  {
+    auto query_res = query_one_result(cli, "SELECT @@sql_mode");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(
+        *query_res,
+        ElementsAre(ElementsAre(
+            "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_"
+            "DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION")));
+  }
+
+  SCOPED_TRACE("// force SELECT from SECONDARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_only'"));
+  {
+    auto query_res = query_one_result(cli, "SELECT @@sql_mode");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(
+        *query_res,
+        ElementsAre(ElementsAre(
+            "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_"
+            "DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION")));
+  }
+
+  // change sys-var and check it is applied to both
+
+  SCOPED_TRACE("// set sys-var");
+  ASSERT_NO_ERROR(cli.query("SET sql_mode=''"));
+
+  SCOPED_TRACE("// check change of sys-vars is noticed.");
+  {
+    auto query_res = query_one_result(cli, "SELECT @@sql_mode");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("")));
+  }
+
+  SCOPED_TRACE("// force SELECT from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check change of sys-vars is propagated.");
+  {
+    auto query_res = query_one_result(cli, "SELECT @@sql_mode");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, ElementsAre(ElementsAre("")));
   }
 }
 

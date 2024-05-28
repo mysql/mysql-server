@@ -125,7 +125,7 @@ function increment_event(event_name) {
             },
             {
               type: "system_variable",
-              name: "session_track_state_change",
+              name: "session_track_schema",
               value: "ON"
             },
             {
