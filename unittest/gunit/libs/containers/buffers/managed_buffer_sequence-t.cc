@@ -29,7 +29,7 @@
 #include <functional>  // std::function
 #include <iterator>    // std::distance
 
-#include "mysql/binlog/event/math/math.h"
+#include "mysql/math/bounded_arithmetic.h"
 #include "mysql/utils/concat.h"
 
 using mysql::utils::concat;
@@ -383,11 +383,10 @@ class Grow_tester {
 
     // offset of each part boundary from beginning of container
     auto end_distance = [&](Size_t s) {
-      return mysql::binlog::event::math::ceil_div(s, buffer_size);
+      return mysql::math::ceil_div(s, buffer_size);
     };
     auto begin_distance = [&](Size_t s) {
-      if (s == capacity)
-        return mysql::binlog::event::math::ceil_div(s, buffer_size);
+      if (s == capacity) return mysql::math::ceil_div(s, buffer_size);
       return s / buffer_size;
     };
     auto r_end = end_distance(position);

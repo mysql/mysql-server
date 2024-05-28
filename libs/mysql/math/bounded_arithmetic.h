@@ -23,15 +23,15 @@
 
 ///  @file math.h
 
-#ifndef MYSQL_BINLOG_EVENT_MATH_MATH_H
-#define MYSQL_BINLOG_EVENT_MATH_MATH_H
+#ifndef MYSQL_MATH_BOUNDED_ARITHMETIC_H
+#define MYSQL_MATH_BOUNDED_ARITHMETIC_H
 
 #include <type_traits>  // std::enable_if
 
-/// @addtogroup GroupLibsMysqlBinlogEvent
+/// @addtogroup GroupLibsMysqlMath
 /// @{
 
-namespace mysql::binlog::event::math {
+namespace mysql::math {
 
 /// Return x+y, limited to the given maximum.
 ///
@@ -94,8 +94,8 @@ constexpr T ceil_div(const T x, const T y) {
   return (x + y - 1) / y;
 }
 
-}  // namespace mysql::binlog::event::math
+}  // namespace mysql::math
 
 /// @}
 
-#endif  // MYSQL_BINLOG_EVENT_MATH_MATH_H
+#endif  // MYSQL_MATH_BOUNDED_ARITHMETIC_H

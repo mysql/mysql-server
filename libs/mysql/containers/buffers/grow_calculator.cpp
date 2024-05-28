@@ -22,8 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/containers/buffers/grow_calculator.h"
-#include "mysql/binlog/event/math/math.h"          // add_bounded
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
+#include "mysql/math/bounded_arithmetic.h"         // add_bounded
 
 #include <cassert>
 
@@ -48,17 +48,17 @@ Grow_calculator::Result_t Grow_calculator::compute_new_size(
   Size_t new_size = requested_size;
   // Grow by at least the grow factor.
   new_size =
-      std::max(new_size, mysql::binlog::event::math::multiply_bounded(
+      std::max(new_size, mysql::math::multiply_bounded(
                              old_size, get_grow_factor(), machine_max_size));
   // Grow by at least the grow increment.
   new_size =
-      std::max(new_size, mysql::binlog::event::math::add_bounded(
+      std::max(new_size, mysql::math::add_bounded(
                              old_size, get_grow_increment(), machine_max_size));
   // Round up to nearest multiple of block size.
   auto remainder = new_size % get_block_size();
   if (remainder != 0)
-    new_size = mysql::binlog::event::math::add_bounded(
-        new_size, get_block_size() - remainder, machine_max_size);
+    new_size = mysql::math::add_bounded(new_size, get_block_size() - remainder,
+                                        machine_max_size);
   // Limit by max size.
   new_size = std::min(new_size, get_max_size());
 

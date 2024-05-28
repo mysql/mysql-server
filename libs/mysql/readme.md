@@ -55,6 +55,8 @@ Libraries defined on this level:
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlGtid GTID
 \ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlMath Math
+\ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlSerialization Serialization
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlUtils Utils

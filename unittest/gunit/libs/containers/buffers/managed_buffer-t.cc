@@ -29,7 +29,7 @@
 #include <functional>  // std::function
 #include <iterator>    // std::distance
 
-#include "mysql/binlog/event/math/math.h"
+#include "mysql/math/bounded_arithmetic.h"
 #include "mysql/utils/concat.h"
 
 using mysql::utils::concat;
