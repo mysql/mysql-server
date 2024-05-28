@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2023
+.\"      Date: 05/24/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.3
+.\"    Source: MySQL 9.0
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "11/23/2023" "MySQL 8\&.3" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "05/24/2024" "MySQL 9\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -262,9 +262,16 @@ option is not used,
 PROCESS
 if the
 \-\-no\-tablespaces
-option is not used, and the RELOAD or FLUSH_TABLES priviledge with
+option is not used, and the
+RELOAD
+or
+FLUSH_TABLES
+privilege with
 \fB\-\-single\-transaction\fR
-if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&. Certain options might require other privileges as noted in the option descriptions\&.
+if both
+gtid_mode=ON
+and
+gtid_purged=ON|AUTO\&. Certain options might require other privileges as noted in the option descriptions\&.
 .PP
 To reload a dump file, you must have the privileges required to execute the statements that it contains, such as the appropriate
 CREATE
@@ -342,7 +349,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; it also provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&30.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&32.1, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .PP
 \fBmysqldump\fR
 can retrieve and dump table contents row by row, or it can retrieve the entire content from a table and buffer it in memory before dumping it\&. Buffering in memory can be a problem if you are dumping large tables\&. To dump tables row by row, use the
@@ -367,7 +374,7 @@ option\&.
 .PP
 For additional information about
 \fBmysqldump\fR, see
-Section\ \&7.4, \(lqUsing mysqldump for Backups\(rq\&.
+Section\ \&9.4, \(lqUsing mysqldump for Backups\(rq\&.
 Invocation Syntax
 .PP
 There are in general three ways to use
@@ -405,7 +412,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
+Section\ \&6.2.2.2, \(lqUsing Option Files\(rq\&.
 Connection Options
 .PP
 The
@@ -473,7 +480,7 @@ T}
 .TE
 .sp 1
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
@@ -527,7 +534,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -556,7 +563,7 @@ T}
 .TE
 .sp 1
 A hint about which client\-side authentication plugin to use\&. See
-Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
+Section\ \&8.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -593,7 +600,7 @@ T}
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&8.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -633,7 +640,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -695,7 +702,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -724,7 +731,7 @@ See
 for related information\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -764,7 +771,7 @@ or
 and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp
 To explicitly specify that there is no password and that
 \fBmysqldump\fR
@@ -791,7 +798,7 @@ between
 and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&8.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp
 To explicitly specify that there is no password and that
 \fBmysqldump\fR
@@ -949,7 +956,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqldump\fR
 does not find it\&. See
-Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
+Section\ \&8.2.17, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1032,7 +1039,7 @@ T}
 .TE
 .sp 1
 The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
+Section\ \&6.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1079,8 +1086,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&8.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&8.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1187,7 +1194,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.8, \(lqFIPS Support\(rq\&.
+Section\ \&8.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -1281,7 +1288,7 @@ T}
 .TE
 .sp 1
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1358,7 +1365,7 @@ T}
 .TE
 .sp 1
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
+Section\ \&8.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1430,7 +1437,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+Section\ \&6.2.8, \(lqConnection Compression Control\(rq\&.
 .RE
 Option\-File Options
 .PP
@@ -1466,7 +1473,7 @@ Read this option file after the global option file but (on Unix) before the user
 is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1503,7 +1510,7 @@ Exception: Even with
 \&.mylogin\&.cnf\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1548,7 +1555,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1585,7 +1592,7 @@ utility\&. See
 mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1610,7 +1617,7 @@ T}
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&6.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 DDL Options
 .PP
@@ -1660,7 +1667,7 @@ statements are written unless one of those options is specified\&.
 \fBNote\fR
 .ps -1
 .br
-In MySQL 8\&.3, the
+In MySQL 9\&.0, the
 mysql
 schema is considered a system schema that cannot be dropped by end users\&. If
 \fB\-\-add\-drop\-database\fR
@@ -2314,7 +2321,7 @@ T}
 .TE
 .sp 1
 The directory where character sets are installed\&. See
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2351,7 +2358,7 @@ T}
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&12.15, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqldump\fR
 uses
 utf8mb4\&.
@@ -2605,7 +2612,7 @@ T}
 .TE
 .sp 1
 This option is similar to
-\fB\-\-source\-data\fR, except that it\*(Aqs used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. The option causes the dump output to include a
+\fB\-\-source\-data\fR, except that it is used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. The option causes the dump output to include a
 CHANGE REPLICATION SOURCE TO
 statement that indicates the binary log coordinates (file name and position) of the dumped replica\*(Aqs source\&. The
 CHANGE REPLICATION SOURCE TO
@@ -2633,7 +2640,7 @@ respectively\&. These are the replication source server coordinates from which t
 .ps -1
 .br
 Inconsistencies in the sequence of transactions from the relay log which have been executed can cause the wrong position to be used\&. See
-Section\ \&17.5.1.34, \(lqReplication and Transaction Inconsistencies\(rq
+Section\ \&19.5.1.34, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
@@ -2967,8 +2974,6 @@ This option affects the output from
 \fB\-\-source\-data\fR,
 \fB\-\-apply\-replica\-statements\fR, and
 \fB\-\-include\-source\-host\-port\fR\&.
-.sp
-Added in MySQL 8\&.2\&.0\&.
 .RE
 .sp
 .RS 4
@@ -3285,7 +3290,7 @@ T}
 .sp 1
 Produce output that is more compatible with other database systems or with older MySQL servers\&. The only permitted value for this option is
 ansi, which has the same meaning as the corresponding option for setting the server SQL mode\&. See
-Section\ \&5.1.11, \(lqServer SQL Modes\(rq\&.
+Section\ \&7.1.11, \(lqServer SQL Modes\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3419,7 +3424,7 @@ option and have the same meaning as the corresponding
 FIELDS
 clauses for
 LOAD DATA\&. See
-Section\ \&13.2.9, \(lqLOAD DATA Statement\(rq\&.
+Section\ \&15.2.9, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3490,7 +3495,7 @@ option and has the same meaning as the corresponding
 LINES
 clause for
 LOAD DATA\&. See
-Section\ \&13.2.9, \(lqLOAD DATA Statement\(rq\&.
+Section\ \&15.2.9, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3878,7 +3883,7 @@ description for information about an incompatibility of that option with
 \fB\-\-all\-databases\fR\&.
 .sp .5v
 .RE
-Prior to MySQL 8\&.3, the
+Prior to MySQL 9\&.0, the
 \fB\-\-routines\fR
 and
 \fB\-\-events\fR
@@ -3892,7 +3897,7 @@ system database, and therefore also the
 mysql\&.proc
 and
 mysql\&.event
-tables containing stored routine and event definitions\&. As of MySQL 8\&.3, the
+tables containing stored routine and event definitions\&. As of MySQL 9\&.0, the
 mysql\&.event
 and
 mysql\&.proc
@@ -4083,7 +4088,7 @@ FALSE
 T}
 .TE
 .sp 1
-Skips table views in the dump file\&. Option added in MySQL 8\&.2\&.0\&.
+Skips table views in the dump file\&.
 .RE
 .sp
 .RS 4
@@ -4112,7 +4117,7 @@ T}
 .TE
 .sp 1
 Single SQL statement to execute after connecting to the MySQL server\&. The definition resets existing statements defined by it or
-\fBinit\-command\-add\fR\&. Option added in MySQL 8\&.2\&.0\&.
+\fBinit\-command\-add\fR\&.
 .RE
 .sp
 .RS 4
@@ -4144,7 +4149,7 @@ Add an additional SQL statement to execute after connecting or reconnecting to t
 \fB\-\-init\-command\fR
 but has no effect if used before it because
 \fBinit\-command\fR
-resets the list of commands to call\&. Option added in MySQL 8\&.2\&.0\&.
+resets the list of commands to call\&.
 .RE
 .sp
 .RS 4
@@ -4237,7 +4242,7 @@ T}
 .TE
 .sp 1
 This option causes generated invisible primary keys to be excluded from the output\&. For more information, see
-Section\ \&13.1.20.11, \(lqGenerated Invisible Primary Keys\(rq\&.
+Section\ \&15.1.20.11, \(lqGenerated Invisible Primary Keys\(rq\&.
 .RE
 .sp
 .RS 4
@@ -4573,8 +4578,9 @@ T}
 .sp 1
 Set the session value of the
 long_query_time
-system variable\&. Use this option if you want to increase the time allowed for
-\fBmysqldump\fR\*(Aqs queries before they are logged to the slow query log file\&.
+system variable\&. Use this option if you want to increase the time allowed for queries from
+\fBmysqldump\fR
+before they are logged to the slow query log file\&.
 \fBmysqldump\fR
 performs a full table scan, which means its queries can often exceed a global
 long_query_time
@@ -4800,7 +4806,7 @@ LOCK TABLES
 and
 UNLOCK TABLES
 statements\&. This results in faster inserts when the dump file is reloaded\&. See
-Section\ \&8.2.5.1, \(lqOptimizing INSERT Statements\(rq\&.
+Section\ \&10.2.5.1, \(lqOptimizing INSERT Statements\(rq\&.
 .RE
 .sp
 .RS 4
@@ -4872,24 +4878,6 @@ database for proper restoration\&.
 Because the dump file contains a
 FLUSH PRIVILEGES
 statement, reloading the file requires privileges sufficient to execute that statement\&.
-.sp
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-For upgrades to MySQL 5\&.7 or higher from older versions, do not use
-\fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.10.4, \(lqChanges in MySQL 8.3\(rq\&.
-.sp .5v
-.RE
 .RE
 .sp
 .RS 4
@@ -5075,9 +5063,16 @@ InnoDB, because then it dumps the consistent state of the database at the time w
 START TRANSACTION
 was issued without blocking any applications\&.
 .sp
-The RELOAD or FLUSH_TABLES privilege is required with
+The
+RELOAD
+or
+FLUSH_TABLES
+privilege is required with
 \fB\-\-single\-transaction\fR
-if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&.
+if both
+gtid_mode=ON
+and
+gtid_purged=ON|AUTO\&.
 .sp
 When using this option, you should keep in mind that only
 InnoDB
@@ -5256,7 +5251,7 @@ statement is issued, the MySQL server may get stalled until those statements fin
 For point\-in\-time recovery (also known as
 \(lqroll\-forward,\(rq
 when you need to restore an old backup and replay the changes that happened since that backup), it is often useful to rotate the binary log (see
-Section\ \&5.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordinates to which the dump corresponds:
+Section\ \&7.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordinates to which the dump corresponds:
 .sp
 .if n \{\
 .RS 4
@@ -5289,8 +5284,8 @@ InnoDB
 storage engine\&.
 .PP
 For more information on making backups, see
-Section\ \&7.2, \(lqDatabase Backup Methods\(rq, and
-Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&9.2, \(lqDatabase Backup Methods\(rq, and
+Section\ \&9.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -5370,7 +5365,7 @@ mysql
 database\&. Log table contents are not dumped\&.
 .PP
 If you encounter problems backing up views due to insufficient privileges, see
-Section\ \&25.9, \(lqRestrictions on Views\(rq
+Section\ \&27.9, \(lqRestrictions on Views\(rq
 for a workaround\&.
 .SH "COPYRIGHT"
 .br
@@ -5387,17 +5382,17 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 MySQL Shell dump utilities
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.1/en/mysql-shell-utilities-dump-instance-schema.html
+\%https://dev.mysql.com/doc/mysql-shell/9.0/en/mysql-shell-utilities-dump-instance-schema.html
 .RE
 .IP " 2." 4
 MySQL Shell load dump utilities
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.1/en/mysql-shell-utilities-load-dump.html
+\%https://dev.mysql.com/doc/mysql-shell/9.0/en/mysql-shell-utilities-load-dump.html
 .RE
 .IP " 3." 4
 here
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.1/en/mysql-shell-install.html
+\%https://dev.mysql.com/doc/mysql-shell/9.0/en/mysql-shell-install.html
 .RE
 .IP " 4." 4
 Downgrade Notes

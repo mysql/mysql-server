@@ -171,6 +171,7 @@ Description: nodejs
 /usr/share/man/man1/ndb_select_all.1*
 /usr/share/man/man1/ndb_select_count.1*
 /usr/share/man/man1/ndb_show_tables.1*
+/usr/share/man/man1/ndb_sign_keys.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_top.1*
 /usr/share/man/man1/ndb_waiter.1*
