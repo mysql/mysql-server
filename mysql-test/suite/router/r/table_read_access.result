@@ -9,7 +9,7 @@
 #  * MySQL Rest Service
 # Connection "router.1" active
 # restart:generated_router_1.cnf
-# DB `basic_schema` - created 
+# DB `basic_schema` - created
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
 # Registred DB_OBJECT at path: /svc/basic/t1

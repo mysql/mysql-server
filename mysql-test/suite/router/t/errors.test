@@ -1,0 +1,54 @@
+# Verify error handling for some corners cases.
+#
+# This file contains errors scenario that can't be verified in
+# other tests because they contain valid configuration, and invalid is required.
+#
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,BODY,RESULT
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Verify returned errors by
+--echo #
+--echo # 1. use of 'asof' query FilterObject parameter on badly
+--echo #    configured MySQL Server (gtid_mode set to off).
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/sch
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--source ../include/mrs/db_object/add.inc
+
+
+# Wait until MySQLRouter fetches db-object.
+exec $MRS_CLIENT_ARGS
+  --path /svc/sch/t1
+  --display none
+  --wait-until-found 60;
+
+--echo
+--echo #
+--echo # I.1
+--let $asof="\$asof"
+exec $MRS_CLIENT_ARGS
+  --expected-status BadRequest
+  --path '/svc/sch/t1?q={$asof:"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}';
+
+# Cleanup
+--source ../include/mrs/cleanup.inc

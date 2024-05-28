@@ -9,7 +9,7 @@
 #  * MySQL Rest Service
 # Connection "router.1" active
 # restart:generated_router_1.cnf
-# DB `basic_schema` - created 
+# DB `basic_schema` - created
 
 
 ## I. Show that files tested in next steps doesn't exist
