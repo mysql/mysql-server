@@ -83,7 +83,24 @@ Item *FindReplacementOrReplaceMaterializedItems(
     bool need_exact_match, Func_ptr_array *agg_items_to_copy) {
   Item *replacement =
       FindReplacementItem(item, items_to_copy, need_exact_match);
-  if (replacement != nullptr) return replacement;
+
+  if (replacement != nullptr) {
+    // Replace "@:=<expr>" with "@:=<tmp_table_column>" rather than with
+    // "<tmp_table_column>". (See ReplaceSetVarItem() declaration)
+    // No need not do this for const items. (1)
+    // Also we do not perform the special handling for tmp tables used for
+    // anything other than GROUP BY. E.g. windowing. (2)
+    if (item->type() == Item::FUNC_ITEM &&
+        (down_cast<Item_func *>(item))->functype() ==
+            Item_func::SUSERVAR_FUNC &&
+        replacement != item &&  // (1)
+        replacement->type() == Item::FIELD_ITEM &&
+        (down_cast<Item_field *>(replacement))->field->table->group !=
+            nullptr)  // (2)
+      return ReplaceSetVarItem(thd, item, replacement);
+
+    return replacement;
+  }
 
   // If agg_items_to_copy list is passed, it means we need to generate a new
   // temp-table field for an aggregate item, and save it into the list.
@@ -149,4 +166,15 @@ void ReplaceMaterializedItems(THD *thd, Item *item,
   if (modified) {
     item->update_used_tables();
   }
+}
+
+Item *ReplaceSetVarItem(THD *thd, Item *item, Item *new_item) {
+  Item_func_set_user_var *suv =
+      new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
+
+  if (!suv || !new_item) return nullptr;  // Memory issue.
+  mem_root_deque<Item *> list(thd->mem_root);
+  if (list.push_back(new_item)) return nullptr;
+  if (suv->set_arguments(&list, true)) return nullptr;
+  return suv;
 }

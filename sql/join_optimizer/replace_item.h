@@ -74,4 +74,25 @@ void ReplaceMaterializedItems(THD *thd, Item *item,
                               const Func_ptr_array &items_to_copy,
                               bool need_exact_match);
 
+/**
+  Replace "@var:=<expr>" with "@var:=<tmp_table_column>" rather than
+  "<tmp_table_column>".
+
+  If a join field such as "@var:=expr" points to a temp table field, the
+  var assignment won't happen because there is no re-evaluation of the
+  materialized field. . So, rather than returning the temp table field,
+  return a new Item_func_set_user_var item that points to temp table
+  field, so that "@var" gets updated.
+
+  (It's another thing that the temp table field itself is an
+  Item_func_set_user_var field, i.e. of the form "@var:=<expr>", which
+  means the var assignment redundantly happens for *each* temp table
+  record while initializing the table; but this function does not fix
+  that)
+
+  TODO: remove this function cf. deprecated setting of variable in
+  expressions when it is finally disallowed.
+ */
+Item *ReplaceSetVarItem(THD *thd, Item *item, Item *new_item);
+
 #endif  // SQL_JOIN_OPTIMIZER_REPLACE_ITEM_H
