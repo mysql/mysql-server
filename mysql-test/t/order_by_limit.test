@@ -522,23 +522,31 @@ INSERT INTO t1(c1,c2,c3) SELECT t1.c1, t1.c2, t1.c3
 ANALYZE TABLE t1;
 
 let query =SELECT * FROM t1 ORDER BY id LIMIT 10;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=Tree $query;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE '%cost%';
 
 let query =SELECT * FROM t1 FORCE INDEX(PRIMARY) ORDER BY id LIMIT 10;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=Tree $query;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE '%cost%';
 
 let query =SELECT * FROM t1 use index() ORDER BY id LIMIT 10;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=Tree $query;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE '%cost%';
 
 let query =SELECT * FROM t1 WHERE c1 != 'asd' ORDER BY id LIMIT 10;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=Tree $query;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE '%cost%';
 
 DROP TABLE t1;
