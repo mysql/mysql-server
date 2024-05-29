@@ -2334,3 +2334,7 @@ const char *Ndb::getClientStatName(Uint32 id) const {
 
   return nullptr;
 }
+
+void Ndb::set_optimized_node_selection(int val) {
+  theImpl->m_optimized_node_selection = val;
+}
