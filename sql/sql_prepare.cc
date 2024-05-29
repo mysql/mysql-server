@@ -2930,6 +2930,7 @@ reexecute:
 
   thd->push_reprepare_observer(stmt_reprepare_observer);
 
+  DEBUG_SYNC(thd, "before_statement_execute");
   error = execute(thd, expanded_query, open_cursor) || thd->is_error();
 
   thd->pop_reprepare_observer();
