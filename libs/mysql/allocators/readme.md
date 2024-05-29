@@ -31,3 +31,30 @@ MySQL Allocators Library
 -->
 
 Code documentation: @ref GroupLibsMysqlAllocators.
+
+## Summary
+
+Allows libraries to allocate memory such that:
+- The server can use the library in such a way that the memory is
+  performance_schema-instrumented.
+- Other code can use the library without performance_schema instrumentation.
+- The library is never dependent on performance_schema.
+
+## Usage
+
+This library provides the `Memory_resource` class, which is used in different
+ways depending on who you are:
+
+- *Library author*: If your library needs to allocate memory, add a
+  `Memory_resource` parameter to either the function that allocates memory or
+  the constructor for the class that manages the memory. The parameter must be
+  passed by value, not reference or pointer. Allocate memory through this
+  object. Make the parameter default to `Memory_resource()`.
+
+- *Library user within the MySQL server*: When using the function or class that
+  takes a `Memory_resource` object, call `psi_memory_resource(Psi_memory_key)`
+  to get the `Memory_resource` object to pass to the function or constructor.
+
+- *Library user outside the MySQL server*: When using the function or class
+  constructor that takes an optional `Memory_resource` parameter, allow that
+  parameter to take its default value.
