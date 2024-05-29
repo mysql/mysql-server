@@ -135,6 +135,16 @@ void initialize_entities(observability::EntitiesManager *manager) {
       "changesFiles");
   reg.register_entity_with_id_not_resetable<
       kEntityCounterUpdatesAuthentications>("changesAuthentications");
+
+  reg.register_entity_with_id<kEntityCounterRestAsofUsesRo>("restAsofUsesRo");
+  reg.register_entity_with_id<kEntityCounterRestAsofUsesRw>("restAsofUsesRw");
+  reg.register_entity_with_id<kEntityCounterRestAsofSwitchesFromRo2Rw>(
+      "restAsofSwitchesFromRo2Rw");
+  reg.register_entity_with_id<kEntityCounterRestAsofNumberOfTimeouts>(
+      "restAsofNumberOfTimeouts");
+  reg.register_entity_with_id<kEntityCounterRestMetadataGtids>(
+      "restMetadataGtids");
+
   reg.last_is(kEntityCounterLast);
 }
 

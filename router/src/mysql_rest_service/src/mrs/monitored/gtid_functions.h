@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,28 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/database/helper/query_faults.h"
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_GTID_FUNCTIONS_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_GTID_FUNCTIONS_H_
 
-#include "mrs/interface/rest_error.h"
+#include <string>
+
+#include "collector/counted_mysql_session.h"
+#include "mrs/gtid_manager.h"
 
 namespace mrs {
-namespace database {
+namespace monitored {
 
-void throw_rest_error_asof_timeout([[maybe_unused]] const std::string &gtid) {
-  throw mrs::interface::RestError(
-      "'Asof' requirement was not fulfilled, timeout occured.");
-}
+/**
+ * This function is dedicated for getting GTIDs that
+ * are returned to the user in REST response.
+ *
+ * Function is extracted here, because it monitors usage
+ * count in concrete case.
+ */
+std::string get_session_tracked_gtids_for_metadata_response(
+    collector::CountedMySQLSession *session, mrs::GtidManager *gtid_manager);
 
-}  // namespace database
+}  // namespace monitored
 }  // namespace mrs
+
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_GTID_FUNCTIONS_H_

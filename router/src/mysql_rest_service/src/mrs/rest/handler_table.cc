@@ -35,7 +35,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
 
-#include <helper/container/generic.h>
+#include "helper/container/generic.h"
 #include "helper/container/to_string.h"
 #include "helper/http/url.h"
 #include "helper/json/rapid_json_to_text.h"
@@ -45,15 +45,16 @@
 #include "helper/mysql_numeric_value.h"
 #include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_query.h"
-#include "mrs/database/helper/query_faults.h"
 #include "mrs/database/helper/query_gtid_executed.h"
-#include "mrs/database/helper/query_retry_on_rw.h"
+#include "mrs/database/helper/query_retry_on_ro.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/database/query_rest_table_updater.h"
 #include "mrs/http/error.h"
 #include "mrs/interface/object.h"
+#include "mrs/monitored/gtid_functions.h"
+#include "mrs/monitored/query_retry_on_ro.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
 
@@ -271,12 +272,13 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
                                     opt_sp_include_links};
 
       fog.parse(uri_param.get_query_parameter("q"));
-      database::QueryRetryOnRW query_retry{route_->get_cache(),
-                                           session,
-                                           gtid_manager_,
-                                           fog,
-                                           get_options().query.wait,
-                                           get_options().query.embed_wait};
+
+      monitored::QueryRetryOnRO query_retry{route_->get_cache(),
+                                            session,
+                                            gtid_manager_,
+                                            fog,
+                                            get_options().query.wait,
+                                            get_options().query.embed_wait};
 
       do {
         query_retry.before_query();
@@ -370,22 +372,16 @@ HttpResult HandlerTable::handle_post(
 
   Counter<kEntityCounterRestAffectedItems>::increment();
 
-  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
-  if (gtids.size()) {
-    auto addr = get_tcpaddr(session->get_connection_parameters());
-    for (auto &gtid : gtids) {
-      gtid_manager_->remember(addr, {gtid});
-    }
-  }
+  auto gtid = mrs::monitored::get_session_tracked_gtids_for_metadata_response(
+      session.get(), gtid_manager_);
 
   if (!pk.empty()) {
     database::QueryRestTableSingleRow fetch_one;
-    std::string gtid{get_options().metadata.gtid ? get_most_relevant_gtid(gtids)
-                                                 : ""};
+    std::string response_gtid{get_options().metadata.gtid ? gtid : ""};
 
     fetch_one.query_entries(session.get(), object,
                             database::ObjectFieldFilter::from_object(*object),
-                            pk, route_->get_rest_url(), true, gtid);
+                            pk, route_->get_rest_url(), true, response_gtid);
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
@@ -441,6 +437,9 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
     fog.parse(query);
 
     if (fog.has_asof()) {
+      // This is a write operation, thus the `session` is RW.
+      mrs::monitored::count_using_wait_at_rw_connection();
+
       for (int retry = 0; retry < 2; ++retry) {
         auto result =
             gtid_manager_->is_executed_on_server(addr, {fog.get_asof()});
@@ -459,7 +458,7 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
       auto gtid = fog.get_asof();
       if (!database::wait_gtid_executed(session.get(), gtid,
                                         get_options().query.wait)) {
-        database::throw_rest_error_asof_timeout(gtid.str());
+        monitored::throw_rest_error_asof_timeout();
       }
     }
 
@@ -474,16 +473,13 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
     count = rest.handle_delete(session.get(), fog);
 
     if (get_options().query.embed_wait && fog.has_asof() && 0 == count) {
-      database::throw_if_not_gtid_executed(session.get(), fog.get_asof());
+      mrs::monitored::throw_rest_error_asof_timeout_if_not_gtid_executed(
+          session.get(), fog.get_asof());
     }
   }
 
-  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
-  if (gtids.size()) {
-    for (auto &gtid : gtids) {
-      gtid_manager_->remember(addr, {gtid});
-    }
-  }
+  auto gtid = mrs::monitored::get_session_tracked_gtids_for_metadata_response(
+      session.get(), gtid_manager_);
 
   helper::json::SerializerToText stt{accepted_content_type ==
                                      MediaType::typeXieee754ClientJson};
@@ -492,9 +488,9 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
     obj->member_add_value("itemsDeleted", count);
 
     if (get_options().metadata.gtid) {
-      if (count && !gtids.empty()) {
+      if (count && !gtid.empty()) {
         auto metadata = obj->member_add_object("_metadata");
-        metadata->member_add_value("gtid", gtids[0]);
+        metadata->member_add_value("gtid", gtid);
       }
     }
   }
@@ -541,21 +537,15 @@ HttpResult HandlerTable::handle_put(rest::RequestContext *ctxt) {
 
   Counter<kEntityCounterRestAffectedItems>::increment(updater.affected());
 
-  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
-  if (gtids.size()) {
-    auto addr = get_tcpaddr(session->get_connection_parameters());
-    for (auto &gtid : gtids) {
-      gtid_manager_->remember(addr, {gtid});
-    }
-  }
+  auto gtid = mrs::monitored::get_session_tracked_gtids_for_metadata_response(
+      session.get(), gtid_manager_);
 
   database::QueryRestTableSingleRow fetch_one;
-  std::string gtid{get_options().metadata.gtid ? get_most_relevant_gtid(gtids)
-                                               : ""};
+  std::string response_gtid{get_options().metadata.gtid ? gtid : ""};
 
   fetch_one.query_entries(session.get(), object,
                           database::ObjectFieldFilter::from_object(*object), pk,
-                          route_->get_rest_url(), true, gtid);
+                          route_->get_rest_url(), true, response_gtid);
 
   Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
   return std::move(fetch_one.response);

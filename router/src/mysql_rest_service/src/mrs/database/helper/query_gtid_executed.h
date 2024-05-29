@@ -43,9 +43,6 @@ bool wait_gtid_executed(mysqlrouter::MySQLSession *session,
 bool is_gtid_executed(mysqlrouter::MySQLSession *session,
                       const mysqlrouter::sqlstring &gtid);
 
-void throw_if_not_gtid_executed(mysqlrouter::MySQLSession *session,
-                                const mysqlrouter::sqlstring &gtid);
-
 }  // namespace database
 }  // namespace mrs
 

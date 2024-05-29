@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mrs/database/helper/query_retry_on_rw.h"
-#include "mrs/database/helper/query_faults.h"
+#include "mrs/database/helper/query_retry_on_ro.h"
+
 #include "mrs/database/helper/query_gtid_executed.h"
 
 #include "mysql/harness/logging/logging.h"
@@ -46,7 +46,7 @@ static bool is_rw(collector::MySQLConnection connection) {
          connection == collector::kMySQLConnectionUserdataRW;
 }
 
-QueryRetryOnRW::QueryRetryOnRW(collector::MysqlCacheManager *cache,
+QueryRetryOnRO::QueryRetryOnRO(collector::MysqlCacheManager *cache,
                                CachedSession &session,
                                GtidManager *gtid_manager,
                                FilterObjectGenerator &fog,
@@ -56,14 +56,24 @@ QueryRetryOnRW::QueryRetryOnRW(collector::MysqlCacheManager *cache,
       gtid_manager_{gtid_manager},
       cache_{cache},
       fog_{fog},
+      filter_object_has_asof_{fog_.has_asof()},
       wait_gtid_timeout_{wait_gtid_timeout},
       query_has_gtid_check_{query_has_gtid_check} {
-  if (fog_.has_asof()) {
+  if (filter_object_has_asof_) {
     gtid_ = fog_.get_asof();
   }
 }
 
-void QueryRetryOnRW::before_query() {
+void QueryRetryOnRO::before_query() {
+  const bool is_session_rw = is_rw(cache_->get_type(session_));
+
+  if (filter_object_has_asof_) {
+    if (!is_session_rw)
+      using_ro_connection();
+    else
+      using_rw_connection();
+  }
+
   if (!fog_.has_asof()) return;
 
   if (check_gtid(gtid_)) {
@@ -79,11 +89,12 @@ void QueryRetryOnRW::before_query() {
   }
 
   if (!wait_gtid_executed(session_.get(), gtid_, wait_gtid_timeout_)) {
-    if (is_rw(cache_->get_type(session_))) throw_rest_error_asof_timeout();
+    if (is_session_rw) throw_timeout();
     session_ =
         cache_->get_instance(collector::kMySQLConnectionUserdataRW, false);
 
     is_retry_ = true;
+    switch_ro_to_rw();
     before_query();
     return;
   }
@@ -91,13 +102,13 @@ void QueryRetryOnRW::before_query() {
   gtid_manager_->remember(addr, {gtid_.str()});
 }
 
-mysqlrouter::MySQLSession *QueryRetryOnRW::get_session() {
+mysqlrouter::MySQLSession *QueryRetryOnRO::get_session() {
   return session_.get();
 }
 
-const FilterObjectGenerator &QueryRetryOnRW::get_fog() { return fog_; }
+const FilterObjectGenerator &QueryRetryOnRO::get_fog() { return fog_; }
 
-bool QueryRetryOnRW::should_retry(const uint64_t affected) const {
+bool QueryRetryOnRO::should_retry(const uint64_t affected) const {
   if (!query_has_gtid_check_) return false;
   if (!is_retry_ && !fog_.has_asof()) return false;
   if (affected != 0) return false;
@@ -106,12 +117,13 @@ bool QueryRetryOnRW::should_retry(const uint64_t affected) const {
   if (!is_gtid_executed(session_.get(), gtid_)) {
     // Timeout, change session to RW
     if (is_rw(cache_->get_type(session_))) {
-      throw_rest_error_asof_timeout();
+      throw_timeout();
     }
     log_debug("Retry on RW session.");
     session_ =
         cache_->get_instance(collector::kMySQLConnectionUserdataRW, false);
 
+    switch_ro_to_rw();
     is_retry_ = true;
 
     return !session_.empty();
@@ -120,7 +132,7 @@ bool QueryRetryOnRW::should_retry(const uint64_t affected) const {
   return false;
 }
 
-bool QueryRetryOnRW::check_gtid(const std::string &gtid_str) {
+bool QueryRetryOnRO::check_gtid(const std::string &gtid_str) {
   mrs::database::Gtid gtid{gtid_str};
   auto addr = get_tcpaddr(session_->get_connection_parameters());
 
