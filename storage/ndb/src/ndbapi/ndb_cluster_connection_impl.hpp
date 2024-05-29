@@ -166,7 +166,7 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection {
   NdbThread *m_connect_thread;
   int (*m_connect_callback)(void);
 
-  int m_optimized_node_selection;
+  int m_conn_default_optimized_node_selection;
   int m_run_connect_thread;
   NdbMutex *m_event_add_drop_mutex;
   Uint64 m_latest_trans_gci;
