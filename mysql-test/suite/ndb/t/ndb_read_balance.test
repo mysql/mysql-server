@@ -2,11 +2,6 @@
 
 # For locked reads primary will be used, for unlocked reads primary or
 # backup may be used.
-# But since partitioning hash function is endian dependent results may
-# differ between different platforms with different endian.
-# Until test is made endian independent test is disabled for big endian
-# systems.
---source suite/ndb/include/have_little_endian.inc
 
 --let $KEYS=40
 --let $TEST_STEP=5
@@ -29,7 +24,6 @@
 --source ndb_read_balance.inc
 
 # Potential TODO :
-#   - Extend to cover FR
 #   - Add hinted OI scan too ??  Requires composite primary key...
 #   - Balance when Backup ! local
 #   - Look at balance across nodes, LDMs, NGs etc...
@@ -42,5 +36,4 @@
 #       - Map rows to 'Primary', 'Backup'  (row, primary node, backup node)
 #       - Determine nodegroups (distinct (a<b:a:b), (a<b:b:a))
 #       - Read rows in a single nodegroup...check purely local...
-#   - FR?
 
