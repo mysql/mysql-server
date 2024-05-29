@@ -23492,21 +23492,21 @@ static void test_wl16221_bind_param() {
      to specify buffer_length */
   bind[0].buffer_type = MYSQL_TYPE_LONG;
   bind[0].buffer = (char *)&int_data;
-  bind[0].is_null = 0;
-  bind[0].length = 0;
+  bind[0].is_null = nullptr;
+  bind[0].length = nullptr;
 
   /* STRING PARAM */
   bind[1].buffer_type = MYSQL_TYPE_STRING;
   bind[1].buffer = (char *)str_data;
   bind[1].buffer_length = STRING_SIZE;
-  bind[1].is_null = 0;
+  bind[1].is_null = nullptr;
   bind[1].length = &str_length;
 
   /* SMALLINT PARAM */
   bind[2].buffer_type = MYSQL_TYPE_SHORT;
   bind[2].buffer = (char *)&small_data;
   bind[2].is_null = &is_null;
-  bind[2].length = 0;
+  bind[2].length = nullptr;
 
   /* Bind the buffers */
   if (mysql_stmt_bind_param(stmt, bind)) {
