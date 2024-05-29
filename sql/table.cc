@@ -168,9 +168,9 @@ LEX_CSTRING PARSE_GCOL_KEYWORD = {STRING_WITH_LEN("parse_gcol_expr")};
 
 /* Functions defined in this file */
 
-static Item *create_view_field(THD *thd, Table_ref *view, Item **field_ref,
-                               const char *name,
-                               Name_resolution_context *context);
+static Item_ident *create_view_field(THD *thd, Table_ref *view,
+                                     Item **field_ref, const char *name,
+                                     Name_resolution_context *context);
 static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                              int db_errno);
 
@@ -5021,7 +5021,7 @@ const char *Natural_join_column::name() {
   return table_field->field_name;
 }
 
-Item *Natural_join_column::create_item(THD *thd) {
+Item_ident *Natural_join_column::create_item(THD *thd) {
   if (view_field) {
     assert(table_field == nullptr);
     Query_block *select = thd->lex->current_query_block();
@@ -5069,7 +5069,7 @@ void Field_iterator_view::set(Table_ref *table) {
 
 const char *Field_iterator_table::name() { return (*ptr)->field_name; }
 
-Item *Field_iterator_table::create_item(THD *thd) {
+Item_ident *Field_iterator_table::create_item(THD *thd) {
   Table_ref *tr = (*ptr)->table->pos_in_table_list;
   Item_field *item = new Item_field(thd, &tr->query_block->context, *ptr);
   if (item == nullptr) return nullptr;
@@ -5087,20 +5087,20 @@ Item *Field_iterator_table::create_item(THD *thd) {
 
 const char *Field_iterator_view::name() { return ptr->name; }
 
-Item *Field_iterator_view::create_item(THD *thd) {
+Item_ident *Field_iterator_view::create_item(THD *thd) {
   Query_block *select = thd->lex->current_query_block();
   return create_view_field(thd, view, &ptr->item, ptr->name, &select->context);
 }
 
-static Item *create_view_field(THD *, Table_ref *view, Item **field_ref,
-                               const char *name,
-                               Name_resolution_context *context) {
+static Item_ident *create_view_field(THD *, Table_ref *view, Item **field_ref,
+                                     const char *name,
+                                     Name_resolution_context *context) {
   DBUG_TRACE;
 
   Item *field = *field_ref;
 
   assert(view->is_view() || view->is_derived() || view->schema_table);
-  assert(field && field->fixed);
+  assert(field != nullptr && field->fixed);
 
   if (view->schema_table_reformed) {
     /*
@@ -5108,7 +5108,7 @@ static Item *create_view_field(THD *, Table_ref *view, Item **field_ref,
       ('mysql_schema_table' function). So we can return directly the
       field. This case happens only for 'show & where' commands.
     */
-    return field;
+    return down_cast<Item_ident *>(field);
   }
 
   /*
@@ -5139,9 +5139,8 @@ static Item *create_view_field(THD *, Table_ref *view, Item **field_ref,
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
   */
-  Item *item = new Item_view_ref(context, field_ref, db_name, view->alias,
-                                 table_name, name, view);
-  return item;
+  return new Item_view_ref(context, field_ref, db_name, view->alias, table_name,
+                           name, view);
 }
 
 void Field_iterator_natural_join::set(Table_ref *table_ref) {

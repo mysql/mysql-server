@@ -83,6 +83,7 @@ class GRANT_TABLE;
 class Handler_share;
 class Index_hint;
 class Item;
+class Item_ident;
 class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
@@ -2608,7 +2609,7 @@ class Natural_join_column {
   Natural_join_column(Field_translator *field_param, Table_ref *tab);
   Natural_join_column(Item_field *field_param, Table_ref *tab);
   const char *name();
-  Item *create_item(THD *thd);
+  Item_ident *create_item(THD *thd);
   Field *field();
   const char *table_name();
   const char *db_name();
@@ -4066,7 +4067,7 @@ class Field_iterator {
   virtual void next() = 0;
   virtual bool end_of_fields() = 0; /* Return 1 at end of list */
   virtual const char *name() = 0;
-  virtual Item *create_item(THD *) = 0;
+  virtual Item_ident *create_item(THD *) = 0;
   virtual Field *field() = 0;
 };
 
@@ -4085,7 +4086,7 @@ class Field_iterator_table : public Field_iterator {
   void next() override { ptr++; }
   bool end_of_fields() override { return *ptr == nullptr; }
   const char *name() override;
-  Item *create_item(THD *thd) override;
+  Item_ident *create_item(THD *thd) override;
   Field *field() override { return *ptr; }
 };
 
@@ -4103,7 +4104,7 @@ class Field_iterator_view : public Field_iterator {
   void next() override { ptr++; }
   bool end_of_fields() override { return ptr == array_end; }
   const char *name() override;
-  Item *create_item(THD *thd) override;
+  Item_ident *create_item(THD *thd) override;
   Item **item_ptr() { return &ptr->item; }
   Field *field() override { return nullptr; }
   inline Item *item() { return ptr->item; }
@@ -4126,7 +4127,7 @@ class Field_iterator_natural_join : public Field_iterator {
   void next() override;
   bool end_of_fields() override { return !cur_column_ref; }
   const char *name() override { return cur_column_ref->name(); }
-  Item *create_item(THD *thd) override {
+  Item_ident *create_item(THD *thd) override {
     return cur_column_ref->create_item(thd);
   }
   Field *field() override { return cur_column_ref->field(); }
@@ -4166,7 +4167,9 @@ class Field_iterator_table_ref : public Field_iterator {
   const char *get_table_name();
   const char *get_db_name();
   GRANT_INFO *grant();
-  Item *create_item(THD *thd) override { return field_it->create_item(thd); }
+  Item_ident *create_item(THD *thd) override {
+    return field_it->create_item(thd);
+  }
   Field *field() override { return field_it->field(); }
   Natural_join_column *get_or_create_column_ref(THD *thd,
                                                 Table_ref *parent_table_ref);

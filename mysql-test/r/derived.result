@@ -1,11 +1,15 @@
-drop table if exists t1,t2,t3;
-select * from (select 2 from DUAL) b;
+select * from (select 2 from DUAL) AS b;
 2
 2
-SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
+SELECT 1 as a FROM (SELECT 1 UNION SELECT a) AS b;
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
+SELECT 1 as a FROM (SELECT a UNION SELECT 1) AS b;
 ERROR 42S22: Unknown column 'a' in 'field list'
+select dt.a from (select 1 as a) as dt;
+a
+1
+select test.dt.a from (select 1 as a) as dt;
+ERROR 42S22: Unknown column 'test.dt.a' in 'field list'
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);

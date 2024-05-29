@@ -4207,7 +4207,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
   /* Check whether the resolved field is unambiguous. */
   if (select_item != nullptr) {
-    Item *view_ref = nullptr;
+    Item_ident *ref_field = nullptr;
     /*
       If we have found field not by its alias in select list but by its
       original field name, we should additionally check if we have conflict
@@ -4221,35 +4221,34 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       Lookup the current GROUP or WINDOW partition by or order by field in the
       FROM clause.
     */
-    from_field = not_found_field;
+    Find_field_result result = FIELD_NOT_FOUND;
     if (((is_group_field || is_window_order) &&
          order_item_type == Item::FIELD_ITEM) ||
         order_item_type == Item::REF_ITEM) {
-      from_field = find_field_in_tables(thd, (Item_ident *)order_item, tables,
-                                        nullptr, &view_ref, IGNORE_ERRORS, true,
-                                        // view_ref is a local variable, so
-                                        // don't record a change to roll back:
-                                        false);
-      if (thd->is_error()) return true;
-
-      if (!from_field) from_field = not_found_field;
+      Item_ident *find_ident = down_cast<Item_ident *>(order_item);
+      Table_ref *saved = find_ident->m_table_ref;
+      find_ident->m_table_ref = nullptr;
+      if (find_field_in_tables(thd, find_ident, tables, nullptr,
+                               REPORT_NO_ERRORS, thd->want_privilege, &result,
+                               &from_field, &ref_field))
+        return true;
+      find_ident->m_table_ref = saved;
     }
-
-    if (from_field == not_found_field ||
-        (from_field != view_ref_found
+    if (result == FIELD_NOT_FOUND ||
+        (result == BASE_FIELD_FOUND
              ?
              /* it is field of base table => check that fields are same */
              ((*select_item)->type() == Item::FIELD_ITEM &&
-              ((Item_field *)(*select_item))->field->eq(from_field))
+              (down_cast<Item_field *>(*select_item))->field->eq(from_field))
              :
              /*
                in is field of view table => check that references on translation
                table are same
              */
              ((*select_item)->type() == Item::REF_ITEM &&
-              view_ref->type() == Item::REF_ITEM &&
+              ref_field->type() == Item::REF_ITEM &&
               down_cast<Item_ref *>(*select_item)->ref_pointer() ==
-                  down_cast<Item_ref *>(view_ref)->ref_pointer()))) {
+                  down_cast<Item_ref *>(ref_field)->ref_pointer()))) {
       /*
         If there is no such field in the FROM clause, or it is the same field
         as the one found in the SELECT clause, then use the Item created for
@@ -4276,8 +4275,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       // reference count for the select expression.
       (*order->item)->increment_ref_count();
       order->in_field_list = true;
-      if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
+      if (resolution == RESOLVED_AGAINST_ALIAS && result == FIELD_NOT_FOUND) {
         order->used_alias = (*order->item)->item_name.ptr();
+      }
       return false;
     }
     /*

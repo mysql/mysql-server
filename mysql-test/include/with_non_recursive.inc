@@ -226,15 +226,16 @@ FROM qn;
 --error ER_PARSE_ERROR
 with test.qn as (select "with") select * from test.qn;
 
---echo # Adding a db. prefix to a field still resolves to the QN; it's a bit awkward as
---echo # the QN doesn't belong to a db, but it's the same with derived table:
+--echo # Adding a database prefix to a field does not resolve to the QN:
+--error ER_BAD_FIELD_ERROR
 select test.qn.a from (select "with" as a) qn;
 
---echo # OTOH, db. prefix in FROM doesn't resolve to QN, which is good
+--echo # database prefix in FROM does not resolve to QN:
 with qn as (select "with") select * from qn;
 with qn as (select "with") select * from test.qn;
 with qn as (select "with" as a) select a from qn;
 with qn as (select "with" as a) select qn.a from qn;
+--error ER_BAD_FIELD_ERROR
 with qn as (select "with" as a) select test.qn.a from qn;
 with qn as (select "with" as a) select a from test.qn;
 with qn as (select "with" as a) select qn.a from test.qn;

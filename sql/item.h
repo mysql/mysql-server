@@ -4576,7 +4576,8 @@ class Item_field : public Item_ident {
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() override { return this; }
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
-  int fix_outer_field(THD *thd, Field **field, Item **reference);
+  bool fix_outer_field(THD *thd, Field **field, Item_ident **ref_field,
+                       bool *complete);
   Item *update_value_transformer(uchar *select_arg) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;

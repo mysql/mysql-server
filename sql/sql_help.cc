@@ -23,6 +23,7 @@
 
 #include "sql/sql_help.h"
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -128,11 +129,11 @@ static bool init_fields(THD *thd, Table_ref *tables,
     /* We have to use 'new' here as field will be re_linked on free */
     Item_field *field = new Item_field(
         context, "mysql", find_fields->table_name, find_fields->field_name);
-    if (!(find_fields->field = find_field_in_tables(thd, field, tables, nullptr,
-                                                    nullptr, REPORT_ALL_ERRORS,
-                                                    false,  // No priv checking
-                                                    true)))
+    Find_field_result result;
+    if (find_field_in_tables(thd, field, tables, nullptr, REPORT_ALL_ERRORS, 0,
+                             &result, &find_fields->field, nullptr))
       return true;
+    assert(find_fields->field != nullptr);
     find_fields->field->table->pos_in_table_list->query_block =
         thd->lex->query_block;
     bitmap_set_bit(find_fields->field->table->read_set,

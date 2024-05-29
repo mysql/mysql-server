@@ -244,12 +244,10 @@ inner	outer
 # Qualified name isn't allowed after WITH:
 with test.qn as (select "with") select * from test.qn;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.qn as (select "with") select * from test.qn' at line 1
-# Adding a db. prefix to a field still resolves to the QN; it's a bit awkward as
-# the QN doesn't belong to a db, but it's the same with derived table:
+# Adding a database prefix to a field does not resolve to the QN:
 select test.qn.a from (select "with" as a) qn;
-a
-with
-# OTOH, db. prefix in FROM doesn't resolve to QN, which is good
+ERROR 42S22: Unknown column 'test.qn.a' in 'field list'
+# database prefix in FROM does not resolve to QN:
 with qn as (select "with") select * from qn;
 with
 with
@@ -263,8 +261,7 @@ with qn as (select "with" as a) select qn.a from qn;
 a
 with
 with qn as (select "with" as a) select test.qn.a from qn;
-a
-with
+ERROR 42S22: Unknown column 'test.qn.a' in 'field list'
 with qn as (select "with" as a) select a from test.qn;
 a
 tmp
@@ -1355,12 +1352,10 @@ inner	outer
 # Qualified name isn't allowed after WITH:
 with test.qn as (select "with") select * from test.qn;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.qn as (select "with") select * from test.qn' at line 1
-# Adding a db. prefix to a field still resolves to the QN; it's a bit awkward as
-# the QN doesn't belong to a db, but it's the same with derived table:
+# Adding a database prefix to a field does not resolve to the QN:
 select test.qn.a from (select "with" as a) qn;
-a
-with
-# OTOH, db. prefix in FROM doesn't resolve to QN, which is good
+ERROR 42S22: Unknown column 'test.qn.a' in 'field list'
+# database prefix in FROM does not resolve to QN:
 with qn as (select "with") select * from qn;
 with
 with
@@ -1374,8 +1369,7 @@ with qn as (select "with" as a) select qn.a from qn;
 a
 with
 with qn as (select "with" as a) select test.qn.a from qn;
-a
-with
+ERROR 42S22: Unknown column 'test.qn.a' in 'field list'
 with qn as (select "with" as a) select a from test.qn;
 a
 tmp
