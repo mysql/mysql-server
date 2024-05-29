@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_RETRY_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_RETRY_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_RETRY_ON_RO_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_RETRY_ON_RO_H_
 
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/filter_object_generator.h"
@@ -33,13 +33,13 @@
 namespace mrs {
 namespace database {
 
-class QueryRetryOnRW : public mrs::interface::QueryRetry {
+class QueryRetryOnRO : public mrs::interface::QueryRetry {
  public:
   using MysqlCacheManager = collector::MysqlCacheManager;
   using CachedSession = MysqlCacheManager::CachedObject;
 
  public:
-  QueryRetryOnRW(collector::MysqlCacheManager *cache, CachedSession &session,
+  QueryRetryOnRO(collector::MysqlCacheManager *cache, CachedSession &session,
                  GtidManager *gtid_manager, FilterObjectGenerator &fog,
                  uint64_t wait_gtid_timeout, bool query_has_gtid_check);
 
@@ -48,6 +48,12 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
   const FilterObjectGenerator &get_fog() override;
   bool should_retry(const uint64_t affected) const override;
 
+ protected:
+  virtual void throw_timeout() const = 0;
+  virtual void using_ro_connection() const = 0;
+  virtual void using_rw_connection() const = 0;
+  virtual void switch_ro_to_rw() const = 0;
+
  private:
   bool check_gtid(const std::string &gtid);
   CachedSession &session_;
@@ -55,6 +61,7 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
   collector::MysqlCacheManager *cache_;
   FilterObjectGenerator &fog_;
   mutable bool is_retry_{false};
+  bool filter_object_has_asof_{false};
   mysqlrouter::sqlstring gtid_;
   uint64_t wait_gtid_timeout_;
   bool query_has_gtid_check_;
@@ -63,4 +70,4 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_RETRY_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_RETRY_ON_RO_H_

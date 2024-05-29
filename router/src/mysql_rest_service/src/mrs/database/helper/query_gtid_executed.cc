@@ -22,8 +22,6 @@
 
 #include "mrs/database/helper/query_gtid_executed.h"
 
-#include "mrs/database/helper/query_faults.h"
-
 #include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -82,13 +80,6 @@ bool is_gtid_executed(mysqlrouter::MySQLSession *session,
   check_gtid << gtid;
   log_debug("query: %s", check_gtid.str().c_str());
   return expect_single_row_bool_value(session->query_one(check_gtid));
-}
-
-void throw_if_not_gtid_executed(mysqlrouter::MySQLSession *session,
-                                const mysqlrouter::sqlstring &gtid) {
-  if (!is_gtid_executed(session, gtid)) {
-    throw_rest_error_asof_timeout(gtid.str());
-  }
 }
 
 }  // namespace database

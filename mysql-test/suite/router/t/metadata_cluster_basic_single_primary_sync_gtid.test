@@ -1,6 +1,11 @@
 --source include/have_router.inc
 --source include/have_group_replication_plugin.inc
 
+# Set the router-id, to generate statistics
+# this way we can wait until router detects
+# changes to DB_OBJECTS.
+--let $extra_mrs_router_id=1
+
 --source ../include/predefined_setup/configure_router_mrs_root_with_gr_single.inc
 --source ../include/schema/basic_schema.sql
 

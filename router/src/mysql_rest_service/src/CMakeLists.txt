@@ -64,9 +64,8 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/helper/query.cc
   mrs/database/helper/query_table_columns.cc
   mrs/database/helper/query_audit_log_maxid.cc
-  mrs/database/helper/query_retry_on_rw.cc
+  mrs/database/helper/query_retry_on_ro.cc
   mrs/database/helper/query_gtid_executed.cc
-  mrs/database/helper/query_faults.cc
   mrs/database/helper/object_query.cc
   mrs/database/helper/object_checksum.cc
   mrs/database/helper/sp_function_query.cc
@@ -154,6 +153,8 @@ ADD_LIBRARY(mysql_rest_service_impl
   mrs/rest/handler_unauthorize.cc
   mrs/rest/handler_schema_metadata.cc
   mrs/rest/handler_sp.cc
+  mrs/monitored/gtid_functions.cc
+  mrs/monitored/query_retry_on_ro.cc
   )
 
 TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_impl

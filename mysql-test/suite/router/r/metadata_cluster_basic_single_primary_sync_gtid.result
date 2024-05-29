@@ -39,6 +39,11 @@ START TRANSACTION;
 # Registred DB_OBJECT at path: /svc/basic/t2
 COMMIT;
 include/rpl/sync.inc
+include/assert.inc [Initial fetch of 'restAsofUsesRo' must ve zero.]
+include/assert.inc [Initial fetch of 'restAsofUsesRw' must ve zero.]
+include/assert.inc [Initial fetch of 'restAsofSwitchesFromRo2Rw' must ve zero.]
+include/assert.inc [Initial fetch of 'restAsofNumberOfTimeouts' must ve zero.]
+include/assert.inc [Initial fetch of 'restMetadataGtids' must ve zero.]
 GET /svc/basic/t1
 {
     "items": [
@@ -327,12 +332,12 @@ OK
 }
 OK
 {
-    "message": "'Asof' requirement was not fulfilled, timeout occured.",
+    "message": "'Asof' requirement was not fulfilled, timeout occurred.",
     "status": 400
 }
 OK
 {
-    "message": "'Asof' requirement was not fulfilled, timeout occured.",
+    "message": "'Asof' requirement was not fulfilled, timeout occurred.",
     "status": 400
 }
 OK

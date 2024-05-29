@@ -1,0 +1,28 @@
+if (!$mrs_sql_changes_variable)
+{
+  --let $mrs_sql_changes_variable=@asof_rw_count_changes
+  --let $mrs_sql_id_variable=@asof_rw_count_changes_id
+}
+
+--disable_query_log
+--disable_result_log
+
+START TRANSACTION;
+eval SET $mrs_sql_changes_variable=(
+           SELECT SUM(IF(v is NULL,0,v+0)) FROM (SELECT details->>"$.restAsofUsesRw" as v
+           FROM mysql_rest_service_metadata.router_status)as sub);
+eval SET $mrs_sql_id_variable=(SELECT MAX(id) FROM mysql_rest_service_metadata.router_status);
+COMMIT;
+
+--let $assert_text= Initial fetch of 'restAsofUsesRw' must ve zero.
+--let $assert_cond=[SELECT $mrs_sql_changes_variable=0 and $mrs_sql_id_variable>0;]
+--source include/assert.inc
+
+--enable_query_log
+--enable_result_log
+
+--let $mrs_schema_id_sql_variable=
+--let $mrs_sql_changes_variable=
+--let $mrs_sql_id_variable=
+--let $mrs_do_not_wait_at_fetch=
+--let $_mrs_not_first_asof_rw_fetch=1

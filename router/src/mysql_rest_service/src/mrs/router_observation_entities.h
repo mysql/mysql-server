@@ -50,6 +50,11 @@ enum EntitiesCounters {
   kEntityCounterUpdatesObjects,
   kEntityCounterUpdatesFiles,
   kEntityCounterUpdatesAuthentications,
+  kEntityCounterRestAsofUsesRo,
+  kEntityCounterRestAsofUsesRw,
+  kEntityCounterRestAsofSwitchesFromRo2Rw,
+  kEntityCounterRestAsofNumberOfTimeouts,
+  kEntityCounterRestMetadataGtids,
   kEntityCounterLast
 };
 
