@@ -173,10 +173,11 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # I.5
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/func_media -t PUT
-  --payload '{"not-existing-param":20}'
-  --expected-status BadRequest;
+--let $mrs_client_arg_path='/svc/func/func_media'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"not-existing-param":20}'
+--let $mrs_client_arg_expected_status='BadRequest'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -244,9 +245,10 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # III.1
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_char
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/func/move_char'
+--let $mrs_client_arg_payload='{"a":10}'
+--let $mrs_client_arg_expected_status=
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -275,58 +277,57 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # III.5
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_bit
-  -t PUT --payload '{"a":1}';
+--let $mrs_client_arg_path='/svc/func/move_bit'
+--let $mrs_client_arg_payload='{"a":1}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.6
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_tinyint1
-  -t PUT --payload '{"a":1}';
+--let $mrs_client_arg_path='/svc/func/move_tinyint1'
+--let $mrs_client_arg_payload='{"a":1}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.7
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_tinyint8
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/func/move_tinyint8'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.8
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_decimal
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/func/move_decimal'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.9
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_float
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/func/move_float'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.10
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_double
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/func/move_double'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
   
 --echo
 --echo #
 --echo # III.10
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_json
-  -t PUT --payload '{"a":100}';
-
+--let $mrs_client_arg_path='/svc/func/move_json'
+--let $mrs_client_arg_payload='{"a":100}'
+--source ../include/mrs/mrs_client.inc
 --echo
 --echo #
 --echo # III.11
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/move_json
-  -t PUT --payload '{"a":["aaaa",20,30,{"field1":"value1"}]}';
+--let $mrs_client_arg_path='/svc/func/move_json'
+--let $mrs_client_arg_payload='{"a":["aaaa",20,30,{"field1":"value1"}]}'
+--source ../include/mrs/mrs_client.inc
 
 
 # Cleanup

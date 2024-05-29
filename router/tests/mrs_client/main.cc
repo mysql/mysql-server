@@ -372,6 +372,33 @@ std::vector<CmdOption> g_options{
        }
      }},
 
+    {{"--encoded-payload"},
+     "Set the request body for POST, PUT requests (provided as an URL-encoded "
+     "string).",
+     CmdOptionValueReq::required,
+     "meta_payload",
+     [](const std::string &value) {
+       std::string decoded;
+       int val;
+       for (size_t i = 0; i < value.length(); i++) {
+         if (value[i] == '%') {
+           sscanf(value.substr(i + 1, 2).c_str(), "%x", &val);
+           decoded += static_cast<char>(val);
+           i += 2;
+         } else {
+           decoded += value[i];
+         }
+       }
+       g_configuration.payload = decoded;
+     },
+     [](const std::string &) {
+       if (g_configuration.request != HttpMethod::Post &&
+           g_configuration.request != HttpMethod::Put) {
+         throw std::invalid_argument(
+             "'Payload' may only be used with POST and PUT request type.");
+       }
+     }},
+
     {{"--write-format", "-f"},
      "Write format.",
      CmdOptionValueReq::required,

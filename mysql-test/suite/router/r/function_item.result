@@ -242,7 +242,7 @@ OK
 
 #
 # III.12
-GET /svc/func/move_json?a=["aaaa",20,30,{"field1":"value1"}]
+GET /svc/func/move_json?a=%5B%22aaaa%22,20,30,%7B%22field1%22:%22value1%22%7D%5D
 {
     "result": [
         "aaaa",
