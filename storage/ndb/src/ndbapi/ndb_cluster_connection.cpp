@@ -495,6 +495,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(
       m_latest_error_msg(),
       m_latest_error(0),
       m_data_node_neighbour(0),
+      m_num_created_ndb_objects(0),
       m_multi_wait_group(nullptr),
       m_uri_scheme(nullptr),
       m_uri_host(nullptr),
@@ -657,7 +658,7 @@ const Ndb *Ndb_cluster_connection::get_next_ndb_object(const Ndb *p) {
   return p->theImpl->m_next_ndb_object;
 }
 
-void Ndb_cluster_connection_impl::link_ndb_object(Ndb *p) {
+Uint64 Ndb_cluster_connection_impl::link_ndb_object(Ndb *p) {
   lock_ndb_objects();
   if (m_first_ndb_object != nullptr) {
     m_first_ndb_object->theImpl->m_prev_ndb_object = p;
@@ -666,10 +667,14 @@ void Ndb_cluster_connection_impl::link_ndb_object(Ndb *p) {
   p->theImpl->m_next_ndb_object = m_first_ndb_object;
   m_first_ndb_object = p;
 
+  const Uint64 id = m_num_created_ndb_objects++;
+
   // Wake up anyone waiting for changes to the Ndb instance list
   NdbCondition_Broadcast(m_new_delete_ndb_cond);
 
   unlock_ndb_objects();
+
+  return id;
 }
 
 void Ndb_cluster_connection_impl::unlink_ndb_object(Ndb *p) {
