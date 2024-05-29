@@ -220,7 +220,7 @@ bool Foreign_key_spec::set_ref_columns_for_implicit_pk(
         if (idx_el->is_hidden()) continue;
 
         Key_part_spec *ref_column = new (thd->mem_root)
-            Key_part_spec(idx_el->column().name().c_str(), 0, ORDER_ASC);
+            Key_part_spec(idx_el->column().name().c_str(), nullptr, ORDER_ASC);
         if (ref_column == nullptr || ref_columns.push_back(ref_column))
           return true;  // OOM
       }
