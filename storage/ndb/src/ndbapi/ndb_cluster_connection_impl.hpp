@@ -174,7 +174,7 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection {
   NdbMutex *m_new_delete_ndb_mutex;
   NdbCondition *m_new_delete_ndb_cond;
   Ndb *m_first_ndb_object;
-  void link_ndb_object(Ndb *);
+  Uint64 link_ndb_object(Ndb *);
   void unlink_ndb_object(Ndb *);
 
   BaseString m_latest_error_msg;
@@ -190,6 +190,9 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection {
 
   // Closest data node neighbour
   Uint32 m_data_node_neighbour;
+
+  // Number of Ndb object creations
+  Uint64 m_num_created_ndb_objects;
 
   // Base offset for stats, from Ndb objects that are no
   // longer with us
