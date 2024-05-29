@@ -412,7 +412,7 @@ std::vector<CmdOption> g_options{
      "meta_path",
      [](const std::string &value) {
        std::string path;
-       std::string translate{" %[]{}\""};
+       std::string translate{" []{}\""};
        for (auto c : value) {
          if (translate.find(c) != std::string::npos) {
            path += "%" + helper::string::hex(std::string{c});
