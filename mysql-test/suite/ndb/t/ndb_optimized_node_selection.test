@@ -64,7 +64,7 @@ while ($dist < 3)
     show variables like 'ndb_optimized_node_selection';
 
     --let $case=0
-    while ($case < 3)
+    while ($case < 4)
     {
       --disable_query_log
       --disable_result_log
@@ -78,7 +78,8 @@ while ($dist < 3)
            where counter_name="TRANSACTIONS"
         group by node_id;
 
-      --let $iter=10
+      --let $iter=100
+      --let $errbound=$iter/10
       --let $rpt=$iter
       while ($rpt)
       {
@@ -100,6 +101,19 @@ while ($dist < 3)
          --let $casename=Autocommit update by pk
          update test.t1 set b=2 where a=0;
        }
+       if ($case == 3)
+       {
+         --let $casename=Unhinted table scan on new connection
+         connect(testcon, localhost, root,,);
+         --connection testcon
+           --eval set ndb_optimized_node_selection=$val;
+           begin;
+             select * from test.t1;
+             select * from test.t1 where a=0;
+           rollback;
+         --connection default
+         disconnect testcon;
+       }
        --dec $rpt
       }
       --enable_result_log
@@ -111,10 +125,10 @@ while ($dist < 3)
       # test.
       --echo $distname o-n-s $val case $casename
       eval select x.node_id,
-                  if (x.transcount >= $iter, "ALL",
-                    if (x.transcount <= 1, "NONE",
-                      if (x.transcount BETWEEN (($iter/2)-1)
-                                           AND (($iter/2)+1),
+                  if (x.transcount >= ($iter-($errbound)), "ALL",
+                    if (x.transcount <= ($errbound), "NONE",
+                      if (x.transcount BETWEEN (($iter/2)-($errbound))
+                                           AND (($iter/2)+($errbound)),
                           "HALF", "ERROR"))) as balance
            from (
              select a.node_id, b.transcount - a.transcount as transcount

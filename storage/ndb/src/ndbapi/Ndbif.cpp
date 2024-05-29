@@ -112,6 +112,27 @@ int Ndb::init(int aMaxNoOfTransactions) {
   theFirstTransId |=
       theImpl->m_ndb_cluster_connection.get_next_transid(theNdbBlockNumber);
 
+  /**
+   * Initialise current connect index and node iterator to get balanced
+   * node selection offset for first request using a new Ndb object
+   */
+  {
+    /**
+     * Use ndb_cluster_connection given id to provide RR variation
+     * of 'starting offset' for unhinted TC node choice.
+     */
+    const Uint32 tcNodeChoiceOffset =
+        (nodeId + theImpl->theCurrentConnectIndex) %
+        (theImpl->theNoOfDBnodes ? theImpl->theNoOfDBnodes : MAX_NDB_NODES);
+
+    /* Configure RR + proximity aware unhinted iterators */
+    theImpl->theCurrentConnectIndex = tcNodeChoiceOffset;
+    theImpl->m_ndb_cluster_connection.init_get_next_node(theImpl->m_node_iter);
+    for (Uint32 i = 0; i < tcNodeChoiceOffset; i++) {
+      theImpl->m_ndb_cluster_connection.get_next_node(theImpl->m_node_iter);
+    }
+  }
+
   /* Init cached min node version */
   theFacade->lock_poll_mutex();
   theCachedMinDbNodeVersion = theFacade->getMinDbNodeVersion();
