@@ -21,7 +21,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/binlog/event/compression/decompressor.h"
+#include "mysql/binlog/event/compression/decompress_status.h"
+
+#include <cassert>
 
 namespace mysql::binlog::event::compression {
 
