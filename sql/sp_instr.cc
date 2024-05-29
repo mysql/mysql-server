@@ -710,8 +710,9 @@ LEX *sp_lex_instr::parse_statement(THD *thd, sp_head *sp) {
 
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
-  // Remember the original state of the general log.
-  const ulonglong orig_log_state = thd->variables.option_bits & OPTION_LOG_OFF;
+  // Remember if the general log was temporarily disabled when repreparing the
+  // statement for a secondary engine.
+  bool general_log_temporarily_disabled = false;
 
   Reprepare_observer reprepare_observer;
 
@@ -787,7 +788,10 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       Re-enable the general log if it was temporarily disabled while repreparing
       and executing a statement for a secondary engine.
     */
-    thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
+    if (general_log_temporarily_disabled) {
+      thd->variables.option_bits &= ~OPTION_LOG_OFF;
+      general_log_temporarily_disabled = false;
+    }
 
     m_first_execution = false;
 
@@ -858,7 +862,10 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       Disable the general log. The query was written to the general log in
       the first attempt to execute it. No need to write it twice.
     */
-    thd->variables.option_bits |= OPTION_LOG_OFF;
+    if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
+      thd->variables.option_bits |= OPTION_LOG_OFF;
+      general_log_temporarily_disabled = true;
+    }
     /*
       Prepare for re-prepare and re-optimization:
       - Clear the current diagnostics area.
@@ -880,7 +887,10 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
   // Re-enable the general log if it was temporarily disabled while repreparing
   // and executing a statement for a secondary engine.
-  thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
+  if (general_log_temporarily_disabled) {
+    thd->variables.option_bits &= ~OPTION_LOG_OFF;
+    general_log_temporarily_disabled = false;
+  }
 
   return error;
 }

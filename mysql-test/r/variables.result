@@ -2002,3 +2002,29 @@ SET @x = NULL;
 EXECUTE s USING @x;
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
 DEALLOCATE PREPARE s;
+#
+# 36625773: Align implementation of repeated preparation and
+#           optimization for statement classes.
+#
+SET sql_log_off = 0;
+SELECT @@sql_log_off;
+@@sql_log_off
+0
+PREPARE ps from "SET sql_log_off = 1";
+EXECUTE ps;
+SELECT @@sql_log_off;
+@@sql_log_off
+1
+DEALLOCATE PREPARE ps;
+CREATE PROCEDURE sp()
+BEGIN
+SET sql_log_off = 1;
+SELECT @@sql_log_off;
+END
+//
+SET sql_log_off = 0;
+CALL sp;
+@@sql_log_off
+1
+DROP PROCEDURE sp;
+SET sql_log_off = DEFAULT;

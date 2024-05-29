@@ -1816,3 +1816,36 @@ SET @x = NULL;
 --error ER_WRONG_VALUE_FOR_VAR
 EXECUTE s USING @x;
 DEALLOCATE PREPARE s;
+
+--echo #
+--echo # 36625773: Align implementation of repeated preparation and
+--echo #           optimization for statement classes.
+--echo #
+
+SET sql_log_off = 0;
+
+SELECT @@sql_log_off;
+
+PREPARE ps from "SET sql_log_off = 1";
+EXECUTE ps;
+
+SELECT @@sql_log_off;
+
+DEALLOCATE PREPARE ps;
+
+delimiter //;
+CREATE PROCEDURE sp()
+BEGIN
+  SET sql_log_off = 1;
+  SELECT @@sql_log_off;
+END
+//
+delimiter ;//
+
+SET sql_log_off = 0;
+
+CALL sp;
+
+DROP PROCEDURE sp;
+
+SET sql_log_off = DEFAULT;

@@ -2902,8 +2902,9 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   if (m_lex->m_sql_cmd != nullptr) {
     m_lex->m_sql_cmd->enable_secondary_storage_engine();
   }
-  // Remember the original state of the general log.
-  const ulonglong orig_log_state = thd->variables.option_bits & OPTION_LOG_OFF;
+  // Remember if the general log was temporarily disabled when repreparing the
+  // statement for a secondary engine.
+  bool general_log_temporarily_disabled = false;
 
   // Track whether the statement needs to be reprepared:
   bool need_reprepare = false;
@@ -2985,7 +2986,10 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
       Re-enable the general log if it was temporarily disabled while repreparing
       and executing a statement for a secondary engine.
     */
-    thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
+    if (general_log_temporarily_disabled) {
+      thd->variables.option_bits &= ~OPTION_LOG_OFF;
+      general_log_temporarily_disabled = false;
+    }
 
     // Exit immediately if execution is successful
     if (!error) {
@@ -3047,7 +3051,10 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
       Disable the general log. The query was written to the general log in
       the first attempt to execute it. No need to write it twice.
     */
-    thd->variables.option_bits |= OPTION_LOG_OFF;
+    if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
+      thd->variables.option_bits |= OPTION_LOG_OFF;
+      general_log_temporarily_disabled = true;
+    }
     /*
       Prepare for re-prepare and re-optimization:
       - Clear the current diagnostics area.
@@ -3067,7 +3074,10 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
 
   // Re-enable the general log if it was temporarily disabled while repreparing
   // and executing a statement for a secondary engine.
-  thd->variables.option_bits &= (OPTION_LOG_OFF ^ ~orig_log_state);
+  if (general_log_temporarily_disabled) {
+    thd->variables.option_bits &= ~OPTION_LOG_OFF;
+    general_log_temporarily_disabled = false;
+  }
 
   // Record in performance schema whether a secondary engine was used.
   const bool used_secondary = thd->secondary_engine_optimization() ==
