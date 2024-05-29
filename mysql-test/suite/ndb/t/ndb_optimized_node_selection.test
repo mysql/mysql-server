@@ -25,8 +25,130 @@ show variables like 'ndb_optimized_node_selection';
 --connection another_con
 show variables like 'ndb_optimized_node_selection';
 
+--connection default
 # reset
-set global ndb_optimized_node_selection=3;
-# does not work for some reason
-#SET @@global.ndb_optimized_node_selection = @global_start_value;
+SET @@global.ndb_optimized_node_selection = @global_start_value;
 SELECT @@global.ndb_optimized_node_selection;
+
+--echo Test behaviours within each variant
+
+--let $dist=0
+
+while ($dist < 3)
+{
+  if ($dist == 0)
+  {
+    --let $distname=READ PRIMARY
+    create table t1 (a int primary key, b int) engine=ndb comment="NDB_TABLE=READ_BACKUP=0";
+  }
+  if ($dist == 1)
+  {
+    --let $distname=READ BACKUP
+    create table t1 (a int primary key, b int) engine=ndb comment="NDB_TABLE=READ_BACKUP=1";
+  }
+  if ($dist == 2)
+  {
+    --let $distname=FULLY REPLICATED
+    create table t1 (a int primary key, b int) engine=ndb comment="NDB_TABLE=FULLY_REPLICATED=1";
+  }
+
+  insert into t1 values (0,0), (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9);
+
+  create table basecounts (node_id int primary key, transcount int) engine=innodb;
+
+  --let $val=0
+
+  while ($val < 4)
+  {
+    --eval set ndb_optimized_node_selection=$val
+    show variables like 'ndb_optimized_node_selection';
+
+    --let $case=0
+    while ($case < 4)
+    {
+      --disable_query_log
+      --disable_result_log
+      # Initial query ideally doing any e.g. stats fetches
+      select * from test.t1 where a=0;
+
+      delete from basecounts;
+      insert into basecounts
+          select node_id, sum(val)
+            from ndbinfo.counters
+           where counter_name="TRANSACTIONS"
+        group by node_id;
+
+      --let $iter=100
+      --let $errbound=$iter/10
+      --let $rpt=$iter
+      while ($rpt)
+      {
+       if ($case == 0)
+       {
+         --let $casename=Hinted autocommit select by pk
+          select * from test.t1 where a=0;
+       }
+       if ($case == 1)
+       {
+         --let $casename=Unhinted table scan
+         begin;
+           select * from test.t1;
+           select * from test.t1 where a=0;
+         rollback;
+       }
+       if ($case == 2)
+       {
+         --let $casename=Autocommit update by pk
+         update test.t1 set b=2 where a=0;
+       }
+       if ($case == 3)
+       {
+         --let $casename=Unhinted table scan on new connection
+         connect(testcon, localhost, root,,);
+         --connection testcon
+           --eval set ndb_optimized_node_selection=$val;
+           begin;
+             select * from test.t1;
+             select * from test.t1 where a=0;
+           rollback;
+         --connection default
+         disconnect testcon;
+       }
+       --dec $rpt
+      }
+      --enable_result_log
+
+      # Query here works out per-node TRANSACTIONS count diff around ops
+      # That shows the 'hinting' footprint
+      # if statement is used to map loosely to ALL/HALF/NONE to handle
+      # non determinism due to other activity in the cluster during the
+      # test.
+      --echo $distname o-n-s $val case $casename
+      eval select x.node_id,
+                  if (x.transcount >= ($iter-($errbound)), "ALL",
+                    if (x.transcount <= ($errbound), "NONE",
+                      if (x.transcount BETWEEN (($iter/2)-($errbound))
+                                           AND (($iter/2)+($errbound)),
+                          "HALF", "ERROR"))) as balance
+           from (
+             select a.node_id, b.transcount - a.transcount as transcount
+               from basecounts a
+               join
+                 (select node_id, sum(val) as transcount
+                    from ndbinfo.counters
+                   where counter_name="TRANSACTIONS"
+                group by node_id) b
+               on a.node_id = b.node_id) x;
+
+      --enable_query_log
+
+      --inc $case
+    }
+
+    --inc $val
+  }
+  drop table basecounts;
+  drop table t1;
+
+  --inc $dist
+}

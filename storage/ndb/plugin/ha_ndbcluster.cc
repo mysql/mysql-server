@@ -7391,6 +7391,10 @@ void Thd_ndb::transaction_checks() {
     THDVAR(thd, optimized_node_selection) =
         THDVAR(nullptr, optimized_node_selection) & 1; /* using global value */
   }
+
+  /* Set thread's Ndb object's optimized_node_selection (locality) value */
+  get_thd_ndb(thd)->ndb->set_optimized_node_selection(
+      THDVAR(thd, optimized_node_selection) & 1);
 }
 
 int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
@@ -7679,8 +7683,6 @@ NdbTransaction *ha_ndbcluster::start_transaction(int &error) {
 
   m_thd_ndb->transaction_checks();
 
-  const uint opti_node_select = THDVAR(table->in_use, optimized_node_selection);
-  m_thd_ndb->connection->set_optimized_node_selection(opti_node_select & 1);
   if ((trans = m_thd_ndb->ndb->startTransaction(m_table))) {
     // NOTE! No hint provided when starting transaction
 

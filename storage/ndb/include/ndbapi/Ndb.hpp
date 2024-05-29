@@ -2084,6 +2084,9 @@ class Ndb {
 
   Uint64 getClientStat(Uint32 id) const;
   const char *getClientStatName(Uint32 id) const;
+
+  // Set optimized node selection value for this object
+  void set_optimized_node_selection(int val);
 #endif
 
  private:

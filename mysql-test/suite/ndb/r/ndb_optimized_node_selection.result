@@ -23,7 +23,263 @@ ndb_optimized_node_selection	3
 show variables like 'ndb_optimized_node_selection';
 Variable_name	Value
 ndb_optimized_node_selection	1
-set global ndb_optimized_node_selection=3;
+SET @@global.ndb_optimized_node_selection = @global_start_value;
 SELECT @@global.ndb_optimized_node_selection;
 @@global.ndb_optimized_node_selection
 3
+Test behaviours within each variant
+create table t1 (a int primary key, b int) engine=ndb comment="NDB_TABLE=READ_BACKUP=0";
+insert into t1 values (0,0), (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9);
+create table basecounts (node_id int primary key, transcount int) engine=innodb;
+set ndb_optimized_node_selection=0;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	0
+READ PRIMARY o-n-s 0 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 0 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 0 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 0 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=1;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	1
+READ PRIMARY o-n-s 1 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 1 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 1 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 1 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=2;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	2
+READ PRIMARY o-n-s 2 case Hinted autocommit select by pk
+node_id	balance
+1	NONE
+2	ALL
+READ PRIMARY o-n-s 2 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 2 case Autocommit update by pk
+node_id	balance
+1	NONE
+2	ALL
+READ PRIMARY o-n-s 2 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=3;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	3
+READ PRIMARY o-n-s 3 case Hinted autocommit select by pk
+node_id	balance
+1	NONE
+2	ALL
+READ PRIMARY o-n-s 3 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ PRIMARY o-n-s 3 case Autocommit update by pk
+node_id	balance
+1	NONE
+2	ALL
+READ PRIMARY o-n-s 3 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+drop table basecounts;
+drop table t1;
+create table t1 (a int primary key, b int) engine=ndb comment="NDB_TABLE=READ_BACKUP=1";
+insert into t1 values (0,0), (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9);
+create table basecounts (node_id int primary key, transcount int) engine=innodb;
+set ndb_optimized_node_selection=0;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	0
+READ BACKUP o-n-s 0 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 0 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 0 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 0 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=1;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	1
+READ BACKUP o-n-s 1 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 1 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 1 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 1 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=2;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	2
+READ BACKUP o-n-s 2 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 2 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 2 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 2 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=3;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	3
+READ BACKUP o-n-s 3 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 3 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 3 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+READ BACKUP o-n-s 3 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+drop table basecounts;
+drop table t1;
+create table t1 (a int primary key, b int) engine=ndb comment="NDB_TABLE=FULLY_REPLICATED=1";
+insert into t1 values (0,0), (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9);
+create table basecounts (node_id int primary key, transcount int) engine=innodb;
+set ndb_optimized_node_selection=0;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	0
+FULLY REPLICATED o-n-s 0 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 0 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 0 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 0 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=1;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	1
+FULLY REPLICATED o-n-s 1 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 1 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 1 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 1 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=2;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	2
+FULLY REPLICATED o-n-s 2 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 2 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 2 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 2 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+set ndb_optimized_node_selection=3;
+show variables like 'ndb_optimized_node_selection';
+Variable_name	Value
+ndb_optimized_node_selection	3
+FULLY REPLICATED o-n-s 3 case Hinted autocommit select by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 3 case Unhinted table scan
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 3 case Autocommit update by pk
+node_id	balance
+1	HALF
+2	HALF
+FULLY REPLICATED o-n-s 3 case Unhinted table scan on new connection
+node_id	balance
+1	HALF
+2	HALF
+drop table basecounts;
+drop table t1;
