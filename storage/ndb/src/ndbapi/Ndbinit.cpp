@@ -236,7 +236,7 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection, Ndb &ndb)
     the_release_ind[i] = 0;
   }
   m_optimized_node_selection =
-      m_ndb_cluster_connection.m_optimized_node_selection;
+      m_ndb_cluster_connection.m_conn_default_optimized_node_selection;
 
   forceShortRequests = false;
 
