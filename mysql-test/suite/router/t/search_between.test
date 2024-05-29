@@ -53,44 +53,42 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # I.1
-exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q={\"id\":{\"\$between\":{}}}
-  --expected-status BadRequest;
+--let $mrs_client_arg_path='/svc/test_between/table?q={"id":{"%24between":{}}}'
+--let $mrs_client_arg_expected_status='BadRequest'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # I.2
-exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q={\"id\":{\"\$between\":[]}}
-  --expected-status BadRequest;
+--let $mrs_client_arg_path='/svc/test_between/table?q={"id":{"%24between":[]}}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # I.3
-exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q={\"id\":{\"\$between\":[1]}}
-  --expected-status BadRequest;
+--let $mrs_client_arg_path='/svc/test_between/table?q={"id":{"%24between":[1]}}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # I.4
-exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q=\{\"id\":\{\"\$between\":[1,2,3]\}\}
-  --expected-status BadRequest;
+--let $mrs_client_arg_path='/svc/test_between/table?q={"id":{"%24between":[1,2,3]}}'
+--source ../include/mrs/mrs_client.inc
+
+--let $mrs_client_arg_expected_status=
 
 --echo
 --echo #
 --echo # II.1
-exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q=\{\"id\":\{\"\$between\":[1,10]\}\}
-  --json-pointer /limit,/offset,/count,/hasMore,/items/*/id,/items/*/comment;
+--let $mrs_client_arg_path='/svc/test_between/table?q={"id":{"%24between":[1,10]}}'
+--let $mrs_client_arg_json_pointer='/limit,/offset,/count,/hasMore,/items/*/id,/items/*/comment'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.2
-exec $MRS_CLIENT_ARGS
-  --path /svc/test_between/table?q=\{\"\$or\":[\{\"id\":\{\"\$between\":[1,2]\}\},\{\"comment\":\"ome\ string\"\}]}
-  --json-pointer /limit,/offset,/count,/hasMore,/items/*/id,/items/*/comment;
+--let $mrs_client_arg_path='/svc/test_between/table?q={"%24or":[{"id":{"%24between":[1,2]}},{"comment":"ome string"}]}'
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 --source ../include/mrs/cleanup.inc
