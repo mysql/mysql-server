@@ -591,7 +591,11 @@ struct Sql_cmd_event : public Sql_cmd_event_base {
       // not be an event body sp_head if this statement is part of an SP. This
       // also ensures that it is correctly cleaned up by lex_end() at the end of
       // the statement, so that no extra cleanup is required here.
-      event_parse_data.event_body = thd->lex->sphead;
+      if (event_parse_data.body_changed) {
+        // When body_changed is true the parser has completed parsing an event
+        // body and updated thd->lex->sphead to refer to it.
+        event_parse_data.event_body = thd->lex->sphead;
+      }
     } else {
       assert(thd->lex->sphead == nullptr);
     }
@@ -639,11 +643,16 @@ struct Sql_cmd_event : public Sql_cmd_event_base {
 
   bool prepare(THD *thd) override {
     if constexpr (SQLCOM != SQLCOM_DROP_EVENT) {
-      event_parse_data.event_body = thd->lex->sphead;
-      // Prevents lex_end() from destroying event body sp_head
-      // so that it can be destroyed by ~Prepared_statement()
-      // instead.
-      thd->lex->sphead = nullptr;
+      if (event_parse_data.body_changed) {
+        // When body_changed is true the parser has completed parsing an event
+        // body and updated thd->lex->sphead to refer to it.
+        event_parse_data.event_body = thd->lex->sphead;
+
+        // Prevents lex_end() from destroying event body sp_head
+        // so that it can be destroyed by ~Prepared_statement()
+        // instead.
+        thd->lex->sphead = nullptr;
+      }
       Prepared_stmt_arena_holder ps_arena_holder{thd};
 
       // Event schedule expression cannot contain subqueries or stored function

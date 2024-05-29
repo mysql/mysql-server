@@ -125,7 +125,11 @@ bool Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
                                        const LEX_CSTRING *new_name) {
   DBUG_TRACE;
   sp_head *sp = parse_data->event_body;
-  assert(thd->lex->sphead == nullptr || thd->lex->sphead == sp);
+
+  // If sphead is non-null and the statement had an event body sphead must
+  // reference the event body.
+  assert(thd->lex->sphead == nullptr || !parse_data->body_changed ||
+         thd->lex->sphead == sp);
 
   /* None or both must be set */
   assert((new_dbname && new_name) || new_dbname == new_name);
