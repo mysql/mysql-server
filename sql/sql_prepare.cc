@@ -2975,6 +2975,7 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
 
     thd->push_reprepare_observer(stmt_reprepare_observer);
 
+    DEBUG_SYNC(thd, "before_statement_execute");
     error = execute(thd, expanded_query, open_cursor);
 
     assert(error == thd->is_error());
