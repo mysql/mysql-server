@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,7 +253,7 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     the_release_ind[i] = 0;
   }
   m_optimized_node_selection=
-    m_ndb_cluster_connection.m_optimized_node_selection;
+    m_ndb_cluster_connection.m_conn_default_optimized_node_selection;
 
   m_systemPrefix.assfmt("%s%c%s%c", NDB_SYSTEM_DATABASE, table_name_separator,
 			NDB_SYSTEM_SCHEMA, table_name_separator);

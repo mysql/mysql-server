@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -305,6 +305,8 @@ public:
   int get_connected_port() const;
   const char *get_connected_host() const;
 
+  // Set optimized node selection value used for Ndb objects created
+  // from this connection.
   void set_optimized_node_selection(int val);
 
   unsigned no_db_nodes();

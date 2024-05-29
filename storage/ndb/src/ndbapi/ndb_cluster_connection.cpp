@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,7 +208,7 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
 
 void Ndb_cluster_connection::set_optimized_node_selection(int val)
 {
-  m_impl.m_optimized_node_selection= val;
+  m_impl.m_conn_default_optimized_node_selection= val;
 }
 
 void
@@ -446,7 +446,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
                             int force_api_nodeid)
   : Ndb_cluster_connection(*this),
     m_main_connection(main_connection),
-    m_optimized_node_selection(1),
+    m_conn_default_optimized_node_selection(1),
     m_run_connect_thread(0),
     m_latest_trans_gci(0),
     m_first_ndb_object(0),
@@ -1614,8 +1614,10 @@ Ndb_cluster_connection_impl::select_any(NdbImpl *impl_ndb)
   Uint16 prospective_node_ids[MAX_NDB_NODES];
   Uint32 num_prospective_nodes = 0;
   Uint32 my_location_domain_id = m_my_location_domain_id;
-  if (my_location_domain_id == 0)
+  if (my_location_domain_id == 0 ||
+      !impl_ndb->m_optimized_node_selection)
   {
+    // No preference among nodes
     return 0;
   }
   for (Uint32 i = 0; i < m_nodes_proximity.size(); i++)
@@ -1708,11 +1710,17 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
   Uint32 best_usage;
   Int32 best_score = MAX_PROXIMITY_GROUP; // Lower is better
 
-  if (!m_impl.m_optimized_node_selection)
+  if (!impl_ndb->m_optimized_node_selection)
   {
     /**
      * optimized_node_selection is off.  Use round robin.
      * Uses hint_count in m_nodes_proximity but not the group value.
+     * Algorithm
+     * - Check all supplied candidate nodes
+     *   (those holding replicas of the partition)
+     * - Initially choose the first partition as best
+     * - Choose another partition if it has lower hint usage so that
+     *   requests are balanced across nodes holding partitions.
      */
     for (Uint32 j = 0; j < cnt; j++)
     {
@@ -1727,9 +1735,10 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
         continue;
       }
 
+      /* Check usage of candidate node, choose if it's the lowest so far */
       for (Uint32 i = 0; i < nodes_arr_cnt; i++)
       {
-        if (nodes_arr[i].id == j)
+        if (nodes_arr[i].id == candidate_node)
         {
           Uint32 usage = nodes_arr[i].hint_count;
           if (best_score == MAX_PROXIMITY_GROUP)
@@ -1754,6 +1763,11 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
   {
     /**
      * optimized_node_selection is on.  Use proximity.
+     * Algorithm :
+     *   Check each candidate node to find the node(s) with closest
+     *     proximity (lowest adjusted_group)
+     *   Within candidates with the same proximity, choose node
+     *     with lowest hint count (load balance)
      */
     for (Uint32 j = 0; j < cnt; j++)
     {
@@ -1771,6 +1785,8 @@ Ndb_cluster_connection_impl::select_node(NdbImpl *impl_ndb,
         if (nodes_arr[i].adjusted_group > best_score)
         {
           // We already got a better match
+          // Further matches can only be the same or worse, stop
+          // search on this candidate.
           break;
         }
         if (nodes_arr[i].id == candidate_node)

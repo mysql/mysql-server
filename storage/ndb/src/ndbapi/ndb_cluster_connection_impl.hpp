@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,7 +168,7 @@ private:
   NdbThread *m_connect_thread;
   int (*m_connect_callback)(void);
 
-  int m_optimized_node_selection;
+  int m_conn_default_optimized_node_selection;
   int m_run_connect_thread;
   NdbMutex *m_event_add_drop_mutex;
   Uint64 m_latest_trans_gci;
