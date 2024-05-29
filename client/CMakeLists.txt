@@ -144,7 +144,7 @@ ADD_CONVENIENCE_LIBRARY(json_client_library
   ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
-  LINK_LIBRARIES ext::zlib
+  LINK_LIBRARIES ext::zlib decimal
   COMPILE_DEFINITIONS
     DISABLE_PSI_MUTEX
     $<TARGET_PROPERTY:extra::rapidjson,INTERFACE_COMPILE_DEFINITIONS>
