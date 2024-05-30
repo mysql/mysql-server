@@ -95,7 +95,7 @@ int az_open(azio_stream *s, const char *path, int Flags, File fd) {
     s->stream.next_out = s->outbuf;
     if (err != Z_OK) {
       destroy(s);
-      return Z_NULL;
+      return MY_Z_NULL;
     }
   } else {
     s->stream.next_in = s->inbuf;
@@ -109,7 +109,7 @@ int az_open(azio_stream *s, const char *path, int Flags, File fd) {
      */
     if (err != Z_OK) {
       destroy(s);
-      return Z_NULL;
+      return MY_Z_NULL;
     }
   }
   s->stream.avail_out = AZ_BUFSIZE_WRITE;
@@ -127,7 +127,7 @@ int az_open(azio_stream *s, const char *path, int Flags, File fd) {
 
   if (s->file < 0) {
     destroy(s);
-    return Z_NULL;
+    return MY_Z_NULL;
   }
 
   if (Flags & O_CREAT || Flags & O_TRUNC) {
