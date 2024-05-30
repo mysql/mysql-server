@@ -885,3 +885,10 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb;
 show warnings;
 drop table t1;
+
+#
+# Transporters
+#
+  select node_id, remote_node_id, type
+    from ndbinfo.transporter_details
+order by node_id, remote_node_id;
