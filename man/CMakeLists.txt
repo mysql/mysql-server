@@ -81,6 +81,7 @@ SET(MAN1_NDB
   ndb_select_all.1
   ndb_select_count.1
   ndb_show_tables.1
+  ndb_sign_keys.1
   ndb_size.pl.1
   ndb_top.1
   ndb_waiter.1
