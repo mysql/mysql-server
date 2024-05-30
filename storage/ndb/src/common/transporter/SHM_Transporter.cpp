@@ -539,6 +539,10 @@ void SHM_Transporter::wakeup() {
   if (awake_state) {
     return;
   }
+  if (!theSocket.is_valid()) {
+    /* Wakeup socket not yet ready */
+    return;
+  }
   iov[0].iov_len = 1;
   iov[0].iov_base = &buf[0];
   buf[0] = 0;

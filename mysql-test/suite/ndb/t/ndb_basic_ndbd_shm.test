@@ -1,0 +1,4 @@
+--source include/not_windows.inc  # SHM not supported on Windows
+--source suite/ndb/t/ndb_basic.test
+
+

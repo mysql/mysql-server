@@ -699,7 +699,7 @@ t1
 insert into t1 values (1,1),(2,1),(3,1),(4,1),(5,2),(6,1),(7,1);
 explain select * from t1 where a12345678901234567890123456789a1234567890=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11	ref	a12345678901234567890123456789a1234567890	a12345678901234567890123456789a1234567890	5	const	#	#	NULL
+1	SIMPLE	t1	p0,p1	ref	a12345678901234567890123456789a1234567890	a12345678901234567890123456789a1234567890	5	const	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1234567890123456789012345678901234567890` AS `a1234567890123456789012345678901234567890`,`test`.`t1`.`a12345678901234567890123456789a1234567890` AS `a12345678901234567890123456789a1234567890` from `test`.`t1` where (`test`.`t1`.`a12345678901234567890123456789a1234567890` = 2)
 select * from t1 where a12345678901234567890123456789a1234567890=2;
@@ -1088,8 +1088,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 # here we used to segv
 explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11	ref	id,obj_id	obj_id	5	const	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	#	#	Child of 't2' in pushed join@1
+1	SIMPLE	t2	p0,p1	ref	id,obj_id	obj_id	5	const	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	#	#	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`obj_id` = 1))
 drop table t1, t2;
@@ -1147,71 +1147,34 @@ from ndbinfo.transporter_details
 order by node_id, remote_node_id;
 node_id	remote_node_id	type
 1	2	TCP
-1	2	TCP
-1	2	TCP
-1	2	TCP
 1	3	TCP
-1	3	TCP
-1	3	TCP
-1	3	TCP
-1	4	TCP
-1	16	TCP
-1	32	TCP
-1	48	TCP
-1	49	TCP
-1	63	TCP
-1	127	TCP
-1	192	TCP
-1	228	TCP
-1	229	TCP
-1	230	TCP
-1	231	TCP
-1	232	TCP
-1	233	TCP
-1	255	TCP
-2	1	TCP
-2	1	TCP
-2	1	TCP
+1	16	SHM
+1	32	SHM
+1	48	SHM
+1	49	SHM
+1	63	SHM
+1	127	SHM
+1	192	SHM
+1	228	SHM
+1	229	SHM
+1	230	SHM
+1	231	SHM
+1	232	SHM
+1	233	SHM
+1	255	SHM
 2	1	TCP
 2	3	TCP
-2	3	TCP
-2	3	TCP
-2	3	TCP
-2	4	TCP
-2	16	TCP
-2	32	TCP
-2	48	TCP
-2	49	TCP
-2	63	TCP
-2	127	TCP
-2	192	TCP
-2	228	TCP
-2	229	TCP
-2	230	TCP
-2	231	TCP
-2	232	TCP
-2	233	TCP
-2	255	TCP
-3	1	TCP
-3	1	TCP
-3	1	TCP
-3	1	TCP
-3	2	TCP
-3	2	TCP
-3	2	TCP
-3	2	TCP
-3	4	TCP
-3	16	TCP
-3	32	TCP
-3	48	TCP
-3	49	TCP
-3	63	TCP
-3	127	TCP
-3	192	TCP
-3	228	TCP
-3	229	TCP
-3	230	TCP
-3	231	TCP
-3	232	TCP
-3	233	TCP
-3	255	TCP
+2	16	SHM
+2	32	SHM
+2	48	SHM
+2	49	SHM
+2	63	SHM
+2	127	SHM
+2	192	SHM
+2	228	SHM
+2	229	SHM
+2	230	SHM
+2	231	SHM
+2	232	SHM
+2	233	SHM
+2	255	SHM
