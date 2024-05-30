@@ -7393,9 +7393,8 @@ void Thd_ndb::transaction_checks() {
         THDVAR(nullptr, optimized_node_selection) & 1; /* using global value */
   }
 
-  /* Set thread's Ndb object's optimized_node_selection (locality) value */
-  get_thd_ndb(thd)->ndb->set_optimized_node_selection(
-      THDVAR(thd, optimized_node_selection) & 1);
+  /* Set Ndb object's optimized_node_selection (locality) value */
+  ndb->set_optimized_node_selection(THDVAR(thd, optimized_node_selection) & 1);
 }
 
 int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
