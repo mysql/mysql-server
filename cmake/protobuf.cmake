@@ -151,23 +151,45 @@ MACRO(MYSQL_CHECK_PROTOBUF)
     # We cannot use the IMPORTED libraries defined by FIND_PACKAGE above,
     # protobuf::libprotobuf may have INTERFACE properties like -std=gnu++11
     # and that will break the build since we use -std=c++17
+    # <cmake source root>/Modules/FindProtobuf.cmake may do:
+    # set_property(TARGET protobuf::libprotobuf APPEND PROPERTY
+    #              INTERFACE_COMPILE_FEATURES cxx_std_11
+    #             )
+    # INTERFACE_LINK_LIBRARIES will be needed once this is built
+    # with protobuf 22 and above (lots of abseil libs).
     ADD_LIBRARY(ext::libprotobuf UNKNOWN IMPORTED)
     SET_TARGET_PROPERTIES(ext::libprotobuf PROPERTIES
       INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}")
     SET_TARGET_PROPERTIES(ext::libprotobuf PROPERTIES
       IMPORTED_LOCATION "${PROTOBUF_LIBRARY}")
+    IF(LINUX)
+      FIND_LIBRARY_DEPENDENCIES("${PROTOBUF_LIBRARY}" protobuf_dependencies)
+      SET_TARGET_PROPERTIES(ext::libprotobuf PROPERTIES
+        INTERFACE_LINK_LIBRARIES "${protobuf_dependencies}")
+    ENDIF()
 
     ADD_LIBRARY(ext::libprotobuf-lite UNKNOWN IMPORTED)
     SET_TARGET_PROPERTIES(ext::libprotobuf-lite PROPERTIES
       INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}")
     SET_TARGET_PROPERTIES(ext::libprotobuf-lite PROPERTIES
       IMPORTED_LOCATION "${PROTOBUF_LITE_LIBRARY}")
+    IF(LINUX)
+      FIND_LIBRARY_DEPENDENCIES("${PROTOBUF_LITE_LIBRARY}" lite_dependencies)
+      SET_TARGET_PROPERTIES(ext::libprotobuf-lite PROPERTIES
+        INTERFACE_LINK_LIBRARIES "${lite_dependencies}")
+    ENDIF()
 
     ADD_LIBRARY(ext::libprotoc UNKNOWN IMPORTED)
     SET_TARGET_PROPERTIES(ext::libprotoc PROPERTIES
       INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}")
     SET_TARGET_PROPERTIES(ext::libprotoc PROPERTIES
       IMPORTED_LOCATION "${Protobuf_PROTOC_LIBRARY}")
+    IF(LINUX)
+      FIND_LIBRARY_DEPENDENCIES(
+        "${Protobuf_PROTOC_LIBRARY}" protoc_dependencies)
+      SET_TARGET_PROPERTIES(ext::libprotoc PROPERTIES
+        INTERFACE_LINK_LIBRARIES "${protoc_dependencies}")
+    ENDIF()
   ENDIF()
 
   FIND_PROTOBUF_VERSION()
