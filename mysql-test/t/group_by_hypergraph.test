@@ -478,6 +478,14 @@ SELECT MIN(t1.f1) AS field1 FROM (t1 JOIN (t1 t2) ON (TRUE),
   GROUP BY field2 ORDER BY field1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#36668257: Assertion `!OrderItemsReferenceUnavailableTables(path....
+--echo #
+SELECT SQL_SMALL_RESULT avg(id) - 6.6 AS field1, id2  FROM tb1 GROUP BY id2
+  ORDER BY abs(field1);
+SELECT SQL_BIG_RESULT   avg(id) - 6.6 AS field1, id2  FROM tb1 GROUP BY id2
+  ORDER BY abs(field1);
+
 # Temptable aggregates should not be used with ROLLUP.
 let $query=
   select avg(id) , id2 from tb1 where id2 != 5 group by id2 with rollup;

@@ -433,6 +433,32 @@ table_map GetUsedTableMap(const ORDER *order) {
  */
 bool OrderItemsReferenceUnavailableTables(
     const AccessPath *sort_path, table_map used_tables_before_replacement) {
+  bool has_temptable_aggregation = false;
+
+  // Do not attempt this if there are temp table aggregation plans. The ORDER
+  // BY (and HAVING) items sometimes rely on the ref slices and so avoid the
+  // temp-table replacement. One such case is when they are of the form "ORDER
+  // BY <expression using column_alias>" where column_alias is a SELECT
+  // aggregate expression that does not have a corresponding temp table field.
+  // In such cases, when there is no direct replacement of the
+  // Item_aggregate_refs or Item_refs in the temp table fields, the replacement
+  // logic does not go down into the items they refer to to replace the inner
+  // fields. Instead, the ref slices take care of it: the ref items start
+  // referring to the appropriate temp table slice during SORT execution. So
+  // the WalkItem() logic below will traverse through the Item_ref items and
+  // incorrectly find the base tables.
+  WalkAccessPaths(
+      const_cast<AccessPath *>(sort_path), /*join=*/nullptr,
+      WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      [&has_temptable_aggregation](AccessPath *subpath, const JOIN *) {
+        if (subpath->type == AccessPath::TEMPTABLE_AGGREGATE) {
+          has_temptable_aggregation = true;
+          return true;
+        }
+        return false;
+      });
+  if (has_temptable_aggregation) return false;
+
   // Find which of the base tables referenced from the order items are
   // materialized below the sort path.
   const table_map materialized_base_tables =

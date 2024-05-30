@@ -758,6 +758,21 @@ GROUP BY field2 ORDER BY field1;
 field1
 34
 DROP TABLE t1;
+#
+# Bug#36668257: Assertion `!OrderItemsReferenceUnavailableTables(path....
+#
+SELECT SQL_SMALL_RESULT avg(id) - 6.6 AS field1, id2  FROM tb1 GROUP BY id2
+ORDER BY abs(field1);
+field1	id2
+-0.1000	11
+0.9000	12
+-1.1000	10
+SELECT SQL_BIG_RESULT   avg(id) - 6.6 AS field1, id2  FROM tb1 GROUP BY id2
+ORDER BY abs(field1);
+field1	id2
+-0.1000	11
+0.9000	12
+-1.1000	10
 select avg(id) , id2 from tb1 where id2 != 5 group by id2 with rollup;
 avg(id)	id2
 5.5000	10
