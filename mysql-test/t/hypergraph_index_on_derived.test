@@ -1,0 +1,97 @@
+--source include/have_hypergraph.inc
+--source include/elide_costs.inc
+--source include/have_optimizer_trace.inc
+
+--echo #
+--echo # Bug#36053196 Hypergraph: No index on derived table
+--echo #
+
+# Check that we do index lookups rather than a table scans on materializations
+# where feasible.
+
+# Show the keys that were created during optimization (but maybe not used
+# in the chosen plan).
+let possible_derived_keys = SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+
+SET SESSION OPTIMIZER_TRACE='enabled=on';
+
+CREATE TABLE t1 (a INT primary key, b INT, c INT, d INT);
+
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<100)
+SELECT n, n%11, n%13, n%17 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c, d;
+ANALYZE TABLE t1;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE WITH cte1 AS
+(SELECT sum(x1.b + x2.b) v1, x1.d v2 FROM t1 x1, t1 x2 WHERE x1.c=x2.c
+ GROUP BY x1.d)
+SELECT 1 FROM t1 y1, t1 y2 WHERE y1.b=y2.b and y2.c >
+  (SELECT AVG(v1) FROM cte1 WHERE y2.d=v2);
+
+eval $possible_derived_keys;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE WITH cte1 AS
+(SELECT SUM(x1.b + x2.b) v1, x1.d v2, MAX(x1.b + x2.b) v3 FROM t1 x1, t1 x2
+  WHERE x1.c=x2.c GROUP BY x1.d)
+SELECT 1 FROM t1 y1, t1 y2 WHERE y1.b=y2.b AND y2.c >
+(SELECT AVG(v1) FROM cte1 d1 WHERE y2.d=v2 AND v1 >
+  (SELECT AVG(d2.v2) FROM cte1 d2 WHERE d1.v3=d2.v1));
+
+eval $possible_derived_keys;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE WITH cte1 AS
+(SELECT SUM(x1.b + x2.b) v1, x1.d v2, MAX(x1.b + x2.b) v3 FROM t1 x1, t1 x2
+  WHERE x1.c=x2.c GROUP BY x1.d)
+SELECT 1 FROM cte1 d1 where v1=2 UNION SELECT 1 FROM cte1 d2 where v2=3;
+
+eval $possible_derived_keys;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,2), (2,2), (3,0), (4,1), (5,2);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a,b;
+ANALYZE TABLE t1;
+
+CREATE VIEW v1 AS SELECT MAX(a) m, b FROM t1 GROUP BY b;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree WITH cte1 AS (SELECT MAX(a) m, b FROM t1 GROUP BY b)
+SELECT * FROM cte1 x1 NATURAL JOIN cte1 x2 NATURAL JOIN cte1 x3;
+
+eval $possible_derived_keys;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree SELECT * FROM v1 x1 NATURAL JOIN v1 x2 NATURAL JOIN v1 x3;
+eval $possible_derived_keys;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE WITH u AS (SELECT * FROM t1 UNION ALL SELECT * FROM t1)
+SELECT * FROM  u AS u1 NATURAL JOIN u AS u2;
+
+eval $possible_derived_keys;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree WITH cte1 AS (SELECT MAX(a) m, b FROM t1 GROUP BY b)
+SELECT * FROM cte1 x1, cte1 x2, cte1 x3 WHERE x1.m=x2.m AND x2.b=x3.b;
+
+eval $possible_derived_keys;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+SET SESSION OPTIMIZER_TRACE='enabled=off';
+
+--source include/disable_hypergraph.inc

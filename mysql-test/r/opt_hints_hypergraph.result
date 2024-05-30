@@ -2496,14 +2496,13 @@ explain update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
--> Update t3 (buffered)  (rows=0.133)
-    -> Hash semijoin (FirstMatch) (t3.a = dt.a)  (rows=0.133)
+-> Update t3 (immediate)  (rows=0.133)
+    -> Nested loop semijoin (FirstMatch)  (rows=0.133)
         -> Table scan on t3  (rows=2)
-        -> Hash
-            -> Table scan on dt  (rows=0.667)
-                -> Materialize  (rows=0.667)
-                    -> Filter: (t1.a > 1)  (rows=0.667)
-                        -> Table scan on t1  (rows=2)
+        -> Covering index lookup on dt using <auto_key0> (a = t3.a)  (rows=0.0667)
+            -> Materialize  (rows=0.667)
+                -> Filter: (t1.a > 1)  (rows=0.667)
+                    -> Table scan on t1  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2540,14 +2539,13 @@ explain update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
 EXPLAIN
--> Update t3 (buffered)  (rows=0.133)
-    -> Hash semijoin (FirstMatch) (t3.a = dt.a)  (rows=0.133)
+-> Update t3 (immediate)  (rows=0.133)
+    -> Nested loop semijoin (FirstMatch)  (rows=0.133)
         -> Table scan on t3  (rows=2)
-        -> Hash
-            -> Table scan on dt  (rows=0.667)
-                -> Materialize  (rows=0.667)
-                    -> Filter: (t3.b > 1)  (rows=0.667)
-                        -> Table scan on t3  (rows=2)
+        -> Index lookup on dt using <auto_key0> (a = t3.a)  (rows=0.0667)
+            -> Materialize  (rows=0.667)
+                -> Filter: (t3.b > 1)  (rows=0.667)
+                    -> Table scan on t3  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a

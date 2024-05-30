@@ -72,6 +72,7 @@
 #include "sql/join_optimizer/build_interesting_orders.h"
 #include "sql/join_optimizer/compare_access_paths.h"
 #include "sql/join_optimizer/cost_model.h"
+#include "sql/join_optimizer/derived_keys.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/find_contained_subqueries.h"
@@ -1039,8 +1040,8 @@ class RefAccessBuilder final {
 
   /// Result type of AnalyzePredicates().
   struct PredicateAnalysis final {
-    /// Row estimate.
-    double num_output_rows;
+    /// The selectivity of the entire predicate.
+    double selectivity;
 
     /// The combined selectivity of the conditions refering to the target table.
     double join_condition_selectivity;
@@ -1151,8 +1152,8 @@ std::optional<RefAccessBuilder::Lookup> RefAccessBuilder::BuildLookup(
 std::optional<RefAccessBuilder::PredicateAnalysis>
 RefAccessBuilder::AnalyzePredicates(
     const RefAccessBuilder::KeyMatch &key_match) const {
-  double num_output_rows = m_table->file->stats.records;
-  double join_condition_selectivity = 1.0;
+  double selectivity{1.0};
+  double join_condition_selectivity{1.0};
 
   MutableOverflowBitset applied_predicates{thd()->mem_root,
                                            graph()->predicates.size()};
@@ -1189,7 +1190,7 @@ RefAccessBuilder::AnalyzePredicates(
       join_condition_selectivity *= pred.selectivity;
     }
 
-    num_output_rows *= pred.selectivity;
+    selectivity *= pred.selectivity;
     applied_predicates.SetBit(i);
 
     const KeypartForRef &keypart = key_match.keyparts[keypart_idx];
@@ -1215,7 +1216,7 @@ RefAccessBuilder::AnalyzePredicates(
     }
   }
 
-  return PredicateAnalysis{num_output_rows, join_condition_selectivity,
+  return PredicateAnalysis{selectivity, join_condition_selectivity,
                            std::move(applied_predicates),
                            std::move(subsumed_predicates)};
 }
@@ -1238,6 +1239,7 @@ AccessPath RefAccessBuilder::MakePath(
                            lookup.null_rejecting_key) &&
                           key_match.matched_keyparts == actual_key_parts(key);
   if (single_row) {
+    assert(!m_table->pos_in_table_list->uses_materialization());
     // FIXME: This can cause inconsistent row estimates between different access
     // paths doing the same thing, which is bad (it causes index lookups to be
     // unfairly preferred, especially as we add more tables to the join -- and
@@ -1249,7 +1251,11 @@ AccessPath RefAccessBuilder::MakePath(
     num_output_rows = std::min(num_output_rows, 1.0);
   }
 
-  const double cost{EstimateRefAccessCost(m_table, m_key_idx, num_output_rows)};
+  const double cost{
+      // num_output_rows will be unknown if m_table is derived.
+      num_output_rows == kUnknownRowCount
+          ? kUnknownCost
+          : EstimateRefAccessCost(m_table, m_key_idx, num_output_rows)};
 
   AccessPath path;
   if (single_row) {
@@ -1276,6 +1282,7 @@ AccessPath RefAccessBuilder::MakePath(
 
   path.num_output_rows_before_filter = num_output_rows;
   path.set_cost_before_filter(cost);
+  path.set_cost(cost);
   path.set_init_cost(0.0);
   path.set_init_once_cost(0.0);
   path.parameter_tables = GetNodeMapFromTableMap(
@@ -1360,8 +1367,13 @@ RefAccessBuilder::ProposeResult RefAccessBuilder::ProposePath() const {
     return ProposeResult::kError;
   }
 
+  const Table_ref &table_ref{*m_table->pos_in_table_list};
+
   AccessPath path{MakePath(key_match, lookup.value(),
-                           predicate_analysis.value().num_output_rows)};
+                           table_ref.uses_materialization()
+                               ? kUnknownRowCount
+                               : predicate_analysis.value().selectivity *
+                                     m_table->file->stats.records)};
 
   const double row_count{
       m_force_num_output_rows_after_filter == kUnknownRowCount
@@ -1374,6 +1386,40 @@ RefAccessBuilder::ProposeResult RefAccessBuilder::ProposePath() const {
           // of the filters, so we make our usual independence assumption.
           m_force_num_output_rows_after_filter *
               predicate_analysis.value().join_condition_selectivity};
+
+  if (table_ref.uses_materialization()) {
+    path.set_num_output_rows(row_count == kUnknownRowCount
+                                 ? path.num_output_rows_before_filter
+                                 : row_count);
+
+    AccessPath *const materialize_path{
+        m_receiver->MakeMaterializePath(path, m_table)};
+    if (materialize_path == nullptr) {
+      return ProposeResult::kError;
+    }
+
+    if (materialize_path->type == AccessPath::MATERIALIZE) {
+      auto &materialize{materialize_path->materialize()};
+
+      const double rows{materialize.subquery_rows *
+                        predicate_analysis.value().selectivity};
+
+      materialize.table_path->set_cost(
+          EstimateRefAccessCost(m_table, m_key_idx, rows));
+
+      materialize.table_path->set_cost_before_filter(
+          materialize.table_path->cost());
+
+      materialize.table_path->set_num_output_rows(rows);
+      materialize.table_path->num_output_rows_before_filter = rows;
+      materialize_path->set_num_output_rows(rows);
+      materialize_path->num_output_rows_before_filter = rows;
+    } else {
+      assert(materialize_path->type == AccessPath::ZERO_ROWS);
+    }
+
+    path = *materialize_path;
+  }
 
   m_receiver->ProposeAccessPathForIndex(
       m_node_idx, std::move(predicate_analysis.value().applied_predicates),
@@ -1388,6 +1434,13 @@ CostingReceiver::FindRangeScansResult CostingReceiver::FindRangeScans(
   if (table_ref->is_recursive_reference()) {
     return {0, FindRangeScansResult::kOk};
   }
+
+  if (table_ref->is_view_or_derived()) {
+    // Range scans on derived tables are not (yet) supported. Return this to
+    // be consistent with REF estimate.
+    return {kUnknownRowCount, FindRangeScansResult::kOk};
+  }
+
   const bool force_index_merge{
       hint_table_state(m_thd, table_ref, INDEX_MERGE_HINT_ENUM, 0)};
   const bool force_skip_scan{
@@ -2087,6 +2140,8 @@ bool CostingReceiver::FindIndexRangeScans(int node_idx, bool *impossible,
                                           bool force_imerge,
                                           bool force_skip_scan,
                                           bool *found_forced_plan) {
+  // Range scans on derived tables are not (yet) supported.
+  assert(!m_graph->nodes[node_idx].table()->pos_in_table_list->is_derived());
   RANGE_OPT_PARAM param;
   SEL_TREE *tree = nullptr;
   Mem_root_array<PossibleRangeScan> possible_scans(&m_range_optimizer_mem_root);
@@ -3507,6 +3562,11 @@ AccessPath *CostingReceiver::MakeMaterializePath(const AccessPath &path,
         GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
                                m_graph->table_num_to_node_num);
 
+    if (materialize_path->type == AccessPath::MATERIALIZE) {
+      materialize_path->parameter_tables |=
+          materialize_path->materialize().table_path->parameter_tables;
+    }
+
     // If we don't need row IDs, we also don't care about row ID safety.
     // This keeps us from retaining many extra unneeded paths.
     if (!m_need_rowid) {
@@ -3605,6 +3665,10 @@ bool CostingReceiver::ProposeTableScan(
     if (materialize_path == nullptr) {
       return true;
     } else {
+      assert(materialize_path->type != AccessPath::MATERIALIZE ||
+             materialize_path->materialize().table_path->type ==
+                 AccessPath::TABLE_SCAN);
+
       path = *materialize_path;
     }
   }
@@ -3618,6 +3682,11 @@ bool CostingReceiver::ProposeTableScan(
 bool CostingReceiver::ProposeIndexScan(
     TABLE *table, int node_idx, double force_num_output_rows_after_filter,
     unsigned key_idx, bool reverse, int ordering_idx) {
+  if (table->pos_in_table_list->uses_materialization()) {
+    // Not yet implemented.
+    return false;
+  }
+
   AccessPath path;
   path.type = AccessPath::INDEX_SCAN;
   path.index_scan().table = table;
@@ -9057,12 +9126,22 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   }
 
 #ifndef NDEBUG
-  WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-                  [&](const AccessPath *path, const JOIN *) {
-                    assert(path->cost() >= path->init_cost());
-                    assert(path->init_cost() >= path->init_once_cost());
-                    return false;
-                  });
+  WalkAccessPaths(
+      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [&](const AccessPath *path, const JOIN *) {
+        assert(path->cost() >= path->init_cost());
+        assert(path->init_cost() >= path->init_once_cost());
+        // For RAPID, these row counts may not be consistent at this point,
+        // see PopulateNrowsStatisticFromQkrnToAp().
+        assert(secondary_engine_cost_hook != nullptr ||
+               path->type != AccessPath::MATERIALIZE ||
+               (path->num_output_rows() ==
+                    path->materialize().table_path->num_output_rows() &&
+                path->num_output_rows_before_filter ==
+                    path->materialize()
+                        .table_path->num_output_rows_before_filter));
+        return false;
+      });
 #endif
 
   join->needs_finalize = true;
@@ -9087,6 +9166,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block) {
   int next_retry_subgraph_pairs =
       static_cast<int>(thd->variables.optimizer_max_subgraph_pairs);
 
+  if (query_block->materialized_derived_table_count > 0 &&
+      MakeDerivedKeys(thd, query_block->join)) {
+    return nullptr;
+  }
+
   constexpr int max_attempts = 3;
   for (int i = 0; i < max_attempts; ++i) {
     bool retry = false;
@@ -9095,6 +9179,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block) {
     if (retry) {
       continue;
     }
+
+    if (root_path != nullptr &&
+        query_block->materialized_derived_table_count > 0) {
+      FinalizeDerivedKeys(thd, *query_block, root_path);
+    }
+
     return root_path;
   }
 

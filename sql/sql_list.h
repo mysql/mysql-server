@@ -388,6 +388,12 @@ class base_list {
 
     return false;
   }
+#ifndef NDEBUG
+ private:
+  /// For debugging purposes (e.g. forced call from gdb). Return a pointer to
+  /// element number 'index', or nullptr if 'index' >= 'elements'.
+  void *at(uint index);
+#endif
 };
 
 class base_list_iterator {

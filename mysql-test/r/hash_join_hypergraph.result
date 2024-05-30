@@ -1428,13 +1428,12 @@ EXPLAIN
     -> Inner hash join (no condition)  (rows=0.2)
         -> Table scan on alias1  (rows=20)
         -> Hash
-            -> Inner hash join (alias3.col_varchar_key = alias2.col_varchar_key), (alias3.col_int_key = alias2.col_int_key)  (rows=0.01)
+            -> Nested loop inner join  (rows=0.01)
                 -> Table scan on alias2  (rows=1)
-                -> Hash
-                    -> Table scan on alias3  (rows=1)
-                        -> Materialize  (rows=1)
-                            -> Sort with duplicate removal: sq1_alias1.pk  (rows=1)
-                                -> Table scan on sq1_alias1  (rows=1)
+                -> Index lookup on alias3 using <auto_key0> (col_int_key = alias2.col_int_key, col_varchar_key = alias2.col_varchar_key)  (rows=0.01)
+                    -> Materialize  (rows=1)
+                        -> Sort with duplicate removal: sq1_alias1.pk  (rows=1)
+                            -> Table scan on sq1_alias1  (rows=1)
     -> Hash
         -> Table scan on sq2_alias1  (rows=20)
 
@@ -1836,20 +1835,20 @@ FROM
 b AS subquery3_t1
 );
 EXPLAIN
--> Left hash join (subquery1_t1.col_varchar = table2.col_varchar), extra conditions: <in_optimizer>(subquery1_t1.col_varchar,<exists>(select #4))  (rows=0.2)
+-> Nested loop left join  (rows=0.2)
     -> Inner hash join (subquery1_t1.col_varchar = subquery1_t2.col_varchar)  (rows=0.2)
         -> Table scan on subquery1_t2  (rows=2)
         -> Hash
             -> Table scan on subquery1_t1  (rows=1)
-    -> Hash
-        -> Table scan on table2  (rows=1.41)
+    -> Filter: <in_optimizer>(subquery1_t1.col_varchar,<exists>(select #4))  (rows=0.141)
+        -> Covering index lookup on table2 using <auto_key0> (col_varchar = subquery1_t1.col_varchar)  (rows=0.141)
             -> Materialize  (rows=1.41)
                 -> Group (no aggregates)  (rows=1.41)
                     -> Sort: subquery2_t1.col_varchar  (rows=2)
                         -> Table scan on subquery2_t1  (rows=2)
-    -> Select #4 (subquery in extra conditions; dependent)
-        -> Filter: (<cache>(subquery1_t1.col_varchar) = lower(subquery3_t1.pk))  (rows=1)
-            -> Table scan on subquery3_t1  (rows=1)
+        -> Select #4 (subquery in condition; dependent)
+            -> Filter: (<cache>(subquery1_t1.col_varchar) = lower(subquery3_t1.pk))  (rows=1)
+                -> Table scan on subquery3_t1  (rows=1)
 
 SELECT
 table1.col_varchar

@@ -1670,113 +1670,167 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
   return path;
 }
 
+/**
+   Find the bottom of 'table_path', i.e. the path that actually accesses the
+   materialized table.
+*/
+static AccessPath *GetTablePathBottom(AccessPath *table_path) {
+  AccessPath *bottom{nullptr};
+
+  const auto find_bottom{[&](AccessPath *path, const JOIN *) {
+    switch (path->type) {
+      case AccessPath::TABLE_SCAN:
+        assert(path->table_scan().table->pos_in_table_list == nullptr ||
+               path->table_scan()
+                   .table->pos_in_table_list->uses_materialization());
+        bottom = path;
+        return true;
+
+      case AccessPath::REF:
+        assert(path->ref().table->pos_in_table_list == nullptr ||
+               path->ref().table->pos_in_table_list->uses_materialization());
+        bottom = path;
+        return true;
+
+      default:
+        return false;
+    }
+  }};
+
+  WalkAccessPaths(table_path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION, find_bottom);
+
+  assert(bottom != nullptr);
+  return bottom;
+}
+
 AccessPath *GetAccessPathForDerivedTable(
     THD *thd, Table_ref *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
     AccessPath *table_path) {
-  if (table_ref->access_path_for_derived != nullptr) {
-    return table_ref->access_path_for_derived;
-  }
+  // Make a new path if none is cached.
+  const auto make_path{[&]() {
+    Query_expression *query_expression = table_ref->derived_query_expression();
+    JOIN *subjoin = nullptr;
+    Temp_table_param *tmp_table_param;
+    int select_number;
 
-  Query_expression *query_expression = table_ref->derived_query_expression();
-  JOIN *subjoin = nullptr;
-  Temp_table_param *tmp_table_param;
-  int select_number;
-
-  // If we have a single query block at the end of the QEP_TAB array,
-  // it may contain aggregation that have already set up fields and items
-  // to copy, and we need to pass those to MaterializeIterator, so reuse its
-  // tmp_table_param. If not, make a new object, so that we don't
-  // disturb the materialization going on inside our own query block.
-  if (query_expression->is_simple()) {
-    subjoin = query_expression->first_query_block()->join;
-    select_number = query_expression->first_query_block()->select_number;
-    tmp_table_param = &subjoin->tmp_table_param;
-  } else if (query_expression->set_operation()->is_materialized()) {
-    // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
-    // for ROLLUP, and simple table can't have ROLLUP.
-    Query_block *const qb = query_expression->set_operation()->query_block();
-    subjoin = qb->join;
-    tmp_table_param = &subjoin->tmp_table_param;
-    select_number = qb->select_number;
-  } else {
-    tmp_table_param = new (thd->mem_root) Temp_table_param;
-    select_number = query_expression->first_query_block()->select_number;
-  }
-  ConvertItemsToCopy(*query_expression->get_field_list(),
-                     table->visible_field_ptr(), tmp_table_param);
-
-  AccessPath *path;
-
-  if (query_expression->unfinished_materialization()) {
-    // The query expression is a UNION capable of materializing directly into
-    // our result table. This saves us from doing double materialization (first
-    // into a UNION result table, then from there into our own).
-    //
-    // We will already have set up a unique index on the table if
-    // required; see Table_ref::setup_materialized_derived_tmp_table().
-    path = NewMaterializeAccessPath(
-        thd, query_expression->release_query_blocks_to_materialize(),
-        invalidators, table, table_path, table_ref->common_table_expr(),
-        query_expression,
-        /*ref_slice=*/-1, rematerialize, query_expression->select_limit_cnt,
-        query_expression->offset_limit_cnt == 0
-            ? query_expression->m_reject_multiple_rows
-            : false);
-    EstimateMaterializeCost(thd, path);
-    path = MoveCompositeIteratorsFromTablePath(
-        thd, path, *query_expression->outer_query_block());
-    if (query_expression->offset_limit_cnt != 0) {
-      // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
-      // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
-      path = NewLimitOffsetAccessPath(
-          thd, path, query_expression->select_limit_cnt,
-          query_expression->offset_limit_cnt,
-          /*count_all_rows=*/false, query_expression->m_reject_multiple_rows,
-          /*send_records_override=*/nullptr);
+    // If we have a single query block at the end of the QEP_TAB array,
+    // it may contain aggregation that have already set up fields and items
+    // to copy, and we need to pass those to MaterializeIterator, so reuse its
+    // tmp_table_param. If not, make a new object, so that we don't
+    // disturb the materialization going on inside our own query block.
+    if (query_expression->is_simple()) {
+      subjoin = query_expression->first_query_block()->join;
+      select_number = query_expression->first_query_block()->select_number;
+      tmp_table_param = &subjoin->tmp_table_param;
+      tmp_table_param->items_to_copy = nullptr;
+    } else if (query_expression->set_operation()->is_materialized()) {
+      // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
+      // for ROLLUP, and simple table can't have ROLLUP.
+      Query_block *const qb = query_expression->set_operation()->query_block();
+      subjoin = qb->join;
+      tmp_table_param = &subjoin->tmp_table_param;
+      select_number = qb->select_number;
+    } else {
+      tmp_table_param = new (thd->mem_root) Temp_table_param;
+      select_number = query_expression->first_query_block()->select_number;
     }
-  } else if (table_ref->common_table_expr() == nullptr && rematerialize &&
-             IsTableScan(table_path) && !need_rowid) {
-    // We don't actually need the materialization for anything (we would
-    // just be reading the rows straight out from the table, never to be used
-    // again), so we can just stream records directly over to the next
-    // iterator. This saves both CPU time and memory (for the temporary
-    // table).
-    //
-    // NOTE: Currently, rematerialize is true only for JSON_TABLE. (In the
-    // hypergraph optimizer, it is also true for lateral derived tables.)
-    // We could extend this to other situations, such as the leftmost
-    // table of the join (assuming nested loop only). The test for CTEs is
-    // also conservative; if the CTE is defined within this join and used
-    // only once, we could still stream without losing performance.
-    path = NewStreamingAccessPath(thd, query_expression->root_access_path(),
-                                  subjoin, &subjoin->tmp_table_param, table,
-                                  /*ref_slice=*/-1);
-    CopyBasicProperties(*query_expression->root_access_path(), path);
-    path->ordering_state = 0;  // Different query block, so ordering is reset.
+    ConvertItemsToCopy(*query_expression->get_field_list(),
+                       table->visible_field_ptr(), tmp_table_param);
+
+    AccessPath *path;
+
+    if (query_expression->unfinished_materialization()) {
+      // The query expression is a UNION capable of materializing directly into
+      // our result table. This saves us from doing double materialization
+      // (first into a UNION result table, then from there into our own).
+      //
+      // We will already have set up a unique index on the table if
+      // required; see Table_ref::setup_materialized_derived_tmp_table().
+      path = NewMaterializeAccessPath(
+          thd, query_expression->release_query_blocks_to_materialize(),
+          invalidators, table, table_path, table_ref->common_table_expr(),
+          query_expression,
+          /*ref_slice=*/-1, rematerialize, query_expression->select_limit_cnt,
+          query_expression->offset_limit_cnt == 0
+              ? query_expression->m_reject_multiple_rows
+              : false);
+      EstimateMaterializeCost(thd, path);
+      path = MoveCompositeIteratorsFromTablePath(
+          thd, path, *query_expression->outer_query_block());
+      if (query_expression->offset_limit_cnt != 0) {
+        // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
+        // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
+        path = NewLimitOffsetAccessPath(
+            thd, path, query_expression->select_limit_cnt,
+            query_expression->offset_limit_cnt,
+            /*count_all_rows=*/false, query_expression->m_reject_multiple_rows,
+            /*send_records_override=*/nullptr);
+      }
+    } else if (table_ref->common_table_expr() == nullptr && rematerialize &&
+               IsTableScan(table_path) && !need_rowid) {
+      // We don't actually need the materialization for anything (we would
+      // just be reading the rows straight out from the table, never to be used
+      // again), so we can just stream records directly over to the next
+      // iterator. This saves both CPU time and memory (for the temporary
+      // table).
+      //
+      // NOTE: Currently, rematerialize is true only for JSON_TABLE. (In the
+      // hypergraph optimizer, it is also true for lateral derived tables.)
+      // We could extend this to other situations, such as the leftmost
+      // table of the join (assuming nested loop only). The test for CTEs is
+      // also conservative; if the CTE is defined within this join and used
+      // only once, we could still stream without losing performance.
+      path = NewStreamingAccessPath(thd, query_expression->root_access_path(),
+                                    subjoin, &subjoin->tmp_table_param, table,
+                                    /*ref_slice=*/-1);
+      CopyBasicProperties(*query_expression->root_access_path(), path);
+      path->ordering_state = 0;  // Different query block, so ordering is reset.
+    } else {
+      JOIN *join = query_expression->is_set_operation()
+                       ? nullptr
+                       : query_expression->first_query_block()->join;
+      path = NewMaterializeAccessPath(
+          thd,
+          SingleMaterializeQueryBlock(thd, query_expression->root_access_path(),
+                                      select_number, join,
+                                      /*copy_items=*/true, tmp_table_param),
+          invalidators, table, table_path, table_ref->common_table_expr(),
+          query_expression,
+          /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
+          query_expression->m_reject_multiple_rows);
+      EstimateMaterializeCost(thd, path);
+      path = MoveCompositeIteratorsFromTablePath(
+          thd, path, *query_expression->outer_query_block());
+    }
+
+    path->set_cost_before_filter(path->cost());
+    path->num_output_rows_before_filter = path->num_output_rows();
+    return path;
+  }};
+
+  if (thd->lex->using_hypergraph_optimizer()) {
+    // For the Hypergraph optimizer there may be several alternative table paths
+    // cached.
+    AccessPath *const table_path_bottom{GetTablePathBottom(table_path)};
+    AccessPath *const cached_path{
+        table_ref->GetCachedMaterializedPath(table_path_bottom)};
+
+    if (cached_path == nullptr) {
+      AccessPath *const new_path{make_path()};
+      table_ref->AddMaterializedPathToCache(thd, new_path, table_path_bottom);
+      return new_path;
+    } else {
+      if (cached_path->type == AccessPath::MATERIALIZE) {
+        cached_path->materialize().table_path->set_num_output_rows(
+            cached_path->num_output_rows());
+      }
+      return cached_path;
+    }
   } else {
-    JOIN *join = query_expression->is_set_operation()
-                     ? nullptr
-                     : query_expression->first_query_block()->join;
-    path = NewMaterializeAccessPath(
-        thd,
-        SingleMaterializeQueryBlock(thd, query_expression->root_access_path(),
-                                    select_number, join,
-                                    /*copy_items=*/true, tmp_table_param),
-        invalidators, table, table_path, table_ref->common_table_expr(),
-        query_expression,
-        /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
-        query_expression->m_reject_multiple_rows);
-    EstimateMaterializeCost(thd, path);
-    path = MoveCompositeIteratorsFromTablePath(
-        thd, path, *query_expression->outer_query_block());
+    return make_path();
   }
-
-  path->set_cost_before_filter(path->cost());
-  path->num_output_rows_before_filter = path->num_output_rows();
-
-  table_ref->access_path_for_derived = path;
-  return path;
 }
 
 /**

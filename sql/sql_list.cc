@@ -60,3 +60,15 @@ base_list::base_list(const base_list &rhs, MEM_ROOT *mem_root) {
   first = &end_of_list;
   last = &first;
 }
+
+#ifndef NDEBUG
+void *base_list::at(uint index) {
+  if (index >= elements) {
+    return nullptr;
+  }
+
+  list_node *current = first;
+  for (uint i = 0; i < index; ++i) current = current->next;
+  return current->info;
+}
+#endif

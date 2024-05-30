@@ -1026,8 +1026,13 @@ static bool AddPathCosts(const AccessPath *path,
                                               first_row_cost);
     }
     error |= AddMemberToObject<Json_double>(obj, "estimated_total_cost", cost);
-    error |= AddMemberToObject<Json_double>(obj, "estimated_rows",
-                                            path->num_output_rows());
+    // For a MATERIALIZE path, num_output_rows() gives the number of rows read
+    // by materialize().table_path rather than the number of rows materialized.
+    error |=
+        AddMemberToObject<Json_double>(obj, "estimated_rows",
+                                       path->type == AccessPath::MATERIALIZE
+                                           ? path->materialize().subquery_rows
+                                           : path->num_output_rows());
   } /* if (path->num_output_rows() >= 0.0) */
 
   /* Add analyze figures */

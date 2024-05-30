@@ -3812,6 +3812,7 @@ void JOIN::cleanup() {
   } else if (thd->lex->using_hypergraph_optimizer()) {
     for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       cleanup_table(tl->table);
+      tl->derived_key_list.clear();
     }
     for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
       cleanup_table(cleanup.table);

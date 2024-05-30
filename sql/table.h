@@ -88,6 +88,7 @@ class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
+class MaterializedPathCache;
 class Opt_hints_qb;
 class Opt_hints_table;
 class Query_result_union;
@@ -3440,7 +3441,7 @@ class Table_ref {
   int fetch_number_of_rows(
       ha_rows fallback_estimate = PLACEHOLDER_TABLE_ROW_ESTIMATE);
   bool update_derived_keys(THD *, Field *, Item **, uint, bool *);
-  bool generate_keys();
+  bool generate_keys(THD *thd);
 
   /// Setup a derived table to use materialization
   bool setup_materialized_derived(THD *thd);
@@ -3671,15 +3672,24 @@ class Table_ref {
   */
   Table_function *table_function{nullptr};
 
-  /**
-    If we've previously made an access path for “derived”, it is cached here.
-    This is useful if we need to plan the query block twice (the hypergraph
-    optimizer can do so, with and without in2exists predicates), both saving
-    work and avoiding issues when we try to throw away the old items_to_copy
-    for a new (identical) one.
-   */
-  AccessPath *access_path_for_derived{nullptr};
   Item *sampling_percentage{nullptr};
+
+  /**
+     For a view or derived table: Add materialize_path and table_path to
+     m_materialized_path_cache.
+  */
+  void AddMaterializedPathToCache(THD *thd, AccessPath *materialize_path,
+                                  const AccessPath *table_path);
+
+  /**
+     Search m_materialized_path_cache for a materialization path for
+     'table_path'. Return that  materialization path, or nullptr if none
+     is found.
+  */
+  AccessPath *GetCachedMaterializedPath(const AccessPath *table_path);
+
+  /// Empty m_materialized_path_cache.
+  void ClearMaterializedPathCache() { m_materialized_path_cache = nullptr; }
 
  private:
   /// Sampling information.
@@ -3709,6 +3719,15 @@ class Table_ref {
     then this points to the list of column names. NULL otherwise.
   */
   const Create_col_name_list *m_derived_column_names{nullptr};
+
+  /**
+    If we've previously made an access path for “derived”, it is cached here.
+    This is useful if we need to plan the query block twice (the hypergraph
+    optimizer can do so, with and without in2exists predicates), both saving
+    work and avoiding issues when we try to throw away the old items_to_copy
+    for a new (identical) one.
+   */
+  MaterializedPathCache *m_materialized_path_cache{nullptr};
 
  public:
   ST_SCHEMA_TABLE *schema_table{nullptr}; /* Information_schema table */
@@ -4478,11 +4497,12 @@ class Common_table_expr {
    References are returned as TABLE*.
 */
 class Derived_refs_iterator {
-  Table_ref *const start;  ///< The reference provided in construction.
+  const Table_ref *start;  ///< The reference provided in construction.
   size_t ref_idx{0};       ///< Current index in cte->tmp_tables
   bool m_is_first{true};   ///< True when at first reference in list
  public:
-  explicit Derived_refs_iterator(Table_ref *start_arg) : start(start_arg) {}
+  explicit Derived_refs_iterator(const Table_ref *start_arg)
+      : start(start_arg) {}
   TABLE *get_next() {
     const Common_table_expr *cte = start->common_table_expr();
     m_is_first = ref_idx == 0;

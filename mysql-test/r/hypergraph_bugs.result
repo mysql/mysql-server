@@ -1729,18 +1729,17 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN
 (SELECT MAX(x2.c) k FROM t1 x2 JOIN t1 x3 ON x2.c < x3.b GROUP BY x3.c) d1
 ON x1.b=d1.k ORDER BY x1.a LIMIT 1;
 EXPLAIN
--> Sort: x1.a, limit input to 1 row(s) per chunk  (rows=1)
-    -> Inner hash join (x1.b = d1.k)  (rows=20)
-        -> Table scan on x1  (rows=20)
-        -> Hash
-            -> Table scan on d1  (rows=10)
-                -> Materialize  (rows=10)
-                    -> Table scan on <temporary>  (rows=10)
-                        -> Aggregate using temporary table  (rows=10)
-                            -> Inner hash join (no condition), extra conditions: (x2.c < x3.b)  (rows=133)
-                                -> Table scan on x2  (rows=20)
-                                -> Hash
-                                    -> Table scan on x3  (rows=20)
+-> Limit: 1 row(s)  (rows=1)
+    -> Nested loop inner join  (rows=20)
+        -> Index scan on x1 using PRIMARY  (rows=20)
+        -> Covering index lookup on d1 using <auto_key0> (k = x1.b)  (rows=1)
+            -> Materialize  (rows=10)
+                -> Table scan on <temporary>  (rows=10)
+                    -> Aggregate using temporary table  (rows=10)
+                        -> Inner hash join (no condition), extra conditions: (x2.c < x3.b)  (rows=133)
+                            -> Table scan on x2  (rows=20)
+                            -> Hash
+                                -> Table scan on x3  (rows=20)
 
 DROP TABLE t1;
 #

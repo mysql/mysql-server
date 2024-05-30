@@ -91,6 +91,7 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // and_conds
 #include "sql/item_json_func.h"  // Item_func_array_cast
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"  // find_ref_key
 #include "sql/log.h"
@@ -6913,9 +6914,11 @@ bool Table_ref::update_derived_keys(THD *thd, Field *field, Item **values,
     }
   }
   /* Extend key which includes all referenced fields. */
-  if (add_derived_key(thd, derived_key_list, field, (table_map)0)) return true;
-  *allocated = true;
+  if (add_derived_key(thd, derived_key_list, field, table_map{0})) {
+    return true;
+  }
 
+  *allocated = true;
   return false;
 }
 
@@ -6929,6 +6932,81 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2) {
   return ((e1->referenced_by < e2->referenced_by)
               ? -1
               : ((e1->referenced_by > e2->referenced_by) ? 1 : 0));
+}
+
+/// Shift contents of 'map' one bit left from position start+1 and on.
+static void ShiftTailLeft(Key_map *map, uint start) {
+  for (uint i = start; i < map->length() - 1; i++) {
+    if (map->is_set(i + 1)) {
+      map->set_bit(i);
+    } else {
+      map->clear_bit(i);
+    }
+  }
+  map->clear_bit(map->length() - 1);
+}
+
+/**
+   Check if 'key' is redundant. This is the case if 'key' is a prefix of
+   (or equal to) a key already present in 'share'.
+   @param share The table share that 'key' refers to.
+   @param key The key we wish to check if is redundant.
+   @returns 'true' if 'key' is redundant.
+*/
+static bool SupersededByKeyInShare(const TABLE_SHARE &share,
+                                   const Derived_key &key) {
+  for (uint key_no = 0; key_no < share.keys; key_no++) {
+    const KEY &other{share.key_info[key_no]};
+    uint other_part_no{0};
+    bool is_prefix{true};
+
+    for (uint field_no = 0; field_no < share.fields; field_no++) {
+      if (key.used_fields.is_set(field_no)) {
+        if (other_part_no == other.actual_key_parts ||
+            field_no != other.key_part[other_part_no].field->field_index()) {
+          is_prefix = false;
+          break;
+        }
+        other_part_no++;
+      }
+    }
+
+    if (is_prefix) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+   Check if the derived key that is the head of 'tail' is redundant.
+   This is the case if that key is a (proper) prefix of a key later in 'tail'.
+   @param tail An iterator into the list of derived keys, currently pointing
+     to the key we wish to check against those later in the list.
+   @param fields The number of fields in the table.
+   @returns 'true' if the head of 'tail' is redundant.
+*/
+static bool SupersededByLaterKey(List_iterator<Derived_key> tail, uint fields) {
+  const Derived_key &key{**tail.ref()};
+
+  while (Derived_key *const other_key{tail++}) {
+    assert(other_key != &key);
+    bool is_prefix{true};
+
+    for (uint field_no = 0; field_no < fields; field_no++) {
+      if (key.used_fields.is_set(field_no) !=
+          other_key->used_fields.is_set(field_no)) {
+        is_prefix = false;
+        break;
+      }
+    }
+
+    if (is_prefix) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -6945,7 +7023,7 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2) {
   @return false all keys were successfully added.
 */
 
-bool Table_ref::generate_keys() {
+bool Table_ref::generate_keys(THD *thd) {
   assert(uses_materialization());
 
   if (!derived_key_list.elements) return false;
@@ -6996,15 +7074,44 @@ bool Table_ref::generate_keys() {
 
   it.rewind();
 
+  uint key_no{table->s->keys};
   while ((key = it++)) {
     if (table->s->keys == MAX_INDEXES)
       break;  // Impossible to create more keys.
+
     ref_it.rewind();
+    // Additional keys make planning more expensive for the Hypergraph
+    // optimizer. So don't add a key if there is (or will be) another one
+    // we can use instead.
+    bool created{!thd->lex->using_hypergraph_optimizer() ||
+                 !(SupersededByKeyInShare(*table->s, *key) ||
+                   SupersededByLaterKey(it, table->s->fields))};
+
     while (TABLE *t = ref_it.get_next()) {
-      if (!t->add_tmp_key(&key->used_fields,
-                          t->pos_in_table_list->query_block != query_block,
-                          ref_it.is_first()))
-        break;  // Failed to create this key (not fatal), will try next key
+      if (created) {
+        created = t->add_tmp_key(
+            &key->used_fields, t->pos_in_table_list->query_block != query_block,
+            ref_it.is_first());
+
+        // If add_tmp_key() succeeds for the first table, it should succeed
+        // for all.
+        assert(created || ref_it.is_first());
+      }
+
+      if (!created) {
+        // Renumber key bitmaps in Field objects, as we failed to make 'key'.
+        for (Field **field_pp = t->field; *field_pp != nullptr; field_pp++) {
+          Field *const field{*field_pp};
+          ShiftTailLeft(&field->key_start, key_no);
+          ShiftTailLeft(&field->part_of_key, key_no);
+          ShiftTailLeft(&field->part_of_prefixkey, key_no);
+          ShiftTailLeft(&field->part_of_sortkey, key_no);
+          ShiftTailLeft(&field->part_of_key_not_extended, key_no);
+        }
+      }
+    }
+    if (created) {
+      key_no++;
     }
   }
 
@@ -7388,6 +7495,111 @@ bool Table_ref::update_sampling_percentage() {
 
 double Table_ref::get_sampling_percentage() const {
   return sampling_percentage_val;
+}
+
+/**
+   This class caches table_paths for materialized tables. This is
+   useful if we need to plan the query block twice (the hypergraph
+   optimizer can do so, with and without in2exists predicates), both
+   saving work and avoiding issues when we try to throw away the old
+   items_to_copy for a new (identical) one.
+*/
+class MaterializedPathCache final {
+ public:
+  explicit MaterializedPathCache(THD *thd) : m_ref_paths{thd->mem_root} {}
+  // No copying.
+  MaterializedPathCache(const MaterializedPathCache &) = delete;
+  MaterializedPathCache &operator=(const MaterializedPathCache &) = delete;
+
+  /// Look for a cached MATERIALIZE path matching 'table_path', i.e. one
+  /// where the table_path has the same type as 'table_path', and use the same
+  /// key prefix if it is a REF.
+  AccessPath *LookupPath(const AccessPath *table_path) const;
+
+  /// Add 'materialize_path' to the cache. Use the type (and possible key
+  /// prefix) of 'table_path' as a key for retrieving it later.
+  void PutPath(AccessPath *materialize_path, const AccessPath *table_path);
+
+ private:
+  struct RefPath {
+    /// A MATERIALIZE path for REF access.
+    AccessPath *materialize_path;
+    /// The associated key prefix.
+    const Index_lookup *ref;
+  };
+
+  /// MATERIALIZE paths for REF access.
+  Mem_root_array<RefPath> m_ref_paths;
+
+  /// MATERIALIZE path for TABLE_SCAN access.
+  AccessPath *m_table_scan{nullptr};
+};
+
+AccessPath *MaterializedPathCache::LookupPath(
+    const AccessPath *table_path) const {
+  switch (table_path->type) {
+    case AccessPath::TABLE_SCAN:
+      return m_table_scan;
+
+    case AccessPath::REF: {
+      const auto equal_ref{[&](const RefPath &existing) {
+        return table_path->ref().ref->key == existing.ref->key &&
+               table_path->ref().ref->key_parts == existing.ref->key_parts;
+      }};
+
+      const auto iter{
+          std::find_if(m_ref_paths.begin(), m_ref_paths.end(), equal_ref)};
+
+      if (iter == m_ref_paths.end()) {
+        return nullptr;
+      } else {
+        return iter->materialize_path;
+      }
+    }
+
+    default:
+      assert(false);
+      return nullptr;
+  }
+}
+
+void MaterializedPathCache::PutPath(AccessPath *materialize_path,
+                                    const AccessPath *table_path) {
+  assert(LookupPath(table_path) == nullptr);
+
+  switch (table_path->type) {
+    case AccessPath::TABLE_SCAN:
+      m_table_scan = materialize_path;
+      break;
+
+    case AccessPath::REF:
+      m_ref_paths.push_back({materialize_path, table_path->ref().ref});
+      break;
+
+    default:
+      assert(false);
+      break;
+  }
+}
+
+AccessPath *Table_ref::GetCachedMaterializedPath(const AccessPath *table_path) {
+  assert(is_view_or_derived());
+
+  return m_materialized_path_cache == nullptr
+             ? nullptr
+             : m_materialized_path_cache->LookupPath(table_path);
+}
+
+void Table_ref::AddMaterializedPathToCache(THD *thd,
+                                           AccessPath *materialize_path,
+                                           const AccessPath *table_path) {
+  assert(is_view_or_derived());
+
+  if (m_materialized_path_cache == nullptr) {
+    m_materialized_path_cache = new (thd->mem_root) MaterializedPathCache(thd);
+  }
+
+  m_materialized_path_cache->PutPath(materialize_path, table_path);
 }
 
 void LEX_MFA::copy(LEX_MFA *m, MEM_ROOT *alloc) {

@@ -240,12 +240,15 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
     }
     left_operand = false;
   }
+  path->materialize().subquery_rows = path->num_output_rows();
+  path->num_output_rows_before_filter = path->num_output_rows();
 
   if (table_path->type == AccessPath::TABLE_SCAN) {
     path->set_cost(0.0);
     path->set_init_cost(0.0);
     path->set_init_once_cost(0.0);
     table_path->set_num_output_rows(path->num_output_rows());
+    table_path->num_output_rows_before_filter = path->num_output_rows();
     table_path->set_init_cost(subquery_cost);
     table_path->set_init_once_cost(cost_for_cacheable);
 

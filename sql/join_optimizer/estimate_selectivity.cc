@@ -316,6 +316,11 @@ double EstimateEqualPredicateSelectivity(THD *thd,
   double selectivity_cap = 1.0;
 
   for (const Field *equal_field : equal_fields) {
+    if (equal_field->table->pos_in_table_list->is_view_or_derived()) {
+      // No statistics on derived tables.
+      continue;
+    }
+
     for (uint key_no = equal_field->part_of_key.get_first_set();
          key_no != MY_BIT_NONE;
          key_no = equal_field->part_of_key.get_next_set(key_no)) {

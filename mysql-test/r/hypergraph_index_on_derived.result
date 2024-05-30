@@ -1,0 +1,240 @@
+#
+# Bug#36053196 Hypergraph: No index on derived table
+#
+SET SESSION OPTIMIZER_TRACE='enabled=on';
+CREATE TABLE t1 (a INT primary key, b INT, c INT, d INT);
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<100)
+SELECT n, n%11, n%13, n%17 FROM qn;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c, d;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+test.t1	histogram	status	Histogram statistics created for column 'd'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE WITH cte1 AS
+(SELECT sum(x1.b + x2.b) v1, x1.d v2 FROM t1 x1, t1 x2 WHERE x1.c=x2.c
+GROUP BY x1.d)
+SELECT 1 FROM t1 y1, t1 y2 WHERE y1.b=y2.b and y2.c >
+(SELECT AVG(v1) FROM cte1 WHERE y2.d=v2);
+EXPLAIN
+-> Inner hash join (y1.b = y2.b)  (rows=927)
+    -> Table scan on y1  (rows=101)
+    -> Hash
+        -> Filter: (y2.c > (select #2))  (rows=101)
+            -> Table scan on y2  (rows=101)
+            -> Select #2 (subquery in condition; dependent)
+                -> Aggregate: avg(cte1.v1)  (rows=1)
+                    -> Index lookup on cte1 using <auto_key0> (v2 = y2.d)  (rows=1)
+                        -> Materialize CTE cte1  (rows=17)
+                            -> Table scan on <temporary>  (rows=17)
+                                -> Aggregate using temporary table  (rows=17)
+                                    -> Inner hash join (x1.c = x2.c)  (rows=785)
+                                        -> Table scan on x1  (rows=101)
+                                        -> Hash
+                                            -> Table scan on x2  (rows=101)
+
+Warnings:
+Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'v2'}"
+EXPLAIN FORMAT=TREE WITH cte1 AS
+(SELECT SUM(x1.b + x2.b) v1, x1.d v2, MAX(x1.b + x2.b) v3 FROM t1 x1, t1 x2
+WHERE x1.c=x2.c GROUP BY x1.d)
+SELECT 1 FROM t1 y1, t1 y2 WHERE y1.b=y2.b AND y2.c >
+(SELECT AVG(v1) FROM cte1 d1 WHERE y2.d=v2 AND v1 >
+(SELECT AVG(d2.v2) FROM cte1 d2 WHERE d1.v3=d2.v1));
+EXPLAIN
+-> Inner hash join (y1.b = y2.b)  (rows=927)
+    -> Table scan on y1  (rows=101)
+    -> Hash
+        -> Filter: (y2.c > (select #2))  (rows=101)
+            -> Table scan on y2  (rows=101)
+            -> Select #2 (subquery in condition; dependent)
+                -> Aggregate: avg(d1.v1)  (rows=1)
+                    -> Filter: (d1.v1 > (select #4))  (rows=1)
+                        -> Index lookup on d1 using <auto_key1> (v2 = y2.d)  (rows=1)
+                            -> Materialize CTE cte1 if needed  (rows=17)
+                                -> Table scan on <temporary>  (rows=17)
+                                    -> Aggregate using temporary table  (rows=17)
+                                        -> Inner hash join (x1.c = x2.c)  (rows=785)
+                                            -> Table scan on x1  (rows=101)
+                                            -> Hash
+                                                -> Table scan on x2  (rows=101)
+                        -> Select #4 (subquery in condition; dependent)
+                            -> Aggregate: avg(d2.v2)  (rows=1)
+                                -> Filter: (d1.v3 = d2.v1)  (rows=1.7)
+                                    -> Index lookup on d2 using <auto_key0> (v1 = d1.v3)  (rows=1.7)
+                                        -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
+
+Warnings:
+Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'd1.v3' of SELECT #4 was resolved in SELECT #2
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'v1'}"
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'v1'}",
+" - <auto_key1> : {'v2'}"
+EXPLAIN FORMAT=TREE WITH cte1 AS
+(SELECT SUM(x1.b + x2.b) v1, x1.d v2, MAX(x1.b + x2.b) v3 FROM t1 x1, t1 x2
+WHERE x1.c=x2.c GROUP BY x1.d)
+SELECT 1 FROM cte1 d1 where v1=2 UNION SELECT 1 FROM cte1 d2 where v2=3;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=3.4)
+    -> Union materialize with deduplication  (rows=3.4)
+        -> Index lookup on d1 using <auto_key0> (v1 = 2)  (rows=1.7)
+            -> Materialize CTE cte1 if needed  (rows=17)
+                -> Table scan on <temporary>  (rows=17)
+                    -> Aggregate using temporary table  (rows=17)
+                        -> Inner hash join (x1.c = x2.c)  (rows=785)
+                            -> Table scan on x1  (rows=101)
+                            -> Hash
+                                -> Table scan on x2  (rows=101)
+        -> Index lookup on d2 using <auto_key1> (v2 = 3)  (rows=1.7)
+            -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
+
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'v1'}"
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'v1'}",
+" - <auto_key1> : {'v2'}"
+DROP TABLE t1;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,2), (2,2), (3,0), (4,1), (5,2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a,b;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE VIEW v1 AS SELECT MAX(a) m, b FROM t1 GROUP BY b;
+EXPLAIN FORMAT=tree WITH cte1 AS (SELECT MAX(a) m, b FROM t1 GROUP BY b)
+SELECT * FROM cte1 x1 NATURAL JOIN cte1 x2 NATURAL JOIN cte1 x3;
+EXPLAIN
+-> Nested loop inner join  (rows=0.00147)
+    -> Nested loop inner join  (rows=0.06)
+        -> Table scan on x1  (rows=2.45)
+            -> Materialize CTE cte1 if needed  (rows=2.45)
+                -> Group aggregate: max(t1.a)  (rows=2.45)
+                    -> Sort: t1.b  (rows=6)
+                        -> Table scan on t1  (rows=6)
+        -> Covering index lookup on x2 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0245)
+            -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=2.45)
+    -> Covering index lookup on x3 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0245)
+        -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=2.45)
+
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'m', 'b'}"
+EXPLAIN FORMAT=tree SELECT * FROM v1 x1 NATURAL JOIN v1 x2 NATURAL JOIN v1 x3;
+EXPLAIN
+-> Nested loop inner join  (rows=0.00147)
+    -> Nested loop inner join  (rows=0.06)
+        -> Table scan on x1  (rows=2.45)
+            -> Materialize  (rows=2.45)
+                -> Group aggregate: max(t1.a)  (rows=2.45)
+                    -> Sort: t1.b  (rows=6)
+                        -> Table scan on t1  (rows=6)
+        -> Covering index lookup on x2 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0245)
+            -> Materialize  (rows=2.45)
+                -> Group aggregate: max(t1.a)  (rows=2.45)
+                    -> Sort: t1.b  (rows=6)
+                        -> Table scan on t1  (rows=6)
+    -> Covering index lookup on x3 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0245)
+        -> Materialize  (rows=2.45)
+            -> Group aggregate: max(t1.a)  (rows=2.45)
+                -> Sort: t1.b  (rows=6)
+                    -> Table scan on t1  (rows=6)
+
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+"Keys for derived table 'x1' considered during planning':",
+" - <auto_key0> : {'m', 'b'}",
+"Keys for derived table 'x2' considered during planning':",
+" - <auto_key0> : {'m', 'b'}",
+"Keys for derived table 'x3' considered during planning':",
+" - <auto_key0> : {'m', 'b'}"
+EXPLAIN FORMAT=TREE WITH u AS (SELECT * FROM t1 UNION ALL SELECT * FROM t1)
+SELECT * FROM  u AS u1 NATURAL JOIN u AS u2;
+EXPLAIN
+-> Inner hash join (u1.a = u2.a), (u1.b = u2.b)  (rows=1.44)
+    -> Table scan on u1  (rows=12)
+        -> Materialize union CTE u if needed  (rows=12)
+            -> Table scan on t1  (rows=6)
+            -> Table scan on t1  (rows=6)
+    -> Hash
+        -> Table scan on u2  (rows=12)
+            -> Materialize union CTE u if needed (query plan printed elsewhere)  (rows=12)
+
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+EXPLAIN FORMAT=tree WITH cte1 AS (SELECT MAX(a) m, b FROM t1 GROUP BY b)
+SELECT * FROM cte1 x1, cte1 x2, cte1 x3 WHERE x1.m=x2.m AND x2.b=x3.b;
+EXPLAIN
+-> Nested loop inner join  (rows=0.147)
+    -> Nested loop inner join  (rows=0.6)
+        -> Table scan on x1  (rows=2.45)
+            -> Materialize CTE cte1 if needed  (rows=2.45)
+                -> Group aggregate: max(t1.a)  (rows=2.45)
+                    -> Sort: t1.b  (rows=6)
+                        -> Table scan on t1  (rows=6)
+        -> Index lookup on x2 using <auto_key0> (m = x1.m)  (rows=0.245)
+            -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=2.45)
+    -> Index lookup on x3 using <auto_key2> (b = x2.b)  (rows=0.245)
+        -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=2.45)
+
+SELECT line FROM (WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
+SELECT n,REGEXP_SUBSTR(trace,
+'"(.*considered during planning| - <auto_key[0-9]+> : ).*',1,n) AS line
+FROM qn, INFORMATION_SCHEMA.OPTIMIZER_TRACE ORDER BY n) dt
+WHERE line IS NOT NULL;
+line
+"Keys for CTE 'cte1' considered during planning':",
+" - <auto_key0> : {'m'}",
+" - <auto_key1> : {'m', 'b'}",
+" - <auto_key2> : {'b'}"
+DROP VIEW v1;
+DROP TABLE t1;
+SET SESSION OPTIMIZER_TRACE='enabled=off';

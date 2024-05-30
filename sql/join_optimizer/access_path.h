@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <cmath>
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -378,21 +379,25 @@ struct AccessPath {
   double cost_before_filter() const { return m_cost_before_filter; }
 
   void set_cost(double val) {
+    assert(std::isfinite(val));
     assert(val >= 0.0 || val == kUnknownCost);
     m_cost = val;
   }
 
   void set_init_cost(double val) {
+    assert(std::isfinite(val));
     assert(val >= 0.0 || val == kUnknownCost);
     m_init_cost = val;
   }
 
   void set_init_once_cost(double val) {
+    assert(std::isfinite(val));
     assert(val >= 0.0);
     m_init_once_cost = val;
   }
 
   void set_cost_before_filter(double val) {
+    assert(std::isfinite(val));
     assert(val >= 0.0 || val == kUnknownCost);
     m_cost_before_filter = val;
   }
@@ -875,7 +880,11 @@ struct AccessPath {
 
   double num_output_rows() const { return m_num_output_rows; }
 
-  void set_num_output_rows(double val) { m_num_output_rows = val; }
+  void set_num_output_rows(double val) {
+    assert(std::isfinite(val));
+    assert(val == kUnknownRowCount || val >= 0.0);
+    m_num_output_rows = val;
+  }
 
  private:
   /// Expected number of output rows.
@@ -1227,6 +1236,9 @@ struct AccessPath {
       MaterializePathParameters *param;
       /** The total cost of executing the queries that we materialize.*/
       double subquery_cost;
+      /// The number of materialized rows (as opposed to the number of rows
+      /// fetched by table_path). Needed for 'explain'.
+      double subquery_rows;
     } materialize;
     struct {
       AccessPath *table_path;
@@ -1665,6 +1677,7 @@ inline AccessPath *NewMaterializeAccessPath(
   path->materialize().table_path = table_path;
   path->materialize().param = param;
   path->materialize().subquery_cost = kUnknownCost;
+  path->materialize().subquery_rows = kUnknownRowCount;
   if (rematerialize) {
     path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
   } else {

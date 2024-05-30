@@ -25,6 +25,7 @@
 #define SQL_JOIN_OPTIMIZER_RELATIONAL_EXPRESSION_H
 
 #include <stdint.h>
+#include <type_traits>
 
 #include "sql/item.h"
 #include "sql/join_optimizer/bit_utils.h"
@@ -279,6 +280,7 @@ inline bool OperatorIsCommutative(const RelationalExpression &expr) {
 // Call the given functor on each non-table operator in the tree below expr,
 // including expr itself, in post-traversal order.
 template <class Func>
+  requires std::is_invocable_v<Func, RelationalExpression *>
 void ForEachJoinOperator(RelationalExpression *expr, Func &&func) {
   if (expr->type == RelationalExpression::TABLE) {
     return;

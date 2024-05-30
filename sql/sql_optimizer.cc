@@ -407,7 +407,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   // if (query_block->materialized_derived_table_count) {
   {  // WL#6570
     for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
-      tl->access_path_for_derived = nullptr;
+      tl->ClearMaterializedPathCache();
       if (tl->is_view_or_derived()) {
         if (tl->optimize_derived(thd)) return true;
       } else if (tl->is_table_function()) {
@@ -9305,7 +9305,7 @@ bool JOIN::generate_derived_keys() {
     table->derived_keys_ready = true;
     /* Process tables that aren't materialized yet. */
     if (table->uses_materialization() && !table->table->is_created() &&
-        table->generate_keys())
+        table->generate_keys(thd))
       return true;
   }
   return false;
