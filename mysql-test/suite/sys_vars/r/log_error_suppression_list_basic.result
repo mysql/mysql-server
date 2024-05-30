@@ -67,11 +67,11 @@ Level	Code	Message
 Warning	3735	log_error_suppression_list: Could not add suppression rule for code "10001". Rule-set may be full, or code may not correspond to an error-log message.
 Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '10000 10001'
 SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 2), "11111");
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",507),"ER_PARSER_TRACE");
 SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",508),"ER_PARSER_TRACE");
-SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",509),"ER_PARSER_TRACE");
 ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSE'
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 507), "11111");
 SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 508), "11111");
-SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 509), "11111");
 ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10'
 SET @@global.log_error_suppression_list='10000.123';
 ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000.123'

@@ -1713,15 +1713,21 @@ static void cleanup_session_context(THD *thd) {
 
 /**
   Custom error handling for histogram updates from the background thread.
-  Downgrades MDL timeout errors to warnings.
+  Downgrades all errors to warnings. This is done for two reasons:
+
+  1) Because errors during background histogram updates are mostly ignorable,
+     i.e., it is not critical that the user does something if histogram
+     statistics fail to be updated.
+
+  2) We wish to throttle error log entries from background histogram updates,
+     and this is currently only supported for a priority level of warnings.
 */
 class Background_error_handler : public Internal_error_handler {
  public:
-  bool handle_condition(THD *, uint sql_errno, const char *,
+  bool handle_condition(THD *, uint, const char *,
                         Sql_condition::enum_severity_level *level,
                         const char *) override {
-    if (sql_errno == ER_LOCK_WAIT_TIMEOUT &&
-        *level == Sql_condition::SL_ERROR) {
+    if (*level == Sql_condition::SL_ERROR) {
       *level = Sql_condition::SL_WARNING;
     }
     return false;
@@ -1757,7 +1763,6 @@ bool auto_update_table_histograms_from_background_thread(
     thd->mdl_context.release_transactional_locks();
     write_diagnostics_area_to_error_log(thd, db_name, table_name);
     cleanup_session_context(thd);
-    DEBUG_SYNC(thd, "background_histogram_update_done");
   });
 
   // It is crucial that we release objects from the dictionary cache _before_
@@ -1775,6 +1780,20 @@ bool auto_update_table_histograms_from_background_thread(
   thd->push_internal_handler(&error_handler);
   auto error_handler_guard =
       create_scope_guard([&]() { thd->pop_internal_handler(); });
+
+  // Simulate multiple errors to test error log throttling. We should only see
+  // the first error.
+  DBUG_EXECUTE_IF("background_histogram_update_errors", {
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), "field", "schema", "table");
+    my_error(ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS, MYF(0), "field", "schema",
+             "table");
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), "field", "schema", "table");
+    my_error(ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS, MYF(0), "field", "schema",
+             "table");
+    return true;
+  });
 
   // Lock the table metadata so we can check whether the table has any
   // automatically updated histograms. We get the column names from the table
