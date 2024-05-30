@@ -8475,14 +8475,14 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setLength(no_of_bits);
       break;
     }
-    case MYSQL_TYPE_NULL:
-      goto mysql_type_unsupported;
+
     case MYSQL_TYPE_VECTOR:
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_EXTENSION,
           "VECTOR type is not supported by NDB in this MySQL version");
       return HA_ERR_UNSUPPORTED;
-    mysql_type_unsupported:
+
+    case MYSQL_TYPE_NULL:
     default:
       return HA_ERR_UNSUPPORTED;
   }
