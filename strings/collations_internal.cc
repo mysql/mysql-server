@@ -260,6 +260,7 @@ extern CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks;
 extern CHARSET_INFO my_charset_utf8mb4_0900_as_ci;
 extern CHARSET_INFO my_charset_utf8mb4_ru_0900_as_cs;
 extern CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_zh_trad_0900_as_cs;
 extern CHARSET_INFO my_charset_utf8mb4_0900_bin;
 
 extern CHARSET_INFO my_charset_utf8mb4_nb_0900_ai_ci;
@@ -454,6 +455,7 @@ static CHARSET_INFO *hardcoded_charsets[] = {
     &my_charset_utf8mb4_0900_as_ci,
     &my_charset_utf8mb4_ru_0900_as_cs,
     &my_charset_utf8mb4_zh_0900_as_cs,
+    &my_charset_utf8mb4_zh_trad_0900_as_cs,
 
     &my_charset_utf8mb4_nb_0900_ai_ci,
     &my_charset_utf8mb4_nb_0900_as_cs,

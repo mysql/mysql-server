@@ -596,6 +596,7 @@ utf8mb4_gl_0900_ai_ci	utf8mb4	320
 utf8mb4_gl_0900_as_cs	utf8mb4	321
 utf8mb4_mn_cyrl_0900_ai_ci	utf8mb4	322
 utf8mb4_mn_cyrl_0900_as_cs	utf8mb4	323
+utf8mb4_zh_trad_0900_as_cs	utf8mb4	324
 utf8mb4_test_ci	utf8mb4	326
 utf16_test_ci	utf16	327
 utf8mb4_test_400_ci	utf8mb4	328

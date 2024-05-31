@@ -335,3 +335,35 @@ CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_0900_as_cs;
 INSERT INTO t1 VALUES(_utf16 0x1EC2), (_utf16 0x1EC3), (_utf16 0x1EC5), (_utf16 0x1EC0), (_utf16 0x1EC7), (_Utf16 0x1EBF);
 SELECT HEX(CONVERT(a USING utf16)) FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+# Test the characters in different groups are reordered correctly in Traditional Chinese.
+# This test case is same as Chinese, but diff WEIGHT_STRING, same order
+CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_trad_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0x2E87), (_utf16 0x2E8D), (_utf16 0x2F17),
+(_utf16 0x3038), (_utf16 0x24B6), (_utf32 0x1F150), (_utf16 0x4E2D),
+(_utf16 0x3197), (_utf32 0x1F22D), ('A'), ('a'), ('Z'), ('z'),
+(_utf16 0x3082), (_utf16 0x30E2), (_utf16 0x2E31), (_utf16 0x33E8),
+(_utf32 0x1F229), (_utf32 0x1F241), (_utf16 0xFA56);
+SELECT HEX(CONVERT(a USING utf32)), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, HEX(a);
+DROP TABLE t1;
+
+# Test how the contraction of Han characters sort (in Traditional Chinese).
+# U+9B3C and U+2FC1 mean same thing, and U+9B3C < U+2FC1
+# U+4E14 (means 'and') has stroke 5, U+4E8C (means 'two') has stroke 2, so U+4E8C < U+4E14
+CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_trad_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0x9B3C), (_utf16 0x2FC1), (_utf16 0x4E14), (_utf16 0x4E8C);
+SELECT HEX(CONVERT(a USING utf32)), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, HEX(a);
+DROP TABLE t1;
+
+# This test case is same as Chinese
+CREATE TABLE t1(a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_zh_trad_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0xF902, _utf16 0x2F9E), (_utf16 0xF907, _utf16 0x2FD4),
+(_utf16 0xF908, _utf16 0x2FD4), (_utf16 0xF9D1, _utf16 0x3285);
+SELECT HEX(CONVERT(a USING utf16)) AS a_u16, HEX(CONVERT(b USING utf16)) AS b_u16, a = b FROM t1;
+DROP TABLE t1;
+
+# This test case is same as Chinese
+CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_zh_trad_0900_as_cs;
+INSERT INTO t1 VALUES(_utf16 0x1EC2), (_utf16 0x1EC3), (_utf16 0x1EC5), (_utf16 0x1EC0), (_utf16 0x1EC7), (_Utf16 0x1EBF);
+SELECT HEX(CONVERT(a USING utf16)) FROM t1 ORDER BY a;
+DROP TABLE t1;

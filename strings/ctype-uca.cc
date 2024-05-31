@@ -59,6 +59,7 @@
 #include "strings/uca900_data.h"
 #include "strings/uca900_ja_data.h"
 #include "strings/uca900_zh_data.h"
+#include "strings/uca900_zh_trad_data.h"
 #include "strings/uca_data.h"
 #include "template_utils.h"
 
@@ -735,6 +736,18 @@ static Reorder_param zh_reorder_param = {
 
 static Coll_param zh_coll_param = {&zh_reorder_param, false, CASE_FIRST_OFF};
 
+/*
+  The Han characters are divided into two parts. The CLDR collation definition file,
+  zh.xml (CLDR v33.1), specifies the order for 23,790 Han characters 
+  (in the [reorder Hani Bopo] short version). All other Han characters are assigned
+  implicit weights.
+  The long version of [reorder Hani Bopo] includes too many characters.
+ */
+static Reorder_param zh_trad_reorder_param = {
+    {CHARGRP_NONE}, {{{0x1C47, 0x54A3}, {0x793A, 0xB196}}}, 1, 0x54A3};
+
+static Coll_param zh_trad_coll_param = {&zh_trad_reorder_param, false, CASE_FIRST_OFF};
+
 /* Russian, same for Bulgerian and Mongolian with Cyrillic letters */
 static Reorder_param ru_reorder_param = {
     {CHARGRP_CYRILLIC, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0, 0};
@@ -1212,6 +1225,26 @@ static uint16_t change_zh_implicit(uint16_t weight) {
   }
 }
 
+static uint16_t change_zh_trad_implicit(uint16_t weight) {
+  assert(weight >= 0xFB00);
+  switch (weight) {
+    case 0xFB00:
+      return 0xB197;
+    case 0xFB40:
+      return 0x7935;
+    case 0xFB41:
+      return 0x7936;
+    case 0xFB80:
+      return 0x7937;
+    case 0xFB84:
+      return 0x7938;
+    case 0xFB85:
+      return 0x7939;
+    default:
+      return weight + 0xFBC0 - 0xB197 + 1;
+  }
+}
+
 template <class Mb_wc, int LEVELS_FOR_COMPARE>
 ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_implicit(
     my_wc_t ch) {
@@ -1249,6 +1282,8 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_implicit(
   }
   if (cs->coll_param == &zh_coll_param) {
     page = change_zh_implicit(page);
+  } else if (cs->coll_param == &zh_trad_coll_param) {
+    page = change_zh_trad_implicit(page);
   }
   implicit[0] = page;
   implicit[1] = 0x0020;
@@ -1665,7 +1700,7 @@ uint16_t uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::apply_reorder_param(
     modify_all_zh_pages(). See the comment on zh_reorder_param and
     change_zh_implicit().
    */
-  if (cs->coll_param == &zh_coll_param) return weight;
+  if (cs->coll_param == &zh_coll_param || cs->coll_param == &zh_trad_coll_param) return weight;
   const Reorder_param *param = cs->coll_param->reorder_param;
   if (weight >= START_WEIGHT_TO_REORDER && weight <= param->max_weight) {
     for (int rec_ind = 0; rec_ind < param->wt_rec_num; ++rec_ind) {
@@ -4122,6 +4157,18 @@ static void copy_zh_han_pages(MY_UCA_INFO *dst, MY_CHARSET_LOADER *loader) {
   }
 }
 
+static void copy_zh_trad_han_pages(MY_UCA_INFO *dst, MY_CHARSET_LOADER *loader) {
+  for (int page = MIN_ZH_TRAD_HAN_PAGE; page <= MAX_ZH_TRAD_HAN_PAGE; page++) {
+    if (zh_trad_han_pages[page - MIN_ZH_TRAD_HAN_PAGE]) {
+      if (dst->m_allocated_weights->at(page)) {
+        loader->mem_free(dst->weights[page]);
+        dst->m_allocated_weights->at(page) = 0;
+      }
+      dst->weights[page] = zh_trad_han_pages[page - MIN_ZH_TRAD_HAN_PAGE];
+    }
+  }
+}
+
 /*
   UCA defines an algorithm to calculate character's implicit weight if this
   character's weight is not defined in the DUCET. This function is to help
@@ -4219,6 +4266,62 @@ static void modify_all_zh_pages(Reorder_param *reorder_param, MY_UCA_INFO *dst,
   }
 }
 
+static void modify_all_zh_trad_pages(Reorder_param *reorder_param, MY_UCA_INFO *dst,
+                                int npages) {
+  std::map<int, int> zh_trad_han_to_single_weight_map;
+  for (int i = 0; i < ZH_TRAD_HAN_WEIGHT_PAIRS; i++) {
+    zh_trad_han_to_single_weight_map[zh_trad_han_to_single_weight[i * 2]] =
+        zh_trad_han_to_single_weight[i * 2 + 1];
+  }
+
+  for (int page = 0; page < npages; page++) {
+    /*
+      If there is no page in the DUCET, then all the characters in this page
+      must have implicit weight. The reordering for it will be done by
+      change_zh_trad_implicit(). Do not need to change here.
+      If there is page in zh_trad_han_pages[], then all the characters in this page
+      have been reordered by uca9dump. Do not need to change here.
+     */
+    if (!dst->weights[page] ||
+        (page >= MIN_ZH_TRAD_HAN_PAGE && page <= MAX_ZH_TRAD_HAN_PAGE &&
+         zh_trad_han_pages[page - MIN_ZH_TRAD_HAN_PAGE]))
+      continue;
+    for (int off = 0; off < 256; off++) {
+      uint16_t *wbeg = UCA900_WEIGHT_ADDR(dst->weights[page], 0, off);
+      int num_of_ce = UCA900_NUM_OF_CE(dst->weights[page], off);
+      for (int ce = 0; ce < num_of_ce; ce++) {
+        assert(reorder_param->wt_rec_num == 1);
+        if (*wbeg >= reorder_param->wt_rec[0].old_wt_bdy.begin &&
+            *wbeg <= reorder_param->wt_rec[0].old_wt_bdy.end) {
+          *wbeg = *wbeg + reorder_param->wt_rec[0].new_wt_bdy.begin -
+                  reorder_param->wt_rec[0].old_wt_bdy.begin;
+        } else if (*wbeg >= 0xFB00) {
+          uint16_t next_wt = *(wbeg + UCA900_DISTANCE_BETWEEN_WEIGHTS);
+          if (*wbeg >= 0xFB40 && *wbeg <= 0xFBC1) {  // Han's implicit weight
+            /*
+              If some characters in DUCET share the same implicit weight, their
+              reordered weight should be same too.
+             */
+            my_wc_t ch = convert_implicit_to_ch(*wbeg, next_wt);
+            if (zh_trad_han_to_single_weight_map.find(ch) !=
+                zh_trad_han_to_single_weight_map.end()) {
+              *wbeg = zh_trad_han_to_single_weight_map[ch];
+              *(wbeg + UCA900_DISTANCE_BETWEEN_WEIGHTS) = 0;
+              wbeg += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+              ce++;
+              continue;
+            }
+          }
+          *wbeg = change_zh_trad_implicit(*wbeg);
+          wbeg += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+          ce++;
+        }
+        wbeg += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+      }
+    }
+  }
+}
+
 static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
                               MY_UCA_INFO *dst, const MY_UCA_INFO *src) {
   MY_COLL_RULE *r, *rlast;
@@ -4296,6 +4399,14 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
     }
     modify_all_zh_pages(cs->coll_param->reorder_param, dst, npages);
     copy_zh_han_pages(dst, loader);
+  } else if (cs->coll_param == &zh_trad_coll_param) {
+    bool rc;
+    for (i = 0; i < npages; i++) {
+      if (dst->lengths[i] && (rc = my_uca_copy_page(cs, loader, src, dst, i)))
+        return rc;
+    }
+    modify_all_zh_trad_pages(cs->coll_param->reorder_param, dst, npages);
+    copy_zh_trad_han_pages(dst, loader);
   } else {
     /* Allocate pages that we'll overwrite and copy default weights */
     for (i = 0; i < npages; i++) {
@@ -4550,7 +4661,7 @@ static int my_coll_check_rule_and_inherit(const CHARSET_INFO *cs,
       U+1EC1, and it is not a contraction. If we don't handle this for Chinese
       collation, it will skip some further rule inheriting.
      */
-    if (cs->coll_param != &zh_coll_param && r.curr[1]) continue;
+    if ((cs->coll_param != &zh_coll_param && cs->coll_param != &zh_trad_coll_param) && r.curr[1]) continue;
     Unidata_decomp *decomp_rec = get_decomposition(r.curr[0]);
     if (my_coll_add_inherit_rules(rules, &r, decomp_rec, &comp_added)) return 1;
   }
@@ -4653,7 +4764,7 @@ static int my_prepare_reorder(CHARSET_INFO *cs) {
     modify_all_zh_pages(). See the comment on zh_reorder_param and
     change_zh_implicit().
    */
-  if (!cs->coll_param->reorder_param || cs->coll_param == &zh_coll_param)
+  if (!cs->coll_param->reorder_param || (cs->coll_param == &zh_coll_param || cs->coll_param == &zh_trad_coll_param))
     return 0;
   /*
     For each group of character, for example, latin characters,
@@ -4806,7 +4917,7 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   dst->extra_ce_pri_base = cs->uca->extra_ce_pri_base;
   dst->extra_ce_sec_base = cs->uca->extra_ce_sec_base;
   dst->extra_ce_ter_base = cs->uca->extra_ce_ter_base;
-  if (cs->coll_param && cs->coll_param == &zh_coll_param) {
+  if (cs->coll_param && (cs->coll_param == &zh_coll_param || cs->coll_param == &zh_trad_coll_param )) {
     dst->extra_ce_pri_base = ZH_EXTRA_CE_PRI;
   }
 
@@ -11978,6 +12089,41 @@ CHARSET_INFO my_charset_utf8mb4_mn_cyrl_0900_as_cs = {
     "",                                     /* comment      */
     "",                                     /* tailoring    */
     &ru_coll_param,                         /* coll_param   */
+    ctype_utf8,                             /* ctype        */
+    nullptr,                                /* to_lower     */
+    nullptr,                                /* to_upper     */
+    nullptr,                                /* sort_order   */
+    &my_uca_v900,                           /* uca          */
+    nullptr,                                /* tab_to_uni   */
+    nullptr,                                /* tab_from_uni */
+    &my_unicase_unicode900,                 /* caseinfo     */
+    nullptr,                                /* state_map    */
+    nullptr,                                /* ident_map    */
+    0,                                      /* strxfrm_multiply */
+    1,                                      /* caseup_multiply  */
+    1,                                      /* casedn_multiply  */
+    1,                                      /* mbminlen      */
+    4,                                      /* mbmaxlen      */
+    1,                                      /* mbmaxlenlen   */
+    32,                                     /* min_sort_char */
+    0x10FFFF,                               /* max_sort_char */
+    ' ',                                    /* pad char      */
+    false, /* escape_with_backslash_is_dangerous */
+    3,     /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_uca_900_handler,
+    NO_PAD};
+
+CHARSET_INFO my_charset_utf8mb4_zh_trad_0900_as_cs = {
+    324,
+    0,
+    0,                                      /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS | MY_CS_CSSORT, /* state        */
+    "utf8mb4",                              /* csname       */
+    "utf8mb4_zh_trad_0900_as_cs",           /* m_coll_name  */
+    "",                                     /* comment      */
+    zh_trad_cldr_30,                        /* tailoring    */
+    &zh_trad_coll_param,                    /* coll_param   */
     ctype_utf8,                             /* ctype        */
     nullptr,                                /* to_lower     */
     nullptr,                                /* to_upper     */

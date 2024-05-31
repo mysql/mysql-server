@@ -716,13 +716,192 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
   return 0;
 }
 
-enum OPT_DUMP { DUCET_DUMP, JA_DUMP, ZH_DUMP, DUMP_ERROR };
+uint16_t change_zh_trad_implicit(uint16_t weight) {
+  switch (weight) {
+    case 0xFB00:
+      return 0xB197;
+    case 0xFB40:
+      return 0x7935;
+    case 0xFB41:
+      return 0x7936;
+    case 0xFB80:
+      return 0x7937;
+    case 0xFB84:
+      return 0x7938;
+    case 0xFB85:
+      return 0x7939;
+    default:
+      return weight + 0xFBC0 - 0xB197 + 1;
+  }
+}
+
+int dump_zh_trad_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
+  /*
+    zh.xml of cldr v33 defines 23790 Chinese Han characters. (in stroke short collation)
+    This xml file is encoded in utf8. Most of the Han characters are encoded in 
+    3 bytes, and some are encoded in 4 bytes.
+   */
+  constexpr int ZH_HAN_CNT = 23790;
+  unsigned char zh_bytes[ZH_HAN_CNT * 4]{0};
+
+  if (read_in_lang_data((char *)zh_bytes, sizeof(zh_bytes), infile)) return 1;
+
+  /*
+    Since the rule [reorder Hani Bopo], Chinese Han character's weight should be
+    smaller than any other non-ignorable characters (except of the core
+    characters like spaces, symbols).
+
+    To make the reordering, we decide to change the weight of all characters
+    as:
+    Char Group                    | Origin Weight Range         | Reordered Weight Range
+    ------------------------------|-----------------------------|----------------------------
+    core chars                    | 0200 - 1C46                 | 0200 - 1C46
+    Han in zh.xml (stroke (short))| [FB40, AAAA] - [FB85, BBBB] | 1C47 - 7934
+    Other Han                     | [FB40, CCCC] - [FB85, DDDD] | [7935, CCCC] - [7939, DDDD]
+    Latin, etc                    | 1C47 - 54A3                 | 793A - B196
+    Others                        | [FBC0, XXXX] - [FBE1, YYYY] | [B197, XXXX] - [B1B8, YYYY]
+
+    This function changes only the weight of the Han characters defined in
+    zh.xml and other characters in the same pages these Han characters reside.
+   */
+  constexpr int ZH_CORE_HAN_BASE_WT = 0x1C47;
+
+  std::map<int, int> zh_trad_han_to_single_weight_map;
+  unsigned char *zh_ch = zh_bytes;
+  int zh_len = strlen((char *)zh_bytes);
+  int min_page = 0x1100;  // the max code point utf8mb4 supports is 0x10FFFF.
+  int max_page = 0;
+  for (int i = 0; i < ZH_HAN_CNT; i++) {
+    my_wc_t ch = 0;
+    int bytes = my_mb_wc_utf8mb4(&ch, zh_ch, zh_ch + zh_len);
+    if (bytes <= 0) break;
+    zh_ch += bytes;
+    int page = ch >> 8;
+    uca->item[ch].num_of_ce = 1;
+    uca->item[ch].weight[0] = ZH_CORE_HAN_BASE_WT + i;
+    uca->item[ch].weight[1] = 0x20;
+    uca->item[ch].weight[2] = 0x02;
+    pageloaded[page]++;
+    min_page = std::min(min_page, page);
+    max_page = std::max(max_page, page);
+    MY_UCA_ITEM tmp_item;
+    set_implicit_weights(&tmp_item, ch);
+    zh_trad_han_to_single_weight_map[ch] = ZH_CORE_HAN_BASE_WT + i;
+  }
+
+  for (int page = min_page; page <= max_page; page++) {
+    if (pageloaded[page]) {
+      // There is same page in DUCET.
+      if (uca900_weight[page]) {
+        for (int off = 0; off < MY_UCA_CHARS_PER_PAGE; off++) {
+          int ch_off = (page << 8) + off;
+          // Copy other characters' weight from DUCET.
+          if (uca->item[ch_off].num_of_ce == 0) {
+            uca->item[ch_off].num_of_ce =
+                UCA900_NUM_OF_CE(uca900_weight[page], off);
+            for (int level = 0; level < 3; level++) {
+              uint16_t *weight =
+                  UCA900_WEIGHT_ADDR(uca900_weight[page], level, off);
+              uint16_t *dst = uca->item[ch_off].weight + level;
+              for (int ce = 0; ce < uca->item[ch_off].num_of_ce; ce++) {
+                if (*weight >= 0x1C47 && *weight <= 0x54A3) {
+                  *dst = *weight + 0xBDC4 - 0x1C47;
+                } else if (*weight >= 0xFB00) {  // implicit weight
+                  uint16_t next_implicit =
+                      *(weight + UCA900_DISTANCE_BETWEEN_WEIGHTS);
+                  my_wc_t ch = convert_implicit_to_ch(*weight, next_implicit);
+                  if (zh_trad_han_to_single_weight_map.find(ch) !=
+                      zh_trad_han_to_single_weight_map.end()) {
+                    *dst = zh_trad_han_to_single_weight_map[ch];
+                    dst += 3;
+                    weight += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+                    ce++;
+                  } else {
+                    *dst = change_zh_trad_implicit(*weight);
+                    dst += 3;
+                    weight += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+                    ce++;
+                    *dst = *weight;
+                    dst += 3;
+                    weight += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+                  }
+                } else {
+                  *dst = *weight;
+                }
+                dst += 3;
+                weight += UCA900_DISTANCE_BETWEEN_WEIGHTS;
+              }
+            }
+          }
+        }
+      } else {
+        for (int off = 0; off < MY_UCA_CHARS_PER_PAGE; off++) {
+          int ch = (page << 8) + off;
+          if (uca->item[ch].num_of_ce == 0) {
+            // calculate its implicit weight.
+            set_implicit_weights(&uca->item[ch], ch);
+            // Only the first primary weight needs to be changed in place.
+            uca->item[ch].weight[0] =
+                change_zh_trad_implicit(uca->item[ch].weight[0]);
+          }
+        }
+      }
+    }
+  }
+
+  fprintf(outfile, "#include <cstdint>\n\n");
+  fprintf(outfile, "extern const int MIN_ZH_TRAD_HAN_PAGE = 0x%X;\n", min_page);
+  fprintf(outfile, "extern const int MAX_ZH_TRAD_HAN_PAGE = 0x%X;\n\n", max_page);
+  for (int page = min_page; page <= max_page; page++) {
+    if (pageloaded[page]) {
+      int maxnum = 0;
+      get_page_statistics(uca, page, &maxnum);
+
+      maxnum = maxnum * MY_UCA_CE_SIZE + 1;
+      print_one_page(uca, page, "zh_trad_han_p", maxnum, outfile);
+    }
+  }
+
+  fprintf(outfile, "uint16_t* zh_trad_han_pages[%d] = {\n", max_page - min_page + 1);
+  for (int page = min_page; page <= max_page; page++) {
+    if (!((page - min_page) % 5)) {
+      if (pageloaded[page]) {
+        fprintf(outfile, "%10s%03X", "zh_trad_han_p", page);
+      } else {
+        fprintf(outfile, "%13s", "nullptr");
+      }
+    } else {
+      if (pageloaded[page]) {
+        fprintf(outfile, "%9s%03X", "zh_trad_han_p", page);
+      } else {
+        fprintf(outfile, "%12s", "nullptr");
+      }
+    }
+    if ((page - min_page + 1) != MY_UCA_NPAGES) fprintf(outfile, ",");
+    if (!((page - min_page + 1) % 5) || (page - min_page + 1) == MY_UCA_NPAGES)
+      fprintf(outfile, "\n");
+  }
+  fprintf(outfile, "\n};\n\n");
+
+  fprintf(outfile, "int zh_trad_han_to_single_weight[] = {\n");
+  for (auto map_it = zh_trad_han_to_single_weight_map.begin();
+       map_it != zh_trad_han_to_single_weight_map.end(); map_it++) {
+    fprintf(outfile, "  0x%05X, 0x%04X,\n", map_it->first, map_it->second);
+  }
+  fprintf(outfile, "\n};\n\n");
+  fprintf(outfile, "extern const int ZH_TRAD_HAN_WEIGHT_PAIRS = %lu;\n",
+          static_cast<unsigned long>(zh_trad_han_to_single_weight_map.size()));
+
+  return 0;
+}
+
+enum OPT_DUMP { DUCET_DUMP, JA_DUMP, ZH_DUMP, ZH_TRAD_DUMP, DUMP_ERROR };
 
 OPT_DUMP handle_options(int ac, char **av, char **infilename,
                         char **outfilename) {
   if (ac != 4) return DUMP_ERROR;
   if (!native_strcasecmp(av[1], "ducet") || !native_strcasecmp(av[1], "ja") ||
-      !native_strcasecmp(av[1], "zh")) {
+      !native_strcasecmp(av[1], "zh") || !native_strcasecmp(av[1], "zh-trad")) {
     if (!native_strncasecmp(av[2], "--in_file=", 10)) *infilename = av[2] + 10;
     if (!native_strncasecmp(av[3], "--out_file=", 11))
       *outfilename = av[3] + 11;
@@ -730,6 +909,7 @@ OPT_DUMP handle_options(int ac, char **av, char **infilename,
     if (!native_strcasecmp(av[1], "ducet")) return DUCET_DUMP;
     if (!native_strcasecmp(av[1], "ja")) return JA_DUMP;
     if (!native_strcasecmp(av[1], "zh")) return ZH_DUMP;
+    if (!native_strcasecmp(av[1], "zh-trad")) return ZH_TRAD_DUMP;
   }
   return DUMP_ERROR;
 }
@@ -816,6 +996,9 @@ int main(int ac, char **av) {
       break;
     case ZH_DUMP:
       dump_zh_hans(uca, pageloaded, infile, outfile);
+      break;
+    case ZH_TRAD_DUMP:
+      dump_zh_trad_hans(uca, pageloaded, infile, outfile);
       break;
     default:
       printf(
