@@ -7488,6 +7488,42 @@ AccessPath *MakeSortPathAndApplyWindows(
   return root_path;
 }
 
+/**
+  Check if at least one candidate for a valid query plan was found. Raise an
+  error if no plan was found.
+
+  @retval false on success (a plan was found)
+  @retval true if an error was raised (no plan found)
+ */
+bool CheckFoundPlan(THD *thd, const AccessPathArray &candidates,
+                    bool is_secondary_engine) {
+  const bool found_a_plan = !candidates.empty();
+
+  // We should always find a plan unless an error has been raised during
+  // planning. We make an exception for secondary engines, as it is possible
+  // that they reject so many subplans that no full plan can be constructed.
+  assert(found_a_plan || is_secondary_engine);
+
+  if (found_a_plan) {
+    return false;
+  }
+
+  if (is_secondary_engine) {
+    // Ask the secondary engine why no plan was produced.
+    const std::string_view reason = get_secondary_engine_fail_reason(thd->lex);
+    if (!reason.empty()) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(reason));
+    } else {
+      set_fail_reason_and_raise_error(
+          thd->lex, find_secondary_engine_fail_reason(thd->lex));
+    }
+    return true;
+  }
+
+  my_error(ER_NO_QUERY_PLAN_FOUND, MYF(0));
+  return true;
+}
+
 }  // namespace
 
 /**
@@ -8363,16 +8399,10 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
           FindBestQueryPlanInner(thd, query_block, retry, subgraph_pair_limit);
       if (result != nullptr) return result;
     }
-    assert(secondary_engine_cost_hook != nullptr);
-    std::string_view reason = get_secondary_engine_fail_reason(thd->lex);
-    if (!reason.empty()) {
-      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(reason));
-    } else {
-      std::string_view err_msg = find_secondary_engine_fail_reason(thd->lex);
-      assert(!err_msg.empty());
-      set_fail_reason_and_raise_error(thd->lex, err_msg);
+    if (CheckFoundPlan(thd, root_candidates,
+                       secondary_engine_cost_hook != nullptr)) {
+      return nullptr;
     }
-    return nullptr;
   }
   assert(!root_candidates.empty());
   thd->m_current_query_partial_plans += receiver.num_subplans();
@@ -8626,18 +8656,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
 
   if (thd->is_error()) return nullptr;
 
-  if (secondary_engine_cost_hook != nullptr && root_candidates.empty()) {
-    // The secondary engine has rejected so many of the post-processing paths
-    // (e.g., sorting, limit, grouping) that we could not build a complete plan,
-    // or the hook has rejected the plan as not offloadable.
-    std::string_view reason = get_secondary_engine_fail_reason(thd->lex);
-    if (!reason.empty()) {
-      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(reason));
-    } else {
-      std::string_view err_msg = find_secondary_engine_fail_reason(thd->lex);
-      assert(!err_msg.empty());
-      set_fail_reason_and_raise_error(thd->lex, err_msg);
-    }
+  if (CheckFoundPlan(thd, root_candidates,
+                     secondary_engine_cost_hook != nullptr)) {
     return nullptr;
   }
 

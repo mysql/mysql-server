@@ -10500,6 +10500,9 @@ ER_BULK_JSON_INVALID
 ER_BULK_BLOB_TOO_BIG
   eng "Column data bigger than %zu bytes for column='%s' of table='%s'"
 
+ER_NO_QUERY_PLAN_FOUND
+  eng "No query execution plan was found for the statement."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
