@@ -9464,7 +9464,7 @@ ER_INVALID_CAST
 ER_HYPERGRAPH_NOT_SUPPORTED_YET 42000
   eng "The hypergraph optimizer does not yet support '%s'"
 
-OBSOLETE_WARN_HYPERGRAPH_EXPERIMENTAL
+OBSOLETE_ER_WARN_HYPERGRAPH_EXPERIMENTAL
   eng "The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer."
 
 ER_DA_NO_ERROR_LOG_PARSER_CONFIGURED
