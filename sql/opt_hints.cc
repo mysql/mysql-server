@@ -630,7 +630,7 @@ mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
   THD *thd = join->thd;
   MEM_ROOT *mem_root_arg = thd->mem_root;
   mem_root_deque<Table_ref *> *new_join_list =
-      new mem_root_deque<Table_ref *>(mem_root_arg);
+      new (mem_root_arg) mem_root_deque<Table_ref *>(mem_root_arg);
 
   if (join_list->size() <= 1) {
     new_join_list = const_cast<mem_root_deque<Table_ref *> *>(join_list);
