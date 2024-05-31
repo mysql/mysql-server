@@ -1270,6 +1270,7 @@ static unique_ptr<Json_object> SetObjectMembers(
           get_used_key_parts(path), "lookup",
           RefToString(*path->mrr().ref, key, /*include_nulls=*/false),
           /*ranges=*/nullptr, nullptr, false, table.file->pushed_idx_cond, obj);
+      error |= AddMemberToObject<Json_boolean>(obj, "multi_range_read", true);
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
@@ -1292,11 +1293,28 @@ static unique_ptr<Json_object> SetObjectMembers(
       string ranges;
       error |= PrintRanges(param.ranges, param.num_ranges, key_info.key_part,
                            /*single_part_only=*/false, range_arr, &ranges);
+
+      // A range scan could use MRR optimization if possible. However, unless
+      // multi_range_read_init() is called, we do not have a way to know if the
+      // optimization will be used even though range optimizer has picked it. If
+      // the range scan requires rows in order, the storage engine might not be
+      // able to provide the order when using MRR optimization, in which case it
+      // switches to the default implementation. Calling multi_range_read_init()
+      // can potentially be costly, so it is not done when executing an EXPLAIN.
+      // We therefore simulate its effect here:
+      uint mrr_flags = param.mrr_flags;
+      bool using_mrr = false;
+      if ((!(mrr_flags & HA_MRR_SORTED) || mrr_flags & HA_MRR_SUPPORT_SORTED) &&
+          !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL)) {
+        using_mrr = true;
+        error |= AddMemberToObject<Json_boolean>(obj, "multi_range_read", true);
+      }
       error |= SetIndexInfoInObject(
           &description, "index_range_scan", nullptr, table, key_info,
-          get_used_key_parts(path), "range scan", /*lookup condition*/ "",
-          &ranges, std::move(range_arr), path->index_range_scan().reverse,
-          table.file->pushed_idx_cond, obj);
+          get_used_key_parts(path),
+          using_mrr ? "range scan (Multi-Range Read)" : "range scan",
+          /*lookup condition*/ "", &ranges, std::move(range_arr),
+          path->index_range_scan().reverse, table.file->pushed_idx_cond, obj);
 
       error |= AddChildrenFromPushedCondition(table, children);
       break;

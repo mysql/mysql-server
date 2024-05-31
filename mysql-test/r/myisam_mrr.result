@@ -741,6 +741,47 @@ DROP TABLE t1, t2;
 set big_tables=@big_tables_save;
 set optimizer_switch=@optimizer_switch_save;
 #
+# Bug#36614948 No information about MRR in EXPLAIN with explain_json_format_version=2
+#
+SET @save_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch='mrr_cost_based=off';
+SET @save_explain_json_format_version = @@explain_json_format_version;
+SELECT @@optimizer_switch LIKE "%mrr=on%";
+@@optimizer_switch LIKE "%mrr=on%"
+1
+CREATE TABLE t(x INT, y INT, z INT, KEY(x));
+INSERT INTO t(x) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TRADITIONAL SELECT * FROM t WHERE x IN (3, 4, 6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	x	x	5	NULL	3	100.00	Using where; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x`,`test`.`t`.`y` AS `y`,`test`.`t`.`z` AS `z` from `test`.`t` where (`test`.`t`.`x` in (3,4,6))
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
+SELECT IF(JSON_EXTRACT(@var, "$.query_block.table.using_MRR"), TRUE, FALSE) AS using_MRR;
+using_MRR
+1
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.multi_range_read')
+AS multi_range_read,
+JSON_SEARCH(@var, 'one', '%(Multi-Range Read)%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_multi_range_read;
+multi_range_read	operation_contains_multi_range_read
+1	1
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN (3, 4, 6);
+EXPLAIN
+-> Filter: (t.x in (3,4,6))  (...)
+    -> Index range scan (Multi-Range Read) on t using x over (x = 3) OR (x = 4) OR (x = 6)  (...)
+
+DROP TABLE t;
+SET @@optimizer_switch = @save_optimizer_switch;
+SET @@explain_json_format_version = @save_explain_json_format_version;
+#
 # Bug#58463: Error Can't find record on SELECT with JOIN and ORDER BY
 #
 CREATE TABLE t1 (

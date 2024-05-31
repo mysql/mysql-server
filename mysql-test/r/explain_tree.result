@@ -914,12 +914,12 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 EXPLAIN
--> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
+-> Index range scan (Multi-Range Read) on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
 EXPLAIN
--> Index range scan on t1 using a over (a = 2) OR (a = 4) OR (3 more) (reverse), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
+-> Index range scan (Multi-Range Read) on t1 using a over (a = 2) OR (a = 4) OR (3 more) (reverse), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
 EXPLAIN ANALYZE
 SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;

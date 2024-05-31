@@ -90,3 +90,34 @@ connection default;
 disconnect con1;
 disconnect con2;
 
+--echo #
+--echo # Bug#36614948 No information about MRR in EXPLAIN with explain_json_format_version=2
+--echo #
+
+SET @saved_explain_json_format_version = @@explain_json_format_version;
+SET explain_json_format_version = 2;
+
+CREATE TABLE t1 (
+    a INTEGER,
+    b INTEGER
+);
+CREATE TABLE t2 (
+    a INTEGER,
+    b INTEGER,
+    KEY a (a)
+);
+
+# Expect bka with mrr. We do not care where they occur, only that both are present,
+# as the mrr access path can only exist as a sub-path to bka.
+EXPLAIN FORMAT=JSON INTO @var SELECT /*+ BKA(t2) */ * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.b = 1 AND t1.b = 2;
+SELECT
+JSON_SEARCH(@var, 'one', 'Batched key access%', NULL, '$**.operation') IS NOT NULL
+AS batched_key_access,
+JSON_CONTAINS_PATH(@var, 'one', '$**.multi_range_read')
+AS multi_range_read,
+JSON_SEARCH(@var, 'one', 'Multi-range%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_multi_range_read;
+
+DROP TABLE t1,t2;
+
+SET explain_json_format_version = @saved_explain_json_format_version;

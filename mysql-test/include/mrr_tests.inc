@@ -1,3 +1,4 @@
+--source ./elide_costs.inc
 
 create table t1(a int) charset utf8mb4;
 show create table t1;
@@ -599,3 +600,60 @@ DROP TABLE t1, t2;
 # Restore the configuration for big_tables
 set big_tables=@big_tables_save;
 set optimizer_switch=@optimizer_switch_save;
+
+--echo #
+--echo # Bug#36614948 No information about MRR in EXPLAIN with explain_json_format_version=2
+--echo #
+
+SET @save_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch='mrr_cost_based=off';
+SET @save_explain_json_format_version = @@explain_json_format_version;
+
+# MRR is off in the "none" tests, so should only be there if MRR is on
+SELECT @@optimizer_switch LIKE "%mrr=on%";
+
+CREATE TABLE t(x INT, y INT, z INT, KEY(x));
+INSERT INTO t(x) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+
+# Should show "Using MRR" in Extra
+EXPLAIN FORMAT=TRADITIONAL SELECT * FROM t WHERE x IN (3, 4, 6);
+
+# EXPLAIN JSONv1, should contain "using_MRR": true
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
+SELECT IF(JSON_EXTRACT(@var, "$.query_block.table.using_MRR"), TRUE, FALSE) AS using_MRR;
+
+# EXPLAIN JSONv2, should contain "multi_range_read": true
+# "operation" should show "multi-range" for the relevant access paths.
+# An example plan is:
+# EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
+# {
+#   "query": <query>,
+#   "ranges": [
+#     "(x = 3) OR (x = 4) OR (x = 6)"
+#   ],
+#   "operation": "Index multi-range scan on t using x over (x = 3) OR (x = 4) OR (x = 6), with index condition: (t.x in (3,4,6))",
+# //                    -----------
+#   "multi_range_read": true,
+# //------------------------
+#   "access_type": "index",
+#   "index_access_type": "index_range_scan",
+#   ...
+# }
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.multi_range_read')
+AS multi_range_read,
+JSON_SEARCH(@var, 'one', '%(Multi-Range Read)%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_multi_range_read;
+
+# EXPLAIN TREE, should show "multi-range" for the relevant access paths
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN (3, 4, 6);
+
+DROP TABLE t;
+
+SET @@optimizer_switch = @save_optimizer_switch;
+SET @@explain_json_format_version = @save_explain_json_format_version;

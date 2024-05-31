@@ -539,7 +539,7 @@ EXPLAIN SELECT /*+ BKA(qb1 t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 EXPLAIN
--> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 2 < f1), with index condition: ((t3.f3 = 'poiu') and (t3.f1 > 2) and (t3.f1 > 2))  (rows=16)
+-> Index range scan (Multi-Range Read) on t3 using f3_idx over (f3 = 'poiu' AND 2 < f1), with index condition: ((t3.f3 = 'poiu') and (t3.f1 > 2) and (t3.f1 > 2))  (rows=16)
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM

@@ -957,7 +957,7 @@ Handler_read_rnd_next	11
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
-    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn off MRR. MRR should not be used.
 EXPLAIN SELECT /*+ NO_MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -975,7 +975,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ NO_MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
-    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
 set optimizer_switch='mrr=off,mrr_cost_based=off';
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -987,13 +987,13 @@ EXPLAIN
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
-    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 IDX2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
-    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -1011,13 +1011,13 @@ EXPLAIN
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
-    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
-    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;

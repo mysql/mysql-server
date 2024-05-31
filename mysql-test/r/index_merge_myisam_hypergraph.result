@@ -1343,7 +1343,7 @@ EXPLAIN
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 EXPLAIN
 -> Filter: (t1.st_a = 1)  (rows=3808)
-    -> Index range scan on t1 using st_b over (st_b = 1)  (rows=15093)
+    -> Index range scan (Multi-Range Read) on t1 using st_b over (st_b = 1)  (rows=15093)
 
 # Do many tests
 # Check that keys that don't improve selectivity are skipped.
@@ -1356,7 +1356,7 @@ EXPLAIN
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
 -> Filter: (t1.swt2b = 1)  (...)
-    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
+    -> Index range scan (Multi-Range Read) on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
