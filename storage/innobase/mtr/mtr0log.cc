@@ -846,6 +846,9 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
   }
 
   if (!mlog_open(mtr, alloc, log_ptr)) {
+    if (is_versioned) {
+      delete[] fields_with_changed_order;
+    }
     /* logging is disabled */
     return (false);
   }
