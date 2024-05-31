@@ -21,14 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @defgroup GroupLibsMysql MySQL Libraries
-
-/// @defgroup GroupLibsMysqlBinlog MySQL Libraries : Binlog Libraries
-/// @ingroup GroupLibsMysql
-
-/// @defgroup GroupLibsMysqlBinlogEvent MySQL Libraries : Binlog Event
-/// @ingroup GroupLibsMysqlBinlog
-
 /**
   @file binlog_event.h
 
