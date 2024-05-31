@@ -2485,6 +2485,13 @@ QueryForwarder::classify_query() {
   if (connection()->connection_sharing_allowed() &&
       // only switch backends if access-mode is 'auto'
       connection()->context().access_mode() == routing::AccessMode::kAuto) {
+    if (connection()->expected_server_mode() ==
+        mysqlrouter::ServerMode::Unavailable) {
+      connection()->expected_server_mode(
+          want_read_only_connection ? mysqlrouter::ServerMode::ReadOnly
+                                    : mysqlrouter::ServerMode::ReadWrite);
+    }
+
     if ((want_read_only_connection && connection()->expected_server_mode() ==
                                           mysqlrouter::ServerMode::ReadWrite) ||
         (!want_read_only_connection && connection()->expected_server_mode() ==
@@ -2531,7 +2538,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
         std::string(connection()->expected_server_mode() ==
                             mysqlrouter::ServerMode::ReadOnly
                         ? "ro"
-                        : "rw-or-nothing")));
+                        : (connection()->expected_server_mode() ==
+                                   mysqlrouter::ServerMode::ReadWrite
+                               ? "rw-or-nothing"
+                               : "undefined"))));
   }
 
   stage(Stage::Connected);

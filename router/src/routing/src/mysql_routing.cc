@@ -70,6 +70,7 @@
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/base_protocol.h"
 #include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -992,6 +993,8 @@ void MySQLRouting::create_connection(
 
       connection_container_.add_connection(std::move(new_connection));
 
+      new_conn_ptr->expected_server_mode(purpose());
+
       // defer the call and accept the next connection.
       net::defer(io_ctx, [new_conn_ptr]() { new_conn_ptr->async_run(); });
     } break;
@@ -1175,4 +1178,12 @@ bool MySQLRouting::is_accepting_connections() const {
     return std::any_of(accepting_endpoints_.begin(), accepting_endpoints_.end(),
                        [](const auto &ep) { return ep->is_open(); });
   });
+}
+
+mysqlrouter::ServerMode MySQLRouting::purpose() const {
+  if (access_mode_ == routing::AccessMode::kAuto) {
+    return mysqlrouter::ServerMode::Unavailable;
+  }
+
+  return destination_->purpose();
 }

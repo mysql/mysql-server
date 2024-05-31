@@ -414,6 +414,13 @@ class MysqlRoutingClassicConnectionBase
     return expected_server_mode_;
   }
 
+  void current_server_mode(mysqlrouter::ServerMode v) {
+    current_server_mode_ = v;
+  }
+  mysqlrouter::ServerMode current_server_mode() const {
+    return current_server_mode_;
+  }
+
   void wait_for_my_writes(bool v) { wait_for_my_writes_ = v; }
   bool wait_for_my_writes() const { return wait_for_my_writes_; }
 
@@ -550,9 +557,22 @@ class MysqlRoutingClassicConnectionBase
   // where to target the server-connections if access_mode is kAuto
   //
   // - Unavailable -> any destination (at connect)
-  // - ReadOnly    -> a read-only destination (if available)
-  // - ReadWrite   -> a read-write destination (if available)
+  // - ReadOnly    -> expect a destination in read-only mode
+  //                  prefer read-only servers over read-write servers
+  // - ReadWrite   -> expect a destination in read-write mode,
+  //                  if none is available fail the statement/connection.
+  //
   mysqlrouter::ServerMode expected_server_mode_{
+      mysqlrouter::ServerMode::Unavailable};
+
+  // server-mode of the server-connection.
+  //
+  // - Unavailable -> server mode is still unknown or ignored.
+  // - ReadOnly    -> server is used as read-only. (MUST be read-only)
+  // - ReadWrite   -> server is used as read-write.(MUST be read-write)
+  //
+  // used to pick a subset of the available destinations at connect time.
+  mysqlrouter::ServerMode current_server_mode_{
       mysqlrouter::ServerMode::Unavailable};
 
   // wait for 'gtid_at_least_executed_' with switch to a read-only destination?

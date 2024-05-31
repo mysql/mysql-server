@@ -26,6 +26,7 @@
 #ifndef ROUTING_MYSQLROUTING_INCLUDED
 #define ROUTING_MYSQLROUTING_INCLUDED
 
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/routing_plugin_export.h"
 
@@ -338,6 +339,25 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   MySQLRoutingContext &get_context() override { return context_; }
 
   bool is_running() const override { return is_running_; }
+
+  /**
+   * get the purpose of connections to this route.
+   *
+   * - read-write : all statements are treated as "read-write".
+   * - read-only  : all statements are treated as "read-only".
+   * - unavailable: it is currently unknown where the statement should go to.
+   *
+   * "Unavailable" is used for read-write splitting where the purpose is
+   * determined per statement, session, ...
+   *
+   * A statement over a read-only server connection may end up on a read-write
+   * server in case all read-only servers aren't reachable. Even if the server
+   * is read-write, the connections purpose is read-only and if the server
+   * changes its role from PRIMARY to SECONDARY, these read-only connections
+   * will not be abort as a SECONDARY is good enough to serve read-only
+   * connections.
+   */
+  mysqlrouter::ServerMode purpose() const override;
 
  private:
   /** Monitor for notifying socket acceptor */

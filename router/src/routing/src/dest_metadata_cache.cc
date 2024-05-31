@@ -729,12 +729,12 @@ void DestMetadataCacheGroup::on_instances_change(
   auto from_instances = [this](const auto &dests) {
     std::vector<AvailableDestination> result;
 
-    for (auto &dest : dests) {
+    for (const auto &dest : dests) {
       mysql_harness::TCPAddress addr(
           dest.host,
           (protocol_ == Protocol::Type::kXProtocol) ? dest.xport : dest.port);
 
-      result.emplace_back(addr, dest.mysql_server_uuid);
+      result.emplace_back(addr, dest.mysql_server_uuid, dest.mode);
     }
 
     return result;
@@ -793,12 +793,12 @@ void DestMetadataCacheGroup::on_md_refresh(
   auto from_instances = [this](const auto &dests) {
     std::vector<AvailableDestination> result;
 
-    for (auto &dest : dests) {
+    for (const auto &dest : dests) {
       mysql_harness::TCPAddress addr(
           dest.host,
           (protocol_ == Protocol::Type::kXProtocol) ? dest.xport : dest.port);
 
-      result.emplace_back(addr, dest.mysql_server_uuid);
+      result.emplace_back(addr, dest.mysql_server_uuid, dest.mode);
     }
 
     return result;
