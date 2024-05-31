@@ -2023,10 +2023,9 @@ QueryForwarder::classify_query() {
         src_protocol.wait_for_my_writes_timeout());
 
     auto collation_connection = connection()
-                                    ->execution_context()
+                                    ->client_protocol()
                                     .system_variables()
                                     .get("collation_connection")
-                                    .value()
                                     .value_or("utf8mb4");
 
     const CHARSET_INFO *cs_collation_connection =
@@ -2269,8 +2268,7 @@ QueryForwarder::classify_query() {
       bool some_trx_state{false};
       bool in_read_only_trx{false};
 
-      const auto &sysvars =
-          connection()->execution_context().system_variables();
+      const auto &sysvars = connection()->client_protocol().system_variables();
 
       // check the server's trx-characteristics if:
       //
@@ -2364,7 +2362,7 @@ QueryForwarder::classify_query() {
           // as it should be handled by the server.
         } else {
           // ... or an implicit transaction start.
-          auto autocommit_res = sysvars.get("autocommit").value();
+          auto autocommit_res = sysvars.get("autocommit");
 
           // if autocommit is off, there is always some transaction which should
           // be sent to the read-write server.
@@ -2375,11 +2373,8 @@ QueryForwarder::classify_query() {
       }
 
       // if autocommit is disabled, treat it as read-write transaction.
-      auto autocommit_res = connection()
-                                ->execution_context()
-                                .system_variables()
-                                .get("autocommit")
-                                .value();
+      auto autocommit_res =
+          connection()->client_protocol().system_variables().get("autocommit");
       if (autocommit_res && autocommit_res == "OFF") {
         some_trx_state = true;
       }

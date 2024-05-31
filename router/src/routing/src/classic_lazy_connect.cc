@@ -27,6 +27,7 @@
 
 #include <chrono>
 #include <deque>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <ratio>
@@ -49,6 +50,7 @@
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "router_require.h"
+#include "sql_value.h"  // sql_value_to_string
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -192,8 +194,10 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
       for (; !session_variables_.empty(); session_variables_.pop_front()) {
         auto &node = session_variables_.front();
 
-        connection_->execution_context().system_variables().set(
-            std::move(node.first), std::move(node.second));
+        connection_->client_protocol().system_variables().set(node.first,
+                                                              node.second);
+        connection_->server_protocol().system_variables().set(node.first,
+                                                              node.second);
       }
     }
   }
@@ -217,7 +221,8 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
 
   bool something_failed_{false};
 
-  std::deque<std::pair<std::string, Value>> session_variables_;
+  std::deque<std::pair<std::string, std::optional<std::string>>>
+      session_variables_;
 };
 
 }  // namespace
@@ -329,7 +334,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::from_stash() {
             trace_span_end(ev);
           }
 
-          stage(Stage::SetSchema);
+          stage(Stage::SetVars);
           return Result::Again;
         }
 
@@ -520,30 +525,22 @@ LazyConnector::authenticated() {
 }
 
 namespace {
-void set_session_var(std::string &q, const std::string &key, const Value &val) {
+void set_session_var(std::string &q, const std::string &key,
+                     const std::optional<std::string> &val) {
   if (q.empty()) {
     q = "SET ";
   } else {
     q += ",\n    ";
   }
 
-  q += "@@SESSION." + key + " = " + val.to_string();
+  q += "@@SESSION." + key + " = " + sql_value_to_string(val);
 }
 
-void set_session_var_if_not_set(
-    std::string &q, const ExecutionContext::SystemVariables &sysvars,
-    const std::string &key, const Value &value) {
-  if (sysvars.get(key) == Value(std::nullopt)) {
-    set_session_var(q, key, value);
-  }
-}
-
-void set_session_var_or_value(std::string &q,
-                              const ExecutionContext::SystemVariables &sysvars,
-                              const std::string &key,
-                              const Value &default_value) {
+void set_session_var_or_value(
+    std::string &q, const ClassicProtocolState::SystemVariables &sysvars,
+    const std::string &key, const std::optional<std::string> &default_value) {
   auto value = sysvars.get(key);
-  if (value == Value(std::nullopt)) {
+  if (value == std::nullopt) {
     set_session_var(q, key, default_value);
   } else {
     set_session_var(q, key, value);
@@ -552,7 +549,8 @@ void set_session_var_or_value(std::string &q,
 }  // namespace
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
-  auto &sysvars = connection()->execution_context().system_variables();
+  auto &client_sysvars = connection()->client_protocol().system_variables();
+  auto &server_sysvars = connection()->server_protocol().system_variables();
 
   std::string stmt;
 
@@ -562,34 +560,50 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
 
   // must be first, to track all variables that are set.
   if (need_session_trackers) {
-    set_session_var_or_value(stmt, sysvars, "session_track_system_variables",
-                             Value("*"));
+    auto server_sysvar_has =
+        server_sysvars.find("session_track_system_variables");
+
+    if (!server_sysvar_has || *server_sysvar_has != "*") {
+      set_session_var_or_value(stmt, client_sysvars,
+                               "session_track_system_variables", "*");
+    }
   } else {
-    auto var = sysvars.get("session_track_system_variables");
-    if (var != Value(std::nullopt)) {
+    auto var = client_sysvars.get("session_track_system_variables");
+    if (var != std::nullopt) {
       set_session_var(stmt, "session_track_system_variables", var);
     }
   }
 
-  for (const auto &var : sysvars) {
+  for (const auto &var : client_sysvars) {
     // already set earlier.
     if (var.first == "session_track_system_variables") continue;
 
     // is read-only
     if (var.first == "statement_id") continue;
+    auto server_sysvar_has = server_sysvars.find(var.first);
 
-    set_session_var(stmt, var.first, var.second);
+    if (!server_sysvar_has || *server_sysvar_has != var.second) {
+      set_session_var(stmt, var.first, var.second);
+    }
   }
 
   if (need_session_trackers) {
-    set_session_var_if_not_set(stmt, sysvars, "session_track_gtids",
-                               Value("OWN_GTID"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_schema",
-                               Value("ON"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_state_change",
-                               Value("ON"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_transaction_info",
-                               Value("CHARACTERISTICS"));
+    for (auto [k, v] : std::initializer_list<
+             std::pair<std::string, std::optional<std::string>>>{
+             {"session_track_gtids", "OWN_GTID"},
+             {"session_track_schema", "ON"},
+             {"session_track_state_change", "ON"},
+             {"session_track_transaction_info", "CHARACTERISTICS"},
+         }) {
+      auto client_sysvar_has = client_sysvars.find(k);
+      if (client_sysvar_has) continue;  // already handled above.
+
+      auto server_sysvar_has = server_sysvars.find(k);
+
+      if (!server_sysvar_has || *server_sysvar_has != v) {
+        set_session_var(stmt, k, v);
+      }
+    }
   }
 
   if (!stmt.empty()) {
@@ -601,13 +615,13 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
 
     trace_event_set_vars_ = trace_span(trace_event_connect_, "mysql/set_var");
     if (auto *ev = trace_event_set_vars_) {
-      for (const auto &var : sysvars) {
+      for (const auto &var : client_sysvars) {
         if (var.first == "statement_id") continue;
 
-        if (var.second.value()) {
+        if (var.second) {
           ev->attrs.emplace_back(
               "mysql.session.@@SESSION." + var.first,
-              TraceEvent::element_type::second_type{*var.second.value()});
+              TraceEvent::element_type::second_type{*var.second});
         } else {
           // NULL
           ev->attrs.emplace_back(var.first,
@@ -692,8 +706,7 @@ LazyConnector::fetch_sys_vars() {
     // fetch the sys-vars that aren't known yet.
     for (const auto &expected_var :
          {"collation_connection", "character_set_client", "sql_mode"}) {
-      const auto &sys_vars =
-          connection()->execution_context().system_variables();
+      const auto &sys_vars = connection()->client_protocol().system_variables();
       auto find_res = sys_vars.find(expected_var);
       if (!find_res) {
         if (oss.tellp() != 0) {

@@ -38,6 +38,7 @@
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"  // to_string
+#include "sql_value.h"          // sql_value_to_string
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -139,8 +140,10 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
       for (; !session_variables_.empty(); session_variables_.pop_front()) {
         auto &node = session_variables_.front();
 
-        connection_->execution_context().system_variables().set(
-            std::move(node.first), std::move(node.second));
+        connection_->client_protocol().system_variables().set(node.first,
+                                                              node.second);
+        connection_->server_protocol().system_variables().set(node.first,
+                                                              node.second);
       }
     }
   }
@@ -164,7 +167,8 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
 
   bool something_failed_{false};
 
-  std::deque<std::pair<std::string, Value>> session_variables_;
+  std::deque<std::pair<std::string, std::optional<std::string>>>
+      session_variables_;
 };
 
 }  // namespace
@@ -420,30 +424,22 @@ ResetConnectionForwarder::ok() {
 }
 
 namespace {
-void set_session_var(std::string &q, const std::string &key, const Value &val) {
+void set_session_var(std::string &q, const std::string &key,
+                     const std::optional<std::string> &val) {
   if (q.empty()) {
     q = "SET ";
   } else {
     q += ",\n    ";
   }
 
-  q += "@@SESSION." + key + " = " + val.to_string();
+  q += "@@SESSION." + key + " = " + sql_value_to_string(val);
 }
 
-void set_session_var_if_not_set(
-    std::string &q, const ExecutionContext::SystemVariables &sysvars,
-    const std::string &key, const Value &value) {
-  if (sysvars.get(key) == Value(std::nullopt)) {
-    set_session_var(q, key, value);
-  }
-}
-
-void set_session_var_or_value(std::string &q,
-                              const ExecutionContext::SystemVariables &sysvars,
-                              const std::string &key,
-                              const Value &default_value) {
+void set_session_var_or_value(
+    std::string &q, const ClassicProtocolState::SystemVariables &sysvars,
+    const std::string &key, const std::optional<std::string> &default_value) {
   auto value = sysvars.get(key);
-  if (value == Value(std::nullopt)) {
+  if (!value) {
     set_session_var(q, key, default_value);
   } else {
     set_session_var(q, key, value);
@@ -453,7 +449,7 @@ void set_session_var_or_value(std::string &q,
 
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionForwarder::set_vars() {
-  auto &sysvars = connection()->execution_context().system_variables();
+  auto &sysvars = connection()->client_protocol().system_variables();
 
   std::string stmt;
 
@@ -464,10 +460,10 @@ ResetConnectionForwarder::set_vars() {
   // must be first, to track all variables that are set.
   if (need_session_trackers) {
     set_session_var_or_value(stmt, sysvars, "session_track_system_variables",
-                             Value("*"));
+                             "*");
   } else {
     auto var = sysvars.get("session_track_system_variables");
-    if (var != Value(std::nullopt)) {
+    if (var) {
       set_session_var(stmt, "session_track_system_variables", var);
     }
   }
@@ -483,14 +479,15 @@ ResetConnectionForwarder::set_vars() {
   }
 
   if (need_session_trackers) {
-    set_session_var_if_not_set(stmt, sysvars, "session_track_gtids",
-                               Value("OWN_GTID"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_schema",
-                               Value("ON"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_state_change",
-                               Value("ON"));
-    set_session_var_if_not_set(stmt, sysvars, "session_track_transaction_info",
-                               Value("CHARACTERISTICS"));
+    for (auto [k, v] : std::initializer_list<
+             std::pair<std::string, std::optional<std::string>>>{
+             {"session_track_gtids", "OWN_GTID"},
+             {"session_track_schema", "ON"},
+             {"session_track_state_change", "ON"},
+             {"session_track_transaction_info", "CHARACTERISTICS"},
+         }) {
+      if (!sysvars.get(k)) set_session_var(stmt, k, v);
+    }
   }
 
   if (!stmt.empty()) {
@@ -526,8 +523,7 @@ ResetConnectionForwarder::fetch_sys_vars() {
     // fetch the sys-vars that aren't known yet.
     for (const auto &expected_var :
          {"collation_connection", "character_set_client", "sql_mode"}) {
-      const auto &sys_vars =
-          connection()->execution_context().system_variables();
+      const auto &sys_vars = connection()->client_protocol().system_variables();
       auto find_res = sys_vars.find(expected_var);
       if (!find_res) {
         if (oss.tellp() != 0) {

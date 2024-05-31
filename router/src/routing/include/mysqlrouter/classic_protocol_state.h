@@ -27,7 +27,9 @@
 #define ROUTING_CLASSIC_PROTOCOL_STATE_INCLUDED
 
 #include <chrono>
+#include <map>
 #include <optional>
+#include <string>
 
 #include "classic_prepared_statement.h"
 
@@ -41,6 +43,98 @@ class ClassicProtocolState {
     kServerGreeting,
     kClientGreeting,
     kFinished,
+  };
+
+  /**
+   * system-variables as returned by the server.
+   *
+   * can be queried from the server with:
+   *
+   * - SELECT @@SESSION.{k}
+   * - SELECT @@LOCAL.{k}
+   *
+   * can be set on the server with:
+   *
+   * - SET k = v;
+   * - SET @@SESSION.k = v;
+   * - SET @@LOCAL.k = v;
+   * - SET SESSION k = v;
+   * - SET LOCAL k = v;
+   *
+   * changes to system-vars on the server are returned via
+   * the sesssion-tracker for system-variables.
+   */
+  class SystemVariables {
+   public:
+    using key_type = std::string;
+    using key_view_type = std::string_view;
+    using value_type = std::optional<std::string>;
+
+    /**
+     * set k to v.
+     *
+     * if k doesn't exist in the system-vars yet, it gets inserted.
+     */
+    void set(key_type k, value_type v) {
+      vars_.insert_or_assign(std::move(k), std::move(v));
+    }
+
+    /**
+     * find 'k' in sytem-vars.
+     *
+     * @param k key
+     *
+     * if 'k' does not exist in system-vars, a NULL-like value is returned.
+     * otherwise return the value for the system-var referenced by 'k'
+     *
+     * @returns std::nullopt if key is not found, the found value otherwise.
+     */
+    std::optional<value_type> find(const key_view_type &k) const {
+      const auto it = vars_.find(k);
+      if (it == vars_.end()) return {std::nullopt};
+
+      return it->second;
+    }
+
+    /**
+     * get 'k' from system-vars.
+     *
+     * @param k key
+     *
+     * if 'k' does not exist in system-vars, a NULL-like value is returned.
+     * otherwise return the value for the system-var referenced by 'k' which may
+     * be NULL-like or a string.
+     *
+     * @returns std::nullopt if key is not found or value is NULL-like, the
+     * found value otherwise
+     */
+    value_type get(const key_view_type &k) const {
+      const auto it = vars_.find(k);
+      if (it == vars_.end()) return {std::nullopt};
+
+      return it->second;
+    }
+
+    using iterator = std::map<key_type, value_type>::iterator;
+    using const_iterator = std::map<key_type, value_type>::const_iterator;
+
+    iterator begin() { return vars_.begin(); }
+    const_iterator begin() const { return vars_.begin(); }
+    iterator end() { return vars_.end(); }
+    const_iterator end() const { return vars_.end(); }
+
+    /**
+     * check if there is no system-var.
+     */
+    bool empty() const { return vars_.empty(); }
+
+    /**
+     * clear the system-vars.
+     */
+    void clear() { vars_.clear(); }
+
+   private:
+    std::map<key_type, value_type, std::less<>> vars_;
   };
 
   ClassicProtocolState() = default;
@@ -169,6 +263,10 @@ class ClassicProtocolState {
   }
 #endif
 
+  SystemVariables &system_variables() { return system_variables_; }
+
+  const SystemVariables &system_variables() const { return system_variables_; }
+
  private:
   classic_protocol::capabilities::value_type server_caps_{};
   classic_protocol::capabilities::value_type client_caps_{};
@@ -193,6 +291,8 @@ class ClassicProtocolState {
   classic_protocol::status::value_type status_flags_{};
 
   HandshakeState handshake_state_{HandshakeState::kConnected};
+
+  SystemVariables system_variables_;
 };
 
 class ClientSideClassicProtocolState : public ClassicProtocolState {

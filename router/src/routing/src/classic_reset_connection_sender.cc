@@ -64,6 +64,8 @@ ResetConnectionSender::command() {
 
   dst_protocol.seq_id(0xff);  // reset seq-id
 
+  dst_protocol.system_variables().clear();
+
   const auto send_res = ClassicFrame::send_msg<
       classic_protocol::borrowed::message::client::ResetConnection>(dst_conn,
                                                                     {});

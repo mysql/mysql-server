@@ -286,6 +286,8 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::command() {
 
   dst_protocol.seq_id(0xff);  // reset seq-id
 
+  dst_protocol.system_variables().clear();
+
   auto send_res = ClassicFrame::send_msg(dst_conn, *change_user_msg_);
   if (!send_res) return send_server_failed(send_res.error());
 
