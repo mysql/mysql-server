@@ -1552,7 +1552,12 @@ dberr_t dict_table_rename_in_cache(
 
     ut_ad(!table->is_temporary());
 
+    /* In case of explicit data dir setting or
+    table recreation(ALTER TABLE .. FORCE/ALTER TABLE .. ENGINE)
+    from a non-default path, the new table path should be same
+    as the source/old path. */
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+      ut_ad(old_path != nullptr);
       std::string new_ibd;
 
       new_ibd = Fil_path::make_new_path(old_path, new_name, IBD);

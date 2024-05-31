@@ -41,6 +41,7 @@ The tablespace memory cache */
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -58,14 +59,13 @@ The tablespace memory cache */
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "my_dbug.h"
-#include "ut0new.h"
-
-#include "clone0api.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "sql/mysqld.h"  // lower_case_file_system
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "univ.i"  // Using OS_PATH_SEPARATOR
+#include "ut0new.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "buf0lru.h"
@@ -104,25 +104,25 @@ dberr_t dict_stats_rename_table(const char *old_name, const char *new_name,
 /** Used for collecting the data in boot_tablespaces() */
 namespace dd_fil {
 
-enum {
+struct Moved {
   /** DD Object ID */
-  OBJECT_ID,
+  dd::Object_id object_id;
 
   /** InnoDB tablspace ID */
-  SPACE_ID,
+  space_id_t space_id;
 
   /** DD/InnoDB tablespace name */
-  SPACE_NAME,
+  std::string space_name;
 
   /** Path in DD tablespace */
-  OLD_PATH,
+  std::string old_path;
 
   /** Path where it was found during the scan. */
-  NEW_PATH
-};
+  std::string new_path;
 
-using Moved = std::tuple<dd::Object_id, space_id_t, std::string, std::string,
-                         std::string>;
+  /** Move occurred before 9.0.0 and missed to update dir flag */
+  bool before_90000;
+};
 
 using Tablespaces = std::vector<Moved>;
 }  // namespace dd_fil
@@ -1572,14 +1572,14 @@ class Fil_system {
   @param[in]    space_id        InnoDB tablespace ID
   @param[in]    space_name      Tablespace name
   @param[in]    old_path        Path to the old location
-  @param[in]    new_path        Path scanned from disk */
+  @param[in]    new_path        Path scanned from disk
+  @param[in]    before_90000    The move has happened before 90000 and didn't
+                                update the DD_TABLE_DATA_DIRECTORY flag.*/
   void moved(dd::Object_id object_id, space_id_t space_id,
              const char *space_name, const std::string &old_path,
-             const std::string &new_path) {
-    auto tuple =
-        std::make_tuple(object_id, space_id, space_name, old_path, new_path);
-
-    m_moved.push_back(tuple);
+             const std::string &new_path, bool before_90000) {
+    m_moved.push_back(
+        {object_id, space_id, space_name, old_path, new_path, before_90000});
   }
 
   /** Check if a path is known to InnoDB.
@@ -9135,6 +9135,16 @@ bool Fil_path::is_same_as(const std::string &other) const {
   return is_same_as(other_path);
 }
 
+Fil_path Fil_path::get_abs_directory() const {
+  std::string dir_path = split(abs_path()).first;
+  Fil_path directory{dir_path};
+  return directory;
+}
+
+bool Fil_path::is_dir_same_as(const Fil_path &other) const {
+  return get_abs_directory().is_same_as(other.get_abs_directory());
+}
+
 std::pair<std::string, std::string> Fil_path::split(const std::string &path) {
   const auto n = path.rfind(OS_PATH_SEPARATOR);
   ut_ad(n != std::string::npos);
@@ -9618,12 +9628,15 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
   for (auto &tablespace : m_moved) {
     dberr_t err;
 
-    auto old_path = std::get<dd_fil::OLD_PATH>(tablespace);
+    auto old_path = tablespace.old_path;
 
-    auto space_name = std::get<dd_fil::SPACE_NAME>(tablespace);
+    auto space_name = tablespace.space_name;
 
-    auto new_path = std::get<dd_fil::NEW_PATH>(tablespace);
-    auto object_id = std::get<dd_fil::OBJECT_ID>(tablespace);
+    auto new_path = tablespace.new_path;
+
+    auto object_id = tablespace.object_id;
+
+    auto moved_prev = tablespace.before_90000;
 
     /* We already have the space name in system cs. */
     err = dd_tablespace_rename(object_id, true, space_name.c_str(),
@@ -9636,6 +9649,32 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
                                << " '" << new_path << "'";
 
       ++failed;
+    }
+
+    const Fil_path fpath_old{old_path};
+    const Fil_path fpath_new{new_path};
+    /* Check whether the path is changed from old_path to new_path
+    If not, update the data directory flag */
+    if (Fil_path::has_suffix(IBD, new_path)) {
+      /* We want to update the dd_table data dir flag for those ibd files which
+      are moved in this restart which is captured in m_moved whose current
+      location is different from where it is originally created. Also,
+      moved_prev is true only when ibd file is moved in previous versions
+      where fpath_old and fpath_new point to newly moved location which is
+      different from default. We want to update dd_table data directory flag
+      as true for this case also. */
+      if ((!moved_prev && !fpath_old.is_dir_same_as(fpath_new)) ||
+          (moved_prev && !MySQL_datadir_path.is_dir_same_as(fpath_new))) {
+        err = dd_update_table_and_partitions_after_dir_change(
+            object_id, fpath_new.abs_path());
+
+        if (err != DB_SUCCESS) {
+          ib::error(ER_DD_UPDATE_DATADIR_FLAG_FAIL, object_id,
+                    space_name.c_str(), new_path.c_str());
+
+          ++failed;
+        }
+      }
     }
 
     /* Update persistent stat table if table name is modified. */
@@ -9804,6 +9843,7 @@ dberr_t fil_tablespace_open_for_recovery(space_id_t space_id) {
 Fil_state fil_tablespace_path_equals(space_id_t space_id,
                                      const char *space_name, ulint fsp_flags,
                                      std::string old_path,
+                                     bool data_dir_flag_missing,
                                      std::string *new_path) {
   ut_ad((fsp_is_ibd_tablespace(space_id) &&
          Fil_path::has_suffix(IBD, old_path)) ||
@@ -9907,9 +9947,23 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
 
   new_dir.resize(pos + 1);
 
-  if (old_dir.compare(new_dir) != 0) {
+  const bool new_same_as_default = MySQL_datadir_path.is_same_as(new_dir) ||
+                                   MySQL_datadir_path.is_ancestor(new_dir);
+
+  if (old_dir != new_dir) {
     *new_path = result.first + result.second->front();
     return Fil_state::MOVED;
+  } else if (!new_same_as_default && data_dir_flag_missing) {
+    /* We want to recognize those tables which are moved in previous versions
+    and mark the dd_table data dir flag as true as we need to make sure dd_table
+    is in sync with current status of the table. We check if the tablespace is
+    not in default data dir, has ibd extension, if dd_table exists for that
+    table, and the data directory flag doesn't exist (which is true in case
+    table is created using data directory clause, but is not set by some server
+    versions before 9.0.0 when the file is being moved while the server is not
+    running and then it is started). */
+    *new_path = old_path;
+    return Fil_state::MOVED_PREV;
   }
 
   *new_path = old_path;
@@ -9918,9 +9972,10 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
 
 void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
                          const char *space_name, const std::string &old_path,
-                         const std::string &new_path) {
+                         const std::string &new_path, bool before_90000) {
   /* Keep space_name in system cs. We handle it while modifying DD. */
-  fil_system->moved(dd_object_id, space_id, space_name, old_path, new_path);
+  fil_system->moved(dd_object_id, space_id, space_name, old_path, new_path,
+                    before_90000);
 }
 
 bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
