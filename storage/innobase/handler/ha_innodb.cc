@@ -3525,6 +3525,41 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     std::string dd_path{file->filename().c_str()};
     const char *filename = dd_path.c_str();
 
+    uint32_t fsp_flags = 0;
+    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
+      /* Failed to fetch the tablespace flags. */
+      ++m_n_errors;
+      break;
+    }
+
+    THD *thd = current_thd;
+    auto &dc = *thd->dd_client();
+    bool data_directory_property_in_dd_missing = true;
+
+    if (Fil_path::has_suffix(IBD, dd_path) &&
+        !fsp_is_shared_tablespace(fsp_flags)) {
+      const auto components = dict_name::parse_tablespace_path(dd_path);
+      if (components.has_value()) {
+        const auto table_info = components.value();
+        dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+        const dd::Table *dd_table = nullptr;
+
+        if (dc.acquire<dd::Table>(table_info.schema_name.c_str(),
+                                  table_info.table_name.c_str(), &dd_table)) {
+          ++m_n_errors;
+          break;
+        }
+
+        /* dd_table may not exist for some system tables */
+        if (dd_table) {
+          if (dd_table->se_private_data().exists(
+                  dd_table_key_strings[DD_TABLE_DATA_DIRECTORY])) {
+            data_directory_property_in_dd_missing = false;
+          }
+        }
+      }
+    }
+
     /* If the trunc log file is still around, this undo tablespace needs to be
     rebuilt now. */
     if (fsp_is_undo_tablespace(space_id)) {
@@ -3565,16 +3600,10 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Fil_path::normalize(dd_path);
     Fil_state state = Fil_state::MATCHES;
 
-    uint32_t fsp_flags = 0;
-    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
-      /* Failed to fetch the tablespace flags. */
-      ++m_n_errors;
-      break;
-    }
-
     std::lock_guard<std::mutex> guard(m_mutex);
 
     state = fil_tablespace_path_equals(space_id, space_name, fsp_flags, dd_path,
+                                       data_directory_property_in_dd_missing,
                                        &new_path);
 
     if (state == Fil_state::MATCHES) {
@@ -3633,7 +3662,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
       case Fil_state::MOVED:
         fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
-                            new_path);
+                            new_path, false);
         ++m_n_moved;
 
         if (m_n_moved > MOVED_FILES_PRINT_THRESHOLD) {
@@ -3666,6 +3695,23 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
         if (m_n_moved == MOVED_FILES_PRINT_THRESHOLD) {
           ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
+        }
+        break;
+
+      case Fil_state::MOVED_PREV:
+        fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
+                            new_path, true);
+        ++m_n_moved;
+
+        if (m_n_moved == MOVED_FILES_PRINT_THRESHOLD) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
+        }
+
+        if (m_n_moved < MOVED_FILES_PRINT_THRESHOLD) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_PREV, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), space_name,
+                   new_path.c_str());
         }
         break;
 
