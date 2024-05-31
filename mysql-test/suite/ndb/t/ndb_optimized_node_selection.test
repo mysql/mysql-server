@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source include/have_query_cache_disabled.inc
 
 # store start value
 SET @global_start_value = @@global.ndb_optimized_node_selection;
