@@ -622,10 +622,12 @@ EXPLAIN FORMAT=TRADITIONAL SELECT * FROM t WHERE x IN (3, 4, 6);
 # EXPLAIN JSONv1, should contain "using_MRR": true
 SET explain_json_format_version = 1;
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
+# Hypergraph does not have EXPLAIN JSONv1
+--skip_if_hypergraph
 SELECT IF(JSON_EXTRACT(@var, "$.query_block.table.using_MRR"), TRUE, FALSE) AS using_MRR;
 
 # EXPLAIN JSONv2, should contain "multi_range_read": true
-# "operation" should show "multi-range" for the relevant access paths.
+# "operation" should show "(Multi-Range Read)" for the relevant access paths.
 # An example plan is:
 # EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE x IN (3, 4, 6);
 # {
@@ -633,8 +635,8 @@ SELECT IF(JSON_EXTRACT(@var, "$.query_block.table.using_MRR"), TRUE, FALSE) AS u
 #   "ranges": [
 #     "(x = 3) OR (x = 4) OR (x = 6)"
 #   ],
-#   "operation": "Index multi-range scan on t using x over (x = 3) OR (x = 4) OR (x = 6), with index condition: (t.x in (3,4,6))",
-# //                    -----------
+#   "operation": "Index range scan (Multi-Range Read) on t using x over (x = 3) OR (x = 4) OR (x = 6), with index condition: (t.x in (3,4,6))",
+# //                               ------------------
 #   "multi_range_read": true,
 # //------------------------
 #   "access_type": "index",
@@ -649,7 +651,8 @@ AS multi_range_read,
 JSON_SEARCH(@var, 'one', '%(Multi-Range Read)%', NULL, '$**.operation') IS NOT NULL
 AS operation_contains_multi_range_read;
 
-# EXPLAIN TREE, should show "multi-range" for the relevant access paths
+# EXPLAIN TREE, should show "(Multi-Range Read)" for the relevant access paths
+--skip_if_hypergraph
 --replace_regex $elide_costs_and_rows
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN (3, 4, 6);
 

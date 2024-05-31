@@ -110,6 +110,8 @@ CREATE TABLE t2 (
 # Expect bka with mrr. We do not care where they occur, only that both are present,
 # as the mrr access path can only exist as a sub-path to bka.
 EXPLAIN FORMAT=JSON INTO @var SELECT /*+ BKA(t2) */ * FROM t1 LEFT JOIN t2 ON t1.a = t2.a AND t1.b = 1 AND t1.b = 2;
+# Hypergraph does not yet support BKA
+--skip_if_hypergraph
 SELECT
 JSON_SEARCH(@var, 'one', 'Batched key access%', NULL, '$**.operation') IS NOT NULL
 AS batched_key_access,

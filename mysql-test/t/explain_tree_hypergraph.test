@@ -199,4 +199,22 @@ EXPLAIN FORMAT=TREE
 SELECT x IN (SELECT x FROM t) FROM t GROUP BY x ORDER BY MAX(y);
 DROP TABLE t;
 
+--echo #
+--echo # Bug#36614948 No information about MRR in EXPLAIN with explain_json_format_version=2
+--echo #
+
+SET @save_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch='mrr_cost_based=off,mrr=on';
+
+CREATE TABLE t(x INT, y INT, z INT, KEY(x));
+INSERT INTO t(x) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+
+# Should show "(Multi-Range Read)" for the relevant access paths
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x IN (3, 4, 6);
+
+DROP TABLE t;
+
+SET @@optimizer_switch = @save_optimizer_switch;
+
 --source include/disable_hypergraph.inc
