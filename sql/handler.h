@@ -4575,6 +4575,7 @@ class handler {
 
  public:
   typedef ulonglong Table_flags;
+  using Blob_context = void *;
 
  protected:
   TABLE_SHARE *table_share;          /* The table definition */
@@ -5099,6 +5100,53 @@ class handler {
                                 const Rows_mysql &rows [[maybe_unused]],
                                 Bulk_load::Stat_callbacks &wait_cbk
                                 [[maybe_unused]]) {
+    return HA_ERR_UNSUPPORTED;
+  }
+
+  /** Open a blob for write operation.
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[out]     blob_ctx    a blob context
+  @param[out]     blobref     a blob reference to be placed in the record.
+  @return 0 on success, error code on failure */
+  virtual int open_blob(THD *thd [[maybe_unused]],
+                        void *load_ctx [[maybe_unused]],
+                        size_t thread_idx [[maybe_unused]],
+                        Blob_context &blob_ctx [[maybe_unused]],
+                        unsigned char *blobref [[maybe_unused]]) {
+    return HA_ERR_UNSUPPORTED;
+  }
+
+  /** Write to a blob
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      blob_ctx    a blob context
+  @param[in]      data        data to be written to blob.
+  @param[in]      data_len    length of data to be written in bytes.
+  @return 0 on success, error code on failure */
+  virtual int write_blob(THD *thd [[maybe_unused]],
+                         void *load_ctx [[maybe_unused]],
+                         size_t thread_idx [[maybe_unused]],
+                         Blob_context blob_ctx [[maybe_unused]],
+                         unsigned char *blobref [[maybe_unused]],
+                         const unsigned char *data [[maybe_unused]],
+                         size_t data_len [[maybe_unused]]) {
+    return HA_ERR_UNSUPPORTED;
+  }
+
+  /** Close the blob
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      blob_ctx    a blob context
+  @return 0 on success, error code on failure */
+  virtual int close_blob(THD *thd [[maybe_unused]],
+                         void *load_ctx [[maybe_unused]],
+                         size_t thread_idx [[maybe_unused]],
+                         Blob_context blob_ctx [[maybe_unused]],
+                         unsigned char *blobref [[maybe_unused]]) {
     return HA_ERR_UNSUPPORTED;
   }
 

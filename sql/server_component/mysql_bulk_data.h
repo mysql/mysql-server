@@ -68,6 +68,19 @@ DEFINE_METHOD(bool, load,
                const Rows_mysql &sql_rows, size_t thread,
                Bulk_load::Stat_callbacks &wait_cbks));
 
+DEFINE_METHOD(bool, open_blob,
+              (THD * thd, void *load_ctx, const TABLE *table,
+               Blob_context &blob_ctx, unsigned char *blobref, size_t thread));
+
+DEFINE_METHOD(bool, write_blob,
+              (THD * thd, void *load_ctx, const TABLE *table,
+               Blob_context blob_ctx, unsigned char *blobref, size_t thread,
+               const unsigned char *data, size_t data_len));
+
+DEFINE_METHOD(bool, close_blob,
+              (THD * thd, void *load_ctx, const TABLE *table,
+               Blob_context blob_ctx, unsigned char *blobref, size_t thread));
+
 DEFINE_METHOD(bool, end,
               (THD * thd, void *ctx, const TABLE *table, bool error));
 

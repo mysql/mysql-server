@@ -41,6 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "gis0geo.h"
+#include "lob0lob.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"

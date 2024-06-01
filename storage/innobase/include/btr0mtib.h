@@ -42,9 +42,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0load.h"
 #include "ddl0impl-compare.h"
 #include "dict0dict.h"
+#include "lob0bulk.h"
+#include "lob0lob.h"
 #include "page0cur.h"
 #include "ut0class_life_cycle.h"
 #include "ut0new.h"
+#include "ut0object_cache.h"
 
 /* The Btree_multi namespace is used for multi-threaded parallel index build. */
 namespace Btree_multi {
@@ -53,6 +56,12 @@ namespace Btree_multi {
 class Page_load;
 class Btree_load;
 struct Page_stat;
+
+using Blob_context = void *;
+
+namespace bulk {
+class Blob_inserter;
+}  // namespace bulk
 
 /** Allocate, use, manage and flush one extent pages (FSP_EXTENT_SIZE). */
 struct Page_extent {
@@ -77,6 +86,8 @@ struct Page_extent {
   /** All the page loaders of the used pages. */
   std::vector<Page_load *> m_page_loads;
 
+  bool is_btree_load_nullptr() const { return m_btree_load == nullptr; }
+
  public:
   /** Create an object of type Page_extent in the heap. */
   static Page_extent *create(Btree_load *btree_load, const bool is_leaf,
@@ -95,7 +106,13 @@ struct Page_extent {
 
   /** Calculate the number of used pages.
   return the number of used pages. */
-  size_t used_pages() const { return m_page_loads.size(); }
+  size_t used_pages() const { return m_page_no - m_range.first; }
+
+  void get_page_numbers(std::vector<page_no_t> &page_numbers) const;
+
+  /** Get the index of the first unused page load.
+  @return index of the first unused page load. */
+  size_t last() const { return m_page_no - m_range.first; }
 
   /** Check if the range is valid.
   @return true if the range is valid, false otherwise. */
@@ -105,6 +122,20 @@ struct Page_extent {
     return (m_range.first == FIL_NULL) && (m_range.second == FIL_NULL);
   }
 
+ public:
+  /** Member of Page_extent. The index of page_load objects in the m_page_loads
+  corresponds to the page_no in the m_range.  Here, check if a page_no already
+  has a Page_load object.
+  @param[in]  page_no  page_no for which we are looking for Page_load obj.
+  @return Page_load object if available, nullptr otherwise. */
+  Page_load *get_page_load(page_no_t page_no);
+
+  /** Member of Page_extent. Associate the given page_no and the page load
+  object.
+  @param[in]  page_no  page number to associate.
+  @param[in]  page_load  page load object to associate. */
+  void set_page_load(page_no_t page_no, Page_load *page_load);
+
   Page_range_t pages_to_free() const;
 
   /** Initialize the next page number to be allocated. The page range should
@@ -112,11 +143,16 @@ struct Page_extent {
   void init();
 
   /** Check if no more pages are there to be used.
-  @return true if the page extent is completed used.
+  @return true if the page extent is completely used.
   @return false if the page extent has more pages to be used. */
   bool is_fully_used() const { return m_page_no == m_range.second; }
-  bool is_page_loads_full() const {
-    return m_page_loads.size() == (m_range.second - m_range.first);
+
+  /** Check if there are any pages used.
+  @return true if at least one page is used.
+  @return false if no pages are used in this extent.*/
+  bool is_any_used() const {
+    ut_ad(m_page_no == m_range.first || m_page_loads.size() > 0);
+    return m_page_no > m_range.first;
   }
 
  public:
@@ -181,15 +217,33 @@ struct Page_extent {
   /** @return true iff it is a cached extent. */
   bool is_cached() const { return m_is_cached.load(); }
 
-  /** Reaset page load cache to free all. */
+  /** Reset page load cache to free all. */
   void reset_cached_page_loads() { m_next_cached_page_load_index = 0; }
 
  public:
   std::ostream &print(std::ostream &out) const;
 
+  /** Mark that this extent is used for blobs. */
+  void set_blob() { m_is_blob = true; }
+
+  /** Check if this is a blob extent.
+  @return true if it is a blob extent. */
+  bool is_blob() const { return m_is_blob; }
+
+  /** Free the BUF_BLOCK_MEMORY blocks used by this extent. */
+  void free_memory_blocks();
+
+#ifdef UNIV_DEBUG
+  /** True if this extent has been handed over to the bulk flusher. */
+  std::atomic_bool m_is_owned_by_bulk_flusher{false};
+#endif /* UNIV_DEBUG */
+
  private:
-  Btree_load *m_btree_load{};
-  const bool m_is_leaf; /* true if this extent belongs to leaf segment. */
+  Btree_load *m_btree_load{nullptr};
+
+  /** true if this extent belongs to leaf segment. */
+  bool m_is_leaf{true};
+
   /** true iff the the extent is cached. */
   std::atomic_bool m_is_cached{false};
   /** true if the cached entry is free to be used. */
@@ -199,10 +253,46 @@ struct Page_extent {
   /** Next cached page load index. */
   size_t m_next_cached_page_load_index{0};
 
+  /** True if this extent is used for blobs. */
+  bool m_is_blob{false};
+
   friend struct Level_ctx;
 };
 
+inline void Page_extent::get_page_numbers(
+    std::vector<page_no_t> &page_numbers) const {
+  for (page_no_t i = m_range.first; i < m_page_no; ++i) {
+    page_numbers.push_back(i);
+  }
+}
+
+inline void Page_extent::set_page_load(page_no_t page_no,
+                                       Page_load *page_load) {
+  ut_ad(page_no >= m_range.first);
+  ut_ad(page_no < m_range.second);
+  const size_t idx = page_no - m_range.first;
+  if (idx == m_page_loads.size()) {
+    m_page_loads.push_back(page_load);
+  } else {
+    ut_ad(idx <= m_page_loads.size());
+    ut_ad(m_page_loads[idx] == nullptr);
+    m_page_loads[idx] = page_load;
+  }
+  ut_ad(m_page_loads.size() > 0);
+}
+
+inline Page_load *Page_extent::get_page_load(page_no_t page_no) {
+  ut_ad(page_no >= m_range.first);
+  ut_ad(page_no < m_range.second);
+  const size_t idx = page_no - m_range.first;
+  if (m_page_loads.empty() || m_page_loads.size() <= idx) {
+    return nullptr;
+  }
+  return m_page_loads[idx];
+}
+
 inline Page_extent::~Page_extent() {
+  ut_ad(!m_is_owned_by_bulk_flusher.load());
   m_page_no = FIL_NULL;
   m_range.first = FIL_NULL;
   m_range.second = FIL_NULL;
@@ -243,6 +333,8 @@ inline void Page_extent::reset_range(const Page_range_t &range) {
 
 inline page_no_t Page_extent::alloc() {
   ut_ad(is_valid());
+  ut_ad(!m_is_owned_by_bulk_flusher.load());
+
   if (m_page_no == m_range.second) {
     return FIL_NULL;
   }
@@ -255,6 +347,7 @@ inline void Page_extent::init() {
   ut_ad(m_range.first != FIL_NULL);
   ut_ad(m_range.second != FIL_NULL);
   m_page_no = m_range.first;
+  m_page_loads.reserve(page_count());
 }
 
 inline page_no_t Page_extent::page_count() const {
@@ -431,7 +524,7 @@ class Bulk_extent_allocator {
 
   struct Extent_cache {
     /** Initialize cache.
-    @param[in] max_range miaximum number of extents to cache. */
+    @param[in] max_range maximum number of extents to cache. */
     void init(size_t max_range);
 
     /** @return true if no available extent to consume. */
@@ -472,7 +565,7 @@ class Bulk_extent_allocator {
     std::atomic<size_t> m_num_consumed{0};
   };
 
-  /** Exetent thread executor.
+  /** Extent thread executor.
   @return innodb error code. */
   dberr_t run();
 
@@ -601,6 +694,10 @@ class Bulk_flusher {
   /** @return error code */
   dberr_t get_error() const;
 
+  void add_to_free_queue(Page_extent *page_extent);
+
+  Page_extent *get_free_extent();
+
  private:
   /** Do the actual work of flushing.
   @param[in,out] node space file node
@@ -625,6 +722,13 @@ class Bulk_flusher {
 
   /** Condition variable to wait upon. */
   mutable std::condition_variable m_condition;
+
+  /** This queue is protected by the m_free_mutex. It is used to cache the
+  Page_extent objects that have been flushed and ready for re-use. */
+  std::vector<Page_extent *> m_free_queue;
+
+  /** This mutex protects the m_free_queue. */
+  mutable std::mutex m_free_mutex;
 
   /** Flag to indicate if the bulk flusher thread should stop. If true, the
   bulk flusher thread will stop after emptying the queue.  If false, the
@@ -676,6 +780,113 @@ class Bulk_flusher {
 #endif /* UNIV_DEBUG */
 };
 
+namespace bulk {
+
+class Blob_handle;
+
+/** Used to insert many blobs into InnoDB. */
+class Blob_inserter {
+ public:
+  /** Constructor.
+  @param[in]  btree_load  the B-tree into which blobs are inserted. */
+  Blob_inserter(Btree_load &btree_load) : m_btree_load(btree_load) {}
+
+  ~Blob_inserter();
+
+  /** Initialize by allocating necessary resources.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t init();
+
+  void finish();
+
+  dberr_t insert_blob(lob::ref_t &ref, const dfield_t *dfield) {
+    Blob_context blob_ctx;
+    dberr_t err = open_blob(blob_ctx, ref);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+    const byte *data = (const byte *)dfield->data;
+    err = write_blob(blob_ctx, ref, data, dfield->len);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+    return close_blob(blob_ctx, ref);
+  }
+
+  /** Create a blob.
+  @param[out]  blob_ctx  pointer to an opaque object representing a blob.
+  @param[out]  ref       blob reference to be placed in the record.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t open_blob(Blob_context &blob_ctx, lob::ref_t &ref);
+
+  /** Write data into the blob.
+  @param[in]  blob_ctx  pointer to blob into which data is written.
+  @param[out] ref       blob reference to be placed in the record.
+  @param[in]  data      buffer containing data to be written
+  @param[in]  len       length of the data to be written.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t write_blob(Blob_context blob_ctx, lob::ref_t &ref, const byte *data,
+                     size_t len);
+
+  /** Indicate that the blob has been completed, so that resources can be
+  removed, and as necessary flushing can be done.
+  @param[in]  blob_ctx  pointer to blob which has been completely written.
+  @param[out] ref       a blob ref object.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t close_blob(Blob_context blob_ctx, lob::ref_t &ref);
+
+  /** Allocate a LOB first page
+  @return a LOB first page. */
+  Page_load *alloc_first_page();
+
+  /** Allocate a data page
+  @return a LOB data page. */
+  Page_load *alloc_data_page();
+
+  /** Allocate a LOB index page.
+  @return a LOB index page. */
+  Page_load *alloc_index_page();
+
+  /** Get the current transaction id.
+  @return the current transaction id. */
+  trx_id_t get_trx_id() const;
+
+ private:
+  Page_load *alloc_page_from_extent(Page_extent *&m_page_extent);
+
+  Page_extent *alloc_free_extent();
+
+  Btree_load &m_btree_load;
+
+  /** Page extent from which to allocate first pages of blobs.
+  @ref lob::bulk::first_page_t. */
+  Page_extent *m_page_extent_first{nullptr};
+
+  Page_range_t m_page_range_first;
+
+  /** Page extent from which to allocate data pages of blobs.
+  @ref lob::bulk::data_page_t. */
+  Page_extent *m_page_extent_data{nullptr};
+
+  /** Page extent from which to allocate index pages of blobs.
+  @ref lob::bulk::node_page_t. */
+  std::list<Page_extent *> m_index_extents;
+
+  /** The current blob being inserted. */
+  Blob_context m_blob{nullptr};
+
+  /** Cache of Page_load objects. */
+  ut::Object_cache<Page_load> m_page_load_cache;
+
+  /** Cache of Page_extent objects. */
+  ut::Object_cache<Page_extent> m_page_extent_cache;
+
+  /** Cache the free context objects. */
+  std::vector<Blob_handle *> m_free_blob_ctxs;
+};
+
+} /* namespace bulk */
+
 /** @note We should call commit(false) for a Page_load object, which is not in
 m_page_loaders after page_commit, and we will commit or abort Page_load
 objects in function "finish". */
@@ -683,6 +894,38 @@ class Btree_load : private ut::Non_copyable {
  public:
   /** Merge multiple Btree_load sub-trees together. */
   class Merger;
+
+  dberr_t insert_blob(lob::ref_t &ref, const dfield_t *dfield) {
+    return m_blob_inserter.insert_blob(ref, dfield);
+  }
+
+  /** Create a blob.
+  @param[out]  blob_ctx  pointer to an opaque object representing a blob.
+  @param[out]  ref       blob reference to be placed in the record.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t open_blob(Blob_context &blob_ctx, lob::ref_t &ref) {
+    return m_blob_inserter.open_blob(blob_ctx, ref);
+  }
+
+  /** Write data into the blob.
+  @param[in]  blob_ctx  pointer to blob into which data is written.
+  @param[in,out] ref    blob reference of the current blob
+  @param[in]  data      buffer containing data to be written
+  @param[in]  len       length of the data to be written.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t write_blob(Blob_context blob_ctx, lob::ref_t &ref, const byte *data,
+                     size_t len) {
+    return m_blob_inserter.write_blob(blob_ctx, ref, data, len);
+  }
+
+  /** Indicate that the blob has been completed, so that resources can be
+  removed, and as necessary flushing can be done.
+  @param[in]  blob_ctx  pointer to blob which has been completely written.
+  @param[out] ref   blob reference of the closed blob.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t close_blob(Blob_context blob_ctx, lob::ref_t &ref) {
+    return m_blob_inserter.close_blob(blob_ctx, ref);
+  }
 
  public:
   using Page_loaders = std::vector<Page_load *, ut::allocator<Page_load *>>;
@@ -986,9 +1229,6 @@ class Btree_load : private ut::Non_copyable {
   m_level_ctxs[0]. */
   Level_ctxs m_level_ctxs{};
 
-  /* Dedicated thread to flush pages. */
-  Bulk_flusher m_bulk_flusher;
-
   /** Reference to global extent allocator. */
   Bulk_extent_allocator &m_allocator;
 
@@ -1019,6 +1259,15 @@ class Btree_load : private ut::Non_copyable {
 
   /* End wait callback function. */
   Wait_callbacks::Function m_fn_wait_end;
+
+  /** Blob inserter that will be used to handle all the externally stored
+  fields of InnoDB. */
+  bulk::Blob_inserter m_blob_inserter;
+
+  /* Dedicated thread to flush pages. */
+  Bulk_flusher m_bulk_flusher;
+
+  friend class bulk::Blob_inserter;
 };
 
 class Btree_load::Merger {
@@ -1161,6 +1410,10 @@ class Page_load : private ut::Non_copyable {
   @param[in]  trx_id  the transaction id to used. */
   void set_trx_id(const trx_id_t trx_id) { m_trx_id = trx_id; }
 
+  /** Get the current transaction identifier.
+  @return the current transaction identifier.*/
+  trx_id_t get_trx_id() const { return m_trx_id; }
+
   /** Set the flush observer.
   @param[in]  observer the flush observer object to use. */
   void set_flush_observer(Flush_observer *observer) {
@@ -1185,6 +1438,13 @@ class Page_load : private ut::Non_copyable {
   [[nodiscard]] dberr_t init() noexcept;
   [[nodiscard]] dberr_t init_mem(const page_no_t new_page_no,
                                  Page_extent *page_extent) noexcept;
+
+  /** Initialize a memory block to be used for storing blobs.
+  @param[in]  page_no  the page number to be set in the memory block.
+  @param[in]  page_extent  extent to which this page belongs.
+  @return DB_SUCCESS on success, error code on failure.*/
+  [[nodiscard]] dberr_t init_mem_blob(const page_no_t page_no,
+                                      Page_extent *page_extent) noexcept;
 
   /** Allocate a page for this Page_load object.
   @return DB_SUCCESS on success, error code on failure. */
@@ -1225,6 +1485,11 @@ class Page_load : private ut::Non_copyable {
   [[nodiscard]] bool need_ext(const dtuple_t *tuple,
                               size_t rec_size) const noexcept;
 
+  /** Store externally the first possible field of the given tuple.
+  @return true if a field was stored externally, false if it was not possible
+  to store any of the fields externally. */
+  [[nodiscard]] bool make_ext(dtuple_t *tuple);
+
   /** Get node pointer
   @return node pointer */
   [[nodiscard]] dtuple_t *get_node_ptr() noexcept;
@@ -1263,8 +1528,10 @@ class Page_load : private ut::Non_copyable {
   @return true	if space is available */
   [[nodiscard]] inline bool is_space_available(size_t rec_size) const noexcept;
 
-  /** Get page no */
+  /** Get the page number of this page load object.
+  @return the page number of this page load object. */
   [[nodiscard]] page_no_t get_page_no() const noexcept { return m_page_no; }
+
   [[nodiscard]] page_id_t get_page_id() const noexcept {
     return m_block->page.id;
   }
@@ -1470,13 +1737,13 @@ inline void Page_extent::append(Page_load *page_load) {
   ut_ad(page_load->is_memory());
   ut_ad(page_load->get_page_no() >= m_range.first);
   ut_ad(page_load->get_page_no() < m_range.second);
-  ut_ad(m_page_loads.size() < FSP_EXTENT_SIZE);
   for (auto &iter : m_page_loads) {
     if (iter->get_page_no() == page_load->get_page_no()) {
       /* Page already appended. Don't append again. */
       return;
     }
   }
+  ut_ad(m_page_loads.size() < FSP_EXTENT_SIZE);
   m_page_loads.push_back(page_load);
 }
 
@@ -1492,7 +1759,9 @@ inline Page_extent::Page_extent(Btree_load *btree_load, const bool is_leaf)
     : m_page_no(FIL_NULL),
       m_range(FIL_NULL, FIL_NULL),
       m_btree_load(btree_load),
-      m_is_leaf(is_leaf) {}
+      m_is_leaf(is_leaf) {
+  IF_DEBUG(m_is_owned_by_bulk_flusher.store(false));
+}
 
 inline Page_extent *Page_extent::create(Btree_load *btree_load,
                                         const bool is_leaf, bool skip_track) {
@@ -1529,6 +1798,18 @@ struct Btree_load_compare {
 void bulk_load_enable_slow_io_debug();
 void bulk_load_disable_slow_io_debug();
 #endif /* UNIV_DEBUG */
+
+inline void Page_extent::free_memory_blocks() {
+  for (auto page_load : m_page_loads) {
+    page_load->free();
+  }
+}
+
+namespace bulk {
+inline trx_id_t Blob_inserter::get_trx_id() const {
+  return m_btree_load.get_trx_id();
+}
+} /* namespace bulk */
 
 } /* namespace Btree_multi */
 

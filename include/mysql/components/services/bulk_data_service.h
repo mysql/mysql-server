@@ -33,14 +33,23 @@
 #include <stddef.h>
 #include <cstring>
 #include <functional>
+#include <iomanip>
+#include <iostream>
 #include <limits>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
+#include "field_types.h"
+#include "sql-common/json_error_handler.h"
 
 class THD;
 struct TABLE;
 struct CHARSET_INFO;
+using Blob_context = void *;
+
+/** The blob reference size.  Refer to lob::ref_t::SIZE or FIELD_REF_SIZE. */
+constexpr size_t BLOB_REF_SIZE = 20;
 
 struct Bulk_load_error_location_details {
   std::string filename;
@@ -48,7 +57,29 @@ struct Bulk_load_error_location_details {
   std::string column_name;
   std::string column_type;
   std::string column_input_data;
+  std::string m_error_mesg{};
+  std::string m_table_name{};
+  size_t m_bytes;
+
+  std::ostream &print(std::ostream &out) const;
 };
+
+inline std::ostream &Bulk_load_error_location_details::print(
+    std::ostream &out) const {
+  out << "[Bulk_load_error_location_details: filename=" << filename
+      << ", column_name=" << column_name << "]";
+  return out;
+}
+
+/** Overloading the global output operator to print objects of type
+Bulk_load_error_location_details.
+@param[in]  out  output stream
+@param[in]  obj  object to be printed
+@return given output stream. */
+inline std::ostream &operator<<(std::ostream &out,
+                                const Bulk_load_error_location_details &obj) {
+  return obj.print(out);
+}
 
 struct Column_text {
   /** Column data. */
@@ -56,7 +87,108 @@ struct Column_text {
 
   /** Column data length. */
   size_t m_data_len{};
+
+  /** Mark the column to be null, by setting length to a special value. This is
+  only used for columns whose state is maintained across chunks
+  (aka fragmented columns). */
+  void set_null() {
+    assert(m_data_ptr == nullptr);
+    m_data_len = std::numeric_limits<size_t>::max();
+  }
+
+  /** Check if the column is null, by checking special value for length.
+  @return true if the column is null, false otherwise. */
+  bool is_null() const {
+    assert(m_data_len != std::numeric_limits<size_t>::max() ||
+           m_data_ptr == nullptr);
+    return m_data_len == std::numeric_limits<size_t>::max();
+  }
+
+  /** Check if the column data is stored externally.  If the data is stored
+  externally, then the data length (m_data_len) would be equal to the
+  BLOB_REF_SIZE and the column data (m_data_ptr) will contain the lob
+  reference.
+  @return true if data is stored externally, false otherwise. */
+  bool is_ext() const {
+    assert(!m_is_ext || m_data_len == BLOB_REF_SIZE);
+    return m_is_ext;
+  }
+
+  /** Check if the column data is stored externally. It is called relaxed,
+  because the column length might not be equal to BLOB_REF_SIZE.  Only to
+  be used while the blob is being processed by the CSV parser.
+  @return true if data is stored externally, false otherwise. */
+  bool is_ext_relaxed() const {
+    assert(!m_is_ext || m_data_len >= BLOB_REF_SIZE);
+    return m_is_ext;
+  }
+
+  /** Mark that the column data has been stored externally. */
+  void set_ext() {
+    assert(m_data_len == BLOB_REF_SIZE);
+    m_is_ext = true;
+  }
+
+  /** Initialize the members */
+  void init() {
+    m_data_ptr = nullptr;
+    m_data_len = 0;
+    m_is_ext = false;
+  }
+
+  /** Print this object into the given output stream.
+  @param[in] out  output stream into which this object will be printed.
+  @return given output stream */
+  std::ostream &print(std::ostream &out) const;
+
+  std::string to_string() const;
+
+ private:
+  /** If true, the column data is stored externally. */
+  bool m_is_ext{false};
 };
+
+inline std::string Column_text::to_string() const {
+  std::ostringstream sout;
+  sout << "[Column_text: len=" << m_data_len;
+  sout << ", val=";
+
+  if (m_data_ptr == nullptr) {
+    sout << "nullptr";
+  } else {
+    for (size_t i = 0; i < m_data_len; ++i) {
+      const char c = m_data_ptr[i];
+      if (isalnum(c)) {
+        sout << c;
+      } else {
+        sout << ".";
+      }
+    }
+    sout << "[hex=";
+    for (size_t i = 0; i < m_data_len; ++i) {
+      sout << std::setfill('0') << std::setw(2) << std::hex
+           << (int)*(&m_data_ptr[i]);
+    }
+  }
+  sout << "]";
+  return sout.str();
+}
+
+inline std::ostream &Column_text::print(std::ostream &out) const {
+  out << "[Column_text: this=" << static_cast<const void *>(this)
+      << ", m_data_ptr=" << static_cast<const void *>(m_data_ptr)
+      << ", m_data_len=" << m_data_len << ", m_is_ext=" << m_is_ext << "]";
+  return out;
+}
+
+/** Overloading the global output operator to print objects of type
+Column_text.
+@param[in]  out  output stream
+@param[in]  obj  object to be printed
+@return given output stream. */
+inline std::ostream &operator<<(std::ostream &out, const Column_text &obj) {
+  return obj.print(out);
+}
 
 struct Column_mysql {
   /** Column Data Type */
@@ -73,11 +205,45 @@ struct Column_mysql {
 
   /** Column data in integer format. Used only for specific datatype. */
   uint64_t m_int_data;
+
+  std::string to_string() const;
 };
 
+inline std::string Column_mysql::to_string() const {
+  std::ostringstream sout;
+  sout << "[Column_mysql: len=" << m_data_len;
+  sout << ", val=";
+
+  switch (m_type) {
+    case MYSQL_TYPE_LONG: {
+      sout << m_int_data;
+    } break;
+    default: {
+      for (size_t i = 0; i < m_data_len; ++i) {
+        const char c = m_data_ptr[i];
+        if (isalnum(c)) {
+          sout << c;
+        } else {
+          sout << ".";
+        }
+      }
+
+    } break;
+  }
+  if (m_type != MYSQL_TYPE_LONG) {
+    sout << "[hex=";
+    for (size_t i = 0; i < m_data_len; ++i) {
+      sout << std::setfill('0') << std::setw(2) << std::hex
+           << (int)*(&m_data_ptr[i]);
+    }
+    sout << "]";
+  }
+  return sout.str();
+}
+
 /** Implements the row and column memory management for parse and load
-operations. We try to pre-allocate the memory contiguously as much as we can to
-maximize the performance.
+operations. We try to pre-allocate the memory contiguously as much as we can
+to maximize the performance.
 
 @tparam Column_type Column_text when used in the CSV context, Column_sql when
 used in the InnoDB context.
@@ -146,6 +312,19 @@ class Row_bunch {
     return m_columns[row_offset + col_index];
   }
 
+  /** Get column using row index and column index.
+  @param[in]  row_index   index of the row in the bunch
+  @param[in]  col_index   index of the column within row
+  @return column data */
+  Column_type &get_col(size_t row_index, size_t col_index) {
+    return get_column(get_row_offset(row_index), col_index);
+  }
+
+  /** Get column using the column offset.
+  @param[in]  col_offset  column offset
+  @return column data */
+  Column_type &get_col(size_t col_offset) { return m_columns[col_offset]; }
+
   /** Get constant column for reading using row offset and column index.
   @param[in]  row_offset  row offset in column vector
   @param[in]  col_index   index of the column within row
@@ -185,8 +364,8 @@ class Row_bunch {
    * estimate of the number of columns with the max chunk size (1024M). In the
    * worst case we can have 2 bytes per column so a chunk can contain around
    * 512M columns, and because of rows that spill over chunk boundaries we
-   * assume we can append a full additional row (which should have at most 4096
-   * columns). Rounded up to 600M. */
+   * assume we can append a full additional row (which should have at most
+   * 4096 columns). Rounded up to 600M. */
   const static size_t S_MAX_TOTAL_COLS = 600 * 1024 * 1024;
 
  private:
@@ -223,8 +402,13 @@ struct Column_meta {
             m_compare == Compare::INTEGER_UNSIGNED);
   }
 
-  /** Field type */
-  int m_type;
+  /** Based on the column data type check if it can be stored externally.
+  @return true if the column data can be stored externally
+  @return false if the column data cannot be stored externally */
+  bool can_be_stored_externally() const;
+
+  /** Field type. (@ref enum_field_types) */
+  enum_field_types m_type;
 
   /** If column could be NULL. */
   bool m_is_nullable;
@@ -271,7 +455,48 @@ struct Column_meta {
 
   /** Character set for char & varchar columns. */
   const void *m_charset;
+
+  /** Field name */
+  std::string m_field_name;
+
+  /** Print this object into the given output stream.
+  @param[in]  out  output stream into which object will be printed
+  @return given output stream. */
+  std::ostream &print(std::ostream &out) const;
 };
+
+inline bool Column_meta::can_be_stored_externally() const {
+  switch (m_type) {
+    case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB: {
+      return true;
+    }
+    default:
+      break;
+  }
+  return false;
+}
+
+inline std::ostream &Column_meta::print(std::ostream &out) const {
+  out << "[Column_meta: m_is_single_byte_len=" << m_is_single_byte_len
+      << ", m_is_fixed_len=" << m_is_fixed_len
+      << ", m_fixed_len=" << m_fixed_len << "]";
+  return out;
+}
+
+/** Overloading the global output operator to print objects of type
+Column_meta.
+@param[in]  out  output stream
+@param[in]  obj  object to be printed
+@return given output stream. */
+inline std::ostream &operator<<(std::ostream &out, const Column_meta &obj) {
+  return obj.print(out);
+}
 
 /** Row metadata */
 struct Row_meta {
@@ -286,6 +511,18 @@ struct Row_meta {
   };
   /** All columns in a row are arranged with key columns first. */
   std::vector<Column_meta> m_columns;
+
+  /** All columns in a row arranged as per col_index. */
+  std::vector<const Column_meta *> m_columns_text_order;
+
+  /** Get the meta data of the column.
+  @param[in]  col_index  the index of the column as it appears in CSV file.
+  @return a reference to the column meta data.*/
+  const Column_meta &get_column_meta(size_t col_index) const {
+    assert(col_index < m_columns_text_order.size());
+    assert(col_index == m_columns_text_order[col_index]->m_index);
+    return *m_columns_text_order[col_index];
+  }
 
   /** Total bitmap header length for the row. */
   size_t m_bitmap_length = 0;
@@ -316,9 +553,54 @@ struct Row_meta {
 
   /** Approximate row length. */
   size_t m_approx_row_len = 0;
+
+  /** Number of columns that can be stored externally. */
+  size_t m_n_blob_cols{0};
 };
 
 namespace Bulk_load {
+
+class Json_serialization_error_handler final
+    : public JsonSerializationErrorHandler {
+ public:
+  void KeyTooBig() const override;
+  void ValueTooBig() const override;
+  void TooDeep() const override;
+  void InvalidJson() const override;
+  void InternalError(const char *message) const override;
+  bool CheckStack() const override;
+
+  const char *c_str() const { return m_error.c_str(); }
+
+  std::string get_error() const { return m_error; }
+
+ private:
+  mutable std::string m_error{};
+};
+
+inline void Json_serialization_error_handler::KeyTooBig() const {
+  m_error = "Key is too big";
+}
+
+inline void Json_serialization_error_handler::ValueTooBig() const {
+  m_error = "Value is too big";
+}
+
+inline void Json_serialization_error_handler::TooDeep() const {
+  m_error = "JSON document has more nesting levels than supported";
+}
+inline void Json_serialization_error_handler::InvalidJson() const {
+  m_error = "Invalid JSON value is encountered";
+}
+inline void Json_serialization_error_handler::InternalError(
+    const char *message [[maybe_unused]]) const {
+  m_error = message;
+  m_error += " (Internal Error)";
+}
+
+inline bool Json_serialization_error_handler::CheckStack() const {
+  return false;
+}
 
 /** Callbacks for collecting time statistics */
 struct Stat_callbacks {
@@ -429,6 +711,45 @@ DECLARE_METHOD(bool, load,
                (THD * thd, void *ctx, const TABLE *table,
                 const Rows_mysql &sql_rows, size_t thread,
                 Bulk_load::Stat_callbacks &wait_cbks));
+
+/** Create a blob context object to insert a blob.
+@param[in,out]  thd    session THD
+@param[in,out]  load_ctx    SE load context returned by begin()
+@param[in]      table  MySQL TABLE
+@param[out]     blob_ctx  a blob context object to insert a blob.
+@param[out]     blobref   buffer to hold blob reference
+@param[in]      thread  current thread number
+@return true if successful. */
+DECLARE_METHOD(bool, open_blob,
+               (THD * thd, void *load_ctx, const TABLE *table,
+                Blob_context &blob_ctx, unsigned char *blobref, size_t thread));
+
+/** Write data into a blob
+@param[in,out]  thd    session THD
+@param[in,out]  load_ctx    SE load context returned by begin()
+@param[in]      table  MySQL TABLE
+@param[in]      blob_ctx  a blob context object to insert a blob.
+@param[out]     blobref   buffer to hold blob reference
+@param[in]      thread  current thread number
+@param[in]      data  blob data to be written
+@param[in]      data_len  length of blob data to be written (in bytes);
+@return true if successful. */
+DECLARE_METHOD(bool, write_blob,
+               (THD * thd, void *load_ctx, const TABLE *table,
+                Blob_context blob_ctx, unsigned char *blobref, size_t thread,
+                const unsigned char *data, size_t data_len));
+
+/** Close the blob
+@param[in,out]  thd      session THD
+@param[in,out]  load_ctx    SE load context returned by begin()
+@param[in]      table    MySQL TABLE
+@param[in]      blob_ctx  a blob context object to insert a blob.
+@param[out]     blobref   buffer to hold blob reference
+@param[in]      thread  current thread number
+@return true if successful. */
+DECLARE_METHOD(bool, close_blob,
+               (THD * thd, void *load_ctx, const TABLE *table,
+                Blob_context blob_ctx, unsigned char *blobref, size_t thread));
 
 /** End Loading bulk data to SE.
 

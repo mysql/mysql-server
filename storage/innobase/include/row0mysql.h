@@ -513,10 +513,12 @@ constexpr uint32_t ROW_PREBUILT_FREED = 26423527;
 handle used within MySQL; these are used to save CPU time. */
 
 struct row_prebuilt_t {
-  ulint magic_n;               /*!< this magic number is set to
-                               ROW_PREBUILT_ALLOCATED when created,
-                               or ROW_PREBUILT_FREED when the
-                               struct has been freed */
+  ulint magic_n; /*!< this magic number is set to
+                 ROW_PREBUILT_ALLOCATED when created,
+                 or ROW_PREBUILT_FREED when the
+                 struct has been freed */
+  space_id_t space_id() const { return table->space; }
+
   dict_table_t *table;         /*!< Innobase table handle */
   dict_index_t *index;         /*!< current index for a search, if
                                any */

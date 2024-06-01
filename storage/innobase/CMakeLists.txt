@@ -160,6 +160,7 @@ SET(INNOBASE_SOURCES
   handler/i_s.cc
   handler/p_s.cc
   ibuf/ibuf0ibuf.cc
+  lob/lob0bulk.cc
   lob/lob0first.cc
   lob/lob0index.cc
   lob/lob0ins.cc

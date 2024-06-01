@@ -407,3 +407,179 @@ void flst_validate(const flst_base_node_t *base, mtr_t *mtr1) {
 
   ut_a(fil_addr_is_null(node_addr));
 }
+
+namespace bulk {
+
+/** Adds a node to an empty list.
+@param[in] base  pointer to base node of empty list
+@param[in] node  node to add */
+static void flst_add_to_empty(flst_base_node_t *base, flst_node_t *node) {
+  space_id_t space;
+  fil_addr_t node_addr;
+  ulint len;
+
+  ut_ad(base != nullptr);
+  ut_ad(node != nullptr);
+  ut_ad(base != node);
+  len = flst_get_len(base);
+  ut_a(len == 0);
+
+  buf_ptr_get_fsp_addr(node, &space, &node_addr);
+
+  /* Update first and last fields of base node */
+  flst_write_addr(base + FLST_FIRST, node_addr);
+  flst_write_addr(base + FLST_LAST, node_addr);
+
+  /* Set prev and next fields of node to add */
+  flst_write_addr(node + FLST_PREV, fil_addr_null);
+  flst_write_addr(node + FLST_NEXT, fil_addr_null);
+
+  /* Update len of base node */
+  mach_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES);
+}
+
+void flst_remove(flst_base_node_t *base, flst_node_t *node2,
+                 std::vector<buf_block_t *> &blocks) {
+  space_id_t space;
+  flst_node_t *node1;
+  fil_addr_t node1_addr;
+  fil_addr_t node2_addr;
+  flst_node_t *node3;
+  fil_addr_t node3_addr;
+  ulint len;
+
+  ut_ad(node2 != nullptr);
+  ut_ad(base != nullptr);
+
+  buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
+  node1_addr = flst_get_prev_addr(node2);
+  node3_addr = flst_get_next_addr(node2);
+
+  if (!fil_addr_is_null(node1_addr)) {
+    /* Update next field of node1 */
+
+    if (node1_addr.page == node2_addr.page) {
+      node1 = page_align(node2) + node1_addr.boffset;
+    } else {
+      node1 = fut_get_ptr(node1_addr, blocks);
+    }
+
+    ut_ad(node1 != node2);
+
+    flst_write_addr(node1 + FLST_NEXT, node3_addr);
+  } else {
+    /* node2 was first in list: update first field in base */
+    flst_write_addr(base + FLST_FIRST, node3_addr);
+  }
+
+  if (!fil_addr_is_null(node3_addr)) {
+    /* Update prev field of node3 */
+
+    if (node3_addr.page == node2_addr.page) {
+      node3 = page_align(node2) + node3_addr.boffset;
+    } else {
+      node3 = fut_get_ptr(node3_addr, blocks);
+    }
+
+    ut_ad(node2 != node3);
+
+    flst_write_addr(node3 + FLST_PREV, node1_addr);
+  } else {
+    /* node2 was last in list: update last field in base */
+    flst_write_addr(base + FLST_LAST, node1_addr);
+  }
+
+  /* Update len of base node */
+  len = flst_get_len(base);
+  ut_ad(len > 0);
+
+  mach_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES);
+}
+
+byte *fut_get_ptr(fil_addr_t addr, std::vector<buf_block_t *> &blocks) {
+  ut_ad(addr.boffset < UNIV_PAGE_SIZE);
+  buf_block_t *block{nullptr};
+  for (auto b : blocks) {
+    if (b->page.page_no() == addr.page) {
+      block = b;
+    }
+  }
+  ut_a(block != nullptr);
+  return buf_block_get_frame(block) + addr.boffset;
+}
+
+void flst_add_last(flst_base_node_t *base, flst_node_t *node,
+                   std::vector<buf_block_t *> &blocks) {
+  space_id_t space;
+  fil_addr_t node_addr;
+  ulint len;
+  fil_addr_t last_addr;
+
+  ut_ad(base != nullptr);
+  ut_ad(node != nullptr);
+  ut_ad(base != node);
+  len = flst_get_len(base);
+  last_addr = flst_get_last(base);
+
+  buf_ptr_get_fsp_addr(node, &space, &node_addr);
+
+  /* If the list is not empty, call flst_insert_after */
+  if (len != 0) {
+    flst_node_t *last_node;
+
+    if (last_addr.page == node_addr.page) {
+      last_node = page_align(node) + last_addr.boffset;
+    } else {
+      last_node = fut_get_ptr(last_addr, blocks);
+    }
+
+    flst_insert_after(base, last_node, node, blocks);
+  } else {
+    /* else call flst_add_to_empty */
+    flst_add_to_empty(base, node);
+  }
+}
+
+void flst_insert_after(flst_base_node_t *base, flst_node_t *node1,
+                       flst_node_t *node2, std::vector<buf_block_t *> &blocks) {
+  space_id_t space;
+  fil_addr_t node1_addr;
+  fil_addr_t node2_addr;
+  flst_node_t *node3;
+  fil_addr_t node3_addr;
+  ulint len;
+
+  ut_ad(node1 != nullptr);
+  ut_ad(node2 != nullptr);
+  ut_ad(base != nullptr);
+  ut_ad(base != node1);
+  ut_ad(base != node2);
+  ut_ad(node2 != node1);
+
+  buf_ptr_get_fsp_addr(node1, &space, &node1_addr);
+  buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
+
+  node3_addr = flst_get_next_addr(node1);
+
+  /* Set prev and next fields of node2 */
+  flst_write_addr(node2 + FLST_PREV, node1_addr);
+  flst_write_addr(node2 + FLST_NEXT, node3_addr);
+
+  if (!fil_addr_is_null(node3_addr)) {
+    /* Update prev field of node3 */
+    node3 = fut_get_ptr(node3_addr, blocks);
+    flst_write_addr(node3 + FLST_PREV, node2_addr);
+  } else {
+    /* node1 was last in list: update last field in base */
+    flst_write_addr(base + FLST_LAST, node2_addr);
+  }
+
+  /* Set next field of node1 */
+  flst_write_addr(node1 + FLST_NEXT, node2_addr);
+
+  /* Update len of base node */
+  len = flst_get_len(base);
+  mach_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES);
+}
+
+}  // namespace bulk

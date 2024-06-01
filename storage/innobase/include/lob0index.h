@@ -407,6 +407,43 @@ struct index_entry_t {
   @param[in]  first_page_no  the first page number of the LOB. */
   void free_data_page(const page_no_t first_page_no);
 
+ protected:
+  /** Get pointer to the base node of the list of versions.
+  @return pointer to the base node of the list of versions. */
+  byte *get_versions_ptr() const { return (m_node + OFFSET_VERSIONS); }
+
+  /** Get the location where data length is stored.
+  @return the location where data length is stored. */
+  byte *get_datalen_ptr() const { return (m_node + OFFSET_DATA_LEN); }
+
+  /** Get pointer to the location where the creator trx id is written.
+  @return pointer to the location where the creator trx id is written.*/
+  byte *get_trxid_ptr() const { return (m_node + OFFSET_TRXID); }
+
+  /** Get pointer to the location where the modifier trx id is written.
+  @return pointer to the location where the modifier trx id is written.*/
+  byte *get_trxid_modifier_ptr() const {
+    return m_node + OFFSET_TRXID_MODIFIER;
+  }
+
+  /** Get pointer to location where page number is written. This page contains
+  the LOB data.
+  @return pointer to the location where page number is written.*/
+  byte *get_pageno_ptr() const { return (m_node + OFFSET_PAGE_NO); }
+
+  /** Get pointer to location where undo number of creator trx is written.
+  @return pointer to location where undo number of creator trx is written.*/
+  byte *get_trx_undo_no_ptr() const { return (m_node + OFFSET_TRX_UNDO_NO); }
+
+  /** Get pointer to location where undo number of modifier trx is written.
+  @return pointer to location where undo number of modifier trx is written.*/
+  byte *get_trx_undo_no_modifier_ptr() const {
+    return m_node + OFFSET_TRX_UNDO_NO_MODIFIER;
+  }
+
+  /** Pointer to the blob index entry node. */
+  byte *m_node{nullptr};
+
  private:
   /** Move the version base node from current entry to the given entry.
   @param[in]    to_entry        The index entry to which the version
@@ -418,32 +455,13 @@ struct index_entry_t {
   page.  A FIRST page should not be freed. */
   void purge(dict_index_t *index);
 
-  byte *get_versions_ptr() const { return (m_node + OFFSET_VERSIONS); }
-
-  byte *get_trxid_ptr() const { return (m_node + OFFSET_TRXID); }
-
-  byte *get_trxid_modifier_ptr() const {
-    return (m_node + OFFSET_TRXID_MODIFIER);
-  }
-
-  byte *get_trx_undo_no_ptr() const { return (m_node + OFFSET_TRX_UNDO_NO); }
-
   byte *get_lob_version_ptr() const { return (m_node + OFFSET_LOB_VERSION); }
-
-  byte *get_trx_undo_no_modifier_ptr() const {
-    return (m_node + OFFSET_TRX_UNDO_NO_MODIFIER);
-  }
-
-  byte *get_pageno_ptr() const { return (m_node + OFFSET_PAGE_NO); }
-
-  byte *get_datalen_ptr() const { return (m_node + OFFSET_DATA_LEN); }
 
   byte *get_node_ptr() const { return (m_node); }
 
   byte *get_node() const { return (m_node); }
 
  private:
-  byte *m_node;
   mtr_t *m_mtr;
   const dict_index_t *m_index;
   buf_block_t *m_block;

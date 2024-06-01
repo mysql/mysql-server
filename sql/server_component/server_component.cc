@@ -352,7 +352,8 @@ Bulk_data_convert::mysql_format, Bulk_data_convert::mysql_format_from_raw,
     Bulk_data_convert::get_row_metadata END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_load)
-Bulk_data_load::begin, Bulk_data_load::load, Bulk_data_load::end,
+Bulk_data_load::begin, Bulk_data_load::load, Bulk_data_load::open_blob,
+    Bulk_data_load::write_blob, Bulk_data_load::close_blob, Bulk_data_load::end,
     Bulk_data_load::is_table_supported, Bulk_data_load::get_se_memory_size,
     END_SERVICE_IMPLEMENTATION();
 

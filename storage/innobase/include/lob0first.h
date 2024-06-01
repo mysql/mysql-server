@@ -238,10 +238,18 @@ struct first_page_t : public basic_page_t {
       /* Not there in cached blocks.  Add the loaded block to cache. */
       buf_block_t *block = nullptr;
       result = fut_get_ptr(space, page_size, addr, RW_S_LATCH, m_mtr, &block);
+#ifdef UNIV_DEBUG
+      const page_type_t type = block->get_page_type();
+      ut_ad(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
+#endif /* UNIV_DEBUG */
       cache.insert(std::make_pair(addr.page, block));
     } else {
       buf_block_t *block = iter->second;
+#ifdef UNIV_DEBUG
+      const page_type_t type = block->get_page_type();
+      ut_ad(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
       ut_ad(block->page.id.page_no() == addr.page);
+#endif /* UNIV_DEBUG */
       result = buf_block_get_frame(block) + addr.boffset;
     }
     return (result);

@@ -12585,7 +12585,7 @@ ER_IB_ERR_CORRUPT_TABLESPACE_UNRECOVERABLE
   eng "Tablespace '%u' mentioned in the redo log is corrupted in a way it is unrecoverable by double-write buffer, so further redo log recovery is not possible!"
 
 ER_IB_BULK_LOAD_STATS_WARN
-  eng "%s: Failed to save statistics for table=%s err=%zu"
+  eng "%s: Failed to save statistics for table=%s err=%zu trx_err=%zu"
 
 ER_COMPONENT_MASKING_INVALID_FLUSH_INTERVAL_VALUE
    eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
@@ -12745,6 +12745,12 @@ ER_DD_UPDATE_DATADIR_FLAG_FAIL
 
 ER_IB_MSG_FIL_STATE_MOVED_PREV
   eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory, but DD misses info about DATA DIRECTORY"
+
+ER_LOAD_BULK_JSON_ERROR
+  eng "Bulk CSV parser reports JSON error: %s at %zu"
+
+ER_IB_BULK_LOAD_STATS_INFO
+  eng "%s: %s: Saving statistics for table=%s err=%zu trx_err=%zu"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

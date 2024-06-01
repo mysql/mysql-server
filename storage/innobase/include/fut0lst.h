@@ -180,4 +180,116 @@ inline std::ostream &operator<<(std::ostream &out, const flst_bnode_t &obj) {
   return (obj.print(out));
 }
 
+/** @namespace bulk
+
+Used for bulk load of data. To avoid mistakes, an explicit namespace
+is used to encapsulate functions and objects that operate without generating
+redo log records and without using mini transactions. */
+namespace bulk {
+
+/** Initializes a list base node.
+@param[in]      base    Pointer to base node */
+void flst_init(flst_base_node_t *base);
+
+/** Inserts a node after another in a list. This is the bulk version.
+@param[in]      base    Pointer to base node of list
+@param[in]      node1   Node to insert after
+@param[in]      node2   Node to add
+@param[in]      blocks  vector of blocks containing the file list. */
+void flst_insert_after(flst_base_node_t *base, flst_node_t *node1,
+                       flst_node_t *node2, std::vector<buf_block_t *> &blocks);
+
+/** Writes a file address.
+@param[in]      faddr   Pointer to file faddress
+@param[in]      addr    File address */
+void flst_write_addr(fil_faddr_t *faddr, fil_addr_t addr);
+
+/** Adds a node as the last node in a list.
+@param[in] base Pointer to base node of list
+@param[in] node Node to add
+@param[in] blocks  vector of blocks containing the file list. */
+void flst_add_last(flst_base_node_t *base, flst_node_t *node,
+                   std::vector<buf_block_t *> &blocks);
+
+/** Gets list first node address.
+ @return file address */
+fil_addr_t flst_get_first(const flst_base_node_t *base);
+
+/** Gets list prev node address. Bulk version.
+@param[in]      node    Pointer to node
+@return file address */
+fil_addr_t flst_get_prev_addr(const flst_node_t *node);
+
+/** Gets list next node address.
+@param[in]      node    Pointer to node
+@return file address */
+fil_addr_t flst_get_next_addr(const flst_node_t *node);
+
+/** Reads a file address.
+ @return file address */
+fil_addr_t flst_read_addr(const fil_faddr_t *faddr);
+
+/** Bulk load version. Remove the node from the given list.
+@param[in]  base   the base node of the list.
+@param[in]  node2   the first node of the list that is to be removed.
+@param[in]  blocks all blocks containing the list nodes, necessary to carry
+                   out this operation. */
+void flst_remove(flst_base_node_t *base, flst_node_t *node2,
+                 std::vector<buf_block_t *> &blocks);
+
+/** Gets a pointer to a file address.
+@param[in]      addr    File address
+@param[in]      blocks  vector of blocks containing the file list.
+@return pointer to a location specified by addr. */
+byte *fut_get_ptr(fil_addr_t addr, std::vector<buf_block_t *> &blocks);
+
+/** Gets list last node address.
+@param[in]      base    Pointer to base node
+@return file address */
+fil_addr_t flst_get_last(const flst_base_node_t *base);
+
+inline void flst_init(flst_base_node_t *base) {
+  mach_write_to_4(base + FLST_LEN, 0);
+  flst_write_addr(base + FLST_FIRST, fil_addr_null);
+  flst_write_addr(base + FLST_LAST, fil_addr_null);
+}
+
+inline void flst_write_addr(fil_faddr_t *faddr, fil_addr_t addr) {
+  ut_ad(faddr != nullptr);
+  ut_ad(addr.page == FIL_NULL || addr.boffset >= FIL_PAGE_DATA);
+  ut_ad(ut_align_offset(faddr, UNIV_PAGE_SIZE) >= FIL_PAGE_DATA);
+  mach_write_ulint(faddr + FIL_ADDR_PAGE, addr.page, MLOG_4BYTES);
+  mach_write_ulint(faddr + FIL_ADDR_BYTE, addr.boffset, MLOG_2BYTES);
+}
+
+inline fil_addr_t flst_get_first(const flst_base_node_t *base) {
+  return flst_read_addr(base + FLST_FIRST);
+}
+
+inline fil_addr_t flst_read_addr(const fil_faddr_t *faddr) {
+  ut_ad(faddr != nullptr);
+
+  fil_addr_t addr;
+
+  addr.page = mach_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES);
+  addr.boffset = mach_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES);
+  ut_a(addr.page == FIL_NULL || addr.boffset >= FIL_PAGE_DATA);
+  ut_a(ut_align_offset(faddr, UNIV_PAGE_SIZE) >= FIL_PAGE_DATA);
+  return addr;
+}
+
+inline fil_addr_t flst_get_prev_addr(const flst_node_t *node) {
+  return flst_read_addr(node + FLST_PREV);
+}
+
+inline fil_addr_t flst_get_next_addr(const flst_node_t *node) {
+  return flst_read_addr(node + FLST_NEXT);
+}
+
+inline fil_addr_t flst_get_last(const flst_base_node_t *base) {
+  return flst_read_addr(base + FLST_LAST);
+}
+
+}  // namespace bulk
+
 #endif /* fut0lst_h */

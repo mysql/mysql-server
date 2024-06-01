@@ -38,6 +38,9 @@ namespace ddl_bulk {
 
 class Loader {
  public:
+  using Blob_context = void *;
+  using byte = unsigned char;
+
   class Thread_data {
    public:
     /** Initialize thread specific data.
@@ -54,6 +57,41 @@ class Loader {
                  Btree_multi::Btree_load *sub_tree, const Rows_mysql &rows,
                  Bulk_load::Stat_callbacks &wait_cbk);
 
+   public:
+    /** Create a blob.
+    @param[in]   sub_tree  sub tree to load data to
+    @param[out]  blob_ctx  pointer to an opaque object representing a blob.
+    @param[out]  ref       blob reference to be placed in the record.
+    @return DB_SUCCESS on success or a failure error code. */
+    dberr_t open_blob(Btree_multi::Btree_load *sub_tree, Blob_context &blob_ctx,
+                      lob::ref_t &ref) {
+      return sub_tree->open_blob(blob_ctx, ref);
+    }
+
+    /** Write data into the blob.
+    @param[in]  sub_tree  sub tree to load data to
+    @param[in]  blob_ctx  pointer to blob into which data is written.
+    @param[out] ref       blob reference to be placed in the record.
+    @param[in]  data      buffer containing data to be written
+    @param[in]  len       length of the data to be written.
+    @return DB_SUCCESS on success or a failure error code. */
+    dberr_t write_blob(Btree_multi::Btree_load *sub_tree, Blob_context blob_ctx,
+                       lob::ref_t &ref, const byte *data, size_t len) {
+      return sub_tree->write_blob(blob_ctx, ref, data, len);
+    }
+
+    /** Indicate that the blob has been completed, so that resources can be
+    removed, and as necessary flushing can be done.
+    @param[in]  sub_tree  sub tree to load data to
+    @param[in]  blob_ctx  pointer to blob which has been completely written.
+    @param[out] ref       blob reference to be placed in the record.
+    @return DB_SUCCESS on success or a failure error code. */
+    dberr_t close_blob(Btree_multi::Btree_load *sub_tree, Blob_context blob_ctx,
+                       lob::ref_t &ref) {
+      return sub_tree->close_blob(blob_ctx, ref);
+    }
+
+   public:
     /** Free thread specific data. */
     void free();
 
@@ -128,13 +166,40 @@ class Loader {
   /** Load rows to a sub-tree by a thread. Called concurrently by multiple
   execution threads.
   @param[in]  prebuilt      prebuilt structures from innodb table handler
-  @param[in]  thread_index  true if called for cleanup and rollback after an
-  error
+  @param[in]  thread_index  identifies the thread and the B-tree to use.
   @param[in]  rows          rows to be loaded to the cluster index sub-tree
   @param[in]  wait_cbk      Stat callbacks
   @return innodb error code */
   dberr_t load(const row_prebuilt_t *prebuilt, size_t thread_index,
                const Rows_mysql &rows, Bulk_load::Stat_callbacks &wait_cbk);
+
+ public:
+  /** Open a blob.
+  @param[in]   thread_index  identifies the thread and the B-tree to use.
+  @param[out]  blob_ctx  pointer to an opaque object representing a blob.
+  @param[out]  ref       blob reference to be placed in the record.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t open_blob(size_t thread_index, Blob_context &blob_ctx,
+                    lob::ref_t &ref);
+
+  /** Write data into the blob.
+  @param[in]  thread_index  identifies the thread and the B-tree to use.
+  @param[in]  blob_ctx  pointer to blob into which data is written.
+  @param[out] ref       blob reference to be placed in the record.
+  @param[in]  data      buffer containing data to be written
+  @param[in]  len       length of the data to be written.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t write_blob(size_t thread_index, Blob_context blob_ctx,
+                     lob::ref_t &ref, const byte *data, size_t len);
+
+  /** Indicate that the blob has been completed, so that resources can be
+  removed, and as necessary flushing can be done.
+  @param[in]  thread_index  identifies the thread and the B-tree to use.
+  @param[in]  blob_ctx  pointer to blob which has been completely written.
+  @param[out]  ref       blob reference to be placed in the record.
+  @return DB_SUCCESS on success or a failure error code. */
+  dberr_t close_blob(size_t thread_index, Blob_context blob_ctx,
+                     lob::ref_t &ref);
 
   /** Finish bulk load operation, combining the sub-trees produced by concurrent
   threads.
