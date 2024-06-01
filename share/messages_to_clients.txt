@@ -10494,6 +10494,12 @@ ER_NON_DML_DYNAMIC_PARAMETERS
 ER_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE
   eng "Combining the storage engines %.64s and %.64s is deprecated, but the statement or transaction updates both the %.64s table %.64s.%.64s and the %.64s table %.64s.%.64s."
 
+ER_BULK_JSON_INVALID
+  eng "Bulk load reports invalid JSON: error='%s', table='%s', field='%s'"
+
+ER_BULK_BLOB_TOO_BIG
+  eng "Column data bigger than %zu bytes for column='%s' of table='%s'"
+
 #
 #  End of 9.x error messages (server-to-client).
 #

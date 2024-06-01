@@ -125,9 +125,9 @@ struct basic_page_t {
   void set_mtr(mtr_t *mtr) { m_mtr = mtr; }
 
  protected:
-  buf_block_t *m_block;
-  mtr_t *m_mtr;
-  dict_index_t *m_index;
+  buf_block_t *m_block{nullptr};
+  mtr_t *m_mtr{nullptr};
+  dict_index_t *m_index{nullptr};
 };
 
 [[nodiscard]] inline buf_block_t *basic_page_t::get_block() const noexcept {

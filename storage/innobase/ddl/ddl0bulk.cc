@@ -34,7 +34,9 @@ BULK Data Load. Currently treated like DDL */
 #include "btr0mtib.h"
 #include "dict0stats.h"
 #include "field_types.h"
+#include "lob0lob.h"
 #include "mach0data.h"
+#include "sql/field.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0undo.h"
@@ -137,6 +139,39 @@ dberr_t Loader::load(const row_prebuilt_t *prebuilt, size_t thread_index,
   auto &ctx = m_ctxs[thread_index];
 
   return ctx.load(prebuilt, sub_tree, rows, wait_cbk);
+}
+
+dberr_t Loader::open_blob(size_t thread_index, Blob_context &blob_ctx,
+                          lob::ref_t &ref) {
+  ut_ad(thread_index < m_sub_tree_loads.size());
+  auto sub_tree = m_sub_tree_loads[thread_index];
+
+  ut_ad(thread_index < m_ctxs.size());
+  auto &ctx = m_ctxs[thread_index];
+
+  return ctx.open_blob(sub_tree, blob_ctx, ref);
+}
+
+dberr_t Loader::write_blob(size_t thread_index, Blob_context blob_ctx,
+                           lob::ref_t &ref, const byte *data, size_t len) {
+  ut_ad(thread_index < m_sub_tree_loads.size());
+  auto sub_tree = m_sub_tree_loads[thread_index];
+
+  ut_ad(thread_index < m_ctxs.size());
+  auto &ctx = m_ctxs[thread_index];
+
+  return ctx.write_blob(sub_tree, blob_ctx, ref, data, len);
+}
+
+dberr_t Loader::close_blob(size_t thread_index, Blob_context blob_ctx,
+                           lob::ref_t &ref) {
+  ut_ad(thread_index < m_sub_tree_loads.size());
+  auto sub_tree = m_sub_tree_loads[thread_index];
+
+  ut_ad(thread_index < m_ctxs.size());
+  auto &ctx = m_ctxs[thread_index];
+
+  return ctx.close_blob(sub_tree, blob_ctx, ref);
 }
 
 dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
@@ -306,23 +341,47 @@ dberr_t Loader::end(const row_prebuilt_t *prebuilt, bool is_error) {
                                                 : DICT_STATS_RECALC_TRANSIENT;
 
     const size_t MAX_RETRY = 5;
-    for (size_t retry = 0; retry < MAX_RETRY; ++retry) {
-      auto savept = trx_savept_take(prebuilt->trx);
-      const auto st = dict_stats_update(table, option, prebuilt->trx);
+    dberr_t updated{DB_SUCCESS};
 
-      if (st != DB_SUCCESS) {
-        LogErr(WARNING_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
-               "ddl_bulk::Loader::end()", table->name.m_name,
-               static_cast<size_t>(st));
-        if (st == DB_LOCK_WAIT_TIMEOUT) {
-          const auto ms = std::chrono::milliseconds{10 * (1 + retry)};
+    auto &trx = prebuilt->trx;
+
+    for (size_t retry = 0; retry < MAX_RETRY; ++retry) {
+      if (trx->error_state != DB_SUCCESS) {
+        LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
+               "ddl_bulk::Loader::end()", table->name.m_name, (size_t)updated,
+               (size_t)trx->error_state);
+        break;
+      }
+
+      auto savept = trx_savept_take(trx);
+      updated = dict_stats_update(table, option, trx);
+
+      if (updated != DB_SUCCESS) {
+        LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
+               "ddl_bulk::Loader::end()", table->name.m_name, (size_t)updated,
+               (size_t)trx->error_state);
+
+        if (updated == DB_LOCK_WAIT_TIMEOUT) {
+          trx_rollback_to_savepoint(trx, &savept);
+          const auto ms = std::chrono::milliseconds{20 * (1 + retry)};
           std::this_thread::sleep_for(ms);
-          trx_rollback_to_savepoint(prebuilt->trx, &savept);
+          LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_INFO,
+                 "ddl_bulk::Loader::end()", "Retrying", table->name.m_name,
+                 (size_t)updated, (size_t)trx->error_state);
           continue;
         }
       }
 
       break;
+    }
+    if (updated != DB_SUCCESS || trx->error_state != DB_SUCCESS) {
+      LogErr(WARNING_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
+             "ddl_bulk::Loader::end()", table->name.m_name, (size_t)updated,
+             (size_t)trx->error_state);
+    } else {
+      LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_INFO,
+             "ddl_bulk::Loader::end()", "PASS", table->name.m_name,
+             (size_t)updated, (size_t)trx->error_state);
     }
   }
 
@@ -367,6 +426,9 @@ void Loader::Thread_data::fill_index_entry(const row_prebuilt_t *prebuilt) {
     /* TODO:
      1. Handle external field
      2. Handle prefix index. */
+    if (row_field->is_ext()) {
+      dfield_set_ext(field);
+    }
   }
   fill_system_columns(prebuilt);
 }
@@ -376,6 +438,9 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
                                         size_t row_index) {
   ut_ad(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
   ut_ad(prebuilt->mysql_template);
+  const space_id_t space_id = prebuilt->space_id();
+  TABLE *mysql_table = prebuilt->m_mysql_table;
+  auto share = mysql_table->s;
 
   /* This function is a miniature of row_mysql_convert_row_to_innobase(). */
   size_t column_number = 0;
@@ -391,6 +456,7 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
       continue;
     }
 
+    auto field = share->field[column_number];
     auto dfield = dtuple_get_nth_field(m_row, column_number);
     ut_ad(column_number < row_size);
 
@@ -426,8 +492,68 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
       if (!(dtype->prtype & DATA_UNSIGNED)) {
         *data_ptr ^= 128;
       }
+      dfield_set_data(dfield, data_ptr, data_len);
+    } else if (dtype->mtype == DATA_BLOB || dtype->mtype == DATA_GEOMETRY) {
+      auto field_str = (const Field_str *)field;
+      const CHARSET_INFO *field_charset = field_str->charset();
+      size_t length_size{0};
+      switch (sql_col.m_type) {
+        case MYSQL_TYPE_TINY_BLOB:
+          length_size = 1;
+          break;
+        case MYSQL_TYPE_BLOB:
+          length_size = 2;
+          break;
+        case MYSQL_TYPE_MEDIUM_BLOB:
+          length_size = 3;
+          break;
+        case MYSQL_TYPE_GEOMETRY:
+          [[fallthrough]];
+        case MYSQL_TYPE_JSON:
+          [[fallthrough]];
+        case MYSQL_TYPE_LONG_BLOB:
+          length_size = 4;
+          break;
+        default:
+          assert(0);
+          break;
+      }
+      byte *field_data = data_ptr + length_size;
+      dfield_set_data(dfield, field_data, data_len);
+      if (data_len == lob::ref_t::SIZE) {
+        lob::ref_t ref(field_data);
+        if (ref.space_id() == space_id) {
+          dfield_set_ext(dfield);
+        } else {
+          /* Not an externally stored field.  So, validate the string. */
+          size_t valid_length{0};
+          bool length_error;
+
+          char *tmp = reinterpret_cast<char *>(field_data);
+
+          const bool failure = validate_string(field_charset, tmp, data_len,
+                                               &valid_length, &length_error);
+          if (failure) {
+            my_error(ER_INVALID_CHARACTER_STRING, MYF(0), field_charset->csname,
+                     field_data);
+            return DB_ERROR;
+          }
+        }
+      }
+    } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
+               data_len == lob::ref_t::SIZE) {
+      byte *field_data = data_ptr;
+      dfield_set_data(dfield, field_data, data_len);
+      lob::ref_t ref(field_data);
+      if (ref.space_id() == space_id) {
+        dfield_set_ext(dfield);
+      } else {
+        /* Not an externally stored field. */
+      }
+    } else {
+      assert(data_len <= dtype->len);
+      dfield_set_data(dfield, data_ptr, data_len);
     }
-    dfield_set_data(dfield, data_ptr, data_len);
   }
   return DB_SUCCESS;
 }

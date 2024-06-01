@@ -1,0 +1,2 @@
+# Run the bulk_load test suite that is not part of the default
+perl mysql-test-run.pl --force --timer --comment=bulk --vardir=var-bulk --suite=innodb,bulk_load

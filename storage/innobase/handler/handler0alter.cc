@@ -11192,6 +11192,37 @@ int ha_innobase::bulk_load_execute(THD *thd, void *load_ctx, size_t thread_idx,
   return (db_err == DB_SUCCESS) ? 0 : HA_ERR_GENERIC;
 }
 
+int ha_innobase::open_blob(THD *thd [[maybe_unused]], void *load_ctx,
+                           size_t thread_idx, Blob_context &blob_ctx,
+                           unsigned char *blobref) {
+  lob::ref_t ref(blobref);
+
+  auto loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+  dberr_t err = loader->open_blob(thread_idx, blob_ctx, ref);
+  return (err == DB_SUCCESS) ? 0 : HA_ERR_GENERIC;
+}
+
+int ha_innobase::write_blob(THD *thd [[maybe_unused]], void *load_ctx,
+                            size_t thread_idx, Blob_context blob_ctx,
+                            byte *blobref, const unsigned char *data,
+                            size_t data_len) {
+  lob::ref_t ref(blobref);
+
+  auto loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+  dberr_t err = loader->write_blob(thread_idx, blob_ctx, ref, data, data_len);
+  return (err == DB_SUCCESS) ? 0 : HA_ERR_GENERIC;
+}
+
+int ha_innobase::close_blob(THD *thd [[maybe_unused]], void *load_ctx,
+                            size_t thread_idx, Blob_context blob_ctx,
+                            byte *blobref) {
+  lob::ref_t ref(blobref);
+
+  auto loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+  dberr_t err = loader->close_blob(thread_idx, blob_ctx, ref);
+  return (err == DB_SUCCESS) ? 0 : HA_ERR_GENERIC;
+}
+
 int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
   auto trx = m_prebuilt->trx;
   ut_ad(load_ctx == nullptr || trx_is_started(trx));

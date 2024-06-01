@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define lob0pages_h
 
 #include "lob0first.h"
+#include "lob0impl.h"
 
 namespace lob {
 

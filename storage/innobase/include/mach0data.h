@@ -285,6 +285,26 @@ static inline void mach_write_ulonglong(byte *dest, ulonglong src, ulint len,
 [[nodiscard]] static inline uint32_t mach_read_ulint(const byte *ptr,
                                                      mlog_id_t type);
 
+/** Writes 1, 2 or 4 bytes to a file page.
+@param[in]  ptr   pointer where to write
+@param[in]  val   value to write
+@param[in]  type   MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+static inline void mach_write_ulint(byte *ptr, ulint val, mlog_id_t type) {
+  switch (type) {
+    case MLOG_1BYTE:
+      mach_write_to_1(ptr, val);
+      break;
+    case MLOG_2BYTES:
+      mach_write_to_2(ptr, val);
+      break;
+    case MLOG_4BYTES:
+      mach_write_to_4(ptr, val);
+      break;
+    default:
+      ut_error;
+  }
+}
+
 #include "mach0data.ic"
 
 #endif

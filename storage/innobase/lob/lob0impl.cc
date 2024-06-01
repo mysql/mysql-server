@@ -1197,8 +1197,10 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 
     if (old_version.is_null()) {
       read_from_page_no = cur_entry.get_page_no();
+      ut_ad(read_from_page_no != 0);
     } else {
       read_from_page_no = old_version.get_page_no();
+      ut_ad(read_from_page_no != 0);
     }
 
     actual_read = 0;

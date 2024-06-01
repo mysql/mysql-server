@@ -500,6 +500,41 @@ class ha_innobase : public handler {
                         const Rows_mysql &rows,
                         Bulk_load::Stat_callbacks &wait_cbk) override;
 
+  /** Open a blob for write operation.
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[out]     blob_ctx    a blob context
+  @param[out]     blobref     a blob reference to be placed in the record.
+  @return 0 on success, error code on failure */
+  int open_blob(THD *thd [[maybe_unused]], void *load_ctx, size_t thread_idx,
+                Blob_context &blob_ctx, unsigned char *blobref) override;
+
+  /** Write to a blob
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      blob_ctx    a blob context
+  @param[out]     blobref     buffer to hold a blob reference.
+  @param[in]      data        data to be written to blob.
+  @param[in]      data_len    length of data to be written in bytes.
+  @return 0 on success, error code on failure */
+  int write_blob(THD *thd [[maybe_unused]], void *load_ctx, size_t thread_idx,
+                 Blob_context blob_ctx, unsigned char *blobref,
+                 const unsigned char *data, size_t data_len) override;
+
+  /** Close the blob
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      blob_ctx    a blob context
+  @param[out]     blobref     blob reference will be populated in the provided
+  buffer. The buffer should have enough space (@ref lob::ref_t::SIZE) to hold
+  a blob reference.
+  @return 0 on success, error code on failure */
+  int close_blob(THD *thd [[maybe_unused]], void *load_ctx, size_t thread_idx,
+                 Blob_context blob_ctx, byte *blobref) override;
+
   /** End bulk load operation. Must be called after all execution threads have
   completed. Must be called even if the bulk load execution failed.
   @param[in,out]  thd       user session
