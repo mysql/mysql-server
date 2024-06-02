@@ -1114,8 +1114,6 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
       return err;
     }
 
-    DEBUG_SYNC_C("bulk_load_insert");
-
     m_page_loaders.push_back(page_loader);
 
     ut_a(level + 1 == m_page_loaders.size());
