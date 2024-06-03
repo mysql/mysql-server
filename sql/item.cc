@@ -2278,8 +2278,16 @@ class Item_aggregate_ref : public Item_ref {
   }
 };
 
+// Determine if a subquery can be evaluated before any window function in its
+// containing expression and, if it contains a window function, determine
+// whether it contains outer references also.
 static bool subquery_split(THD *thd, Item *item, bool *outer_refs_wf) {
   assert(item->type() == Item::SUBQUERY_ITEM);
+
+  // This code is only relevant if we are splitting in an expression containing
+  // window functions.
+  if (!thd->lex->splitting_window_expression()) return false;
+
   Item_subselect *subq = down_cast<Item_subselect *>(item);
   switch (subq->subquery_type()) {
     case Item_subselect::SCALAR_SUBQUERY:
@@ -2287,12 +2295,10 @@ static bool subquery_split(THD *thd, Item *item, bool *outer_refs_wf) {
       if (subq->is_single_column_scalar_subquery()) return true;
       // Row subquery: its result can't be put into a single column so must be
       // evaluated late in conjunction with windowing
-      if (subq->contains_outer_references()) {
-        // If a correlated row subquery is part of an expression containing
-        // a window function which can potentially use frame buffering, we need
-        // to handle items for any outer references during windowing
-        *outer_refs_wf = thd->lex->splitting_window_expression();
-      }
+      // If a correlated row subquery is part of an expression containing
+      // a window function which can potentially use frame buffering, we need
+      // to handle items for any outer references during windowing
+      *outer_refs_wf = subq->contains_outer_references();
       break;
     case Item_subselect::EXISTS_SUBQUERY:
       // Can safely always be evaluated before any window function; it has empty
@@ -2301,23 +2307,7 @@ static bool subquery_split(THD *thd, Item *item, bool *outer_refs_wf) {
     case Item_subselect::IN_SUBQUERY:
     case Item_subselect::ANY_SUBQUERY:
     case Item_subselect::ALL_SUBQUERY: {
-      // If left has a wf, we must wait with evaluation until after
-      // windowing. In such a case, if the subquery is correlated, we need to
-      // handle outer references: a priori they point to the windowing input
-      // tables, but if the window needs frame buffering they need to point to
-      // fields in the out table/frame buffer.  E.g.
-      //
-      //   SELECT AVG(f1) OVER (PARTITION BY f1) IN
-      //          (SELECT outer_t.f1 FROM t1) FROM t1 AS outer_t;
-      //
-      // Re 'having' check below: we must check that we are not in a HAVING
-      // context, in which case we do not have window functions anyway.
       Item_in_subselect *iis = down_cast<Item_in_subselect *>(subq);
-      if (!iis->left_expr->has_wf() &&
-          (current_thd->lex->current_query_block()->resolve_place !=
-           Query_block::RESOLVE_HAVING)) {
-        return true;
-      }
       *outer_refs_wf =
           iis->left_expr->has_wf() && iis->contains_outer_references();
       break;
@@ -2489,15 +2479,11 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
 
       (3) In order to handle queries like:
            SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
-        and queries like
-           SELECT (expression) FROM t
-                     /   \
-               subquery   wf
-
-      we need to move subqueries to hidden fields too, if not correlated
-      or when they are needed in conjunction with wf, e.g.
-                wf-expr IN correlated-subquery
-      cf. outer_refs_wf.
+      If subquery_split returns false, we must evaluate the subquery after the
+      window functions. If so, we need to know whether there are any outer
+      references, since those will need to be carried forward with the windowing
+      temporary tables and references re-written to point to the windowing
+      buffers, cf. outer_refs_wf and code below.
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
 
@@ -2562,8 +2548,7 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
   } else if (outer_refs_wf) {
     // Make sure outer referenced fields are added to tmp table fields, so we
     // can replace such fields with corresponding outer fields in windowing tmp
-    // table in presence of windowing frame buffers. If no frame buffering,
-    // this is redundant, and could be omitted: TODO.
+    // table in presence of windowing frame buffers.
     // See also possibly_outerize_replacement called (indirectly via
     // ReplaceMaterializedItems) from CreateFramebufferTable.
     auto *iis = down_cast<Item_subselect *>(this);

@@ -119,7 +119,7 @@ class Item_subselect : public Item_result_field {
   /// containing query block, i.e. whether there are outer references to the
   /// containing block inside the subquery.
   bool contains_outer_references() const {
-    return (used_tables() & ~PSEUDO_TABLE_BITS) != 0;
+    return (subquery_used_tables() & ~PSEUDO_TABLE_BITS) != 0;
   }
 
   virtual Subquery_type subquery_type() const = 0;
