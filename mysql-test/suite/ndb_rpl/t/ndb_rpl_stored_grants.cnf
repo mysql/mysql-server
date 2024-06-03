@@ -24,6 +24,8 @@ ndb-log-orig
 ndb-log-bin=1
 replica-parallel-workers=1
 replicate-ignore-table=test.abc
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 
 [mysqld.1.cluster1]
 server_id=            1

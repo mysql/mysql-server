@@ -29,6 +29,8 @@ ndb-wait-setup=120
 # Default log-replica-updates to off and turn it on
 # only selectively for some of the servers in config
 log-replica-updates=0
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 
 
 [cluster_config.mysqld.1.1]

@@ -172,6 +172,7 @@ ndb_join_pushdown	#
 ndb_log_apply_status	#
 ndb_log_bin	#
 ndb_log_binlog_index	#
+ndb_log_cache_size	#
 ndb_log_empty_epochs	#
 ndb_log_empty_update	#
 ndb_log_exclusive_reads	#

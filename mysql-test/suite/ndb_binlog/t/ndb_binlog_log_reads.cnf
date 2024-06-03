@@ -21,6 +21,8 @@ ndb-log-bin=1
 binlog-format=row
 
 log-bin-use-v1-row-events=false
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 ndb-log-empty-update
 
 # Enable load data local functionality

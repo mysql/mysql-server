@@ -44,6 +44,8 @@ ndbcluster
 ndb-wait-connected=30
 ndb-wait-setup=120
 ndb-extra-logging=99
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 
 [mysqld.1.1]
 ndb-cluster-connection-pool=1
