@@ -6,8 +6,22 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
+# Save original value to allow restoring config before test end
+SET @save_ndb_log_cache_size = @@global.ndb_log_cache_size;
+SELECT @save_ndb_log_cache_size;
+
+# Configure lowest possible ndb binlog injector cache size to make it possible
+# to exceed the size and trigger a "disk spill" further down
+SET @@global.ndb_log_cache_size=4096;
+
+# Show that ndb_log_cache_size is a global variable
+--error ER_GLOBAL_VARIABLE
+SET SESSION ndb_log_cache_size=32768;
+
 -- let $cache_qry = SELECT COUNT_WRITE FROM performance_schema.file_summary_by_event_name WHERE event_name LIKE "%io_cache%"
 
+# Check configured values required by test
+SELECT @@global.ndb_log_cache_size;
 SELECT @@global.binlog_cache_size;
 SELECT @@global.binlog_stmt_cache_size;
 SELECT NAME, ENABLED FROM performance_schema.setup_instruments WHERE name LIKE "%file/sql/io_cache%";
@@ -69,9 +83,49 @@ save_master_pos;
 -- let $assert_cond= [$qry, warnings, 1] >= 1
 -- source include/assert.inc
 
+# The temporary file used for extending  the cache in the above case can be
+# seen in performance_schema by quering the file_instances table, the file
+# has "ML" as file name prefix:
+#   SELECT * FROM performance_schema.file_instances
+#     WHERE EVENT_NAME = "wait/io/file/sql/io_cache";
+#   FILE_NAME                EVENT_NAME                 OPEN_COUNT
+#   /tmp/mysqld.1.1/MLfd=66  wait/io/file/sql/io_cache    1
+--let $assert_cond = OPEN_COUNT >= 1 FROM performance_schema.file_instances WHERE EVENT_NAME = "wait/io/file/sql/io_cache"
+--let $assert_text = The IO_CACHE should spill to disk
+--source include/assert.inc
+
 # Supress the provoked message
 -- disable_query_log ONCE
 call mtr.add_suppression(".*Binary log cache data overflowed to disk.*");
+
+--echo #
+--echo # Check that ndb_log_cache_size can be reconfigured at runtime and the
+--echo # large write which previously caused cache spill now fits. This is done
+--echo # by increasing cache size and doing the large write again.
+
+SET @@global.ndb_log_cache_size=1024*1024;
+BEGIN;
+INSERT INTO t1 VALUES (8, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (9, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (10, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (11, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (12, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (13, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (14, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (15, repeat(0x41, 1024), repeat(0x42, 1024));
+COMMIT;
+--source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+
+-- let $after_writes_with_large_cache = `$cache_qry`
+#echo after_writes_with_large_cache:  $after_writes_with_large_cache;
+
+-- let $assert_text= Write with large cache didn't trigger cache overflow
+-- let $assert_cond= $after_writes = $after_writes_with_large_cache
+-- source include/assert.inc
+
+# Restore changed config to original value
+SET @@global.ndb_log_cache_size=@save_ndb_log_cache_size;
+
 
 -- echo
 

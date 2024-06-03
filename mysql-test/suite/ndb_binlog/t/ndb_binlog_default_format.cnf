@@ -20,6 +20,8 @@ ndb-wait-setup=120
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
 ndb-log-bin=1
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 
 # Will be "auto upgraded" to MIXED
 binlog-format=STATEMENT

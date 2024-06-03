@@ -9415,6 +9415,22 @@ int THD::binlog_setup_trx_data() {
   return 0;
 }
 
+bool THD::binlog_configure_trx_cache_size(ulong new_size) {
+  // Check expected block size.
+  assert((new_size % IO_SIZE) == 0);
+
+  binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(this);
+  if (cache_mngr == nullptr || !cache_mngr->is_binlog_empty()) {
+    // Must exist and be empty
+    return true;
+  }
+
+  // Close and reopen with new value
+  Binlog_cache_storage *const cache = cache_mngr->get_trx_cache();
+  cache->close();
+  return cache->open(new_size, max_binlog_cache_size);
+}
+
 /**
 
 */

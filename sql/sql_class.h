@@ -1716,6 +1716,24 @@ class THD : public MDL_context_owner,
 
   int binlog_setup_trx_data();
 
+  /**
+   * @brief Configure size of binlog transaction cache. Used to configure the
+   * size of an individual cache, normally to a value that differs from the
+   * default `binlog_cache_size` which controls the size otherwise.
+   *
+   * @note Assumes that the binlog cache manager already exist (i.e created
+   * by call to binlog_setup_trx_data()) and is empty.
+   *
+   * @param new_size The new size of cache. Value exceeding
+   * `max_binlog_cache_size` will be clamped and warning logged. Value must be
+   * a multiple of IO_SIZE which is the block size for all binlog cache size
+   * related variables.
+   *
+   * @return true if new cache size can't be configured, in that case the cache
+   * is not usable.
+   */
+  bool binlog_configure_trx_cache_size(ulong new_size);
+
   /*
     Public interface to write RBR events to the binlog
   */

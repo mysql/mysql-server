@@ -16,6 +16,8 @@ ndb-cluster-connection-pool=3
 ndb-extra-logging=99
 log-bin=mysql-binlog
 ndb-log-bin=1
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 # Enable load data local functionality
 local-infile=true
 

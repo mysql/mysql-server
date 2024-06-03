@@ -1,8 +1,0 @@
-!include suite/ndb_binlog/my.cnf
-
-[mysqld.1.1]
-binlog_cache_size=4096
-
-[mysqld.2.1]
-# The second mysqld have default binlog_cache_size and should
-# not detect a cache spill
