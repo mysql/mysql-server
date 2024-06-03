@@ -420,7 +420,7 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
 #endif
 
 int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
-              enum xdr_op op) {
+              enum xdr_op op) SUPPRESS_UBSAN {
   XDR xdr;
   [[maybe_unused]] int s = 0;
 
