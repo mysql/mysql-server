@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 05/31/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "MYSQL" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ mysql_store_result()\&.
 .br
 .PP
 Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
-\m[blue]\fBMySQL Shell 8\&.3\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBMySQL Shell 8\&.4\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp .5v
 .RE
 .PP
@@ -1363,144 +1363,6 @@ does not use the history file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-fido\-register\-factor=\fR\fB\fIvalue\fR\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---fido-register-factor=value
-T}
-T{
-Deprecated
-T}:T{
-Yes
-T}
-T{
-Type
-T}:T{
-String
-T}
-.TE
-.sp 1
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-This option is deprecated and subject to removal in a future MySQL release\&. It is superseded by the
-\fB\-\-register\-factor\fR
-option, which supports FIDO/FIDO2 device\-based authentication\&. For related information, see
-Section\ \&8.4.1.11, \(lqWebAuthn Pluggable Authentication\(rq\&.
-.sp .5v
-.RE
-The factor or factors for which FIDO device registration must be performed\&. This option value must be a single value, or two values separated by commas\&. Each value must be 2 or 3, so the permitted option values are
-\*(Aq2\*(Aq,
-\*(Aq3\*(Aq,
-\*(Aq2,3\*(Aq
-and
-\*(Aq3,2\*(Aq\&.
-.sp
-For example, an account that requires registration for a 3rd authentication factor invokes the
-\fBmysql\fR
-client as follows:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-mysql \-\-user=\fIuser_name\fR \-\-fido\-register\-factor=3
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-An account that requires registration for a 2nd and 3rd authentication factor invokes the
-\fBmysql\fR
-client as follows:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-mysql \-\-user=\fIuser_name\fR \-\-fido\-register\-factor=2,3
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-If registration is successful, a connection is established\&. If there is an authentication factor with a pending registration, a connection is placed into pending registration mode when attempting to connect to the server\&. In this case, disconnect and reconnect with the correct
-\fB\-\-fido\-register\-factor\fR
-value to complete the registration\&.
-.sp
-Registration is a two step process comprising
-\fIinitiate registration\fR
-and
-\fIfinish registration\fR
-steps\&. The initiate registration step executes this statement:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-ALTER USER \fIuser\fR \fIfactor\fR INITIATE REGISTRATION
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-The statement returns a result set containing a 32 byte challenge, the user name, and the relying party ID (see
-authentication_fido_rp_id)\&.
-.sp
-The finish registration step executes this statement:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-ALTER USER \fIuser\fR \fIfactor\fR FINISH REGISTRATION SET CHALLENGE_RESPONSE AS \*(Aq\fIauth_string\fR\*(Aq
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-The statement completes the registration and sends the following information to the server as part of the
-\fIauth_string\fR: authenticator data, an optional attestation certificate in X\&.509 format, and a signature\&.
-.sp
-The initiate and registration steps must be performed in a single connection, as the challenge received by the client during the initiate step is saved to the client connection handler\&. Registration would fail if the registration step was performed by a different connection\&. The
-\fB\-\-fido\-register\-factor\fR
-option executes both the initiate and registration steps, which avoids the failure scenario described above and prevents having to execute the
-ALTER USER
-initiate and registration statements manually\&.
-.sp
-The
-\fB\-\-fido\-register\-factor\fR
-option is only available for the
-\fBmysql\fR
-client and MySQL Shell\&. Other MySQL client programs do not support it\&.
-.sp
-For related information, see
-the section called \(lqUsing FIDO Authentication\(rq\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-force\fR,
 \fB\-f\fR
 .TS
@@ -2680,7 +2542,7 @@ OFF
 T}
 .TE
 .sp 1
-Determines how assertions are sent to server in case there are more than one discoverable credentials stored for a given RP ID (a unique name given to the relying\-party server, which is the MySQL server)\&. If the FIDO2 device contains multiple resident keys for a given RP ID, this option allows the user to choose a key to be used for assertion\&. It provides two possible values that the client user can set\&. The default value is
+Determines how assertions are sent to server in case there is more than one discoverable credential stored for a given RP ID (a unique name given to the relying\-party server, which is the MySQL server)\&. If the FIDO2 device contains multiple resident keys for a given RP ID, this option allows the user to choose a key to be used for assertion\&. It provides two possible values that the client user can set\&. The default value is
 OFF\&. If set to
 OFF, the challenge is signed by all credentials available for a given RP ID and all signatures are sent to server\&. If set to
 ON, the user is prompted to choose the credential to be used for signature\&.
@@ -3074,7 +2936,7 @@ The factor or factors for which FIDO/FIDO2 device registration must be performed
 and
 \*(Aq3,2\*(Aq\&.
 .sp
-For example, an account that requires registration for a 3rd authentication factor invokes the
+For example, an account that requires registration for a third authentication factor invokes the
 \fBmysql\fR
 client as follows:
 .sp
@@ -3088,7 +2950,7 @@ mysql \-\-user=\fIuser_name\fR \-\-register\-factor=3
 .RE
 .\}
 .sp
-An account that requires registration for a 2nd and 3rd authentication factor invokes the
+An account that requires registration for second and third authentication factors invokes the
 \fBmysql\fR
 client as follows:
 .sp
@@ -3106,7 +2968,7 @@ If registration is successful, a connection is established\&. If there is an aut
 \fB\-\-register\-factor\fR
 value to complete the registration\&.
 .sp
-Registration is a two step process comprising
+Registration is a two\-step process comprising
 \fIinitiate registration\fR
 and
 \fIfinish registration\fR
@@ -3272,7 +3134,7 @@ T}
 .sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
-or
+(deprecated) or
 caching_sha2_password
 authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -3282,7 +3144,8 @@ is given and specifies a valid public key file, it takes precedence over
 \fB\-\-get\-server\-public\-key\fR\&.
 .sp
 For
-sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+sha256_password
+(deprecated), this option applies only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
@@ -4182,14 +4045,18 @@ rehash    (\e#) Rebuild completion hash\&.
 source    (\e\&.) Execute an SQL script file\&. Takes a file name as an argument\&.
 status    (\es) Get status information from the server\&.
 system    (\e!) Execute a system shell command\&.
-tee       (\eT) Set outfile [to_outfile]\&. Append everything into given outfile\&.
+tee       (\eT) Set outfile [to_outfile]\&. Append everything into given
+               outfile\&.
 use       (\eu) Use another database\&. Takes database name as argument\&.
-charset   (\eC) Switch to another charset\&. Might be needed for processing binlog with multi\-byte charsets\&.
+charset   (\eC) Switch to another charset\&. Might be needed for processing
+               binlog with multi\-byte charsets\&.
 warnings  (\eW) Show warnings after every statement\&.
 nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
 resetconnection(\ex) Clean session context\&.
-query_attributes Sets string parameters (name1 value1 name2 value2 \&.\&.\&.) for the next query to pick up\&.
-ssl_session_data_print Serializes the current SSL session data to stdout or file
+query_attributes Sets string parameters (name1 value1 name2 value2 \&.\&.\&.)
+for the next query to pick up\&.
+ssl_session_data_print Serializes the current SSL session data to stdout 
+or file\&.
 For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
@@ -6661,7 +6528,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-MySQL Shell 8.3
+MySQL Shell 8.4
 .RS 4
 \%https://dev.mysql.com/doc/mysql-shell/8.4/en/
 .RE

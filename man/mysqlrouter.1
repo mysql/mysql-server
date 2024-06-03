@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 06/01/2024
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Router"
+.TH "MYSQLROUTER" "1" "06/01/2024" "MySQL 8\&.4" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1075,6 +1075,7 @@ This option is not available on Windows\&.
 .TS
 allbox tab(:);
 lB l
+lB l
 lB l.
 T{
 Command-Line Format
@@ -1085,6 +1086,11 @@ T{
 Type
 T}:T{
 Integer
+T}
+T{
+Default Value
+T}:T{
+0
 T}
 .TE
 .sp 1
@@ -2949,6 +2955,33 @@ T}
 Clear the password vault by removing all credentials stored in it\&.
 .sp
 This option is only available on Windows, and refers to its password vault\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-disable\-rw\-split\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--disable-rw-split
+T}
+.TE
+.sp 1
+By default, a
+[router:read_write_split]
+section is added to the generated
+mysqlrouter\&.conf
+at bootstrap; and this parameter means those details are not added\&. For additional information, see
+the section called \(lqBootstrapping\(rq\&.
 .RE
 .sp
 .RS 4

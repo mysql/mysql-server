@@ -1,0 +1,1751 @@
+'\" t
+.\"     Title: ndb_sign_keys
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/31/2024
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 8.4
+.\"  Language: English
+.\"
+.TH "NDB_SIGN_KEYS" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+ndb_sign_keys \- Create, Sign, and Manage TLS Keys and Certificates for NDB Cluster
+.SH "SYNOPSIS"
+.HP \w'\fBndb_sign_keys\ \fR\fB\fIarguments\fR\fR\ 'u
+\fBndb_sign_keys \fR\fB\fIarguments\fR\fR
+.SH "DESCRIPTION"
+.PP
+Management of TLS keys and certificates in implemented in NDB Cluster as the executable utility program
+\fBndb_sign_keys\fR, which can normally be found in the MySQL
+bin
+directory\&. The program performs such functions as creating, signing, and retiring keys and certificates, and normally works as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+\fBndb_sign_keys\fR
+connects to
+\fBndb_mgmd\fR
+and fetches the cluster\*(Aq configuration\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+For each cluster node that is configured to run on the local machine,
+\fBndb_sign_keys\fR
+finds the node\*(Aq private key and sign it, creating an active node certificate\&.
+.RE
+.PP
+Some additional tasks that can be performed by
+\fBndb_sign_keys\fR
+are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Obtaining configuration information from a config\&.ini file rather than a running
+\fBndb_mgmd\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Creating the cluster\*(Aq certificate authority (CA) if it does not yet exist
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Creating private keys
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Saving keys and certificates as pending rather than active
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Signing the key for a single node as specified using command\-line options described later in this section
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Requesting a CA located on a remote host to sign a local key
+.RE
+.PP
+Options that can be used with
+\fBndb_sign_keys\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
+.PP
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-bind\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--bind-host=host
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+mgmd, api
+T}
+.TE
+.sp 1
+Create a certificate bound to a hostname list of node types that should have certificate hostname bindings, from the set
+(mgmd,db,api)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-bound\-hostname\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--bound-hostname=hostname
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Create a certificate bound to the hostname passed to this option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-cert\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-cert=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+NDB-Cluster-cert
+T}
+.TE
+.sp 1
+Use the name passed to this option for the CA Certificate file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-days\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-days=#
+T}
+T{
+Introduced
+T}:T{
+8.4.1
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+1461
+T}
+T{
+Minimum Value
+T}:T{
+-1
+T}
+T{
+Maximum Value
+T}:T{
+2147483647
+T}
+.TE
+.sp 1
+Set the lifetime of the certificate to this many days\&. The default is equivalent to 4 years plus 1 day\&.
+\-1
+means the certificate never expires\&.
+.sp
+This option was added in NDB 8\&.4\&.1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-key\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-key=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+NDB-Cluster-private-key
+T}
+.TE
+.sp 1
+Use the name passed to this option for the CA private key file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-ordinal\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-ordinal=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+T{
+Valid Values
+T}:T{
+.PP
+First
+.PP
+Second
+T}
+.TE
+.sp 1
+Set the ordinal CA name; defaults to
+First
+for
+\fB\-\-create\-CA\fR
+and
+Second
+for
+\fB\-\-rotate\-CA\fR\&. The Common Name in the CA certificate is
+\(lqMySQL NDB Cluster \fIordinal\fR Certificate\(rq, where
+\fIordinal\fR
+is the ordinal name passed to this option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-search-path=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Specify a list of directories to search for a CA file\&. On Unix platforms, the directory names are separated by colons (:); on Windows systems, the semicolon character (;) is used as the separator\&. A directory reference may be relative or absolute; it may contain one or more environment variables, each denoted by a prefixed dollar sign ($), and expanded prior to use\&.
+.sp
+Searching begins with the leftmost named directory and proceeds from left to right until a file is found\&. An empty string denotes an empty search path, which causes all searches to fail\&. A string consisting of a single dot (\&.) indicates that the search path is limited to the current working directory\&.
+.sp
+If no search path is supplied, the compiled\-in default value is used\&. This value depends on the platform used: On Windows, this is
+$HOMEPATH\endb\-tls; on other platforms (including Linux), it is
+$HOME/ndb\-tls\&. This default can be overridden by compiling NDB Cluster using
+\fB\-DWITH_NDB_TLS_SEARCH_PATH\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-tool\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-tool=name
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Designate an executable helper tool, including the path\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-check\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--check
+T}
+.TE
+.sp 1
+Check certificate expiry dates\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-config\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--config-file=file
+T}
+T{
+Disabled by
+T}:T{
+no-config
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Supply the path to the cluster configuration file (usually
+config\&.ini)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retries\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retries=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+12
+T}
+T{
+Minimum Value
+T}:T{
+-1
+T}
+T{
+Maximum Value
+T}:T{
+12
+T}
+.TE
+.sp 1
+Set the number of times that
+\fBndb_sign_keys\fR
+attempts to connect to the cluster\&. If you use
+\-1, the program keeps trying to connect until it succeeds or is forced to stop\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+5
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+5
+T}
+.TE
+.sp 1
+Set the number of seconds after a failed connection attempt which
+\fBndb_sign_keys\fR
+waits before trying again, up to the number of times determined by
+\fB\-\-connect\-retries\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-create\-CA\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--create-CA
+T}
+.TE
+.sp 1
+Create the CA key and certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-create\-key\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--create-key
+T}
+.TE
+.sp 1
+Create or replace private keys\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-curve\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--curve=name
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+P-256
+T}
+.TE
+.sp 1
+Use the named curve for encrypting node keys\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read this option file after the global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read this option file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read not only the usual option groups, but also groups with the usual names and a suffix of
+\fIstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-duration\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--duration=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+-500000
+T}
+T{
+Maximum Value
+T}:T{
+0
+T}
+T{
+Unit
+T}:T{
+seconds
+T}
+.TE
+.sp 1
+Set the lifetime of certificates or signing requests, in seconds\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Print help text and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-keys\-to\-dir\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--keys-to-dir=dirname
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Specify output directory for private keys (only); for this purpose, it overrides any value set for
+\fB\-\-to\-dir\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read this path from the login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-connectstring\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-connectstring=connection_string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set the connection string to use for connecting to
+\fBndb_mgmd\fR, using the syntax
+[nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. If this option is set, it overrides the value set for
+NDB_CONNECTSTRING
+(if any), as well as any value set in a
+my\&.cnf\&. file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgm\-tls\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgm-tls=level
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+relaxed
+T}
+T{
+Valid Values
+T}:T{
+.PP
+relaxed
+.PP
+strict
+T}
+.TE
+.sp 1
+Sets the level of TLS support required for the
+\fBndb_mgm\fR
+client; one of
+relaxed
+or
+strict\&.
+relaxed
+(the default) means that a TLS connection is attempted, but success is not required;
+strict
+means that TLS is required to connect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-tls\-search\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-tls-search-path=list
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value (Unix)
+T}:T{
+$HOME/ndb-tls
+T}
+T{
+Default Value (Windows)
+T}:T{
+$HOMEDIR/ndb-tls
+T}
+.TE
+.sp 1
+Specify a list of directories containing TLS keys and certificates\&.
+.sp
+For syntax, see the description of the
+\fB\-\-CA\-search\-path\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-config\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-config
+T}
+.TE
+.sp 1
+Do not obtain the cluster configuration; create a single certificate based on the options supplied (including defaults for those not specified)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than the login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-login\-paths\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-login-paths
+T}
+.TE
+.sp 1
+Do not read login paths from the login path file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-passphrase\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--passphrase=phrase
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Specify a CA key pass phrase\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-node\-id\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--node-id=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+255
+T}
+.TE
+.sp 1
+Create or sign a key for the node having the specified node ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-node\-type\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--node-type=set
+T}
+T{
+Type
+T}:T{
+Set
+T}
+T{
+Default Value
+T}:T{
+mgmd,db,api
+T}
+.TE
+.sp 1
+Create or sign keys for the specified type or types from the set
+(mgmd,db,api)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-pending\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--pending
+T}
+.TE
+.sp 1
+Save keys and certificates as pending, rather than active\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print the program argument list, then exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-promote\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--promote
+T}
+.TE
+.sp 1
+Promote pending files to active, then exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-remote\-CA\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--remote-CA-host=hostname
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Specify the address or hostname of a remote CA host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-remote\-exec\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--remote-exec-path
+T}
+T{
+Type
+T}:T{
+Path name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Provide the full path to an executable on the remote CA host specified with
+\fB\-\-remote\-CA\-host\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-remote\-openssl\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--remote-openssl
+T}
+.TE
+.sp 1
+Use OpenSSL for signing of keys on the remote CA host specified with
+\fB\-\-remote\-CA\-host\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-replace\-by\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--replace-by=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+-10
+T}
+T{
+Minimum Value
+T}:T{
+-128
+T}
+T{
+Maximum Value
+T}:T{
+127
+T}
+.TE
+.sp 1
+Suggest a certificate replacement date for periodic checks, as a number of days after the CA expiration date\&. Use a negative number to indicate days before expiration\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-rotate\-CA\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--rotate-CA
+T}
+.TE
+.sp 1
+Replace an older CA with a newer one\&. The new CA can be created using OpenSSL, or you can allow
+\fBndb_sign_keys\fR
+to create the new one, in which case the new CA is created with an intermediate CA certificate, signed by the old CA\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-schedule\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--schedule=list
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+120,10,130,10,150,0
+T}
+.TE
+.sp 1
+Assign a schedule of expiration dates to certificates\&. The schedule is defined as a comma\-delimited list of six integers, in the format shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+api_valid,api_extra,dn_valid,dn_extra,mgm_valid,mgm_extra
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+These values are defined as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+api_valid: A fixed number of days of validity for client certificates\&.
+.sp
+api_extra: A number of extra days for client certificates\&.
+.sp
+dn_valid: A fixed number of days of validity for client certificates for data node certificates\&.
+.sp
+dn_extra: A number of extra days for data node certificates\&.
+.sp
+mgm_valid: A fixed number of days of validity for management server certificates\&.
+.sp
+mgm_extra: A number of extra days for management server certificates\&.
+.RE
+.sp
+In other words, for each node type (API node, data node, management node), certificates are created with a lifetime equal to a whole fixed number of days, plus some random amount of time less than or equal to the number of extra days\&. The default schedule is shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\-\-schedule=120,10,130,10,150,0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Following the default schedule, client certificates begin expiring on the 120th
+day, and expire at random intervals over the next 10 days; data node certificates expire at random times between the 130th
+and 140th
+days; and management node certificates expire on the 150th
+day (with no random interval following)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-sign\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--sign
+T}
+T{
+Disabled by
+T}:T{
+skip-sign
+T}
+.TE
+.sp 1
+Create signed certificates; enabled by default\&. Use
+\fB\-\-skip\-sign\fR
+to create certificate signing requests instead\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-skip\-sign\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-sign
+T}
+.TE
+.sp 1
+Create certificate signing requests instead of signed certificates\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-stdio\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--stdio
+T}
+.TE
+.sp 1
+Read certificate signing requests from
+stdin, and write X\&.509 to
+stdout\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-to\-dir\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--to-dir=dirname
+T}
+T{
+Type
+T}:T{
+Directory name
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Specify the output directory for created files\&. For private key files, this can be overriden using
+\fB\-\-keys\-to\-dir\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+.TE
+.sp 1
+Print help text, then exit (alias for
+\fB\-\-help\fR)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
+Print version information, then exit\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2024, Oracle and/or its affiliates.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

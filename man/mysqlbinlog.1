@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 05/31/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -2309,7 +2309,7 @@ T}
 .sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
-or
+(deprecated) or
 caching_sha2_password
 authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -2319,7 +2319,8 @@ is given and specifies a valid public key file, it takes precedence over
 \fB\-\-get\-server\-public\-key\fR\&.
 .sp
 For
-sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+sha256_password
+(deprecated), this option applies only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password

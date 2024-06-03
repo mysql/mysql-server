@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 05/31/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "03/11/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -262,9 +262,16 @@ option is not used,
 PROCESS
 if the
 \-\-no\-tablespaces
-option is not used, and the RELOAD or FLUSH_TABLES priviledge with
+option is not used, and the
+RELOAD
+or
+FLUSH_TABLES
+privilege with
 \fB\-\-single\-transaction\fR
-if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&. Certain options might require other privileges as noted in the option descriptions\&.
+if both
+gtid_mode=ON
+and
+gtid_purged=ON|AUTO\&. Certain options might require other privileges as noted in the option descriptions\&.
 .PP
 To reload a dump file, you must have the privileges required to execute the statements that it contains, such as the appropriate
 CREATE
@@ -1062,7 +1069,7 @@ T}
 .sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
-or
+(deprecated) or
 caching_sha2_password
 authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -1072,7 +1079,8 @@ is given and specifies a valid public key file, it takes precedence over
 \fB\-\-get\-server\-public\-key\fR\&.
 .sp
 For
-sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+sha256_password
+(deprecated), this option applies only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
@@ -2605,7 +2613,7 @@ T}
 .TE
 .sp 1
 This option is similar to
-\fB\-\-source\-data\fR, except that it\*(Aqs used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. The option causes the dump output to include a
+\fB\-\-source\-data\fR, except that it is used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. The option causes the dump output to include a
 CHANGE REPLICATION SOURCE TO
 statement that indicates the binary log coordinates (file name and position) of the dumped replica\*(Aqs source\&. The
 CHANGE REPLICATION SOURCE TO
@@ -4571,8 +4579,9 @@ T}
 .sp 1
 Set the session value of the
 long_query_time
-system variable\&. Use this option if you want to increase the time allowed for
-\fBmysqldump\fR\*(Aqs queries before they are logged to the slow query log file\&.
+system variable\&. Use this option if you want to increase the time allowed for queries from
+\fBmysqldump\fR
+before they are logged to the slow query log file\&.
 \fBmysqldump\fR
 performs a full table scan, which means its queries can often exceed a global
 long_query_time
@@ -5055,9 +5064,16 @@ InnoDB, because then it dumps the consistent state of the database at the time w
 START TRANSACTION
 was issued without blocking any applications\&.
 .sp
-The RELOAD or FLUSH_TABLES privilege is required with
+The
+RELOAD
+or
+FLUSH_TABLES
+privilege is required with
 \fB\-\-single\-transaction\fR
-if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&.
+if both
+gtid_mode=ON
+and
+gtid_purged=ON|AUTO\&.
 .sp
 When using this option, you should keep in mind that only
 InnoDB
