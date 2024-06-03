@@ -42,7 +42,7 @@ OK
 
 #
 # I.2
-GET /svc/basic/table?q={"name":{"$like":"%th row%"}}
+GET /svc/basic/table?q=%7B%22name%22:%7B%22%24like%22:%22%25th%20row%25%22%7D%7D
 {
     "message": "Cannot filter on field name",
     "status": 400
@@ -133,7 +133,7 @@ OK
 
 #
 # II.2
-GET /svc/basic/table?q={"my_name":{"$like":"%th row%"}}
+GET /svc/basic/table?q=%7B%22my_name%22:%7B%22%24like%22:%22%25th%20row%25%22%7D%7D
 {
     "items": [
         {
