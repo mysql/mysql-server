@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 05/31/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "05/31/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -262,9 +262,16 @@ option is not used,
 PROCESS
 (as of MySQL 8\&.0\&.21) if the
 \-\-no\-tablespaces
-option is not used, and (as of MySQL 8\&.0\&.32) the RELOAD or FLUSH_TABLES priviledge with
+option is not used, and (as of MySQL 8\&.0\&.32) the
+RELOAD
+or
+FLUSH_TABLES
+privilege with
 \fB\-\-single\-transaction\fR
-if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&.
+if both
+gtid_mode=ON
+and
+gtid_purged=ON|AUTO\&. Certain options might require other privileges as noted in the option descriptions\&.
 .PP
 To reload a dump file, you must have the privileges required to execute the statements that it contains, such as the appropriate
 CREATE
@@ -2641,7 +2648,7 @@ for more information\&.
 \fB\-\-dump\-replica\fR
 or
 \fB\-\-dump\-slave\fR
-cause the coordinates from the source to be used rather than those of the dumped server, as is done by the
+causes the coordinates from the source to be used rather than those of the dumped server, as is done by the
 \fB\-\-source\-data\fR
 or
 \fB\-\-master\-data\fR
@@ -2663,7 +2670,7 @@ option to be overridden, if used, and effectively ignored\&.
 .ps -1
 .br
 \fB\-\-dump\-replica\fR
-and
+or
 \fB\-\-dump\-slave\fR
 should not be used if the server where the dump is going to be applied uses
 gtid_mode=ON
@@ -2683,16 +2690,16 @@ statement (before MySQL 8\&.0\&.23) to be written to the dump\&. Setting 2 cause
 in terms of enabling or disabling other options and in how locking is handled\&.
 .sp
 \fB\-\-dump\-replica\fR
-and
+or
 \fB\-\-dump\-slave\fR
-cause
+causes
 \fBmysqldump\fR
 to stop the replication SQL thread before the dump and restart it again after\&.
 .sp
 \fB\-\-dump\-replica\fR
-and
+or
 \fB\-\-dump\-slave\fR
-send a
+sends a
 SHOW REPLICA STATUS
 statement to the server to obtain information, so they require privileges sufficient to execute that statement\&.
 .sp
@@ -2701,7 +2708,7 @@ and
 \fB\-\-include\-source\-host\-port\fR
 options can be used in conjunction with
 \fB\-\-dump\-replica\fR
-and
+or
 \fB\-\-dump\-slave\fR\&.
 .RE
 .sp
@@ -3069,7 +3076,7 @@ gtid_purged\&. The
 SET @@GLOBAL\&.gtid_purged
 statement recorded by
 \fBmysqldump\fR
-includes a plus sign (+) in a version\-specific comment, such that MySQL 8\&.0 (and later) adds the GTID set from the dump file to the existing
+includes a plus sign (+) in a version\-specific comment, such that MySQL adds the GTID set from the dump file to the existing
 gtid_purged
 value\&.
 .sp
@@ -4468,8 +4475,9 @@ T}
 .sp 1
 Set the session value of the
 long_query_time
-system variable\&. Use this option, which is available from MySQL 8\&.0\&.30, if you want to increase the time allowed for
-\fBmysqldump\fR\(cqs queries before they are logged to the slow query log file\&.
+system variable\&. Use this option, which is available from MySQL 8\&.0\&.30, if you want to increase the time allowed for queries from
+\fBmysqldump\fR
+before they are logged to the slow query log file\&.
 \fBmysqldump\fR
 performs a full table scan, which means its queries can often exceed a global
 long_query_time
@@ -4974,9 +4982,16 @@ InnoDB, because then it dumps the consistent state of the database at the time w
 START TRANSACTION
 was issued without blocking any applications\&.
 .sp
-The RELOAD or FLUSH_TABLES privilege is required with
+The
+RELOAD
+or
+FLUSH_TABLES
+privilege is required with
 \fB\-\-single\-transaction\fR
-if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&. This requirement was added in MySQL 8\&.0\&.32\&.
+if both
+gtid_mode=ON
+and
+gtid_purged=ON|AUTO\&. This requirement was added in MySQL 8\&.0\&.32\&.
 .sp
 When using this option, you should keep in mind that only
 InnoDB
@@ -5149,7 +5164,17 @@ provides a way of making an online backup:
 .\}
 .nf
 mysqldump \-\-all\-databases \-\-master\-data \-\-single\-transaction > all_databases\&.sql
-or from MySQL 8\&.0\&.26:
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Or, in MySQL 8\&.0\&.26 and later:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
 mysqldump \-\-all\-databases \-\-source\-data \-\-single\-transaction > all_databases\&.sql
 .fi
 .if n \{\
@@ -5171,7 +5196,17 @@ Section\ \&7.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordi
 .\}
 .nf
 mysqldump \-\-all\-databases \-\-master\-data=2 > all_databases\&.sql
-or from MySQL 8\&.0\&.26:
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Or, in MySQL 8\&.0\&.26 and later:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
 mysqldump \-\-all\-databases \-\-source\-data=2 > all_databases\&.sql
 .fi
 .if n \{\
@@ -5185,7 +5220,17 @@ Or:
 .\}
 .nf
 mysqldump \-\-all\-databases \-\-flush\-logs \-\-master\-data=2 > all_databases\&.sql
-or from MySQL 8\&.0\&.26:
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Or, in MySQL 8\&.0\&.26 and later:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
 mysqldump \-\-all\-databases \-\-flush\-logs \-\-source\-data=2 > all_databases\&.sql
 .fi
 .if n \{\

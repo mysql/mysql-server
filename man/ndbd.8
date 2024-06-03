@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 05/31/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "03/11/2024" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBD" "8" "05/31/2024" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,8 +34,27 @@ ndbd \- the NDB Cluster data node daemon
 \fBndbd \fR\fB\fIoptions\fR\fR
 .SH "DESCRIPTION"
 .PP
+The
 \fBndbd\fR
-is the process that is used to handle all the data in tables using the NDB Cluster storage engine\&. This is the process that empowers a data node to accomplish distributed transaction handling, node recovery, checkpointing to disk, online backup, and related tasks\&.
+binary provides the single\-threaded version of the process that is used to handle all the data in tables employing the
+NDBCLUSTER
+storage engine\&. This data node process enables a data node to accomplish distributed transaction handling, node recovery, checkpointing to disk, online backup, and related tasks\&. In NDB 8\&.0\&.38 and later, when started,
+\fBndbd\fR
+logs a warning similar to that shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+2024\-05\-28 13:32:16 [ndbd] WARNING  \-\- Running ndbd with a single thread of
+signal execution\&.  For multi\-threaded signal execution run the ndbmtd binary\&.
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBndbmtd\fR
+is the multi\-threaded version of this binary\&.
 .PP
 In an NDB Cluster, a set of
 \fBndbd\fR

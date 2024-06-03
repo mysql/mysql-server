@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter_plugin_info
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/11/2024
+.\"      Date: 06/01/2024
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER_PLUGIN_INFO" "1" "03/11/2024" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER_PLUGIN_INFO" "1" "06/01/2024" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -44,17 +44,22 @@ Usage information:
 .RS 4
 .\}
 .nf
-$> \&./mysqlrouter_plugin_info \-\-help
-Usage:
-  \&./mysqlrouter_plugin_info <mysqlrouter_plugin_file> <mysql_plugin_name>
-Example:
-  \&./mysqlrouter_plugin_info /usr/lib/mysqlrouter/routing\&.so routing
-To print help information:
-  \&./mysqlrouter_plugin_info \-\-help
-To print application version:
-  \&./mysqlrouter_plugin_info \-\-version
-$> \&./bin/mysqlrouter_plugin_info \-\-version
-MySQLRouter Plugin Info App 8\&.0\&.3
+$> mysqlrouter_plugin_info \-\-help
+Usage: mysqlrouter_plugin_info <mysqlrouter_plugin_file> <plugin_name>
+# Examples
+Print plugin information:
+    mysqlrouter_plugin_info /usr/lib/mysqlrouter/routing\&.so routing
+# Options
+  \-V, \-\-version
+      Display version information and exit\&.
+  \-?, \-\-help
+      Display this help and exit\&.
+$> mysqlrouter_plugin_info \-\-version
+MySQL Router  Ver 8\&.0\&.37 for Linux on x86_64 (MySQL Community \- GPL)
+Copyright (c) 2015, 2024, Oracle and/or its affiliates\&.
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates\&. Other names may be trademarks of their respective
+owners\&.
 .fi
 .if n \{\
 .RE
@@ -66,13 +71,20 @@ Example usage:
 .RS 4
 .\}
 .nf
-$> \&./bin/mysqlrouter_plugin_info lib/mysqlrouter/routing\&.so routing
+$> mysqlrouter_plugin_info /usr/lib64/mysqlrouter/routing\&.so routing
 {
     "abi\-version": "2\&.0",
-    "arch\-descriptor": "i386/darwin//",
+    "arch\-descriptor": "x86_64/Linux/GNU\-14\&.0\&.1/*",
     "brief": "Routing MySQL connections between MySQL clients/connectors and servers",
     "plugin\-version": "0\&.0\&.1",
-    "requires": [],
+    "requires": [
+        "logger",
+        "router_protobuf",
+        "router_openssl",
+        "io",
+        "connection_pool",
+        "destination_status"
+    ],
     "conflicts": []
 }
 .fi
