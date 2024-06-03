@@ -259,8 +259,7 @@ EXPLAIN
 
 EXPLAIN SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
--> Filter: (match t.x against ('abc'))  (rows=0.444)
-    -> Table scan on t  (rows=4)
+-> Full-text index search on t using x (x='abc')  (rows=0.444)
 
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN

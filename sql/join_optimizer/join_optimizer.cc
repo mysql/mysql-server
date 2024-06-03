@@ -3516,6 +3516,7 @@ bool CostingReceiver::ProposeAllFullTextIndexScans(
                                    force_num_output_rows_after_filter)) {
         return true;
       }
+      *found_fulltext = true;
     }
 
     // Even if we have no predicates, we may use a full-text index scan if it is
