@@ -44,6 +44,6 @@ filter='\.cpp$\|\.cc$\|\.c$\|\.h$\|sql_yacc\.yy$\|\.hpp$\|\.ic$'
 list="find . -type f"
 git rev-parse >/dev/null 2>/dev/null && list="git ls-files"
 
-ctags $tagopt -o $tagfile $( $list | grep $filter )
+ctags $tagopt -o $tagfile $( $list | grep $filter | grep -v internal/extra)
 
 echo "wrote file `pwd`/$tagfile"
