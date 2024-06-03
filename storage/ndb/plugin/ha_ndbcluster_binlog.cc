@@ -93,7 +93,6 @@
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
-#include "string_with_len.h"
 
 typedef NdbDictionary::Event NDBEVENT;
 typedef NdbDictionary::Table NDBTAB;
@@ -120,6 +119,7 @@ extern ulong opt_ndb_report_thresh_binlog_mem_usage;
 extern ulonglong opt_ndb_eventbuffer_max_alloc;
 extern uint opt_ndb_eventbuffer_free_percent;
 extern ulong opt_ndb_log_purge_rate;
+extern ulong opt_ndb_log_cache_size;
 
 void ndb_index_stat_restart();
 
@@ -6582,6 +6582,30 @@ void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
   thd->variables.character_set_client = &my_charset_latin1;
 }
 
+bool Ndb_binlog_thread::configure_binlog_cache_size(THD *thd,
+                                                    ulong new_cache_size) {
+  if (new_cache_size == m_configured_ndb_log_cache_size) {
+    // No change detected
+    return true;
+  }
+  log_info("Reconfiguring binlog cache size");
+
+  // Make sure that binlog cache has been created. Normally, the only time when
+  // it does not exist is during startup and then it will be created with
+  // default settings before being reconfigured below.
+  if (thd->binlog_setup_trx_data() != 0) {
+    // Failed to create binlog cache resources
+    return false;
+  }
+
+  if (thd->binlog_configure_trx_cache_size(new_cache_size)) {
+    // Failed to reconfigure cache
+    return false;
+  }
+  m_configured_ndb_log_cache_size = new_cache_size;
+  return true;
+}
+
 void Ndb_binlog_thread::release_thd_resources(THD *thd) {
   {
     // Check if THD::mem_root need to be released, normally there is nothing
@@ -6643,6 +6667,11 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   m_binlog_index_rows.init();
 
   fix_per_epoch_trans_settings(thd);
+
+  if (!configure_binlog_cache_size(thd, opt_ndb_log_cache_size)) {
+    log_error("Failed to configure --ndb-log-cache-size");
+    return false;  // Error
+  }
 
   // Create new binlog transaction
   injector_transaction trans(thd, opt_ndb_log_trans_dependency);
@@ -7048,7 +7077,7 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
   if (m_cache_spill_checker.check_disk_spill(binlog_cache_disk_use)) {
     log_warning(
         "Binary log cache data overflowed to disk %u time(s). "
-        "Consider increasing --binlog-cache-size.",
+        "Consider increasing --ndb-log-cache-size.",
         m_cache_spill_checker.m_disk_spills);
   }
 

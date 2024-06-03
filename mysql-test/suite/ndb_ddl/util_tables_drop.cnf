@@ -2,3 +2,5 @@
 
 [mysqld]
 ndb-log-bin=1
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768

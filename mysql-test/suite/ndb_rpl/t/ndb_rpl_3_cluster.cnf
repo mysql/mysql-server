@@ -38,6 +38,8 @@ ndb-table-temporary=1
 ndb-extra-logging=99
 binlog-format=row
 replica-parallel-workers=1
+# Use smaller than default cache size to save resources
+ndb-log-cache-size=32768
 
 [cluster_config.mysqld.1.cluster1]
 NodeId=49

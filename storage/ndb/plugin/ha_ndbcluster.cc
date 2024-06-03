@@ -18186,6 +18186,37 @@ static MYSQL_SYSVAR_ULONG(
     0            /* block */
 );
 
+// Overrides --binlog-cache-size for the ndb binlog thread
+ulong opt_ndb_log_cache_size;
+static void fix_ndb_log_cache_size(THD *thd, SYS_VAR *, void *val_ptr,
+                                   const void *checked) {
+  ulong new_size = *static_cast<const ulong *>(checked);
+
+  // Cap the max value in the same way as other binlog cache size variables
+  if (new_size > max_binlog_cache_size) {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+        "Option ndb_log_cache_size (%lu) is greater than max_binlog_cache_size "
+        "(%lu); setting ndb_log_cache_size equal to max_binlog_cache_size.",
+        (ulong)new_size, (ulong)max_binlog_cache_size);
+    new_size = static_cast<ulong>(max_binlog_cache_size);
+  }
+  *(static_cast<ulong *>(val_ptr)) = new_size;
+}
+
+static MYSQL_SYSVAR_ULONG(
+    log_cache_size,         /* name */
+    opt_ndb_log_cache_size, /* var */
+    PLUGIN_VAR_RQCMDARG,
+    "Size of the binary log transaction cache used by NDB binlog",
+    nullptr,                /* check func. */
+    fix_ndb_log_cache_size, /* update func. */
+    64 * 1024 * 1024,       /* default */
+    IO_SIZE,                /* min */
+    ULONG_MAX,              /* max */
+    IO_SIZE                 /* block */
+);
+
 bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
@@ -18599,6 +18630,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_transaction_compression),
     MYSQL_SYSVAR(log_transaction_compression_level_zstd),
     MYSQL_SYSVAR(log_purge_rate),
+    MYSQL_SYSVAR(log_cache_size),
     MYSQL_SYSVAR(log_fail_terminate),
     MYSQL_SYSVAR(log_transaction_dependency),
     MYSQL_SYSVAR(clear_apply_status),

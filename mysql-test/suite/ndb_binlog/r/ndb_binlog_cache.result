@@ -1,6 +1,16 @@
+SET @save_ndb_log_cache_size = @@global.ndb_log_cache_size;
+SELECT @save_ndb_log_cache_size;
+@save_ndb_log_cache_size
+32768
+SET @@global.ndb_log_cache_size=4096;
+SET SESSION ndb_log_cache_size=32768;
+ERROR HY000: Variable 'ndb_log_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@global.ndb_log_cache_size;
+@@global.ndb_log_cache_size
+4096
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
-4096
+32768
 SELECT @@global.binlog_stmt_cache_size;
 @@global.binlog_stmt_cache_size
 32768
@@ -36,5 +46,24 @@ INSERT INTO t1 VALUES (7, repeat(0x41, 4096), repeat(0x42, 4096));
 include/assert.inc [There were >0 writes to IO_CACHE]
 # Check that error log contains message indicating cache spill
 include/assert.inc [Binary log cache data overflowed to disk]
+include/assert.inc [The IO_CACHE should spill to disk]
+#
+# Check that ndb_log_cache_size can be reconfigured at runtime and the
+# large write which previously caused cache spill now fits. This is done
+# by increasing cache size and doing the large write again.
+SET @@global.ndb_log_cache_size=1024*1024;
+BEGIN;
+INSERT INTO t1 VALUES (8, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (9, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (10, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (11, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (12, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (13, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (14, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (15, repeat(0x41, 1024), repeat(0x42, 1024));
+COMMIT;
+# Wait for ndb_binlog thread...
+include/assert.inc [Write with large cache didn't trigger cache overflow]
+SET @@global.ndb_log_cache_size=@save_ndb_log_cache_size;
 
 DROP TABLE t1;
