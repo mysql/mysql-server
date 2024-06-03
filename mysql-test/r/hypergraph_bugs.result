@@ -47,6 +47,12 @@ INSERT INTO t0 VALUES (0),(1);
 INSERT INTO t1 VALUES (0),(1);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
+ANALYZE TABLE t0, t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: false  (rows=0.04)
@@ -68,6 +74,9 @@ DROP TABLE t0,t1,t2,t3;
 #               for hypergraph optimizer
 #
 CREATE TABLE t1 (f1 INTEGER);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
 EXPLAIN
@@ -82,6 +91,9 @@ DROP TABLE t1;
 #               ExtractRequiredItemsForFilter.
 #
 CREATE TABLE t1 (f1 YEAR);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
 EXPLAIN
 -> Filter: (t1.f1 = 2001)  (rows=0.1)
@@ -190,6 +202,9 @@ DROP TABLE t;
 #               a semijoin when it should not
 #
 CREATE TABLE t1 (f1 INTEGER);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT 1
 FROM t1 LEFT JOIN (SELECT * FROM t1 AS t2
@@ -573,6 +588,9 @@ DROP TABLE t2;
 #
 CREATE TABLE num10 (n INT PRIMARY KEY);
 INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE num10;
+Table	Op	Msg_type	Msg_text
+test.num10	analyze	status	OK
 CREATE TABLE t1(
 a INT,
 b INT,
@@ -778,16 +796,16 @@ EXPLAIN
 CREATE TABLE t2(x INT, y INT, z INT, KEY (x, y), KEY(y, x));
 INSERT INTO t2(x, y) VALUES (1, 1), (2, 2), (3, 3), (4, 4);
 CREATE TABLE t3 AS SELECT * FROM t2;
+ANALYZE TABLE t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN ANALYZE SELECT 1 FROM t2 JOIN t3 USING (x, y);
 EXPLAIN
 -> Nested loop inner join  (rows=4) (actual rows=4 loops=1)
     -> Table scan on t3  (rows=4) (actual rows=4 loops=1)
     -> Covering index lookup on t2 using x (x=t3.x, y=t3.y)  (rows=1) (actual rows=1 loops=4)
 
-ANALYZE TABLE t2,t3;
-Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
-test.t3	analyze	status	OK
 DROP TABLE t1, t2, t3, num10;
 #
 # Bug#34762651 Too high row estimates for DISTINCT

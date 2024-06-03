@@ -44,6 +44,7 @@ INSERT INTO t0 VALUES (0),(1);
 INSERT INTO t1 VALUES (0),(1);
 INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
+ANALYZE TABLE t0, t1, t2, t3;
 # Hypergraph should be able to detect that a1=5 cannot be true resulting
 # in Zero rows access path for right side of the join.
 --replace_regex $elide_costs
@@ -56,6 +57,7 @@ DROP TABLE t0,t1,t2,t3;
 --echo #
 
 CREATE TABLE t1 (f1 INTEGER);
+ANALYZE TABLE t1;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree
 SELECT f1 FROM t1 GROUP BY f1 HAVING f1 = 10 AND f1 <> 11;
@@ -73,6 +75,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 YEAR);
+ANALYZE TABLE t1;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
 DROP TABLE t1;
@@ -183,6 +186,7 @@ DROP TABLE t;
 --echo #
 
 CREATE TABLE t1 (f1 INTEGER);
+ANALYZE TABLE t1;
 # The condition t2.f1 = t3.f1+1 should be placed as a join condition
 # for the semijoin and not on the outer join.
 --replace_regex $elide_costs
@@ -479,6 +483,7 @@ DROP TABLE t2;
 
 CREATE TABLE num10 (n INT PRIMARY KEY);
 INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE num10;
 
 CREATE TABLE t1(
   a INT,
@@ -603,10 +608,10 @@ INSERT INTO t2(x, y) VALUES (1, 1), (2, 2), (3, 3), (4, 4);
 
 CREATE TABLE t3 AS SELECT * FROM t2;
 
+ANALYZE TABLE t2, t3;
+
 --replace_regex $elide_costs_and_time
 EXPLAIN ANALYZE SELECT 1 FROM t2 JOIN t3 USING (x, y);
-
-ANALYZE TABLE t2,t3;
 
 DROP TABLE t1, t2, t3, num10;
 
