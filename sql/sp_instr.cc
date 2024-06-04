@@ -729,6 +729,13 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
   if (m_lex != nullptr && m_lex->has_udf() && !m_first_execution) {
     need_reprepare = true;
   }
+
+  // Reprepare statement if its Sql_cmd requires it
+  if (!m_first_execution && m_lex != nullptr && m_lex->m_sql_cmd != nullptr &&
+      m_lex->m_sql_cmd->reprepare_on_execute_required()) {
+    need_reprepare = true;
+  }
+
   DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
   /*
     Retry execution in a loop until successful, or a fatal error has occurred,

@@ -134,6 +134,14 @@ class Sql_cmd {
   virtual bool execute(THD *thd) = 0;
 
   /**
+    Some SQL commands currently require re-preparation on re-execution of a
+    prepared statement or stored procedure. For example, a CREATE TABLE command
+    containing an index expression.
+    @return true if re-preparation is required, false otherwise.
+  */
+  virtual bool reprepare_on_execute_required() const { return false; }
+
+  /**
     Command-specific reinitialization before execution of prepared statement
 
     param thd  Current THD.

@@ -2922,6 +2922,13 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
     need_reprepare = true;
   }
 
+  // Some SQL commands need re-preparation, such as Sql_cmd_create_table
+  // when the keys involve an expression.
+  if (!m_first_execution && m_lex->m_sql_cmd &&
+      m_lex->m_sql_cmd->reprepare_on_execute_required()) {
+    need_reprepare = true;
+  }
+
   while (true) {
     if (need_reprepare) {
       error = reprepare(thd);
@@ -3086,6 +3093,7 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   mysql_thread_set_secondary_engine(used_secondary);
   mysql_statement_set_secondary_engine(thd->m_statement_psi, used_secondary);
   thd->set_secondary_engine_statement_context(nullptr);
+  m_first_execution = false;
 
   return error;
 }
