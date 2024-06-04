@@ -69,7 +69,8 @@ static const size_t kHelpScreenIndent = 8;
 // throws std::runtime_error
 static mysql_harness::LoaderConfig *make_config(
     const std::map<std::string, std::string> params,
-    const std::vector<std::string> &config_files) {
+    const std::vector<std::string> &config_files,
+    const CmdArgHandler::ConfigOverwrites &config_overrides) {
   using namespace mysql_harness::utility;
   constexpr const char *err_msg = "Configuration error: %s.";
 
@@ -77,7 +78,8 @@ static mysql_harness::LoaderConfig *make_config(
     // LoaderConfig ctor throws bad_option (std::runtime_error)
     std::unique_ptr<mysql_harness::LoaderConfig> config(
         new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
-                                        mysql_harness::Config::allow_keys, {}));
+                                        mysql_harness::Config::allow_keys,
+                                        config_overrides));
 
     // throws std::invalid_argument, std::runtime_error, syntax_error, ...
     for (const auto &config_file : config_files) {
@@ -244,29 +246,30 @@ void BootstrapConfigurator::init(int argc, char **argv) {
     throw std::runtime_error(
         "invalid configuration, --mrs cannot be used with --disable-rest");
 
-  if (!config_files_.empty()) {
-    // default configuration for bootstrap is not supportedconfig_files_
-    // extra configuration for bootstrap is not supported
-    auto config_files_res =
-        ConfigFilePathValidator({}, config_files_, {}).validate();
-    std::vector<std::string> config_files;
-    if (config_files_res && !config_files_res.value().empty()) {
-      config_files = std::move(config_files_res.value());
-    }
+  // default configuration for bootstrap is not supported
+  // extra configuration for bootstrap is not supported
+  auto config_files_res =
+      ConfigFilePathValidator({}, config_files_, {}).validate();
+  std::vector<std::string> config_files;
+  if (config_files_res && !config_files_res.value().empty()) {
+    config_files = std::move(config_files_res.value());
+  }
 
-    DIM::instance().reset_Config();  // simplifies unit tests
-    DIM::instance().set_Config(
-        [&config_files]() { return make_config({}, config_files); },
-        std::default_delete<mysql_harness::LoaderConfig>());
-    auto &config = DIM::instance().get_Config();
-    try {
-      init_main_logger(config,
-                       true);  // true = raw logging mode
-    } catch (const std::runtime_error &) {
-      // If log init fails, there's not much we can do here (no way to log the
-      // error) except to catch this exception to prevent it from bubbling up
-      // to std::terminate()
-    }
+  DIM::instance().reset_Config();  // simplifies unit tests
+  const auto config_overwrites = arg_handler_.get_config_overwrites();
+  DIM::instance().set_Config(
+      [&config_files, &config_overwrites]() {
+        return make_config({}, config_files, config_overwrites);
+      },
+      std::default_delete<mysql_harness::LoaderConfig>());
+  auto &config = DIM::instance().get_Config();
+  try {
+    init_main_logger(config,
+                     true);  // true = raw logging mode
+  } catch (const std::runtime_error &) {
+    // If log init fails, there's not much we can do here (no way to log the
+    // error) except to catch this exception to prevent it from bubbling up
+    // to std::terminate()
   }
 }
 
