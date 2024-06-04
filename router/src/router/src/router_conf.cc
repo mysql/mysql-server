@@ -1151,8 +1151,7 @@ std::string MySQLRouterConf::bootstrap(
                             // std::out_of_range, std::logic_error
 
   connect();
-  bool standalone =
-      !config_gen.check_target(bootstrap_options_, allow_standalone);
+  config_gen.check_target(bootstrap_options_, allow_standalone);
 
   config_gen.warn_on_no_ssl(bootstrap_options_);  // throws std::runtime_error
   config_gen.set_plugin_folder(plugin_folder);
@@ -1210,7 +1209,7 @@ std::string MySQLRouterConf::bootstrap(
     } else {
       config_gen.bootstrap_system_deployment(
           program_name, config_file_path, state_file_path, bootstrap_options_,
-          bootstrap_multivalue_options_, default_paths, standalone);
+          bootstrap_multivalue_options_, default_paths);
     }
     return config_file_path;
   } else {
@@ -1226,7 +1225,7 @@ std::string MySQLRouterConf::bootstrap(
     } else {
       config_gen.bootstrap_directory_deployment(
           program_name, bootstrap_directory_, bootstrap_options_,
-          bootstrap_multivalue_options_, default_paths, standalone);
+          bootstrap_multivalue_options_, default_paths);
     }
 
     return config_file_path;
