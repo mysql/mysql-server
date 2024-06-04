@@ -82,7 +82,7 @@ class ConfigGenerator {
             const mysqlrouter::URI &uri, mysqlrouter::MySQLSession *session,
             int connect_timeout, int read_timeout);
 
-  bool check_target(const std::map<std::string, std::string> &bootstrap_options,
+  void check_target(const std::map<std::string, std::string> &bootstrap_options,
                     bool allow_no_metadata = false);
 
   /** @brief logs warning and returns false if SSL mode is set to PREFERRED
@@ -105,15 +105,13 @@ class ConfigGenerator {
       const std::string &state_file_path,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
-      const std::map<std::string, std::string> &default_paths,
-      bool standalone = false);
+      const std::map<std::string, std::string> &default_paths);
 
   void bootstrap_directory_deployment(
       const std::string &program_name, const std::string &directory,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
-      const std::map<std::string, std::string> &default_paths,
-      bool standalone = false);
+      const std::map<std::string, std::string> &default_paths);
 
   void set_keyring_info(const KeyringInfo &keyring_info) {
     keyring_info_ = keyring_info;
@@ -121,7 +119,7 @@ class ConfigGenerator {
 
   void set_plugin_folder(const std::string &val) { plugin_folder_ = val; }
 
-  bool is_standalone_target() const { return standalone_target_; }
+  bool is_standalone_target() const { return !schema_version_; }
 
   struct Options {
     struct Endpoint {
@@ -497,7 +495,6 @@ class ConfigGenerator {
   std::unique_ptr<ClusterMetadata> metadata_;
   int connect_timeout_;
   int read_timeout_;
-  bool standalone_target_ = false;
 
   // For GR cluster Group Replication ID, for AR cluster cluster_id from the
   // metadata, for ClusterSet clusterset_id
@@ -534,7 +531,8 @@ class ConfigGenerator {
   SysUserOperationsBase *sys_user_operations_;
 #endif
 
-  mysqlrouter::MetadataSchemaVersion schema_version_;
+  // metadata schema version if not standalone
+  std::optional<mysqlrouter::MetadataSchemaVersion> schema_version_;
 
   std::string plugin_folder_;
 };

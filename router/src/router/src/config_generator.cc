@@ -311,30 +311,31 @@ void ConfigGenerator::init(
   target_uri_ = uri;
 }
 
-bool ConfigGenerator::check_target(
+void ConfigGenerator::check_target(
     const std::map<std::string, std::string> &bootstrap_options,
     bool allow_no_metadata) {
   try {
     schema_version_ = mysqlrouter::get_metadata_schema_version(mysql_);
   } catch (const metadata_missing &) {
-    if (allow_no_metadata) return false;
+    if (allow_no_metadata) return;
     throw;
   }
+  assert(schema_version_);
 
-  if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
+  if (*schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw std::runtime_error(
         "Currently the cluster metadata update is in progress. Please rerun "
         "the bootstrap when it is finished.");
   }
 
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
-                                             schema_version_)) {
+                                             *schema_version_)) {
     throw std::runtime_error(
-        mysqlrouter::get_metadata_schema_uncompatible_msg(schema_version_));
+        mysqlrouter::get_metadata_schema_uncompatible_msg(*schema_version_));
   }
 
   metadata_ =
-      mysqlrouter::create_metadata(schema_version_, mysql_, bootstrap_options);
+      mysqlrouter::create_metadata(*schema_version_, mysql_, bootstrap_options);
 
   // at this point we know the cluster type so let's do additional verifications
 
@@ -379,8 +380,6 @@ bool ConfigGenerator::check_target(
                                        // std::logic_error
 
   init_gr_data(target_uri_, bootstrap_socket_);
-
-  return true;
 }
 
 std::string ConfigGenerator::config_file_path_for_directory(
@@ -413,12 +412,10 @@ void ConfigGenerator::bootstrap_system_deployment(
     const std::string &state_file_path,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
-    const std::map<std::string, std::string> &default_paths, bool standalone) {
+    const std::map<std::string, std::string> &default_paths) {
   auto options(user_options);
   mysql_harness::Path _config_file_path(config_file_path);
   AutoCleaner auto_clean;
-
-  standalone_target_ = standalone;
 
   std::string router_name;
   if (user_options.find("name") != user_options.end()) {
@@ -524,13 +521,11 @@ void ConfigGenerator::bootstrap_directory_deployment(
     const std::string &program_name, const std::string &directory,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
-    const std::map<std::string, std::string> &default_paths, bool standalone) {
+    const std::map<std::string, std::string> &default_paths) {
   bool force = user_options.find("force") != user_options.end();
   mysql_harness::Path path(directory);
   std::string router_name;
   AutoCleaner auto_clean;
-
-  standalone_target_ = standalone;
 
   if (user_options.find("name") != user_options.end()) {
     if ((router_name = user_options.at("name")) == kSystemRouterName)
@@ -1374,10 +1369,12 @@ std::string ConfigGenerator::bootstrap_deployment(
     bool directory_deployment, AutoCleaner &auto_clean) {
   bool force = user_options.find("force") != user_options.end();
 
-  auto cluster_info =
-      standalone_target_ ? ClusterInfo{} : metadata_->fetch_metadata_servers();
+  const bool standalone_target = is_standalone_target();
 
-  auto conf_options = standalone_target_
+  auto cluster_info =
+      standalone_target ? ClusterInfo{} : metadata_->fetch_metadata_servers();
+
+  auto conf_options = standalone_target
                           ? ExistingConfigOptions{}
                           : get_options_from_config_if_it_exists(
                                 config_file_path.str(), cluster_info, force);
@@ -1453,7 +1450,7 @@ std::string ConfigGenerator::bootstrap_deployment(
 
   // bootstrap
   // All SQL writes happen inside here
-  if (!standalone_target_) {
+  if (!is_standalone_target()) {
     ClusterAwareDecorator cluster_aware(
         *metadata_, cluster_initial_username_, cluster_initial_password_,
         cluster_initial_hostname_, cluster_initial_port_,
@@ -1486,7 +1483,7 @@ std::string ConfigGenerator::bootstrap_deployment(
   }
 
   // test out the connection that Router would use
-  if (!standalone_target_) {
+  if (!is_standalone_target()) {
     bool strict = user_options.count("strict");
     verify_router_account(conf_options.username, password, strict);
   }
@@ -1508,7 +1505,7 @@ std::string ConfigGenerator::bootstrap_deployment(
 
   // return bootstrap report (several lines of human-readable text)
   const std::string cluster_type_name =
-      standalone_target_ ? "" : [](auto cluster_type) {
+      is_standalone_target() ? "" : [](auto cluster_type) {
         switch (cluster_type) {
           case ClusterType::RS_V2:
             return "InnoDB ReplicaSet";
@@ -2380,7 +2377,7 @@ void add_rest_section(
     const std::map<std::string, std::string> &default_paths,
     const std::map<std::string, std::string> &config_cmdln_options,
     const std::string &ssl_cert, const std::string &ssl_key,
-    const mysqlrouter::MetadataSchemaVersion &schema_version,
+    const std::optional<mysqlrouter::MetadataSchemaVersion> &schema_version,
     AutoCleaner &auto_clean) {
   std::stringstream config;
 
@@ -2433,9 +2430,12 @@ void add_rest_section(
                                           "rest_api");
   }
 
-  add_http_auth_backend_section(config_file, datadir_path,
-                                kHttpDefaultAuthBackendName, schema_version,
-                                config_cmdln_options, auto_clean);
+  // if this is a innodb cluster
+  if (schema_version) {
+    add_http_auth_backend_section(config_file, datadir_path,
+                                  kHttpDefaultAuthBackendName, *schema_version,
+                                  config_cmdln_options, auto_clean);
+  }
 
   {
     ConfigSectionPrinter rest_routing_section(config_file, config_cmdln_options,
@@ -2445,7 +2445,8 @@ void add_rest_section(
                             rest_plugin_supported_options);
   }
 
-  {
+  // if this is a innodb cluster
+  if (schema_version) {
     ConfigSectionPrinter rest_metadata_cache_section(
         config_file, config_cmdln_options, "rest_metadata_cache");
     ADD_CONFIG_LINE_CHECKED(rest_metadata_cache_section, "require_realm",
@@ -2521,7 +2522,7 @@ void ConfigGenerator::create_config(
     ADD_CONFIG_LINE_CHECKED(default_section, router::options::kMasterKeyWriter,
                             keyring_info_.get_master_key_writer(),
                             router_supported_options);
-    if (!standalone_target_) {
+    if (!is_standalone_target()) {
       ADD_CONFIG_LINE_CHECKED(default_section, "connect_timeout",
                               std::to_string(connect_timeout_),
                               metadata_cache_supported_options);
@@ -2579,7 +2580,7 @@ void ConfigGenerator::create_config(
         routing::kDefaultRequireEnforce ? "1" : "0", routing_supported_options);
   }
 
-  if (!standalone_target_)
+  if (!is_standalone_target())
     save_initial_dynamic_state(state_file, *metadata_.get(),
                                cluster_specific_id_,
                                cluster_info.metadata_servers);
@@ -2598,7 +2599,7 @@ void ConfigGenerator::create_config(
         options.override_logfilename, logger_supported_options);
   }
 
-  if (!standalone_target_) {
+  if (!is_standalone_target()) {
     ConfigSectionPrinter metadata_cache_section(
         config_file, config_cmdln_options,
         "metadata_cache:" + kDefaultMetadataCacheSectionKey);
@@ -2670,7 +2671,7 @@ void ConfigGenerator::create_config(
   // The cert and key options passed to bootstrap if for the bootstrap
   // connection itself.
 
-  if (standalone_target_) {
+  if (is_standalone_target()) {
     std::string destination =
         target_uri_.host + ":" + std::to_string(target_uri_.port);
     std::string destination_x;
@@ -2778,7 +2779,7 @@ std::string ConfigGenerator::get_bootstrap_report_text(
              ? ""
              : "'" + router_name + "' ")
      << "configured for the ";
-  if (standalone_target_)
+  if (is_standalone_target())
     ss << "Standalone MySQL Server at '" << hostname << "'";
   else
     ss << cluster_type_name << " '" << metadata_cluster.c_str() << "'";
@@ -2808,7 +2809,7 @@ std::string ConfigGenerator::get_bootstrap_report_text(
 #endif
   ss << "    " << kPromptPrefix << program_name << " -c " << config_file_name
      << "\n\n";
-  if (standalone_target_)
+  if (is_standalone_target())
     ss << "This Router instance can be reached by connecting to:\n"
        << std::endl;
   else
