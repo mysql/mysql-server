@@ -473,8 +473,9 @@ class Opt_hints_qb : public Opt_hints {
   Subquery_strategy subquery_strategy() const;
 
   void print_irregular_hints(const THD *thd, String *str) override;
-  mem_root_deque<Table_ref *> *sort_tables_in_join_order(
-      JOIN *join, const mem_root_deque<Table_ref *> *, bool toplevel = false);
+  const mem_root_deque<Table_ref *> *sort_tables_in_join_order(
+      THD *thd, const mem_root_deque<Table_ref *> &join_list,
+      bool toplevel = false);
   bool check_join_order_hints(RelationalExpression *left,
                               RelationalExpression *right,
                               const mem_root_deque<Table_ref *> *join_list);

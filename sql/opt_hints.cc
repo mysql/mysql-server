@@ -618,24 +618,23 @@ static void add_table_to_list(Table_ref *table, table_map exclude_table_map,
   Sorts tables from the join list to create a new join list which contains the
   tables in an order which complies with join order hints.
 
-  @param join          Pointer to JOIN object
+  @param thd           Thread handle.
   @param join_list     Deque of tables in join
   @param toplevel      False for subqueries, true otherwise
 
   @return Deque of tables sorted in reverse hinted order.
 */
-mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
-    JOIN *join, const mem_root_deque<Table_ref *> *join_list, bool toplevel) {
-  if (!has_join_order_hints()) return nullptr;
-  THD *thd = join->thd;
+const mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
+    THD *thd, const mem_root_deque<Table_ref *> &join_list, bool toplevel) {
+  assert(has_join_order_hints());
+
+  if (join_list.size() <= 1) {
+    return &join_list;
+  }
+
   MEM_ROOT *mem_root_arg = thd->mem_root;
   mem_root_deque<Table_ref *> *new_join_list =
       new (mem_root_arg) mem_root_deque<Table_ref *>(mem_root_arg);
-
-  if (join_list->size() <= 1) {
-    new_join_list = const_cast<mem_root_deque<Table_ref *> *>(join_list);
-    return new_join_list;
-  }
 
   mem_root_deque<Table_ref *> prefix_list(mem_root_arg),
       suffix_list(mem_root_arg), order_list(mem_root_arg);
@@ -658,7 +657,7 @@ mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
 
       const Hint_param_table &hint_table = (*hint_table_list)[hint_tab_idx];
       Table_ref *match = nullptr, *curr_tab = nullptr;
-      for (auto it = join_list->rbegin(); it != join_list->rend(); ++it) {
+      for (auto it = join_list.rbegin(); it != join_list.rend(); ++it) {
         curr_tab = *it;
         match = find_hinted_table(&hint_table, curr_tab);
         if (match != nullptr) break;
@@ -678,8 +677,8 @@ mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
         if (!Overlaps(already_sorted, curr_tab->nested_join->used_tables) &&
             (curr_tab->nested_join->m_tables.size() > 1)) {
           // sort inner table list according to hints
-          mem_root_deque<Table_ref *> *nested_table_list =
-              sort_tables_in_join_order(join, &curr_tab->nested_join->m_tables);
+          const mem_root_deque<Table_ref *> *nested_table_list =
+              sort_tables_in_join_order(thd, curr_tab->nested_join->m_tables);
           if (nested_table_list != &curr_tab->nested_join->m_tables) {
             curr_tab->nested_join->m_tables.clear();
             curr_tab->nested_join->m_tables = *nested_table_list;
@@ -847,7 +846,7 @@ mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
     new_join_list->push_front(tl);
   }
   table_map exclude_table_map = prefix_table_map | suffix_table_map;
-  for (auto it = join_list->rbegin(); it != join_list->rend(); ++it) {
+  for (auto it = join_list.rbegin(); it != join_list.rend(); ++it) {
     Table_ref *tl = *it;
     add_table_to_list(tl, exclude_table_map, order_table_map, &order_list,
                       new_join_list);
@@ -863,21 +862,17 @@ mem_root_deque<Table_ref *> *Opt_hints_qb::sort_tables_in_join_order(
       if (!IsSubset(tl->dep_tables, prior_map)) {
         // hinted order conflicts with OUTER JOIN directive, silently ignore
         // hints by reverting to original join order.
-        new_join_list->clear();
-        new_join_list = const_cast<mem_root_deque<Table_ref *> *>(join_list);
-        return new_join_list;
+        return &join_list;
       }
     } else if (tl->is_sj_or_aj_nest()) {
       table_map outer_table_map = tl->nested_join->sj_depends_on;
       if (!IsSubset(outer_table_map, prior_map)) {
-        new_join_list->clear();
-        new_join_list = const_cast<mem_root_deque<Table_ref *> *>(join_list);
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_UNSUPPORTED_HINT,
                             ER_THD(thd, ER_WARN_UNSUPPORTED_HINT),
                             "hypergraph: semijoin/antijoin table precedes a"
                             " table which it depends on");
-        return new_join_list;
+        return &join_list;
       }
     }
     prior_map |= get_table_map(tl);

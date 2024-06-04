@@ -338,17 +338,13 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     const mem_root_deque<Table_ref *> &join_list_arg, bool toplevel) {
   assert(!join_list_arg.empty());
   bool join_order_hinted = false;
-  mem_root_deque<Table_ref *> *join_list = nullptr;
+  const mem_root_deque<Table_ref *> *join_list = &join_list_arg;
 
   if (query_block->opt_hints_qb &&
       query_block->opt_hints_qb->has_join_order_hints()) {
     join_order_hinted = true;
     join_list = query_block->opt_hints_qb->sort_tables_in_join_order(
-        query_block->join, &join_list_arg, toplevel);
-  }
-
-  if (join_list == nullptr) {
-    join_list = const_cast<mem_root_deque<Table_ref *> *>(&join_list_arg);
+        thd, join_list_arg, toplevel);
   }
 
   RelationalExpression *ret = nullptr;
