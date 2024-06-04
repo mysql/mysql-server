@@ -1341,3 +1341,12 @@ DROP TABLE t1;
 
 SELECT CAST(1 AS YEAR) UNION SELECT CAST(1 AS YEAR);
 SELECT YEAR('1999-09-11') UNION SELECT YEAR('1999-09-11');
+
+--echo
+--echo Bug#35884337 Mysqld crash from TIME_to_longlong_datetime_packed
+--echo              (my_time=...) my_time.cc:1868
+--echo
+
+SET SQL_MODE="";
+DO MIN(STR_TO_DATE('4746-12-18' ,'%D  '));
+SET SQL_MODE=default;

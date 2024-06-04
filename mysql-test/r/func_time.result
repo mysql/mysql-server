@@ -2109,3 +2109,12 @@ CAST(1 AS YEAR)
 SELECT YEAR('1999-09-11') UNION SELECT YEAR('1999-09-11');
 YEAR('1999-09-11')
 1999
+
+Bug#35884337 Mysqld crash from TIME_to_longlong_datetime_packed
+(my_time=...) my_time.cc:1868
+
+SET SQL_MODE="";
+DO MIN(STR_TO_DATE('4746-12-18' ,'%D  '));
+Warnings:
+Warning	1411	Incorrect datetime value: '4746-12-18' for function str_to_date
+SET SQL_MODE=default;

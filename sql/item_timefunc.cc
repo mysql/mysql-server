@@ -485,8 +485,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
   assert(l_time->year <= 9999);
   if (data_type == MYSQL_TYPE_TIME) flags &= ~TIME_NO_ZERO_DATE;
   int warnings;
-  if (l_time->month > 12 || l_time->hour > 23 || l_time->minute > 59 ||
-      l_time->second > 59 ||
+  if (check_datetime_range(*l_time) ||
       check_date(*l_time, non_zero_date(*l_time), flags, &warnings))
     goto err;
 
