@@ -544,7 +544,8 @@ dberr_t Page_extent::flush(fil_node_t *node, void *iov, size_t iov_size) {
     return err;
   }
 
-  std::sort(&m_page_loads[0], &m_page_loads[last()], Page_load_compare());
+  std::sort(m_page_loads.begin(), m_page_loads.begin() + n_pages,
+            Page_load_compare());
 
 #ifdef UNIV_DEBUG
   for (size_t i = m_range.first, j = 0; i < m_range.second && j < n_pages;
