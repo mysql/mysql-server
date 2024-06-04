@@ -3909,7 +3909,9 @@ void Query_expression::include_down(LEX *lex, Query_block *outer) {
   Being mergeable also means that derived table/view is updatable.
 
   A view/derived table is not mergeable if it is one of the following:
-   - A set operation (implementation restriction).
+   - A set operation or a parenthesized simple query followed by
+     ORDER BY / LIMIT (cf. query term type QT_UNARY) (implementation
+     restriction)
    - An aggregated query, or has HAVING, or has DISTINCT
      (A general aggregated query cannot be merged with a non-aggregated one).
    - A table-less query (unimportant special case).
@@ -3919,7 +3921,7 @@ void Query_expression::include_down(LEX *lex, Query_block *outer) {
 */
 
 bool Query_expression::is_mergeable() const {
-  if (is_set_operation()) return false;
+  if (!is_simple()) return false;
 
   Query_block *const select = first_query_block();
   return !select->is_grouped() && select->having_cond() == nullptr &&

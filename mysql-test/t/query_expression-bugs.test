@@ -218,3 +218,24 @@ ORDER BY len;
 
 DROP VIEW view_t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36695371 wrong merge of derived table if unary nested
+--echo #
+CREATE TABLE t(pka INT NOT NULL AUTO_INCREMENT, a1 INT, a2 INT, PRIMARY KEY(pka));
+INSERT INTO t(a1,a2) VALUES (1,3), (2,5), (3,7), (4,8), (5,9), (6,10), (7,11);
+INSERT INTO t(a1,a2) SELECT a1,a2 FROM t;
+let $query =
+SELECT * FROM ( (SELECT a1,a2 FROM t ORDER BY a1,a2 ASC)
+                ORDER BY a2/a1 DESC LIMIT 7 ) AS derived;
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different plan.
+eval EXPLAIN FORMAT=tree $query;
+eval CREATE VIEW v AS $query;
+SELECT * FROM v;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different plan.
+eval EXPLAIN FORMAT=tree SELECT * FROM v;
+DROP VIEW v;
+DROP TABLE t;

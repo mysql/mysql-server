@@ -472,3 +472,53 @@ NULL	NULL
 6666	184245
 DROP VIEW view_t1;
 DROP TABLE t1;
+#
+# Bug#36695371 wrong merge of derived table if unary nested
+#
+CREATE TABLE t(pka INT NOT NULL AUTO_INCREMENT, a1 INT, a2 INT, PRIMARY KEY(pka));
+INSERT INTO t(a1,a2) VALUES (1,3), (2,5), (3,7), (4,8), (5,9), (6,10), (7,11);
+INSERT INTO t(a1,a2) SELECT a1,a2 FROM t;
+SELECT * FROM ( (SELECT a1,a2 FROM t ORDER BY a1,a2 ASC)
+ORDER BY a2/a1 DESC LIMIT 7 ) AS derived;
+a1	a2
+1	3
+1	3
+2	5
+2	5
+3	7
+3	7
+4	8
+EXPLAIN FORMAT=tree SELECT * FROM ( (SELECT a1,a2 FROM t ORDER BY a1,a2 ASC)
+ORDER BY a2/a1 DESC LIMIT 7 ) AS derived;
+EXPLAIN
+-> Table scan on derived  (rows=7)
+    -> Materialize  (rows=7)
+        -> Limit: 7 row(s)  (rows=7)
+            -> Sort: (a2 / a1) DESC, limit input to 7 row(s) per chunk  (rows=7)
+                -> Table scan on <result temporary>  (rows=14)
+                    -> Temporary table  (rows=14)
+                        -> Table scan on t  (rows=14)
+
+CREATE VIEW v AS SELECT * FROM ( (SELECT a1,a2 FROM t ORDER BY a1,a2 ASC)
+ORDER BY a2/a1 DESC LIMIT 7 ) AS derived;
+SELECT * FROM v;
+a1	a2
+1	3
+1	3
+2	5
+2	5
+3	7
+3	7
+4	8
+EXPLAIN FORMAT=tree SELECT * FROM v;
+EXPLAIN
+-> Table scan on derived  (rows=7)
+    -> Materialize  (rows=7)
+        -> Limit: 7 row(s)  (rows=7)
+            -> Sort: (a2 / a1) DESC, limit input to 7 row(s) per chunk  (rows=7)
+                -> Table scan on <result temporary>  (rows=14)
+                    -> Temporary table  (rows=14)
+                        -> Table scan on t  (rows=14)
+
+DROP VIEW v;
+DROP TABLE t;
