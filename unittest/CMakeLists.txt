@@ -33,6 +33,12 @@ ENDIF()
 
 FIND_PROGRAM(CTEST_EXECUTABLE NAMES ctest3 ctest)
 
+IF(WITH_RAPID)
+  SET(TIMEOUT 600)
+ELSE()
+  SET(TIMEOUT 300)
+ENDIF()
+
 # 'man ctest' is confusing: --timeout vs. --test-timeout?
 # The latter affects BUILD AND TEST MODE.
 ADD_CUSTOM_TARGET(
@@ -41,7 +47,7 @@ ADD_CUSTOM_TARGET(
   --output-on-failure
   --parallel ${CORES}
   --progress
-  --timeout 300
+  --timeout ${TIMEOUT}
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   USES_TERMINAL
 )
