@@ -4879,7 +4879,7 @@ void BFT::children_to_visit(buf_block_t *block) {
   if (block->is_leaf()) {
     return;
   }
-  Scoped_heap scoped_heap{};
+  Scoped_heap scoped_heap{2048, UT_LOCATION_HERE};
   mem_heap_t *heap = scoped_heap.get();
   ulint *offsets = nullptr;
   page_cur_t cur;
