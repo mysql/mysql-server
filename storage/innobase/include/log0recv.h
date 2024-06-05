@@ -47,8 +47,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #include <list>
-#include <set>
 #include <unordered_map>
+#include <unordered_set>
 
 class MetadataRecover;
 class PersistentTableMetadata;
@@ -398,7 +398,7 @@ struct recv_sys_t {
     Pages m_pages;
   };
 
-  using Missing_Ids = std::set<space_id_t>;
+  using Missing_Ids = std::unordered_set<space_id_t>;
 
   using Spaces = std::unordered_map<space_id_t, Space, std::hash<space_id_t>,
                                     std::equal_to<space_id_t>>;
