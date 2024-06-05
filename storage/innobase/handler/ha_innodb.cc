@@ -3324,8 +3324,7 @@ class Validate_files {
  public:
   /** Constructor */
   Validate_files()
-      : m_mutex(),
-        m_space_max_id(),
+      : m_space_max_id(),
         m_n_to_check(),
         m_n_threads(),
         m_start_time(std::chrono::steady_clock::time_point{}),
@@ -3365,11 +3364,8 @@ class Validate_files {
   space_id_t get_space_max_id() const { return (m_space_max_id); }
 
  private:
-  /** Mutex protecting the parallel check. */
-  std::mutex m_mutex;
-
   /** Maximum tablespace ID found. */
-  space_id_t m_space_max_id;
+  std::atomic<space_id_t> m_space_max_id;
 
   /** Number of tablespaces to check. */
   size_t m_n_to_check;
@@ -3503,14 +3499,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       break;
     }
 
-    {
-      std::lock_guard<std::mutex> guard(m_mutex);
-
-      if (!dict_sys_t::is_reserved(space_id) && space_id > m_space_max_id) {
-        /* Currently try to find the max space_id only.
-        It should be able to reuse the deleted smaller ones later */
-        m_space_max_id = space_id;
-      }
+    if (!dict_sys_t::is_reserved(space_id)) {
+      /* Currently try to find the max space_id only.
+      It should be able to reuse the deleted smaller ones later */
+      auto current_max = m_space_max_id.load();
+      while (current_max < space_id &&
+             !m_space_max_id.compare_exchange_weak(current_max, space_id))
+        ;
     }
 
     /* System and temp files are tracked and opened separately.
@@ -3599,8 +3594,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Windows and POSIX. */
     Fil_path::normalize(dd_path);
     Fil_state state = Fil_state::MATCHES;
-
-    std::lock_guard<std::mutex> guard(m_mutex);
 
     state = fil_tablespace_path_equals(space_id, space_name, fsp_flags, dd_path,
                                        data_directory_property_in_dd_missing,
