@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/big_test.inc
 # The test requires a debug build, in order to trigger
 # a purge using innodb_purge_run_now=ON .
 
@@ -41,7 +42,9 @@ call insert_data();
 
 --echo # 4: commit, trigger undo log truncation
 commit;
-sync_slave_with_master;
+
+--let $slave_timeout = 3000
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 
