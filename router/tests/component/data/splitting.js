@@ -336,7 +336,7 @@ var status_vars = {
             },
             {
               type: "trx_state",
-              state: "________",
+              state: "T_______",
             },
           ]
         }
@@ -357,7 +357,7 @@ var status_vars = {
             },
             {
               type: "trx_state",
-              state: "________",
+              state: "T_______",
             },
           ]
         }
