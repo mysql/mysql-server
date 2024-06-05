@@ -122,7 +122,6 @@ class PooledConnection : public PooledConnectionBase {
         return;
       }
 
-      connection_quit(conn_.connection().get(), conn_.channel().ssl());
       this->remove_me();
     });
 
@@ -187,6 +186,31 @@ class CONNECTION_POOL_EXPORT ConnectionPool {
 
   using ConnectionIdentifier = void *;
 
+  class ConnectionCloser {
+   public:
+    ConnectionCloser(ConnectionPool::ServerSideConnection conn)
+        : conn_(std::move(conn)) {}
+
+    void async_close();
+
+    void async_send_quit();
+
+    void await_quit_response(std::error_code ec, size_t transferred);
+
+    ConnectionPool::ServerSideConnection &connection() { return conn_; }
+
+    void before_close(
+        std::function<void(const ConnectionPool::ServerSideConnection &)> cb) {
+      before_close_ = std::move(cb);
+    }
+
+   private:
+    ConnectionPool::ServerSideConnection conn_;
+
+    std::function<void(const ConnectionPool::ServerSideConnection &)>
+        before_close_;
+  };
+
   ConnectionPool(uint32_t max_pooled_connections,
                  std::chrono::milliseconds idle_timeout)
       : max_pooled_connections_(max_pooled_connections),
@@ -246,6 +270,8 @@ class CONNECTION_POOL_EXPORT ConnectionPool {
           return std::move(pooled_conn.connection());
         });
   }
+
+  void async_close_connection(ConnectionPool::ServerSideConnection conn);
 
   /**
    * number of currently pooled connections.
@@ -318,6 +344,8 @@ class CONNECTION_POOL_EXPORT ConnectionPool {
   const std::chrono::milliseconds idle_timeout_;
 
   Monitor<pool_type> pool_{{}};
+
+  Monitor<std::list<ConnectionCloser>> for_close_{{}};
 
   // a stash of sharable connections.
   //
