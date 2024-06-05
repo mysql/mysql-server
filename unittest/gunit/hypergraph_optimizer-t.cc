@@ -7622,6 +7622,34 @@ TEST_F(SecondaryEngineGraphSimplificationTest, RedundantOrderElements) {
   EXPECT_THAT(ItemToString(*order->item), AnyOf("t1.x", "t2.x"));
 }
 
+TEST_F(SecondaryEngineGraphSimplificationTest, InfiniteRestarts) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1, t2 WHERE t1.x = t2.x",
+                      /*nullable=*/true);
+
+  // Add a secondary engine hook which requests planning to be restarted again
+  // and again.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+  hton->secondary_engine_check_optimizer_request =
+      [](THD *, const JoinHypergraph &, const AccessPath *, int, int,
+         bool is_root_access_path,
+         std::string *) -> SecondaryEngineGraphSimplificationRequestParameters {
+    if (is_root_access_path) {
+      return {SecondaryEngineGraphSimplificationRequest::kRestart, 1};
+    }
+    return {SecondaryEngineGraphSimplificationRequest::kContinue, 0};
+  };
+
+  // Since the secondary engine keeps requesting restarts of the join planning,
+  // the optimizer will eventually give up and return an error.
+  ErrorChecker error_checker{m_thd, ER_NO_QUERY_PLAN_FOUND};
+
+  TraceGuard trace(m_thd);
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
+  EXPECT_EQ(nullptr, root);
+}
+
 /*
   A hypergraph receiver that doesn't actually cost any plans;
   it only counts the number of possible plans that would be

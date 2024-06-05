@@ -8165,6 +8165,15 @@ bool ApplyAggregation(
   properties can skip sorting in ORDER BY entirely.) Thus, we allow keeping
   multiple candidates in play at every step if they are meaningfully different,
   and only pick out the winning candidate based on cost at the very end.
+
+  @param thd         Thread handle.
+  @param query_block The query block to find a plan for.
+  @param[out] retry  Gets set to true before returning if the caller should
+                     retry the call to this function.
+  @param[in,out] subgraph_pair_limit The maximum number of subgraph pairs to
+                     inspect before invoking the graph simplifier. Also returns
+                     the subgraph pair limit to use in the next invocation if
+                     "retry" returns true.
  */
 static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
                                           bool *retry,
@@ -8393,11 +8402,10 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
         Trace(thd) << "No root candidates found. Retry optimization ignoring "
                       "join order hints.";
       }
+      // Delete all join order hints and retry optimization.
       query_block->opt_hints_qb->clear_join_order_hints();
-      // delete all join order hints and retry optimisation
-      AccessPath *result =
-          FindBestQueryPlanInner(thd, query_block, retry, subgraph_pair_limit);
-      if (result != nullptr) return result;
+      *retry = true;
+      return nullptr;
     }
     if (CheckFoundPlan(thd, root_candidates,
                        secondary_engine_cost_hook != nullptr)) {
@@ -8746,12 +8754,18 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block) {
          ulong{std::numeric_limits<int>::max()});
   int next_retry_subgraph_pairs =
       static_cast<int>(thd->variables.optimizer_max_subgraph_pairs);
-  bool retry = false;
-  AccessPath *root_path = FindBestQueryPlanInner(thd, query_block, &retry,
-                                                 &next_retry_subgraph_pairs);
-  if (retry) {
-    root_path = FindBestQueryPlanInner(thd, query_block, &retry,
-                                       &next_retry_subgraph_pairs);
+
+  constexpr int max_attempts = 3;
+  for (int i = 0; i < max_attempts; ++i) {
+    bool retry = false;
+    AccessPath *root_path = FindBestQueryPlanInner(thd, query_block, &retry,
+                                                   &next_retry_subgraph_pairs);
+    if (retry) {
+      continue;
+    }
+    return root_path;
   }
-  return root_path;
+
+  my_error(ER_NO_QUERY_PLAN_FOUND, MYF(0));
+  return nullptr;
 }
