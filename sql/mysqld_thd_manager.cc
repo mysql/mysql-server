@@ -231,6 +231,7 @@ void Global_THD_manager::add_thd(THD *thd) {
 
 void Global_THD_manager::remove_thd(THD *thd) {
   DBUG_PRINT("info", ("Global_THD_manager::remove_thd %p", thd));
+  DBUG_EXECUTE_IF("sleep_during_disconnect", my_sleep(1 * 1000 * 1000););
   const int partition = thd_partition(thd->thread_id());
   MUTEX_LOCK(lock_remove, &LOCK_thd_remove[partition]);
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);

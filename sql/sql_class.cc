@@ -1372,6 +1372,7 @@ void THD::release_resources() {
   if (is_classic_protocol() && get_protocol_classic()->get_vio()) {
     vio_delete(get_protocol_classic()->get_vio());
     get_protocol_classic()->end_net();
+    m_cached_is_connection_alive.store(m_protocol->connection_alive());
   }
 
   /* modification plan for UPDATE/DELETE should be freed. */

@@ -1,0 +1,3 @@
+SET GLOBAL DEBUG="+d, sleep_during_disconnect";
+include/assert.inc [No connection should be in state 'Killed'.]
+SET GLOBAL DEBUG="-d, sleep_during_disconnect";
