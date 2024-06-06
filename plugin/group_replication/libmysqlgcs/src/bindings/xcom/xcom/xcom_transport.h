@@ -136,7 +136,7 @@ int tcp_reconnection_task(task_arg arg);
 int incoming_connection_task(task_arg arg);
 uint32_t crc32c_hash(char *buf, char *end);
 int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
-              enum xdr_op op);
+              enum xdr_op op) SUPPRESS_UBSAN;
 void init_crc32c();
 void init_xcom_transport(xcom_port listen_port);
 void reset_srv_buf(srv_buf *sb);
