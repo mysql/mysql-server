@@ -84,6 +84,12 @@ FOREACH(test_file
     test_stacktrace.cc
     test_destination_status.cc
     )
+# Downgrade from error to warning.
+MY_CHECK_CXX_COMPILER_WARNING("-Werror=dangling-reference" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(test_routing_strategy.cc COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
