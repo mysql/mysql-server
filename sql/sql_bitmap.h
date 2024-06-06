@@ -139,10 +139,10 @@ class Bitmap<64> {
   ulonglong map;
 
  public:
-  Bitmap<64>() { init(); }
+  Bitmap() { init(); }
   enum { ALL_BITS = 64 };
 
-  explicit Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
+  explicit Bitmap(uint prefix_to_set) { set_prefix(prefix_to_set); }
   void init() { clear_all(); }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }

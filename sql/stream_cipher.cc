@@ -69,7 +69,7 @@ bool Aes_ctr_cipher<TYPE>::open(const Key_string &password, int header_size) {
 }
 
 template <Cipher_type TYPE>
-Aes_ctr_cipher<TYPE>::~Aes_ctr_cipher<TYPE>() {
+Aes_ctr_cipher<TYPE>::~Aes_ctr_cipher() {
   close();
 }
 
