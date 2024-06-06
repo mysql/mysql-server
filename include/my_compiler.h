@@ -113,9 +113,6 @@ constexpr bool unlikely(bool expr) { return expr; }
 // clang -fsanitize=undefined
 #if defined(HAVE_UBSAN) && defined(__clang__)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize("undefined")))
-#if (__clang_major__ >= 10)
-#define SUPPRESS_UBSAN_CLANG10 MY_ATTRIBUTE((no_sanitize("undefined")))
-#endif
 // gcc -fsanitize=undefined
 #elif defined(HAVE_UBSAN) && __has_attribute(no_sanitize_undefined)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize_undefined))
@@ -123,11 +120,6 @@ constexpr bool unlikely(bool expr) { return expr; }
 #define SUPPRESS_UBSAN
 #endif
 #endif /* SUPPRESS_UBSAN */
-
-// TODO(tdidriks) Fix new 'applying offset to null pointer' warnings.
-#ifndef SUPPRESS_UBSAN_CLANG10
-#define SUPPRESS_UBSAN_CLANG10
-#endif
 
 #ifndef SUPPRESS_TSAN
 #if defined(HAVE_TSAN) && defined(__clang__)

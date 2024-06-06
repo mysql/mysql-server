@@ -8484,7 +8484,8 @@ TABLE_OR_INDEX_SCAN:
 
 end:
   /* m_key_index is ready, set m_key_info now. */
-  m_key_info = m_table->key_info + m_key_index;
+  if (m_table->key_info != nullptr)
+    m_key_info = m_table->key_info + m_key_index;
   /*
     m_key_info will influence key comparison code in HASH_SCAN mode,
     so the m_distinct_keys set should still be empty.
