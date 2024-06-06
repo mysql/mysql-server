@@ -4181,6 +4181,12 @@ const CHARSET_INFO *get_sql_field_charset(const Create_field *sql_field,
   if (sql_field->is_array || cs == &my_charset_bin) return cs;
 
   /*
+    Temporal types always use my_charset_numeric.
+    Ensure that it is not changed when altering table charset.
+  */
+  if (is_temporal_real_type(sql_field->sql_type)) return &my_charset_numeric;
+
+  /*
     table_charset is set only in ALTER TABLE t1 CONVERT TO CHARACTER SET csname
     when we want to change character set for all varchar/char columns.
   */
