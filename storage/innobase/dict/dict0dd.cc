@@ -7512,8 +7512,8 @@ std::optional<table_name_components> parse_tablespace_path(std::string path) {
 
   // Extract table name
   std::string temp_table = path.substr(last_slash + 1);
-  size_t hashPos = temp_table.find_first_of("#.");
-  table_info.table_name = temp_table.substr(0, hashPos);
+  size_t hash_pos = temp_table.find_first_of("#.");
+  table_info.table_name = temp_table.substr(0, hash_pos);
   file_to_table(table_info.table_name, false);
 
   // Check for partitions and subpartitions
@@ -7523,26 +7523,26 @@ std::optional<table_name_components> parse_tablespace_path(std::string path) {
 
   if (has_partitions) {
     // Extract partition name
-    size_t partStart =
+    size_t part_start =
         temp_table.find(PART_SEPARATOR) + std::string(PART_SEPARATOR).length();
-    size_t partEnd = has_subpartitions ? temp_table.find(SUB_PART_SEPARATOR)
-                                       : temp_table.find('.');
+    size_t part_end = has_subpartitions ? temp_table.find(SUB_PART_SEPARATOR)
+                                        : temp_table.find('.');
 
-    ut_ad(partEnd != std::string::npos);
+    ut_ad(part_end != std::string::npos);
     std::string temp_partition =
-        temp_table.substr(partStart, partEnd - partStart);
+        temp_table.substr(part_start, part_end - part_start);
     file_to_table(temp_partition, false);
     table_info.partition = temp_partition;
   }
 
   if (has_subpartitions) {
     // Extract subpartition name
-    size_t subpartStart = temp_table.find(SUB_PART_SEPARATOR) +
-                          std::string(SUB_PART_SEPARATOR).length();
-    size_t subpartEnd = temp_table.find('.');
-    ut_ad(subpartEnd != std::string::npos);
+    size_t sub_part_start = temp_table.find(SUB_PART_SEPARATOR) +
+                            std::string(SUB_PART_SEPARATOR).length();
+    size_t sub_part_end = temp_table.find('.');
+    ut_ad(sub_part_end != std::string::npos);
     std::string temp_subpartition =
-        temp_table.substr(subpartStart, subpartEnd - subpartStart);
+        temp_table.substr(sub_part_start, sub_part_end - sub_part_start);
     file_to_table(temp_subpartition, false);
     table_info.subpartition = temp_subpartition;
   }
