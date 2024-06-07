@@ -40,16 +40,24 @@ INSERT INTO test.id_bigint(id, value)
 --exec $MRS_CLIENT_ARGS --path /svc/test/id_unsigned_int/1 --wait-until-found 60 --display none
 --let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/id,/items/*/value
 
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_int?offset=0&limit=1'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_int?offset=1&limit=1'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_int?offset=0&limit=4294967295'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_int?offset=0&limit=9223372036854775808'
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=0&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=1&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=0&limit=4294967295'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=0&limit=9223372036854775808'
+--source ../include/mrs/mrs_client.inc
 
 --echo # Check the offset out of range of the existing rows
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_int?offset=5&limit=1'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_int?offset=4294967295&limit=4294967295'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_int?offset=9223372036854775808&limit=9223372036854775808'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_int?offset=18446744073709551614&limit=18446744073709551615'
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=5&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=4294967295&limit=4294967295'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=9223372036854775808&limit=9223372036854775808'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_int?offset=18446744073709551614&limit=18446744073709551615'
+--source ../include/mrs/mrs_client.inc
 
 --echo # Check the limit on table with BIGINT UNSIGNED PK field
 --let $mrs_add_db_object=id_unsigned_bigint
@@ -59,17 +67,26 @@ INSERT INTO test.id_bigint(id, value)
 --exec $MRS_CLIENT_ARGS --path /svc/test/id_unsigned_bigint/1 --wait-until-found 60 --display none
 --let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/id,/items/*/value
 
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_bigint?offset=0&limit=1'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_bigint?offset=1&limit=1'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_bigint?offset=0&limit=4294967295'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_bigint?offset=0&limit=9223372036854775808'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_unsigned_bigint?offset=0&limit=18446744073709551614'
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=0&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=1&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=0&limit=4294967295'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=0&limit=9223372036854775808'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=0&limit=18446744073709551614'
+--source ../include/mrs/mrs_client.inc
 
 --echo # Check the offset out of range of the existing rows
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_bigint?offset=5&limit=1'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_bigint?offset=4294967295&limit=4294967295'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_bigint?offset=9223372036854775808&limit=9223372036854775808'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_unsigned_bigint?offset=18446744073709551614&limit=18446744073709551615'
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=5&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=4294967295&limit=4294967295'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=9223372036854775808&limit=9223372036854775808'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_unsigned_bigint?offset=18446744073709551614&limit=18446744073709551615'
+--source ../include/mrs/mrs_client.inc
 
 --echo # Check the limit on table with BIGINT PK field
 --let $mrs_add_db_object=id_bigint
@@ -79,17 +96,26 @@ INSERT INTO test.id_bigint(id, value)
 --exec $MRS_CLIENT_ARGS --path /svc/test/id_bigint/1 --wait-until-found 60 --display none
 --let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/id,/items/*/value
 
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_bigint?offset=0&limit=1'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_bigint?offset=1&limit=1'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_bigint?offset=0&limit=4294967295'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_bigint?offset=0&limit=9223372036854775808'
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/id_bigint?offset=0&limit=18446744073709551614'
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=0&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=1&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=0&limit=4294967295'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=0&limit=9223372036854775808'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=0&limit=18446744073709551614'
+--source ../include/mrs/mrs_client.inc
 
 --echo # Check the offset out of range of the existing rows
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_bigint?offset=5&limit=1'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_bigint?offset=4294967295&limit=4294967295'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_bigint?offset=9223372036854775808&limit=9223372036854775808'
---exec $MRS_CLIENT_ARGS --path '/svc/test/id_bigint?offset=18446744073709551614&limit=18446744073709551615'
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=5&limit=1'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=4294967295&limit=4294967295'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=9223372036854775808&limit=9223372036854775808'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/id_bigint?offset=18446744073709551614&limit=18446744073709551615'
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 DROP TABLE test.id_unsigned_int;

@@ -9,14 +9,13 @@ FLUSH PRIVILEGES;
 - Creating account(s) (only those that are needed, if any)
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
-- Adjusting permissions of generated files
 - Creating configuration .../mysqlrouter.conf
 
 # MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
 
 After this, MySQL Router can be started with the generated configuration with:
 
-    $ mysqlrouter -c .../mysqlrouter.conf
+$ mysqlrouter -c .../mysqlrouter.conf
 
 InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 

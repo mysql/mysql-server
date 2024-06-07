@@ -33,7 +33,30 @@ GET /svc/test/id_unsigned_int?offset=0&limit=1
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
+        }
+    ],
+    "limit": 1,
+    "offset": 0,
+    "hasMore": true,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
+        },
+        {
+            "rel": "next",
+            "href": "/svc/test/id_unsigned_int/?offset=1&limit=1"
         }
     ]
 }
@@ -43,7 +66,38 @@ GET /svc/test/id_unsigned_int?offset=1&limit=1
     "items": [
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
+        }
+    ],
+    "limit": 1,
+    "offset": 1,
+    "hasMore": true,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
+        },
+        {
+            "rel": "next",
+            "href": "/svc/test/id_unsigned_int/?offset=2&limit=1"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_int/?offset=0&limit=1"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_int/?limit=1"
         }
     ]
 }
@@ -53,19 +107,65 @@ GET /svc/test/id_unsigned_int?offset=0&limit=4294967295
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 4294967295,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
         }
     ]
 }
@@ -75,19 +175,65 @@ GET /svc/test/id_unsigned_int?offset=0&limit=9223372036854775808
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_int/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 9223372036854775808,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_int/"
         }
     ]
 }
@@ -192,7 +338,30 @@ GET /svc/test/id_unsigned_bigint?offset=0&limit=1
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
+        }
+    ],
+    "limit": 1,
+    "offset": 0,
+    "hasMore": true,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
+        },
+        {
+            "rel": "next",
+            "href": "/svc/test/id_unsigned_bigint/?offset=1&limit=1"
         }
     ]
 }
@@ -202,7 +371,38 @@ GET /svc/test/id_unsigned_bigint?offset=1&limit=1
     "items": [
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
+        }
+    ],
+    "limit": 1,
+    "offset": 1,
+    "hasMore": true,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
+        },
+        {
+            "rel": "next",
+            "href": "/svc/test/id_unsigned_bigint/?offset=2&limit=1"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_unsigned_bigint/?offset=0&limit=1"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_unsigned_bigint/?limit=1"
         }
     ]
 }
@@ -212,19 +412,65 @@ GET /svc/test/id_unsigned_bigint?offset=0&limit=4294967295
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 4294967295,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
         }
     ]
 }
@@ -234,19 +480,65 @@ GET /svc/test/id_unsigned_bigint?offset=0&limit=9223372036854775808
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 9223372036854775808,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
         }
     ]
 }
@@ -256,19 +548,65 @@ GET /svc/test/id_unsigned_bigint?offset=0&limit=18446744073709551614
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_unsigned_bigint/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 18446744073709551614,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_unsigned_bigint/"
         }
     ]
 }
@@ -373,7 +711,30 @@ GET /svc/test/id_bigint?offset=0&limit=1
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
+        }
+    ],
+    "limit": 1,
+    "offset": 0,
+    "hasMore": true,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
+        },
+        {
+            "rel": "next",
+            "href": "/svc/test/id_bigint/?offset=1&limit=1"
         }
     ]
 }
@@ -383,7 +744,38 @@ GET /svc/test/id_bigint?offset=1&limit=1
     "items": [
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
+        }
+    ],
+    "limit": 1,
+    "offset": 1,
+    "hasMore": true,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
+        },
+        {
+            "rel": "next",
+            "href": "/svc/test/id_bigint/?offset=2&limit=1"
+        },
+        {
+            "rel": "prev",
+            "href": "/svc/test/id_bigint/?offset=0&limit=1"
+        },
+        {
+            "rel": "first",
+            "href": "/svc/test/id_bigint/?limit=1"
         }
     ]
 }
@@ -393,19 +785,65 @@ GET /svc/test/id_bigint?offset=0&limit=4294967295
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 4294967295,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
         }
     ]
 }
@@ -415,19 +853,65 @@ GET /svc/test/id_bigint?offset=0&limit=9223372036854775808
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 9223372036854775808,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
         }
     ]
 }
@@ -437,19 +921,65 @@ GET /svc/test/id_bigint?offset=0&limit=18446744073709551614
     "items": [
         {
             "id": 1,
-            "value": 1
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/1"
+                }
+            ],
+            "value": 1,
+            "_metadata": {
+                "etag": "8B9B3B8C394E96D75BA4E37C22690A793957C91048B72949E0BD4CF1CEE377DD"
+            }
         },
         {
             "id": 2,
-            "value": 2
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/2"
+                }
+            ],
+            "value": 2,
+            "_metadata": {
+                "etag": "7FB11FFB33E11B3F086072CEA1B3A2A9022CB053FCCB53E0E4B5DB51E582A5B7"
+            }
         },
         {
             "id": 3,
-            "value": 3
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/3"
+                }
+            ],
+            "value": 3,
+            "_metadata": {
+                "etag": "9A64BFCF6C2BE69393827D9880345ADE9C46B04AC13911CA0E2F3ECEB4D66B25"
+            }
         },
         {
             "id": 4,
-            "value": 4
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/test/id_bigint/4"
+                }
+            ],
+            "value": 4,
+            "_metadata": {
+                "etag": "362DAAA68A7AB1B606A4098E29AA93AD4BCEC9CF0724DD2E17AB1B017B337A52"
+            }
+        }
+    ],
+    "limit": 18446744073709551614,
+    "offset": 0,
+    "hasMore": false,
+    "count": 4,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/test/id_bigint/"
         }
     ]
 }

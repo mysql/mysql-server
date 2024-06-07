@@ -201,10 +201,11 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # I.5
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/nothing -t PUT
-  --payload '{"not-existing-param":20}'
-  --expected-status BadRequest;
+--let $mrs_client_arg_path='/svc/proc/nothing'
+--let $mrs_client_arg_payload='{"not-existing-param":20}'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_expected_status=BadRequest
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -224,26 +225,30 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # II.2
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/sum?a=10\&b=20;
+
+--let $mrs_client_arg_path='/svc/proc/sum?a=10&b=20'
+--let $mrs_client_arg_payload=
+--let $mrs_client_arg_request_type=
+--let $mrs_client_expected_status=
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.3
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/sum_out?a=10\&b=20;
+--let $mrs_client_arg_path='/svc/proc/sum_out?a=10&b=20'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.4
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/concat?a=10\&b=20;
+--let $mrs_client_arg_path='/svc/proc/concat?a=10&b=20'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.5
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/concat_out?a=10\&b=20;
+--let $mrs_client_arg_path='/svc/proc/concat_out?a=10&b=20'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
@@ -256,44 +261,46 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # II.7
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/sum
-  -t PUT --payload '{"a":10,"b":20}';
+--let $mrs_client_arg_path='/svc/proc/sum'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_expected_status=
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.8
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/sum_out
-  -t PUT --payload '{"a":10, "b":20}';
+--let $mrs_client_arg_path='/svc/proc/sum_out'
+--let $mrs_client_arg_payload='{"a":10, "b":20}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.9
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/concat
-  -t PUT --payload '{"a":10,"b":20}';
+--let $mrs_client_arg_path='/svc/proc/concat'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.10
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/concat_out
-  -t PUT --payload '{"a":10,"b":20}';
+--let $mrs_client_arg_path='/svc/proc/concat_out'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.11
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/concat
-  -t PUT --payload '{"a":"10","b":"20"}';
+--let $mrs_client_arg_path='/svc/proc/concat'
+--let $mrs_client_arg_payload='{"a":"10","b":"20"}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.12
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/concat_out
-  -t PUT --payload '{"a":"10","b":"20"}';
+--let $mrs_client_arg_path='/svc/proc/concat_out'
+--let $mrs_client_arg_payload='{"a":"10","b":"20"}'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
@@ -363,9 +370,9 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # IV.1
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_char
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/proc/move_char'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -394,44 +401,44 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # IV.5
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_bit
-  -t PUT --payload '{"a":1}';
+--let $mrs_client_arg_path='/svc/proc/move_bit'
+--let $mrs_client_arg_payload='{"a":1}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # IV.6
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_tinyint1
-  -t PUT --payload '{"a":1}';
+--let $mrs_client_arg_path='/svc/proc/move_tinyint1'
+--let $mrs_client_arg_payload='{"a":1}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # IV.7
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_tinyint8
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/proc/move_tinyint8'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # IV.8
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_decimal
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/proc/move_decimal'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # IV.9
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_float
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/proc/move_float'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # IV.10
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/move_double
-  -t PUT --payload '{"a":10}';
+--let $mrs_client_arg_path='/svc/proc/move_double'
+--let $mrs_client_arg_payload='{"a":10}'
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 --source ../include/mrs/cleanup.inc

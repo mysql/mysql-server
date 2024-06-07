@@ -156,12 +156,16 @@ let $MRS_CLIENT_EXC1=$MRS_CLIENT_ARGS
 --exec $MRS_CLIENT_EXC1 --path /svc/pk/time/12:01:51.0000
 --exec $MRS_CLIENT_EXC1 --path /svc/pk/year/2020
 --exec $MRS_CLIENT_EXC1 --path /svc/pk/year/2022
---exec $MRS_CLIENT_EXC1 --path /svc/pk/datetime/2020-12-01\ 12:01:50.000000
---exec $MRS_CLIENT_EXC1 --path /svc/pk/datetime/2020-12-01\ 12:01:50
---exec $MRS_CLIENT_EXC1 --path /svc/pk/datetime/2020-12-02\ 12:01:50
---exec $MRS_CLIENT_EXC1 --path /svc/pk/timestamp/2020-12-02\ 12:01:50.000000
---exec $MRS_CLIENT_EXC1 --path /svc/pk/timestamp/2020-12-03\ 12:01:50
-
+--let $mrs_client_arg_path='/svc/pk/datetime/2020-12-01 12:01:50.000000'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/pk/datetime/2020-12-01 12:01:50'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/pk/datetime/2020-12-02 12:01:50'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/pk/timestamp/2020-12-02 12:01:50.000000'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/pk/timestamp/2020-12-03 12:01:50'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
