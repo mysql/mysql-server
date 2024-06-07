@@ -1,0 +1,4 @@
+[cluster_config.1]
+UseShm=1
+# Minimal ShmSize for Mac OS default settings
+ShmSize=128K
