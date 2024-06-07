@@ -265,75 +265,87 @@ bool SHM_Transporter::connect_server_impl(NdbSocket &&sockfd) {
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
 
-  // Create
-  if (!_shmSegCreated) {
-    if (!ndb_shm_create()) {
-      DEBUG_FPRINTF((stderr,
-                     "(%u)connect_server_impl failed LINE:%d,"
-                     " to remote node %d\n",
-                     localNodeId, __LINE__, remoteNodeId));
-      DBUG_RETURN(false);
-    }
-    _shmSegCreated = true;
-    DEBUG_FPRINTF(
-        (stderr, "(%u)ndb_shm_create()(%u)\n", localNodeId, remoteNodeId));
-  }
-
-  // Attach
-  if (!_attached) {
-    if (!ndb_shm_attach()) {
-      DEBUG_FPRINTF((stderr,
-                     "(%u)connect_server_impl failed LINE:%d,"
-                     " to remote node %d\n",
-                     localNodeId, __LINE__, remoteNodeId));
-      DBUG_RETURN(false);
-    }
-    _attached = true;
-    DEBUG_FPRINTF(
-        (stderr, "(%u)ndb_shm_attach()(%u)\n", localNodeId, remoteNodeId));
-  }
-
-  require(!setupBuffersDone);
+  do  // Close socket on errors
   {
-    DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n", localNodeId,
-                   remoteNodeId, __LINE__));
-    if (setupBuffers()) {
-      g_eventLogger->info("Shared memory not supported on this platform");
-      detach_shm(false);
-      DBUG_RETURN(false);
+    // Create
+    if (!_shmSegCreated) {
+      if (!ndb_shm_create()) {
+        DEBUG_FPRINTF((stderr,
+                       "(%u)connect_server_impl failed LINE:%d,"
+                       " to remote node %d\n",
+                       localNodeId, __LINE__, remoteNodeId));
+        break;
+      }
+      _shmSegCreated = true;
+      DEBUG_FPRINTF(
+          (stderr, "(%u)ndb_shm_create()(%u)\n", localNodeId, remoteNodeId));
     }
-    setupBuffersDone = true;
-  }
 
-  // Send ok to client
-  s_output.println("shm server 1 ok: %d", m_transporter_registry.m_shm_own_pid);
+    // Attach
+    if (!_attached) {
+      if (!ndb_shm_attach()) {
+        DEBUG_FPRINTF((stderr,
+                       "(%u)connect_server_impl failed LINE:%d,"
+                       " to remote node %d\n",
+                       localNodeId, __LINE__, remoteNodeId));
+        break;
+      }
+      _attached = true;
+      DEBUG_FPRINTF(
+          (stderr, "(%u)ndb_shm_attach()(%u)\n", localNodeId, remoteNodeId));
+    }
 
-  // Wait for ok from client
-  char buf[256];
-  DBUG_PRINT("info", ("Wait for ok from client"));
-  if (s_input.gets(buf, sizeof(buf)) == nullptr) {
-    DEBUG_FPRINTF((stderr,
-                   "(%u)connect_server_impl failed LINE:%d,"
-                   " to remote node %d\n",
-                   localNodeId, __LINE__, remoteNodeId));
-    detach_shm(false);
-    DBUG_RETURN(false);
-  }
+    require(!setupBuffersDone);
+    {
+      DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n", localNodeId,
+                     remoteNodeId, __LINE__));
+      if (setupBuffers()) {
+        g_eventLogger->info("Shared memory not supported on this platform");
+        detach_shm(false);
+        break;
+      }
+      setupBuffersDone = true;
+    }
 
-  if (sscanf(buf, "shm client 1 ok: %d", &m_remote_pid) != 1) {
-    DEBUG_FPRINTF((stderr,
-                   "(%u)connect_server_impl failed LINE:%d,"
-                   " to remote node %d\n",
-                   localNodeId, __LINE__, remoteNodeId));
-    detach_shm(false);
-    DBUG_RETURN(false);
-  }
+    // Send ok to client
+    s_output.println("shm server 1 ok: %d",
+                     m_transporter_registry.m_shm_own_pid);
 
-  DEBUG_FPRINTF(
-      (stderr, "(%u)connect_common()(%u)\n", localNodeId, remoteNodeId));
-  int r = connect_common();
+    // Wait for ok from client
+    char buf[256];
+    DBUG_PRINT("info", ("Wait for ok from client"));
+    if (s_input.gets(buf, sizeof(buf)) == nullptr) {
+      DEBUG_FPRINTF((stderr,
+                     "(%u)connect_server_impl failed LINE:%d,"
+                     " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+      setupBuffersUndone();
+      detach_shm(false);
+      break;
+    }
 
-  if (r) {
+    if (sscanf(buf, "shm client 1 ok: %d", &m_remote_pid) != 1) {
+      DEBUG_FPRINTF((stderr,
+                     "(%u)connect_server_impl failed LINE:%d,"
+                     " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+      setupBuffersUndone();
+      detach_shm(false);
+      break;
+    }
+
+    DEBUG_FPRINTF(
+        (stderr, "(%u)connect_common()(%u)\n", localNodeId, remoteNodeId));
+    if (!connect_common()) {
+      DEBUG_FPRINTF((stderr,
+                     "(%u)connect_server_impl failed LINE:%d,"
+                     " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+      setupBuffersUndone();
+      detach_shm(false);
+      break;
+    }
+
     // Send ok to client
     s_output.println("shm server 2 ok");
     // Wait for ok from client
@@ -342,15 +354,29 @@ bool SHM_Transporter::connect_server_impl(NdbSocket &&sockfd) {
                      "(%u)connect_server_impl failed LINE:%d,"
                      " to remote node %d\n",
                      localNodeId, __LINE__, remoteNodeId));
+      setupBuffersUndone();
       detach_shm(false);
-      DBUG_RETURN(false);
+      break;
     }
+
     DBUG_PRINT("info",
                ("Successfully connected server to node %d", remoteNodeId));
-  }
-  DEBUG_FPRINTF((stderr, "(%u)set_socket()(%u)\n", localNodeId, remoteNodeId));
-  set_socket(std::move(sockfd));
-  DBUG_RETURN(r);
+
+    DEBUG_FPRINTF(
+        (stderr, "(%u)set_socket()(%u)\n", localNodeId, remoteNodeId));
+    set_socket(std::move(sockfd));
+    DBUG_RETURN(true);
+  } while (0);
+
+  /* Error occurred */
+
+  /* Existing error handling should have cleaned up for retry */
+  assert(!setupBuffersDone);
+  assert(!_attached);
+  assert(!_shmSegCreated);
+
+  sockfd.close();
+  DBUG_RETURN(false);
 }
 
 void SHM_Transporter::set_socket(NdbSocket &&sock) {
@@ -369,78 +395,88 @@ bool SHM_Transporter::connect_client_impl(NdbSocket &&sockfd) {
   SocketOutputStream s_output(sockfd);
   char buf[256];
 
-  // Wait for server to create and attach
-  DBUG_PRINT("info", ("Wait for server to create and attach"));
-  if (s_input.gets(buf, 256) == nullptr) {
-    DEBUG_FPRINTF((stderr,
-                   "(%u)connect_client_impl failed LINE:%d,"
-                   " to remote node %d\n",
-                   localNodeId, __LINE__, remoteNodeId));
-
-    DBUG_PRINT("error", ("Server id %d did not attach", remoteNodeId));
-    DBUG_RETURN(false);
-  }
-
-  if (sscanf(buf, "shm server 1 ok: %d", &m_remote_pid) != 1) {
-    DEBUG_FPRINTF((stderr,
-                   "(%u)connect_client_impl failed LINE:%d,"
-                   " to remote node %d\n",
-                   localNodeId, __LINE__, remoteNodeId));
-    DBUG_RETURN(false);
-  }
-
-  // Create
-  if (!_shmSegCreated) {
-    if (!ndb_shm_get()) {
-      DEBUG_FPRINTF((stderr,
-                     "(%u)connect_client_impl failed LINE:%d,"
-                     " to remote node %d\n",
-                     localNodeId, __LINE__, remoteNodeId));
-      DBUG_PRINT("error",
-                 ("Failed create of shm seg to node %d", remoteNodeId));
-      DBUG_RETURN(false);
-    }
-    _shmSegCreated = true;
-    DEBUG_FPRINTF((stderr, "(%u)ndb_shm_get(%u)\n", localNodeId, remoteNodeId));
-  }
-
-  // Attach
-  if (!_attached) {
-    if (!ndb_shm_attach()) {
-      DEBUG_FPRINTF((stderr,
-                     "(%u)connect_client_impl failed LINE:%d,"
-                     " to remote node %d\n",
-                     localNodeId, __LINE__, remoteNodeId));
-      DBUG_PRINT("error",
-                 ("Failed attach of shm seg to node %d", remoteNodeId));
-      DBUG_RETURN(false);
-    }
-    _attached = true;
-    DEBUG_FPRINTF(
-        (stderr, "(%u)ndb_shm_attach(%u)\n", localNodeId, remoteNodeId));
-  }
-
-  require(!setupBuffersDone);
+  do  // Close socket on errors
   {
-    DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n", localNodeId,
-                   remoteNodeId, __LINE__));
-    if (setupBuffers()) {
-      g_eventLogger->info("Shared memory not supported on this platform");
-      detach_shm(false);
-      DBUG_RETURN(false);
-    } else {
+    // Wait for server to create and attach
+    DBUG_PRINT("info", ("Wait for server to create and attach"));
+    if (s_input.gets(buf, 256) == nullptr) {
+      DEBUG_FPRINTF((stderr,
+                     "(%u)connect_client_impl failed LINE:%d,"
+                     " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+
+      DBUG_PRINT("error", ("Server id %d did not attach", remoteNodeId));
+      break;
+    }
+
+    if (sscanf(buf, "shm server 1 ok: %d", &m_remote_pid) != 1) {
+      DEBUG_FPRINTF((stderr,
+                     "(%u)connect_client_impl failed LINE:%d,"
+                     " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+      break;
+    }
+
+    // Create
+    if (!_shmSegCreated) {
+      if (!ndb_shm_get()) {
+        DEBUG_FPRINTF((stderr,
+                       "(%u)connect_client_impl failed LINE:%d,"
+                       " to remote node %d\n",
+                       localNodeId, __LINE__, remoteNodeId));
+        DBUG_PRINT("error",
+                   ("Failed create of shm seg to node %d", remoteNodeId));
+        break;
+      }
+      _shmSegCreated = true;
+      DEBUG_FPRINTF(
+          (stderr, "(%u)ndb_shm_get(%u)\n", localNodeId, remoteNodeId));
+    }
+
+    // Attach
+    if (!_attached) {
+      if (!ndb_shm_attach()) {
+        DEBUG_FPRINTF((stderr,
+                       "(%u)connect_client_impl failed LINE:%d,"
+                       " to remote node %d\n",
+                       localNodeId, __LINE__, remoteNodeId));
+        DBUG_PRINT("error",
+                   ("Failed attach of shm seg to node %d", remoteNodeId));
+        break;
+      }
+      _attached = true;
+      DEBUG_FPRINTF(
+          (stderr, "(%u)ndb_shm_attach(%u)\n", localNodeId, remoteNodeId));
+    }
+
+    require(!setupBuffersDone);
+    {
+      DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n", localNodeId,
+                     remoteNodeId, __LINE__));
+      if (setupBuffers()) {
+        g_eventLogger->info("Shared memory not supported on this platform");
+        detach_shm(false);
+        break;
+      }
       setupBuffersDone = true;
     }
-  }
 
-  // Send ok to server
-  s_output.println("shm client 1 ok: %d", m_transporter_registry.m_shm_own_pid);
+    // Send ok to server
+    s_output.println("shm client 1 ok: %d",
+                     m_transporter_registry.m_shm_own_pid);
 
-  DEBUG_FPRINTF(
-      (stderr, "(%u)connect_common(%u)\n", localNodeId, remoteNodeId));
-  int r = connect_common();
+    DEBUG_FPRINTF(
+        (stderr, "(%u)connect_common(%u)\n", localNodeId, remoteNodeId));
+    if (!connect_common()) {
+      DEBUG_FPRINTF((stderr,
+                     "(%u)connect_client_impl failed LINE:%d,"
+                     " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+      setupBuffersUndone();
+      detach_shm(false);
+      break;
+    }
 
-  if (r) {
     // Wait for ok from server
     DBUG_PRINT("info", ("Wait for ok from server"));
     if (s_input.gets(buf, 256) == nullptr) {
@@ -449,23 +485,29 @@ bool SHM_Transporter::connect_client_impl(NdbSocket &&sockfd) {
                      " to remote node %d\n",
                      localNodeId, __LINE__, remoteNodeId));
       DBUG_PRINT("error", ("No ok from server node %d", remoteNodeId));
+      setupBuffersUndone();
       detach_shm(false);
-      DBUG_RETURN(false);
+      break;
     }
     // Send ok to server
     s_output.println("shm client 2 ok");
     DBUG_PRINT("info",
                ("Successfully connected client to node %d", remoteNodeId));
-  } else {
-    DEBUG_FPRINTF((stderr,
-                   "(%u)connect_client_impl failed LINE:%d,"
-                   " to remote node %d\n",
-                   localNodeId, __LINE__, remoteNodeId));
-    detach_shm(false);
-  }
-  set_socket(std::move(sockfd));
-  DEBUG_FPRINTF((stderr, "(%u)set_socket(%u)\n", localNodeId, remoteNodeId));
-  DBUG_RETURN(r);
+
+    set_socket(std::move(sockfd));
+    DEBUG_FPRINTF((stderr, "(%u)set_socket(%u)\n", localNodeId, remoteNodeId));
+    DBUG_RETURN(true);
+  } while (0);
+
+  /* Error occurred */
+
+  /* Existing error handling should have cleaned up for retry */
+  assert(!setupBuffersDone);
+  assert(!_attached);
+  assert(!_shmSegCreated);
+
+  sockfd.close();
+  DBUG_RETURN(false);
 }
 
 bool SHM_Transporter::connect_common() {
@@ -537,6 +579,10 @@ void SHM_Transporter::wakeup() {
   bool awake_state = handle_reverse_awake_state();
   unlock_reverse_mutex();
   if (awake_state) {
+    return;
+  }
+  if (!theSocket.is_valid()) {
+    /* Wakeup socket not yet ready */
     return;
   }
   iov[0].iov_len = 1;
