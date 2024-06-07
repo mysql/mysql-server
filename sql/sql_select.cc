@@ -2307,7 +2307,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
                               table_map used_tables, Key_use **chosen_keyuses,
                               uint *length_out, uint *keyparts_out,
                               table_map *dep_map, bool *maybe_null) {
-  assert(!dep_map || maybe_null);
+  assert(dep_map == nullptr || maybe_null != nullptr);
   uint keyparts = 0, length = 0;
   uint found_part_ref_or_null = 0;
   KEY *const keyinfo = tab->table()->key_info + key;
@@ -2329,8 +2329,8 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
       keyparts++;
       length += keyinfo->key_part[keyuse->keypart].store_length;
       found_part_ref_or_null |= keyuse->optimize;
-      if (dep_map) {
-        *dep_map |= keyuse->val->used_tables();
+      if (dep_map != nullptr) {
+        *dep_map |= (keyuse->val->used_tables() & ~INNER_TABLE_BIT);
         *maybe_null |= keyinfo->key_part[keyuse->keypart].null_bit &&
                        (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL);
       }

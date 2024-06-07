@@ -4906,4 +4906,48 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t;
+#
+# Bug#36705030: prepared statement encounter performance degradation
+#               compared with normal select
+#
+CREATE TABLE tt(
+id INT PRIMARY KEY,
+p_id VARCHAR(36),
+o_id VARCHAR(36),
+tag INT,
+status INT,
+update_time DATETIME,
+KEY idx_1 (o_id, status, update_time),
+KEY idx_2 (o_id, p_id, tag, status));
+SET optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT id, p_id, tag, status, update_time
+FROM tt
+WHERE o_id = '054a579e5ea7415ab3afd2eeb14038c1' AND
+status = 0 AND
+update_time BETWEEN '2024-02-15 00:00:00' AND '2024-02-21 23:59:59'
+ORDER BY update_time, id
+LIMIT 0, 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tt	NULL	range	idx_1,idx_2	idx_1	158	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tt`.`id` AS `id`,`test`.`tt`.`p_id` AS `p_id`,`test`.`tt`.`tag` AS `tag`,`test`.`tt`.`status` AS `status`,`test`.`tt`.`update_time` AS `update_time` from `test`.`tt` where ((`test`.`tt`.`status` = 0) and (`test`.`tt`.`o_id` = '054a579e5ea7415ab3afd2eeb14038c1') and (`test`.`tt`.`update_time` between '2024-02-15 00:00:00' and '2024-02-21 23:59:59')) order by `test`.`tt`.`update_time`,`test`.`tt`.`id` limit 0,100
+PREPARE stmt1 FROM '
+EXPLAIN
+SELECT id, p_id, tag, status, update_time
+FROM tt
+WHERE o_id = ? AND status = ? AND update_time BETWEEN ? AND ?
+ORDER BY update_time, id
+LIMIT 0, 100';
+SET @v1 = '054a579e5ea7415ab3afd2eeb14038c1';
+SET @v2 = 0;
+SET @v3 = '2024-02-15 00:00:00';
+SET @v4 = '2024-02-21 23:59:59';
+EXECUTE stmt1 USING @v1,@v2,@v3,@v4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tt	NULL	range	idx_1,idx_2	idx_1	158	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tt`.`id` AS `id`,`test`.`tt`.`p_id` AS `p_id`,`test`.`tt`.`tag` AS `tag`,`test`.`tt`.`status` AS `status`,`test`.`tt`.`update_time` AS `update_time` from `test`.`tt` where ((`test`.`tt`.`status` = 0) and (`test`.`tt`.`o_id` = '054a579e5ea7415ab3afd2eeb14038c1') and (`test`.`tt`.`update_time` between '2024-02-15 00:00:00' and '2024-02-21 23:59:59')) order by `test`.`tt`.`update_time`,`test`.`tt`.`id` limit 0,100
+SET optimizer_switch=default;
+DROP TABLE tt;
 set optimizer_switch=default;

@@ -3783,3 +3783,48 @@ WHERE NOT EXISTS (SELECT *
 eval explain format=tree $query;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36705030: prepared statement encounter performance degradation
+--echo #               compared with normal select
+--echo #
+
+CREATE TABLE tt(
+  id INT PRIMARY KEY,
+  p_id VARCHAR(36),
+  o_id VARCHAR(36),
+  tag INT,
+  status INT,
+  update_time DATETIME,
+  KEY idx_1 (o_id, status, update_time),
+  KEY idx_2 (o_id, p_id, tag, status));
+
+SET optimizer_switch='index_condition_pushdown=off';
+
+EXPLAIN
+SELECT id, p_id, tag, status, update_time
+FROM tt
+WHERE o_id = '054a579e5ea7415ab3afd2eeb14038c1' AND
+      status = 0 AND
+      update_time BETWEEN '2024-02-15 00:00:00' AND '2024-02-21 23:59:59'
+ORDER BY update_time, id
+LIMIT 0, 100;
+
+PREPARE stmt1 FROM '
+EXPLAIN
+SELECT id, p_id, tag, status, update_time
+FROM tt
+WHERE o_id = ? AND status = ? AND update_time BETWEEN ? AND ?
+ORDER BY update_time, id
+LIMIT 0, 100';
+
+SET @v1 = '054a579e5ea7415ab3afd2eeb14038c1';
+SET @v2 = 0;
+SET @v3 = '2024-02-15 00:00:00';
+SET @v4 = '2024-02-21 23:59:59';
+
+EXECUTE stmt1 USING @v1,@v2,@v3,@v4;
+
+SET optimizer_switch=default;
+
+DROP TABLE tt;
