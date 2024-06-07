@@ -1,0 +1,4 @@
+!include suite/ndb/my.cnf
+!include suite/ndb/shm.cnf
+[ENV]
+MTR_NDBMTD=0
