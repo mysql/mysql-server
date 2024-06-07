@@ -705,7 +705,9 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
     case MYSQL_TYPE_TIME: {
       uint8 fsp = 0;
       for (uint i = 0; i < count; i++) {
-        fsp = max(fsp, items[i]->decimals);
+        if (real_data_type(items[i]) != MYSQL_TYPE_NULL) {
+          fsp = max(fsp, items[i]->decimals);
+        }
       }
       set_data_type_time(fsp);
       break;
@@ -713,7 +715,9 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
     case MYSQL_TYPE_DATETIME: {
       uint8 fsp = 0;
       for (uint i = 0; i < count; i++) {
-        fsp = max(fsp, items[i]->decimals);
+        if (real_data_type(items[i]) != MYSQL_TYPE_NULL) {
+          fsp = max(fsp, items[i]->decimals);
+        }
       }
       set_data_type_datetime(fsp);
       break;
@@ -721,7 +725,9 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
     case MYSQL_TYPE_TIMESTAMP: {
       uint8 fsp = 0;
       for (uint i = 0; i < count; i++) {
-        fsp = max(fsp, items[i]->decimals);
+        if (real_data_type(items[i]) != MYSQL_TYPE_NULL) {
+          fsp = max(fsp, items[i]->decimals);
+        }
       }
       set_data_type_timestamp(fsp);
       break;

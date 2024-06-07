@@ -1706,6 +1706,7 @@ class Item : public Parse_tree_node {
     @param fsp Fractional seconds precision
   */
   inline void set_data_type_time(uint8 fsp) {
+    assert(fsp <= DATETIME_MAX_DECIMALS);
     set_data_type(MYSQL_TYPE_TIME);
     collation.set_numeric();
     decimals = fsp;
@@ -1718,6 +1719,7 @@ class Item : public Parse_tree_node {
     @param fsp Fractional seconds precision
   */
   inline void set_data_type_datetime(uint8 fsp) {
+    assert(fsp <= DATETIME_MAX_DECIMALS);
     set_data_type(MYSQL_TYPE_DATETIME);
     collation.set_numeric();
     decimals = fsp;
@@ -1730,6 +1732,7 @@ class Item : public Parse_tree_node {
     @param fsp Fractional seconds precision
   */
   inline void set_data_type_timestamp(uint8 fsp) {
+    assert(fsp <= DATETIME_MAX_DECIMALS);
     set_data_type(MYSQL_TYPE_TIMESTAMP);
     collation.set_numeric();
     decimals = fsp;
