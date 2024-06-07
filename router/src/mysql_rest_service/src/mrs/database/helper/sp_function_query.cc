@@ -72,7 +72,7 @@ ColumnValues create_function_argument_list(
 
   if (!helper::json::text_to(&doc, json_document))
     throw std::invalid_argument(
-        "Can't parse requests payload. I must be an Json object.");
+        "Can't parse requests payload. It must be an Json object.");
 
   if (!doc.IsObject())
     throw std::invalid_argument(
