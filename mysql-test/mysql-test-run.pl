@@ -707,8 +707,13 @@ sub main {
     # - Certificates and keys are generated after the Python virtual environment
     #   setup.
     my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
-    if ($oci_instance_id) {
+    # Configuration for ml
+    # 20240613: temporary disabled for MTR until find a solution for SSL3
+    my $ml_encryption_enabled = 0; # Replace with $oci_instance_id?1:0 to enable
+    $ml_encryption_enabled?mtr_report("ML encryption enabled"):mtr_report("ML encryption disabled");
+    if ($ml_encryption_enabled) {
       $ENV{'ML_CERTIFICATES'} = "$::opt_vardir/" . "hwaml_cert_files/";
+      $ENV{'ML_ENABLE_ENCRYPTION'} = "1";
     }
   }
 
@@ -774,7 +779,8 @@ sub main {
     # virtual environment setup and path pre-setting (referenced earlier).
     my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
     my $aws_key_store      = $ENV{'OLRAPID_KEYSTORE'} || "";
-    if ($oci_instance_id) {
+    my $ml_encryption_enabled = $ENV{'ML_ENABLE_ENCRYPTION'} || "";
+    if ($ml_encryption_enabled) {
       if($aws_key_store)
       {
         extract_certs_from_pfx($aws_key_store, $ENV{'ML_CERTIFICATES'});
