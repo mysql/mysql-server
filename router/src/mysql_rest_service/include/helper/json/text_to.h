@@ -67,6 +67,9 @@ bool text_to(rapidjson::Document *doc, const Container &c) {
   static_assert(
       std::is_same<typename Container::value_type, char>::value ||
       std::is_same<typename Container::value_type, unsigned char>::value);
+  if (c.size() == 0) {
+    return false;
+  }
   doc->Parse(reinterpret_cast<const char *>(&*c.begin()), c.size());
   return !doc->HasParseError();
 }

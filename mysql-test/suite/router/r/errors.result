@@ -23,7 +23,7 @@
 
 #
 # I.1
-GET /svc/sch/t1?q={"$asof":"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}
+GET /svc/sch/t1?q=%7B%22%24asof%22:%223E11FA47-71CA-11E1-9E33-C80AA9429562:1-5%22%7D
 {
     "message": "'Asof' requirement was not fulfilled, GTID_MODE is not configured properly on the MySQL Server.",
     "status": 400

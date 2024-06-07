@@ -1,3 +1,4 @@
+--source include/not_windows.inc
 --source include/have_router.inc
 
 exec $MYSQLROUTER_BOOTSTRAP --help;

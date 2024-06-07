@@ -355,11 +355,12 @@ GET /svc/pk/year/2022
     }
 }
 OK
-GET /svc/pk/datetime/2020-12-01 12:01:50.000000
+GET /svc/pk/datetime/2020-12-01%2012:01:50.000000
 {
     "id": "2020-12-01 12:01:50.000000",
     "links": [
         {
+            "rel": "self",
             "href": "/svc/pk/datetime/2020-12-01 12:01:50.000000"
         }
     ],
@@ -368,11 +369,12 @@ GET /svc/pk/datetime/2020-12-01 12:01:50.000000
     }
 }
 OK
-GET /svc/pk/datetime/2020-12-01 12:01:50
+GET /svc/pk/datetime/2020-12-01%2012:01:50
 {
     "id": "2020-12-01 12:01:50.000000",
     "links": [
         {
+            "rel": "self",
             "href": "/svc/pk/datetime/2020-12-01 12:01:50"
         }
     ],
@@ -381,11 +383,12 @@ GET /svc/pk/datetime/2020-12-01 12:01:50
     }
 }
 OK
-GET /svc/pk/datetime/2020-12-02 12:01:50
+GET /svc/pk/datetime/2020-12-02%2012:01:50
 {
     "id": "2020-12-02 12:01:50.000000",
     "links": [
         {
+            "rel": "self",
             "href": "/svc/pk/datetime/2020-12-02 12:01:50"
         }
     ],
@@ -394,11 +397,12 @@ GET /svc/pk/datetime/2020-12-02 12:01:50
     }
 }
 OK
-GET /svc/pk/timestamp/2020-12-02 12:01:50.000000
+GET /svc/pk/timestamp/2020-12-02%2012:01:50.000000
 {
     "id": "2020-12-02 12:01:50.000000",
     "links": [
         {
+            "rel": "self",
             "href": "/svc/pk/timestamp/2020-12-02 12:01:50.000000"
         }
     ],
@@ -407,11 +411,12 @@ GET /svc/pk/timestamp/2020-12-02 12:01:50.000000
     }
 }
 OK
-GET /svc/pk/timestamp/2020-12-03 12:01:50
+GET /svc/pk/timestamp/2020-12-03%2012:01:50
 {
     "id": "2020-12-03 12:01:50.000000",
     "links": [
         {
+            "rel": "self",
             "href": "/svc/pk/timestamp/2020-12-03 12:01:50"
         }
     ],

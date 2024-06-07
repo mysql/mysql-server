@@ -10,11 +10,12 @@ if ($mrs_client_arg_path)
   --let $mrs_client_arg_path=`SELECT REPLACE(REPLACE($mrs_client_arg_path, '%', '%25'), '$', '%24')`
   --let $mrs_client_arg_path=`SELECT REPLACE('$mrs_client_arg_path', '"', '%22')`
   --let $mrs_client_arg_path=`SELECT REPLACE(REPLACE('$mrs_client_arg_path', '{', '%7B'), '}', '%7D')`
+  --let $mrs_client_arg_path=`SELECT REPLACE(REPLACE('$mrs_client_arg_path', '(', '%28'), ')', '%29')`
   --let $mrs_client_arg_path=`SELECT REPLACE(REPLACE('$mrs_client_arg_path', '[', '%5B'), ']', '%5D')`
   --let $mrs_client_arg_path=`SELECT REPLACE('$mrs_client_arg_path', ' ', '%20')`
   #--let $mrs_client_arg_path=`SELECT REPLACE('$mrs_client_arg_path', '=', '%3D')`
   #--let $mrs_client_arg_path=`SELECT REPLACE('$mrs_client_arg_path', '?', '%3F')`
-  #--let $mrs_client_arg_path=`SELECT REPLACE('$mrs_client_arg_path', '&', '%26')`
+  --let $mrs_client_arg_path=`SELECT REPLACE('$mrs_client_arg_path', '&', '%26')`
 
   --let $mrs_client_cmd=$mrs_client_cmd --path $mrs_client_arg_path
 }
@@ -24,6 +25,7 @@ if ($mrs_client_arg_payload)
   --let $mrs_client_arg_payload=`SELECT REPLACE(REPLACE($mrs_client_arg_payload, '%', '%25'), '$', '%24')`
   --let $mrs_client_arg_payload=`SELECT REPLACE('$mrs_client_arg_payload', '"', '%22')`
   --let $mrs_client_arg_payload=`SELECT REPLACE(REPLACE('$mrs_client_arg_payload', '{', '%7B'), '}', '%7D')`
+  --let $mrs_client_arg_payload=`SELECT REPLACE(REPLACE('$mrs_client_arg_payload', '(', '%28'), ')', '%29')`
   --let $mrs_client_arg_payload=`SELECT REPLACE(REPLACE('$mrs_client_arg_payload', '[', '%5B'), ']', '%5D')`
   --let $mrs_client_arg_payload=`SELECT REPLACE('$mrs_client_arg_payload', ' ', '%20')`
   #--let $mrs_client_arg_payload=`SELECT REPLACE('$mrs_client_arg_payload', '=', '%3D')`

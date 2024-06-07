@@ -438,16 +438,32 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "meta_path",
      [](const std::string &value) {
-       std::string path;
+       std::string decoded;
+       int val;
+       // if the path has "&"" encoded we decode it first as MRS does not
+       // support it
+       for (size_t i = 0; i < value.length(); i++) {
+         if (value[i] == '%') {
+           sscanf(value.substr(i + 1, 2).c_str(), "%x", &val);
+           if (val == static_cast<int>('&')) {
+             decoded += "&";
+             i += 2;
+             continue;
+           }
+         }
+         decoded += value[i];
+       }
+
        std::string translate{" []{}\""};
-       for (auto c : value) {
+       std::string path;
+       for (auto c : decoded) {
          if (translate.find(c) != std::string::npos) {
            path += "%" + helper::string::hex(std::string{c});
          } else {
            path.append(1, c);
          }
        }
-       g_configuration.path_before_escape = value;
+       g_configuration.path_before_escape = decoded;
        g_configuration.path = path;
      }},
     {{"--session-type", "-s"},

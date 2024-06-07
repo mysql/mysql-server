@@ -90,45 +90,48 @@ INSERT INTO test.geo4326(g)
 --echo
 --echo #
 --echo # I.3
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo0/2 --request-type PUT
-   --payload
-   '{"g":{"type":"LineString","coordinates":[[100,0],[0,0]]}}';
+--let $mrs_client_arg_path='/svc/test/geo0/2'
+--let $mrs_client_arg_payload='{"g":{"type":"LineString","coordinates":[[100,0],[0,0]]}}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo0/2 --request-type PUT
-   --payload
-   '{"g":{"type":"Point", "coordinates":[100,0]}}';
+--let $mrs_client_arg_path='/svc/test/geo0/2'
+--let $mrs_client_arg_payload='{"g":{"type":"Point", "coordinates":[100,0]}}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # I.4
 
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo0/2 --request-type PUT
-   --payload
-   '{"g":"POINT(0 0)"}';
+--let $mrs_client_arg_path='/svc/test/geo0/2'
+--let $mrs_client_arg_payload='{"g":"POINT(0 0)"}'
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo0/2 --request-type PUT
-   --payload
-   '{"g":"POINT(100 0)"}';
+--let $mrs_client_arg_path='/svc/test/geo0/2'
+--let $mrs_client_arg_payload='{"g":"POINT(100 0)"}'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
 --echo #
 --echo # I.5
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"g":"POINT(100 0)"}'
+--let $mrs_client_arg_path='/svc/test/geo0/?q={"g":"POINT(100 0)"}'
+--let $mrs_client_arg_payload=
+--let $mrs_client_arg_request_type=
+--source ../include/mrs/mrs_client.inc
 
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"g":"POINT(0 0)"}'
+--let $mrs_client_arg_path='/svc/test/geo0/?q={"g":"POINT(0 0)"}'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
 --echo #
 --echo # I.6
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"g":{"type":"Point","coordinates":[0,0]}}'
+--let $mrs_client_arg_path='/svc/test/geo0/?q={"g":{"type":"Point","coordinates":[0,0]}}'
+--source ../include/mrs/mrs_client.inc
 
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo0/?q={"g":{"type":"Point","coordinates":[100,0]}}'
+--let $mrs_client_arg_path='/svc/test/geo0/?q={"g":{"type":"Point","coordinates":[100,0]}}'
+--source ../include/mrs/mrs_client.inc
 
 ###################################
 --echo
@@ -144,48 +147,51 @@ exec $MRS_CLIENT_ARGS_OBJ
 --echo
 --echo #
 --echo # II.3
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo4326/2 --request-type PUT
-   --payload
-   '{"g":{"type":"LineString","coordinates":[[80,0],[0,0]]}}';
+--let $mrs_client_arg_path='/svc/test/geo4326/2'
+--let $mrs_client_arg_payload='{"g":{"type":"LineString","coordinates":[[80,0],[0,0]]}}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo4326/2 --request-type PUT
-   --payload
-   '{"g":{"type":"Point", "coordinates":[80,0]}}';
+--let $mrs_client_arg_path='/svc/test/geo4326/2'
+--let $mrs_client_arg_payload='{"g":{"type":"Point", "coordinates":[80,0]}}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.4
 
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo4326/2 --request-type PUT
-   --payload
-   '{"g":"POINT(0 0)"}';
+--let $mrs_client_arg_path='/svc/test/geo4326/2'
+--let $mrs_client_arg_payload='{"g":"POINT(0 0)"}'
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS_OBJ
-   --path /svc/test/geo4326/2 --request-type PUT
-   --payload
-   '{"g":"POINT(80 0)"}';
+--let $mrs_client_arg_path='/svc/test/geo4326/2'
+--let $mrs_client_arg_payload='{"g":"POINT(80 0)"}'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
 --echo #
 --echo # II.5
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"g":"POINT(80 0)"}'
+--let $mrs_client_arg_path='/svc/test/geo4326/?q={"g":"POINT(80 0)"}'
+--let $mrs_client_arg_payload=
+--let $mrs_client_arg_request_type=
+--source ../include/mrs/mrs_client.inc
 
 
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"g":"POINT(0 0)"}'
+--let $mrs_client_arg_path='/svc/test/geo4326/?q={"g":"POINT(0 0)"}'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
 --echo #
 --echo # II.6
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,0]}}'
+--let $mrs_client_arg_path='/svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,0]}}'
+--source ../include/mrs/mrs_client.inc
 
 # coordinates are reversed in comparison to SRID 0.
 # POINT(80 0) == "coordinates":[0, 80]
---exec $MRS_CLIENT_ARGS_LIST --path '/svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,80]}}'
+--let $mrs_client_arg_path='/svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,80]}}'
+--source ../include/mrs/mrs_client.inc
 
 
 # Cleanup

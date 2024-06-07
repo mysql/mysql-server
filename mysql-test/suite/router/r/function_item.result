@@ -16,7 +16,7 @@
 #
 # 1. POST request is not supported by object/procedures
 # 2. DELETE request is not supported by object/procedures
-# 3. PUT request is rejected when there is not payload proveided
+# 3. PUT request is rejected when there is not payload provided
 # 4. PUT request is rejected when the payload is not JSON object
 # 5. PUT request is rejected when the payloads, JSON object field
 #    doesn't match registred input parameters.
@@ -100,7 +100,7 @@ OK
 # I.3
 PUT /svc/func/nothing
 {
-    "message": "Can't parse requests payload. I must be an Json object.",
+    "message": "Can't parse requests payload. It must be an Json object.",
     "status": 400
 }
 OK

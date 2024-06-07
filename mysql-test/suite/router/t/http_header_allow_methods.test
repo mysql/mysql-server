@@ -96,9 +96,15 @@
 --exec $MRS_CLIENT_ARGS --path /svc/basic/proc_get
 
 --replace_regex /^Date.*/Date -> %DATE%/
---exec $MRS_CLIENT_ARGS --path /svc/functions/func_all -t PUT --payload '{"a":10,"b":20}'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_path='/svc/functions/func_all'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--source ../include/mrs/mrs_client.inc
+
 --replace_regex /^Date.*/Date -> %DATE%/
---exec $MRS_CLIENT_ARGS --path /svc/functions/func_get -t PUT --payload '{"a":10,"b":20}'
+--let $mrs_client_arg_path='/svc/functions/func_get'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--source ../include/mrs/mrs_client.inc
 
 --source ../include/mrs/changes/fetch_object.inc
 
@@ -126,9 +132,13 @@
 --exec $MRS_CLIENT_ARGS --path /svc/basic/proc_get
 
 --replace_regex /^Date.*/Date -> %DATE%/
---exec $MRS_CLIENT_ARGS --path /svc/functions/func_all -t PUT --payload '{"a":10,"b":20}'
+--let $mrs_client_arg_path='/svc/functions/func_all'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--source ../include/mrs/mrs_client.inc
 --replace_regex /^Date.*/Date -> %DATE%/
---exec $MRS_CLIENT_ARGS --path /svc/functions/func_get -t PUT --payload '{"a":10,"b":20}'
+--let $mrs_client_arg_path='/svc/functions/func_get'
+--let $mrs_client_arg_payload='{"a":10,"b":20}'
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 DROP SCHEMA basic_schema;

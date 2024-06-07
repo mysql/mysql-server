@@ -45,10 +45,9 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # I.1
---let $asof="\$asof"
-exec $MRS_CLIENT_ARGS
-  --expected-status BadRequest
-  --path '/svc/sch/t1?q={$asof:"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}';
+--let $mrs_client_arg_path='/svc/sch/t1?q={"\\\$asof":"3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5"}'
+--let $mrs_client_arg_expected_status=BadRequest
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 --source ../include/mrs/cleanup.inc

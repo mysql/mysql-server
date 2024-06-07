@@ -366,8 +366,8 @@ class RestRequestHandler : public ::http::base::RequestHandler {
 
     log_debug("RestRequestHandler(service_id:%s): dispatch(method:%s, path:%s)",
               service_id.to_string().c_str(),
-              ctxt.request->get_uri().get_path().c_str(),
-              get_http_method_name(ctxt.request->get_method()).c_str());
+              get_http_method_name(ctxt.request->get_method()).c_str(),
+              ctxt.request->get_uri().get_path().c_str());
     switch (method) {
       case HttpMethod::Get:
         return rest_handler_->handle_get(&ctxt);

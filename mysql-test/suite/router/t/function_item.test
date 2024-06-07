@@ -21,7 +21,7 @@
 --echo #
 --echo # 1. POST request is not supported by object/procedures
 --echo # 2. DELETE request is not supported by object/procedures
---echo # 3. PUT request is rejected when there is not payload proveided
+--echo # 3. PUT request is rejected when there is not payload provided
 --echo # 4. PUT request is rejected when the payload is not JSON object
 --echo # 5. PUT request is rejected when the payloads, JSON object field
 --echo #    doesn't match registred input parameters.
@@ -236,14 +236,17 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # II.3
-exec $MRS_CLIENT_ARGS
-  --path /svc/func/sum?a=10\&b=20;
+--let $mrs_client_arg_path='/svc/func/sum?a=10&b=20'
+--let $mrs_client_arg_request_type=
+--let $mrs_client_arg_payload=
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
 --echo #
 --echo # II.4
 --let $mrs_client_arg_path='/svc/func/sum'
+--let $mrs_client_arg_request_type='PUT'
 --let $mrs_client_arg_payload='{"a":10,"b":20}'
 --source ../include/mrs/mrs_client.inc
 

@@ -1,0 +1,266 @@
+[1m# Usage[22m
+
+mysqlrouter_bootstrap <server URI> [options]
+[1m# Usage[22m
+
+mysqlrouter_bootstrap (-?|--help)
+
+mysqlrouter_bootstrap (-V|--version)
+
+mysqlrouter_bootstrap
+                      [--account-host=<account-host>]
+                      [-B|--bootstrap=<server_url>]
+                      [--bootstrap-socket=<socket_name>]
+                      [--client-ssl-cert=<path>]
+                      [--client-ssl-cipher=<VALUE>]
+                      [--client-ssl-curves=<VALUE>]
+                      [--client-ssl-key=<path>]
+                      [--client-ssl-mode=<mode>]
+                      [--conf-base-port=<port>]
+                      [--connect-timeout=[<VALUE>]]
+                      [--conf-use-gr-notifications=[<VALUE>]]
+                      [-d|--directory=<directory>]
+                      [--force]
+                      [--force-password-validation]
+                      [--master-key-reader=<VALUE>]
+                      [--master-key-writer=<VALUE>]
+                      [--name=[<name>]]
+                      [--password-retries=[<password-retries>]]
+                      [--read-timeout=[<VALUE>]]
+                      [--report-host=<report-host>]
+                      [--server-ssl-ca=<path>]
+                      [--server-ssl-capath=<directory>]
+                      [--server-ssl-cipher=<VALUE>]
+                      [--server-ssl-crl=<path>]
+                      [--server-ssl-crlpath=<directory>]
+                      [--server-ssl-curves=<VALUE>]
+                      [--server-ssl-mode=<ssl-mode>]
+                      [--server-ssl-verify=<verify-mode>]
+                      [--ssl-ca=<path>]
+                      [--ssl-cert=<path>]
+                      [--ssl-cipher=<ciphers>]
+                      [--ssl-crl=<path>]
+                      [--ssl-crlpath=<directory>]
+                      [--ssl-key=<path>]
+                      [--ssl-mode=<mode>]
+                      [--tls-version=<versions>]
+                      [--conf-set-option=<conf-set-option>]
+
+mysqlrouter_bootstrap [--mrs]
+                      [--mrs-mysql-metadata-account=<username>]
+                      [--mrs-mysql-data-account=<username>]
+                      [--mrs-global-secret=<global-secret>]
+
+[1m# Options[22m
+
+  --account <account>
+        Account (username) to be used by Router when talking to cluster.
+        (bootstrap)
+  --account-create <mode>
+        Specifies account creation policy (useful for guarding against
+        accidentally bootstrapping using a wrong account). <mode> is one
+        of:
+          'always'        - bootstrap only if account doesn't exist
+          'never'         - bootstrap only if account exists
+          'if-not-exists' - bootstrap either way (default)
+        This option can only be used if option '--account' is also used.
+        Argument 'never' cannot be used together with option
+        '--account-host'
+        (bootstrap)
+  --account-host <account-host>
+        Host pattern to be used when creating Router's database user,
+        default='%'. It can be used multiple times to provide multiple
+        patterns. (bootstrap)
+  -B <server_url>, --bootstrap <server_url>
+        Bootstrap and configure Router for operation with a MySQL InnoDB
+        cluster.
+  --bootstrap-socket <socket_name>
+        Bootstrap and configure Router via a Unix socket
+  --client-ssl-cert <path>
+        name of a PEM file containing a SSL certificate used for
+        accepting TLS connections between client and router
+  --client-ssl-cipher <VALUE>
+        list of one or more colon separated cipher names used for
+        accepting TLS connections between client and router
+  --client-ssl-curves <VALUE>
+        list of one or more colon separated elliptic curve names used
+        for accepting TLS connections between client and router
+  --client-ssl-key <path>
+        name of a PEM file containing a SSL private key used for
+        accepting TLS connections between client and router
+  --client-ssl-mode <mode>
+        SSL mode for connections from client to router. One of DISABLED,
+        PREFERRED, REQUIRED or PASSTHROUGH.
+  --client-ssl-dh-params <VALUE>
+        name of a PEM file containing DH paramaters
+  --conf-base-port <port>
+        Base port to use for listening router ports. (bootstrap)
+  --conf-bind-address <address>
+        IP address of the interface to which router's listening sockets
+        should bind. (bootstrap)
+  --conf-skip-x-protocol
+        Whether to disable routing of X protocol connections.
+        (bootstrap)
+  --connect-timeout [ <VALUE>]
+        The time in seconds after which trying to connect to metadata
+        server should timeout. It is used when bootstrapping and also
+        written to the configuration file (bootstrap)
+  --conf-use-gr-notifications [ <VALUE>]
+        Whether to enable handling of cluster state change GR
+        notifications.
+  --conf-target-cluster <VALUE>
+        Router's target Cluster from the ClusterSet('current' or
+        'primary').
+  --conf-target-cluster-by-name <VALUE>
+        Name of the target Cluster for the Router when bootstrapping
+        against the ClusterSet
+  -d <directory>, --directory <directory>
+        Creates a self-contained directory for a new instance of the
+        Router. (bootstrap)
+  --force
+        Force reconfiguration of a possibly existing instance of the
+        router. (bootstrap)
+  --force-password-validation
+        When autocreating database account do not use HASHED password -
+        this is the default behavior now, this parameter is not needed,
+        it is kept for backward compatibility.(bootstrap)
+  --master-key-reader <VALUE>
+        The tool that can be used to read master key, it has to be used
+        together with --master-key-writer. (bootstrap)
+  --master-key-writer <VALUE>
+        The tool that can be used to store master key, it has to be used
+        together with --master-key-reader. (bootstrap)
+  --name [ <name>]
+        Gives a symbolic name for the router instance. (bootstrap)
+  --password-retries [ <password-retries>]
+        Number of the retries for generating the router's user password.
+        (bootstrap)
+  --read-timeout [ <VALUE>]
+        The time in seconds after which reads from metadata server
+        should timeout. It is used when bootstrapping and is also
+        written to configuration file. (bootstrap)
+  --report-host <report-host>
+        Host name of this computer (it will be queried from OS if not
+        provided). It is used as suffix (the part after '@') in Router's
+        database user name; should match host name as seen by the
+        cluster nodes (bootstrap)
+  --server-ssl-ca <path>
+        path name of the Certificate Authority (CA) certificate file in
+        PEM format. Used when forwarding a client connection from router
+        to a server.
+  --server-ssl-capath <directory>
+        path name of the directory that contains trusted SSL Certificate
+        Authority (CA) certificate files in PEM format. Used when
+        forwarding a client connection from router to a server.
+  --server-ssl-cipher <VALUE>
+        list of one or more colon separated cipher names. Used when
+        forwarding client connection from router to a server.
+  --server-ssl-crl <path>
+        path name of the file containing certificate revocation lists in
+        PEM format. Used when forwarding a client connection from router
+        to a server.
+  --server-ssl-crlpath <directory>
+        path name of the directory that contains certificate
+        revocation-list files in PEM format. Used when forwarding a
+        client connection from router to a server.
+  --server-ssl-curves <VALUE>
+        list of one or more colon separated elliptic curve names. Used
+        when forwarding a client connection from router to a server.
+  --server-ssl-mode <ssl-mode>
+        SSL mode to use when forwarding a client connection from router
+        to a server. One of DISABLED, PREFERRED, REQUIRED or AS_CLIENT.
+  --server-ssl-verify <verify-mode>
+        verification mode when forwarding a client connection from
+        router to server. One of DISABLED, VERIFY_CA or VERIFY_IDENTITY.
+  --ssl-ca <path>
+        Path to SSL CA file to verify server's certificate against when
+        connecting to the metadata servers
+  --ssl-capath <directory>
+        Path to directory containing SSL CA files to verify server's
+        certificate against when connecting to the metadata servers.
+  --ssl-cert <path>
+        Path to a SSL certificate, to be used if client certificate
+        verification is required when connecting to the metadata
+        servers.
+  --ssl-cipher <ciphers>
+        : separated list of SSL ciphers to allow when connecting to the
+        metadata servers, if SSL is enabled.
+  --ssl-crl <path>
+        Path to SSL CRL file to use when connecting to metadata-servers
+        and verifying their SSL certificate
+  --ssl-crlpath <directory>
+        Path to directory containing SSL CRL files to use when
+        connecting to metadata-servers and verifying their SSL
+        certificate.
+  --ssl-key <path>
+        Path to private key for client SSL certificate, to be used if
+        client certificate verification is required when connecting to
+        metadata-servers.
+  --disable-rw-split
+        Do not generate routing section for RW Split endpoint
+  --disable-rest
+        Disable REST web service for Router monitoring
+  --https-port <https-port>
+        HTTPS port for Router monitoring REST web service
+  --ssl-mode <mode>
+        SSL connection mode for use during bootstrap and normal
+        operation, when connecting to the metadata server. Analogous to
+        --ssl-mode in mysql client. One of
+        DISABLED|PREFERRED|REQUIRED|VERIFY_CA|VERIFY_IDENTITY. Default =
+        PREFERRED. (bootstrap)
+  --strict
+        Upgrades account verification failure warning into a fatal
+        error. (bootstrap)
+  --tls-version <versions>
+        , separated list of TLS versions to request, if SSL is enabled.
+  --conf-set-option <conf-set-option>
+        Allows forcing selected option in the configuration file when
+        bootstrapping (--conf-set-option=section_name.option_name=value)
+  --clear-all-credentials
+        Clear the vault, removing all the credentials stored on it
+  --install-service [ <SERVICE_NAME>]
+        Install Router as a Windows service which starts automatically
+        at system boot (<SERVICE_NAME>='MySQLRouter' if not provided)
+  --install-service-manual [ <SERVICE_NAME>]
+        Install Router as a Windows service which needs to be started
+        manually (<SERVICE_NAME>='MySQLRouter' if not provided)
+  --remove-service [ <SERVICE_NAME>]
+        Remove Router from a Windows services
+        (<SERVICE_NAME>='MySQLRouter' if not provided)
+  --service [ <SERVICE_NAME>]
+        Used internally by the service manager when Router is started as
+        a Windows service. Fails when called from the command line.
+        (<SERVICE_NAME>='MySQLRouter' if not provided)
+  --remove-credentials-section <section_name>
+        Removes the credentials for the given section
+  --update-credentials-section <section_name>
+        Updates the credentials for the given section
+  -c <path>, --config <path>
+        Only read configuration from given file.
+  --mrs
+        Enable MRS plugin. Write configurations and setup MySQL accounts
+        for MRS.
+  --mrs-mysql-metadata-account <username>
+        MySQL account (username) to be used by MRS to access MRS
+        metadata.
+  --mrs-mysql-data-account <username>
+        MySQL account (username) to be used by MRS to access data to be
+        served.
+  --mrs-global-secret <global-secret>
+        Common secret string to be used for JSON Web Token encryption.
+        Must be common to all MRS Router instances.
+  -V, --version
+        Display version information and exit.
+  -?, --help
+        Display this help and exit.
+
+[1m# Examples[22m
+
+Bootstrap for use with InnoDB cluster into system-wide installation
+
+    mysqlrouter_bootstrap root@clusterinstance01 
+
+Bootstrap for use with InnoDb cluster in a self-contained directory
+
+    mysqlrouter_bootstrap root@clusterinstance01 -d myrouter
+

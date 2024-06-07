@@ -126,81 +126,70 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # II.1
-exec $MRS_CLIENT_ARGS
-  --expected-status 500
-  --path /svc/proc/report_back1
-  --request-type PUT
-  --payload '{"mysql_error":5099}';
+--let $mrs_client_arg_path='/svc/proc/report_back1'
+--let $mrs_client_arg_expected_status=500
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"mysql_error":5099}'
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS
-  --expected-status 500
-  --path /svc/proc/report_back1
-  --request-type PUT
-  --payload '{"mysql_error":5600}';
+--let $mrs_client_arg_path='/svc/proc/report_back1'
+--let $mrs_client_arg_payload='{"mysql_error":5600}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.2
-exec $MRS_CLIENT_ARGS
-  --expected-status 500
-  --path /svc/proc/report_back1?mysql_error=5599
-  --request-type PUT
-  --payload '{"mysql_error":5599}';
+--let $mrs_client_arg_path='/svc/proc/report_back1?mysql_error=5599'
+--let $mrs_client_arg_payload='{"mysql_error":5599}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.3
-exec $MRS_CLIENT_ARGS
-  --expected-status 201
-  --path /svc/proc/report_back1
-  --request-type PUT
-  --payload '{"mysql_error":5201}';
+--let $mrs_client_arg_path='/svc/proc/report_back1'
+--let $mrs_client_arg_payload='{"mysql_error":5201}'
+--let $mrs_client_arg_expected_status=201
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS
-  --expected-status 511
-  --path /svc/proc/report_back1
-  --request-type PUT
-  --payload '{"mysql_error":5511}';
+--let $mrs_client_arg_path='/svc/proc/report_back1'
+--let $mrs_client_arg_payload='{"mysql_error":5511}'
+--let $mrs_client_arg_expected_status=511
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
 --echo #
 --echo # III.1
-exec $MRS_CLIENT_ARGS
-  --expected-status 500
-  --path /svc/proc/report_back1_media
-  --request-type PUT
-  --payload '{"mysql_error":5099}';
+--let $mrs_client_arg_path='/svc/proc/report_back1_media'
+--let $mrs_client_arg_payload='{"mysql_error":5099}'
+--let $mrs_client_arg_expected_status=500
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS
-  --expected-status 500
-  --path /svc/proc/report_back1_media
-  --request-type PUT
-  --payload '{"mysql_error":5600}';
+--let $mrs_client_arg_path='/svc/proc/report_back1_media'
+--let $mrs_client_arg_payload='{"mysql_error":5600}'
+--let $mrs_client_arg_expected_status=500
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.2
-exec $MRS_CLIENT_ARGS
-  --expected-status 500
-  --path /svc/proc/report_back1_media?mysql_error=5599
-  --request-type PUT
-  --payload '{"mysql_error":5599}';
+--let $mrs_client_arg_path='/svc/proc/report_back1_media?mysql_error=5599'
+--let $mrs_client_arg_payload='{"mysql_error":5599}'
+--let $mrs_client_arg_expected_status=500
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # III.3
-exec $MRS_CLIENT_ARGS
-  --expected-status 201
-  --path /svc/proc/report_back1_media
-  --request-type PUT
-  --payload '{"mysql_error":5201}';
+--let $mrs_client_arg_path='/svc/proc/report_back1_media'
+--let $mrs_client_arg_payload='{"mysql_error":5201}'
+--let $mrs_client_arg_expected_status=201
+--source ../include/mrs/mrs_client.inc
 
-exec $MRS_CLIENT_ARGS
-  --expected-status 511
-  --path /svc/proc/report_back1_media
-  --request-type PUT
-  --payload '{"mysql_error":5511}';
+--let $mrs_client_arg_path='/svc/proc/report_back1_media'
+--let $mrs_client_arg_payload='{"mysql_error":5511}'
+--let $mrs_client_arg_expected_status=511
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 --source ../include/mrs/cleanup.inc

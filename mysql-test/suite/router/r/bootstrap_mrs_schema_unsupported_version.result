@@ -13,14 +13,13 @@ AS SELECT 1,0,12;
 - Creating account(s) (only those that are needed, if any)
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
-- Adjusting permissions of generated files
 - Creating configuration .../mysqlrouter.conf
 
 # MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
 
 After this, MySQL Router can be started with the generated configuration with:
 
-    $ mysqlrouter -c .../mysqlrouter.conf
+$ mysqlrouter -c .../mysqlrouter.conf
 
 InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
@@ -47,14 +46,13 @@ AS SELECT 1,0,50;
 -Using existing certificates from the 'TEMP_DIRECTORY' directory
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
-- Adjusting permissions of generated files
 - Creating configuration .../mysqlrouter.conf
 
 # MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
 
 After this, MySQL Router can be started with the generated configuration with:
 
-    $ mysqlrouter -c .../mysqlrouter.conf
+$ mysqlrouter -c .../mysqlrouter.conf
 
 InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
@@ -81,14 +79,13 @@ AS SELECT 1,1,0;
 -Using existing certificates from the 'TEMP_DIRECTORY' directory
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
-- Adjusting permissions of generated files
 - Creating configuration .../mysqlrouter.conf
 
 # MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
 
 After this, MySQL Router can be started with the generated configuration with:
 
-    $ mysqlrouter -c .../mysqlrouter.conf
+$ mysqlrouter -c .../mysqlrouter.conf
 
 InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
@@ -115,14 +112,13 @@ AS SELECT 2,3,0;
 -Using existing certificates from the 'TEMP_DIRECTORY' directory
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
-- Adjusting permissions of generated files
 - Creating configuration .../mysqlrouter.conf
 
 # MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
 
 After this, MySQL Router can be started with the generated configuration with:
 
-    $ mysqlrouter -c .../mysqlrouter.conf
+$ mysqlrouter -c .../mysqlrouter.conf
 
 InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
@@ -149,14 +145,13 @@ AS SELECT 2,3,1;
 -Using existing certificates from the 'TEMP_DIRECTORY' directory
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
-- Adjusting permissions of generated files
 - Creating configuration .../mysqlrouter.conf
 
 # MySQL Router configured for the InnoDB ReplicaSet 'my_cluster'
 
 After this, MySQL Router can be started with the generated configuration with:
 
-    $ mysqlrouter -c .../mysqlrouter.conf
+$ mysqlrouter -c .../mysqlrouter.conf
 
 InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 

@@ -33,7 +33,7 @@
 
 #
 # I.1
-GET /svc/basic/table?q={"id":{"$between":[1,3]}}
+GET /svc/basic/table?q=%7B%22id%22:%7B%22%24between%22:%5B1,3%5D%7D%7D
 {
     "message": "Cannot filter on field id",
     "status": 400
@@ -51,7 +51,7 @@ OK
 
 #
 # I.3
-GET /svc/basic/table?q={"comment":"..."}
+GET /svc/basic/table?q=%7B%22comment%22:%22...%22%7D
 {
     "message": "Cannot filter on field comment",
     "status": 400
@@ -60,7 +60,7 @@ OK
 
 #
 # I.4
-GET /svc/basic/table?q={"date":{"$gt":"2000-01-01"}}
+GET /svc/basic/table?q=%7B%22date%22:%7B%22%24gt%22:%222000-01-01%22%7D%7D
 {
     "message": "Cannot filter on field date",
     "status": 400
@@ -69,7 +69,7 @@ OK
 
 #
 # II.1
-GET /svc/basic/table?q={"my_id":{"$between":[1,3]}}
+GET /svc/basic/table?q=%7B%22my_id%22:%7B%22%24between%22:%5B1,3%5D%7D%7D
 {
     "items": [
         {
@@ -197,7 +197,7 @@ OK
 
 #
 # II.3
-GET /svc/basic/table?q={"my_comments":".."}
+GET /svc/basic/table?q=%7B%22my_comments%22:%22..%22%7D
 {
     "items": [],
     "limit": 25,
@@ -215,7 +215,7 @@ OK
 
 #
 # II.4
-GET /svc/basic/table?q={"my_date":{"$gt":{"$date":"2000-01-01"}}}
+GET /svc/basic/table?q=%7B%22my_date%22:%7B%22%24gt%22:%7B%22%24date%22:%222000-01-01%22%7D%7D%7D
 {
     "items": [
         {
