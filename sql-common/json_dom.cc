@@ -105,7 +105,6 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
 
 using Sorted_index_array = Prealloced_array<size_t, 16>;
 
-#ifdef MYSQL_SERVER
 /**
   Auto-wrap a dom in an array if it is not already an array. Delete
   the dom if there is a memory allocation failure.
@@ -138,7 +137,6 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
 
   return left_array;
 }
-#endif  // ifdef MYSQL_SERVER
 
 void *Json_dom::operator new(size_t size, const std::nothrow_t &) noexcept {
   /*
@@ -824,7 +822,6 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value) {
   return false;
 }
 
-#ifdef MYSQL_SERVER
 bool Json_object::consume(Json_object_ptr other) {
   for (auto &other_member : other->m_map) {
     auto &key = other_member.first;
@@ -848,7 +845,6 @@ bool Json_object::consume(Json_object_ptr other) {
 
   return false;
 }
-#endif  // ifdef MYSQL_SERVER
 
 template <typename Key>
 static Json_dom *json_object_get(const Json_dom *object [[maybe_unused]],

@@ -771,3 +771,33 @@ static bool is_ecmascript_identifier(const std::string_view &name) {
 
   return true;
 }
+
+bool clone_without_autowrapping(const Json_path *source_path,
+                                Json_path_clone *target_path, Json_wrapper *doc,
+                                PSI_memory_key key) {
+  Json_wrapper_vector hits(key);
+  target_path->clear();
+  for (const Json_path_leg *path_leg : *source_path) {
+    if (path_leg->is_autowrap()) {
+      /*
+         We have a partial path of the form
+         pathExpression[0]
+         So see if pathExpression identifies a non-array value.
+      */
+      hits.clear();
+      if (doc->seek(*target_path, target_path->leg_count(), &hits, false, true))
+        return true; /* purecov: inspected */
+      if (!hits.empty() && hits[0].type() != enum_json_type::J_ARRAY) {
+        /*
+          pathExpression identifies a non-array value.
+          We satisfy the conditions of the rule above.
+          So we can throw away the [0] leg.
+        */
+        continue;
+      }
+    }
+    // The rule above is NOT satisfied. So add the leg.
+    if (target_path->append(path_leg)) return true; /* purecov: inspected */
+  }
+  return false;
+}

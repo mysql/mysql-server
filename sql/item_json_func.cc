@@ -2080,58 +2080,6 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
   return false;
 }
 
-/**
-  Clone a source path to a target path, stripping out legs which are made
-  redundant by the auto-wrapping rule from the WL#7909 spec and further
-  extended in the WL#9831 spec:
-
-  "If an array cell path leg or an array range path leg is evaluated against a
-  non-array value, the result of the evaluation is the same as if the non-array
-  value had been wrapped in a single-element array."
-
-  @see Json_path_leg::is_autowrap
-
-  @param[in]      source_path The original path.
-  @param[in,out]  target_path The clone to be filled in.
-  @param[in]      doc The document to seek through.
-
-  @returns True if an error occurred. False otherwise.
-*/
-static bool clone_without_autowrapping(const Json_path *source_path,
-                                       Json_path_clone *target_path,
-                                       Json_wrapper *doc) {
-  Json_wrapper_vector hits(key_memory_JSON);
-
-  target_path->clear();
-  for (const Json_path_leg *path_leg : *source_path) {
-    if (path_leg->is_autowrap()) {
-      /*
-         We have a partial path of the form
-
-         pathExpression[0]
-
-         So see if pathExpression identifies a non-array value.
-      */
-      hits.clear();
-      if (doc->seek(*target_path, target_path->leg_count(), &hits, false, true))
-        return true; /* purecov: inspected */
-
-      if (!hits.empty() && hits[0].type() != enum_json_type::J_ARRAY) {
-        /*
-          pathExpression identifies a non-array value.
-          We satisfy the conditions of the rule above.
-          So we can throw away the [0] leg.
-        */
-        continue;
-      }
-    }
-    // The rule above is NOT satisfied. So add the leg.
-    if (target_path->append(path_leg)) return true; /* purecov: inspected */
-  }
-
-  return false;
-}
-
 void Item_json_func::mark_for_partial_update(const Field_json *field) {
   assert(supports_partial_update(field));
   m_partial_update_column = field;
@@ -2231,7 +2179,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
       if (current_path == nullptr) goto return_null;
 
       // Clone the path, stripping off redundant auto-wrapping.
-      if (clone_without_autowrapping(current_path, &m_path, &docw)) {
+      if (clone_without_autowrapping(current_path, &m_path, &docw,
+                                     key_memory_JSON)) {
         return error_json();
       }
 
@@ -2895,7 +2844,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
   Json_path_clone path(key_memory_JSON);
   for (uint path_idx = 0; path_idx < path_count; ++path_idx) {
     if (clone_without_autowrapping(m_path_cache.get_path(path_idx + 1), &path,
-                                   &wrapper))
+                                   &wrapper, key_memory_JSON))
       return error_json(); /* purecov: inspected */
 
     // Cannot remove the root of the document.
