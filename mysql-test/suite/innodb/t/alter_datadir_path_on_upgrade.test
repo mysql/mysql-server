@@ -1,0 +1,70 @@
+--source include/have_innodb_16k.inc
+
+--echo #
+--echo #Bug #33398681 Innodb ibd tablespace file is moved back from innodb_directories to datadir after ALTER TABLE
+--echo #
+
+# This test will check whether the ibd tablespace file is moved back in the upgrade scenario below or not
+
+#Testing Upgrade scenario
+--echo # Upgrade scenario
+--echo # Part 1: Steps already executed in older version of mysqld i.e., 8.4.0 which does not contain the fix for Bug #33398681
+--echo # 1a. Build 8.4.0 and create data_dir folder in it. Initialize mysqld in this data_dir folder. This will be the default datadir for 8.4.0
+--echo # 1b. Start mysql client and create database test_upgsc and create tables t7a, t7b t7c in it
+--echo # 1c. Shutdown the server and move t7a.ibd, t7b.ibd, t7c.ibd to new external directory d1 and delete database folder test_upgsc in default directory data_dir
+--echo # 1d. Start and shutdown the server again to make ibd files get recognized as moved in 8.4.0
+--echo # 1e. Zip this data_dir and new external dir d1 as new_innodbdir into MYSQL_TEST_DIR/std_data/data84_with_externally_stored_tablespaces.zip
+--echo # Part 2: Steps to be executed in the current version i.e., in this test
+--echo # 2a. Copy the data84_with_externally_stored_tablespaces.zip from MYSQL_TEST_DIR/std_data/ to MYSQL_TMP_DIR/test_Bug33398681/ as data84.zip
+--echo # 2b. Check that the zip file data84.zip exists in working MYSQL_TMP_DIR/test_Bug33398681/ folder and unzip it in the same directory
+--echo # 2c. Check that data_dir and new_innodbdir are existing in MYSQL_TMP_DIR/test_Bug33398681/ and list all the files
+--echo # 2d. Set MYSQLD_NEW_DATADIR as MYSQL_TMP_DIR/test_Bug33398681/data_dir and EXTERNAL_DIR3 AS MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir
+--echo # 2e. Start the server with datadir=MYSQLD_NEW_DATADIR and innodb-directories=EXTERNAL_DIR3 options
+--echo # 2f. Trigger Alter table force for t7a, t7b, t7c
+--echo # 2g. Verify that the ibd files for t7a, t7b, t7c exist in EXTERNAL_DIR3
+
+#Table t7a: Covers upgrade scenario where table is being created in old version without the fix for Bug33398681 and moved to new location, restarted once, upgraded to new version and triggered alter table force
+#Table t7b: Covers upgrade scenario where table is being created in old version without the fix for Bug33398681 and moved to new location, restarted once, upgraded to new version and triggered alter table force algo=inplace
+#Table t7c: Covers upgrade scenario where table is being created in old version without the fix for Bug33398681 and moved to new location, restarted once, upgraded to new version and triggered alter table force algo=copy;
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Unzip the zip directory of 8.4.0 from MYSQL_TEST_DIR/std_data/ into MYSQL_TMP_DIR/test_Bug33398681 working location.
+--mkdir $MYSQL_TMP_DIR/test_Bug33398681
+--exec unzip -qo $MYSQL_TEST_DIR/std_data/data84_with_externally_stored_tablespaces.zip -d $MYSQL_TMP_DIR/test_Bug33398681
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/test_Bug33398681/data_dir
+--list_files $MYSQL_TMP_DIR/test_Bug33398681/data_dir *
+--file_exists $MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir
+--list_files $MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir *
+--list_files $MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir/test_upgsc *
+
+--echo # Set different path for --datadir which points to old version 8.4.0
+--let $MYSQLD_NEW_DATADIR = $MYSQL_TMP_DIR/test_Bug33398681/data_dir
+
+--echo # Set EXTERNAL_DIR3
+--let $EXTERNAL_DIR3 = $MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir
+
+--echo # Start server with new data and external directories
+--let restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb-directories=$EXTERNAL_DIR3 --lower_case_table_names=1"
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--source include/start_mysqld.inc
+
+--echo # Perform ALTER TABLE operations
+ALTER TABLE test_upgsc.t7a FORCE;
+ALTER TABLE test_upgsc.t7b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE test_upgsc.t7c FORCE, ALGORITHM=COPY;
+
+--echo # Check that the ibd files still exist in EXTERNAL_DIR3
+--list_files $EXTERNAL_DIR3/test_upgsc *
+
+--echo # Clean Up
+--let restart_parameters="restart: "
+--source include/restart_mysqld.inc
+
+--force-rmdir $MYSQL_TMP_DIR/test_Bug33398681
+
+--echo # End Test
+
