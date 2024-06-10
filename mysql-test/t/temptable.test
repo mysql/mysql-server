@@ -5,15 +5,12 @@
 # different execution plans.
 #
 
-# Windows does not have gunzip(1)
--- source include/not_windows.inc
-
 -- let $is_debug = `SELECT VERSION() LIKE '%debug%'`
 
 CREATE DATABASE temptable_test;
 USE temptable_test;
 
--- exec gunzip < $MYSQL_TEST_DIR/t/temptable_dump.sql.gz | $MYSQL temptable_test
+-- exec $MYSQL temptable_test < $MYSQL_TEST_DIR/t/temptable_dump.sql
 
 -- disable_query_log
 -- disable_result_log

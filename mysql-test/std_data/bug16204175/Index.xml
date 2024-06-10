@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 <charsets max-id="99">
-<charset name="utf8">
+<charset name="utf8mb3">
   <family>Unicode</family>
   <description>UTF-8 Unicode</description>
   <alias>utf-8</alias>

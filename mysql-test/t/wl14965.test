@@ -1,13 +1,10 @@
---copy_file $MYSQLTEST_VARDIR/std_data/wl14965_dump.zip $MYSQL_TMP_DIR/wl14965_dump.zip
---file_exists $MYSQL_TMP_DIR/wl14965_dump.zip
---exec unzip -qo $MYSQL_TMP_DIR/wl14965_dump.zip -d $MYSQL_TMP_DIR
 
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 
 --echo # save mysql tables
 --exec $MYSQL_DUMP --add-drop-table --databases mysql > $MYSQL_TMP_DIR/mysql.sql
 --echo # restore mysql tables from 8.0.27
---exec $MYSQL test < $MYSQL_TMP_DIR/wl14965.dump
+--exec $MYSQL test < $MYSQLTEST_VARDIR/std_data/wl14965.dump
 
 SHOW KEYS FROM mysql.db;
 SHOW KEYS FROM mysql.tables_priv;
@@ -44,9 +41,6 @@ EXPLAIN SELECT * FROM mysql.procs_priv WHERE host='' AND user='';
 
 #cleanup
 DROP DATABASE wl14965;
---remove_file $MYSQL_TMP_DIR/wl14965_dump.zip
---remove_file $MYSQL_TMP_DIR/wl14965.dump
-
 --echo # restore original mysql tables
 --exec $MYSQL --force < $MYSQL_TMP_DIR/mysql.sql
 --remove_file $MYSQL_TMP_DIR/mysql.sql

@@ -1543,7 +1543,7 @@ ROLLBACK;;
 TRUNCATE TABLE t1; TRUNCATE TABLE t2;;
 include/rpl/sync_to_replica.inc
 
-# Check for ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
+# Check for ALTER TABLE ti1 DEFAULT CHARACTER SET utf8mb3;
 
 # Setup
 
@@ -1559,9 +1559,9 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;;
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE ti1 DEFAULT CHARACTER SET utf8mb3;;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 [connection server_1]
 BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
