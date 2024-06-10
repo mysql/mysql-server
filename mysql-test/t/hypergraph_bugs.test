@@ -702,6 +702,30 @@ DROP FUNCTION foo;
 DROP TABLE num, t1;
 
 --echo #
+--echo # Bug#36316088 	Mysqld crash - Assertion `false &&
+--echo # "Inconsistent row counts for differ
+--echo #
+
+CREATE TABLE t1(
+  a INT,
+  b INT
+);
+
+INSERT INTO t1 values (1,1),(2,2);
+ANALYZE TABLE t1;
+
+CREATE FUNCTION func(x INT) RETURNS INTEGER NO SQL RETURN x+1;
+
+# The term with a function call should be evaluated last.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2
+WHERE func(x1.b)=x2.b AND x1.a=x2.a;
+
+DROP FUNCTION func;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#34787357 Hypergraph: row estimates for field=non_field_term
 --echo # ignores indexes and histogram
 --echo #

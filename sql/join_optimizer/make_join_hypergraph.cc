@@ -177,7 +177,7 @@ void ReorderConditions(Mem_root_array<Item *> *condition_parts) {
 
   std::stable_partition(
       condition_parts->begin(), condition_parts->end(),
-      [](const Item *item) { return item->cost().IsExpensive(); });
+      [](const Item *item) { return !item->cost().IsExpensive(); });
 }
 
 /**

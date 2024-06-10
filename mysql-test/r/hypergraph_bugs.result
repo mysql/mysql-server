@@ -904,6 +904,30 @@ EXPLAIN
 DROP FUNCTION foo;
 DROP TABLE num, t1;
 #
+# Bug#36316088 	Mysqld crash - Assertion `false &&
+# "Inconsistent row counts for differ
+#
+CREATE TABLE t1(
+a INT,
+b INT
+);
+INSERT INTO t1 values (1,1),(2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE FUNCTION func(x INT) RETURNS INTEGER NO SQL RETURN x+1;
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2
+WHERE func(x1.b)=x2.b AND x1.a=x2.a;
+EXPLAIN
+-> Filter: (func(x1.b) = x2.b)  (rows=0.4)
+    -> Inner hash join (x1.a = x2.a)  (rows=0.4)
+        -> Table scan on x1  (rows=2)
+        -> Hash
+            -> Table scan on x2  (rows=2)
+
+DROP FUNCTION func;
+DROP TABLE t1;
+#
 # Bug#34787357 Hypergraph: row estimates for field=non_field_term
 # ignores indexes and histogram
 #
