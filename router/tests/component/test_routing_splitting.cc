@@ -1316,7 +1316,7 @@ TEST_F(RoutingSplittingTest, reset_connection_resets_stickiness) {
 
   ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
 
-  // remember a read-only backend
+  SCOPED_TRACE("// remember a read-only backend");
   {
     auto query_res = query_one_result(cli, "select @@port");
     ASSERT_NO_ERROR(query_res);
@@ -1324,7 +1324,7 @@ TEST_F(RoutingSplittingTest, reset_connection_resets_stickiness) {
     EXPECT_THAT(*query_res, ElementsAre(ElementsAre(testing::_)));
   }
 
-  // remember a read-write backend
+  SCOPED_TRACE("// remember a read-write backend");
   ASSERT_NO_ERROR(cli.query("START TRANSACTION"));
 
   {
@@ -1334,7 +1334,8 @@ TEST_F(RoutingSplittingTest, reset_connection_resets_stickiness) {
     EXPECT_THAT(*query_res, ElementsAre(ElementsAre(testing::_)));
   }
 
-  // abort the transaction and allow the read-only on another backend.
+  SCOPED_TRACE(
+      "// abort the transaction and allow the read-only on another backend.");
   ASSERT_NO_ERROR(cli.reset_connection());
 
   uint16_t ro_port{};
@@ -1349,10 +1350,12 @@ TEST_F(RoutingSplittingTest, reset_connection_resets_stickiness) {
     ro_port = *ro_port_res;
   }
 
-  // allow the read-only on another backend.
+  SCOPED_TRACE("// allow the read-only on another backend.");
   ASSERT_NO_ERROR(cli.reset_connection());
 
-  // stop the backend for this port, it should fail over to the other RO.
+  SCOPED_TRACE(
+      "// stop the backend for this port, it should fail over to the other "
+      "RO.");
   ASSERT_NO_ERROR(shutdown_server(ro_port));
 
   {

@@ -703,7 +703,9 @@ TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
 
   /*auto &router = */ router_spawner().spawn({"-c", writer.write()});
 
-  // make the classic connections to each classic port
+  SCOPED_TRACE("// make the classic connections to each classic port");
+
+  SCOPED_TRACE("// - rw connection");
   MySQLSession con_rw;
   ASSERT_NO_THROW(con_rw.connect("127.0.0.1", router_rw_port, "username",
                                  "password", "", ""));
@@ -714,6 +716,7 @@ TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
     EXPECT_EQ((*port_res)[0], std::to_string(classic_ports[0]));
   }
 
+  SCOPED_TRACE("// - ro connection");
   MySQLSession con_ro;
   ASSERT_NO_THROW(con_ro.connect("127.0.0.1", router_ro_port, "username",
                                  "password", "", ""));
@@ -724,6 +727,7 @@ TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
     EXPECT_EQ((*port_res)[0], std::to_string(classic_ports[1]));
   }
 
+  SCOPED_TRACE("// - rw-split connection");
   MySQLSession con_rw_split;
   ASSERT_NO_THROW(con_rw_split.connect("127.0.0.1", router_rw_split_port,
                                        "username", "password", "", ""));
@@ -734,7 +738,9 @@ TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
     EXPECT_EQ((*port_res)[0], std::to_string(classic_ports[1]));
   }
 
-  // simulate removing the PRIMARY from the cluster (c.removeInstance(primary))
+  SCOPED_TRACE(
+      "// simulate removing the PRIMARY from the cluster "
+      "(c.removeInstance(primary))");
   std::vector<::ClusterNode> cluster_nodes{{classic_ports[1], "uuid-2"},
                                            {classic_ports[2], "uuid-3"}};
 
