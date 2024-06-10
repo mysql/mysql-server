@@ -45,10 +45,11 @@
 --echo
 --echo #
 --echo # I.2
-exec $MRS_CLIENT_ARGS
-   --expected-status Forbidden
-   --path /svc/basic/t2 --request-type put
-   --payload '{"id":1,"comment":"something-new"}';
+--let $mrs_client_arg_path='/svc/basic/t2'
+--let $mrs_client_arg_expected_status=Forbidden
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"id":1,"comment":"something-new"}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo
@@ -70,18 +71,21 @@ exec $MRS_CLIENT_ARGS
 
 --source ../include/mrs/changes/wait_object.inc
 
-exec $MRS_CLIENT_ARGS
-   --path /svc/basic/t2/1 --request-type put
-   --payload '{"id":1,"comments":"something-new","date":"2017-1-1","name":"new name"}';
+--let $mrs_client_arg_path='/svc/basic/t2/1'
+--let $mrs_client_arg_expected_status=
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"id":1,"comments":"something-new","date":"2017-1-1","name":"new name"}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.2
 
-exec $MRS_CLIENT_ARGS
-   --expected-status BadRequest
-   --path /svc/basic/t2/1 --request-type put
-   --payload '{"id":1,"comment":"something-new"}';
+--let $mrs_client_arg_path='/svc/basic/t2/1'
+--let $mrs_client_arg_expected_status=BadRequest
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"id":1,"comment":"something-new"}'
+--source ../include/mrs/mrs_client.inc
 
 
 # Cleanup

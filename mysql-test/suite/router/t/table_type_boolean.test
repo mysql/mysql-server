@@ -69,13 +69,21 @@ INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", 
 --echo
 --echo #
 --echo # I.2
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/boolean?q={\"is_active\":0}
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/boolean?q={\"is_active\":1}
+--let $mrs_client_exe_args=$MRS_CLIENT_ARGS_EXCLUDE
+--let $mrs_client_arg_path='/svc/test/boolean?q={"is_active":0}'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/boolean?q={"is_active":1}'
+--source ../include/mrs/mrs_client.inc
+
 --echo
 --echo #
 --echo # I.3
---exec $MRS_CLIENT_ARGS --path /svc/test/boolean?q={\"is_active\":true} --expected-status 400
---exec $MRS_CLIENT_ARGS --path /svc/test/boolean?q={\"is_active\":false} --expected-status 400
+--let $mrs_client_exe_args=$MRS_CLIENT_ARGS
+--let $mrs_client_arg_expected_status=400
+--let $mrs_client_arg_path='/svc/test/boolean?q={"is_active":true}'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/boolean?q={"is_active":false}'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -85,13 +93,22 @@ INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", 
 --echo
 --echo #
 --echo # II.2
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/tinyint1?q={\"is_active\":0}
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/tinyint1?q={\"is_active\":1}
+--let $mrs_client_exe_args=$MRS_CLIENT_ARGS_EXCLUDE
+--let $mrs_client_arg_expected_status=
+--let $mrs_client_arg_path='/svc/test/tinyint1?q={"is_active":0}'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/tinyint1?q={"is_active":1}'
+--source ../include/mrs/mrs_client.inc
+
 --echo
 --echo #
 --echo # II.3
---exec $MRS_CLIENT_ARGS --path /svc/test/tinyint1?q={\"is_active\":true} --expected-status 400
---exec $MRS_CLIENT_ARGS --path /svc/test/tinyint1?q={\"is_active\":false} --expected-status 400
+--let $mrs_client_exe_args=$MRS_CLIENT_ARGS
+--let $mrs_client_arg_expected_status=400
+--let $mrs_client_arg_path='/svc/test/tinyint1?q={"is_active":true}'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/tinyint1?q={"is_active":false}'
+--source ../include/mrs/mrs_client.inc
 
 
 --echo
@@ -102,13 +119,19 @@ INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", 
 --echo
 --echo #
 --echo # III.2
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":0}
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":1}
+--let $mrs_client_exe_args=$MRS_CLIENT_ARGS_EXCLUDE
+--let $mrs_client_arg_expected_status=
+--let $mrs_client_arg_path='/svc/test/bit1?q={"is_active":0}'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/bit1?q={"is_active":1}'
+--source ../include/mrs/mrs_client.inc
 --echo
 --echo #
 --echo # III.3
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":true} 
---exec $MRS_CLIENT_ARGS_EXCLUDE --path /svc/test/bit1?q={\"is_active\":false} 
+--let $mrs_client_arg_path='/svc/test/bit1?q={"is_active":true}'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/test/bit1?q={"is_active":false}'
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 --remove_files_wildcard $MYSQL_TMP_DIR *.sch

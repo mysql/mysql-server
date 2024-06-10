@@ -1,9 +1,16 @@
-if (!$MRS_CLIENT_ARGS)
+if ($mrs_client_exe_args)
 {
-  --die `MRS_CLIENT_ARGS` variable is required.
+  --let $mrs_client_cmd=$mrs_client_exe_args  
 }
 
---let $mrs_client_cmd=$MRS_CLIENT_ARGS
+if (!$mrs_client_exe_args)
+{
+  if (!$MRS_CLIENT_ARGS)
+  {
+    --die Wither `MRS_CLIENT_ARGS` or `mrs_client_exe_args` variable is required.
+  }
+  --let $mrs_client_cmd=$MRS_CLIENT_ARGS  
+}
 
 if ($mrs_client_arg_path)
 {
@@ -48,6 +55,11 @@ if ($mrs_client_arg_expected_status)
 if ($mrs_client_arg_json_pointer)
 {
   --let $mrs_client_cmd=$mrs_client_cmd --json-pointer $mrs_client_arg_json_pointer
+}
+
+if ($mrs_client_arg_exclude_json_pointer)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --exclude-json-pointer $mrs_client_arg_exclude_json_pointer
 }
 
 if ($mrs_client_arg_request_type)
