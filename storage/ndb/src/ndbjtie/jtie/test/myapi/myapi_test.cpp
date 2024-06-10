@@ -513,13 +513,6 @@ void test10() {
 
   printf("\ndelete[] (new C0[0])\n");
   C0 *c0a0 = new C0[0];
-#if __GNUC__ == 4 && __GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ >= 0
-  // workaround for GCC 4.7.x bug
-  // no initialization of var for const zero-length obj array expr;
-  // compile warning: "'c0a0' is used uninitialized in this function"
-  // see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=53330
-  c0a0 = new C0[atoi("0")];
-#endif
 
   // check that zero-length array new worked
   assert(c0a0);

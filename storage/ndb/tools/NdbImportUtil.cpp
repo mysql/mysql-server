@@ -1332,7 +1332,7 @@ void NdbImportUtil::free_rows(RowList &src) {
 NdbImportUtil::Blob::Blob() {
   m_blobsize = 0;
   m_allocsize = 0;
-  m_data = new uchar[0];
+  m_data = nullptr;
 }
 
 NdbImportUtil::Blob::~Blob() { delete[] m_data; }
