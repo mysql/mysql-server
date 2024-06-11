@@ -295,7 +295,7 @@ OK
 
 #
 # I.5
-GET /svc/test/geo0/?q={"gc":"GEOMETRYCOLLECTION(POINT(8 8),POINT(10 10))"}
+GET /svc/test/geo0/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%288%208%29,POINT%2810%2010%29%29%22%7D
 {
     "items": [
         {
@@ -322,7 +322,7 @@ GET /svc/test/geo0/?q={"gc":"GEOMETRYCOLLECTION(POINT(8 8),POINT(10 10))"}
     ]
 }
 OK
-GET /svc/test/geo0/?q={"gc":"GEOMETRYCOLLECTION(POINT(10 10), POINT(30 30), LINESTRING(15 15, 20 20))"}
+GET /svc/test/geo0/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%2810%2010%29,%20POINT%2830%2030%29,%20LINESTRING%2815%2015,%2020%2020%29%29%22%7D
 {
     "items": [
         {
@@ -365,7 +365,7 @@ OK
 
 #
 # I.6
-GET /svc/test/geo0/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [8, 8]}, {"type": "Point", "coordinates": [10, 10]}]}}
+GET /svc/test/geo0/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B8,%208%5D%7D,%20%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B10,%2010%5D%7D%5D%7D%7D
 {
     "items": [
         {
@@ -392,7 +392,7 @@ GET /svc/test/geo0/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type
     ]
 }
 OK
-GET /svc/test/geo0/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 10]}, {"type": "Point", "coordinates": [30, 30]}, {"type": "LineString", "coordinates": [[15, 15], [20, 20]]}]}}
+GET /svc/test/geo0/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B10,%2010%5D%7D,%20%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B30,%2030%5D%7D,%20%7B%22type%22:%20%22LineString%22,%20%22coordinates%22:%20%5B%5B15,%2015%5D,%20%5B20,%2020%5D%5D%7D%5D%7D%7D
 {
     "items": [
         {
@@ -658,7 +658,7 @@ OK
 
 #
 # II.5
-GET /svc/test/geo4326/?q={"gc":"GEOMETRYCOLLECTION(POINT(14 14),LINESTRING(15 15, 16 16))"}
+GET /svc/test/geo4326/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%2814%2014%29,LINESTRING%2815%2015,%2016%2016%29%29%22%7D
 {
     "items": [
         {
@@ -691,7 +691,7 @@ GET /svc/test/geo4326/?q={"gc":"GEOMETRYCOLLECTION(POINT(14 14),LINESTRING(15 15
     ]
 }
 OK
-GET /svc/test/geo4326/?q={"gc":"GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))"}
+GET /svc/test/geo4326/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%281%201%29,%20POINT%282%202%29%29%22%7D
 {
     "items": [
         {
@@ -721,7 +721,7 @@ OK
 
 #
 # II.6
-GET /svc/test/geo4326/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [2, 2]}]}}
+GET /svc/test/geo4326/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B1,%201%5D%7D,%20%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B2,%202%5D%7D%5D%7D%7D
 {
     "items": [
         {
@@ -748,7 +748,7 @@ GET /svc/test/geo4326/?q={"gc":{"type": "GeometryCollection", "geometries": [{"t
     ]
 }
 OK
-GET /svc/test/geo4326/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [14, 14]}, {"type": "LineString", "coordinates": [[15,15], [16,16]]}]}}
+GET /svc/test/geo4326/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B14,%2014%5D%7D,%20%7B%22type%22:%20%22LineString%22,%20%22coordinates%22:%20%5B%5B15,15%5D,%20%5B16,16%5D%5D%7D%5D%7D%7D
 {
     "items": [
         {
