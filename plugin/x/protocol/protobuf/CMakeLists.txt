@@ -109,6 +109,11 @@ ELSE()
     $<TARGET_PROPERTY:mysqlxmessages,SOURCES>
     )
 ENDIF()
+SET_TARGET_PROPERTIES(mysqlxmessages_shared
+  PROPERTIES
+  EXCLUDE_FROM_ALL TRUE
+  EXCLUDE_FROM_DEFAULT_BUILD TRUE
+    )
 GENERATE_EXPORT_HEADER(mysqlxmessages_shared
   BASE_NAME mysqlxmessages
   )
