@@ -47,8 +47,9 @@ class Lru {
     }
 
     void remove(const Key key) {
-      std::remove(buffer_.begin(), buffer_.end(), key);
-      buffer_.pop_back();
+      if (std::remove(buffer_.begin(), buffer_.end(), key) != buffer_.end()) {
+        buffer_.pop_back();
+      }
     }
 
     void push(const Key key, Key **out_key = nullptr) {
