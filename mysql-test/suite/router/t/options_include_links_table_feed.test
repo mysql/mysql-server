@@ -82,8 +82,11 @@ let $MRS_CLIENT_OBJECT=$MRS_CLIENT_ARGS --json-schema $SCHEMA_DIR/object_without
 --echo
 --echo #
 --echo # I.2
---exec $MRS_CLIENT_ITEMS --path /svc/basic/t_disabled?offset=1&limit=2
---exec $MRS_CLIENT_ITEMS --path /svc/basic/t_disabled?offset=3&limit=2
+--let $mrs_client_exe_args=$MRS_CLIENT_ITEMS
+--let $mrs_client_arg_path='/svc/basic/t_disabled?offset=1&limit=2'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/basic/t_disabled?offset=3&limit=2'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -99,8 +102,11 @@ let $MRS_CLIENT_OBJECT=$MRS_CLIENT_ARGS --json-schema $SCHEMA_DIR/object_without
 --echo
 --echo #
 --echo # II.2
---exec $MRS_CLIENT_ITEMS --path /svc/basic_disabled/t?offset=1&limit=2
---exec $MRS_CLIENT_ITEMS --path /svc/basic_disabled/t?offset=3&limit=2
+--let $mrs_client_exe_args=$MRS_CLIENT_ITEMS
+--let $mrs_client_arg_path='/svc/basic_disabled/t?offset=1&limit=2'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc/basic_disabled/t?offset=3&limit=2'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
@@ -116,8 +122,11 @@ let $MRS_CLIENT_OBJECT=$MRS_CLIENT_ARGS --json-schema $SCHEMA_DIR/object_without
 --echo
 --echo #
 --echo # III.2
---exec $MRS_CLIENT_ITEMS --path /svc_disabled/basic/t?offset=1&limit=2
---exec $MRS_CLIENT_ITEMS --path /svc_disabled/basic/t?offset=3&limit=2
+--let $mrs_client_exe_args=$MRS_CLIENT_ITEMS
+--let $mrs_client_arg_path='/svc_disabled/basic/t?offset=1&limit=2'
+--source ../include/mrs/mrs_client.inc
+--let $mrs_client_arg_path='/svc_disabled/basic/t?offset=3&limit=2'
+--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #

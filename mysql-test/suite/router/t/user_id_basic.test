@@ -53,12 +53,12 @@ exec $MRS_CLIENT_ARGS
   --path /svc/basic/user
   --session-file $MYSQL_TMP_DIR/user1_session.dat;
 
-exec $MRS_CLIENT_ARGS
-  --path /svc/basic/user
-  --request-type PUT
-  --exclude-json-pointer /id,/links,/_metadata
-  --session-file $MYSQL_TMP_DIR/user1_session.dat
-  --payload "{\"nickname\":\"nick1\", \"email\":\"janusz\"}"; 
+--let $mrs_client_arg_path='/svc/basic/user'
+--let $mrs_client_arg_exclude_json_pointer='/id,/links,/_metadata'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"nickname":"nick1", "email":"janusz"}'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
 
 
 # Cleanup
