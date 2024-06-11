@@ -82,4 +82,9 @@ if ($mrs_client_arg_write_to_file)
   --let $mrs_client_cmd=$mrs_client_cmd --write-to-file $mrs_client_arg_write_to_file
 }
 
+if ($mrs_client_arg_session_file)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --session-file $mrs_client_arg_session_file
+}
+
 exec $mrs_client_cmd;

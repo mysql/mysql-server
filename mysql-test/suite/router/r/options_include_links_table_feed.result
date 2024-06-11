@@ -105,7 +105,7 @@ OK
 
 #
 # I.2
-GET /svc/basic/t_disabled?offset=1
+GET /svc/basic/t_disabled?offset=1&limit=2
 {
     "items": [
         {
@@ -125,38 +125,11 @@ GET /svc/basic/t_disabled?offset=1
             "_metadata": {
                 "etag": "8452D3ACF0544F4374F884CBB0E67AF11796FE01D9DB4D1030E77E8C88A6C920"
             }
-        },
-        {
-            "id": 4,
-            "date": "1977-01-21 00:00:00.000000",
-            "name": "4th row",
-            "comments": "This row was inserted as forth row.",
-            "_metadata": {
-                "etag": "77D22C3AD6791B7D2F5726E69EB8CA1170A0DCD260C358C0814C4309F0C2D256"
-            }
-        },
-        {
-            "id": 5,
-            "date": "2021-03-01 00:00:00.000000",
-            "name": "5th row",
-            "comments": "",
-            "_metadata": {
-                "etag": "B2A00FB481AFAC2EC5D1F0DC08866B5C0CB04E6CD75261035645CBED7AB38E66"
-            }
-        },
-        {
-            "id": 6,
-            "date": "2023-01-21 00:00:00.000000",
-            "name": "6th row",
-            "comments": "...",
-            "_metadata": {
-                "etag": "DE9C4990791F573DB49865FAB65A0C23A1F77E5BE1D1FD39D5F558BC3C1EC1AB"
-            }
         }
     ]
 }
 OK
-GET /svc/basic/t_disabled?offset=3
+GET /svc/basic/t_disabled?offset=3&limit=2
 {
     "items": [
         {
@@ -175,15 +148,6 @@ GET /svc/basic/t_disabled?offset=3
             "comments": "",
             "_metadata": {
                 "etag": "B2A00FB481AFAC2EC5D1F0DC08866B5C0CB04E6CD75261035645CBED7AB38E66"
-            }
-        },
-        {
-            "id": 6,
-            "date": "2023-01-21 00:00:00.000000",
-            "name": "6th row",
-            "comments": "...",
-            "_metadata": {
-                "etag": "DE9C4990791F573DB49865FAB65A0C23A1F77E5BE1D1FD39D5F558BC3C1EC1AB"
             }
         }
     ]
@@ -280,7 +244,7 @@ OK
 
 #
 # II.2
-GET /svc/basic_disabled/t?offset=1
+GET /svc/basic_disabled/t?offset=1&limit=2
 {
     "items": [
         {
@@ -300,38 +264,11 @@ GET /svc/basic_disabled/t?offset=1
             "_metadata": {
                 "etag": "8452D3ACF0544F4374F884CBB0E67AF11796FE01D9DB4D1030E77E8C88A6C920"
             }
-        },
-        {
-            "id": 4,
-            "date": "1977-01-21 00:00:00.000000",
-            "name": "4th row",
-            "comments": "This row was inserted as forth row.",
-            "_metadata": {
-                "etag": "77D22C3AD6791B7D2F5726E69EB8CA1170A0DCD260C358C0814C4309F0C2D256"
-            }
-        },
-        {
-            "id": 5,
-            "date": "2021-03-01 00:00:00.000000",
-            "name": "5th row",
-            "comments": "",
-            "_metadata": {
-                "etag": "B2A00FB481AFAC2EC5D1F0DC08866B5C0CB04E6CD75261035645CBED7AB38E66"
-            }
-        },
-        {
-            "id": 6,
-            "date": "2023-01-21 00:00:00.000000",
-            "name": "6th row",
-            "comments": "...",
-            "_metadata": {
-                "etag": "DE9C4990791F573DB49865FAB65A0C23A1F77E5BE1D1FD39D5F558BC3C1EC1AB"
-            }
         }
     ]
 }
 OK
-GET /svc/basic_disabled/t?offset=3
+GET /svc/basic_disabled/t?offset=3&limit=2
 {
     "items": [
         {
@@ -350,15 +287,6 @@ GET /svc/basic_disabled/t?offset=3
             "comments": "",
             "_metadata": {
                 "etag": "B2A00FB481AFAC2EC5D1F0DC08866B5C0CB04E6CD75261035645CBED7AB38E66"
-            }
-        },
-        {
-            "id": 6,
-            "date": "2023-01-21 00:00:00.000000",
-            "name": "6th row",
-            "comments": "...",
-            "_metadata": {
-                "etag": "DE9C4990791F573DB49865FAB65A0C23A1F77E5BE1D1FD39D5F558BC3C1EC1AB"
             }
         }
     ]
@@ -455,7 +383,7 @@ OK
 
 #
 # III.2
-GET /svc_disabled/basic/t?offset=1
+GET /svc_disabled/basic/t?offset=1&limit=2
 {
     "items": [
         {
@@ -475,38 +403,11 @@ GET /svc_disabled/basic/t?offset=1
             "_metadata": {
                 "etag": "8452D3ACF0544F4374F884CBB0E67AF11796FE01D9DB4D1030E77E8C88A6C920"
             }
-        },
-        {
-            "id": 4,
-            "date": "1977-01-21 00:00:00.000000",
-            "name": "4th row",
-            "comments": "This row was inserted as forth row.",
-            "_metadata": {
-                "etag": "77D22C3AD6791B7D2F5726E69EB8CA1170A0DCD260C358C0814C4309F0C2D256"
-            }
-        },
-        {
-            "id": 5,
-            "date": "2021-03-01 00:00:00.000000",
-            "name": "5th row",
-            "comments": "",
-            "_metadata": {
-                "etag": "B2A00FB481AFAC2EC5D1F0DC08866B5C0CB04E6CD75261035645CBED7AB38E66"
-            }
-        },
-        {
-            "id": 6,
-            "date": "2023-01-21 00:00:00.000000",
-            "name": "6th row",
-            "comments": "...",
-            "_metadata": {
-                "etag": "DE9C4990791F573DB49865FAB65A0C23A1F77E5BE1D1FD39D5F558BC3C1EC1AB"
-            }
         }
     ]
 }
 OK
-GET /svc_disabled/basic/t?offset=3
+GET /svc_disabled/basic/t?offset=3&limit=2
 {
     "items": [
         {
@@ -525,15 +426,6 @@ GET /svc_disabled/basic/t?offset=3
             "comments": "",
             "_metadata": {
                 "etag": "B2A00FB481AFAC2EC5D1F0DC08866B5C0CB04E6CD75261035645CBED7AB38E66"
-            }
-        },
-        {
-            "id": 6,
-            "date": "2023-01-21 00:00:00.000000",
-            "name": "6th row",
-            "comments": "...",
-            "_metadata": {
-                "etag": "DE9C4990791F573DB49865FAB65A0C23A1F77E5BE1D1FD39D5F558BC3C1EC1AB"
             }
         }
     ]
