@@ -3022,6 +3022,13 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
     if (reprepare(thd)) return true;
   }
 
+  // Some SQL commands need re-preparation, such as Sql_cmd_create_table
+  // when the keys involve an expression.
+  if (!m_first_execution && m_lex->m_sql_cmd &&
+      m_lex->m_sql_cmd->reprepare_on_execute_required()) {
+    if (reprepare(thd)) return true;
+  }
+
 reexecute:
   /*
     If the item_list is not empty, we'll wrongly free some externally
@@ -3133,6 +3140,7 @@ reexecute:
       goto reexecute;
   }
   reset_stmt_parameters(this);
+  m_first_execution = false;
 
   // Re-enable the general log if it was temporarily disabled while repreparing
   // and executing a statement for a secondary engine.
