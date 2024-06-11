@@ -232,6 +232,16 @@ SET(MYSQLBINLOG_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
   )
 
+# The client version of log_event.cc has false positives.
+# Downgrade from error to warning:
+IF(MY_COMPILER_IS_GNU AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
+  ADD_COMPILE_FLAGS(${CMAKE_SOURCE_DIR}/sql/log_event.cc
+    COMPILE_FLAGS
+    " -Wno-error=uninitialized"
+    " -Wno-error=maybe-uninitialized"
+    )
+ENDIF()
+
 # duplicate explicit instantiation of 'net_field_length_checked'
 # ignored as a Microsoft extension
 IF(WIN32_CLANG)
