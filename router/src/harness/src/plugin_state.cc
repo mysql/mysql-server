@@ -46,7 +46,9 @@ class RecordActivePluginsObserver : public PluginStateObserver {
   }
   void on_plugin_shutdown(const PluginState *,
                           const std::string &name) override {
-    std::remove(active_plugins_.begin(), active_plugins_.end(), name);
+    active_plugins_.erase(
+        std::remove(active_plugins_.begin(), active_plugins_.end(), name),
+        active_plugins_.end());
     stopped_plugins_.push_back(name);
   }
 
