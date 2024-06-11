@@ -45,10 +45,13 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/200 --expected-status 404
-exec $MRS_CLIENT_ARGS --path /svc/basic/t2
-  --request-type post
-  --exclude-json-pointer /_metadata/gtid
-  --payload '{"id":3000, "name":"PUT item", "date":"1920-12-1"}';
+
+--let $mrs_client_arg_path='/svc/basic/t2'
+--let $mrs_client_arg_exclude_json_pointer='/_metadata/gtid'
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_payload='{"id":3000, "name":"PUT item", "date":"1920-12-1"}'
+--source ../include/mrs/mrs_client.inc
+
 --source include/rpl/sync.inc
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3000
 

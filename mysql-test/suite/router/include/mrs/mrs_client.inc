@@ -67,4 +67,19 @@ if ($mrs_client_arg_request_type)
   --let $mrs_client_cmd=$mrs_client_cmd -t $mrs_client_arg_request_type
 }
 
+if ($mrs_client_arg_dispaly)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --display $mrs_client_arg_dispaly
+}
+
+if ($mrs_client_arg_write_format)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --write-format $mrs_client_arg_write_format
+}
+
+if ($mrs_client_arg_write_to_file)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --write-to-file $mrs_client_arg_write_to_file
+}
+
 exec $mrs_client_cmd;
