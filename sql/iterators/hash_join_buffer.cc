@@ -50,7 +50,8 @@ LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
     LinkedImmutableString next_ptr, size_t row_size_upper_bound, bool *full) {
   if (tables.has_blob_column()) {
     // The row size upper bound can have changed.
-    row_size_upper_bound = ComputeRowSizeUpperBound(tables);
+    row_size_upper_bound = ComputeRowSizeUpperBound(tables,
+                                                    /* check_blob_null */ true);
   }
 
   const size_t required_value_bytes =

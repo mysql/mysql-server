@@ -130,7 +130,8 @@ void TableCollection::AddTable(TABLE *tab, bool store_contents_of_null_rows) {
 // size. In the case of said types, we return the actual storage size; we do not
 // want to return 4 gigabytes for a BLOB column if it only contains 10 bytes of
 // data.
-static size_t CalculateColumnStorageSize(const Column &column) {
+static size_t CalculateColumnStorageSize(const Column &column,
+                                         bool check_blob_null) {
   bool is_blob_column = false;
   switch (column.field_type) {
     case MYSQL_TYPE_DECIMAL:
@@ -188,7 +189,7 @@ static size_t CalculateColumnStorageSize(const Column &column) {
     // does not include the size of the length variable for blob types, so we
     // have to add that ourselves.
     const Field_blob *field_blob = down_cast<const Field_blob *>(column.field);
-    return field_blob->is_null()
+    return (check_blob_null && field_blob->is_null())
                ? 0
                : field_blob->data_length() + field_blob->pack_length_no_ptr();
   }
@@ -196,16 +197,19 @@ static size_t CalculateColumnStorageSize(const Column &column) {
   return column.field->max_data_length();
 }
 
-size_t ComputeRowSizeUpperBound(const TableCollection &tables) {
+size_t ComputeRowSizeUpperBound(const TableCollection &tables,
+                                bool check_blob_null) {
   size_t total_size = tables.ref_and_null_bytes_size();
   for (const Table &table : tables.tables()) {
     for (const Column &column : table.columns) {
       // Even though we only store non-null columns, we count up the size of all
-      // columns unconditionally. This means that NULL columns may very well be
+      // columns unconditionally (unless check_blob_null is given in which case,
+      // we do check if a blob is null before computing its size).
+      // This means that, modulo check_blob_null, NULL columns may very well be
       // counted here, but the only effect is that we end up reserving a bit too
       // much space in the buffer for holding the row data. That is more welcome
       // than having to call Field::is_null() for every column in every row.
-      total_size += CalculateColumnStorageSize(column);
+      total_size += CalculateColumnStorageSize(column, check_blob_null);
     }
   }
 

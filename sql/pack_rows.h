@@ -171,8 +171,10 @@ enum class NullRowFlag {
 ///
 /// Note that if any of the tables has a BLOB/TEXT column, this function looks
 /// at the data stored in the record buffers. This means that the function can
-/// not be called before reading any rows if tables.has_blob_column is true.
-size_t ComputeRowSizeUpperBound(const TableCollection &tables);
+/// not be called before reading any rows if \c tables.has_blob_column is true.
+/// The argument \c check_blob_null will also check null value for BLOBs.
+size_t ComputeRowSizeUpperBound(const TableCollection &tables,
+                                bool check_blob_null = false);
 
 /// Take the data marked for reading in "tables" and store it in the provided
 /// buffer. What data to store is determined by the read set of each table.
