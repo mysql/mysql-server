@@ -10493,15 +10493,21 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     bool should_fix_fields = false;
     *cond_value = Item::COND_UNDEF;
     Item *item;
-    while ((item = li++)) {
-      Item *new_item;
+    while ((item = li++) != nullptr) {
+      Item **item_ptr = li.ref();
       Item::cond_result tmp_cond_value;
-      if (remove_eq_conds(thd, item, &new_item, &tmp_cond_value)) return true;
+      /*
+        Notice that remove_eq_conds() may call fold_condition(), which may
+        call THD::change_item_tree(), which may record the address of the
+        existing item. Passing item_ptr ensures the address persists as long as
+        optimization is valid.
+      */
+      if (remove_eq_conds(thd, item, item_ptr, &tmp_cond_value)) return true;
 
-      if (new_item == nullptr)
+      if (*item_ptr == nullptr) {
         li.remove();
-      else if (item != new_item) {
-        (void)li.replace(new_item);
+      } else if (*item_ptr != item) {
+        // Pointer to item was replaced in-place
         should_fix_fields = true;
       }
       if (*cond_value == Item::COND_UNDEF) *cond_value = tmp_cond_value;
