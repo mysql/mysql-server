@@ -144,6 +144,9 @@ struct PFS_global_param {
   /** Default instrument configuration option. */
   char *m_pfs_instrument;
 
+  /** Default meter instrument configuration option. */
+  char *m_pfs_meter;
+
   /**
     Maximum number of instrumented mutex classes.
     @sa mutex_class_lost.
@@ -398,6 +401,17 @@ void init_pfs_instrument_array();
   Process one PFS_INSTRUMENT configuration string.
 */
 int add_pfs_instr_to_array(const char *name, const char *value);
+
+/**
+  Initialize the dynamic array holding individual meter instrument settings
+  collected from the server configuration options.
+*/
+void init_pfs_meter_array();
+
+/**
+  Process one PFS_METER configuration string.
+*/
+int add_pfs_meter_to_array(const char *name, const char *value);
 
 /**
   Shutdown the performance schema.

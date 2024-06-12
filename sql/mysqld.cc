@@ -9019,6 +9019,7 @@ int mysqld_main(int argc, char **argv)
     Initialize the array of performance schema instrument configurations.
   */
   init_pfs_instrument_array();
+  init_pfs_meter_array();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   heo_error = handle_early_options();
@@ -12030,6 +12031,107 @@ static int parse_replicate_rewrite_db(char **key, char **val, char *argument) {
   return 0;
 }
 
+/**
+  Extract telemetry meter name and attribute values from argument
+  and (on success) store it to the meter configuration array.
+  @param argument The configuration value to parse.
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static bool process_opt_pfs_meter(char *argument) {
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    Parse instrument name and value from argument string. Handle leading
+    and trailing spaces. Also handle single quotes.
+
+    Acceptable:
+      performance_schema_meter = ' foo/%/bar/  = enabled:ON,frequency:30  '
+      performance_schema_meter = '%=enabled:OFF'
+    Not acceptable:
+      performance_schema_meter = '' foo/%/bar = enabled:ON ''
+      performance_schema_meter = '%='enabled:OFF''
+  */
+  char *name = argument, *p = nullptr, *val = nullptr;
+  bool quote = false; /* true if quote detected */
+  bool error = true;  /* false if no errors detected */
+  const int PFS_BUFFER_SIZE = 128;
+  char orig_argument[PFS_BUFFER_SIZE + 1];
+  orig_argument[0] = 0;
+
+  if (!argument) goto pfs_error_meter;
+
+  /* Save original argument string for error reporting */
+  strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+
+  /* Split instrument name and value at the equal sign */
+  if (!(p = strchr(argument, '='))) goto pfs_error_meter;
+
+  /* Get option value */
+  val = p + 1;
+  if (!*val) goto pfs_error_meter;
+
+  /* Trim leading spaces and quote from the instrument name */
+  while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\''))) {
+    /* One quote allowed */
+    if (*name == '\'') {
+      if (!quote)
+        quote = true;
+      else
+        goto pfs_error_meter;
+    }
+    name++;
+  }
+
+  /* Trim trailing spaces from instrument name */
+  while ((p > name) && my_isspace(mysqld_charset, p[-1])) p--;
+  *p = 0;
+
+  /* Remove trailing slash from instrument name */
+  if (p > name && (p[-1] == '/')) p[-1] = 0;
+
+  if (!*name) goto pfs_error_meter;
+
+  /* Trim leading spaces from option value */
+  while (*val && my_isspace(mysqld_charset, *val)) val++;
+
+  /* Trim trailing spaces and matching quote from value */
+  p = val + strlen(val);
+  while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\'')) {
+    /* One matching quote allowed */
+    if (p[-1] == '\'') {
+      if (quote)
+        quote = false;
+      else
+        goto pfs_error_meter;
+    }
+    p--;
+  }
+
+  *p = 0;
+
+  if (!*val) goto pfs_error_meter;
+
+  /* Add instrument name and value to array of configuration options */
+  if (add_pfs_meter_to_array(name, val)) goto pfs_error_meter;
+
+  error = false;
+
+pfs_error_meter:
+  if (error) {
+    LogErr(WARNING_LEVEL, ER_INVALID_METER, orig_argument);
+    return true;
+  }
+
+  // success
+  return false;
+#else
+  // success (ignored)
+  return false;
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+}
+
 bool mysqld_get_one_option(int optid,
                            const struct my_option *opt [[maybe_unused]],
                            char *argument) {
@@ -12483,6 +12585,9 @@ bool mysqld_get_one_option(int optid,
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
       break;
     }
+    case OPT_PFS_METER:
+      if (process_opt_pfs_meter(argument)) return false;
+      break;
     case OPT_THREAD_CACHE_SIZE:
       thread_cache_size_specified = true;
       break;

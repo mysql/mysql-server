@@ -69,6 +69,7 @@ PFS_table_stat PFS_table_stat::g_reset_template;
 
 static void cleanup_performance_schema();
 void cleanup_instrument_config();
+void cleanup_meter_config();
 
 void pre_initialize_performance_schema() {
   record_main_thread_id();
@@ -314,6 +315,7 @@ static void cleanup_performance_schema() {
   */
 
   cleanup_instrument_config();
+  cleanup_meter_config();
 
   /*
     All the LF_HASH
@@ -486,6 +488,141 @@ int add_pfs_instr_to_array(const char *name, const char *value) {
 
   /* Add to the array of default startup options */
   if (pfs_instr_config_array->push_back(e)) {
+    my_free(e);
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
+  Initialize the dynamic array used to hold PFS_METER configuration
+  options.
+*/
+void init_pfs_meter_array() {
+  pfs_meter_config_array = new Pfs_meter_config_array(PSI_NOT_INSTRUMENTED);
+}
+
+/**
+  Deallocate the PFS_METER array.
+*/
+void cleanup_meter_config() {
+  if (pfs_meter_config_array != nullptr) {
+    my_free_container_pointers(*pfs_meter_config_array);
+  }
+  delete pfs_meter_config_array;
+  pfs_meter_config_array = nullptr;
+}
+
+/**
+  Process one performance_schema_meter configuration string. Isolate the
+  instrument name, evaluate the option values, and store them in a dynamic
+  array. Return 'false' for success, 'true' for error.
+
+  @param name    Instrument name
+  @param value   Configuration option: 'enabled:ON,frequency:30', 'enabled:OFF',
+  etc.
+  @return 0 for success, non zero for errors
+*/
+
+int add_pfs_meter_to_array(const char *name, const char *value) {
+  const size_t name_length = strlen(name);
+  const size_t value_length = strlen(value);
+
+  /* Allocate structure plus string buffers plus null terminators */
+  auto *e = (PFS_meter_config *)my_malloc(
+      PSI_NOT_INSTRUMENTED,
+      sizeof(PFS_meter_config) + name_length + 1 + value_length + 1,
+      MYF(MY_WME));
+  if (!e) {
+    return 1;
+  }
+
+  /* Copy the meter instrument name */
+  e->m_name = (char *)e + sizeof(PFS_meter_config);
+  memcpy(e->m_name, name, name_length);
+  e->m_name_length = (uint)name_length;
+  e->m_name[name_length] = '\0';
+
+  // init state
+  e->m_enabled_set = false;
+  e->m_frequency_set = false;
+
+  /*
+   Value string must have a "<property1>:<value1>,<property2>:<value2>" form,
+   for example "enabled:ON,frequency:30", split it into pieces.
+  */
+  bool more_properties = true;
+  while (more_properties) {
+    const char *val_delimiter = strchr(value, ':');
+    if (val_delimiter == nullptr) {
+      my_free(e);
+      return 1;
+    }
+    const char *property_name = value;
+    const size_t name_len = val_delimiter - value;
+
+    const char *property_value = val_delimiter + 1;
+    const char *value_end = strchr(property_value, ',');
+    if (value_end == nullptr) {
+      value_end = property_value + strlen(property_value);
+      more_properties = false;
+    }
+    const size_t val_len = value_end - property_value;
+
+    if (name_len == strlen("enabled") &&
+        (!strncmp(property_name, "enabled", name_len) ||
+         !strncmp(property_name, "ENABLED", name_len))) {
+      // parse "enabled" property value
+      if (!strncmp(property_value, "true", val_len) ||
+          !strncmp(property_value, "TRUE", val_len) ||
+          !strncmp(property_value, "1", val_len) ||
+          !strncmp(property_value, "on", val_len) ||
+          !strncmp(property_value, "ON", val_len) ||
+          !strncmp(property_value, "yes", val_len) ||
+          !strncmp(property_value, "YES", val_len)) {
+        e->m_enabled = true;
+        e->m_enabled_set = true;
+      } else if (!strncmp(property_value, "false", val_len) ||
+                 !strncmp(property_value, "FALSE", val_len) ||
+                 !strncmp(property_value, "0", val_len) ||
+                 !strncmp(property_value, "off", val_len) ||
+                 !strncmp(property_value, "OFF", val_len) ||
+                 !strncmp(property_value, "no", val_len) ||
+                 !strncmp(property_value, "NO", val_len)) {
+        e->m_enabled = false;
+        e->m_enabled_set = true;
+      } else {
+        // unsupported value for "enabled" property
+        my_free(e);
+        return 1;
+      }
+
+    } else if (name_len == strlen("frequency") &&
+               (!strncmp(property_name, "frequency", name_len) ||
+                !strncmp(property_name, "FREQUENCY", name_len))) {
+      // parse "frequency" property value
+      char *end = nullptr;
+      unsigned long val = std::strtoul(property_value, &end, 10);
+      if (val > UINT_MAX || end == property_value) {
+        // out of range or parse error
+        my_free(e);
+        return 1;
+      }
+      e->m_frequency = val;
+      e->m_frequency_set = true;
+
+    } else {
+      // unknown property name
+      my_free(e);
+      return 1;
+    }
+
+    value = value_end + 1;
+  }
+
+  /* Add to the array of default startup options */
+  if (pfs_meter_config_array->push_back(e)) {
     my_free(e);
     return 1;
   }

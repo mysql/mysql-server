@@ -540,6 +540,13 @@ static Sys_var_charptr Sys_pfs_instrument(
     CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT), IN_FS_CHARSET, DEFAULT(""),
     PFS_TRAILING_PROPERTIES);
 
+static Sys_var_charptr Sys_pfs_meter(
+    "performance_schema_meter",
+    "Default startup value for a performance schema meter.",
+    READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_meter),
+    CMD_LINE(OPT_ARG, OPT_PFS_METER), IN_FS_CHARSET, DEFAULT(""),
+    PFS_TRAILING_PROPERTIES);
+
 /**
   Update the performance_schema_show_processlist.
   Warn that the use of information_schema processlist is deprecated.

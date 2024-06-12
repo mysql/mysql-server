@@ -88,6 +88,13 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
                              PFS_class_type class_type);
 
 /**
+  PFS_METER option settings array
+ */
+Pfs_meter_config_array *pfs_meter_config_array = nullptr;
+
+static void configure_meter_class(PFS_meter_class *entry);
+
+/**
   Current number of elements in mutex_class_array.
   This global variable is written to during:
   - the performance schema initialization
@@ -1194,6 +1201,58 @@ static void configure_instr_class(PFS_instr_class *entry) {
   }
 }
 
+/**
+  Set user-defined configuration values for a meter instrument.
+*/
+static void configure_meter_class(PFS_meter_class *entry) {
+  /* separate length of matching pattern for each property */
+  uint match_length_enabled = 0;
+  uint match_length_frequency = 0;
+
+  // May be NULL in unit tests
+  if (pfs_meter_config_array == nullptr) {
+    return;
+  }
+  Pfs_meter_config_array::iterator it = pfs_meter_config_array->begin();
+  for (; it != pfs_meter_config_array->end(); ++it) {
+    const PFS_meter_config *e = *it;
+
+    /**
+      Compare class name to all configuration entries. In case of multiple
+      matches, the longer specification wins. For example, the pattern
+      'ABC/DEF/GHI=ON' has precedence over 'ABC/DEF/%=OFF' regardless of
+      position within the configuration file or command line.
+
+      Consecutive wildcards affect the count.
+    */
+
+    // input pattern and P_S.setup_meter 'name' field do not contain instrument
+    // prefix
+    const size_t pfx_len = strlen("meter/");
+    const char *entry_str = entry->m_name.str() + pfx_len;
+    const size_t entry_len = entry->m_name.length() - pfx_len;
+
+    if (!my_wildcmp(&my_charset_latin1, entry_str, entry_str + entry_len,
+                    e->m_name, e->m_name + e->m_name_length, '\\', '?', '%')) {
+      if (e->m_enabled_set) {
+        if (e->m_name_length >= match_length_enabled) {
+          entry->m_enabled = e->m_enabled;
+          match_length_enabled =
+              std::max(e->m_name_length, match_length_enabled);
+        }
+      }
+
+      if (e->m_frequency_set) {
+        if (e->m_name_length >= match_length_frequency) {
+          entry->m_frequency = e->m_frequency;
+          match_length_frequency =
+              std::max(e->m_name_length, match_length_frequency);
+        }
+      }
+    }
+  }
+}
+
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
   for (INDEX = 0; INDEX < MAX; ++INDEX) {                              \
     entry = &ARRAY[INDEX];                                             \
@@ -1947,7 +2006,7 @@ PFS_meter_key register_meter_class(const char *name, uint name_length,
     entry->enforce_valid_flags(PSI_FLAG_MUTABLE);
 
     /* Set user-defined configuration options for this instrument */
-    configure_instr_class(entry);
+    configure_meter_class(entry);
     ++meter_class_allocated_count;
 
     if (index == meter_class_dirty_count) ++meter_class_dirty_count;

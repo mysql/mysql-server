@@ -149,6 +149,25 @@ struct PFS_instr_config {
 typedef Prealloced_array<PFS_instr_config *, 10> Pfs_instr_config_array;
 extern Pfs_instr_config_array *pfs_instr_config_array;
 
+/** User-defined meter configuration. */
+struct PFS_meter_config {
+  /* Instrument name. */
+  char *m_name;
+  /* Name length. */
+  uint m_name_length;
+  /** Enabled flag. */
+  bool m_enabled;
+  /** Was enabled flag modified. */
+  bool m_enabled_set;
+  /** Frequency value. */
+  uint m_frequency;
+  /** Was frequency property modified. */
+  bool m_frequency_set;
+};
+
+typedef Prealloced_array<PFS_meter_config *, 10> Pfs_meter_config_array;
+extern Pfs_meter_config_array *pfs_meter_config_array;
+
 struct PFS_thread;
 
 extern uint mutex_class_start;

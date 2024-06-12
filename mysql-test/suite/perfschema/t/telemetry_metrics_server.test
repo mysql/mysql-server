@@ -79,6 +79,11 @@ SHOW STATUS LIKE 'Performance_schema_metric_lost';
 SHOW GLOBAL VARIABLES LIKE "performance_schema_max_meter_classes";
 SHOW GLOBAL VARIABLES LIKE "performance_schema_max_metric_classes";
 
+--echo # Restart server, test '--performance_schema_meter' parameter to change the default log level
+--let $restart_parameters="restart: --performance_schema_meter='mysql.inno=frequency:42,enabled:ON ' --performance_schema_meter='mysql.x=enabled:yes' --performance_schema_meter='%=enabled:0'"
+--source include/restart_mysqld.inc
+SELECT name, enabled, frequency FROM performance_schema.setup_meters;
+
 # Cleanup
 UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
 UPDATE performance_schema.setup_meters SET enabled = 'YES';

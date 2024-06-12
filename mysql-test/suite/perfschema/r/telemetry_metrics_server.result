@@ -106,6 +106,22 @@ performance_schema_max_meter_classes	1
 SHOW GLOBAL VARIABLES LIKE "performance_schema_max_metric_classes";
 Variable_name	Value
 performance_schema_max_metric_classes	10
+# Restart server, test '--performance_schema_meter' parameter to change the default log level
+# restart: --performance_schema_meter=mysql.inno=frequency:42,enabled:ON  --performance_schema_meter=mysql.x=enabled:yes --performance_schema_meter=%=enabled:0
+SELECT name, enabled, frequency FROM performance_schema.setup_meters;
+name	enabled	frequency
+mysql.inno	YES	42
+mysql.inno.buffer_pool	NO	10
+mysql.inno.data	NO	10
+mysql.x	YES	10
+mysql.x.stmt	NO	10
+mysql.stats	NO	10
+mysql.stats.com	NO	10
+mysql.stats.connection	NO	10
+mysql.stats.handler	NO	10
+mysql.stats.ssl	NO	10
+mysql.myisam	NO	10
+mysql.perf_schema	NO	10
 UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
 UPDATE performance_schema.setup_meters SET enabled = 'YES';
 # restart:
@@ -1090,6 +1106,30 @@ test_server_telemetry_metrics_component_init init:
  - UDFs registered.
  - Meter change notification callback registered.
 End of init
+*** Meter change notification: mysql.inno removed
+test_server_telemetry_metrics_component_deinit:
+ - Meter change notification callback unregistered.
+ - UDFs unregistered.
+ - Test metrics unregistered.
+End of deinit
+test_server_telemetry_metrics_component_init init:
+ - UDFs registered.
+ - Meter change notification callback registered.
+End of init
+*** Meter change notification: mysql.stats added
+*** Meter change - silently enumerate metrics for mysql.stats
+*** Meter change notification: mysql.stats.com added
+*** Meter change - silently enumerate metrics for mysql.stats.com
+*** Meter change notification: mysql.stats.connection added
+*** Meter change - silently enumerate metrics for mysql.stats.connection
+*** Meter change notification: mysql.stats.handler added
+*** Meter change - silently enumerate metrics for mysql.stats.handler
+*** Meter change notification: mysql.stats.ssl added
+*** Meter change - silently enumerate metrics for mysql.stats.ssl
+*** Meter change notification: mysql.myisam added
+*** Meter change - silently enumerate metrics for mysql.myisam
+*** Meter change notification: mysql.perf_schema added
+*** Meter change - silently enumerate metrics for mysql.perf_schema
 test_server_telemetry_metrics_component_deinit:
  - Meter change notification callback unregistered.
  - UDFs unregistered.

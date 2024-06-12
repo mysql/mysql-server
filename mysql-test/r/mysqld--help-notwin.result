@@ -974,6 +974,8 @@ The following options may be given as the first argument:
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads. Use 0 to disable,
  -1 for automated scaling.
+ --performance-schema-meter[=name] 
+ Default startup value for a performance schema meter.
  --performance-schema-session-connect-attrs-size=# 
  Size of session attribute string buffer per thread. Use 0
  to disable, -1 for automated sizing.
@@ -1861,6 +1863,7 @@ performance-schema-max-table-instances -1
 performance-schema-max-table-lock-stat -1
 performance-schema-max-thread-classes 100
 performance-schema-max-thread-instances -1
+performance-schema-meter 
 performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
 performance-schema-setup-objects-size -1
