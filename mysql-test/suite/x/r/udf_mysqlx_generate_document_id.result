@@ -82,45 +82,45 @@ DO mysqlx_generate_document_id();
 CALL mysqlx_generate_document_id();
 ERROR 42000: PROCEDURE xtest.mysqlx_generate_document_id does not exist
 DO mysqlx_generate_document_id('abc');
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect integer argument
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects integer argument
 DO mysqlx_generate_document_id(NULL);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect integer argument
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects integer argument
 DO mysqlx_generate_document_id(123.45);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect integer argument
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects integer argument
 DO mysqlx_generate_document_id(1, 'abc');
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect two integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects two integer arguments
 DO mysqlx_generate_document_id(1, NULL);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect two integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects two integer arguments
 DO mysqlx_generate_document_id(1, 123.45);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect two integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects two integer arguments
 DO mysqlx_generate_document_id(1, 1, 'abc');
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 DO mysqlx_generate_document_id(1, 1, NULL);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 DO mysqlx_generate_document_id(1, 1, 123.45);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 DO mysqlx_generate_document_id(1, 1, 1, 1);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect up to three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects up to three integer arguments
 DO mysqlx_generate_document_id(1, 1, 1, 1, 1);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect up to three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects up to three integer arguments
 
 #
 ## Ad 2.a. Handling of NULL values in DO
 DO mysqlx_generate_document_id(NULL, 1, 1);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 DO mysqlx_generate_document_id(1, NULL, 1);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 DO mysqlx_generate_document_id(1, 1, NULL);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 
 #
 ## Ad 2.b. Handling of NULL values in SELECT
 SELECT mysqlx_generate_document_id(NULL,1,1);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 SELECT mysqlx_generate_document_id(1,NULL,1);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 SELECT mysqlx_generate_document_id(1,1,NULL);
-ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments
+ERROR HY000: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments
 
 #
 ## Ad 2.c. Handling of FUNCTION returning NULL values in DO
@@ -217,45 +217,45 @@ RUN use xtest
 RUN CALL mysqlx_generate_document_id();
 Got expected error: PROCEDURE xtest.mysqlx_generate_document_id does not exist (code 1305)
 RUN DO mysqlx_generate_document_id('abc');
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect integer argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects integer argument (code 1123)
 RUN DO mysqlx_generate_document_id(NULL);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect integer argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects integer argument (code 1123)
 RUN DO mysqlx_generate_document_id(123.45);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect integer argument (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects integer argument (code 1123)
 RUN DO mysqlx_generate_document_id(1, 'abc');
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect two integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects two integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, NULL);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect two integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects two integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 123.45);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect two integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects two integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 1, 'abc');
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 1, NULL);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 1, 123.45);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 1, 1, 1);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect up to three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects up to three integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 1, 1, 1, 1);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect up to three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects up to three integer arguments (code 1123)
 
 #
 ## Ad 4.a. Handling of NULL values in DO
 RUN DO mysqlx_generate_document_id(NULL, 1, 1);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, NULL, 1);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN DO mysqlx_generate_document_id(1, 1, NULL);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 
 #
 ## Ad 4.b. Handling of NULL values in SELECT
 RUN SELECT mysqlx_generate_document_id(NULL,1,1);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN SELECT mysqlx_generate_document_id(1,NULL,1);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 RUN SELECT mysqlx_generate_document_id(1,1,NULL);
-Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expect three integer arguments (code 1123)
+Got expected error: Can't initialize function 'mysqlx_generate_document_id'; Function expects three integer arguments (code 1123)
 
 #
 ## Ad 4.c. Handling of FUNCTION returning NULL values in DO
