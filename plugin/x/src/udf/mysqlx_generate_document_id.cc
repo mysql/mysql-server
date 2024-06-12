@@ -58,13 +58,13 @@ bool mysqlx_generate_document_id_init(UDF_INIT *, UDF_ARGS *args,
       return false;
     case 1:
       if (args->arg_type[0] != INT_RESULT) {
-        fill_server_errmsg(message, "Function expect integer argument"sv);
+        fill_server_errmsg(message, "Function expects integer argument"sv);
         return true;
       }
       break;
     case 2:
       if (args->arg_type[0] != INT_RESULT || args->arg_type[1] != INT_RESULT) {
-        fill_server_errmsg(message, "Function expect two integer arguments"sv);
+        fill_server_errmsg(message, "Function expects two integer arguments"sv);
         return true;
       }
       break;
@@ -72,14 +72,14 @@ bool mysqlx_generate_document_id_init(UDF_INIT *, UDF_ARGS *args,
       if (args->arg_type[0] != INT_RESULT || args->arg_type[1] != INT_RESULT ||
           args->arg_type[2] != INT_RESULT) {
         fill_server_errmsg(message,
-                           "Function expect three integer arguments"sv);
+                           "Function expects three integer arguments"sv);
         return true;
       }
       break;
 
     default:
       fill_server_errmsg(message,
-                         "Function expect up to three integer arguments"sv);
+                         "Function expects up to three integer arguments"sv);
       return true;
   }
 
