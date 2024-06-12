@@ -882,7 +882,7 @@ EXPLAIN
     -> Limit: 1 row(s)  (rows=1)
         -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (rows=1)
             -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (rows=4)
-                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (rows=4)
+                -> Covering index lookup on d using <auto_key0> (a<=><cache>(t1.a) or NULL)  (rows=4)
                     -> Materialize  (rows=1)
                         -> Table scan on t1  (rows=1)
                 -> Table scan on d  (rows=2)
@@ -1329,3 +1329,25 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1;
+#
+# Bug#115296 Fix display of Ref using "<=>"
+# Bug#115330 Fix display of access path `unqualified_count`
+#
+CREATE TABLE t1 ( c1 int DEFAULT NULL, c2 int DEFAULT NULL, KEY idx (c1) );
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+EXPLAIN FORMAT = tree SELECT c1 FROM t1 WHERE c1 IS NULL;
+EXPLAIN
+-> Filter: (t1.c1 is null)  (cost=0.35 rows=1)
+    -> Covering index lookup on t1 using idx (c1<=>NULL)  (cost=0.35 rows=1)
+
+EXPLAIN FORMAT = tree SELECT c1 FROM t1 WHERE c1 <=> NULL;
+EXPLAIN
+-> Filter: (t1.c1 <=> NULL)  (cost=0.35 rows=1)
+    -> Covering index lookup on t1 using idx (c1<=>NULL)  (cost=0.35 rows=1)
+
+EXPLAIN FORMAT = tree SELECT count(*) FROM t1, t2, t3;
+EXPLAIN
+-> Count rows in t1, t2, t3
+
+DROP TABLE t1, t2, t3;

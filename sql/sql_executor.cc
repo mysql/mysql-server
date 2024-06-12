@@ -164,7 +164,11 @@ string RefToString(const Index_lookup &ref, const KEY &key,
       assert(!field->is_hidden_by_system());
       ret += field->field_name;
     }
-    ret += "=";
+    if (ref.items[key_part_idx]->is_nullable() &&
+        ((ref.null_rejecting & ((key_part_map)1 << key_part_idx)) == 0))
+      ret += "<=>";
+    else
+      ret += "=";
     ret += ItemToString(ref.items[key_part_idx]);
 
     // If we have ref_or_null access, find out if this keypart is the one that

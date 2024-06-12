@@ -841,3 +841,19 @@ EXPLAIN FORMAT=TREE SELECT LAST_VALUE((SELECT x1.a FROM t1))
 OVER (PARTITION BY b) FROM t1 x1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#115296 Fix display of Ref using "<=>"
+--echo # Bug#115330 Fix display of access path `unqualified_count`
+--echo #
+
+CREATE TABLE t1 ( c1 int DEFAULT NULL, c2 int DEFAULT NULL, KEY idx (c1) );
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+
+EXPLAIN FORMAT = tree SELECT c1 FROM t1 WHERE c1 IS NULL;
+EXPLAIN FORMAT = tree SELECT c1 FROM t1 WHERE c1 <=> NULL;
+EXPLAIN FORMAT = tree SELECT count(*) FROM t1, t2, t3;
+
+DROP TABLE t1, t2, t3;
+

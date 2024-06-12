@@ -1400,7 +1400,11 @@ static unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::UNQUALIFIED_COUNT:
       error |= AddMemberToObject<Json_string>(obj, "access_type", "count_rows");
       error |= AddTableInfoToObject(obj, join->qep_tab->table());
-      description = "Count rows in " + string(join->qep_tab->table()->alias);
+      description = "Count rows in ";
+      for (uint i = 0; i < join->primary_tables; i++) {
+        description += string(join->qep_tab[i].table()->alias);
+        if (i + 1 != join->primary_tables) description += string(", ");
+      }
       break;
     case AccessPath::NESTED_LOOP_JOIN: {
       string join_type = JoinTypeToString(path->nested_loop_join().join_type);
