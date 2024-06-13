@@ -204,6 +204,8 @@ class Prepared_statement final {
 
   bool m_with_log{false};
 
+  bool m_first_execution{true};
+
   /// Name of the prepared statement.
   LEX_CSTRING m_name{NULL_CSTR};
   /**

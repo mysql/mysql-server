@@ -722,7 +722,11 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
-    if (is_invalid() || (m_lex->has_udf() && !m_first_execution)) {
+    if (is_invalid() ||
+        (!m_first_execution &&
+         (m_lex->has_udf() ||
+          (m_lex->m_sql_cmd != nullptr &&
+           m_lex->m_sql_cmd->reprepare_on_execute_required())))) {
       free_lex();
       LEX *lex = parse_expr(thd, thd->sp_runtime_ctx->sp);
       if (lex == nullptr) return true;

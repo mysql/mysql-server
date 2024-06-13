@@ -1084,7 +1084,7 @@ execute stmt;
 
 alter table t1 drop column b;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(3);
 
 drop table t1;
 
@@ -1526,30 +1526,30 @@ drop table t2;
 execute stmt;
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(2);
 # Base table with name of table to be created exists
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
 call p_verify_reprepare_count(1);
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t2;
 # Temporary table with name of table to be created exists
 create temporary table t2 (a int);
 # Temporary table and base table are not in the same name space.
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
 call p_verify_reprepare_count(1);
 drop temporary table t2;
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t2;
 # View with name of table to be created exists
 # Attention:
@@ -1564,7 +1564,7 @@ execute stmt;
 call p_verify_reprepare_count(1);
 --error ER_TABLE_EXISTS_ERROR,9999
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop view t2;
 drop table t1;
 # Table to be used recreated (drop,create) with different layout
@@ -1574,7 +1574,7 @@ call p_verify_reprepare_count(1);
 select * from t2;
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t2;
 # Table to be used has a modified (alter table) layout
 alter table t1 add column y decimal(10,3);
@@ -1583,7 +1583,7 @@ call p_verify_reprepare_count(1);
 select * from t2;
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t1;
 deallocate prepare stmt;
 create table t1 (a int);
@@ -1592,12 +1592,12 @@ prepare stmt from "create temporary table if not exists t2 as select * from t1";
 execute stmt;
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 execute stmt;
 call p_verify_reprepare_count(1);
 select * from t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 select * from t2;
 drop table t2;
 create temporary table t2 (a varchar(10));
@@ -1609,7 +1609,7 @@ create table t1 (x int);
 execute stmt;
 call p_verify_reprepare_count(1);
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t1;
 drop temporary table t2;
 drop table t2;
@@ -1621,23 +1621,23 @@ execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t2;
 # Table to be used does not exist
 drop table t1;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 --error ER_NO_SUCH_TABLE
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 # Table to be used recreated (drop,create) with different layout
 create table t1 (x char(17));
 execute stmt;
 call p_verify_reprepare_count(1);
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t2;
 # Table to be used has a modified (alter table) layout
 alter table t1 add column y time;
@@ -1646,7 +1646,7 @@ call p_verify_reprepare_count(1);
 select * from t2;
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop table t1;
 drop table t2;
 deallocate prepare stmt;
@@ -2057,7 +2057,7 @@ drop table t1;
 deallocate prepare stmt;
 --echo # Intermediate result: number of reprepares matches the number
 --echo # of tests
-call p_verify_reprepare_count(17);
+call p_verify_reprepare_count(18);
 
 --echo #
 --echo # SQLCOM_ALTER_VIEW

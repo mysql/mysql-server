@@ -619,6 +619,7 @@ class Sql_cmd_alter_table : public Sql_cmd_common_alter_table {
   using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
 
   bool execute(THD *thd) override;
+  bool reprepare_on_execute_required() const override;
 };
 
 /**
