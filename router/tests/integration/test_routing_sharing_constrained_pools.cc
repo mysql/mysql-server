@@ -468,6 +468,8 @@ class SharedRouter {
                           "mysqlrouter.log");
 
     if (!proc.wait_for_sync_point_result()) {
+      process_manager().dump_logs();
+
       GTEST_SKIP() << "router failed to start";
     }
   }
@@ -952,6 +954,9 @@ class ShareConnectionTestTemp
     : public RouterComponentTest,
       public ::testing::WithParamInterface<ShareConnectionParam> {
  public:
+  static_assert(S > 0);
+  static_assert(P >= 0);
+
   static constexpr const size_t kNumServers = S;
   static constexpr const size_t kMaxPoolSize = P;
 
@@ -1019,9 +1024,6 @@ class ShareConnectionTestTemp
   const std::string valid_ssl_key_{SSL_TEST_DATA_DIR "/server-key-sha512.pem"};
   const std::string valid_ssl_cert_{SSL_TEST_DATA_DIR
                                     "/server-cert-sha512.pem"};
-
-  const std::string wrong_password_{"wrong_password"};
-  const std::string empty_password_{""};
 };
 
 class Checker {
@@ -1278,6 +1280,7 @@ using ShareConnectionTinyPoolOneServerTest = ShareConnectionTestTemp<1, 1>;
 using ShareConnectionTinyPoolTwoServersTest = ShareConnectionTestTemp<2, 1>;
 using ShareConnectionSmallPoolTwoServersTest = ShareConnectionTestTemp<2, 2>;
 using ShareConnectionSmallPoolFourServersTest = ShareConnectionTestTemp<4, 2>;
+using ShareConnectionNoPoolOneServersTest = ShareConnectionTestTemp<1, 0>;
 
 /*
  * 1. cli1 connects and starts long running a query
@@ -3259,6 +3262,80 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_two_routes) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTinyPoolTwoRoutesTest,
+                         ::testing::ValuesIn(share_connection_params),
+                         [](auto &info) {
+                           return "ssl_modes_" + info.param.testname;
+                         });
+
+TEST_P(ShareConnectionNoPoolOneServersTest, classic_protocol_tls_resumption) {
+  std::string last_hits;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  for (int round = 0; round < 10; ++round) {
+    SCOPED_TRACE("// connecting to server - round " + std::to_string(round));
+    std::string hits;
+
+    {
+      MysqlClient cli;
+
+      cli.username(account.username);
+      cli.password(account.password);
+
+      SCOPED_TRACE("// connect");
+      ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                  shared_router()->port(GetParam())));
+
+      SCOPED_TRACE("// checking TLS resumptions with the server.");
+
+      auto hits_res = query_one_result(
+          cli,
+          "SELECT variable_value "
+          "  FROM performance_schema.session_status "
+          " WHERE variable_name LIKE 'Ssl_session_cache_hits'");
+      ASSERT_NO_ERROR(hits_res);
+      ASSERT_THAT(*hits_res, SizeIs(testing::Eq(1)));
+      std::string hits = (*hits_res)[0][0];
+
+      ASSERT_THAT(hits, Not(IsEmpty()));
+
+      if (!last_hits.empty()) {
+        // first round.
+        // with TLS on the server-side there should be TLS resumption.
+        if (GetParam().server_ssl_mode == kPreferred ||
+            GetParam().server_ssl_mode == kRequired ||
+            (GetParam().server_ssl_mode == kAsClient &&
+             (GetParam().client_ssl_mode == kPreferred ||
+              GetParam().client_ssl_mode == kRequired))) {
+          // the hits should increase.
+          //
+          // As the metadata-cache also connects to the backends and resumes TLS
+          // connections we don't know
+          EXPECT_NE(last_hits, hits);
+        }
+      }
+    }
+
+    last_hits = hits;
+
+    // as the connections to the servers are closed asynchronously,
+    // wait until all user connections are closed on the server side.
+    auto end = std::chrono::steady_clock::now() + 1s;
+    do {
+      auto user_connections_ids_res =
+          SharedServer::user_connection_ids(*(admin_clis()[0]));
+      ASSERT_NO_ERROR(user_connections_ids_res);
+
+      if (user_connections_ids_res->empty()) break;
+
+      ASSERT_LT(std::chrono::steady_clock::now(), end);
+
+      std::this_thread::sleep_for(10ms);
+    } while (true);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionNoPoolOneServersTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;
