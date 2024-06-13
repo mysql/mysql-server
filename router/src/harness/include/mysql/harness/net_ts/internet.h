@@ -644,16 +644,16 @@ class basic_resolver : public resolver_base {
     std::array<char, NI_MAXHOST> host_name;
     std::array<char, NI_MAXSERV> service_name;
 
-    int flags{0};
+    int nameinfo_flags{0};
 
     if (endpoint_type().protocol().type() == SOCK_DGRAM) {
-      flags |= NI_DGRAM;
+      nameinfo_flags |= NI_DGRAM;
     }
 
     const auto nameinfo_res = net::impl::resolver::getnameinfo(
         static_cast<const struct sockaddr *>(ep.data()), ep.size(),
         host_name.data(), host_name.size(), service_name.data(),
-        service_name.size(), flags);
+        service_name.size(), nameinfo_flags);
     if (!nameinfo_res) {
       return stdx::unexpected(nameinfo_res.error());
     }
