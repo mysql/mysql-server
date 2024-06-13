@@ -2531,6 +2531,7 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
         &base_query_block->context, &ref_item_array[el], nullptr, nullptr,
         item_name.ptr(), depended_from);
     if (item_ref == nullptr) return true; /* purecov: inspected */
+    item_ref->increment_ref_count();
     item_ref->hidden = old_hidden;
     if (ref == nullptr) {
       assert(is_aggr_func);

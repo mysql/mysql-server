@@ -2448,3 +2448,14 @@ FROM t3 AS ref_2
 );
 c0
 DROP TABLE t1, t2, t3;
+#
+# Bug#35877063: Subquery refcount assertion error
+#
+SELECT 1 AS col
+FROM (SELECT 1) AS y(y) JOIN (SELECT 1) AS z(z)
+ON (SELECT 1
+FROM (SELECT 1) AS x(x)
+HAVING 1 IN (SELECT min(x.x) FROM (SELECT 1) AS w(w))
+)
+WHERE 1 = 2;
+col
