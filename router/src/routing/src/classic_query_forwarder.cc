@@ -47,7 +47,6 @@
 #include "classic_lazy_connect.h"
 #include "classic_query_param.h"
 #include "classic_query_sender.h"
-#include "classic_quit_sender.h"
 #include "classic_session_tracker.h"
 #include "command_router_set.h"
 #include "harness_assert.h"

@@ -607,7 +607,7 @@ class TestEnv : public ::testing::Environment {
   [[nodiscard]] bool run_slow_tests() const { return run_slow_tests_; }
 
   void TearDown() override {
-    if (testing::Test::HasFatalFailure()) {
+    if (testing::Test::HasFailure()) {
       for (auto &srv : shared_servers_) {
         srv->process_manager().dump_logs();
       }
@@ -905,10 +905,11 @@ class TestWithSharedRouter {
 
 SharedRouter *TestWithSharedRouter::shared_router_ = nullptr;
 
-class SplittingConnectionTestBase : public RouterComponentTest {
+template <size_t S, size_t P>
+class SplittingConnectionTestBaseP : public RouterComponentTest {
  public:
-  static constexpr const size_t kNumServers = 3;
-  static constexpr const size_t kMaxPoolSize = 128;
+  static constexpr const size_t kNumServers = S;
+  static constexpr const size_t kMaxPoolSize = P;
 
   static void SetUpTestSuite() {
     for (const auto &srv : shared_servers()) {
@@ -938,6 +939,8 @@ class SplittingConnectionTestBase : public RouterComponentTest {
     return TestWithSharedRouter::router();
   }
 };
+
+using SplittingConnectionTestBase = SplittingConnectionTestBaseP<3, 128>;
 
 class SplittingConnectionTest
     : public SplittingConnectionTestBase,
@@ -2698,6 +2701,199 @@ TEST_P(SplittingConnectionTest, select_overlong) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, SplittingConnectionTest,
+                         ::testing::ValuesIn(share_connection_params),
+                         [](auto &info) {
+                           return "ssl_modes_" + info.param.testname;
+                         });
+
+class SplittingConnectionNoPoolTest
+    : public SplittingConnectionTestBaseP<3, 0>,
+      public ::testing::WithParamInterface<SplittingConnectionParam> {
+ public:
+  void TearDown() override {
+    if (HasFailure()) {
+      shared_router()->process_manager().dump_logs();
+    }
+  }
+};
+
+TEST_P(SplittingConnectionNoPoolTest, classic_protocol_tls_resumption) {
+  std::map<std::string, std::string> last_hits;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  for (int round = 0; round < 10; ++round) {
+    SCOPED_TRACE("// connecting to server - round " + std::to_string(round));
+
+    {
+      MysqlClient cli;
+
+      cli.username(account.username);
+      cli.password(account.password);
+
+      SCOPED_TRACE("// connect");
+      ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                  shared_router()->port(GetParam())));
+
+      for (const auto *initial_query : {"ROUTER SET access_mode='read_write'",
+                                        "ROUTER SET access_mode='read_only'"}) {
+        ASSERT_NO_ERROR(cli.query(initial_query));
+
+        SCOPED_TRACE("// checking TLS resumptions with the server.");
+        auto hits_res = query_one_result(
+            cli,
+            "SELECT variable_value "
+            "  FROM performance_schema.session_status "
+            " WHERE variable_name LIKE 'Ssl_session_cache_hits'"
+            " UNION "
+            " SELECT variable_value "
+            "  FROM performance_schema.global_variables "
+            " WHERE variable_name LIKE 'port'");
+        ASSERT_NO_ERROR(hits_res);
+        ASSERT_THAT(*hits_res, testing::SizeIs(testing::Eq(2)));
+        std::string hits = (*hits_res)[0][0];
+        std::string port = (*hits_res)[1][0];
+
+        ASSERT_THAT(hits, Not(IsEmpty()));
+        ASSERT_THAT(port, Not(IsEmpty()));
+
+        if (!last_hits.contains(port)) {
+          // second round and later.
+          //
+          // with TLS on the server-side there should be TLS resumption.
+          if (GetParam().server_ssl_mode == kPreferred ||
+              GetParam().server_ssl_mode == kRequired ||
+              (GetParam().server_ssl_mode == kAsClient &&
+               (GetParam().client_ssl_mode == kPreferred ||
+                GetParam().client_ssl_mode == kRequired))) {
+            // the hits should increase.
+            //
+            // As the metadata-cache also connects to the backends and
+            // resumes TLS connections we don't know the exact increase
+            EXPECT_NE(last_hits[port], hits);
+          }
+        }
+
+        last_hits[port] = hits;
+      }
+    }
+  }
+}
+
+TEST_P(SplittingConnectionNoPoolTest, classic_protocol_quit_sender) {
+  std::map<std::string, std::string> last_hits;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  for (int round = 0; round < 10; ++round) {
+    SCOPED_TRACE("// connecting to server - round " + std::to_string(round));
+
+    {
+      MysqlClient cli;
+
+      cli.username(account.username);
+      cli.password(account.password);
+
+      SCOPED_TRACE("// connect");
+      ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                  shared_router()->port(GetParam())));
+
+      ASSERT_NO_ERROR(cli.query("DO 1"));  // on read-only.
+
+      std::string ro_port;
+      std::string rw_port;
+
+      {
+        SCOPED_TRACE("// checking TLS resumptions on the read-only server.");
+        auto hits_res = query_one_result(
+            cli,
+            "SELECT variable_value "
+            "  FROM performance_schema.session_status "
+            " WHERE variable_name LIKE 'Ssl_session_cache_hits'"
+            " UNION "
+            " SELECT variable_value "
+            "  FROM performance_schema.global_variables "
+            " WHERE variable_name LIKE 'port'");
+        ASSERT_NO_ERROR(hits_res);
+        ASSERT_THAT(*hits_res, testing::SizeIs(testing::Eq(2)));
+        std::string hits = (*hits_res)[0][0];
+        std::string port = (*hits_res)[1][0];
+
+        ASSERT_THAT(hits, Not(IsEmpty()));
+        ASSERT_THAT(port, Not(IsEmpty()));
+
+        if (!last_hits.contains(port)) {
+          // second round and later.
+          //
+          // with TLS on the server-side there should be TLS resumption.
+          if (GetParam().server_ssl_mode == kPreferred ||
+              GetParam().server_ssl_mode == kRequired ||
+              (GetParam().server_ssl_mode == kAsClient &&
+               (GetParam().client_ssl_mode == kPreferred ||
+                GetParam().client_ssl_mode == kRequired))) {
+            // the hits should increase.
+            //
+            // As the metadata-cache also connects to the backends and
+            // resumes TLS connections we don't know the exact increase
+            EXPECT_NE(last_hits[port], hits);
+          }
+        }
+
+        last_hits[port] = hits;
+
+        ro_port = port;
+      }
+
+      auto prep_res = cli.prepare("DO ?");  // on the read-write node.
+      ASSERT_NO_ERROR(prep_res);
+
+      {
+        SCOPED_TRACE("// checking TLS resumptions with the server.");
+        auto hits_res = query_one_result(
+            cli,
+            "SELECT variable_value "
+            "  FROM performance_schema.session_status "
+            " WHERE variable_name LIKE 'Ssl_session_cache_hits'"
+            " UNION "
+            " SELECT variable_value "
+            "  FROM performance_schema.global_variables "
+            " WHERE variable_name LIKE 'port'");
+        ASSERT_NO_ERROR(hits_res);
+        ASSERT_THAT(*hits_res, testing::SizeIs(testing::Eq(2)));
+        std::string hits = (*hits_res)[0][0];
+        std::string port = (*hits_res)[1][0];
+
+        ASSERT_THAT(hits, Not(IsEmpty()));
+        ASSERT_THAT(port, Not(IsEmpty()));
+
+        if (!last_hits.contains(port)) {
+          // second round and later.
+          //
+          // with TLS on the server-side there should be TLS resumption.
+          if (GetParam().server_ssl_mode == kPreferred ||
+              GetParam().server_ssl_mode == kRequired ||
+              (GetParam().server_ssl_mode == kAsClient &&
+               (GetParam().client_ssl_mode == kPreferred ||
+                GetParam().client_ssl_mode == kRequired))) {
+            // the hits should increase.
+            //
+            // As the metadata-cache also connects to the backends and
+            // resumes TLS connections we don't know the exact increase
+            EXPECT_NE(last_hits[port], hits);
+          }
+        }
+
+        last_hits[port] = hits;
+
+        rw_port = port;
+      }
+
+      EXPECT_NE(rw_port, ro_port);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, SplittingConnectionNoPoolTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;

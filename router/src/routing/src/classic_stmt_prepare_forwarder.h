@@ -39,8 +39,6 @@ class StmtPrepareForwarder : public ForwardingProcessor {
 
     ForbidCommand,
 
-    PoolBackend,
-    SwitchBackend,
     PrepareBackend,
 
     Connect,
@@ -68,8 +66,6 @@ class StmtPrepareForwarder : public ForwardingProcessor {
  private:
   stdx::expected<Result, std::error_code> command();
   stdx::expected<Result, std::error_code> forbid_command();
-  stdx::expected<Result, std::error_code> pool_backend();
-  stdx::expected<Result, std::error_code> switch_backend();
   stdx::expected<Result, std::error_code> prepare_backend();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();

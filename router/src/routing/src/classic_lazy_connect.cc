@@ -40,7 +40,6 @@
 #include "classic_greeting_forwarder.h"  // ServerGreetor
 #include "classic_init_schema_sender.h"
 #include "classic_query_sender.h"
-#include "classic_quit_sender.h"
 #include "classic_reset_connection_sender.h"
 #include "classic_set_option_sender.h"
 #include "mysql/harness/logging/logging.h"
@@ -879,27 +878,7 @@ stdx::expected<Processor::Result, std::error_code>
 LazyConnector::pool_or_close() {
   stage(Stage::FallbackToWrite);
 
-#if 1
   connection()->stash_server_conn();
-#else
-  const auto pool_res = pool_server_connection();
-  if (!pool_res) return stdx::unexpected(pool_res.error());
-
-  const auto still_open = *pool_res;
-  if (still_open) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::pooled"));
-    }
-
-  } else {
-    // connection wasn't pooled as the pool was full. close it.
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::pool_full"));
-    }
-
-    connection()->push_processor(std::make_unique<QuitSender>(connection()));
-  }
-#endif
 
   return Result::Again;
 }
