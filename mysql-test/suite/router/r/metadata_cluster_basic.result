@@ -332,9 +332,7 @@ GET /svc/basic/t2/3000
     }
 }
 OK
-include/rpl/sync.inc
 DROP SCHEMA mysql_innodb_cluster_metadata;
-include/rpl/sync.inc
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;

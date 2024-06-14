@@ -80,6 +80,7 @@ struct ApplicationConfiguration {
   std::string content_type;
   HttpStatusCode::key_type expected_status{HttpStatusCode::Ok};
   std::optional<Seconds> wait_until_found;
+  std::optional<Seconds> wait_until_status;
 };
 
 }  // namespace http_client
