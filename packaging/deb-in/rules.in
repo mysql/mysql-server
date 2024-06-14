@@ -122,7 +122,7 @@ override_dh_install:
 # it leads to file conflict errors when trying to install dbgsym-deb packages
 # for both.
 override_dh_strip:
-	dh_strip -Xlibprotobuf-lite
+	dh_strip -Xlibprotobuf-lite -Xlibmysqlclient.a
 
 # Debug plugins use libprotobuf-lite from the server package.
 override_dh_shlibdeps:
