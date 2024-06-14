@@ -109,15 +109,15 @@ DEFINE_BOOL_METHOD(mysql_stored_program_metadata_query_imp::get,
 /**
   Get stored program argument metadata
 
-  "argument_name" -> const char *
-  "sql_type"      -> uint64_t
-  "in_variable"   -> boolean
-  "out_variable"  -> boolean
-  "is_signed"     -> boolean (Applicable to numeric data types)
-  "is_nullable"   -> boolean
-  "byte_length"   -> uint64_t
-  "char_length"   -> uint64_t (Applicable to string data types)
-  "charset"       -> char const *
+  "argument_name"   -> const char *
+  "sql_type"        -> uint64_t
+  "in_variable"     -> boolean
+  "out_variable"    -> boolean
+  "is_signed"       -> boolean (Applicable to numeric data types)
+  "is_nullable"     -> boolean
+  "charset"         -> char const *
+  "max_byte_length" -> size_t (Applicable to string/blob data types)
+
   @note Have the key at least 7 characters long, with unique first 8 characters.
 
   @returns status of get operation
@@ -247,14 +247,12 @@ static int get_field_metadata_internal(Create_field &field, bool input,
       default:
         return MYSQL_FAILURE;
     }
-  else if (strcmp("byte_length", key) == 0)
-    *reinterpret_cast<size_t *>(value) = field.pack_length();
-  else if (strcmp("char_length", key) == 0)
-    *reinterpret_cast<size_t *>(value) = field.key_length();
   else if (strcmp("charset", key) == 0)
     *reinterpret_cast<char const **>(value) = field.charset->csname;
   else if (strcmp("decimals", key) == 0)
     *reinterpret_cast<uint32_t *>(value) = field.decimals;
+  else if (strcmp("max_byte_length", key) == 0)
+    *reinterpret_cast<size_t *>(value) = field.max_display_width_in_bytes();
   else
     return MYSQL_FAILURE;
   return MYSQL_SUCCESS;
@@ -263,15 +261,14 @@ static int get_field_metadata_internal(Create_field &field, bool input,
 /**
   Get stored program argument metadata
 
-  "argument_name" -> const char *
-  "sql_type"      -> uint64_t
-  "in_variable"   -> boolean
-  "out_variable"  -> boolean
-  "is_signed"     -> boolean (Applicable to numeric data types)
-  "is_nullable"   -> boolean
-  "byte_length"   -> uint64_t
-  "char_length"   -> uint64_t (Applicable to string data types)
-  "charset"       -> char const *
+  "argument_name"   -> const char *
+  "sql_type"        -> uint64_t
+  "in_variable"     -> boolean
+  "out_variable"    -> boolean
+  "is_signed"       -> boolean (Applicable to numeric data types)
+  "is_nullable"     -> boolean
+  "charset"         -> char const *
+  "max_byte_length" -> size_t (Applicable to string/blob data types)
   @note Have the key at least 7 characters long, with unique first 8 characters.
 
   @param [in]  sp_handle    Handle to stored procedure structure
@@ -301,15 +298,14 @@ DEFINE_BOOL_METHOD(mysql_stored_program_argument_metadata_query_imp::get,
 /**
   Get stored program return metadata
 
-  "argument_name" -> const char *
-  "sql_type"      -> uint64_t
-  "in_variable"   -> boolean
-  "out_variable"  -> boolean
-  "is_signed"     -> boolean (Applicable to numeric data types)
-  "is_nullable"   -> boolean
-  "byte_length"   -> uint64_t
-  "char_length"   -> uint64_t (Applicable to string data types)
-  "charset"       -> char const *
+  "argument_name"   -> const char *
+  "sql_type"        -> uint64_t
+  "in_variable"     -> boolean
+  "out_variable"    -> boolean
+  "is_signed"       -> boolean (Applicable to numeric data types)
+  "is_nullable"     -> boolean
+  "charset"         -> char const *
+  "max_byte_length" -> size_t (Applicable to string/blob data types)
   @note Have the key at least 7 characters long, with unique first 8 characters.
 
   @param [in]  sp_handle    Handle to stored procedure structure

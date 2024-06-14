@@ -188,6 +188,9 @@ DEFINE_BOOL_METHOD(mysql_stmt_metadata_imp::param_metadata,
   } else if (strcmp(metadata, "charset") == 0) {
     *static_cast<const char **>(data) = param->collation.collation->csname;
     return MYSQL_SUCCESS;
+  } else if (strcmp(metadata, "max_byte_length") == 0) {
+    *static_cast<size_t *>(data) = param->max_length;
+    return MYSQL_SUCCESS;
   }
   return MYSQL_FAILURE;
 }

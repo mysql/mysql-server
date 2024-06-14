@@ -591,6 +591,7 @@ DECLARE_BOOL_METHOD(param_count,
   - Parameter type ("type" of the returned uint64_t type)
   - Parameter is unsigned ("is_unsigned" of the returned bool type)
   - Parameter charset ("charset" of the returned const char* type)
+  - Parameter max_byte_length ("max_byte_length" of the returned size_t type)
 
   @param [out] data The data argument is the value for the member
   @return Status of the performed operation
