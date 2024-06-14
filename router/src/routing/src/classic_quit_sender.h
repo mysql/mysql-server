@@ -34,6 +34,7 @@ class QuitSender : public Processor {
 
   enum class Stage {
     Command,
+    TlsShutdown,
     CloseSocket,
     Done,
   };
@@ -45,6 +46,7 @@ class QuitSender : public Processor {
 
  private:
   stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> tls_shutdown();
   stdx::expected<Result, std::error_code> close_socket();
 
   Stage stage_{Stage::Command};

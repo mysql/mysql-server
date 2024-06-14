@@ -44,6 +44,8 @@ stdx::expected<Processor::Result, std::error_code> QuitSender::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
+    case Stage::TlsShutdown:
+      return tls_shutdown();
     case Stage::CloseSocket:
       return close_socket();
     case Stage::Done:
@@ -68,6 +70,55 @@ stdx::expected<Processor::Result, std::error_code> QuitSender::command() {
       ClassicFrame::send_msg<classic_protocol::borrowed::message::client::Quit>(
           dst_channel, dst_protocol, {});
   if (!msg_res) return send_server_failed(msg_res.error());
+
+  // the COM_QUIT is not encrypted yet, flush it to the send-buffer.
+  dst_channel.flush_to_send_buf();
+
+  if (dst_channel.ssl() == nullptr) {
+    // no TLS, close the socket.
+    stage(Stage::CloseSocket);
+    return Result::SendToServer;
+  }
+
+  stage(Stage::TlsShutdown);
+  return Result::Again;
+}
+
+// called twice
+stdx::expected<Processor::Result, std::error_code> QuitSender::tls_shutdown() {
+  auto &dst_conn = connection()->server_conn();
+  auto &dst_channel = dst_conn.channel();
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event()
+                 .stage("quit::tls_shutdown")
+                 .direction(Tracer::Event::Direction::kServerClose));
+  }
+
+  const auto res = dst_channel.tls_shutdown();
+  if (!res) {
+    const auto ec = res.error();
+
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("tls_shutdown::server::err::" +
+                                     res.error().message()));
+    }
+
+    if (!dst_channel.send_buffer().empty()) {
+      assert(ec == TlsErrc::kWantRead);
+
+      if (ec != TlsErrc::kWantRead) {
+        stage(Stage::CloseSocket);
+      }
+      return Result::RecvFromServer;
+    }
+
+    if (ec == TlsErrc::kWantRead) return Result::RecvFromServer;
+
+    log_fatal_error_code("tls_shutdown::server failed", ec);
+
+    return recv_server_failed(ec);
+  }
 
   stage(Stage::CloseSocket);
   return Result::SendToServer;
