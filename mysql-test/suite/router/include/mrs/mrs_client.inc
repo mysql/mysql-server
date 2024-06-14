@@ -42,11 +42,6 @@ if ($mrs_client_arg_payload)
   --let $mrs_client_cmd=$mrs_client_cmd --encoded-payload $mrs_client_arg_payload
 }
 
-if ($mrs_client_expected_status)
-{
-  --let $mrs_client_cmd=$mrs_client_cmd --expected-status $mrs_client_expected_status
-}
-
 if ($mrs_client_arg_expected_status)
 {
   --let $mrs_client_cmd=$mrs_client_cmd --expected-status $mrs_client_arg_expected_status
