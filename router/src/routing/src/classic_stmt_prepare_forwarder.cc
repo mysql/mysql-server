@@ -28,7 +28,6 @@
 #include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
-#include "classic_quit_sender.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql errors
@@ -60,10 +59,6 @@ StmtPrepareForwarder::process() {
       return command();
     case Stage::ForbidCommand:
       return forbid_command();
-    case Stage::PoolBackend:
-      return pool_backend();
-    case Stage::SwitchBackend:
-      return switch_backend();
     case Stage::PrepareBackend:
       return prepare_backend();
     case Stage::Connect:
@@ -214,11 +209,6 @@ StmtPrepareForwarder::command() {
 
         // read-only, but can be switched.
         connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
-
-        if (connection()->server_conn().is_open()) {
-          // as the connection will be switched, get rid of this connection.
-          stage(Stage::PoolBackend);
-        }
       } else {
         // read-only, but can't be switched.
         stage(Stage::ForbidCommand);
@@ -231,21 +221,11 @@ StmtPrepareForwarder::command() {
           connection()->expected_server_mode() !=
               mysqlrouter::ServerMode::ReadOnly) {
         connection()->expected_server_mode(mysqlrouter::ServerMode::ReadOnly);
-
-        if (connection()->server_conn().is_open()) {
-          // as the connection will be switched, get rid of this connection.
-          stage(Stage::PoolBackend);
-        }
       } else if (session_access_mode ==
                      ClientSideClassicProtocolState::AccessMode::ReadWrite &&
                  connection()->expected_server_mode() !=
                      mysqlrouter::ServerMode::ReadWrite) {
         connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
-
-        if (connection()->server_conn().is_open()) {
-          // as the connection will be switched, get rid of this connection.
-          stage(Stage::PoolBackend);
-        }
       }
     }
   }
@@ -278,51 +258,6 @@ StmtPrepareForwarder::forbid_command() {
   if (!send_res) return stdx::unexpected(send_res.error());
 
   return Result::SendToClient;
-}
-
-// pool the current server connection.
-stdx::expected<Processor::Result, std::error_code>
-StmtPrepareForwarder::pool_backend() {
-  stage(Stage::SwitchBackend);
-
-  auto pooled_res = pool_server_connection();
-  if (!pooled_res) return send_server_failed(pooled_res.error());
-
-  const auto pooled = *pooled_res;
-
-  if (pooled) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("stmt_prepare::switch_backend::pooled"));
-    }
-  } else {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("stmt_prepare::switch_backend::full"));
-    }
-
-    // as the pool is full, close the server connection nicely.
-    connection()->push_processor(std::make_unique<QuitSender>(connection()));
-  }
-
-  return Result::Again;
-}
-
-stdx::expected<Processor::Result, std::error_code>
-StmtPrepareForwarder::switch_backend() {
-  // toggle the read-only state.
-  // and connect to the backend again.
-  stage(Stage::PrepareBackend);
-
-  auto &server_conn = connection()->server_conn();
-
-  // server socket is closed, reset its state.
-  auto ssl_mode = server_conn.ssl_mode();
-  server_conn =
-      TlsSwitchableConnection{nullptr,   // connection
-                              ssl_mode,  //
-                              MysqlRoutingClassicConnectionBase::
-                                  ServerSideConnection::protocol_state_type()};
-
-  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
