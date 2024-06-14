@@ -45,11 +45,10 @@ if (!$mrs_add_auth_role_name)
 eval  SET $mrs_sql_id_variable=mysql_rest_service_metadata.get_sequence_id();
  
 eval INSERT INTO mysql_rest_service_metadata.auth_app
-    (id, auth_vendor_id, service_id, name, enabled, limit_to_registered_users,
+    (id, auth_vendor_id, name, enabled, limit_to_registered_users,
     default_role_id, app_id, access_token)
     VALUES($mrs_sql_id_variable,
     (SELECT id FROM mysql_rest_service_metadata.auth_vendor WHERE name like "$mrs_add_auth_vendor"),
-    (SELECT id FROM mysql_rest_service_metadata.service WHERE url_context_root like "$mrs_add_auth_service"),
     "$mrs_add_auth_app",
     1,
     $mrs_add_auth_registered_users_only,
@@ -57,6 +56,9 @@ eval INSERT INTO mysql_rest_service_metadata.auth_app
     $mrs_add_auth_client_id,
     $mrs_add_auth_client_secret
     );
+eval INSERT INTO mysql_rest_service_metadata.service_has_auth_app()
+  VALUES((SELECT id FROM mysql_rest_service_metadata.service WHERE url_context_root like "$mrs_add_auth_service"),
+         $mrs_sql_id_variable);
   
 --echo # Registred AUTH APP at path: $mrs_add_auth_service
   

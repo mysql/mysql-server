@@ -30,7 +30,6 @@
 namespace mrs {
 namespace database {
 
-class QueryChangesAuthApp;
 class QueryChangesDbObject;
 class QueryAuditLogEntries;
 class QueryEntriesAuthPrivileges;
@@ -57,31 +56,21 @@ class QueryFactory {
  public:
   virtual ~QueryFactory() = default;
 
-  virtual std::shared_ptr<database::QueryChangesAuthApp>
-  create_query_changes_auth_app(const uint64_t last_audit_log_id) = 0;
-  virtual std::shared_ptr<database::QueryChangesContentFile>
-  create_query_changes_content_file(const uint64_t last_audit_log_id) = 0;
-  virtual std::shared_ptr<database::QueryChangesDbObject>
-  create_query_changes_db_object(const uint64_t last_audit_log_id) = 0;
   virtual std::shared_ptr<database::QueryAuditLogEntries>
   create_query_audit_log() = 0;
-  virtual std::shared_ptr<database::QueryEntriesAuthApp>
-  create_query_auth_all() = 0;
   virtual std::shared_ptr<database::QueryEntriesAuthPrivileges>
   create_query_auth_privileges() = 0;
   virtual std::shared_ptr<database::QueryEntriesContentFile>
   create_query_content_files() = 0;
 
+  virtual std::shared_ptr<database::QueryEntryContentFile>
+  create_query_content_file() = 0;
   virtual std::shared_ptr<database::QueryRestSPMedia>
   create_query_sp_media() = 0;
   virtual std::shared_ptr<database::QueryEntryGroupRowSecurity>
   create_query_group_row_security() = 0;
-  virtual std::shared_ptr<database::QueryEntryContentFile>
-  create_query_content_file() = 0;
   virtual std::shared_ptr<database::QueryEntryAuthUser>
   create_query_auth_user() = 0;
-  virtual std::shared_ptr<database::QueryEntryDbObject>
-  create_query_db_object() = 0;
   virtual std::shared_ptr<database::QueryEntryObject> create_query_object() = 0;
 
   virtual std::shared_ptr<database::QueryUserGroups>

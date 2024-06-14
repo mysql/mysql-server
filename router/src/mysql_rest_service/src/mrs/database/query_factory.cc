@@ -46,28 +46,8 @@
 namespace mrs {
 namespace database {
 
-std::shared_ptr<QueryChangesAuthApp>
-QueryFactory::create_query_changes_auth_app(const uint64_t last_audit_log_id) {
-  return std::make_shared<QueryChangesAuthApp>(last_audit_log_id);
-}
-
-std::shared_ptr<QueryChangesContentFile>
-QueryFactory::create_query_changes_content_file(
-    const uint64_t last_audit_log_id) {
-  return std::make_shared<QueryChangesContentFile>(last_audit_log_id);
-}
-
-std::shared_ptr<QueryChangesDbObject>
-QueryFactory::create_query_changes_db_object(const uint64_t last_audit_log_id) {
-  return std::make_shared<QueryChangesDbObject>(last_audit_log_id);
-}
-
 std::shared_ptr<QueryAuditLogEntries> QueryFactory::create_query_audit_log() {
   return std::make_shared<QueryAuditLogEntries>();
-}
-
-std::shared_ptr<QueryEntriesAuthApp> QueryFactory::create_query_auth_all() {
-  return std::make_shared<QueryEntriesAuthApp>();
 }
 
 std::shared_ptr<QueryEntriesAuthPrivileges>
@@ -96,10 +76,6 @@ QueryFactory::create_query_content_file() {
 
 std::shared_ptr<QueryEntryAuthUser> QueryFactory::create_query_auth_user() {
   return std::make_shared<QueryEntryAuthUser>();
-}
-
-std::shared_ptr<QueryEntryDbObject> QueryFactory::create_query_db_object() {
-  return std::make_shared<QueryEntryDbObject>();
 }
 
 std::shared_ptr<QueryEntryObject> QueryFactory::create_query_object() {

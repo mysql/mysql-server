@@ -29,19 +29,8 @@
 
 class MockQueryFactory : public mrs::interface::QueryFactory {
  public:
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryChangesAuthApp>,
-              create_query_changes_auth_app, (const uint64_t last_audit_log_id),
-              (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryChangesContentFile>,
-              create_query_changes_content_file,
-              (const uint64_t last_audit_log_id), (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryChangesDbObject>,
-              create_query_changes_db_object,
-              (const uint64_t last_audit_log_id), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryAuditLogEntries>,
               create_query_audit_log, (), (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntriesAuthApp>,
-              create_query_auth_all, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntriesAuthPrivileges>,
               create_query_auth_privileges, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntriesContentFile>,
@@ -54,8 +43,6 @@ class MockQueryFactory : public mrs::interface::QueryFactory {
               create_query_content_file, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryAuthUser>,
               create_query_auth_user, (), (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryDbObject>,
-              create_query_db_object, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryObject>,
               create_query_object, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryUserGroups>,

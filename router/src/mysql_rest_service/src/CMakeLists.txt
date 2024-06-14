@@ -33,8 +33,8 @@ TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_if
 ADD_LIBRARY(mysql_rest_service_db
   STATIC
   mrs/database/filter_object_generator.cc
-  mrs/database/schema_monitor.cc
-  mrs/database/query_changes_auth_app.cc
+  mrs/database/monitor/schema_monitor.cc
+  mrs/database/monitor/schema_monitor_factory.cc
   mrs/database/query_entries_auth_privileges.cc
   mrs/database/query_changes_content_file.cc
   mrs/database/query_changes_db_object.cc

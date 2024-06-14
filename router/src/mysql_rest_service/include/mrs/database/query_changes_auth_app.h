@@ -28,22 +28,86 @@
 #include <set>
 
 #include "mrs/database/entry/universal_id.h"
+#include "mrs/database/query_entries_audit_log.h"
 #include "mrs/database/query_entries_auth_app.h"
 
 namespace mrs {
 namespace database {
 
-class QueryChangesAuthApp : public QueryEntriesAuthApp {
+template <typename QueryForAuthApps = v2::QueryEntriesAuthApp>
+class QueryChangesAuthApp : public QueryForAuthApps {
  public:
-  QueryChangesAuthApp(const uint64_t last_audit_log_id);
-  void query_entries(MySQLSession *session) override;
+  using Parent = QueryForAuthApps;
+  using MySQLSession = mysqlrouter::MySQLSession;
+  using Entries = typename Parent::Entries;
+
+ public:
+  QueryChangesAuthApp(const uint64_t last_audit_log_id) {
+    Parent::audit_log_id_ = last_audit_log_id;
+  }
+
+  void query_entries(MySQLSession *session) override {
+    QueryAuditLogEntries audit_entries;
+    Entries local_entries;
+    uint64_t max_audit_log_id = Parent::audit_log_id_;
+
+    entries_fetched.clear();
+    MySQLSession::Transaction transaction(session);
+
+    audit_entries.query_entries(
+        session, {"service", "url_host", "auth_app", "auth_vendor"},
+        Parent::audit_log_id_);
+
+    for (const auto &audit_entry : audit_entries.entries) {
+      if (audit_entry.old_table_id.has_value())
+        query_auth_entries(session, &local_entries, audit_entry.table,
+                           audit_entry.old_table_id.value());
+
+      if (audit_entry.new_table_id.has_value())
+        query_auth_entries(session, &local_entries, audit_entry.table,
+                           audit_entry.new_table_id.value());
+
+      if (max_audit_log_id < audit_entry.id) max_audit_log_id = audit_entry.id;
+    }
+
+    Parent::entries_.swap(local_entries);
+
+    transaction.commit();
+
+    Parent::audit_log_id_ = max_audit_log_id;
+  }
 
  private:
   void query_auth_entries(MySQLSession *session, Entries *out,
                           const std::string &table_name,
-                          const entry::UniversalId &id);
+                          const entry::UniversalId &id) {
+    Parent::entries_.clear();
+
+    Parent::query(session, build_query(table_name, id));
+
+    for (const auto &entry : Parent::entries_) {
+      if (entries_fetched.count(entry.id)) continue;
+
+      out->push_back(entry);
+      entries_fetched.insert(entry.id);
+    }
+
+    if (Parent::entries_.empty() && table_name == "auth_app") {
+      entry::AuthApp pe;
+      pe.id = id;
+      pe.deleted = true;
+      entries_fetched.insert(id);
+      out->push_back(pe);
+    }
+  }
+
   std::string build_query(const std::string &table_name,
-                          const entry::UniversalId &id);
+                          const entry::UniversalId &id) {
+    mysqlrouter::sqlstring where{" WHERE !=? "};
+    where << (table_name + "_id") << id;
+
+    return Parent::query_.str() + where.str();
+  }
 
   std::set<entry::UniversalId> entries_fetched;
 };

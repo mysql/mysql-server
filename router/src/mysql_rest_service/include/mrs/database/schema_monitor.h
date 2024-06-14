@@ -35,7 +35,9 @@
 #include "mrs/authentication/authorize_manager.h"
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
+#include "mrs/database/monitor/schema_monitor_factory.h"
 #include "mrs/gtid_manager.h"
+#include "mrs/interface/schema_monitor_factory.h"
 #include "mrs/object_manager.h"
 #include "mrs/observability/entities_manager.h"
 
@@ -44,12 +46,13 @@ namespace database {
 
 class SchemaMonitor {
  public:
-  SchemaMonitor(const mrs::Configuration &configuration,
-                collector::MysqlCacheManager *cache,
-                mrs::ObjectManager *dbobject_manager,
-                authentication::AuthorizeManager *auth_manager,
-                mrs::observability::EntitiesManager *entities_manager,
-                mrs::GtidManager *gtid_manager);
+  SchemaMonitor(
+      const mrs::Configuration &configuration,
+      collector::MysqlCacheManager *cache, mrs::ObjectManager *dbobject_manager,
+      authentication::AuthorizeManager *auth_manager,
+      mrs::observability::EntitiesManager *entities_manager,
+      mrs::GtidManager *gtid_manager,
+      SchemaMonitorFactoryMethod method = &create_scheme_monitor_factory);
   ~SchemaMonitor();
 
   void start();
@@ -76,6 +79,7 @@ class SchemaMonitor {
   mrs::GtidManager *gtid_manager_;
   WaitableVariable<State> state_{k_initializing};
   Waitable waitable_{this};
+  SchemaMonitorFactoryMethod schema_monitor_factory_method_;
 };
 
 }  // namespace database

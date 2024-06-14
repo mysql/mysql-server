@@ -30,6 +30,10 @@
 namespace mrs {
 namespace database {
 
+using Entries = QueryEntriesAuthApp::Entries;
+
+namespace v2 {
+
 uint64_t QueryEntriesAuthApp::get_last_update() { return audit_log_id_; }
 
 QueryEntriesAuthApp::QueryEntriesAuthApp() {
@@ -67,10 +71,10 @@ void QueryEntriesAuthApp::query_entries(MySQLSession *session) {
 }
 
 void QueryEntriesAuthApp::on_row(const ResultRow &row) {
-  entries.emplace_back();
+  entries_.emplace_back();
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
-  AuthApp &entry = entries.back();
+  AuthApp &entry = entries_.back();
 
   mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
   mysql_row.unserialize_with_converter(&entry.service_id,
@@ -102,5 +106,37 @@ void QueryEntriesAuthApp::on_row(const ResultRow &row) {
   entry.deleted = false;
 }
 
+Entries &QueryEntriesAuthApp::get_entries() { return entries_; }
+
+}  // namespace v2
+
+namespace v3 {
+
+QueryEntriesAuthApp::QueryEntriesAuthApp() {
+  query_ =
+      "SELECT * FROM (SELECT a.id, service_id, s.url_context_root, v.name, "
+      "a.name as app_name,  "
+      "  a.enabled and "
+      "    v.enabled, a.url, v.validation_url,  a.access_token, a.app_id, "
+      "  CONCAT(IF(s.url_protocol=\"HTTPS\",\"https://\",\"http://\"),h.name) "
+      "    as host, "
+      "  CONCAT(IF(s.url_protocol=\"HTTPS\",\"https://\",\"http://\"),(select "
+      "  a.alias from mysql_rest_service_metadata.`url_host_alias` as a where "
+      "    h.id=a.url_host_id limit 1)) as host_alias,"
+      "  a.url_direct_auth,"
+      "  a.limit_to_registered_users, a.default_role_id,"
+      "  s.auth_path, s.options, s.auth_completed_url, "
+      "s.auth_completed_page_content, "
+      "  a.id as auth_app_id, auth_vendor_id, h.id as url_host_id"
+      " FROM mysql_rest_service_metadata.service_has_auth_app as has "
+      "JOIN mysql_rest_service_metadata.auth_app as a on has.auth_app_id=a.id "
+      "JOIN mysql_rest_service_metadata.`auth_vendor` as v on a.auth_vendor_id "
+      "= v.id "
+      "JOIN mysql_rest_service_metadata.service as s on has.service_id = s.id "
+      "JOIN mysql_rest_service_metadata.url_host as h on s.url_host_id = h.id "
+      ") as subtable ";
+}
+
+}  // namespace v3
 }  // namespace database
 }  // namespace mrs

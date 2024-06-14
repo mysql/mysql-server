@@ -655,12 +655,14 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
 void BootstrapConfigurator::check_mrs_metadata(
     mysqlrouter::MySQLSession *session) const {
   try {
+    mrs::database::MrsSchemaVersionChecker k_version_combatible_2{2, 2};
+    mrs::database::MrsSchemaVersionChecker k_version_combatible_3{3};
     mrs::database::QueryVersion q;
-    const int k_current_major{2}, k_current_minor{2};
 
     auto version = q.query_version(session);
 
-    if (version.major != k_current_major || version.minor > k_current_minor) {
+    if (!k_version_combatible_3.is_compatible(version) &&
+        !k_version_combatible_2.is_compatible(version)) {
       std::stringstream ss;
       ss << "Unsupported MRS metadata version (" << version.major << "."
          << version.minor << "." << version.patch << ")";
