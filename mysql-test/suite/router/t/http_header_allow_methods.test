@@ -11,6 +11,26 @@
 --let $mrs_add_host_name=""
 --source ../include/mrs/service/add.inc
 
+
+--let $mrs_add_schema=func_schema
+--let $mrs_add_schema_path=/functions
+--source ../include/mrs/db_schema/add.inc
+
+--echo # Function object with all options available (GET, PUT, OPTIONS)
+--let $mrs_add_db_object=func_sum
+--let $mrs_add_db_object_path=/func_all
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--source ../include/mrs/db_object/add.inc
+
+--echo # Function object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
+--let $mrs_add_db_object=func_sum
+--let $mrs_add_db_object_path=/func_get
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--source ../include/mrs/db_object/add.inc
+
+
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic
 --source ../include/mrs/db_schema/add.inc
@@ -58,29 +78,11 @@
 --let $mrs_add_db_object_op=READ
 --source ../include/mrs/db_object/add.inc
 
---let $mrs_add_schema=func_schema
---let $mrs_add_schema_path=/functions
---source ../include/mrs/db_schema/add.inc
-
---echo # Function object with all options available (GET, PUT, OPTIONS)
---let $mrs_add_db_object=func_sum
---let $mrs_add_db_object_path=/func_all
---let $mrs_add_db_object_type=FUNCTION
---let $mrs_add_db_object_format=ITEM
---source ../include/mrs/db_object/add.inc
-
---echo # Function object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
---let $mrs_add_db_object=func_sum
---let $mrs_add_db_object_path=/func_get
---let $mrs_add_db_object_type=FUNCTION
---let $mrs_add_db_object_format=ITEM
---source ../include/mrs/db_object/add.inc
-
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,HEADER
 
 --replace_regex /^Date.*/Date -> %DATE%/
---exec $MRS_CLIENT_ARGS --path /svc/basic/t_all --wait-until-found=60
+--exec $MRS_CLIENT_ARGS --path /svc/basic/proc_get --wait-until-found=60
 --replace_regex /^Date.*/Date -> %DATE%/
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t_create --expected-status Forbidden
 --replace_regex /^Date.*/Date -> %DATE%/

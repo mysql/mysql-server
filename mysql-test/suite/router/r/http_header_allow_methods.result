@@ -12,6 +12,11 @@
 # DB `basic_schema` - created
 # DB `func_schema` - created
 # Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/functions
+# Function object with all options available (GET, PUT, OPTIONS)
+# Registred DB_OBJECT at path: /svc/functions/func_all
+# Function object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
+# Registred DB_OBJECT at path: /svc/functions/func_get
 # Registred DB_SCHEMA at path: /svc/basic
 # Table object with all CRUD options available
 # Registred DB_OBJECT at path: /svc/basic/t_all
@@ -27,16 +32,11 @@
 # Registred DB_OBJECT at path: /svc/basic/proc_all
 # Procedure object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
 # Registred DB_OBJECT at path: /svc/basic/proc_get
-# Registred DB_SCHEMA at path: /svc/functions
-# Function object with all options available (GET, PUT, OPTIONS)
-# Registred DB_OBJECT at path: /svc/functions/func_all
-# Function object with only READ available, it should still report (GET, PUT, OPTIONS) in the Access-Control-Allow-Methods
-# Registred DB_OBJECT at path: /svc/functions/func_get
-GET /svc/basic/t_all
+GET /svc/basic/proc_get
 Date -> %DATE%
-Access-Control-Allow-Methods  ->  GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Methods  ->  GET, PUT, OPTIONS
 Content-Type  ->  application/json
-Content-Length  ->  1023
+Content-Length  ->  124
 GET /svc/basic/t_create
 Date -> %DATE%
 Access-Control-Allow-Methods  ->  POST, OPTIONS
