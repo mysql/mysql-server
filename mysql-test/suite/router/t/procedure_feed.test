@@ -204,7 +204,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_path='/svc/proc/nothing'
 --let $mrs_client_arg_payload='{"not-existing-param":20}'
 --let $mrs_client_arg_request_type='PUT'
---let $mrs_client_expected_status=BadRequest
+--let $mrs_client_arg_expected_status=BadRequest
 --source ../include/mrs/mrs_client.inc
 
 --echo
@@ -229,7 +229,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_path='/svc/proc/sum?a=10&b=20'
 --let $mrs_client_arg_payload=
 --let $mrs_client_arg_request_type=
---let $mrs_client_expected_status=
+--let $mrs_client_arg_expected_status=
 --source ../include/mrs/mrs_client.inc
 
 --echo
@@ -264,7 +264,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_path='/svc/proc/sum'
 --let $mrs_client_arg_payload='{"a":10,"b":20}'
 --let $mrs_client_arg_request_type='PUT'
---let $mrs_client_expected_status=
+--let $mrs_client_arg_expected_status=
 --source ../include/mrs/mrs_client.inc
 
 --echo
