@@ -127,7 +127,7 @@ static bool skip_destination(MysqlRoutingClassicConnectionBase *conn,
                              Destination *destination) {
   if (conn->context().access_mode() != routing::AccessMode::kAuto) return false;
 
-  const auto conn_server_mode = conn->expected_server_mode();
+  const auto conn_server_mode = conn->current_server_mode();
   const auto dest_server_mode = destination->server_mode();
 
   return ((conn_server_mode == mysqlrouter::ServerMode::ReadOnly &&
@@ -161,7 +161,7 @@ ConnectProcessor::init_destination() {
 
   all_quarantined_ = true;
 
-  // adjust the expected-server-mode depending if we have:
+  // adjust the current-server-mode depending if we have:
   //
   // - RW, RO
   // - only RW (multi-primary)
@@ -180,9 +180,9 @@ ConnectProcessor::init_destination() {
     }
 
     if (has_read_only && !has_read_write) {
-      connection()->expected_server_mode(mysqlrouter::ServerMode::ReadOnly);
+      connection()->current_server_mode(mysqlrouter::ServerMode::ReadOnly);
     } else if (!has_read_only && has_read_write) {
-      connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+      connection()->current_server_mode(mysqlrouter::ServerMode::ReadWrite);
     }
   }
 
@@ -241,10 +241,14 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
     return Result::Again;
   }
 
-  if (!connection()->get_destination_id().empty()) {
-    // already connected before. Make sure the same endpoint is connected.
-    const auto dest_id = connection()->get_destination_id();
+  // must use current_server_mode() here as this may be a fallback round.
+  const auto dest_id =
+      connection()->current_server_mode() == mysqlrouter::ServerMode::ReadOnly
+          ? connection()->read_only_destination_id()
+          : connection()->read_write_destination_id();
 
+  if (!dest_id.empty()) {
+    // already connected before. Make sure the same endpoint is connected.
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("connect::sticky: " + dest_id));
     }
@@ -370,8 +374,8 @@ void ConnectProcessor::assign_server_side_connection_after_pool(
   if (connection()->expected_server_mode() ==
       mysqlrouter::ServerMode::Unavailable) {
     const auto *dest = destinations_it_->get();
-    // before the first query, the server-mode is not set, remember it
-    // now.
+    // before the first query, the server-mode is not set,
+    // remember it now.
     connection()->expected_server_mode(dest->server_mode());
   }
 
@@ -945,9 +949,11 @@ ConnectProcessor::next_destination() {
 
   if (connection()->context().access_mode() == routing::AccessMode::kAuto &&
       connection()->expected_server_mode() ==
+          mysqlrouter::ServerMode::ReadOnly &&
+      connection()->current_server_mode() ==
           mysqlrouter::ServerMode::ReadOnly) {
     // if we want a RO connections but there are only primaries, take a primary.
-    connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+    connection()->current_server_mode(mysqlrouter::ServerMode::ReadWrite);
     stage(Stage::InitDestination);
     return Result::Again;
   }
@@ -976,7 +982,8 @@ ConnectProcessor::connected() {
   // remember the destination and its server-mode for connection-sharing.
   if (connection()->expected_server_mode() ==
       mysqlrouter::ServerMode::Unavailable) {
-    // before the first query, the server-mode is not set, remember it now.
+    // before the first query the server-mode is not set,
+    // remember it now.
     connection()->expected_server_mode(dest->server_mode());
   }
 

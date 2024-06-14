@@ -2535,6 +2535,82 @@ TEST_P(SplittingConnectionTest, set_sys_vars_propagates) {
   }
 }
 
+TEST_P(SplittingConnectionTest, switch_primary_without_trx) {
+  RecordProperty("Bug", "36591958");
+  RecordProperty("Description",
+                 "Check that switching the PRIMARY while a connection is "
+                 "already open, drops the client connection.");
+  auto admin_cli_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_cli_res);
+
+  auto admin_cli = std::move(*admin_cli_res);
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // connection goes out of the pool and back to the pool again.
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(1, 1s));
+
+  // SELECT from PRIMARY and SECONDARY to ensure a connection to each is
+  // established.
+  SCOPED_TRACE("// force stmt from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check the write-connection works");
+  auto primary_server_uuid_res = query_one_result(cli, "SELECT @@server_uuid");
+  ASSERT_NO_ERROR(primary_server_uuid_res);
+
+  SCOPED_TRACE("// force stmt from SECONDARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_only'"));
+
+  SCOPED_TRACE("// check the write-connection works");
+  auto secondary_server_uuid_res =
+      query_one_result(cli, "SELECT @@server_uuid");
+  ASSERT_NO_ERROR(secondary_server_uuid_res);
+
+  auto primary_server_uuid = (*primary_server_uuid_res)[0][0];
+  auto secondary_server_uuid = (*secondary_server_uuid_res)[0][0];
+
+  ASSERT_NE(primary_server_uuid, secondary_server_uuid);
+
+  SCOPED_TRACE("// set new primary");
+  ASSERT_NO_ERROR(admin_cli.query("SELECT group_replication_set_as_primary('" +
+                                  secondary_server_uuid + "', 10)"));
+
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check the write-connection fails with --super-read-only");
+
+  auto end = std::chrono::steady_clock::now() + 1s;
+  do {
+    auto truncate_res = query_one_result(cli, "TRUNCATE TABLE testing.t1");
+    ASSERT_ERROR(truncate_res);
+
+    if (truncate_res.error().value() == 2013) {
+      EXPECT_EQ(truncate_res.error().message(),
+                "Lost connection to MySQL server during query");
+
+      // good, leave the loop.
+      break;
+    }
+
+    EXPECT_EQ(truncate_res.error().value(), 1290)
+        << truncate_res.error().message();
+
+    ASSERT_LT(std::chrono::steady_clock::now(), end);
+
+    // wait for the metadata-cache TTL to notice the member change.
+    std::this_thread::sleep_for(100ms);
+  } while (true);
+}
+
 TEST_P(SplittingConnectionTest, clone_fails) {
   RecordProperty("Worklog", "12794");
   RecordProperty("RequirementId", "FR9.4");

@@ -96,6 +96,12 @@ class DestMetadataCacheGroup final
 
   Destinations destinations() override;
 
+  mysqlrouter::ServerMode purpose() const override {
+    return server_role_ == ServerRole::Primary
+               ? mysqlrouter::ServerMode::ReadWrite
+               : mysqlrouter::ServerMode::ReadOnly;
+  }
+
   ServerRole server_role() const { return server_role_; }
 
   // get cache-api

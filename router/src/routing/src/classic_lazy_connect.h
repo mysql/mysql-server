@@ -71,6 +71,7 @@ class LazyConnector : public ForwardingProcessor {
         parent_event_(parent_event) {}
 
   enum class Stage {
+    Init,
     FromStash,
     Connect,
     Connected,
@@ -119,6 +120,7 @@ class LazyConnector : public ForwardingProcessor {
   }
 
  private:
+  stdx::expected<Processor::Result, std::error_code> init();
   stdx::expected<Processor::Result, std::error_code> from_stash();
   stdx::expected<Processor::Result, std::error_code> connect();
   stdx::expected<Processor::Result, std::error_code> connected();
@@ -143,7 +145,7 @@ class LazyConnector : public ForwardingProcessor {
   stdx::expected<Processor::Result, std::error_code> pool_or_close();
   stdx::expected<Processor::Result, std::error_code> fallback_to_write();
 
-  Stage stage_{Stage::FromStash};
+  Stage stage_{Stage::Init};
 
   bool in_handshake_;
 
