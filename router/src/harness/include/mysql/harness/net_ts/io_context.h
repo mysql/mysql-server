@@ -499,10 +499,10 @@ class io_context : public execution_context {
         // code should be similar to ::cancel(fd)
         std::lock_guard<std::mutex> lk(mtx_);
 
-        if (auto async_op =
+        if (auto as_op =
                 active_ops_.extract_first(fd, static_cast<short>(wt))) {
-          async_op->cancel();
-          cancelled_ops_.push_back(std::move(async_op));
+          as_op->cancel();
+          cancelled_ops_.push_back(std::move(as_op));
         }
       }
     }
