@@ -740,10 +740,10 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     }
   }
 
-  if (cursor.m_row_heap.get() == nullptr) {
+  if (cursor.m_row_heap.is_null()) {
     cursor.m_row_heap.create(sizeof(mrec_buf_t), UT_LOCATION_HERE);
 
-    if (cursor.m_row_heap.get() == nullptr) {
+    if (cursor.m_row_heap.is_null()) {
       set_error(DB_OUT_OF_MEMORY);
       set_next_state();
       return get_error();
@@ -804,7 +804,7 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
     src_field = dtuple_get_nth_v_field(ctx.m_row.m_ptr, v_col->v_pos);
 
     if (ctx.m_n_mv_rows_to_add == 0) {
-      auto p = m_v_heap.get();
+      auto p = m_v_heap.is_null() ? nullptr : m_v_heap.get();
 
       src_field = innobase_get_computed_value(
           ctx.m_row.m_ptr, v_col, clust_index, &p, key_buffer->heap(), ifield,
@@ -835,7 +835,7 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
       src_field->len = mv->data_len[n_added];
     }
   } else {
-    auto p = m_v_heap.get();
+    auto p = m_v_heap.is_null() ? nullptr : m_v_heap.get();
 
     src_field = innobase_get_computed_value(
         ctx.m_row.m_ptr, v_col, clust_index, &p, nullptr, ifield, m_ctx.thd(),
@@ -937,7 +937,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
 
       if (field->len != UNIV_SQL_NULL && col->mtype == DATA_MYSQL &&
           col->len != field->len) {
-        if (m_conv_heap.get() != nullptr) {
+        if (!m_conv_heap.is_null()) {
           convert(m_ctx.m_old_table->first_index(), src_field, field, col->len,
                   page_size,
                   IF_DEBUG(dict_table_is_sdi(m_ctx.m_old_table->id), )
@@ -1117,8 +1117,7 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
     format. There is an assert ut_ad(size < UNIV_PAGE_SIZE) in
     rec_offs_data_size(). It may hit the assert before attempting to
     insert the row. */
-    if (unlikely(m_conv_heap.get() != nullptr &&
-                 ctx.m_data_size > UNIV_PAGE_SIZE)) {
+    if (unlikely(!m_conv_heap.is_null() && ctx.m_data_size > UNIV_PAGE_SIZE)) {
       ctx.m_n_rows_added = 0;
       return DB_TOO_BIG_RECORD;
     }
@@ -1136,7 +1135,7 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
     ctx.m_n_fields = 0;
     ++ctx.m_n_rows_added;
 
-    if (m_conv_heap.get() != nullptr) {
+    if (!m_conv_heap.is_null()) {
       mem_heap_empty(m_conv_heap.get());
     }
 
