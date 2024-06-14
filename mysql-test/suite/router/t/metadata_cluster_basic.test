@@ -97,12 +97,8 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --source ../include/mrs/changes/wait_metadata_gtids.inc
 
 # Cleanup
---source include/rpl/sync.inc
---connection server1
 --source ../include/innodb_cluster/cleanup.inc
---source include/rpl/sync.inc
---connection server1
+--let $cleanup_arg_mrs_existing_service=/svc/basic/t1
 --source ../include/mrs/cleanup.inc
 --source include/rpl/sync.inc
---connection server1
 --source include/group_replication_end.inc

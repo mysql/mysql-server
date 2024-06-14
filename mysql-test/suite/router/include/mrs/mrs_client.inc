@@ -82,4 +82,19 @@ if ($mrs_client_arg_session_file)
   --let $mrs_client_cmd=$mrs_client_cmd --session-file $mrs_client_arg_session_file
 }
 
+if ($mrs_client_arg_wait_until_found)
+{
+--let $mrs_client_cmd=$mrs_client_cmd --wait-until-found=$mrs_client_arg_wait_until_found
+}
+
+if ($mrs_client_arg_wait_until_status)
+{
+--let $mrs_client_cmd=$mrs_client_cmd --wait-until-status=$mrs_client_arg_wait_until_status
+}
+
+if ($mrs_client_arg_response_type)
+{
+--let $mrs_client_cmd=$mrs_client_cmd --response-type=$mrs_client_arg_response_type
+}
+
 exec $mrs_client_cmd;

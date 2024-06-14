@@ -432,6 +432,21 @@ std::vector<CmdOption> g_options{
      },
      [](const std::string &) {}},
 
+    {{"--wait-until-status"},
+     "Wait until server returns status-code specified in `expected-status` "
+     "parameter. "
+     "The value specifies how long `mrs_client` should wait, for it.",
+     CmdOptionValueReq::required,
+     "meta_wait_status",
+     [](const std::string &value) {
+       auto i = atoi(value.c_str());
+       if (i <= 0)
+         throw std::invalid_argument(
+             "Wait timeout should be greater than zero.");
+       g_configuration.wait_until_status = Seconds(i);
+     },
+     [](const std::string &) {}},
+
     {{"--path"},
      "Overwrite the path specified in URL. Using this parameter, user may "
      "split the URL on host part specified in --url and path.",
@@ -634,10 +649,21 @@ std::vector<CmdOption> g_options{
 template <typename Duration>
 bool should_retry(Duration start, const Result &r) {
   auto not_found = r.status == HttpStatusCode::NotFound;
+  auto expected_status = r.status == g_configuration.expected_status;
+  auto waiting_for = Duration::clock::now() - start;
 
+  // TODO(lkotula): Should we remove the wait_unitl_found parameter.
+  // It is similar to `wait_until_status`, with the difference that
+  // its more strict (expecting either Ok or NotFound).
   if (g_configuration.wait_until_found.has_value() && not_found) {
-    auto current = Duration::clock::now();
-    if ((current - start) < g_configuration.wait_until_found.value()) {
+    if (waiting_for < g_configuration.wait_until_found.value()) {
+      std::this_thread::sleep_for(Seconds(1));
+      return true;
+    }
+  }
+
+  if (g_configuration.wait_until_status.has_value() && !expected_status) {
+    if (waiting_for < g_configuration.wait_until_status.value()) {
       std::this_thread::sleep_for(Seconds(1));
       return true;
     }
