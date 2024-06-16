@@ -121,6 +121,7 @@ override_dh_install:
 # it leads to file conflict errors when trying to install dbgsym-deb packages
 # for both.
 override_dh_strip:
+	dh_strip -Xlibprotobuf-lite -Xlibmysqlclient.a
 	dh_strip -Xlibprotobuf-lite
 	dh_strip -Xlibabsl_bad_any_cast_impl
 	dh_strip -Xlibabsl_bad_optional_access
