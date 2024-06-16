@@ -105,7 +105,7 @@ Replaces: mysql-@DEB_PRODUCTNAME@-server (<< 8.0.1),
  mysql-server-core-5.7,
  mysql-server-core-8.0
 Provides: virtual-mysql-server-core
-Description: MySQL Server Core Binaires
+Description: MySQL Server Core Binaries
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
  is intended for mission-critical, heavy-load production systems as well
