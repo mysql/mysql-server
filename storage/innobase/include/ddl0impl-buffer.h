@@ -112,8 +112,8 @@ struct Key_sort_buffer : private ut::Non_copyable {
   bool will_fit(size_t n) const noexcept {
     /* Reserve one byte for the end marker and adjust for meta-data overhead. */
     return m_total_size + n +
-               (sizeof(std::remove_pointer<decltype(
-                           m_dtuples)::value_type>::type) *
+               (sizeof(std::remove_pointer<
+                       decltype(m_dtuples)::value_type>::type) *
                 (m_n_tuples + 1)) <=
            m_buffer_size - 1;
   }

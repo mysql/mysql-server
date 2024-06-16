@@ -659,7 +659,7 @@ void trx_undo_gtid_set(trx_t *trx, trx_undo_t *undo, bool is_xa_prepare) {
     ib::error(ER_IB_CLONE_GTID_PERSIST)
         << "Could not persist GTID as space for GTID is not allocated.";
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
   undo->flag |= gtid_flag;
 }
@@ -733,7 +733,7 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
   /* We must have allocated for GTID but add a safe check. */
   if (!undo->gtid_allocated(is_xa_prepare)) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   Gtid_desc gtid_desc;

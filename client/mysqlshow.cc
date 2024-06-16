@@ -619,9 +619,15 @@ static int list_tables(MYSQL *mysql, const char *db, const char *table) {
   }
 
   print_trailer(
-      head_length, (opt_table_type ? 10 : opt_verbose > 0 ? 8 : 0),
+      head_length,
+      (opt_table_type    ? 10
+       : opt_verbose > 0 ? 8
+                         : 0),
       (opt_table_type ? (opt_verbose > 0 ? 8 : 0) : (opt_verbose > 1 ? 10 : 0)),
-      !opt_table_type ? 0 : opt_verbose > 1 ? 10 : 0, 0);
+      !opt_table_type   ? 0
+      : opt_verbose > 1 ? 10
+                        : 0,
+      0);
 
   if (counter && opt_verbose)
     printf("%u row%s in set.\n\n", counter, (counter > 1) ? "s" : "");

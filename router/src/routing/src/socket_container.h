@@ -66,7 +66,7 @@ class SocketContainer {
    * @return a ref to the stored socket.
    */
   template <class... Args>
-  socket_type &emplace_back(Args &&... args) {
+  socket_type &emplace_back(Args &&...args) {
     std::lock_guard<std::mutex> lk(mtx_);
 
     sockets_.emplace_back(std::forward<Args>(args)...);

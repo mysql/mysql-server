@@ -201,9 +201,9 @@ bool File_io::truncate(File file, myf myFlags) {
                 my_filename(file), strerror(errno));
     return true;
   }
-  //#else
-  //  assert(0);
-  //#endif
+  // #else
+  //   assert(0);
+  // #endif
   return false;
 }  // namespace keyring
 

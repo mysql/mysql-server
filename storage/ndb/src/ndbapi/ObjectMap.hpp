@@ -32,7 +32,7 @@
 #include <NdbMutex.h>
 #include <EventLogger.hpp>
 
-//#define DEBUG_OBJECTMAP
+// #define DEBUG_OBJECTMAP
 
 /**
  * Global ObjectMap

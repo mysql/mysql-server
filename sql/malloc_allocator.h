@@ -103,7 +103,7 @@ class Malloc_allocator {
   void deallocate(pointer p, size_type) { my_free(p); }
 
   template <class U, class... Args>
-  void construct(U *p, Args &&... args) {
+  void construct(U *p, Args &&...args) {
     assert(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);

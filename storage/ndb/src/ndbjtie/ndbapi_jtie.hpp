@@ -222,7 +222,7 @@ extern "C" {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NDBAPI.h"
+// #include "com_mysql_ndbjtie_ndbapi_NDBAPI.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NDBAPI
@@ -286,7 +286,7 @@ JNIEXPORT void JNICALL Java_com_mysql_ndbjtie_ndbapi_NDBAPI_return_1ndb_1object(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb.h"
+// #include "com_mysql_ndbjtie_ndbapi_Ndb.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
@@ -666,7 +666,7 @@ JNIEXPORT jobject JNICALL Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__I(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbBlob.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbBlob.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbBlob
@@ -955,7 +955,7 @@ JNIEXPORT jint JNICALL Java_com_mysql_ndbjtie_ndbapi_NdbBlob_close(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary
@@ -1172,7 +1172,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_getRecordRowLength(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_AutoGrowSpecification.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_AutoGrowSpecification.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_AutoGrowSpecification
@@ -1341,7 +1341,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024AutoGrowSpecification_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Column
@@ -1956,7 +1956,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Column_setDynamic(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile
@@ -2210,7 +2210,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Lcom_my
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
@@ -2850,7 +2850,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_releaseRecord(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_List.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_List.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_List
@@ -2953,7 +2953,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024List_delet
 
 // ---------------------------------------------------------------------------
 
-//#include
+// #include
 //"com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element.h"
 
 /*
@@ -3277,7 +3277,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
 
 // ---------------------------------------------------------------------------
 
-//#include
+// #include
 //"com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_ElementArray.h"
 
 /*
@@ -3337,7 +3337,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Event.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Event.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
@@ -3745,7 +3745,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_mergeEvents(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Index.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Index.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Index
@@ -4071,7 +4071,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Index_setLogging(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroup.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroup.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroup
@@ -4292,7 +4292,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024LogfileGroup_setAutoGrowSpecifi
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Object.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Object.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Object
@@ -4312,7 +4312,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Object_delete(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_ObjectId.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_ObjectId.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_ObjectId
@@ -4396,7 +4396,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024ObjectId_delete(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeIndexHandle.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeIndexHandle.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeIndexHandle
@@ -4464,7 +4464,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024OptimizeIndexHandle_close(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeTableHandle.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeTableHandle.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeTableHandle
@@ -4532,7 +4532,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024OptimizeTableHandle_close(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification
@@ -4715,7 +4715,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecification_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray
@@ -4767,7 +4767,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_at(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Table.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Table.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -5840,7 +5840,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_validate(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace
@@ -6114,7 +6114,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGro
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile
@@ -6351,7 +6351,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Lcom_
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbError.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbError.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbError
@@ -6497,7 +6497,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbError_message__Ljava_lang_String_2(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbEventOperation.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbEventOperation.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbEventOperation
@@ -6797,7 +6797,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_getPreBlobHandle(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbIndexOperation.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbIndexOperation.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexOperation
@@ -6879,7 +6879,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexOperation_deleteTuple(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
@@ -7024,7 +7024,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Lcom_mysql_ndbjtie
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound
@@ -7284,7 +7284,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbInterpretedCode.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbInterpretedCode.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
@@ -8113,7 +8113,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_finalise(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbOperation.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
@@ -8788,7 +8788,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setAbortOption(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpec.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpec.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpec
@@ -8890,7 +8890,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpec_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray
@@ -8939,7 +8939,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_at(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions
@@ -9284,7 +9284,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptions_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec
@@ -9353,7 +9353,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpec_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray
@@ -9402,7 +9402,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_at(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbRecAttr.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbRecAttr.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbRecAttr
@@ -9692,7 +9692,7 @@ JNIEXPORT void JNICALL Java_com_mysql_ndbjtie_ndbapi_NdbRecAttr_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanFilter.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbScanFilter.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
@@ -10061,7 +10061,7 @@ JNIEXPORT jint JNICALL Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_isnotnull(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbScanOperation.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
@@ -10333,7 +10333,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_nd
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions
@@ -10643,7 +10643,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptions_delete(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbTransaction.h"
+// #include "com_mysql_ndbjtie_ndbapi_NdbTransaction.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
@@ -11117,7 +11117,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_releaseLockHandle(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptr.h"
+// #include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptr.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptr
@@ -11200,7 +11200,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptr_delete(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray.h"
+// #include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray
@@ -11252,7 +11252,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_at(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb_PartitionSpec.h"
+// #include "com_mysql_ndbjtie_ndbapi_Ndb_PartitionSpec.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_PartitionSpec
@@ -11285,7 +11285,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_00024PartitionSpec_type(JNIEnv *env,
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h"
+// #include "com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h"
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection

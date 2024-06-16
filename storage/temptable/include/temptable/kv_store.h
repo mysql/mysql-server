@@ -98,7 +98,7 @@ class Key_value_store
    * */
   template <class... Args>
   std::pair<typename Key_value_store_impl::iterator, bool> emplace(
-      Args &&... args) {
+      Args &&...args) {
     std::lock_guard<Lock> lock(m_lock);
     dbug_print();
     log(Key_value_store_stats::Event::EMPLACE);

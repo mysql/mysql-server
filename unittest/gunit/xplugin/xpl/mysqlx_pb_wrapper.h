@@ -201,13 +201,13 @@ class Operator : public Wrapper<::Mysqlx::Expr::Operator> {
 
   template <typename... T>
   Operator(const std::string &name,
-           T &&... params) {  // NOLINT(runtime/explicit)
+           T &&...params) {  // NOLINT(runtime/explicit)
     m_base.set_name(name);
     add_param(std::forward<T>(params)...);
   }
 
   template <typename... T>
-  void add_param(const Expr &first, T &&... rest) {
+  void add_param(const Expr &first, T &&...rest) {
     add_param(first);
     add_param(std::forward<T>(rest)...);
   }
@@ -223,21 +223,21 @@ class Function_call : public Wrapper<::Mysqlx::Expr::FunctionCall> {
 
   template <typename... T>
   Function_call(const Identifier &name,
-                T &&... params) {  // NOLINT(runtime/explicit)
+                T &&...params) {  // NOLINT(runtime/explicit)
     m_base.mutable_name()->CopyFrom(name);
     add_param(std::forward<T>(params)...);
   }
 
   template <typename... T>
   Function_call(const std::string &name,
-                T &&... params) {  // NOLINT(runtime/explicit)
+                T &&...params) {  // NOLINT(runtime/explicit)
     m_base.mutable_name()->CopyFrom(Identifier(name));
     add_param(std::forward<T>(params)...);
   }
 
  private:
   template <typename... T>
-  void add_param(const Expr &first, T &&... rest) {
+  void add_param(const Expr &first, T &&...rest) {
     add_param(first);
     add_param(std::forward<T>(rest)...);
   }

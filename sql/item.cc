@@ -1340,9 +1340,9 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
     func_args->err_code =
         (func_args->source == VGS_GENERATED_COLUMN)
             ? ER_GENERATED_COLUMN_REF_AUTO_INC
-            : (func_args->source == VGS_DEFAULT_EXPRESSION)
-                  ? ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC
-                  : ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN;
+        : (func_args->source == VGS_DEFAULT_EXPRESSION)
+            ? ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC
+            : ER_CHECK_CONSTRAINT_REFERS_AUTO_INCREMENT_COLUMN;
     return true;
   }
 
@@ -3185,9 +3185,9 @@ const char *Item_ident::full_name() const {
       m_orig_field_name != nullptr ? m_orig_field_name : field_name;
   char *tmp;
   if (table_name == nullptr || f_name == nullptr)
-    return f_name != nullptr
-               ? f_name
-               : item_name.is_set() ? item_name.ptr() : "tmp_field";
+    return f_name != nullptr    ? f_name
+           : item_name.is_set() ? item_name.ptr()
+                                : "tmp_field";
   if (db_name && db_name[0]) {
     tmp = pointer_cast<char *>(
         (*THR_MALLOC)
@@ -3229,9 +3229,9 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   }
 
   if (table_name_arg == nullptr || f_name == nullptr || !f_name[0]) {
-    const char *nm = (f_name != nullptr && f_name[0])
-                         ? f_name
-                         : item_name.is_set() ? item_name.ptr() : "tmp_field";
+    const char *nm = (f_name != nullptr && f_name[0]) ? f_name
+                     : item_name.is_set()             ? item_name.ptr()
+                                                      : "tmp_field";
     append_identifier(thd, str, nm, strlen(nm));
     return;
   }
@@ -4212,11 +4212,10 @@ bool Item_param::set_str(const char *str, size_t length) {
     - when the source string is a binary string, keep it as-is and perform
       no conversion.
   */
-  set_collation_actual(collation_source() == &my_charset_bin
-                           ? &my_charset_bin
-                           : collation.collation != &my_charset_bin
-                                 ? collation.collation
-                                 : current_thd->variables.collation_connection);
+  set_collation_actual(collation_source() == &my_charset_bin ? &my_charset_bin
+                       : collation.collation != &my_charset_bin
+                           ? collation.collation
+                           : current_thd->variables.collation_connection);
 
   m_param_state = STRING_VALUE;
   return false;
@@ -7310,9 +7309,9 @@ bool Item_float::eq(const Item *arg) const {
 }
 
 static inline uint char_val(char X) {
-  return (uint)(X >= '0' && X <= '9'
-                    ? X - '0'
-                    : X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
+  return (uint)(X >= '0' && X <= '9'   ? X - '0'
+                : X >= 'A' && X <= 'Z' ? X - 'A' + 10
+                                       : X - 'a' + 10);
 }
 
 Item_hex_string::Item_hex_string() { hex_string_init("", 0); }
@@ -10172,7 +10171,7 @@ longlong Item_cache_datetime::val_int() { return val_int_from_decimal(); }
 
 Item_cache_json::Item_cache_json()
     : Item_cache(MYSQL_TYPE_JSON),
-      m_value(new (*THR_MALLOC) Json_wrapper()),
+      m_value(new(*THR_MALLOC) Json_wrapper()),
       m_is_sorted(false) {}
 
 Item_cache_json::~Item_cache_json() {

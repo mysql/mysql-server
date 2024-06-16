@@ -772,10 +772,10 @@ static inline ulint page_get_data_size(
 {
   ulint ret;
 
-  ret = (ulint)(
-      page_header_get_field(page, PAGE_HEAP_TOP) -
-      (page_is_comp(page) ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END) -
-      page_header_get_field(page, PAGE_GARBAGE));
+  ret = (ulint)(page_header_get_field(page, PAGE_HEAP_TOP) -
+                (page_is_comp(page) ? PAGE_NEW_SUPREMUM_END
+                                    : PAGE_OLD_SUPREMUM_END) -
+                page_header_get_field(page, PAGE_GARBAGE));
 
   ut_ad(ret < UNIV_PAGE_SIZE);
 

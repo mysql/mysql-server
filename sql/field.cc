@@ -3631,9 +3631,9 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   }
 
   if (is_unsigned())
-    return ((unsigned short)a < (unsigned short)b)
-               ? -1
-               : ((unsigned short)a > (unsigned short)b) ? 1 : 0;
+    return ((unsigned short)a < (unsigned short)b)   ? -1
+           : ((unsigned short)a > (unsigned short)b) ? 1
+                                                     : 0;
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -4154,9 +4154,9 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     b = longlongget(b_ptr);
   }
   if (is_unsigned())
-    return ((ulonglong)a < (ulonglong)b)
-               ? -1
-               : ((ulonglong)a > (ulonglong)b) ? 1 : 0;
+    return ((ulonglong)a < (ulonglong)b)   ? -1
+           : ((ulonglong)a > (ulonglong)b) ? 1
+                                           : 0;
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -6135,8 +6135,9 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = longlongget(a_ptr);
     b = longlongget(b_ptr);
   }
-  return ((ulonglong)a < (ulonglong)b) ? -1
-                                       : ((ulonglong)a > (ulonglong)b) ? 1 : 0;
+  return ((ulonglong)a < (ulonglong)b)   ? -1
+         : ((ulonglong)a > (ulonglong)b) ? 1
+                                         : 0;
 }
 
 size_t Field_datetime::make_sort_key(uchar *to, size_t length) const {

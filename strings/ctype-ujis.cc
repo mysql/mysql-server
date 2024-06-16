@@ -288,16 +288,13 @@ static const uint8_t sort_order_ujis[] = {
 extern "C" {
 static unsigned ismbchar_ujis(const CHARSET_INFO *cs [[maybe_unused]],
                               const char *p, const char *e) {
-  return ((static_cast<uint8_t>(*p) < 0x80)
-              ? 0
-              : isujis(*(p)) && (e) - (p) > 1 && isujis(*((p) + 1))
-                    ? 2
-                    : isujis_ss2(*(p)) && (e) - (p) > 1 && iskata(*((p) + 1))
-                          ? 2
-                          : isujis_ss3(*(p)) && (e) - (p) > 2 &&
-                                    isujis(*((p) + 1)) && isujis(*((p) + 2))
-                                ? 3
-                                : 0);
+  return ((static_cast<uint8_t>(*p) < 0x80)                         ? 0
+          : isujis(*(p)) && (e) - (p) > 1 && isujis(*((p) + 1))     ? 2
+          : isujis_ss2(*(p)) && (e) - (p) > 1 && iskata(*((p) + 1)) ? 2
+          : isujis_ss3(*(p)) && (e) - (p) > 2 && isujis(*((p) + 1)) &&
+                  isujis(*((p) + 2))
+              ? 3
+              : 0);
 }
 
 static unsigned mbcharlen_ujis(const CHARSET_INFO *cs [[maybe_unused]],
@@ -33210,9 +33207,9 @@ static int my_mb_wc_euc_jp(const CHARSET_INFO *cs [[maybe_unused]],
   if (hi >= 0xA1 && hi <= 0xFE) /* JIS-X-0208 code set: [A1..FE][A1..FE] */
   {
     if (s + 2 > e) return MY_CS_TOOSMALL2;
-    return (*pwc = jisx0208_eucjp_to_unicode[(hi << 8) + s[1]])
-               ? 2
-               : (s[1] < 0xA1 || s[1] > 0xFE) ? MY_CS_ILSEQ : -2;
+    return (*pwc = jisx0208_eucjp_to_unicode[(hi << 8) + s[1]]) ? 2
+           : (s[1] < 0xA1 || s[1] > 0xFE)                       ? MY_CS_ILSEQ
+                                                                : -2;
   }
 
   /* JIS-X-0201 HALF WIDTH KATAKANA: [8E][A1..DF] -> [U+FF61..U+FF9F] */
@@ -33226,11 +33223,10 @@ static int my_mb_wc_euc_jp(const CHARSET_INFO *cs [[maybe_unused]],
   if (hi == 0x8F) /* JIS X 0212 code set: [8F][A1..FE][A1..FE] */
   {
     if (s + 3 > e) return MY_CS_TOOSMALL3;
-    return (*pwc = jisx0212_eucjp_to_unicode[(((int)s[1]) << 8) + s[2]])
-               ? 3
-               : (s[1] < 0xA1 || s[1] > 0xFE || s[2] < 0xA1 || s[2] > 0xFE)
-                     ? MY_CS_ILSEQ
-                     : -3;
+    return (*pwc = jisx0212_eucjp_to_unicode[(((int)s[1]) << 8) + s[2]]) ? 3
+           : (s[1] < 0xA1 || s[1] > 0xFE || s[2] < 0xA1 || s[2] > 0xFE)
+               ? MY_CS_ILSEQ
+               : -3;
   }
 
   return MY_CS_ILSEQ;

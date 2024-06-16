@@ -175,7 +175,7 @@ class PFS_instr_name {
     we keep the data members public, with an underscore prefix, and
     this warning text.
   */
- public /*private*/:
+  public /*private*/:
   /** Instrument name. */
   char m_private_name[max_length + 1];
   /** Length in bytes of @c m_name. */

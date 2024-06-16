@@ -78,13 +78,13 @@
 
 #define JAM_FILE_ID 467
 
-//#define HANDOVER_DEBUG
-//#define NODEFAIL_DEBUG
-//#define NODEFAIL_DEBUG2
-//#define DEBUG_SUMA_SEQUENCE
-//#define EVENT_DEBUG
-//#define EVENT_PH3_DEBUG
-//#define EVENT_DEBUG2
+// #define HANDOVER_DEBUG
+// #define NODEFAIL_DEBUG
+// #define NODEFAIL_DEBUG2
+// #define DEBUG_SUMA_SEQUENCE
+// #define EVENT_DEBUG
+// #define EVENT_PH3_DEBUG
+// #define EVENT_DEBUG2
 #if 1
 #undef DBUG_ENTER
 #undef DBUG_PRINT

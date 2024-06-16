@@ -41,12 +41,12 @@ class Test_context {
         m_plugin_handler(plugin_handler) {}
 
   template <typename... Args>
-  void log_test_line(const Args &... args) {
+  void log_test_line(const Args &...args) {
     log_test(utils::to_string(args...), "\n");
   }
 
   template <typename... Args>
-  void log_test(const Args &... args) {
+  void log_test(const Args &...args) {
     m_logger.print_to_file(utils::to_string(args...));
   }
 
@@ -57,7 +57,7 @@ class Test_context {
   }
 
   template <typename... Args>
-  void log_error(const Args &... args) {
+  void log_error(const Args &...args) {
     auto text = utils::to_string(args...);
 
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, text.c_str());

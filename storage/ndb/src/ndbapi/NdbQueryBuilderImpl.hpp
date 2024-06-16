@@ -54,7 +54,7 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 #define QRY_OJ_NOT_SUPPORTED 4827
-//#define QRY_NEST_NOT_SPECIFIED 4828  <<== DEPRECATED
+// #define QRY_NEST_NOT_SPECIFIED 4828  <<== DEPRECATED
 #define QRY_NEST_NOT_SUPPORTED 4829
 #define QRY_TABLE_HAVE_NO_FRAGMENTS 4830
 #define QRY_BAD_FRAGMENT_DATA 4831
@@ -79,7 +79,7 @@ class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
 
 // For debuggging.
-//#define TRACE_SERIALIZATION
+// #define TRACE_SERIALIZATION
 
 /** A buffer for holding serialized data.
  *
@@ -105,7 +105,7 @@ class NdbLinkedOperandImpl;
  */
 class Uint32Buffer {
  public:
-  //#define TEST_Uint32Buffer
+  // #define TEST_Uint32Buffer
 
 #if defined(TEST_Uint32Buffer)
   static constexpr Uint32 initSize =
@@ -890,7 +890,7 @@ class NdbConstOperandImpl : public NdbQueryOperandImpl {
    public:
     ConvertedValue() : len(0), buffer(nullptr) {}
     ~ConvertedValue() {
-      if (buffer) delete[]((char *)buffer);
+      if (buffer) delete[] ((char *)buffer);
     }
 
     char *getCharBuffer(Uint32 size) {

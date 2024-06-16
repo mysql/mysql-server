@@ -24,7 +24,7 @@
 #include "mysql/binlog/event/compression/zstd_dec.h"
 #include <my_byteorder.h>  // TODO: fix this include
 #include <algorithm>
-//#include "mysql/binlog/event/wrapper_functions.h"
+// #include "mysql/binlog/event/wrapper_functions.h"
 
 namespace mysql::binlog::event::compression {
 

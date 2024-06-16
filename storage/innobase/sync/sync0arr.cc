@@ -395,11 +395,10 @@ void sync_array_cell_print(FILE *file, const sync_cell_t *cell) {
     sync_array_mutex_print(file, cell->latch.bpmutex);
   } else if (type == RW_LOCK_X || type == RW_LOCK_X_WAIT ||
              type == RW_LOCK_SX || type == RW_LOCK_S) {
-    fputs(type == RW_LOCK_X
-              ? "X-lock on"
-              : type == RW_LOCK_X_WAIT
-                    ? "X-lock (wait_ex) on"
-                    : type == RW_LOCK_SX ? "SX-lock on" : "S-lock on",
+    fputs(type == RW_LOCK_X        ? "X-lock on"
+          : type == RW_LOCK_X_WAIT ? "X-lock (wait_ex) on"
+          : type == RW_LOCK_SX     ? "SX-lock on"
+                                   : "S-lock on",
           file);
 
     rwlock = cell->latch.lock;

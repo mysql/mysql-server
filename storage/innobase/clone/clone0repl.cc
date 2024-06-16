@@ -344,7 +344,7 @@ void Clone_persist_gtid::get_gtid_info(trx_t *trx, Gtid_desc &gtid_desc) {
 
   if (!has_gtid(trx, thd, thd_check)) {
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   uint32_t encoded_version = GTID_VERSION;

@@ -168,7 +168,7 @@ ulonglong my_timer_cycles(void) {
 #elif defined(__GNUC__) && defined(__aarch64__)
   {
     ulonglong result;
-    __asm __volatile__("mrs %[rt],cntvct_el0" : [ rt ] "=r"(result));
+    __asm __volatile__("mrs %[rt],cntvct_el0" : [rt] "=r"(result));
     return result;
   }
 #elif defined(__GNUC__) && defined(__s390x__)

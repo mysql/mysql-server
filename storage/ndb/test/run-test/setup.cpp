@@ -941,9 +941,9 @@ static bool pr_fix_client(Properties &props, proc_rule_ctx &ctx, int) {
 }
 
 static Uint32 try_default_port(atrt_process &proc, const char *name) {
-  Uint32 port = strcmp(name, "--port=") == 0
-                    ? 3306
-                    : strcmp(name, "--PortNumber=") == 0 ? 1186 : 0;
+  Uint32 port = strcmp(name, "--port=") == 0         ? 3306
+                : strcmp(name, "--PortNumber=") == 0 ? 1186
+                                                     : 0;
 
   atrt_host *host = proc.m_host;
   for (unsigned i = 0; i < host->m_processes.size(); i++) {

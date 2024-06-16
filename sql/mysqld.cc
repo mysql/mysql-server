@@ -721,9 +721,9 @@ MySQL clients support the protocol:
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/mysql_option_tracker.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
 #include "mysql/components/util/weak_service_reference.h"
-#include "mysql/components/services/mysql_option_tracker.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -4827,8 +4827,8 @@ constexpr bool CanTypeFitValue(const U value) {
 template <typename T, typename U>
 T Clamp(U x) {
   return CanTypeFitValue<T>(x) ? T(x)
-                               : x < 0 ? std::numeric_limits<T>::min()
-                                       : std::numeric_limits<T>::max();
+         : x < 0               ? std::numeric_limits<T>::min()
+                               : std::numeric_limits<T>::max();
 }
 
 // simple (no measurement attributes supported) metric callback
@@ -6003,8 +6003,8 @@ static PSI_metric_info_v1 core_metrics[] = {
      "The maximum number of connections that have been in use simultaneously "
      "since the server started (Max_used_connections)",
      MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
-     get_metric_simple_integer<decltype(
-         Connection_handler_manager::max_used_connections)>,
+     get_metric_simple_integer<
+         decltype(Connection_handler_manager::max_used_connections)>,
      &Connection_handler_manager::max_used_connections},
     {"open_files", "",
      "The number of files that are open. This count includes regular files "
@@ -6101,8 +6101,8 @@ static PSI_metric_info_v1 core_metrics[] = {
      "The number of threads that have taken more than slow_launch_time seconds "
      "to create (Slow_launch_threads)",
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
-     get_metric_simple_integer<decltype(
-         Per_thread_connection_handler::slow_launch_threads)>,
+     get_metric_simple_integer<
+         decltype(Per_thread_connection_handler::slow_launch_threads)>,
      &Per_thread_connection_handler::slow_launch_threads},
     {"slow_queries", "",
      "The number of queries that have taken more than long_query_time seconds "
@@ -6349,8 +6349,8 @@ static PSI_metric_info_v1 myisam_metrics[] = {
      "The number of requests to read a key block from the MyISAM key cache "
      "(Key_read_requests)",
      MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
-     get_metric_simple_integer<decltype(
-         dflt_key_cache->global_cache_r_requests)>,
+     get_metric_simple_integer<
+         decltype(dflt_key_cache->global_cache_r_requests)>,
      &dflt_key_cache->global_cache_r_requests},
     {"key_reads", "",
      "The number of physical reads of a key block from disk into the MyISAM "
@@ -6362,8 +6362,8 @@ static PSI_metric_info_v1 myisam_metrics[] = {
      "The number of requests to write a key block to the MyISAM key cache "
      "(Key_write_requests)",
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
-     get_metric_simple_integer<decltype(
-         dflt_key_cache->global_cache_w_requests)>,
+     get_metric_simple_integer<
+         decltype(dflt_key_cache->global_cache_w_requests)>,
      &dflt_key_cache->global_cache_w_requests},
     {"key_writes", "",
      "The number of physical writes of a key block from the MyISAM key cache "

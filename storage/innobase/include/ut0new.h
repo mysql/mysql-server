@@ -749,7 +749,7 @@ inline void free(void *ptr) noexcept {
      assert(ptr->_y == 2);
  */
 template <typename T, typename... Args>
-inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
+inline T *new_withkey(PSI_memory_key_t key, Args &&...args) {
   auto mem = ut::malloc_withkey(key, sizeof(T));
   if (unlikely(!mem)) throw std::bad_alloc();
   try {
@@ -792,7 +792,7 @@ inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
      assert(ptr->_y == 2);
  */
 template <typename T, typename... Args>
-inline T *new_(Args &&... args) {
+inline T *new_(Args &&...args) {
   return ut::new_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
                             std::forward<Args>(args)...);
 }
@@ -872,7 +872,7 @@ inline void delete_(T *ptr) noexcept {
      assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
  */
 template <typename T, typename... Args>
-inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
+inline T *new_arr_withkey(PSI_memory_key_t key, Args &&...args) {
   using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, true>;
   using malloc_impl = detail::Alloc_<impl>;
   auto mem = malloc_impl::alloc<false>(sizeof(T) * sizeof...(args), key());
@@ -957,7 +957,7 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
      assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
  */
 template <typename T, typename... Args>
-inline T *new_arr(Args &&... args) {
+inline T *new_arr(Args &&...args) {
   return ut::new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
                                 std::forward<Args>(args)...);
 }
@@ -1593,7 +1593,7 @@ inline void aligned_free(void *ptr) noexcept {
  */
 template <typename T, typename... Args>
 inline T *aligned_new_withkey(PSI_memory_key_t key, std::size_t alignment,
-                              Args &&... args) {
+                              Args &&...args) {
   auto mem = aligned_alloc_withkey(key, sizeof(T), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
   try {
@@ -1633,7 +1633,7 @@ inline T *aligned_new_withkey(PSI_memory_key_t key, std::size_t alignment,
      assert(ptr->y == 2);
  */
 template <typename T, typename... Args>
-inline T *aligned_new(std::size_t alignment, Args &&... args) {
+inline T *aligned_new(std::size_t alignment, Args &&...args) {
   return aligned_new_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
                                 alignment, std::forward<Args>(args)...);
 }
@@ -1714,7 +1714,7 @@ inline void aligned_delete(T *ptr) noexcept {
  */
 template <typename T, typename... Args>
 inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
-                                  Args &&... args) {
+                                  Args &&...args) {
   auto mem = aligned_alloc_withkey(key, sizeof(T) * sizeof...(args), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
 
@@ -1836,7 +1836,7 @@ inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
      assert(ptr[4]->y == 10);
  */
 template <typename T, typename... Args>
-inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
+inline T *aligned_new_arr(std::size_t alignment, Args &&...args) {
   return aligned_new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
                                     alignment, std::forward<Args>(args)...);
 }
@@ -1943,7 +1943,7 @@ class aligned_pointer {
       constructed with.
     */
   template <typename... Args>
-  void alloc(Args &&... args) {
+  void alloc(Args &&...args) {
     ut_ad(ptr == nullptr);
     ptr = ut::aligned_new<T>(Alignment, args...);
   }
@@ -1960,7 +1960,7 @@ class aligned_pointer {
       constructed with.
     */
   template <typename... Args>
-  void alloc_withkey(PSI_memory_key_t key, Args &&... args) {
+  void alloc_withkey(PSI_memory_key_t key, Args &&...args) {
     ut_ad(ptr == nullptr);
     ptr =
         ut::aligned_new_withkey<T>(key, Alignment, std::forward<Args>(args)...);
@@ -2055,7 +2055,7 @@ class aligned_array_pointer {
       constructed with.
     */
   template <typename... Args>
-  void alloc(Args &&... args) {
+  void alloc(Args &&...args) {
     ut_ad(ptr == nullptr);
     ptr = ut::aligned_new_arr<T>(Alignment, std::forward<Args>(args)...);
   }
@@ -2093,7 +2093,7 @@ class aligned_array_pointer {
       constructed with.
     */
   template <typename... Args>
-  void alloc_withkey(PSI_memory_key_t key, Args &&... args) {
+  void alloc_withkey(PSI_memory_key_t key, Args &&...args) {
     ut_ad(ptr == nullptr);
     ptr = ut::aligned_new_arr_withkey<T>(key, Alignment,
                                          std::forward<Args>(args)...);
@@ -2335,7 +2335,7 @@ struct Aligned_array_deleter {
  */
 template <typename T, typename Deleter = detail::Deleter<T>, typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::unique_ptr<T, Deleter>>
-make_unique(Args &&... args) {
+make_unique(Args &&...args) {
   return std::unique_ptr<T, Deleter>(ut::new_<T>(std::forward<Args>(args)...));
 }
 
@@ -2354,7 +2354,7 @@ make_unique(Args &&... args) {
  */
 template <typename T, typename Deleter = detail::Deleter<T>, typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::unique_ptr<T, Deleter>>
-make_unique(PSI_memory_key_t key, Args &&... args) {
+make_unique(PSI_memory_key_t key, Args &&...args) {
   return std::unique_ptr<T, Deleter>(
       ut::new_withkey<T>(key, std::forward<Args>(args)...));
 }
@@ -2457,7 +2457,7 @@ using unique_ptr = std::conditional_t<
 template <typename T, typename Deleter = detail::Aligned_deleter<T>,
           typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::unique_ptr<T, Deleter>>
-make_unique_aligned(size_t alignment, Args &&... args) {
+make_unique_aligned(size_t alignment, Args &&...args) {
   return std::unique_ptr<T, Deleter>(
       ut::aligned_new<T>(alignment, std::forward<Args>(args)...));
 }
@@ -2480,7 +2480,7 @@ make_unique_aligned(size_t alignment, Args &&... args) {
 template <typename T, typename Deleter = detail::Aligned_deleter<T>,
           typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::unique_ptr<T, Deleter>>
-make_unique_aligned(PSI_memory_key_t key, size_t alignment, Args &&... args) {
+make_unique_aligned(PSI_memory_key_t key, size_t alignment, Args &&...args) {
   return std::unique_ptr<T, Deleter>(
       ut::aligned_new_withkey<T>(key, alignment, std::forward<Args>(args)...));
 }
@@ -2589,7 +2589,7 @@ using unique_ptr_aligned = std::conditional_t<
  */
 template <typename T, typename Deleter = detail::Deleter<T>, typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::shared_ptr<T>> make_shared(
-    Args &&... args) {
+    Args &&...args) {
   return std::shared_ptr<T>(ut::new_<T>(std::forward<Args>(args)...),
                             Deleter{});
 }
@@ -2609,7 +2609,7 @@ std::enable_if_t<!std::is_array<T>::value, std::shared_ptr<T>> make_shared(
  */
 template <typename T, typename Deleter = detail::Deleter<T>, typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::shared_ptr<T>> make_shared(
-    PSI_memory_key_t key, Args &&... args) {
+    PSI_memory_key_t key, Args &&...args) {
   return std::shared_ptr<T>(
       ut::new_withkey<T>(key, std::forward<Args>(args)...), Deleter{});
 }
@@ -2728,7 +2728,7 @@ std::enable_if_t<detail::is_bounded_array_v<T>, std::shared_ptr<T>> make_shared(
 template <typename T, typename Deleter = detail::Aligned_deleter<T>,
           typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::shared_ptr<T>>
-make_shared_aligned(size_t alignment, Args &&... args) {
+make_shared_aligned(size_t alignment, Args &&...args) {
   return std::shared_ptr<T>(
       ut::aligned_new<T>(alignment, std::forward<Args>(args)...), Deleter{});
 }
@@ -2751,7 +2751,7 @@ make_shared_aligned(size_t alignment, Args &&... args) {
 template <typename T, typename Deleter = detail::Aligned_deleter<T>,
           typename... Args>
 std::enable_if_t<!std::is_array<T>::value, std::shared_ptr<T>>
-make_shared_aligned(PSI_memory_key_t key, size_t alignment, Args &&... args) {
+make_shared_aligned(PSI_memory_key_t key, size_t alignment, Args &&...args) {
   return std::shared_ptr<T>(
       ut::aligned_new_withkey<T>(key, alignment, std::forward<Args>(args)...),
       Deleter{});

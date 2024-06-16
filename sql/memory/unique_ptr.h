@@ -120,7 +120,7 @@ class PFS_allocator {
     @param args The parameters to be used with the `U` constructor.
    */
   template <class U, class... Args>
-  void construct(U *p, Args &&... args);
+  void construct(U *p, Args &&...args);
   /**
     In-place invokes the destructor for class `T` on object pointed by `p`.
 
@@ -206,7 +206,7 @@ class Unique_ptr {
   template <typename... Args, typename D = T, typename B = A,
             std::enable_if_t<!std::is_same<B, std::nullptr_t>::value &&
                              !std::is_array<D>::value> * = nullptr>
-  Unique_ptr(A &alloc, Args &&... args);
+  Unique_ptr(A &alloc, Args &&...args);
   /**
     Class constructor, to be used with no specific allocators and when `T` is
     not an array type, passing the parameters to be used with `T` object
@@ -217,7 +217,7 @@ class Unique_ptr {
   template <typename... Args, typename D = T, typename B = A,
             std::enable_if_t<std::is_same<B, std::nullptr_t>::value &&
                              !std::is_array<D>::value> * = nullptr>
-  Unique_ptr(Args &&... args);
+  Unique_ptr(Args &&...args);
   // Deleted copy constructor
   Unique_ptr(Unique_ptr<T, A> const &rhs) = delete;
   /**
@@ -429,7 +429,7 @@ Unique_ptr<T, A> make_unique(A &alloc, size_t size);
 template <typename T, typename A, typename... Args,
           std::enable_if_t<!std::is_array<T>::value &&
                            memory::is_allocator<A>::value> * = nullptr>
-Unique_ptr<T, A> make_unique(A &alloc, Args &&... args);
+Unique_ptr<T, A> make_unique(A &alloc, Args &&...args);
 /**
   In-place constructs a new unique pointer with no specific allocator and with
   non-array type `T`.
@@ -440,7 +440,7 @@ Unique_ptr<T, A> make_unique(A &alloc, Args &&... args);
  */
 template <typename T, typename... Args,
           std::enable_if_t<!std::is_array<T>::value> * = nullptr>
-Unique_ptr<T, std::nullptr_t> make_unique(Args &&... args);
+Unique_ptr<T, std::nullptr_t> make_unique(Args &&...args);
 }  // namespace memory
 
 // global scope
@@ -517,7 +517,7 @@ void memory::PFS_allocator<T>::deallocate(T *p, std::size_t) noexcept {
 
 template <typename T>
 template <class U, class... Args>
-void memory::PFS_allocator<T>::construct(U *p, Args &&... args) {
+void memory::PFS_allocator<T>::construct(U *p, Args &&...args) {
   assert(p != nullptr);
   try {
     ::new ((void *)p) U(std::forward<Args>(args)...);
@@ -572,7 +572,7 @@ template <typename T, typename A>
 template <typename... Args, typename D, typename B,
           std::enable_if_t<!std::is_same<B, std::nullptr_t>::value &&
                            !std::is_array<D>::value> *>
-memory::Unique_ptr<T, A>::Unique_ptr(A &alloc, Args &&... args)
+memory::Unique_ptr<T, A>::Unique_ptr(A &alloc, Args &&...args)
     : m_underlying{nullptr}, m_allocator{alloc}, m_size{sizeof(T)} {
   this->m_underlying = this->m_allocator->allocate(this->m_size);
   this->m_allocator->construct(this->m_underlying, std::forward<Args>(args)...);
@@ -582,7 +582,7 @@ template <typename T, typename A>
 template <typename... Args, typename D, typename B,
           std::enable_if_t<std::is_same<B, std::nullptr_t>::value &&
                            !std::is_array<D>::value> *>
-memory::Unique_ptr<T, A>::Unique_ptr(Args &&... args)
+memory::Unique_ptr<T, A>::Unique_ptr(Args &&...args)
     : m_underlying{new T{std::forward<Args>(args)...}}, m_size{sizeof(T)} {}
 
 template <typename T, typename A>
@@ -793,14 +793,14 @@ memory::Unique_ptr<T, A> memory::make_unique(A &alloc, size_t size) {
 template <typename T, typename A, typename... Args,
           std::enable_if_t<!std::is_array<T>::value &&
                            memory::is_allocator<A>::value> *>
-memory::Unique_ptr<T, A> memory::make_unique(A &alloc, Args &&... args) {
+memory::Unique_ptr<T, A> memory::make_unique(A &alloc, Args &&...args) {
   return std::move(
       memory::Unique_ptr<T, A>{alloc, std::forward<Args>(args)...});
 }
 
 template <typename T, typename... Args,
           std::enable_if_t<!std::is_array<T>::value> *>
-memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(Args &&... args) {
+memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(Args &&...args) {
   return memory::Unique_ptr<T, std::nullptr_t>{std::forward<Args>(args)...};
 }
 #endif

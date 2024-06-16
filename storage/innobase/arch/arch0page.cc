@@ -1720,7 +1720,7 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
       m_state = ARCH_STATE_ABORT;
       arch_oper_mutex_exit();
       ut_d(ut_error);
-      ut_o(return );
+      ut_o(return);
     }
 
     cur_blk = m_data.get_block(&m_write_pos, ARCH_DATA_BLOCK);

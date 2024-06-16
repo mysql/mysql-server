@@ -436,8 +436,8 @@ static void dict_stats_empty_table(dict_table_t *table) /*!< in/out: table */
 }
 
 /** Check whether index's stats are initialized (assert if they are not). */
-static void dict_stats_assert_initialized_index(const dict_index_t *index [
-    [maybe_unused]]) /*!< in: index */
+static void dict_stats_assert_initialized_index(
+    const dict_index_t *index [[maybe_unused]]) /*!< in: index */
 {
   UNIV_MEM_ASSERT_RW_ABORT(
       index->stat_n_diff_key_vals,

@@ -203,9 +203,9 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     else
       ci->data_file_length = (ulonglong)ci->max_rows * pack_reclength;
   } else if (!ci->max_rows)
-    ci->max_rows = (ha_rows)(
-        ci->data_file_length /
-        (min_pack_length + ((options & HA_OPTION_PACK_RECORD) ? 3 : 0)));
+    ci->max_rows = (ha_rows)(ci->data_file_length /
+                             (min_pack_length +
+                              ((options & HA_OPTION_PACK_RECORD) ? 3 : 0)));
 
   if (options & (HA_OPTION_COMPRESS_RECORD | HA_OPTION_PACK_RECORD))
     pointer =

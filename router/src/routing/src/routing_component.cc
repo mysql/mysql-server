@@ -266,7 +266,7 @@ void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
 
   QuarantineRoutingCallbacks quarantine_callbacks;
   quarantine_callbacks.on_get_destinations = [&](
-      const std::string &route_name) -> auto {
+      const std::string &route_name) -> auto{
     return this->api(route_name).get_destinations();
   };
 

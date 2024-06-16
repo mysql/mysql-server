@@ -3433,10 +3433,9 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename) {
   }
   *org_info =
       mi_open(filename, O_RDWR,
-              (param->testflag & T_WAIT_FOREVER)
-                  ? HA_OPEN_WAIT_IF_LOCKED
-                  : (param->testflag & T_DESCRIPT) ? HA_OPEN_IGNORE_IF_LOCKED
-                                                   : HA_OPEN_ABORT_IF_LOCKED);
+              (param->testflag & T_WAIT_FOREVER) ? HA_OPEN_WAIT_IF_LOCKED
+              : (param->testflag & T_DESCRIPT)   ? HA_OPEN_IGNORE_IF_LOCKED
+                                                 : HA_OPEN_ABORT_IF_LOCKED);
   if (!*org_info) {
     mi_check_print_error(
         param, "Got error %d when trying to open re-created indexfile",

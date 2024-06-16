@@ -567,10 +567,10 @@ static void meter_change_notify_callback(const char *meter,
                                          MeterNotifyType change) {
   // just log the notification, real metric component would need to update its
   // OTEL object collection
-  const char *change_type =
-      (change == MeterNotifyType::METER_ADDED)
-          ? "added"
-          : (change == MeterNotifyType::METER_REMOVED) ? "removed" : "updated";
+  const char *change_type = (change == MeterNotifyType::METER_ADDED) ? "added"
+                            : (change == MeterNotifyType::METER_REMOVED)
+                                ? "removed"
+                                : "updated";
   g_log.write("*** Meter change notification: %s %s\n", meter, change_type);
 
   // to test for possible deadlock, simulate production component

@@ -77,9 +77,7 @@ class TlsKeyManager {
   }
 
   /* Get SSL_CTX */
-  struct ssl_ctx_st *ctx() const {
-    return m_ctx;
-  }
+  struct ssl_ctx_st *ctx() const { return m_ctx; }
 
   /* Certificate table routines */
   void cert_table_set(int node_id, struct x509_st *);

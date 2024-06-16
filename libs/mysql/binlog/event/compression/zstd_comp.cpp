@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/binlog/event/compression/zstd_comp.h"
-//#include <my_byteorder.h>  // TODO: fix this include
+// #include <my_byteorder.h>  // TODO: fix this include
 #include <algorithm>                               // std::min
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 #include "scope_guard.h"                           // Scope_guard

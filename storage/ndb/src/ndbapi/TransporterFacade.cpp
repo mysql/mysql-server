@@ -57,8 +57,8 @@
 #include "kernel/signaldata/DumpStateOrd.hpp"
 #include "kernel/signaldata/TestOrd.hpp"
 
-//#define REPORT_TRANSPORTER
-//#define API_TRACE
+// #define REPORT_TRANSPORTER
+// #define API_TRACE
 
 static int numberToIndex(int number) { return number - MIN_API_BLOCK_NO; }
 
@@ -750,7 +750,7 @@ void TransporterFacade::calc_recv_thread_wakeup() {
   else if (m_recv_thread_wakeup < min_number)
     m_recv_thread_wakeup = min_number;
 
-//#define DEBUG_THIS_FUNCTION 1
+// #define DEBUG_THIS_FUNCTION 1
 #ifdef DEBUG_THIS_FUNCTION
   fprintf(stderr, "m_recv_thread_wakeup = %u, cpu_usage = %u, factor = %u\n",
           m_recv_thread_wakeup, m_recv_thread_cpu_usage_in_percent, factor);
@@ -2622,12 +2622,12 @@ void TransporterFacade::propose_poll_owner() {
         (recv_client && recv_client->m_poll.m_poll_queue &&
          recv_client->m_state == ReceiveThreadClient::ACTIVE)
             ? recv_client
-            // Avoid the recv_client as it is not ACTIVE
-            : (m_poll_queue_tail == recv_client &&
-               m_poll_queue_tail->m_poll.m_prev != nullptr)
-                  // 'tail' is the recv_client, prefer another
-                  ? m_poll_queue_tail->m_poll.m_prev
-                  : m_poll_queue_tail;
+        // Avoid the recv_client as it is not ACTIVE
+        : (m_poll_queue_tail == recv_client &&
+           m_poll_queue_tail->m_poll.m_prev != nullptr)
+            // 'tail' is the recv_client, prefer another
+            ? m_poll_queue_tail->m_poll.m_prev
+            : m_poll_queue_tail;
 
     /**
      * Note: we can only try lock here, to prevent potential deadlock

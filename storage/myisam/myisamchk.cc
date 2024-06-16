@@ -820,11 +820,11 @@ static int myisamchk(MI_CHECK *param, char *filename) {
   if (!(info = mi_open(
             filename,
             (param->testflag & (T_DESCRIPT | T_READONLY)) ? O_RDONLY : O_RDWR,
-            HA_OPEN_FOR_REPAIR | ((param->testflag & T_WAIT_FOREVER)
-                                      ? HA_OPEN_WAIT_IF_LOCKED
-                                      : (param->testflag & T_DESCRIPT)
-                                            ? HA_OPEN_IGNORE_IF_LOCKED
-                                            : HA_OPEN_ABORT_IF_LOCKED)))) {
+            HA_OPEN_FOR_REPAIR |
+                ((param->testflag & T_WAIT_FOREVER) ? HA_OPEN_WAIT_IF_LOCKED
+                 : (param->testflag & T_DESCRIPT)
+                     ? HA_OPEN_IGNORE_IF_LOCKED
+                     : HA_OPEN_ABORT_IF_LOCKED)))) {
     /* Avoid twice printing of isam file name */
     param->error_printed = 1;
     switch (my_errno()) {

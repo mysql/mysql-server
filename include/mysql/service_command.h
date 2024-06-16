@@ -397,7 +397,7 @@ extern "C" struct command_service_st {
                      const struct st_command_service_cbs *callbacks,
                      enum cs_text_or_binary text_or_binary,
                      void *service_callbacks_ctx);
-} * command_service;
+} *command_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

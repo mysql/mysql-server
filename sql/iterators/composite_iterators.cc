@@ -4277,7 +4277,7 @@ RemoveDuplicatesOnIndexIterator::RemoveDuplicatesOnIndexIterator(
       m_source(std::move(source)),
       m_table(table),
       m_key(key),
-      m_key_buf(new (thd->mem_root) uchar[key_len]),
+      m_key_buf(new(thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {}
 
 bool RemoveDuplicatesOnIndexIterator::Init() {
@@ -4318,7 +4318,7 @@ NestedLoopSemiJoinWithDuplicateRemovalIterator::
       m_source_inner(std::move(source_inner)),
       m_table_outer(table),
       m_key(key),
-      m_key_buf(new (thd->mem_root) uchar[key_len]),
+      m_key_buf(new(thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {
   assert(m_source_outer != nullptr);
   assert(m_source_inner != nullptr);

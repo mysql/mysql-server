@@ -74,13 +74,13 @@ void free_object(T *ptr) {
 
 // set of instrumented object allocators for different parameters number
 template <typename T, typename... Args>
-T *allocate_object(Args &&... args) {
+T *allocate_object(Args &&...args) {
   return new (my_malloc(IS_PSI_AVAILABLE(KEY_memory_x_objects, 0), sizeof(T),
                         MYF(MY_WME))) T(std::forward<Args>(args)...);
 }
 
 template <typename T, typename... Args>
-std::shared_ptr<T> allocate_shared(Args &&... args) {
+std::shared_ptr<T> allocate_shared(Args &&...args) {
   return std::allocate_shared<T>(detail::PFS_allocator<T>(),
                                  std::forward<Args>(args)...);
 }

@@ -49,7 +49,7 @@
 #include <EventLogger.hpp>
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DO_TRANSIENT_POOL_STAT 1
+// #define DO_TRANSIENT_POOL_STAT 1
 #endif
 
 #define JAM_FILE_ID 420

@@ -37,13 +37,13 @@ class Xcom_statistics_storage_interface_default_impl
   void add_sucessful_paxos_round() override {}
   void add_empty_proposal_round() override {}
   void add_bytes_sent([[maybe_unused]] uint64_t bytes_sent) override {}
-  void add_proposal_time([
-      [maybe_unused]] unsigned long long proposal_time) override {}
+  void add_proposal_time(
+      [[maybe_unused]] unsigned long long proposal_time) override {}
   void add_three_phase_paxos() override {}
   void add_message() override {}
   void add_bytes_received([[maybe_unused]] uint64_t bytes_received) override {}
-  void set_last_proposal_time([
-      [maybe_unused]] unsigned long long proposal_time) override {}
+  void set_last_proposal_time(
+      [[maybe_unused]] unsigned long long proposal_time) override {}
   /* purecov: end */
 };
 

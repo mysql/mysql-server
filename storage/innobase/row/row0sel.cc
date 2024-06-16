@@ -2687,9 +2687,9 @@ void row_sel_field_store_in_mysql_format_func(
       happens for end range comparison. So length can
       vary according to secondary index record length. */
       ut_ad((templ->is_virtual && !field) ||
-            (field && field->prefix_len
-                 ? field->prefix_len == len
-                 : clust_templ_for_sec ? 1 : mysql_col_len == len));
+            (field && field->prefix_len ? field->prefix_len == len
+             : clust_templ_for_sec      ? 1
+                                        : mysql_col_len == len));
       memcpy(dest, data, len);
   }
 }

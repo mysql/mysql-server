@@ -106,7 +106,7 @@ types of head, tail...
 */
 template <typename Head, typename... Tail>
 static bool verify_fmt_match(const char *fmt, Head &&head [[maybe_unused]],
-                             Tail &&... tail) {
+                             Tail &&...tail) {
   using H =
       typename std::remove_cv<typename std::remove_reference<Head>::type>::type;
   const char *pos = get_first_format(fmt);

@@ -1573,7 +1573,7 @@ class alignas(NDB_CL) SimulatedBlock
 #endif
 
   /* Needs to be defined in mt.hpp as well to work */
-  //#define DEBUG_SCHED_STATS 1
+  // #define DEBUG_SCHED_STATS 1
 
 #define AVERAGE_SIGNAL_SIZE 16
 #define MIN_QUERY_INSTANCES_PER_RR_GROUP 4

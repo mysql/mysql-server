@@ -99,10 +99,10 @@ static constexpr Uint32 ResumeCongestedQuota = 32;
  * DEBUG options for different parts of SPJ block.
  * Comment out those part you don't want DEBUG'ed.
  */
-//#define DEBUG(x) ndbout << "DBSPJ: "<< x << endl
-//#define DEBUG_DICT(x) ndbout << "DBSPJ: "<< x << endl
-//#define DEBUG_LQHKEYREQ
-//#define DEBUG_SCAN_FRAGREQ
+// #define DEBUG(x) ndbout << "DBSPJ: "<< x << endl
+// #define DEBUG_DICT(x) ndbout << "DBSPJ: "<< x << endl
+// #define DEBUG_LQHKEYREQ
+// #define DEBUG_SCAN_FRAGREQ
 #endif
 
 /**
@@ -577,7 +577,7 @@ void Dbspj::execREAD_CONFIG_REQ(Signal *signal) {
 static Uint32 f_STTOR_REF = 0;
 
 void Dbspj::execSTTOR(Signal *signal) {
-  //#define UNIT_TEST_DATABUFFER2
+  // #define UNIT_TEST_DATABUFFER2
 
   jamEntry();
   /* START CASE */

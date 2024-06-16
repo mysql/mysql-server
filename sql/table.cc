@@ -1914,11 +1914,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                       "int_length: %d  com_length: %d  gcol_screen_length: %d",
                       interval_count, interval_parts, share->keys, n_length,
                       int_length, com_length, gcol_screen_length));
-  if (!(field_ptr = (Field **)share->mem_root.Alloc((uint)(
-            (share->fields + 1) * sizeof(Field *) +
-            interval_count * sizeof(TYPELIB) +
-            (share->fields + interval_parts + keys + 3) * sizeof(char *) +
-            (n_length + int_length + com_length + gcol_screen_length)))))
+  if (!(field_ptr = (Field **)share->mem_root.Alloc((
+            uint)((share->fields + 1) * sizeof(Field *) +
+                  interval_count * sizeof(TYPELIB) +
+                  (share->fields + interval_parts + keys + 3) * sizeof(char *) +
+                  (n_length + int_length + com_length + gcol_screen_length)))))
     goto err; /* purecov: inspected */
 
   share->field = field_ptr;
@@ -3218,13 +3218,11 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if ((ha_err = (outparam->file->ha_open(
              outparam, share->normalized_path.str,
              (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
-             ((db_stat & HA_OPEN_TEMPORARY
-                   ? HA_OPEN_TMP_TABLE
-                   : (db_stat & HA_WAIT_IF_LOCKED)
-                         ? HA_OPEN_WAIT_IF_LOCKED
-                         : (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO))
-                               ? HA_OPEN_ABORT_IF_LOCKED
-                               : HA_OPEN_IGNORE_IF_LOCKED) |
+             ((db_stat & HA_OPEN_TEMPORARY     ? HA_OPEN_TMP_TABLE
+               : (db_stat & HA_WAIT_IF_LOCKED) ? HA_OPEN_WAIT_IF_LOCKED
+               : (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO))
+                   ? HA_OPEN_ABORT_IF_LOCKED
+                   : HA_OPEN_IGNORE_IF_LOCKED) |
               ha_open_flags),
              table_def)))) {
       /* Set a flag if the table is crashed and it can be auto. repaired */
@@ -3454,17 +3452,16 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
             datext = "";
         }
       }
-      err_no = (db_errno == ENOENT)
-                   ? ER_FILE_NOT_FOUND
-                   : (db_errno == EAGAIN) ? ER_FILE_USED : ER_CANT_OPEN_FILE;
+      err_no = (db_errno == ENOENT)   ? ER_FILE_NOT_FOUND
+               : (db_errno == EAGAIN) ? ER_FILE_USED
+                                      : ER_CANT_OPEN_FILE;
       strxmov(buff, share->normalized_path.str, datext, NullS);
       my_error(err_no, MYF(0), buff, db_errno,
                my_strerror(errbuf, sizeof(errbuf), db_errno));
       LogErr(ERROR_LEVEL,
-             (db_errno == ENOENT)
-                 ? ER_SERVER_FILE_NOT_FOUND
-                 : (db_errno == EAGAIN) ? ER_SERVER_FILE_USED
-                                        : ER_SERVER_CANT_OPEN_FILE,
+             (db_errno == ENOENT)   ? ER_SERVER_FILE_NOT_FOUND
+             : (db_errno == EAGAIN) ? ER_SERVER_FILE_USED
+                                    : ER_SERVER_CANT_OPEN_FILE,
              buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
       ::destroy_at(file);
       break;

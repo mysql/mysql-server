@@ -439,7 +439,7 @@ class Buf_flush_list_added_lsns {
 
   template <typename T, typename... Args>
   friend T *ut::aligned_new_withkey(ut::PSI_memory_key_t key,
-                                    std::size_t alignment, Args &&... args);
+                                    std::size_t alignment, Args &&...args);
 };
 
 extern Buf_flush_list_added_lsns_aligned_ptr buf_flush_list_added;

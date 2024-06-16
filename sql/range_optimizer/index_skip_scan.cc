@@ -328,9 +328,8 @@ int IndexSkipScanIterator::Read() {
         start_key.keypart_map = make_prev_keypart_map(used_key_parts);
         start_key.flag = (range_cond_flag & (EQ_RANGE | NULL_RANGE))
                              ? HA_READ_KEY_EXACT
-                             : (range_cond_flag & NEAR_MIN)
-                                   ? HA_READ_AFTER_KEY
-                                   : HA_READ_KEY_OR_NEXT;
+                         : (range_cond_flag & NEAR_MIN) ? HA_READ_AFTER_KEY
+                                                        : HA_READ_KEY_OR_NEXT;
       } else {
         // If there is no minimum key, just use the distinct prefix.
         start_key.key = distinct_prefix;

@@ -121,7 +121,7 @@ extern "C" struct security_context_service_st {
   */
   my_svc_bool (*security_context_set_option)(MYSQL_SECURITY_CONTEXT,
                                              const char *name, void *pvalue);
-} * security_context_service;
+} *security_context_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 

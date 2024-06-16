@@ -55,18 +55,18 @@
 static bool g_dbg_lcp = false;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_PAGE_ENTRY 1
-//#define DEBUG_PGMAN_IO 1
-//#define DEBUG_PGMAN_WRITE 1
-//#define DEBUG_GET_PAGE 1
-//#define DEBUG_PGMAN_PAGE 1
-//#define DEBUG_PGMAN_EXTRA 1
-//#define DEBUG_PGMAN_LCP_TIME_STAT 1
-//#define DEBUG_PGMAN 1
-//#define DEBUG_PGMAN_LCP_EXTRA 1
-//#define DEBUG_PGMAN_LCP 1
-//#define DEBUG_PGMAN_LCP_STAT 1
-//#define DEBUG_PGMAN_PREP_PAGE 1
+// #define DEBUG_PAGE_ENTRY 1
+// #define DEBUG_PGMAN_IO 1
+// #define DEBUG_PGMAN_WRITE 1
+// #define DEBUG_GET_PAGE 1
+// #define DEBUG_PGMAN_PAGE 1
+// #define DEBUG_PGMAN_EXTRA 1
+// #define DEBUG_PGMAN_LCP_TIME_STAT 1
+// #define DEBUG_PGMAN 1
+// #define DEBUG_PGMAN_LCP_EXTRA 1
+// #define DEBUG_PGMAN_LCP 1
+// #define DEBUG_PGMAN_LCP_STAT 1
+// #define DEBUG_PGMAN_PREP_PAGE 1
 #endif
 
 #ifdef DEBUG_PAGE_ENTRY

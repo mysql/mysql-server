@@ -46,18 +46,18 @@ constexpr std::size_t get_default_type_size() {
 }
 
 template <Field_size size, typename Field_type, typename... Args>
-auto define_field_with_size(Field_type &arg, Args &&... args) {
+auto define_field_with_size(Field_type &arg, Args &&...args) {
   return Field_definition<Field_type, size>(arg, std::forward<Args>(args)...);
 }
 
 template <typename Field_type, typename... Args>
-auto define_field(Field_type &arg, Args &&... args) {
+auto define_field(Field_type &arg, Args &&...args) {
   return Field_definition<Field_type, get_default_type_size<Field_type>()>(
       arg, std::forward<Args>(args)...);
 }
 
 template <typename Field_type, typename... Args>
-auto define_field(const Field_type &arg, Args &&... args) {
+auto define_field(const Field_type &arg, Args &&...args) {
   return Field_definition<const Field_type,
                           get_default_type_size<Field_type>()>(
       arg, std::forward<Args>(args)...);

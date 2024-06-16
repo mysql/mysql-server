@@ -32,7 +32,7 @@
 #include "util/ndb_openssl_evp.h"
 
 // Use this define if you want printouts from AsyncFile class
-//#define DEBUG_ASYNCFILE
+// #define DEBUG_ASYNCFILE
 
 #ifdef DEBUG_ASYNCFILE
 #include <NdbOut.hpp>

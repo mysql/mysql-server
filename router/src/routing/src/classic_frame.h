@@ -155,13 +155,13 @@ class ClassicFrame {
    * StmtPrepareOk.
    */
   template <class Msg, class Proto>
-  requires(
-      (std::is_same_v<
-           Msg, classic_protocol::borrowed::message::client::StmtExecute> &&
-       std::is_same_v<Proto, ClientSideClassicProtocolState>))  //
-      static inline stdx::expected<Msg, std::error_code> recv_msg(
-          Channel &src_channel, Proto &src_protocol,
-          classic_protocol::capabilities::value_type caps) {
+    requires(
+        (std::is_same_v<
+             Msg, classic_protocol::borrowed::message::client::StmtExecute> &&
+         std::is_same_v<Proto, ClientSideClassicProtocolState>))  //
+  static inline stdx::expected<Msg, std::error_code> recv_msg(
+      Channel &src_channel, Proto &src_protocol,
+      classic_protocol::capabilities::value_type caps) {
     auto read_res =
         ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
     if (!read_res) return stdx::unexpected(read_res.error());

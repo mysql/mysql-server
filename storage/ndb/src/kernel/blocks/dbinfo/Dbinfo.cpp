@@ -30,7 +30,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/TransIdAI.hpp>
 
-//#define DBINFO_SCAN_TRACE
+// #define DBINFO_SCAN_TRACE
 #ifdef DBINFO_SCAN_TRACE
 #include <debugger/DebuggerNames.hpp>
 #endif

@@ -37,20 +37,20 @@
 #define JAM_FILE_ID 416
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_DISK 1
-//#define DEBUG_LCP 1
-//#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
-//#define DEBUG_INSERT_EXTRA 1
-//#define DEBUG_LCP_SCANNED_BIT 1
-//#define DEBUG_PGMAN 1
-//#define DEBUG_ROW_COUNT_DEL 1
-//#define DEBUG_ROW_COUNT_INS 1
-//#define DEBUG_DELETE 1
-//#define DEBUG_DELETE_EXTRA 1
-//#define DEBUG_LCP_SKIP_DELETE2 1
-//#define DEBUG_LCP_DEL 1
-//#define DEBUG_LCP_SKIP 1
-//#define DEBUG_LCP_SKIP_DELETE 1
+// #define DEBUG_DISK 1
+// #define DEBUG_LCP 1
+// #define DEBUG_LCP_SKIP_DELETE_EXTRA 1
+// #define DEBUG_INSERT_EXTRA 1
+// #define DEBUG_LCP_SCANNED_BIT 1
+// #define DEBUG_PGMAN 1
+// #define DEBUG_ROW_COUNT_DEL 1
+// #define DEBUG_ROW_COUNT_INS 1
+// #define DEBUG_DELETE 1
+// #define DEBUG_DELETE_EXTRA 1
+// #define DEBUG_LCP_SKIP_DELETE2 1
+// #define DEBUG_LCP_DEL 1
+// #define DEBUG_LCP_SKIP 1
+// #define DEBUG_LCP_SKIP_DELETE 1
 #endif
 
 #ifdef DEBUG_DISK
@@ -1379,10 +1379,10 @@ void Dbtup::set_commit_performed(OperationrecPtr firstOperPtr,
 
 #ifdef ERROR_INSERT
 #define MAX_COMMITS 0xFFFFFFFF
-//#define MAX_COMMITS 1
+// #define MAX_COMMITS 1
 #else
 #define MAX_COMMITS 0xFFFFFFFF
-//#define MAX_COMMITS 4
+// #define MAX_COMMITS 4
 #endif
 void Dbtup::continue_report_commit_performed(Signal *signal,
                                              Uint32 firstOperPtrI) {

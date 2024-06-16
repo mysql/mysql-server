@@ -68,13 +68,13 @@ class TlsBase {
   using LowerLayerType = LowerLayer;
 
   template <typename... Args>
-  TlsBase(TlsServerContext *tls_context, Args &&... args)
+  TlsBase(TlsServerContext *tls_context, Args &&...args)
       : TlsBase(LowerLayer{std::forward<Args>(args)...}, tls_context) {
     SSL_set_accept_state(ssl_.get());
   }
 
   template <typename... Args>
-  TlsBase(TlsClientContext *tls_context, Args &&... args)
+  TlsBase(TlsClientContext *tls_context, Args &&...args)
       : TlsBase(LowerLayer{std::forward<Args>(args)...}, tls_context) {
     SSL_set_connect_state(ssl_.get());
   }

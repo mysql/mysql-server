@@ -347,8 +347,8 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_pages".
 */
-void Backup_page_tracker::page_track_get_changed_pages_deinit(UDF_INIT *initid [
-    [maybe_unused]]) {
+void Backup_page_tracker::page_track_get_changed_pages_deinit(
+    UDF_INIT *initid [[maybe_unused]]) {
   free(m_changed_pages_buf);
   m_changed_pages_buf = nullptr;
 }

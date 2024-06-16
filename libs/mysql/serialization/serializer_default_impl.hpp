@@ -205,8 +205,8 @@ template <class Archive_concrete_type>
 template <class Field_type, Field_size field_size_defined, typename Enabler>
 void Serializer_default<Archive_concrete_type>::encode_field(
     const Field_type &field, Serializer_array_tag) {
-  using value_type = std::remove_reference_t<decltype(
-      *std::begin(std::declval<Field_type &>()))>;
+  using value_type = std::remove_reference_t<decltype(*std::begin(
+      std::declval<Field_type &>()))>;
   for (const auto &internal_field : field) {
     // we use default size for internal fields (0)
     encode_field<value_type, 0>(internal_field);
@@ -219,8 +219,8 @@ template <class Archive_concrete_type>
 template <class Field_type, Field_size field_size_defined, typename Enabler>
 void Serializer_default<Archive_concrete_type>::decode_field(
     Field_type &field, Serializer_array_tag) {
-  using value_type = std::remove_reference_t<decltype(
-      *std::begin(std::declval<Field_type &>()))>;
+  using value_type = std::remove_reference_t<decltype(*std::begin(
+      std::declval<Field_type &>()))>;
   for (auto &internal_field : field) {
     // we use default size for internal fields (0)
     decode_field<value_type, 0>(internal_field);
@@ -304,8 +304,8 @@ template <class Field_type, Field_size field_size_defined, typename Enabler>
 std::size_t Serializer_default<Archive_concrete_type>::get_field_size(
     const Field_type &field, Serializer_array_tag) {
   std::size_t field_size = 0;
-  using value_type = std::remove_reference_t<decltype(
-      *std::begin(std::declval<Field_type &>()))>;
+  using value_type = std::remove_reference_t<decltype(*std::begin(
+      std::declval<Field_type &>()))>;
   for (const auto &internal_field : field) {
     field_size += get_field_size<value_type, 0>(internal_field);
   }
@@ -396,8 +396,8 @@ Field_id_type find_last_non_ignorable_field_id(
       last_non_ignorable_field_id = nested_id + 1;
     }
   };
-  auto func_f = [&last_non_ignorable_field_id](
-      const auto &field, auto processed_field_id) -> auto {
+  auto func_f = [&last_non_ignorable_field_id](const auto &field,
+                                               auto processed_field_id) -> auto{
     if (field.run_encode_predicate() && field.is_field_ignorable() == false) {
       last_non_ignorable_field_id = processed_field_id + 1;
     }

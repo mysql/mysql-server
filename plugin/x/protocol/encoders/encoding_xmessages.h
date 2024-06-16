@@ -79,7 +79,7 @@ class XMessage_encoder_base : public Base_type {
   //
   // Using template constructor instead:
   template <typename... Args>
-  explicit XMessage_encoder_base(Args &&... args)
+  explicit XMessage_encoder_base(Args &&...args)
       : Base_type(std::forward<Args>(args)...) {}
 
   void encode_compact_metadata(const uint8_t type, const uint64_t *collation,

@@ -1140,9 +1140,9 @@ class Log_event {
     DBUG_TRACE;
     enum_skip_reason ret = do_shall_skip(rli);
     DBUG_PRINT("info", ("skip reason=%d=%s", ret,
-                        ret == EVENT_SKIP_NOT
-                            ? "NOT"
-                            : ret == EVENT_SKIP_IGNORE ? "IGNORE" : "COUNT"));
+                        ret == EVENT_SKIP_NOT      ? "NOT"
+                        : ret == EVENT_SKIP_IGNORE ? "IGNORE"
+                                                   : "COUNT"));
     return ret;
   }
 

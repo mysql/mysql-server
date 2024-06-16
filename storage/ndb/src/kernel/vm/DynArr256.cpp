@@ -90,8 +90,8 @@ inline Uint32 DA256Page::last_free() const {
   return node;
 }
 
-//#define DA256_USE_PX
-//#define DA256_USE_PREFETCH
+// #define DA256_USE_PX
+// #define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
 
 #ifdef TEST_DYNARR256

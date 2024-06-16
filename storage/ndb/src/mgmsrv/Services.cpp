@@ -95,8 +95,12 @@ struct CmdAuth {
   MgmAuth::level level;
 };
 
-static struct CmdAuth Boot { MgmAuth::cmdIsBootstrap };
-static struct CmdAuth Basic { 0 };
+static struct CmdAuth Boot {
+  MgmAuth::cmdIsBootstrap
+};
+static struct CmdAuth Basic {
+  0
+};
 
 const ParserRow<MgmApiSession> commands[] = {
     MGM_CMD("get config", &MgmApiSession::getConfig_v1, "", &Basic),

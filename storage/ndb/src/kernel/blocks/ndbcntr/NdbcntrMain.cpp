@@ -91,12 +91,12 @@
 #define JAM_FILE_ID 458
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_NODE_STOP 1
-//#define DEBUG_LOCAL_SYSFILE 1
-//#define DEBUG_UNDO 1
-//#define DEBUG_REDO_CONTROL 1
-//#define DEBUG_NODE_GROUP_START 1
-//#define DEBUG_LCP 1
+// #define DEBUG_NODE_STOP 1
+// #define DEBUG_LOCAL_SYSFILE 1
+// #define DEBUG_UNDO 1
+// #define DEBUG_REDO_CONTROL 1
+// #define DEBUG_NODE_GROUP_START 1
+// #define DEBUG_LCP 1
 #endif
 
 #ifdef DEBUG_NODE_GROUP_START
@@ -3099,7 +3099,7 @@ void Ndbcntr::ph5ALab(Signal *signal) {
       req->masterNodeId = cmasterNodeId;
 
       g_eventLogger->info("Start NDB start phase 5 (only to DBDIH)");
-      //#define TRACE_STTOR
+      // #define TRACE_STTOR
 #ifdef TRACE_STTOR
       g_eventLogger->info("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
 #endif
@@ -4108,7 +4108,7 @@ void Ndbcntr::sendNdbSttor(Signal *signal) {
     req->config[i] = 0x88776655;
   }
 
-  //#define MAX_STARTPHASE 2
+  // #define MAX_STARTPHASE 2
 #ifdef TRACE_STTOR
   g_eventLogger->info("sending NDB_STTOR(%d) to %s", cinternalStartphase,
                       getBlockName(refToBlock(ndbBlocksPtr.p->blockref)));

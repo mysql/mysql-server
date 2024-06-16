@@ -773,9 +773,7 @@ class IovList {
   IovList(const IovList &) = default;
   void set_count(int n) { nbuf = n; }
   int count() const { return nbuf; }
-  struct iovec &iov(int n) {
-    return m_iovec[n];
-  }
+  struct iovec &iov(int n) { return m_iovec[n]; }
   void free_all() {
     for (int n = 0; n < nbuf; n++) free(iov(n).iov_base);
   }

@@ -308,12 +308,8 @@ class SigningRequest : public CertSubject, public CertLifetime {
 
   /* Const Public Instance Methods */
   struct x509_st *create_unsigned_certificate() const;
-  struct X509_req_st *req() const {
-    return m_req;
-  }
-  struct evp_pkey_st *key() const {
-    return m_key;
-  }
+  struct X509_req_st *req() const { return m_req; }
+  struct evp_pkey_st *key() const { return m_key; }
   bool store(const char *dir) const;
   bool write(FILE *) const;
   bool verify() const;
@@ -378,15 +374,9 @@ class NodeCertificate : public CertSubject, public CertLifetime {
   ~NodeCertificate();
 
   /* Const Public Instance Methods */
-  struct evp_pkey_st *key() const {
-    return m_key;
-  }
-  struct x509_st *cert() const {
-    return m_x509;
-  }
-  struct stack_st_X509 *all_certs() const {
-    return m_all_certs;
-  }
+  struct evp_pkey_st *key() const { return m_key; }
+  struct x509_st *cert() const { return m_x509; }
+  struct stack_st_X509 *all_certs() const { return m_all_certs; }
 
   BaseString serial_number() const;
 

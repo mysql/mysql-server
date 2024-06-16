@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define TEMPTABLE_PFS_MEMORY
 
 /* Enabling this causes ~ 4% performance drop in sysbench distinct ranges. */
-//#define TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
+// #define TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 namespace temptable {

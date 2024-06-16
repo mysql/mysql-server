@@ -230,7 +230,7 @@ void btr_search_sys_resize(ulint hash_size) {
     ib::error(ER_IB_MSG_45) << "btr_search_sys_resize failed because"
                                " hash index hash table is not empty.";
     ut_d(ut_error);
-    ut_o(return );
+    ut_o(return);
   }
 
   /* Step-2: Recreate hash tables with new size. */

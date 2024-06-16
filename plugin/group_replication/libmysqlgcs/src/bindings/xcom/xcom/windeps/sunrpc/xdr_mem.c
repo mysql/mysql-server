@@ -132,7 +132,8 @@ static u_int xdrmem_getpos(const XDR *xdrs) {
 /*
  * xdrs modified
  */
-static bool_t xdrmem_setpos(xdrs, pos) XDR *xdrs;
+static bool_t xdrmem_setpos(xdrs, pos)
+XDR *xdrs;
 u_int pos;
 {
   caddr_t newaddr = xdrs->x_base + pos;

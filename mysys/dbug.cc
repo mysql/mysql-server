@@ -686,9 +686,10 @@ static int DbugParse(CODE_STATE *cs, const char *control) {
   return !rel || f_used;
 }
 
-#define framep_trace_flag(cs, frp) \
-  (frp ? frp->level & TRACE_ON     \
-       : (ListFlags(cs->stack->functions) & INCLUDE) ? 0 : (uint)TRACE_ON)
+#define framep_trace_flag(cs, frp)                                       \
+  (frp                                           ? frp->level & TRACE_ON \
+   : (ListFlags(cs->stack->functions) & INCLUDE) ? 0                     \
+                                                 : (uint)TRACE_ON)
 
 static void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
                                  struct _db_stack_frame_ *framep) {

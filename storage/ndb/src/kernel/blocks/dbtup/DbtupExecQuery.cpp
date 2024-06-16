@@ -49,12 +49,12 @@
 
 #define TUP_NO_TUPLE_FOUND 626
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_LCP 1
-//#define DEBUG_DELETE 1
-//#define DEBUG_DELETE_NR 1
-//#define DEBUG_LCP_LGMAN 1
-//#define DEBUG_LCP_SKIP_DELETE 1
-//#define DEBUG_DISK 1
+// #define DEBUG_LCP 1
+// #define DEBUG_DELETE 1
+// #define DEBUG_DELETE_NR 1
+// #define DEBUG_LCP_LGMAN 1
+// #define DEBUG_LCP_SKIP_DELETE 1
+// #define DEBUG_DISK 1
 #endif
 
 #ifdef DEBUG_DISK
@@ -1022,9 +1022,9 @@ bool Dbtup::execTUPKEYREQ(Signal *signal, void *_lqhOpPtrP,
 
     const Uint32 triggers = (flags & Dblqh::TcConnectionrec::OP_NO_TRIGGERS)
                                 ? TupKeyReq::OP_NO_TRIGGERS
-                                : (lqhOpPtrP->seqNoReplica == 0)
-                                      ? TupKeyReq::OP_PRIMARY_REPLICA
-                                      : TupKeyReq::OP_BACKUP_REPLICA;
+                            : (lqhOpPtrP->seqNoReplica == 0)
+                                ? TupKeyReq::OP_PRIMARY_REPLICA
+                                : TupKeyReq::OP_BACKUP_REPLICA;
     op_struct.bit_field.delete_insert_flag = false;
     op_struct.bit_field.m_gci_written = 0;
     op_struct.bit_field.m_reorg = lqhOpPtrP->m_reorg;

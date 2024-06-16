@@ -187,8 +187,7 @@ void fill(void) {
   for (i = 0; i < N; i++) {
     memset(bms[i], 0, sizeof(bms[i]));
     pos[i] = p;
-    do
-      len[i] = rand() % 128;
+    do len[i] = rand() % 128;
     while (!len[i]);
     p += len[i];
     for (j = 0; j < len[i]; j++)

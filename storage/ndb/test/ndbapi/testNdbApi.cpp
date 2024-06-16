@@ -5534,8 +5534,9 @@ class FragSignalChecker {
   static Uint32 getSecSz(Uint32 secNum, Uint32 iter) {
     require(secNum < 3);
     Uint32 numSizes = getNumInterestingSizes();
-    Uint32 divisor =
-        (secNum == 0 ? 1 : secNum == 1 ? numSizes : numSizes * numSizes);
+    Uint32 divisor = (secNum == 0   ? 1
+                      : secNum == 1 ? numSizes
+                                    : numSizes * numSizes);
     /* offset ensures only end sections are 0 length */
     Uint32 index = (iter / divisor) % numSizes;
     if ((index == 0) && (iter >= (divisor * numSizes)))

@@ -204,7 +204,7 @@ class Mem_root_array_YY {
     @return true if out-of-memory, false otherwise.
   */
   template <typename... Args>
-  bool emplace_back(Args &&... args) {
+  bool emplace_back(Args &&...args) {
     constexpr size_t min_capacity = 20;
     constexpr size_t expansion_factor = 2;
     if (m_size == m_capacity) {

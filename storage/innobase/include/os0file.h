@@ -737,15 +737,12 @@ null-terminated string
 @param[out]     success         true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] pfs_os_file_t
-    os_file_create_simple_no_error_handling_func(const char *name,
-                                                 ulint create_mode,
-                                                 ulint access_type,
-                                                 bool read_only,
+[[nodiscard]] pfs_os_file_t os_file_create_simple_no_error_handling_func(
+    const char *name, ulint create_mode, ulint access_type, bool read_only,
 #ifndef _WIN32
-                                                 mode_t umask,
+    mode_t umask,
 #endif
-                                                 bool *success);
+    bool *success);
 MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Tries to disable OS caching on an opened file descriptor.
@@ -1013,13 +1010,13 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] static inline pfs_os_file_t
-    pfs_os_file_create_simple_no_error_handling_func(
-        mysql_pfs_key_t key, const char *name, ulint create_mode,
-        ulint access_type, bool read_only,
+pfs_os_file_create_simple_no_error_handling_func(
+    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
+    bool read_only,
 #ifndef _WIN32
-        mode_t umask,
+    mode_t umask,
 #endif
-        bool *success, ut::Location src_location);
+    bool *success, ut::Location src_location);
 MY_COMPILER_DIAGNOSTIC_POP()
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
@@ -1042,11 +1039,9 @@ Add instrumentation to monitor file creation/open.
 @param[in]      src_location    location where func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t
-    pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
-                            ulint create_mode, ulint purpose, ulint type,
-                            bool read_only, bool *success,
-                            ut::Location src_location);
+[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_func(
+    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint purpose,
+    ulint type, bool read_only, bool *success, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!

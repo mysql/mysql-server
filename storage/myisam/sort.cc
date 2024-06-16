@@ -542,8 +542,8 @@ static int merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     count += buffpek->count;
     buffpek->base = strpos;
     buffpek->max_keys = maxcount;
-    strpos += (uint)(
-        error = (int)info->read_to_buffer(from_file, buffpek, sort_length));
+    strpos += (uint)(error = (int)info->read_to_buffer(from_file, buffpek,
+                                                       sort_length));
     if (error == -1) goto err; /* purecov: inspected */
     queue_insert(&queue, (uchar *)buffpek);
   }

@@ -68,7 +68,7 @@ extern "C" {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_mysql_CharsetMap.h"
+// #include "com_mysql_ndbjtie_mysql_CharsetMap.h"
 
 /*
  * Class:     com_mysql_ndbjtie_mysql_CharsetMap
@@ -206,7 +206,7 @@ JNIEXPORT jint JNICALL Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_mysql_Utils.h"
+// #include "com_mysql_ndbjtie_mysql_Utils.h"
 
 /*
  * Class:     com_mysql_ndbjtie_mysql_Utils

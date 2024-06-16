@@ -41,7 +41,7 @@
 #include "my_pointer_arithmetic.h"
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
-//#define EVENT_DEBUG
+// #define EVENT_DEBUG
 #ifdef EVENT_DEBUG
 #define DBUG_ENTER_EVENT(A) DBUG_ENTER(A)
 #define DBUG_RETURN_EVENT(A) DBUG_RETURN(A)

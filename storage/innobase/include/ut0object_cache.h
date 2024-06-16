@@ -51,13 +51,13 @@ class Object_cache {
   @param[in]  step   when extending cache, number of objects to add.
   @param[in]  args   arguments to be passed to constructor of T */
   template <typename... Types>
-  dberr_t init(size_t size, size_t step, Types &&... args) {
+  dberr_t init(size_t size, size_t step, Types &&...args) {
     m_step = step;
     return extend(size, std::forward<Types>(args)...);
   }
 
   template <typename... Types>
-  T *allocate(Types &&... args) {
+  T *allocate(Types &&...args) {
     if (m_index == m_objects.size()) {
       extend(m_step, std::forward<Types>(args)...);
     }
@@ -66,7 +66,7 @@ class Object_cache {
   }
 
   template <typename... Types>
-  dberr_t extend(size_t size, Types &&... args) {
+  dberr_t extend(size_t size, Types &&...args) {
     m_objects.reserve(m_objects.size() + size);
     for (size_t i = 0; i < size; ++i) {
       auto obj = ut::new_withkey<T>(UT_NEW_THIS_FILE_PSI_KEY,

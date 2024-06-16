@@ -102,11 +102,11 @@ void Serializer<Serializer_derived_type, Archive_type>::
     encode_serializable_fields(const Serializable_type &serializable,
                                Level_type level) {
   auto process_serializable =
-      [ this, level ](const auto &field, auto field_id) -> auto {
+      [ this, level ](const auto &field, auto field_id) -> auto{
     this->encode_serializable(level, field_id, field, false);
   };
   auto process_field =
-      [ this, level ](const auto &field, auto field_id) -> auto {
+      [ this, level ](const auto &field, auto field_id) -> auto{
     this->encode_field(level, field_id, field);
     ++field_id;
   };
@@ -139,13 +139,13 @@ void Serializer<Serializer_derived_type, Archive_type>::
     decode_serializable_fields(Serializable_type &serializable,
                                Level_type level,
                                std::size_t serializable_end_pos) {
-  auto process_serializable = [ this, level, serializable_end_pos ](
-      auto &field, auto field_id) -> auto {
+  auto process_serializable =
+      [ this, level, serializable_end_pos ](auto &field, auto field_id) -> auto{
     this->decode_serializable(level, field_id, serializable_end_pos, field,
                               false);
   };
-  auto process_field = [ this, level, serializable_end_pos ](
-      auto &field, auto field_id) -> auto {
+  auto process_field =
+      [ this, level, serializable_end_pos ](auto &field, auto field_id) -> auto{
     this->decode_field(level, field_id, serializable_end_pos, field);
 
     ++field_id;

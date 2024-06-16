@@ -500,10 +500,10 @@ void SignalLoggerManager::printSignalHeader(FILE *output,
   const char *signalName = getSignalName(gsn);
   const char *rBlockName =
       receiverIsApi ? "API" : getBlockName(receiverBlockNo, dummy_block_name);
-  const char *sBlockName =
-      senderIsSys
-          ? "SYS"
-          : senderIsApi ? "API" : getBlockName(senderBlockNo, dummy_block_name);
+  const char *sBlockName = senderIsSys ? "SYS"
+                           : senderIsApi
+                               ? "API"
+                               : getBlockName(senderBlockNo, dummy_block_name);
 
   char rInstanceText[20];
   char sInstanceText[20];

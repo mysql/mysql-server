@@ -139,7 +139,7 @@ static constexpr size_t ALLOC_PAGES_PER_SYSTEM_PAGE =
  *
  * Also see Bug#28961597.
  */
-//#define NDB_TEST_128TB_VIRTUAL_MEMORY
+// #define NDB_TEST_128TB_VIRTUAL_MEMORY
 #ifdef NDB_TEST_128TB_VIRTUAL_MEMORY
 
 static inline int log_and_fake_success(const char func[], int line,

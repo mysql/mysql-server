@@ -104,13 +104,13 @@ class Console {
   }
 
   template <typename T, typename... R>
-  void print(const T &first, R &&... rest) const {
+  void print(const T &first, R &&...rest) const {
     print(first);
     print(std::forward<R>(rest)...);
   }
 
   template <typename... T>
-  void print_verbose(T &&... args) const {
+  void print_verbose(T &&...args) const {
     if (m_options.m_be_verbose) print(std::forward<T>(args)...);
   }
 
@@ -139,13 +139,13 @@ class Console {
   }
 
   template <typename T, typename... R>
-  void print_error(const T &first, R &&... rest) const {
+  void print_error(const T &first, R &&...rest) const {
     print_error(first);
     print_error(std::forward<R>(rest)...);
   }
 
   template <typename... T>
-  void print_error_red(T &&... values) const {
+  void print_error_red(T &&...values) const {
 #ifndef _WIN32
     if (m_options.m_use_color)
       print_error(k_red, values..., k_clear);
