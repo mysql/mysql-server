@@ -131,15 +131,15 @@ class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
 }  // namespace v3
 
 std::unique_ptr<mrs::interface::SchemaMonitorFactory>
-create_scheme_monitor_factory(
-    mrs::interface::SupportedMrsVersion scheme_version) {
+create_schema_monitor_factory(
+    mrs::interface::SupportedMrsMetadataVersion scheme_version) {
   switch (scheme_version) {
-    case mrs::interface::kSupportedMrsVersion_2:
+    case mrs::interface::kSupportedMrsMetadataVersion_2:
       return std::make_unique<mrs::database::v2::SchemaMonitorFactory>();
-    case mrs::interface::kSupportedMrsVersion_3:
+    case mrs::interface::kSupportedMrsMetadataVersion_3:
       return std::make_unique<mrs::database::v3::SchemaMonitorFactory>();
     default:
-      assert(false && "Unsupported MRS scheme version.");
+      assert(false && "Unsupported MRS schema version.");
   }
   return {};
 }

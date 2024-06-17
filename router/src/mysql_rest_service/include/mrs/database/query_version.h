@@ -37,14 +37,23 @@ struct MrsSchemaVersion {
   int major{0};
   int minor{0};
   int patch{0};
-};
 
-struct MrsSchemaVersionChecker : public MrsSchemaVersion {
-  bool is_compatible(const MrsSchemaVersion &other) const {
-    if (major != other.major) return false;
-    if (minor != 0 && (minor < other.minor)) return false;
+  bool is_compatible(
+      std::initializer_list<MrsSchemaVersion> accepted_versions) const {
+    for (const auto &other : accepted_versions) {
+      if (major == other.major) {
+        if (other.minor != 0 && (other.minor < minor)) continue;
 
-    return true;
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  std::string str() const {
+    return std::to_string(major) + "." + std::to_string(minor) + "." +
+           std::to_string(patch);
   }
 };
 
