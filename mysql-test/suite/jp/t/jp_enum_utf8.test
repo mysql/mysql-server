@@ -15,21 +15,21 @@ drop table if exists `Ｔ９`;
 --enable_warnings
 
 #
-# Test ENUM values with Japanese characters in utf8 encoding
+# Test ENUM values with Japanese characters in utf8mb3 encoding
 #
 
-SET NAMES utf8;
-SET character_set_database = utf8;
+SET NAMES utf8mb3;
+SET character_set_database = utf8mb3;
 
-CREATE TABLE `Ｔ１` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
-CREATE TABLE `Ｔ２` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
-CREATE TABLE `Ｔ３` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
-CREATE TABLE `Ｔ４` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ５` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ６` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ７` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
-CREATE TABLE `Ｔ８` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
-CREATE TABLE `Ｔ９` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ１` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = innodb;
+CREATE TABLE `Ｔ２` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = innodb;
+CREATE TABLE `Ｔ３` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = innodb;
+CREATE TABLE `Ｔ４` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = myisam;
+CREATE TABLE `Ｔ５` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = myisam;
+CREATE TABLE `Ｔ６` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = myisam;
+CREATE TABLE `Ｔ７` (`Ｃ１` ENUM('ｱ','ｲ','ｳ'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = MEMORY;
+CREATE TABLE `Ｔ８` (`Ｃ１` ENUM('あ','い','う'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = MEMORY;
+CREATE TABLE `Ｔ９` (`Ｃ１` ENUM('龔','龖','龗'), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = MEMORY;
 
 INSERT INTO `Ｔ１` VALUES ('ｱ'),('ｲ'),('ｳ');
 INSERT INTO `Ｔ２` VALUES ('あ'),('い'),('う');

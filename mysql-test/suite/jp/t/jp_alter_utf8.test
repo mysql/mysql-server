@@ -8,22 +8,22 @@ DROP TABLE IF EXISTS `龗龗龗`;
 --enable_warnings
 
 #
-# Test altering table with Japanese characters in utf8 encoding
+# Test altering table with Japanese characters in utf8mb3 encoding
 #
 
-SET NAMES utf8;
-SET character_set_database = utf8;
+SET NAMES utf8mb3;
+SET character_set_database = utf8mb3;
 
 
 #
 # Test InnoDB
 #
-CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = utf8 engine=INNODB;
+CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
 
 INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
 INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
@@ -122,12 +122,12 @@ DROP TABLE `龗龗龗`;
 # Test MyISAM
 #
 
-CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = utf8 engine=MYISAM;
-CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = utf8 engine=MYISAM;
-CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = utf8 engine=MYISAM;
-CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = utf8 engine=MYISAM;
-CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = utf8 engine=MYISAM;
-CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = utf8 engine=MYISAM;
+CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = utf8mb3 engine=MYISAM;
+CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = utf8mb3 engine=MYISAM;
+CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = utf8mb3 engine=MYISAM;
+CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = utf8mb3 engine=MYISAM;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = utf8mb3 engine=MYISAM;
+CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = utf8mb3 engine=MYISAM;
 
 INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
 INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');
@@ -221,12 +221,12 @@ DROP TABLE `龗龗龗`;
 # Test MEMORY
 #
 
-CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = utf8 engine=MEMORY;
+CREATE TABLE `ｱｱｱ`(`ｷｷｷ` char(5)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `ｲｲｲ`(`ｹｹｹ` char(5)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `あああ`(`ききき` char(5)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `いいい`(`けけけ` char(5)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(5)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `龗龗龗`(`乚乚乚` char(5)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
 
 INSERT INTO `ｱｱｱ` VALUES ('ｱｱｱｱｱ'),('ｲｲｲｲｲ'),('ｳｳｳｳｳ');
 INSERT INTO `あああ` VALUES ('あああああ'),('いいいいい'),('ううううう');

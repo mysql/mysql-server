@@ -44,37 +44,37 @@ CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ujis engi
  LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¹`;
 
 #InnoDB
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£±`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£±`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£±`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£²`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£²`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£²`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£²`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£³`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£³`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£³`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£³`;
 
 #MyISAM
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£´`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£´`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£´`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£´`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£µ`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£µ`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£µ`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£µ`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¶`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£¶`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¶`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¶`;
 
 #MEMORY
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£·`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£·`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£·`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£·`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¸`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£¸`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¸`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¸`;
-SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¹`;
+SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8mb3) FROM `£Ô£¹`;
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¹`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using sjis) FROM `£Ô£¹`;

@@ -5,11 +5,11 @@ drop database if exists `龔龖龗`;
 --enable_warnings
 
 #
-# Test Creating databases using Japanese charact for DB name in utf8 encoding
+# Test Creating databases using Japanese charact for DB name in utf8mb3 encoding
 #
 
-SET NAMES utf8;
-SET character_set_database = utf8;
+SET NAMES utf8mb3;
+SET character_set_database = utf8mb3;
 
 CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;

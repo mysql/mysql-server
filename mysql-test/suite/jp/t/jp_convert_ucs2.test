@@ -110,37 +110,37 @@ INSERT INTO `£‘£π` VALUES
 ,('èÌ»èÌ…èÌ èÌÀèÌÃèÌÕèÌŒèÌœèÌ–èÌ—èÌ“èÌ”èÌ‘èÌ’èÌ÷èÌ◊èÌÿèÌŸèÌ⁄èÌ€');
 
 #InnoDB
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£±`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£±`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£±`;
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£±`;
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£≤`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£≤`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£≤`;
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£≤`;
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£≥`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£≥`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£≥`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£≥`;
 
 #MyISAM
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£¥`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£¥`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£¥`;
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£¥`;
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£µ`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£µ`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£µ`;
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£µ`;
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£∂`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£∂`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£∂`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£∂`;
 
 #MEMORY
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£∑`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£∑`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£∑`;
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£∑`;
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£∏`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£∏`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£∏`;
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£∏`;
-SELECT `£√£±`, CONVERT(`£√£±` using utf8) FROM `£‘£π`;
+SELECT `£√£±`, CONVERT(`£√£±` using utf8mb3) FROM `£‘£π`;
 SELECT `£√£±`, CONVERT(`£√£±` using ucs2) FROM `£‘£π`;
 # The result will get garbled because jisx0212 is not included in sjis
 SELECT `£√£±`, CONVERT(`£√£±` using sjis) FROM `£‘£π`;

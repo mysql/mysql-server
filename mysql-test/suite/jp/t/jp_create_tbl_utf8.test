@@ -17,35 +17,35 @@ DROP TABLE IF EXISTS `龢龢龢`;
 --enable_warnings
 
 #
-# Test creating table with Japanese characters in utf8 encoding
+# Test creating table with Japanese characters in utf8mb3 encoding
 #
 
-SET NAMES utf8;
-SET character_set_database = utf8;
+SET NAMES utf8mb3;
+SET character_set_database = utf8mb3;
 
-CREATE TABLE `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
+CREATE TABLE `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
 # Tables should not be created because table names exist 
-CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
 # Tables should be created
-CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TABLE IF NOT EXISTS `龞龞龞`(`丅丅丅`char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TEMPORARY TABLE `ｴｴｴ`(`ｹｹｹ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TEMPORARY TABLE `ｵｵｵ`(`ｺｺｺ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TEMPORARY TABLE `えええ`(`けけけ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TEMPORARY TABLE `おおお`(`こここ` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TEMPORARY TABLE `龡龡龡`(`丌丌丌` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
-CREATE TEMPORARY TABLE `龢龢龢`(`丒丒丒` char(1)) DEFAULT CHARSET = utf8 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TABLE IF NOT EXISTS `龞龞龞`(`丅丅丅`char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TEMPORARY TABLE `ｴｴｴ`(`ｹｹｹ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TEMPORARY TABLE `ｵｵｵ`(`ｺｺｺ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TEMPORARY TABLE `えええ`(`けけけ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TEMPORARY TABLE `おおお`(`こここ` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TEMPORARY TABLE `龡龡龡`(`丌丌丌` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
+CREATE TEMPORARY TABLE `龢龢龢`(`丒丒丒` char(1)) DEFAULT CHARSET = utf8mb3 engine=INNODB;
 
 DESC `ｱｱｱ`; 
 DESC `ｲｲｲ`;
@@ -95,29 +95,29 @@ DROP TABLE `龞龞龞`;
 DROP TABLE `龡龡龡`;
 DROP TABLE `龢龢龢`;
 
-CREATE TABLE `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
+CREATE TABLE `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
 # Tables should not be created because table names exist
-CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
 # Tables should be created
-CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TABLE IF NOT EXISTS `龞龞龞`(`丅丅丅`char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TEMPORARY TABLE `ｴｴｴ`(`ｹｹｹ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TEMPORARY TABLE `ｵｵｵ`(`ｺｺｺ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TEMPORARY TABLE `えええ`(`けけけ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TEMPORARY TABLE `おおお`(`こここ` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TEMPORARY TABLE `龡龡龡`(`丌丌丌` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
-CREATE TEMPORARY TABLE `龢龢龢`(`丒丒丒` char(1)) DEFAULT CHARSET = utf8 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `龞龞龞`(`丅丅丅`char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TEMPORARY TABLE `ｴｴｴ`(`ｹｹｹ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TEMPORARY TABLE `ｵｵｵ`(`ｺｺｺ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TEMPORARY TABLE `えええ`(`けけけ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TEMPORARY TABLE `おおお`(`こここ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TEMPORARY TABLE `龡龡龡`(`丌丌丌` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
+CREATE TEMPORARY TABLE `龢龢龢`(`丒丒丒` char(1)) DEFAULT CHARSET = utf8mb3 engine=MyISAM;
 
 DESC `ｱｱｱ`;
 DESC `ｲｲｲ`;
@@ -167,29 +167,29 @@ DROP TABLE `龞龞龞`;
 DROP TABLE `龡龡龡`;
 DROP TABLE `龢龢龢`;
 
-CREATE TABLE `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
+CREATE TABLE `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
 # Tables should not be created because table names exist
-CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `龖龖龖`(`丂丂丂` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `龗龗龗`(`丄丄丄` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
 # Tables should be created
-CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TABLE IF NOT EXISTS `龞龞龞`(`丅丅丅`char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TEMPORARY TABLE `ｴｴｴ`(`ｹｹｹ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TEMPORARY TABLE `ｵｵｵ`(`ｺｺｺ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TEMPORARY TABLE `えええ`(`けけけ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TEMPORARY TABLE `おおお`(`こここ` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TEMPORARY TABLE `龡龡龡`(`丌丌丌` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
-CREATE TEMPORARY TABLE `龢龢龢`(`丒丒丒` char(1)) DEFAULT CHARSET = utf8 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TABLE IF NOT EXISTS `龞龞龞`(`丅丅丅`char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TEMPORARY TABLE `ｴｴｴ`(`ｹｹｹ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TEMPORARY TABLE `ｵｵｵ`(`ｺｺｺ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TEMPORARY TABLE `えええ`(`けけけ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TEMPORARY TABLE `おおお`(`こここ` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TEMPORARY TABLE `龡龡龡`(`丌丌丌` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
+CREATE TEMPORARY TABLE `龢龢龢`(`丒丒丒` char(1)) DEFAULT CHARSET = utf8mb3 engine=MEMORY;
 
 DESC `ｱｱｱ`;
 DESC `ｲｲｲ`;

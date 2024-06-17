@@ -11,21 +11,21 @@ drop table if exists `Ｔ９`;
 --enable_warnings
 
 #
-# Test CONVERT() function with Japanese character in utf8 encoding
+# Test CONVERT() function with Japanese character in utf8mb3 encoding
 #
 
-SET NAMES utf8;
-SET character_set_database = utf8;
+SET NAMES utf8mb3;
+SET character_set_database = utf8mb3;
 
-CREATE TABLE `Ｔ１` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
-CREATE TABLE `Ｔ２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
-CREATE TABLE `Ｔ３` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
-CREATE TABLE `Ｔ４` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ５` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ６` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ７` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
-CREATE TABLE `Ｔ８` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
-CREATE TABLE `Ｔ９` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ１` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = innodb;
+CREATE TABLE `Ｔ２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = innodb;
+CREATE TABLE `Ｔ３` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = innodb;
+CREATE TABLE `Ｔ４` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = myisam;
+CREATE TABLE `Ｔ５` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = myisam;
+CREATE TABLE `Ｔ６` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = myisam;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = MEMORY;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = MEMORY;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8mb3 engine = MEMORY;
 
 #Load the following data in each table
 # jisx0201 hankaku-katakana data

@@ -45,35 +45,35 @@ CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engi
  LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
 
 #InnoDB
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚P`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚P`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚P`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚P`;
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚Q`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚Q`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚Q`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚Q`;
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚R`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚R`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚R`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚R`;
 
 #MyISAM
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚S`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚S`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚S`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚S`;
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚T`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚T`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚T`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚T`;
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚U`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚U`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚U`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚U`;
 
 #MEMORY
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚V`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚V`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚V`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚V`;
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚W`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚W`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚W`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚W`;
-SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚X`;
+SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8mb3) FROM `‚s‚X`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚X`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚X`;
 
