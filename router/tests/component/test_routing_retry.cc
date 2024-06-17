@@ -28,8 +28,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#define RAPIDJSON_HAS_STDSTRING 1
-
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "rest_api_testutils.h"
 #include "router/src/routing/tests/mysql_client.h"

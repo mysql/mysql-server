@@ -25,8 +25,6 @@
 
 #include "router_require.h"
 
-#define RAPIDJSON_HAS_STDSTRING 1  // enable std::string support
-
 #include "my_rapidjson_size_t.h"  // before rapidjson.h
 
 #include <rapidjson/document.h>

@@ -25,8 +25,6 @@
 #include <stddef.h>
 #include <vector>
 
-#define RAPIDJSON_HAS_STDSTRING 1
-
 #include "manifest.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
