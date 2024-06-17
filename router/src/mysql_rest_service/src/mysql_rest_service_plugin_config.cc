@@ -318,6 +318,9 @@ PluginConfig::PluginConfig(const ConfigSection *section,
           "Route name '" + routing_ro_ +
           "' specified for `mysql_read_only_route` option, doesn't exist.");
   }
+
+  wait_for_metadata_schema_access_ =
+      get_option(section, "wait_for_metadata_schema_access", SecondsOption{});
 }
 
 std::set<std::string> PluginConfig::get_waiting_for_routing_plugins() {
@@ -368,6 +371,7 @@ bool PluginConfig::is_required(std::string_view option) const {
 std::string PluginConfig::get_default(std::string_view option) const {
   if (option == k_option_metadata_refresh) return "5";
   if (option == "authentication_rate_exceeded_block_for") return "60";
+  if (option == "wait_for_metadata_schema_access") return "0";
 
   return {};
 }

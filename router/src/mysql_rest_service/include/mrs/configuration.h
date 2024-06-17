@@ -59,6 +59,10 @@ class Configuration {
   std::string router_name_;
   uint32_t default_mysql_cache_instances_;
 
+  // how many seconds the schema monitor should wait before starting, for the
+  // "mysql_user_data_access"  user to get a proper access granted
+  std::chrono::seconds wait_for_metadata_schema_access_;
+
  public:  // Options fetched from other plugins
   bool is_https_;
   // todo(lkotula): remove ssl_

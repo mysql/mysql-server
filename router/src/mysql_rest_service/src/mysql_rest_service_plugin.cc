@@ -62,8 +62,7 @@ void trace_error(const char *variable_user, const char *access,
   if (e.code() == ER_ROLE_NOT_GRANTED) {
     log_error(
         "MySQL Server account, set in '%s' (MRS/%s access), "
-        "must be granted "
-        "with '%s' role.",
+        "must be granted with '%s' role.",
         variable_user, access, role);
     log_info(
         "Please consult the MRS documentation on: how to configure MySQL "
@@ -81,6 +80,18 @@ void trace_error(const char *variable_user, const char *access,
 
 struct MrdsModule {
   MrdsModule(const ::mrs::Configuration &c) : configuration{c} {
+    using namespace std::chrono_literals;
+    const auto end_time =
+        std::chrono::system_clock::now() + c.wait_for_metadata_schema_access_;
+    const auto kStep = 500ms;
+
+    while (!init(std::chrono::system_clock::now() >= end_time)) {
+      const auto timeout_left = end_time - std::chrono::system_clock::now();
+      std::this_thread::sleep_for(timeout_left > kStep ? kStep : timeout_left);
+    }
+  }
+
+  bool init(bool fail_on_no_role_granted) {
     using namespace mysqlrouter;
     try {
       auto conn1 = mysql_connection_cache.get_instance(
@@ -88,6 +99,9 @@ struct MrdsModule {
 
       check_version_compatibility(conn1.get());
     } catch (const MySQLSession::Error &e) {
+      if (!fail_on_no_role_granted && e.code() == ER_ROLE_NOT_GRANTED) {
+        return false;
+      }
       trace_error("mysql_user", "metadata", "mysql_rest_service_meta_provider",
                   e);
       throw std::runtime_error(
@@ -101,6 +115,9 @@ struct MrdsModule {
 
       check_version_compatibility(conn2.get());
     } catch (const MySQLSession::Error &e) {
+      if (!fail_on_no_role_granted && e.code() == ER_ROLE_NOT_GRANTED) {
+        return false;
+      }
       trace_error("mysql_user_data_access", "user-data",
                   "mysql_rest_service_data_provider", e);
       throw std::runtime_error(
@@ -109,6 +126,7 @@ struct MrdsModule {
     }
 
     mrs::initialize_entities(&entities_manager);
+    return true;
   }
 
   void start() { mrds_monitor.start(); }
@@ -234,7 +252,8 @@ static const std::array<const char *, 7> supported_options{
     "mysql_read_write_route",
     "mysql_read_only_route",
     "router_id",
-    "metadata_refresh_interval"};
+    "metadata_refresh_interval",
+    "wait_for_metadata_schema_access"};
 
 // TODO(lkotula): Consider renaming the plugin from rest_mrds to mrds or
 // something other if it already changed in DB schema, consult with router
