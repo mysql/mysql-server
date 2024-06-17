@@ -6,13 +6,13 @@
 --source include/not_crashrep.inc
 
 CREATE TABLE t4 (id bigint(12) unsigned NOT NULL auto_increment,
-  c2 varchar(15) collate utf8_bin default NULL,
-  c1 varchar(15) collate utf8_bin default NULL,
-  c3 varchar(10) collate utf8_bin default NULL,
+  c2 varchar(15) COLLATE utf8mb3_bin default NULL,
+  c1 varchar(15) COLLATE utf8mb3_bin default NULL,
+  c3 varchar(10) COLLATE utf8mb3_bin default NULL,
   spatial_point point NOT NULL SRID 0,
   PRIMARY KEY(id),
   SPATIAL KEY (spatial_point)
-  )ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+  )ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE utf8mb3_bin;
 
 INSERT INTO t4 (c2, c1, c3, spatial_point) VALUES
   ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
