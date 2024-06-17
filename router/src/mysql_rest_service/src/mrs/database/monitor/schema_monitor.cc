@@ -45,13 +45,22 @@ namespace database {
 
 namespace {
 
-mrs::interface::SupportedMrsVersion query_supported_mrs_version(
+const std::string &to_string(
+    mrs::interface::SupportedMrsMetadataVersion version) {
+  const std::string k_version2{"2"};
+  const std::string k_version3{"3"};
+  return (version == mrs::interface::kSupportedMrsMetadataVersion_2
+              ? k_version2
+              : k_version3);
+}
+
+mrs::interface::SupportedMrsMetadataVersion query_supported_mrs_version(
     mysqlrouter::MySQLSession *session) {
   QueryVersion q;
   auto mrs_version = q.query_version(session);
 
   if (mrs_version.major == 2 && mrs_version.minor <= 2)
-    return mrs::interface::kSupportedMrsVersion_2;
+    return mrs::interface::kSupportedMrsMetadataVersion_2;
 
   if (mrs_version.major != 3 || mrs_version.minor != 0) {
     std::stringstream error_message;
@@ -60,7 +69,7 @@ mrs::interface::SupportedMrsVersion query_supported_mrs_version(
     throw std::runtime_error(error_message.str());
   }
 
-  return mrs::interface::kSupportedMrsVersion_3;
+  return mrs::interface::kSupportedMrsMetadataVersion_3;
 }
 
 class AccessDatabase {
@@ -148,18 +157,16 @@ void SchemaMonitor::run() {
     try {
       auto session_check_version =
           cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
-      auto scheme_version =
+      auto supported_schema_version =
           query_supported_mrs_version(session_check_version.get());
 
-      auto factory{schema_monitor_factory_method_(scheme_version)};
+      auto factory{schema_monitor_factory_method_(supported_schema_version)};
       mrs::database::FileFromOptions options_files;
 
       AccessDatabase fetcher(factory.get());
 
-      log_system(
-          "Monitoring MySQL REST metadata in version %s",
-          (scheme_version == mrs::interface::kSupportedMrsVersion_2 ? "2"
-                                                                    : "3"));
+      log_system("Monitoring MySQL REST metadata (version: %s)",
+                 to_string(supported_schema_version).c_str());
 
       do {
         using namespace observability;

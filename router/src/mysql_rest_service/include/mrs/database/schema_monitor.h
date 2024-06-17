@@ -52,7 +52,7 @@ class SchemaMonitor {
       authentication::AuthorizeManager *auth_manager,
       mrs::observability::EntitiesManager *entities_manager,
       mrs::GtidManager *gtid_manager,
-      SchemaMonitorFactoryMethod method = &create_scheme_monitor_factory);
+      SchemaMonitorFactoryMethod method = &create_schema_monitor_factory);
   ~SchemaMonitor();
 
   void start();

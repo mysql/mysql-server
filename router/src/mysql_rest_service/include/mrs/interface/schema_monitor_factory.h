@@ -55,7 +55,10 @@ class SchemaMonitorFactory {
   create_content_file_monitor(const uint64_t last_audit_log_id) = 0;
 };
 
-enum SupportedMrsVersion { kSupportedMrsVersion_2, kSupportedMrsVersion_3 };
+enum SupportedMrsMetadataVersion {
+  kSupportedMrsMetadataVersion_2,
+  kSupportedMrsMetadataVersion_3
+};
 
 }  // namespace interface
 }  // namespace mrs

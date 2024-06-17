@@ -31,10 +31,10 @@ namespace mrs {
 namespace database {
 
 std::unique_ptr<mrs::interface::SchemaMonitorFactory>
-create_scheme_monitor_factory(
-    mrs::interface::SupportedMrsVersion scheme_version);
+create_schema_monitor_factory(
+    mrs::interface::SupportedMrsMetadataVersion scheme_version);
 
-using SchemaMonitorFactoryMethod = decltype(&create_scheme_monitor_factory);
+using SchemaMonitorFactoryMethod = decltype(&create_schema_monitor_factory);
 
 }  // namespace database
 }  // namespace mrs
