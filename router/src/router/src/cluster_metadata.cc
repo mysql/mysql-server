@@ -28,8 +28,6 @@
 #include <cstring>  // strcmp
 #include <stdexcept>
 
-#define RAPIDJSON_HAS_STDSTRING 1
-
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
 #endif

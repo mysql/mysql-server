@@ -23,9 +23,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// enable using Rapidjson library with std::string
-#define RAPIDJSON_HAS_STDSTRING 1
-
 #include "mysql/harness/dynamic_config.h"
 
 #include <cassert>
