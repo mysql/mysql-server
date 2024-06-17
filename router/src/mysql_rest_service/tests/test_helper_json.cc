@@ -243,10 +243,7 @@ class JsonInt : public helper::json::RapidReaderHandlerToStruct<int> {
   JsonInt(const std::string &path) : path_{path} { result_ = 0; }
 
   bool on_new_value() override {
-    if (Handler::on_new_value()) {
-      std::cout << "level: " << get_level()
-                << ", on new value: " << get_current_key() << std::endl;
-    }
+    Handler::on_new_value();
     return false;
   }
 
@@ -292,7 +289,6 @@ class JsonInt : public helper::json::RapidReaderHandlerToStruct<int> {
 
   template <typename V>
   void handle_int(V value) {
-    std::cout << "key -> " << get_current_key() << "->" << value << std::endl;
     if (path_ != get_current_key()) {
       return;
     }

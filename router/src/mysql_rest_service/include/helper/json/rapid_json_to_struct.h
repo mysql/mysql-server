@@ -206,7 +206,7 @@ class RapidReaderHandlerToStruct
     std::string name;
     bool is_array{false};
     int array_idx{0};
-    int level;
+    int level{0};
     bool leaf{false};
     uint64_t processed{0};
   };
