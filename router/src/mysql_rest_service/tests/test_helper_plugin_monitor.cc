@@ -59,10 +59,7 @@ class PluginMonitorTests : public Test {
 
   class MustBeTrue {
    public:
-    bool operator()(bool value) const {
-      printf("MustBeTrue: %s\n", value ? "true" : "false");
-      return value;
-    }
+    bool operator()(bool value) const { return value; }
   };
 
   class MustBeFalse {

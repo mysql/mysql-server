@@ -142,6 +142,8 @@ class GenerateContentFilesFromOptionsBaseSuite : public testing::Test {
       obj.service_id = get_id(e.service_id);
       obj.schema_id = get_id(e.schema_id);
       obj.id = get_id(e.object_id);
+      obj.requires_authentication = false;
+      obj.schema_requires_authentication = false;
 
       obj.options_json = create_options("obj", e.object_id, add_static_files,
                                         add_index, add_redirects);

@@ -24,6 +24,7 @@
 
 #include <gtest/gtest.h>
 
+#include "mysql/harness/logging/registry.h"
 #include "test/helpers.h"
 
 int main(int argc, char *argv[]) {
@@ -41,6 +42,11 @@ int main(int argc, char *argv[]) {
     std::cerr << "Filtering out tests that run on live database. To run those "
                  "tests set following environment variable: "
               << kEnvLiveServer << std::endl;
+  }
+
+  if (nullptr != getenv("DISABLE_DEBUG_LOG")) {
+    mysql_harness::logging::set_log_level_for_all_loggers(
+        mysql_harness::logging::LogLevel::kFatal);
   }
 
   return RUN_ALL_TESTS();
