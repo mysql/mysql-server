@@ -32,7 +32,7 @@ MY_COMPILER_DIAGNOSTIC_PUSH()
 // Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
 // to be used by clients of class 'type2'
 MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
-#include "plugin/x/generated/protobuf/mysqlx.pb.h"
+#include "protobuf/mysqlx.pb.h"
 MY_COMPILER_DIAGNOSTIC_POP()
 
 Messages_used_by_server::Messages_used_by_server(
