@@ -1,7 +1,7 @@
 --echo # Test of the JSON functions used in SQL statements
 --echo # ----------------------------------------------------------------------
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (pk int  NOT NULL PRIMARY KEY AUTO_INCREMENT, i INT, j JSON);
 INSERT INTO t1(i, j) VALUES (0, NULL);
 INSERT INTO t1(i, j) VALUES (1, '{"a": 2}');
@@ -66,7 +66,7 @@ FROM t1
 ORDER BY i;
 
 SELECT i FROM t1
-  WHERE j = CAST(CAST(j AS CHAR CHARACTER SET 'utf8') AS JSON)
+  WHERE j = CAST(CAST(j AS CHAR CHARACTER SET 'utf8mb3') AS JSON)
   ORDER BY i;
 SELECT CAST(NULL AS UNSIGNED) = CAST(NULL AS JSON);
 SELECT CAST(NULL AS JSON) = CAST(NULL AS JSON);
@@ -446,9 +446,9 @@ DROP TABLE t;
 
 --echo
 --echo # Table - Json string column - utf-8, NULL
---echo Note: 'utf8' is a subset of internal 'utf8mb4'
+--echo Note: 'utf8mb3' is a subset of internal 'utf8mb4'
 --echo
-create table utf8_t (c varchar(20)) CHARACTER SET 'utf8';
+create table utf8_t (c varchar(20)) CHARACTER SET 'utf8mb3';
 insert into utf8_t values (NULL);
 -- echo # Expect NULL:
 select JSON_VALID(c) from utf8_t;
@@ -461,7 +461,7 @@ select JSON_VALID(c) from utf8_t;
 delete from utf8_t;
 
 --echo
---echo # Table - Json string column - utf-8, non-utf8
+--echo # Table - Json string column - utf-8, non-utf8mb3
 insert into utf8_t values ('[123');
 --echo expect 0 (false)
 select JSON_VALID(c) from utf8_t;
@@ -503,7 +503,7 @@ drop table json_t;
 --echo # Test of JSON_LENGTH function.
 --echo # ----------------------------------------------------------------------
 
-create table utf8_mj_length (a int, c varchar(20)) CHARACTER SET 'utf8';
+create table utf8_mj_length (a int, c varchar(20)) CHARACTER SET 'utf8mb3';
 insert into utf8_mj_length values( 1, null );
 insert into utf8_mj_length values( 2, '1' );
 insert into utf8_mj_length values( 3, 'abc' );
@@ -537,11 +537,11 @@ select a, b, json_length( b ) from json_mj_length where a = 1;
 set names 'ascii';
 
 --echo
---echo # path auto-converted to a utf8 string from ascii
+--echo # path auto-converted to a utf8mb3 string from ascii
 --echo
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 2;
 
-set names 'utf8';
+set names 'utf8mb3';
 
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 1;
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 2;
@@ -764,7 +764,7 @@ select json_extract(en, '$') from t1;
 drop table t1;
 
 create table t1 ( c1 varchar(200) character set 'latin1',
-                  c2 varchar(200) character set 'utf8' );
+                  c2 varchar(200) character set 'utf8mb3' );
 insert into t1 values ('[1,2]',  # legal json, but not utf-8
                        '[1,2 '); # illegal json, but utf-8
 
@@ -781,7 +781,7 @@ drop table t1;
 create table t2(x int);
 insert into t2 values (1), (2);
 select x, cast(y as json) from (select x, cast(x as json) as y from t2) s order by x;
-select x, cast(y as json) from (select x, cast(cast(x as json) as char charset utf8) as y from t2) s order by x;
+select x, cast(y as json) from (select x, cast(cast(x as json) as char charset utf8mb3) as y from t2) s order by x;
 
 drop table t2;
 
@@ -791,7 +791,7 @@ drop table t2;
 # positive test cases
 select cast((select 1) as json);
 
-create table t(i int, j json, c char(10) character set 'utf8');
+create table t(i int, j json, c char(10) character set 'utf8mb3');
 insert into t values (5, '6', '{}');
 select cast((select i from t) as json);
 select cast((select j from t) as json);
@@ -1924,7 +1924,7 @@ select j, json_type(coalesce(j, j)) from t;
 drop table t;
 
 --echo # ----------------------------------------------------------------------
---echo # Auto-convert of non-utf8 returning system function
+--echo # Auto-convert of non-utf8mb3 returning system function
 --echo # ----------------------------------------------------------------------
 create table t(j json, id int);
 insert into t values ('{"user": "foo"}', 8), (NULL, 8);

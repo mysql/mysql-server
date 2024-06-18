@@ -224,13 +224,13 @@ col_varchar_10_latin1 varchar(10) CHARACTER SET latin1,
 col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1,
 col_int_key int,
 pk integer auto_increment,
-col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8mb3,
 col_int int,
-col_varchar_10_utf8 varchar(10) CHARACTER SET utf8,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8mb3,
 col_varchar_255_latin1 varchar(255) CHARACTER SET latin1,
-col_varchar_255_utf8 varchar(255) CHARACTER SET utf8,
+col_varchar_255_utf8 varchar(255) CHARACTER SET utf8mb3,
 col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1,
-col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3,
 /*Indices*/
 key (col_varchar_255_latin1_key),
 key (col_int_key),
@@ -240,10 +240,10 @@ key (col_varchar_10_latin1_key),
 key (col_varchar_10_utf8_key)
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO D VALUES 
 ('have', 'say', NULL, NULL, 'who', NULL, 'JBIYP', 'he''s', 'VWJOC', 'your', 'VDMAE') ,  
 ('YQAHN', 'GIKYQ', 3, NULL, 'no', 1933049856,'got', 'icz', 'RMHUR', 'MPCRS', 'so') ,

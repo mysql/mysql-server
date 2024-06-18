@@ -214,7 +214,7 @@ drop table t1;
 --echo #
 CREATE TABLE t1 (
 pk integer auto_increment key,
-col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8mb3
 );
 
 INSERT INTO t1 VALUES (NULL, 'q') , (NULL, 'tgzvsj') ,

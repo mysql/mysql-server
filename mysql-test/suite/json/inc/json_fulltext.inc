@@ -2,7 +2,7 @@
 --echo # Full Text Search on columns generated from JSON
 --echo #
 
-set names utf8;
+set names utf8mb3;
 
 create table messages
 (

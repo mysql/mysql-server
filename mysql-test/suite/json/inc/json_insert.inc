@@ -1,7 +1,7 @@
 --echo # Test of the JSON data type.
 --echo # ----------------------------------------------------------------------
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 CREATE TABLE t1 (i INT, j JSON) CHARSET utf8mb4;
 SHOW CREATE TABLE t1;

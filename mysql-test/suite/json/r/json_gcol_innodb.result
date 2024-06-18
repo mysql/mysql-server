@@ -403,10 +403,10 @@ drop table t1;
 #
 CREATE TABLE t1 (
 pk integer auto_increment key,
-col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8mb3
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (NULL, 'q') , (NULL, 'tgzvsj') ,
 (NULL, 'b') , (NULL, 'q') , (NULL, 'up') , (NULL, 'up') ;
 ALTER TABLE t1 ADD COLUMN json_varchar255_utf8_key json;
