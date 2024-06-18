@@ -262,7 +262,7 @@ static void run_threads(TFunctor f, size_t n_threads) {
         [&f, &ready, &started](size_t thread_no) {
           ++ready;
           while (!started) {
-            std::this_thread::sleep_for(std::chrono::seconds(0));
+            std::this_thread::yield();
           }
           f(thread_no);
         },
@@ -270,7 +270,7 @@ static void run_threads(TFunctor f, size_t n_threads) {
   }
 
   while (ready < n_threads) {
-    std::this_thread::sleep_for(std::chrono::seconds(0));
+    std::this_thread::yield();
   }
   started = true;
 
