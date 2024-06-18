@@ -47,8 +47,8 @@ namespace {
 
 const std::string &to_string(
     mrs::interface::SupportedMrsMetadataVersion version) {
-  const std::string k_version2{"2"};
-  const std::string k_version3{"3"};
+  const static std::string k_version2{"2"};
+  const static std::string k_version3{"3"};
   return (version == mrs::interface::kSupportedMrsMetadataVersion_2
               ? k_version2
               : k_version3);

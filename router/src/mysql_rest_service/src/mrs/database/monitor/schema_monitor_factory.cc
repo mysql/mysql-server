@@ -36,7 +36,7 @@ namespace v2 {
 
 class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
  public:
-  virtual ~SchemaMonitorFactory() = default;
+  ~SchemaMonitorFactory() override = default;
 
   std::unique_ptr<database::QueryState> create_turn_state_fetcher() override {
     return std::make_unique<QueryState>();
@@ -85,7 +85,7 @@ namespace v3 {
 
 class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
  public:
-  virtual ~SchemaMonitorFactory() = default;
+  ~SchemaMonitorFactory() override = default;
 
   std::unique_ptr<database::QueryState> create_turn_state_fetcher() override {
     return std::make_unique<QueryState>();
