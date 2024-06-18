@@ -26,8 +26,10 @@
 --echo # 3. add redirect
 --echo # 4. remove all
 --echo #
-
 --echo
+
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
@@ -57,6 +59,8 @@ SET @schema_id2=@content_set_id;
 --let $mrs_add_content='table2'
 --let $mrs_add_content_file_path=/obj2
 --source ../include/mrs/content_file/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 
 # Sync with newly created REST object
@@ -167,6 +171,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_sql_id_variable=@schema_id2
 --let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}}'
 --source ../include/mrs/content_set/modify_options.inc
+--let $mrs_changes_increased=2
 --source ../include/mrs/changes/wait_files.inc
 
 
@@ -204,6 +209,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_sql_id_variable=@schema_id2
 --let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}, "directoryIndexDirective":["other.html"],"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
 --source ../include/mrs/content_set/modify_options.inc
+--let $mrs_changes_increased=4
 --source ../include/mrs/changes/wait_files.inc
 
 exec $MRS_CLIENT_ARGS
@@ -235,6 +241,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_sql_id_variable=@schema_id2
 --let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}, "directoryIndexDirective":["other.html"],"defaultRedirects":{"redirect.html":"/svc1/sch1/obj1/1"}}'
 --source ../include/mrs/content_set/modify_options.inc
+--let $mrs_changes_increased=4
 --source ../include/mrs/changes/wait_files.inc
 
 exec $MRS_CLIENT_ARGS
@@ -267,6 +274,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_sql_id_variable=@schema_id2
 --let $mrs_modify_options=NULL
 --source ../include/mrs/content_set/modify_options.inc
+--let $mrs_changes_increased=4
 --source ../include/mrs/changes/wait_files.inc
 
 exec $MRS_CLIENT_ARGS

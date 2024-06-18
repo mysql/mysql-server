@@ -31,6 +31,8 @@
 --echo #    parameters encoded into "items" and "itemsOut" fields.
 --echo #
 
+--source ../include/mrs/start_object_definition.inc
+
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
 --source ../include/mrs/service/add.inc
@@ -63,6 +65,8 @@
 --let $mrs_add_db_object_path=/one_and_out
 --let $mrs_add_db_object_type=PROCEDURE
 --source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 --echo
 --echo #

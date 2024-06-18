@@ -47,7 +47,9 @@
 --echo
 --echo #
 --echo # I.1
-START TRANSACTION;
+
+--source ../include/mrs/start_object_definition.inc
+
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
 --source ../include/mrs/service/add.inc
@@ -95,7 +97,8 @@ START TRANSACTION;
 --let $mrs_add_auth_vendor=MySQL Internal
 --let $mrs_add_auth_service=/svc2
 --source ../include/mrs/add_auth_app.inc
-COMMIT;
+
+--source ../include/mrs/end_object_definition.inc
 
 --echo
 --echo #

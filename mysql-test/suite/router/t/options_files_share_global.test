@@ -25,6 +25,8 @@
 --echo # 4. remove all
 --echo #
 
+--source ../include/mrs/start_object_definition.inc
+
 UPDATE  `mysql_rest_service_metadata`.`config` SET data='{}';
 
 --let $mrs_add_service_path="/svc2"
@@ -42,6 +44,7 @@ SET @service_id2=@service_id;
 --let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
 --source ../include/mrs/db_object/add.inc
 
+--source ../include/mrs/end_object_definition.inc
 
 # Sync with newly created REST object
 # wait for the creation

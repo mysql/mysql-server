@@ -29,12 +29,10 @@ include/rpl/sync.inc
 # Connection "router.1" active
 # restart:generated_router_2.cnf
 # DB `basic_schema` - created
-START TRANSACTION;
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
 # Registred DB_OBJECT at path: /svc/basic/t1
 # Registred DB_OBJECT at path: /svc/basic/t2
-COMMIT;
 include/rpl/sync.inc
 GET /svc/basic/t1
 {

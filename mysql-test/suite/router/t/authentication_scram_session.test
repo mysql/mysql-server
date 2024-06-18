@@ -49,6 +49,9 @@ skip WIP;
 --echo
 --echo #
 --echo # I.1
+
+--source ../include/mrs/start_object_definition.inc
+
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
 --source ../include/mrs/service/add.inc
@@ -96,6 +99,8 @@ skip WIP;
 --let $mrs_add_auth_vendor=MRS
 --let $mrs_add_auth_service=/svc2
 --source ../include/mrs/add_auth_app.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 --echo
 --echo #

@@ -11,8 +11,7 @@ CREATE TABLE IF NOT EXISTS `test`.`user` (
   PRIMARY KEY (`id`))
 ENGINE = InnoDB;
 
-START TRANSACTION;
-
+--source ../include/mrs/start_object_definition.inc
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -34,7 +33,9 @@ START TRANSACTION;
 --let $mrs_add_db_object_custom_values=,true,"id"
 --let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
 --source ../include/mrs/db_object/add.inc
-COMMIT;
+
+--source ../include/mrs/end_object_definition.inc
+
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 

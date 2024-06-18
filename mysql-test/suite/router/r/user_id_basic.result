@@ -18,12 +18,10 @@ CREATE TABLE IF NOT EXISTS `test`.`user` (
 `email` VARCHAR(255) NULL,
 PRIMARY KEY (`id`))
 ENGINE = InnoDB;
-START TRANSACTION;
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
 # Registred AUTH APP at path: /svc
 # Registred DB_OBJECT at path: /svc/basic/user
-COMMIT;
 GET /svc/basic/user
 {
     "message": "Unauthorized",

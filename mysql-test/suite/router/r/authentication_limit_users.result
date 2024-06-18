@@ -22,14 +22,12 @@ CREATE USER 'u3'@'%' IDENTIFIED BY 'p3';
 
 #
 # I.1
-START TRANSACTION;
 # Registred SERVICE at path: /svc1
 # Registred DB_SCHEMA at path: /svc1/basic1
 # Registred DB_OBJECT at path: /svc1/basic1/o1
 # Registred AUTH APP at path: /svc1
 UPDATE  `mysql_rest_service_metadata`.`config` SET data=
 '{"authentication":{"throttling":{"perAccount":{"minimumTimeBetweenRequestsInMs":2000,"maximumAttemptsPerMinute":5}}}}';
-COMMIT;
 
 #
 # II.1

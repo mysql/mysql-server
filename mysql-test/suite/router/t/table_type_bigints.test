@@ -97,6 +97,8 @@ EOF
 --echo #
 --echo #
 
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -109,6 +111,8 @@ EOF
 --let $mrs_add_db_object=num
 --let $mrs_add_db_object_path=/num
 --source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 --exec $MRS_CLIENT_ARGS --path /svc/test/num/1 --wait-until-found 60 --display none
 

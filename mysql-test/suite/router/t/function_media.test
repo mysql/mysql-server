@@ -35,6 +35,8 @@
 --echo # 4. PUT request to function generating image response, verify the response
 --echo #
 
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -136,6 +138,8 @@
 --let $mrs_add_db_object=move_line
 --let $mrs_add_db_object_path=/move_line
 --source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 
 # Wait until MySQLRouter fetches db-object.

@@ -22,8 +22,10 @@
 --echo # 3. Filter field name with "text" type, using "=" operator
 --echo # 4. Filter field name with "date" type, using "$gt" operator
 --echo #
-
 --echo
+
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -41,6 +43,8 @@
 --let $mrs_modify_columns=id, name, comments, date
 --let $mrs_modify_fields=my_id, my_name, my_comments, my_date
 --source ../include/mrs/db_object/modify_fields.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 # Sync with newly created REST object
 # wait for the creation

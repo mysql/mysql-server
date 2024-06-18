@@ -22,7 +22,6 @@
 # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
 #
 #
-START TRANSACTION;
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
 # Registred DB_OBJECT at path: /svc/basic/int
@@ -47,7 +46,6 @@ START TRANSACTION;
 # Registred DB_OBJECT at path: /svc/basic/tinyint
 # Registred DB_OBJECT at path: /svc/basic/mediumint
 # Registred DB_OBJECT at path: /svc/basic/blob
-COMMIT;
 
 #
 # I.1

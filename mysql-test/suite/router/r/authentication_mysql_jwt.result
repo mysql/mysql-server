@@ -43,7 +43,6 @@
 
 #
 # I.1
-START TRANSACTION;
 # Registred SERVICE at path: /svc1
 # Registred DB_SCHEMA at path: /svc1/basic1
 # Registred DB_OBJECT at path: /svc1/basic1/o1
@@ -57,7 +56,6 @@ START TRANSACTION;
 # Registred DB_OBJECT at path: /svc2/basic2/o3
 # Registred DB_OBJECT at path: /svc2/basic2/o4
 # Registred AUTH APP at path: /svc2
-COMMIT;
 
 #
 # II.1

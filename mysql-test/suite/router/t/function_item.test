@@ -69,6 +69,8 @@
 --echo # 11. Verify if input JSON simple value is the same at output of function
 --echo # 11. Verify if input JSON complex value is the same at output of function
 
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -168,6 +170,8 @@
 --let $mrs_add_db_object=nothing
 --let $mrs_add_db_object_path=/nothing
 --source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 # Wait until MySQLRouter fetches db-object.
 --source ../include/mrs/changes/fetch_object.inc

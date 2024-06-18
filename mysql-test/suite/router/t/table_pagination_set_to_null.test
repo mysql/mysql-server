@@ -39,6 +39,8 @@
 --echo #    schema and validate that application default is used.
 --echo #
 
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -49,6 +51,7 @@
 --let $mrs_add_schema_items_on_page=NULL
 --source ../include/mrs/db_schema/add.inc
 
+--source ../include/mrs/end_object_definition.inc
 
 --echo
 --echo #

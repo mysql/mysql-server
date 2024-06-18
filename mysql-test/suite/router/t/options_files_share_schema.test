@@ -26,8 +26,10 @@
 --echo # 3. add redirect
 --echo # 4. remove all
 --echo #
-
 --echo
+
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
@@ -55,6 +57,8 @@ SET @schema_id2=@schema_id;
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/obj2
 --source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 
 # Sync with newly created REST object

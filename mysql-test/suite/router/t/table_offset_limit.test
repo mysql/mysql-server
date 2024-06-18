@@ -23,6 +23,8 @@ CREATE TABLE test.id_bigint(
 INSERT INTO test.id_bigint(id, value)
    VALUES(1, 1), (2, 2), (3, 3), (4, 4);
 
+--source ../include/mrs/start_object_definition.inc
+
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
@@ -36,6 +38,8 @@ INSERT INTO test.id_bigint(id, value)
 --let $mrs_add_db_object=id_unsigned_int
 --let $mrs_add_db_object_path=/id_unsigned_int
 --source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
 
 --exec $MRS_CLIENT_ARGS --path /svc/test/id_unsigned_int/1 --wait-until-found 60 --display none
 --let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/id,/items/*/value

@@ -28,13 +28,11 @@
 # 2. Verify response for SP that returns a resultset and output
 #    parameters encoded into "items" and "itemsOut" fields.
 #
-START TRANSACTION;
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/proc
 # Registred DB_OBJECT at path: /svc/proc/one
 # Registred DB_OBJECT at path: /svc/proc/two
 # Registred DB_OBJECT at path: /svc/proc/three
-COMMIT;
 
 #
 # I.1

@@ -33,6 +33,7 @@ INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", 
 --echo # 3. Verify that documents may filtere on MYSQL BIT(1) column/type using JSON BOOLEAN value
 --echo #
 
+--source ../include/mrs/start_object_definition.inc
 
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
@@ -55,6 +56,7 @@ INSERT INTO test.type_bit2(name, is_active)     VALUES("0", 0),("1",1),("TRUE", 
 --let $mrs_add_db_object_path=/tinyint1
 --source ../include/mrs/db_object/add.inc
 
+--source ../include/mrs/end_object_definition.inc
 
 --exec $MRS_CLIENT_ARGS --path /svc/test/boolean/1 --wait-until-found 60 --display none
 

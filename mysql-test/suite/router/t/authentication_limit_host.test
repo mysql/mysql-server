@@ -30,7 +30,9 @@ CREATE USER 'u5'@'%' IDENTIFIED BY 'p5';
 --echo
 --echo #
 --echo # I.1
-START TRANSACTION;
+
+--source ../include/mrs/start_object_definition.inc
+
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
 --let $mrs_add_service_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
@@ -54,7 +56,7 @@ START TRANSACTION;
 UPDATE  `mysql_rest_service_metadata`.`config` SET data=
   '{"authentication":{"throttling":{"perHost":{"minimumTimeBetweenRequestsInMs":2000,"maximumAttemptsPerMinute":5}}}}'; 
 
-COMMIT;
+--source ../include/mrs/end_object_definition.inc
 
 
 --echo
