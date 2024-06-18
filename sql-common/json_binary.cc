@@ -30,6 +30,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -1161,12 +1162,11 @@ Value Value::key(size_t pos) const {
   Get the value associated with the specified key in a JSON object.
 
   @param[in] key  the key to look up
-  @param[in] length  the length of the key
   @return the value associated with the key, if there is one. otherwise,
   returns ERROR
 */
-Value Value::lookup(const char *key, size_t length) const {
-  const size_t index = lookup_index(key, length);
+Value Value::lookup(std::string_view key) const {
+  const size_t index = lookup_index(key);
   if (index == element_count()) return err();
   return element(index);
 }
@@ -1175,11 +1175,10 @@ Value Value::lookup(const char *key, size_t length) const {
   Get the index of the element with the specified key in a JSON object.
 
   @param[in] key  the key to look up
-  @param[in] length  the length of the key
   @return the index if the key is found, or `element_count()` if the
   key is not found
 */
-size_t Value::lookup_index(const char *key, size_t length) const {
+size_t Value::lookup_index(std::string_view key) const {
   assert(m_type == OBJECT);
 
   const auto offset_size = json_binary::offset_size(m_large);
@@ -1197,16 +1196,16 @@ size_t Value::lookup_index(const char *key, size_t length) const {
 
     // Keys are ordered on length, so check length first.
     const size_t key_len = uint2korr(m_data + entry_offset + offset_size);
-    if (length > key_len) {
+    if (key.size() > key_len) {
       lo = idx + 1;
-    } else if (length < key_len) {
+    } else if (key.size() < key_len) {
       hi = idx;
     } else {
       // The keys had the same length, so compare their contents.
       const size_t key_offset =
           read_offset_or_size(m_data + entry_offset, m_large);
 
-      const int cmp = memcmp(key, m_data + key_offset, key_len);
+      const int cmp = memcmp(key.data(), m_data + key_offset, key_len);
       if (cmp > 0)
         lo = idx + 1;
       else if (cmp < 0)

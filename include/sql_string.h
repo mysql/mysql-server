@@ -662,8 +662,12 @@ inline bool String::needs_conversion(size_t arg_length,
 
 static inline void swap(String &a, String &b) noexcept { a.swap(b); }
 
-static inline std::string to_string(const String &str) {
-  return std::string(str.ptr(), str.length());
+inline std::string_view to_string_view(const String &str) {
+  return {str.ptr(), str.length()};
+}
+
+inline std::string to_string(const String &str) {
+  return std::string{to_string_view(str)};
 }
 
 /**

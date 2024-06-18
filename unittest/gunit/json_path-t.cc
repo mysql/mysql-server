@@ -1297,9 +1297,9 @@ TEST_F(JsonPathTest, RemoveDomTest) {
   Json_boolean false_literal1(false);
   Json_null *null_literal1 = new (std::nothrow) Json_null();
   EXPECT_EQ(nullptr, null_literal1->parent());
-  object1.add_clone(std::string("a"), &true_literal1);
-  object1.add_clone(std::string("b"), &false_literal1);
-  object1.add_alias(std::string("c"), null_literal1);
+  object1.add_clone("a", &true_literal1);
+  object1.add_clone("b", &false_literal1);
+  object1.add_alias("c", null_literal1);
   EXPECT_EQ(&object1, null_literal1->parent());
   EXPECT_EQ("{\"a\": true, \"b\": false, \"c\": null}", format(&object1));
   SCOPED_TRACE("");

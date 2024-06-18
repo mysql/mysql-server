@@ -38,8 +38,7 @@
 
 #include "field_types.h"  // enum_field_types
 #include "my_inttypes.h"
-#include "my_time.h"  // my_time_flags_t
-#include "mysql/mysql_lex_string.h"
+#include "my_time.h"                 // my_time_flags_t
 #include "mysql_time.h"              // MYSQL_TIME
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql-common/json_binary.h"  // json_binary::Value
@@ -343,15 +342,14 @@ class Json_container : public Json_dom {
   for speed of look-up. See usage in Json_object_map.
 */
 struct Json_key_comparator {
-  bool operator()(const std::string &key1, const std::string &key2) const;
-  bool operator()(const MYSQL_LEX_CSTRING &key1, const std::string &key2) const;
-  bool operator()(const std::string &key1, const MYSQL_LEX_CSTRING &key2) const;
   // is_transparent must be defined in order to make std::map::find() accept
   // keys that are of a different type than the key_type of the map. In
   // particular, this is needed to make it possible to call find() with
-  // MYSQL_LEX_CSTRING arguments and not only std::string arguments. It only has
-  // to be defined, it doesn't matter which type it is set to.
+  // a std::string_view argument or anything implicitly convertible to
+  // std::string_view.
   using is_transparent = void;
+
+  bool operator()(std::string_view key1, std::string_view key2) const;
 };
 
 /**
@@ -387,7 +385,7 @@ class Json_object final : public Json_container {
     @retval false on success
     @retval true on failure
   */
-  bool add_clone(const std::string &key, const Json_dom *value) {
+  bool add_clone(std::string_view key, const Json_dom *value) {
     return value == nullptr || add_alias(key, value->clone());
   }
 
@@ -399,7 +397,7 @@ class Json_object final : public Json_container {
     object and the value will be deallocated by the object so only add
     values that can be deallocated safely (no stack variables please!)
 
-    New code should prefer #add_alias(const std::string&, Json_dom_ptr)
+    New code should prefer #add_alias(std::string_view, Json_dom_ptr)
     to this function, because that makes the transfer of ownership
     more explicit. This function might be removed in the future.
 
@@ -408,7 +406,7 @@ class Json_object final : public Json_container {
     @retval false on success
     @retval true on failure
   */
-  bool add_alias(const std::string &key, Json_dom *value) {
+  bool add_alias(std::string_view key, Json_dom *value) {
     return add_alias(key, Json_dom_ptr(value));
   }
 
@@ -422,7 +420,7 @@ class Json_object final : public Json_container {
     @param[in] value  the value to add
     @return false on success, true on failure
   */
-  bool add_alias(const std::string &key, Json_dom_ptr value);
+  bool add_alias(std::string_view key, Json_dom_ptr value);
 
   /**
     Transfer all of the key/value pairs in the other object into this
@@ -443,8 +441,7 @@ class Json_object final : public Json_container {
     @param[in]  key the key of the element whose value we want
     @return the value associated with the key, or NULL if the key is not found
   */
-  Json_dom *get(const std::string &key) const;
-  Json_dom *get(const MYSQL_LEX_CSTRING &key) const;
+  Json_dom *get(std::string_view key) const;
 
   /**
     Remove the child element addressed by key. The removed child is deleted.
@@ -453,7 +450,7 @@ class Json_object final : public Json_container {
     @retval true if an element was removed
     @retval false if there was no element with that key
   */
-  bool remove(const std::string &key);
+  bool remove(std::string_view key);
 
   /**
     @return The number of elements in the JSON object.
@@ -1412,7 +1409,7 @@ class Json_wrapper {
     @return The member value. If there is no member with the specified
     name, a value with type Json_dom::J_ERROR is returned.
   */
-  Json_wrapper lookup(const MYSQL_LEX_CSTRING &key) const;
+  Json_wrapper lookup(std::string_view key) const;
 
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.
@@ -1773,7 +1770,7 @@ class Json_wrapper {
 class Json_wrapper_object_iterator {
  public:
   // Type aliases required by ForwardIterator.
-  using value_type = std::pair<MYSQL_LEX_CSTRING, Json_wrapper>;
+  using value_type = std::pair<std::string_view, Json_wrapper>;
   using reference = const value_type &;
   using pointer = const value_type *;
   using difference_type = ptrdiff_t;

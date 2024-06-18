@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <new>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "my_alloc.h"  // MEM_ROOT
@@ -217,14 +218,9 @@ class Json_path_leg final {
     Construct an object member path leg.
 
     @param member_name  the name of the object member
-    @param length the length of the member name
   */
-  Json_path_leg(const char *member_name, size_t length)
-      : m_leg_type(jpl_member), m_member_name(member_name, length) {}
-
-  /** Construct an object member path leg. */
-  Json_path_leg(const std::string &member_name)
-      : Json_path_leg(member_name.c_str(), member_name.length()) {}
+  explicit Json_path_leg(std::string_view member_name)
+      : m_leg_type(jpl_member), m_member_name(member_name) {}
 
   /** Get the type of the path leg. */
   enum_json_path_leg_type get_type() const { return m_leg_type; }

@@ -35,13 +35,6 @@
 #include "sql/sql_base.h"  // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
 #include "sql/udf_service_util.h"
 
-const MYSQL_LEX_CSTRING
-    Rpl_async_conn_failover_table_operations::Primary_weight_key = {
-        STRING_WITH_LEN("Primary_weight")};
-const MYSQL_LEX_CSTRING
-    Rpl_async_conn_failover_table_operations::Secondary_weight_key = {
-        STRING_WITH_LEN("Secondary_weight")};
-
 /*
  Only used on this file.
 */

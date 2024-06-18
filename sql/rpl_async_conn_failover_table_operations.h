@@ -25,6 +25,7 @@
 #define RPL_ASYNC_CONN_FAILOVER_TABLE_OPERATIONS_H
 
 #include <functional>
+#include <string_view>
 #include <tuple>
 #include "sql/field.h"
 #include "sql/table.h"
@@ -408,10 +409,10 @@ class Rpl_async_conn_failover_table_operations {
   static void get_data(Rpl_sys_table_access &table_op, TUP &rows);
 
   /* Configuration column primary key name */
-  static const MYSQL_LEX_CSTRING Primary_weight_key;
+  static constexpr std::string_view Primary_weight_key{"Primary_weight"};
 
   /* Configuration column secondary key name */
-  static const MYSQL_LEX_CSTRING Secondary_weight_key;
+  static constexpr std::string_view Secondary_weight_key{"Secondary_weight"};
 
  private:
   enum thr_lock_type m_lock_type;   // table lock type

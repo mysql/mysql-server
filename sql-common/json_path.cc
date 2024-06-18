@@ -632,12 +632,12 @@ static bool parse_member_leg(Stream *stream, Json_path *path) {
     }
 
     // unquoted names must be valid ECMAScript identifiers
-    if (!was_quoted && !is_ecmascript_identifier({name.ptr(), name.length()})) {
+    if (!was_quoted && !is_ecmascript_identifier(to_string_view(name))) {
       return true;
     }
 
     // Looking good.
-    if (path->append(Json_path_leg(name.ptr(), name.length())))
+    if (path->append(Json_path_leg(to_string_view(name))))
       return true; /* purecov: inspected */
   }
 

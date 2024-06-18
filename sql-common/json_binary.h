@@ -145,6 +145,7 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 /*
   This file is part of our public interface for the 'json_binary' library.
@@ -345,20 +346,10 @@ class Value {
   Value key(size_t pos) const;
 
   EXPORT_JSON_FUNCTION
-  Value lookup(const char *key, size_t length) const;
+  Value lookup(std::string_view key) const;
 
   EXPORT_JSON_FUNCTION
-  Value lookup(const std::string &key) const {
-    return lookup(key.c_str(), key.length());
-  }
-
-  EXPORT_JSON_FUNCTION
-  size_t lookup_index(const char *key, size_t length) const;
-
-  EXPORT_JSON_FUNCTION
-  size_t lookup_index(const std::string &key) const {
-    return lookup_index(key.c_str(), key.length());
-  }
+  size_t lookup_index(std::string_view key) const;
 
   EXPORT_JSON_FUNCTION
   bool is_backed_by(const String *str) const;

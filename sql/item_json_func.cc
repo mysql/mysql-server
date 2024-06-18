@@ -1612,9 +1612,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
     Json_array_ptr res(new (std::nothrow) Json_array());
     if (res == nullptr) return error_json(); /* purecov: inspected */
     for (const auto &i : Json_object_wrapper(wrapper)) {
-      const MYSQL_LEX_CSTRING &key = i.first;
-      if (res->append_alias(new (std::nothrow)
-                                Json_string(key.str, key.length)))
+      if (res->append_alias(new (std::nothrow) Json_string(i.first)))
         return error_json(); /* purecov: inspected */
     }
     *wr = Json_wrapper(std::move(res));
@@ -2560,8 +2558,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
       const size_t path_length = path->length();
       for (const auto &jwot : Json_object_wrapper(wrapper)) {
         // recurse with the member added to the path
-        const MYSQL_LEX_CSTRING &key = jwot.first;
-        if (Json_path_leg(key.str, key.length).to_string(path) ||
+        if (Json_path_leg(jwot.first).to_string(path) ||
             find_matches(jwot.second, path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;              /* purecov: inspected */
