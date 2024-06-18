@@ -1,4 +1,4 @@
---source include/have_router.inc
+--source include/have_router_bootstrap.inc
 
 --source ../include/mrs/initialize_schema.inc
 

@@ -5,7 +5,7 @@
 # Note: The script write the file to the disc, and sets
 # the `mysqltest` variable to command line argument that
 # should appended to MySQL Router while starting (to apply
-# new configuration). 
+# new configuration).
 #
 # ==== Usage ====
 #
@@ -13,13 +13,9 @@
 # [--let $extra_http_enable_ssl = 1|0]
 # [--let $extra_http_static_folder = /some/folder/]]
 #
-# [--let $extra_mrs_meta_user = MYSQL_SERVER_USER_NAME
-#  --let $extra_mrs_read_write_route = ID
-# [--let $extra_mrs_router_id = ID]
-# [--let $extra_mrs_data_user = MYSQL_SERVER_USER_NAME]]
-#
 # [--let $extra_keyring_master_file = FILE]
 # [--let $extra_keyring_file = FILE]
+# [--let $extra_dynamic_state_file = FILE]
 #
 # --source include/mysqlrouter_restart.inc
 #
@@ -60,7 +56,7 @@ if ($extra_http_port)
     {
         --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"static_folder=$extra_http_static_folder\n");
     }
-    
+
     if (! $extra_http_enable_ssl)
     {
         --echo #  * http
@@ -97,31 +93,6 @@ if ($extra_mrs_meta_user) {
 
     --echo #  * MySQL Rest Service
 }
-
-if ($extra_keyring_master_file)
-{
-    SET @variable_extra_config = CONCAT(@variable_extra_config,"[DEFAULT]\n");
-    --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"master_key_path=$extra_keyring_master_file\n");
-}
-
-if ($extra_keyring_file)
-{
-    SET @variable_extra_config = CONCAT(@variable_extra_config,"[DEFAULT]\n");
-    --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"keyring_path=$extra_keyring_file\n");
-}
-
-if ($extra_logger_info)
-{
-  SET @variable_extra_config = CONCAT(@variable_extra_config,"[logger]\n");
-  SET @variable_extra_config = CONCAT(@variable_extra_config,"level=INFO\n");
-}
-
-if ($extra_dynamic_state_file)
-{
-    SET @variable_extra_config = CONCAT(@variable_extra_config,"[DEFAULT]\n");
-    --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"dynamic_state=$extra_dynamic_state_file\n");
-}
-
 
 --let $router_config_to_remove=$MYSQL_TMP_DIR/$extra_generated_file
 --source ../include/mysqlrouter_remember_file_for_removal.inc

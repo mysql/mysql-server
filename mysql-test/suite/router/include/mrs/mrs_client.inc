@@ -7,7 +7,7 @@ if (!$mrs_client_exe_args)
 {
   if (!$MRS_CLIENT_ARGS)
   {
-    --die Wither `MRS_CLIENT_ARGS` or `mrs_client_exe_args` variable is required.
+    --die Either `MRS_CLIENT_ARGS` or `mrs_client_exe_args` variable is required.
   }
   --let $mrs_client_cmd=$MRS_CLIENT_ARGS  
 }

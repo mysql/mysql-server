@@ -1,0 +1,12 @@
+[DEFAULT]
+
+[logger]
+level=DEBUG
+
+[routing:static]
+bind_address=0.0.0.0
+routing_strategy=round-robin
+protocol=classic
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+server_ssl_verify=DISABLED

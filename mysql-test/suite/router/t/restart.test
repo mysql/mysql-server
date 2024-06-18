@@ -1,0 +1,13 @@
+--source include/have_router.inc
+
+--echo # connect via the Router accepting port
+connect (router_conn,127.0.0.1,root,,test,$ROUTING_STATIC_BIND_PORT);
+
+--echo # run basic query for sanity test
+SELECT 1 as column_name;
+
+--echo # restart the Router and wait for it to get back
+--source ../include/mysqlrouter_restart.inc
+
+--echo # check it is back
+SELECT 1 as column_name;

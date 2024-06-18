@@ -1,0 +1,11 @@
+# connect via the Router accepting port
+# run basic query for sanity test
+SELECT 1 as column_name;
+column_name
+1
+# restart the Router and wait for it to get back
+# restart
+# check it is back
+SELECT 1 as column_name;
+column_name
+1

@@ -1,15 +1,16 @@
 # ==== Purpose ====
 #
-# TODO
-#
-# Note: ...
+# Prepares the Router configuration file to work with InnoDB Cluster.
+# Writes the config file in the temp directory.
 #
 # ==== Usage ====
 #
-# [--let $... = TCP PORT
-#
-#
-# --source include/SCRIPT.inc
+# --let $extra_metadata_user= "user"
+# --let $extra_rw_route= inno_rw
+# --let $extra_route_rw_port= 10001
+# [ --let $extra_ro_route= inno_ro ]
+# [ --let $extra_route_rw_port= 10002 ]
+# --source include/mysqlrouter_create_innodb_cluster_router.inc
 #
 
 --disable_query_log
@@ -50,7 +51,6 @@ if (! $extra_route_rw_port)
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"address=127.0.0.1\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"auth_cache_refresh_interval=4\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"ttl=10\n");
---eval SET @variable_extra_config = CONCAT(@variable_extra_config,"bootstrap_server_addresses=mysql://127.0.0.1:$SERVER_MYPORT_1\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"user=$extra_metadata_user\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"metadata_cluster=my_cluster\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"auth_cache_ttl=-1\n");
@@ -71,21 +71,19 @@ if ($extra_ro_route)
    {
      --die Variable 'extra_route_ro_port' is required, when ro route was configured.
    }
-   
   --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"[routing:$extra_ro_route]\n");
   --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"bind_address=0.0.0.0\n");
   --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"destinations=metadata-cache://my_cluster/?role=SECONDARY\n");
   --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"bind_port=$extra_route_ro_port\n");
-  --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"routing_strategy=first-available\n");
+  --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"routing_strategy=round-robin\n");
   --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"protocol=classic\n");
-  
   --echo #  * router: $extra_ro_route
 }
 
 --let $router_config_to_remove=$MYSQL_TMP_DIR/$extra_generated_file
 --source ../include/mysqlrouter_remember_file_for_removal.inc
 
-output $MYSQL_TMP_DIR/$extra_generated_file; 
+output $MYSQL_TMP_DIR/$extra_generated_file;
 replace_result @variable_extra_config #@variable_extra_config;
 SELECT @variable_extra_config;
 

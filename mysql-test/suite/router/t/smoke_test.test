@@ -1,0 +1,7 @@
+--source include/have_router.inc
+
+--echo # connect via the Router accepting port
+connect (router_conn,127.0.0.1,root,,test,$ROUTING_STATIC_BIND_PORT);
+
+--echo # run basic query for sanity test
+SELECT 1 as column_name;

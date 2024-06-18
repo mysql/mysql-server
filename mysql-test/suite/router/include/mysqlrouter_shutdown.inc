@@ -14,7 +14,8 @@ if (!$pid_file)
 --let MYSQLROUTER_PIDFILE = $pid_file
 
 perl;
-open(my $FILE, "+<", $ENV{'MYSQLROUTER_PIDFILE'}) or die "Can't open mysqlrouters PID file.";
+my $pidf = $ENV{'MYSQLROUTER_PIDFILE'};
+open(my $FILE, "+<", $ENV{'MYSQLROUTER_PIDFILE'}) or die "Can't open mysqlrouters PID file '$pidf', '$pid_file'.";
 my $pid= (<$FILE> + 0) or die "MySQLRouter PID file contains invalid process ID.";
 
 if ( $^O eq 'MSWin32')

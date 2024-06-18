@@ -41,8 +41,6 @@ report-port=        @mysqld.2.port
 
 report-port=        @mysqld.3.port
 
-[router.1]
-
 [ENV]
 SERVER_MYPORT_2=        @mysqld.2.port
 SERVER_MYSOCK_2=        @mysqld.2.socket

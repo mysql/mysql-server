@@ -212,7 +212,7 @@ BEGIN
   --
   SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE COMMAND NOT IN ('Sleep', 'Daemon')
-      AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
+      AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler', 'mysqlrouter')
         ORDER BY COMMAND;
 
   -- Checksum system tables to make sure they have been properly

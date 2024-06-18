@@ -1,14 +1,5 @@
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
-# mysqlrouter_keyring
-#  * "set" root password ""
-# mysqlrouter_keyring
-#  * set rest-user jwt_secret "secret12345"
-# Generating config into generated_router_1.cnf
-#  * https
-#  * MySQL Rest Service
-# Connection "router.1" active
-# restart:generated_router_1.cnf
 CREATE TABLE test.id_unsigned_int(
 id INTEGER UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 value INTEGER);
@@ -28,6 +19,7 @@ VALUES(1, 1), (2, 2), (3, 3), (4, 4);
 # Registred DB_SCHEMA at path: /svc/test
 # Check the offset & limit on table with INTEGER UNSIGNED PK field
 # Registred DB_OBJECT at path: /svc/test/id_unsigned_int
+# Registred DB_OBJECT at path: /svc/test/id_unsigned_bigint
 GET /svc/test/id_unsigned_int?offset=0&limit=1
 {
     "items": [
@@ -332,7 +324,6 @@ GET /svc/test/id_unsigned_int?offset=18446744073709551614&limit=1844674407370955
 }
 OK
 # Check the limit on table with BIGINT UNSIGNED PK field
-# Registred DB_OBJECT at path: /svc/test/id_unsigned_bigint
 GET /svc/test/id_unsigned_bigint?offset=0&limit=1
 {
     "items": [

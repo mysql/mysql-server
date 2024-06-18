@@ -2,7 +2,7 @@
 #
 # Remember files that should be removed at end of the test-case.
 #
-# Note: The removal occurs in `mrs_cleanup.inc`.
+# Note: The removal occurs in `mysqlrouter_remove_extra_configs.inc`
 #
 # ==== Usage ====
 #

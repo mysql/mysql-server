@@ -61,6 +61,7 @@ use My::File::Path;    # Patched version of File::Path
 use My::Find;
 use My::Options;
 use My::Platform;
+use My::RouterConfigFactory;
 use My::SafeProcess;
 use My::SysInfo;
 
@@ -180,6 +181,7 @@ my $exe_ndbmtd;
 my $initial_bootstrap_cmd;
 my $mysql_base_version;
 my $mysqlx_baseport;
+my $router_baseport;
 my $path_config_file;       # The generated config file, var/my.cnf
 my $path_vardir_trace;
 my $test_fail;
@@ -197,6 +199,7 @@ my @valgrind_args;
 
 # Storage for changed environment variables
 my %old_env;
+my %old_env_router;
 my %visited_suite_names;
 
 # Global variables
@@ -264,6 +267,7 @@ our @DEFAULT_SUITES = qw(
   parts
   perfschema
   query_rewrite_plugins
+  router
   rpl
   rpl_gtid
   rpl_nogtid
@@ -328,6 +332,9 @@ our $bindir;
 our $build_thread_id_dir;
 our $build_thread_id_file;
 our $config;    # The currently running config
+our $config_router;
+our $config_router_filename;
+our $current_router_template;
 our $debug_compiled_binaries;
 our $default_vardir;
 our $excluded_string;
@@ -351,10 +358,13 @@ our $path_language;
 our $path_testlog;
 our $secondary_engine_plugin_dir;
 our $start_only;
+our $exe_mysqlrouter;
+our $exe_mysqlrouter_keyring;
 
 our $glob_debugger       = 0;
 our $group_replication   = 0;
-our $router_test         = 0;
+our $router_test           = 0;
+our $router_bootstrap_test = 0;
 our $ndbcluster_enabled  = 0;
 our $ndbcluster_only     = $ENV{'MTR_NDB_ONLY'} || 0;
 our $mysqlbackup_enabled = 0;
@@ -385,7 +395,7 @@ sub mysqlds     { return _like('mysqld.'); }
 sub ndbds       { return _like('cluster_config.ndbd.'); }
 sub ndb_mgmds   { return _like('cluster_config.ndb_mgmd.'); }
 sub clusters    { return _like('mysql_cluster.'); }
-sub routers     { return _like('router.'); }
+sub routers     { return $config_router ? $config_router->group('DEFAULT') : (); }
 sub all_servers { return (mysqlds(), ndb_mgmds(), ndbds(), routers()); }
 
 # Return an object which refers to the group named '[mysqld]'
@@ -827,19 +837,11 @@ sub main {
     $ports_per_thread = $ports_per_thread + 10;
   }
 
-  if ($router_test) {
-    $ports_per_thread = $ports_per_thread + 10;
-  }
-
-  if ($router_test) {
-    $ports_per_thread = $ports_per_thread + 10;
-  }
-
   if ($secondary_engine_support) {
     # Reserve 10 extra ports per worker process
     $ports_per_thread = $ports_per_thread + 10;
   }
-  
+
   mtr_report("ports_per_thread:".$ports_per_thread);
 
   create_manifest_file();
@@ -2623,29 +2625,33 @@ sub set_build_thread_ports($) {
   # Calculate baseport
   $baseport = $build_thread * 10 + 10000;
 
-  if (lc($opt_mysqlx_baseport) eq "auto") {
-    # Reserving last 10 ports in the current port range for X plugin.
-    $mysqlx_baseport = $baseport + $ports_per_thread - 10;
-  } else {
-    $mysqlx_baseport = $opt_mysqlx_baseport;
+  # First set of 20 ports is reserved for mysqld servers (10 each for
+  # standard and admin connections)
+  my $baseport_offset = 20;
+
+  # Next set of 10 ports is reserver for Group replication if used
+  if ($group_replication) {
+    $baseport_offset = $baseport_offset + 10;
   }
 
+  # Next set of 10 ports is reserved for secondary engine plugin if used
   if ($secondary_engine_support) {
-    # Reserve a port for secondary engine server
-    if ($group_replication) {
-      # When both group replication and secondary engine are enabled,
-      # ports_per_thread value should be 50.
-      # - First set of 20 ports are reserved for mysqld servers (10 each for
-      #   standard and admin connections)
-      # - Second set of 10 ports are reserver for Group replication
-      # - Third set of 10 ports are reserved for secondary engine plugin
-      # - Fourth and last set of 10 ports are reserved for X plugin
-      $::secondary_engine_port = $baseport + 30;
-    } else {
-      # ports_per_thread value should be 40, reserve second set of
-      # 10 ports for secondary engine server.
-      $::secondary_engine_port = $baseport + 20;
-    }
+    $::secondary_engine_port = $baseport + $baseport_offset;
+    $baseport_offset = $baseport_offset + 10;
+  }
+
+  # Next set of 10 ports is reserved for the Router if used
+  if ($router_test) {
+    $router_baseport = $baseport + $baseport_offset;
+    $ENV{'MTR_ROUTER_PORT_OFFSET'} = $baseport + $baseport_offset;
+    $baseport_offset = $baseport_offset + 10;
+  }
+
+  if (lc($opt_mysqlx_baseport) eq "auto") {
+    # Reserving last 10 ports in the current port range for X plugin.
+    $mysqlx_baseport = $baseport + $baseport_offset;
+  } else {
+    $mysqlx_baseport = $opt_mysqlx_baseport;
   }
 
   if ($baseport < 5001 or $baseport + $ports_per_thread - 1 >= 32767) {
@@ -2938,6 +2944,16 @@ sub executable_setup () {
   } else {
     $exe_mysqltest = mtr_exe_exists("$path_client_bindir/mysqltest");
   }
+
+  $exe_mysqlrouter =
+    my_find_bin($bindir,
+              [ "runtime_output_directory", "libexec", "sbin", "bin" ],
+              "mysqlrouter", NOT_REQUIRED);
+
+  $exe_mysqlrouter_keyring =
+    my_find_bin($bindir,
+              [ "runtime_output_directory", "libexec", "sbin", "bin" ],
+              "mysqlrouter_keyring", NOT_REQUIRED);
 }
 
 sub client_debug_arg($$) {
@@ -3419,7 +3435,9 @@ sub environment_setup {
   $ENV{'MYSQL_SLAVE'}         = client_arguments("mysql", ".2");
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
-  $ENV{'MYSQLROUTER'}         = mysqlrouter_arguments();
+  $ENV{'MYSQLROUTER'}         = $exe_mysqlrouter;
+  $ENV{'MYSQLROUTER_KEYRING'} = $exe_mysqlrouter_keyring;
+  # TODO: what about this?
   $ENV{'MYSQLROUTER_BOOTSTRAP'}= mysqlrouter_bootstrap_arguments();
 
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
@@ -5161,14 +5179,6 @@ sub run_testcase ($) {
       # to use a different one
       $current_config_name = $tinfo->{template_path};
 
-      # Set variables in the ENV section
-      foreach my $option ($config->options_in_group("ENV")) {
-        # Save old value to restore it before next time
-        $old_env{ $option->name() } = $ENV{ $option->name() };
-        mtr_verbose($option->name(), "=", $option->value());
-        $ENV{ $option->name() } = $option->value();
-      }
-
       # Restore the value of the reinitialization flag after new config
       # is generated.
       foreach my $mysqld (mysqlds()) {
@@ -5187,6 +5197,34 @@ sub run_testcase ($) {
           }
         }
       }
+
+      # Set variables in the ENV section
+      foreach my $option ($config->options_in_group("ENV")) {
+        # Save old value to restore it before next time
+        $old_env{ $option->name() } = $ENV{ $option->name() };
+        mtr_verbose($option->name(), "=", $option->value());
+        $ENV{ $option->name() } = $option->value();
+      }
+    }
+
+    if ($tinfo->{router_test} && !$config_router) {
+      my ($r_config,@r_env) = create_router_config($tinfo, $opt_vardir);
+      $config_router = $r_config;
+      # Set variables in the ENV section
+      foreach my $option (@r_env) {
+        # Save old value to restore it before next time
+        $old_env{ $option->name() } = $ENV{ $option->name() };
+        mtr_verbose($option->name(), "=", $option->value());
+        $ENV{ $option->name() } = $option->value();
+      }
+    }
+    #if (!$tinfo->{router_test}) {
+    #  $config_router = ();
+    #}
+    if ($tinfo->{router_bootstrap_test}) {
+      my $routing_plugin = find_plugin("routing", "plugin_output_directory") or die();
+      my $plugin_dir = dirname($routing_plugin);
+      $ENV{"ROUTER_PLUGIN_DIRECTORY"} = $plugin_dir;
     }
 
     # Write start of testcase to log
@@ -6114,10 +6152,11 @@ sub check_expected_crash_and_restart($$) {
     # If a test was started with bootstrap options, make sure
     # the restart happens with the same options.
     my $bootstrap_opts = get_bootstrap_opts($application, $tinfo);
-    my $is_router = $application->name() =~ /^router/;
+    my $is_router = $application->name() =~ /^DEFAULT/;
+    my $app_name = $is_router ? "mysqlrouter" : $application->name();
 
     # Check if crash expected by looking at the .expect file in var/tmp
-    my $expect_file = "$opt_vardir/tmp/" . $application->name() . ".expect";
+    my $expect_file = "$opt_vardir/tmp/" . $app_name . ".expect";
     if (-f $expect_file) {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
       for (my $waits = 0 ; $waits < 50 ; mtr_milli_sleep(100), $waits++) {
@@ -6740,59 +6779,106 @@ sub mysqld_start ($$$$) {
   return;
 }
 
-sub router_create_config_file($$) {
-  my $router          = shift;
-  my $config_filename = shift;
+sub run_msyqlrouter_keyring_util($$$$) {
+  my $keyring_file = shift;
+  my $keyring_master_file = shift;
+  my $operation = shift;
+  my $additional_args = shift;
 
-  my $tmpdir = $router->value("tmpdir");
-  my $std_data = $router->value("std_data");
-  my $router_port = $router->value("port");
-  my $router_remote = $ENV{ROUTER_REMOTE} or die "Need ROUTER_REMOTE";
+  my $exe_mysqlrouter_keyring = $ENV{'MYSQLROUTER_KEYRING'};
 
-  my $router_client_ssl_cert="$std_data/server-cert.pem";
-  my $router_client_ssl_key="$std_data/server-key.pem";
-
-  my $router_client_ssl_mode = $router->value("client_ssl_mode");
-  my $router_server_ssl_mode = $router->value("server_ssl_mode");
-  my $output = $router->value('#log-error');
-
-  my $routing_plugin = find_plugin("routing", "plugin_output_directory");
-  if (!$routing_plugin) {
-     $routing_plugin = find_router_plugin_in_package("routing") or die();
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, $operation);
+  mtr_add_arg($args, $keyring_file);
+  mtr_add_arg($args, "--master-key-file=$keyring_master_file");
+  for my $arg (@$additional_args) {
+    mtr_add_arg($args, $arg);
   }
+  
+  My::SafeProcess->run(name  => "mysqlrouter_keyring",
+                       path  => $exe_mysqlrouter_keyring,
+                       args  => \$args);
+}
+
+sub router_create_keyring($) {
+  my $keyring_directory = shift;
+  my $keyring_file="$keyring_directory/keyring";
+  my $keyring_master_file="$keyring_directory/mysqlrouter.key";
+
+  unlink($keyring_file) if -e $keyring_file;
+  unlink($keyring_master_file) if -e $keyring_master_file;
+
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "init", []);
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set", 
+                      ["mysqlrouter", "password", "mysqlrouter"]);
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set", 
+                      ["root", "password", ""]);
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set", 
+                      ["rest-user", "jwt_secret", "secret12345"]);
+}
+
+sub router_create_dynamic_state_file($) {
+  my $state_dir = shift;
+
+  my $state_file="$state_dir/state.json";
+  my $group_replication_group_name="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  my $s1_port=$config->group('mysqld.1')->value('port');
+
+  my $state_content = <<delim;
+{
+    "metadata-cache": {
+      "group-replication-id": "$group_replication_group_name",
+      "cluster-metadata-servers": ["mysql://127.0.0.1:$s1_port"]
+    },
+    "version" : "1.0.0."
+}
+delim
+
+   open(FILE, ">", $state_file) or die($!);
+   print FILE $state_content;
+   close(FILE);
+}
+
+sub create_router_config($$) {
+  my $tinfo = shift;
+  my $vardir = shift;
+
+  $current_router_template= $tinfo->{router_template_path};
+  if (!$current_router_template) {
+    $current_router_template= "include/default_my-router.cnf";
+  }
+
+  my $routing_plugin = find_plugin("routing", "plugin_output_directory") or die();
   my $plugin_dir = dirname($routing_plugin);
-  my $logdir = dirname($output);
-  my $logname = basename($output);
-  $ENV{ROUTER_PLUGIN_DIRECTORY}=$plugin_dir;
+  my $factory = My::RouterConfigFactory->new();
+  my $router_config =
+     $factory->new_config({ basedir       => $basedir,
+                            testdir        => $glob_mysql_test_dir,
+                            template_path  => $current_router_template,
+                            vardir        =>  $vardir,
+                            plugin_folder  => $plugin_dir,
+                            baseport       => $router_baseport,
+                            endpoint       => $config->group('mysqld.1')->value('port')
+                          });
+  $factory->push_env_variable('MYSQLROUTER_LOGFILE', $router_config->value("DEFAULT", "#log-error"));
+  $factory->push_env_variable('MYSQLROUTER_PIDFILE', $router_config->value("DEFAULT", "pid_file"));
 
-  my $router_config = <<PERL_HEREDOC;
-[DEFAULT]
-plugin_folder=$plugin_dir
-logging_folder=$logdir
-runtime_folder=$tmpdir/run
-data_folder=$tmpdir/data
-client_ssl_cert=$router_client_ssl_cert
-client_ssl_key=$router_client_ssl_key
+  # only needed if metadata_cache and/or mysql_rest_service is configured
+  if ($router_config->like("metadata_cache") || $router_config->like("mysql_rest_service")) {
+    router_create_keyring($vardir);
+    router_create_dynamic_state_file($vardir);
+  }
 
-[logger]
-level=DEBUG
-filename=$logname
+  my $config_dir = $vardir;
+  mkpath($config_dir);
+  $config_router_filename = $config_dir . '/mysqlrouter.cnf';
 
-[routing:undertest]
-bind_address=0.0.0.0
-bind_port=$router_port
-destinations=127.0.0.1:$router_remote
-routing_strategy=round-robin
-protocol=classic
-client_ssl_mode=$router_client_ssl_mode
-server_ssl_mode=$router_server_ssl_mode
-server_ssl_verify=DISABLED
-
-PERL_HEREDOC
-
-   open(FILE, ">", $config_filename) or die($!);
+   open(FILE, ">", $config_router_filename) or die($!);
    print FILE $router_config;
    close(FILE);
+
+  return ($router_config, $factory->env_variables());
 }
 
 sub router_start ($$$) {
@@ -6802,13 +6888,7 @@ sub router_start ($$$) {
 
   mtr_verbose(My::Options::toStr("router_start", @$extra_opts));
 
-  my $exe = find_router($basedir);
-
-  my $config_dir = $router->value('tmpdir');
-  mkpath($config_dir);
-  my $config_file = $config_dir . '/' . $router->name() . '.cnf';
-  router_create_config_file($router, $config_file);
-  my $pid_file = $router->value('pid-file');
+  my $pid_file = $router->value('pid_file');
 
   my $args;
   mtr_init_args(\$args);
@@ -6817,7 +6897,7 @@ sub router_start ($$$) {
     mtr_add_arg($args, "--core-file");
   }
   mtr_add_arg($args, "--pid-file=%s", $pid_file);
-  mtr_add_arg($args, "--config=%s", $config_file);
+  mtr_add_arg($args, "--config=%s", $config_router_filename);
 
   my $output = $router->value('#log-error');
 
@@ -6853,10 +6933,10 @@ sub router_start ($$$) {
   # Remember this log file for valgrind/shutdown error report search.
   $logs{$output} = 1;
 
-  if (defined $exe) {
+  if (defined $exe_mysqlrouter) {
     $router->{'proc'} =
       My::SafeProcess->new(name        => $router->name(),
-                           path        => $exe,
+                           path        => $exe_mysqlrouter,
                            args        => \$args,
                            output      => $output,
                            error       => $output,
@@ -6887,6 +6967,10 @@ sub stop_all_servers () {
   # Remove pidfiles
   foreach my $server (all_servers()) {
     my $pid_file = $server->if_exist('pid-file');
+    if (!defined $pid_file) {
+      $pid_file = $server->if_exist('pid_file');
+    }
+
     unlink($pid_file) if defined $pid_file;
   }
 
@@ -7048,6 +7132,20 @@ sub server_need_restart {
     }
   }
 
+  my $is_router = $server->name() eq "DEFAULT";
+  if ($is_router) {
+    if (!$tinfo->{router_test}) {
+      # This is not a router test, we want Router to be stopped if it is running
+      mtr_verbose_restart($server, "Router restarted");
+      return 1;
+    }
+
+    if ($tinfo->{router_template_path} ne $current_router_template) {
+      mtr_verbose_restart($server, "using different Router config file");
+      return 1;
+    }
+  }
+
   # Default, no restart
   return 0;
 }
@@ -7086,9 +7184,17 @@ sub servers_need_restart($) {
   }
 
   # Check if any remaining servers need restart
-  foreach my $server (ndb_mgmds(), ndbds(), routers()) {
+  foreach my $server (ndb_mgmds(), ndbds()) {
     if (server_need_restart($tinfo, $server, $master_restarted)) {
       push(@restart_servers, $server);
+    }
+  }
+
+  # Check if router needs restart
+  foreach my $server (routers()) {
+    if (server_need_restart($tinfo, $server, $master_restarted)) {
+      push(@restart_servers, $server);
+      $config_router = ();
     }
   }
 
@@ -7342,20 +7448,6 @@ sub start_servers($) {
     $mysqld->{'started_tinfo'} = $tinfo;
   }
 
-  # Start routers
-  foreach my $router (routers()) {
-    my $extra_opts = ();
-    # get_extra_opts($router, $tinfo);
-
-    if ($router->{proc}) {
-      # Already started, write start of testcase to log file
-      mark_testcase_start_in_logs($router, $tinfo);
-      next;
-    }
-
-    router_start($router, $extra_opts, $tinfo);
-  }
-
   # Wait for clusters to start
   foreach my $cluster (clusters()) {
     if (ndbcluster_wait_started($cluster, "")) {
@@ -7406,11 +7498,25 @@ sub start_servers($) {
     }
   }
 
+  # Start routers
+  foreach my $router (routers()) {
+    my $extra_opts = ();
+    # get_extra_opts($router, $tinfo);
+    mark_testcase_start_in_logs($router, $tinfo);
+
+    if ($router->{proc}) {
+      # Already started
+      next;
+    }
+
+    router_start($router, $extra_opts, $tinfo);
+  }
+
   # Wait for routers to start
   foreach my $router (routers()) {
     next if !started($router);
 
-    if (!sleep_until_pid_file_created($router->value('pid-file'),
+    if (!sleep_until_pid_file_created($router->value('pid_file'),
                                       $opt_start_timeout,
                                       $router->{'proc'})
       ) {

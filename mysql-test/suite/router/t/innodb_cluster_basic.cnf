@@ -1,4 +1,6 @@
-!include ../my.cnf
+!include include/default_mysqld.cnf
+!include include/default_client.cnf
+
 [mysqld]
 log-bin=                    server-binary-log
 relay-log=                  server-relay-log
@@ -29,5 +31,24 @@ loose-innodb_read_io_threads=  1
 # Run the master.sh script before starting this process
 #!run-master-sh
 
-[router.1]
+[mysqld.2]
+# Run the slave.sh script before starting this process
+#!run-slave-sh
 
+report-port=        @mysqld.2.port
+
+[mysqld.3]
+# Run the slave.sh script before starting this process
+#!run-slave-sh
+
+report-port=        @mysqld.3.port
+
+[ENV]
+MASTER_MYPORT=          @mysqld.1.port
+MASTER_MYSOCK=          @mysqld.1.socket
+
+SERVER_MYPORT_2=        @mysqld.2.port
+SERVER_MYSOCK_2=        @mysqld.2.socket
+
+SERVER_MYPORT_3=        @mysqld.3.port
+SERVER_MYSOCK_3=        @mysqld.3.socket

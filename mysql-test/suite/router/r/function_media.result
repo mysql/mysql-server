@@ -1,14 +1,5 @@
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
-# mysqlrouter_keyring
-#  * "set" root password ""
-# mysqlrouter_keyring
-#  * set rest-user jwt_secret "secret12345"
-# Generating config into generated_router_1.cnf
-#  * http
-#  * MySQL Rest Service
-# Connection "router.1" active
-# restart:generated_router_1.cnf
 # DB `func_schema` - created
 
 

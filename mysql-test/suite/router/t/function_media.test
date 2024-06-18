@@ -7,12 +7,11 @@
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
---let $extra_http_enable_ssl=0
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/functions_schema.sql
 
---let $mrs_host_and_port=127.0.0.1:$extra_http_port
---let MRS_CLIENT_ARGS=$MRS_CLIENT --url http://$mrs_host_and_port --display REQUEST,RESULT
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,RESULT
 --let $mtr_file=$TEST_DIR/mtr_output_file.inc
 
 ## Test starts here
@@ -149,6 +148,7 @@
 --echo #
 --echo # I.1
 exec $MRS_CLIENT_ARGS
+  --wait-until-found 60
   --path /svc/func/func_media -t POST
   --expected-status Forbidden;
 

@@ -39,6 +39,10 @@ INSERT INTO test.id_bigint(id, value)
 --let $mrs_add_db_object_path=/id_unsigned_int
 --source ../include/mrs/db_object/add.inc
 
+--let $mrs_add_db_object=id_unsigned_bigint
+--let $mrs_add_db_object_path=/id_unsigned_bigint
+--source ../include/mrs/db_object/add.inc
+
 --source ../include/mrs/end_object_definition.inc
 
 --exec $MRS_CLIENT_ARGS --path /svc/test/id_unsigned_int/1 --wait-until-found 60 --display none
@@ -64,9 +68,6 @@ INSERT INTO test.id_bigint(id, value)
 --source ../include/mrs/mrs_client.inc
 
 --echo # Check the limit on table with BIGINT UNSIGNED PK field
---let $mrs_add_db_object=id_unsigned_bigint
---let $mrs_add_db_object_path=/id_unsigned_bigint
---source ../include/mrs/db_object/add.inc
 
 --exec $MRS_CLIENT_ARGS --path /svc/test/id_unsigned_bigint/1 --wait-until-found 60 --display none
 --let $MRS_CLIENT_ARGS_LIST=$MRS_CLIENT_ARGS --json-pointer /items/*/id,/items/*/value

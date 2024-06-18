@@ -92,5 +92,5 @@ if (!$dont_init_gr)
 --let $restart_parameters= restart: $extra_append_router_config
 --source ../mysqlrouter_restart.inc
 
---let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port

@@ -1,3 +1,5 @@
-SELECT 1;
-1
+# connect via the Router accepting port
+# run basic query for sanity test
+SELECT 1 as column_name;
+column_name
 1

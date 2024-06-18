@@ -65,6 +65,7 @@ UPDATE  `mysql_rest_service_metadata`.`config` SET data=
 --source ../include/mrs/changes/fetch_object.inc
 
 exec $MRS_CLIENT_ARGS
+  --wait-until-found 60
   --expected-status Unauthorized
   --path /svc1/basic1/o1;
 

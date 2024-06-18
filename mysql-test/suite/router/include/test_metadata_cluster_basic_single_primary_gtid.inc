@@ -36,7 +36,7 @@ if (!$test_obj2)
 --source ../include/mrs/changes/fetch_asof_timeouts.inc
 --source ../include/mrs/changes/fetch_metadata_gtids.inc
 
---let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 
 #--exec $MRS_CLIENT_ARGS --path /svc/$test_schema/$test_obj1 --wait-until-found=60  --request-type post --payload '{"id":1010}'

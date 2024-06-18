@@ -10,7 +10,7 @@
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/functions_schema.sql
 
---let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,BODY,RESULT
 
 
@@ -181,6 +181,7 @@
 --echo # I.1
 exec $MRS_CLIENT_ARGS
   --path /svc/func/nothing -t POST
+  --wait-until-found 60
   --expected-status Forbidden;
 
 --echo

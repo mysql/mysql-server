@@ -8,7 +8,7 @@
 #
 skip WIP;
 
---source include/have_router.inc
+#--source include/have_router.inc
 
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/basic_schema.sql

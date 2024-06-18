@@ -1,4 +1,6 @@
-!include ../my.cnf
+!include include/default_mysqld.cnf
+!include include/default_client.cnf
+
 [mysqld]
 log-bin=                    server-binary-log
 relay-log=                  server-relay-log
@@ -41,9 +43,10 @@ report-port=        @mysqld.2.port
 
 report-port=        @mysqld.3.port
 
-[router.1]
-
 [ENV]
+MASTER_MYPORT=          @mysqld.1.port
+MASTER_MYSOCK=          @mysqld.1.socket
+
 SERVER_MYPORT_2=        @mysqld.2.port
 SERVER_MYSOCK_2=        @mysqld.2.socket
 

@@ -1,0 +1,60 @@
+--source include/have_router.inc
+--source include/have_group_replication_plugin.inc
+
+--source ../include/predefined_setup/configure_innodb_cluster_gr.inc
+
+--echo # Wait for the Router to update the metadata after we created the Cluster
+--let $grep_pattern = .*Ready, signaling notify socket.*
+--let $grep_file = $MYSQLROUTER_LOGFILE
+--let $wait_timeout = 20
+--source include/wait_for_pattern_in_file.inc
+
+--echo # Connect to the Router RW port twice, each time expect to be connected to the first server which is primary
+
+--echo # first connection
+connect (router_rw_conn,127.0.0.1,root,,test,$ROUTING_RW_BIND_PORT);
+let $server_port= `SELECT @@port`;
+--let $assert_text= Check that the first node is used for RW connection
+--let $assert_cond= "$server_port" = "$s1_port"
+--source include/assert.inc
+--disconnect router_rw_conn
+
+--echo # second connection
+connect (router_rw_conn,127.0.0.1,root,,test,$ROUTING_RW_BIND_PORT);
+let $server_port= `SELECT @@port`;
+--let $assert_text= Check that the first node is used for RW connection
+--let $assert_cond= "$server_port" = "$s1_port"
+--source include/assert.inc
+--disconnect router_rw_conn
+
+--echo # Connect to the Router RO port couple of times, expect round robin between the replica servers s2 -> s3 -> s2 -> ...
+
+--echo # first connection
+connect (router_ro_conn,127.0.0.1,root,,test,$ROUTING_RO_BIND_PORT);
+let $server_port= `SELECT @@port`;
+--let $assert_text= Check that the second node is used for RO connection
+--let $assert_cond= "$server_port" = "$s2_port"
+--source include/assert.inc
+--disconnect router_ro_conn
+
+--echo # second connection
+connect (router_ro_conn,127.0.0.1,root,,test,$ROUTING_RO_BIND_PORT);
+let $server_port= `SELECT @@port`;
+--let $assert_text= Check that the third node is used for RO connection
+--let $assert_cond= "$server_port" = "$s3_port"
+--source include/assert.inc
+--disconnect router_ro_conn
+
+--echo # third connection
+connect (router_ro_conn,127.0.0.1,root,,test,$ROUTING_RO_BIND_PORT);
+let $server_port= `SELECT @@port`;
+--let $assert_text= Check that the second node is used for RO connection
+--let $assert_cond= "$server_port" = "$s2_port"
+--source include/assert.inc
+--disconnect router_ro_conn
+
+--echo # cleanup connection
+connect master;
+--source ../include/innodb_cluster/cleanup.inc
+--source include/rpl/sync.inc
+--source include/group_replication_end.inc

@@ -1,0 +1,35 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+# MySQL InnoDB Cluster schema created.
+# MySQL Router metadata user created.
+# * insert three R/W nodes into MySQL InnoDB Cluster.
+include/rpl/sync.inc
+# Wait for the Router to update the metadata after we created the Cluster
+include/wait_for_pattern_in_file.inc [.*Ready, signaling notify socket.*]
+# Connect to the Router RW port twice, each time expect to be connected to the first server which is primary
+# first connection
+include/assert.inc [Check that the first node is used for RW connection]
+# second connection
+include/assert.inc [Check that the first node is used for RW connection]
+# Connect to the Router RO port couple of times, expect round robin between the replica servers s2 -> s3 -> s2 -> ...
+# first connection
+include/assert.inc [Check that the second node is used for RO connection]
+# second connection
+include/assert.inc [Check that the third node is used for RO connection]
+# third connection
+include/assert.inc [Check that the second node is used for RO connection]
+# cleanup connection
+DROP SCHEMA mysql_innodb_cluster_metadata;
+DROP USER IF EXISTS 'mysqlrouter'@'%';
+include/rpl/sync.inc
+include/group_replication_end.inc

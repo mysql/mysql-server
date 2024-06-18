@@ -40,7 +40,7 @@
 
 --source ../include/mrs/end_object_definition.inc
 
---let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 --let MRS_CLIENT_ARGS_404=$MRS_CLIENT_ARGS --expected-status 404 --response-type raw --display request,status
 

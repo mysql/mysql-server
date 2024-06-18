@@ -6,13 +6,13 @@
 #   * 2.0.0 - Added support for ReplicaSets and a public interface for
 #             components like MySQL Router. Cleanup and removal of unused items.
 #   * 2.1.0 - Added support for ClusterSets
-# 
+#
 #   Description
 #   -----------
 #   All the tables that contain information about the topology of MySQL servers
 #   in a MySQL InnoDB Cluster setup are stored in the
 #   mysql_innodb_cluster_metadata database.
-# 
+#
 #   Consumers of the metadata (i.e. MySQL Router) are required to query the
 #   public interface items (VIEWs and STORED PROCEDUREs) instead of querying the
 #   actual metadata tables. The public interface items are prefixed with the
@@ -30,7 +30,7 @@ SET names utf8mb4;
 
 # /*
 #   View that holds the current version of the metadata schema.
-# 
+#
 #   PLEASE NOTE:
 #   During the upgrade process of the metadata schema the schema_version is
 #   set to 0, 0, 0. This behavior is used for other components to detect a
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS clustersets (
 
 # /*
 #   Basic information about clusters in general.
-# 
+#
 #   Both InnoDB clusters and replicasets are represented as clusters in
 #   this table, with different cluster_type values.
 # */
@@ -199,9 +199,9 @@ CREATE TABLE IF NOT EXISTS instances (
 #   A "view" of the topology of a replicaset at a given point in time.
 #   Every time the topology of the replicaset changes (added and removed instances
 #   and failovers), a new record is added here (and in async_cluster_members).
-# 
+#
 #   The most current view will be the one with the highest view_id.
-# 
+#
 #   This table maintains a history of replicaset configurations, but older
 #   records may get deleted.
 #  */
@@ -287,9 +287,9 @@ CREATE TABLE IF NOT EXISTS async_cluster_members (
 #   A "view" of the topology of a clusterset at a given point in time.
 #   Every time the topology of the replicaset changes (added and removed clusters
 #   and failovers), a new record is added here (and in clusterset_members).
-# 
+#
 #   The most current view will be the one with the highest view_id.
-# 
+#
 #   This table maintains a history of clusterset configurations, but older
 #   records may get deleted.
 #  */

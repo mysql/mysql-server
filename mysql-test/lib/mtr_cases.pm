@@ -85,6 +85,7 @@ our $default_myisam = 0;
 
 our $group_replication;
 our $router_test;
+our $router_bootstrap_test;
 
 sub collect_option {
   my ($opt, $value) = @_;
@@ -585,6 +586,7 @@ sub collect_test_cases ($$$$) {
       }
     } else {
       share(\$group_replication);
+      share(\$router_test);
       share(\$some_test_found);
 
       # Array containing thread id of all the threads used for
@@ -1360,6 +1362,11 @@ sub collect_one_test_case {
     # Specifies the configuration file to use for this test
     $tinfo->{'template_path'} = $test_cnf_file;
   }
+  my $test_router_cnf_file = "$testdir/$tname-router.cnf";
+  if (-f $test_router_cnf_file) {
+    # Specifies the Router configuration file to use for this test
+    $tinfo->{'router_template_path'} = $test_router_cnf_file;
+  }
 
   # master sh
   my $master_sh = "$testdir/$tname-master.sh";
@@ -1533,7 +1540,13 @@ sub collect_one_test_case {
   $router_test = 1 if ($tinfo->{'router_test'});
 
   # Check for router tests
-  $router_test = 1 if ($tinfo->{'router_test'});
+  if ($tinfo->{'router_test'}) {
+    # check if the router executable was found (built)
+    if ($::exe_mysqlrouter eq "") {
+      skip_test($tinfo, "No router executable available.");
+      return $tinfo;
+    }
+  }
 
   if ($tinfo->{'not_windows'} && IS_WINDOWS) {
     skip_test($tinfo, "Test not supported on Windows");
@@ -1565,6 +1578,15 @@ sub collect_one_test_case {
       }
     }
     $tinfo->{template_path} = $config;
+  }
+
+  if (!$tinfo->{router_template_path}) {
+    my $config = "$suitedir/my-router.cnf";
+    if (!-f $config) {
+      # Assume default conf will be used
+      $config = "include/default_my-router.cnf";
+    }
+    $tinfo->{router_template_path} = $config;
   }
 
   # Set extra config file to use
@@ -1662,12 +1684,11 @@ my @tags = (
   [ "have_group_replication_plugin_base.inc", "grp_rpl_test", 1 ],
   [ "have_group_replication_plugin.inc",      "grp_rpl_test", 1 ],
   
-  [ "have_router.inc",      "router_test", 1 ],
-  
+  [ "have_router.inc",            "router_test", 1 ],
+  [ "have_router_bootstrap.inc",  "router_bootstrap_test", 1 ],
 
   [ "include/not_asan.inc", "not_asan", 1 ],
   [ "include/not_ubsan.inc", "not_ubsan", 1 ],
-  [ "have_router.inc",      "router_test", 1 ],
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.

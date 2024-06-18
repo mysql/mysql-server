@@ -3,31 +3,21 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
-include/start_and_bootstrap_group_replication.inc
 [connection server1]
+include/start_and_bootstrap_group_replication.inc
 [connection server2]
 include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc
 [connection server1]
-# MySQL Rest Service schema created.
 # MySQL InnoDB Cluster schema created.
-# * insert three RW and RO nodes into MySQL InnoDB Cluster.
+# MySQL Router metadata user created.
+# * insert three R/W nodes into MySQL InnoDB Cluster.
 include/rpl/sync.inc
-# Generating config into generated_router_1.cnf
-#  * router: inno_rw
-#  * router: inno_ro
+# Wait for the Router to update the metadata after we created the Cluster
+include/wait_for_pattern_in_file.inc [.*Ready, signaling notify socket.*]
+# MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
-# mysqlrouter_keyring
-#  * "set" root password ""
-# mysqlrouter_keyring
-#  * set rest-user jwt_secret "secret12345"
-# Generating config into generated_router_2.cnf
-#  * https
-#  * MySQL Rest Service
-include/rpl/sync.inc
-# Connection "router.1" active
-# restart:generated_router_2.cnf
 # DB `basic_schema` - created
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
@@ -332,7 +322,6 @@ GET /svc/basic/t2/3000
     }
 }
 OK
-DROP SCHEMA mysql_innodb_cluster_metadata;
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
@@ -340,5 +329,7 @@ DROP ROLE mysql_rest_service_schema_admin;
 DROP ROLE mysql_rest_service_meta_provider;
 DROP ROLE mysql_rest_service_data_provider;
 DROP ROLE mysql_rest_service_dev;
+DROP SCHEMA mysql_innodb_cluster_metadata;
+DROP USER IF EXISTS 'mysqlrouter'@'%';
 include/rpl/sync.inc
 include/group_replication_end.inc

@@ -1,10 +1,16 @@
 --source include/have_router.inc
 --source include/have_group_replication_plugin.inc
 
---let $extra_mrs_metadata_refresh_interval=1
---source ../include/predefined_setup/configure_router_mrs_root_with_gr_single.inc
---source ../include/schema/basic_schema.sql
+--source ../include/predefined_setup/configure_innodb_cluster_gr.inc
 
+--echo # Wait for the Router to update the metadata after we created the Cluster
+--let $grep_pattern = .*Ready, signaling notify socket.*
+--let $grep_file = $MYSQLROUTER_LOGFILE
+--let $wait_timeout = 20
+--source include/wait_for_pattern_in_file.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
 
 --source ../include/mrs/start_object_definition.inc
 
@@ -29,7 +35,7 @@
 --source ../include/mrs/end_object_definition.inc
 --source include/rpl/sync.inc
 
---let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 
 #--exec $MRS_CLIENT_ARGS --path /svc/basic/t1 --wait-until-found=60  --request-type post --payload '{"id":1010}'
@@ -57,7 +63,7 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3000
 
 # Cleanup
---source ../include/innodb_cluster/cleanup.inc
 --source ../include/mrs/cleanup.inc
+--source ../include/innodb_cluster/cleanup.inc
 --source include/rpl/sync.inc
 --source include/group_replication_end.inc
