@@ -321,6 +321,7 @@ our @opt_extra_bootstrap_opt;
 our @opt_extra_mysqld_opt;
 our @opt_extra_mysqltest_opt;
 our @opt_mysqld_envs;
+our @opt_mysqltest_envs;
 
 our $basedir;
 our $bindir;
@@ -1765,6 +1766,7 @@ sub command_line_setup {
 
     # Extra options used when running test clients
     'mysqltest=s' => \@opt_extra_mysqltest_opt,
+    'mysqltest-env=s' => \@opt_mysqltest_envs,
 
     # Debugging
     'boot-dbx'             => \$opt_boot_dbx,
@@ -7663,6 +7665,7 @@ sub start_mysqltest ($) {
                                   append => 1,
                                   @redirect_output,
                                   error   => $path_current_testlog,
+                                  envs    => \@opt_mysqltest_envs,
                                   verbose => $opt_verbose,);
   mtr_verbose("Started $proc");
   return $proc;
@@ -8302,6 +8305,7 @@ Options that pass on options (these may be repeated)
 
 Options for mysqltest
   mysqltest=ARGS        Extra options used when running test clients.
+  mysqltest-env=VAR=VAL Specify additional environment settings for "mysqltest"
 
 Options to run test on running server
 
