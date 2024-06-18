@@ -312,4 +312,10 @@ void ObjectManager::update_options(const std::string &options) {
   }
 }
 
+void ObjectManager::clear() {
+  routes_.clear();
+  schemas_.clear();
+  custom_paths_.clear();
+}
+
 }  // namespace mrs

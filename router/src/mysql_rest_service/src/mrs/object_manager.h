@@ -70,6 +70,7 @@ class ObjectManager : public mrs::interface::ObjectManager {
   void update(const std::vector<AppContentFile> &contents) override;
   void update(const std::vector<ContentFile> &contents) override;
   void schema_not_used(RouteSchema *route) override;
+  void clear() override;
 
  private:
   void handle_new_route(const DbObject &pe);

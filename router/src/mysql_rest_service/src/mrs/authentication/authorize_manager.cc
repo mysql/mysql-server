@@ -731,5 +731,7 @@ void AuthorizeManager::discard_current_session(ServiceId id,
   session_manager_.remove_session(session_identifier);
 }
 
+void AuthorizeManager::clear() { container_.clear(); }
+
 }  // namespace authentication
 }  // namespace mrs

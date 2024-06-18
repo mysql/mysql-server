@@ -263,6 +263,14 @@ void SchemaMonitor::run() {
           }
         }
       } while (wait_until_next_refresh());
+    } catch (const mysqlrouter::MySQLSession::Error &exc) {
+      log_error("Can't refresh MRDS layout, because of following error:%s.",
+                exc.what());
+      if (exc.code() == 1049 /*unknown database*/ ||
+          exc.code() == 1146 /*table does not exist*/) {
+        dbobject_manager_->clear();
+        auth_manager_->clear();
+      }
     } catch (const std::exception &exc) {
       // TODO(lkotula): For now we ignore those errors (Shouldn't be in
       // review)

@@ -39,6 +39,7 @@ class MockRouteManager : public mrs::interface::ObjectManager {
   MOCK_METHOD(void, update, (const std::vector<AppContentFile> &contents),
               (override));
   MOCK_METHOD(void, schema_not_used, (RouteSchema * route), (override));
+  MOCK_METHOD(void, clear, (), (override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_MANAGER_H_

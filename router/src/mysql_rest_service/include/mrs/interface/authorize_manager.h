@@ -86,6 +86,7 @@ class AuthorizeManager {
   virtual void discard_current_session(ServiceId, http::Cookie *) {}
 
   virtual collector::MysqlCacheManager *get_cache() = 0;
+  virtual void clear() = 0;
 };
 
 }  // namespace interface

@@ -90,6 +90,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   users::UserManager *get_user_manager() override;
   collector::MysqlCacheManager *get_cache() override { return cache_manager_; }
   Container get_supported_authentication_applications(ServiceId id) override;
+  void clear() override;
 
  private:
   AuthorizeHandlerPtr make_auth(const AuthApp &entry);

@@ -52,6 +52,7 @@ class MockAuthManager : public mrs::interface::AuthorizeManager {
   MOCK_METHOD(mrs::users::UserManager *, get_user_manager, (), (override));
   MOCK_METHOD(Container, get_supported_authentication_applications, (ServiceId),
               (override));
+  MOCK_METHOD(void, clear, (), (override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_MANAGER_H_

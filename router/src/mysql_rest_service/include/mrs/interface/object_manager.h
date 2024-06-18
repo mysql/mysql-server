@@ -51,6 +51,7 @@ class ObjectManager {
   virtual void update(const std::vector<AppContentFile> &contents) = 0;
   virtual void update(const std::vector<ContentFile> &contents) = 0;
   virtual void schema_not_used(RouteSchema *route) = 0;
+  virtual void clear() = 0;
 };
 
 }  // namespace interface
