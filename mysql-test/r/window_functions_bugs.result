@@ -1203,6 +1203,7 @@ NATURAL JOIN t1 AS t4
 GROUP BY t1.a
 WITH ROLLUP;
 CUME_DIST() OVER (ORDER BY t1.a)
+1
 DROP TABLE t1;
 #
 # Bug #33028408: WL#14419: ASSERTION `M_COUNT >= M_FRAME_NULL_COUNT && M_FRAME_NULL_COUNT > 0' FA
@@ -1258,6 +1259,7 @@ FROM t1
 GROUP BY a, field1 WITH ROLLUP
 ORDER BY field1, field2, field3;
 field1	field2	field3
+NULL	1	NULL
 DROP TABLE t1;
 #
 # Bug #33181670: Recent regression: Memory leak with window functions and user variables
@@ -1841,6 +1843,7 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 INTEGER);
 SELECT @A := (CUME_DIST() OVER () + f1 + RANK() OVER ()) FROM t1 GROUP BY f1 WITH ROLLUP;
 @A := (CUME_DIST() OVER () + f1 + RANK() OVER ())
+NULL
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;

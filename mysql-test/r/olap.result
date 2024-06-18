@@ -893,12 +893,20 @@ DROP TABLE t1;
 End of 5.5 tests
 # Bug#20034943 Assertion failed: argument_count() > 0
 CREATE TABLE t1(a INTEGER) engine=innodb;
-SELECT NOW() FROM t1 GROUP BY (select 1) WITH ROLLUP;
+SELECT NOW() FROM t1 GROUP BY (SELECT 1) WITH ROLLUP;
 NOW()
+XXXX-XX-XX XX:XX:XX
+SELECT NOW(), (SELECT 1), GROUPING((SELECT 1)) FROM t1 GROUP BY (SELECT 1) WITH ROLLUP;
+NOW()	(SELECT 1)	GROUPING((SELECT 1))
+XXXX-XX-XX XX:XX:XX	NULL	1
 DROP TABLE t1;
 CREATE TABLE t1(a INTEGER) engine=innodb;
 SELECT RELEASE_ALL_LOCKS() FROM t1 GROUP BY a WITH ROLLUP;
 RELEASE_ALL_LOCKS()
+0
+SELECT RELEASE_ALL_LOCKS(), a, GROUPING(a) FROM t1 GROUP BY a WITH ROLLUP;
+RELEASE_ALL_LOCKS()	a	GROUPING(a)
+0	NULL	1
 DROP TABLE t1;
 #
 # Bug#21143151 ASSERTION FAILED: BITMAP_IS_CLEAR_ALL(&SORT_FORM->TMP_SET)
@@ -2250,6 +2258,17 @@ GROUP BY
 REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
 WITH ROLLUP;
 REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
+NULL
+SELECT
+REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' ) AS rep,
+GROUPING(REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )) AS grp
+FROM
+t1, t1 AS t2
+GROUP BY
+REPLACE( IF( t2.a = t2.b, _latin1 'a', 'e'), 'd', 'b' )
+WITH ROLLUP;
+rep	grp
+NULL	1
 DROP TABLE t1;
 #
 # Bug #33149402: SELECT'S GROUPING() NOT TAKEN IN ACCOUNT IN HAVING WHEN JOIN USED
@@ -2386,4 +2405,23 @@ GROUP BY CUBE(f2)) AS dt1
 GROUP BY CUBE(f2);
 ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
 DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#36514339 ROLLUP misses a summary NULL
+#
+CREATE TABLE t(a INT);
+SELECT a, COUNT(*) FROM t GROUP BY a WITH ROLLUP;
+a	COUNT(*)
+NULL	0
+SELECT GROUPING(a), a, COUNT(*) FROM t GROUP BY a WITH ROLLUP;
+GROUPING(a)	a	COUNT(*)
+1	NULL	0
+DROP TABLE t;
+# check that we only get one row with multiple rollup levels also
+CREATE TABLE t1 (a INT NOT NULL,
+b INT NOT NULL,
+c INT NOT NULL);
+SELECT a, b, c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+a	b	c	count
+NULL	NULL	NULL	0
 DROP TABLE t1;

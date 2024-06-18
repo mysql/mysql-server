@@ -5896,6 +5896,7 @@ SELECT REVERSE(TIME_FORMAT('', NULL)) AS field1
 FROM t1
 GROUP BY ROLLUP(REVERSE(TIME_FORMAT('', NULL)));
 field1
+NULL
 DROP TABLE t1;
 # Bug#36367776: Assertion failure in Item_func_numhybrid::val_str
 CREATE TABLE t(col INTEGER);

@@ -4008,6 +4008,7 @@ f3 integer
 );
 SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
 f1	f2	f3
+NULL	NULL	NULL
 DROP TABLE t1;
 # Bug#23599127 Unexpected unknown column error without ONLY_FULL_GROUP_BY
 SET SQL_MODE = '';

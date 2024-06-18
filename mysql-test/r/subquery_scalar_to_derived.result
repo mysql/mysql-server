@@ -4691,6 +4691,7 @@ SELECT
 FROM t1
 GROUP BY f1, f2 WITH ROLLUP;
 f1	f2
+NULL	NULL
 DROP TABLE t1;
 #
 # Bug#33057397: FIELD NAMES ARE DISPLAYED INCORRECTLY WITH ROLLUP AND
@@ -4710,6 +4711,7 @@ CREATE TABLE t1 (f1 INTEGER);
 SELECT (SELECT SUM(f1) AS SQ1_field1 FROM t1) as field1
 FROM t1 GROUP BY f1 WITH ROLLUP ORDER BY f1;
 field1
+NULL
 DROP TABLE t1;
 Original repro case
 CREATE TABLE t1 (pk integer auto_increment,
@@ -4733,6 +4735,7 @@ GROUP BY field1, field2, LOG(alias1.col_int)
 WITH ROLLUP
 ORDER BY alias1.col_datetime, field1, field2, LOG(alias1.col_int) ;
 field1	field2	field3
+NULL	NULL	1
 EXPLAIN SELECT alias1.col_decimal_10_8 AS field1 ,
 ( SELECT SUM(table1.col_smallint ) AS SQ1_field1
 FROM ( t1 as table1 RIGHT JOIN t1 as table2 ON 1 )

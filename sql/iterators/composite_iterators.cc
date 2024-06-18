@@ -258,6 +258,16 @@ int AggregateIterator::Read() {
       if (err == -1) {
         m_seen_eof = true;
         m_state = DONE_OUTPUTTING_ROWS;
+        if (m_rollup && m_join->send_group_parts > 0) {
+          // No rows in result set, but we must output one grouping row: we
+          // just want the final totals row, not subtotals rows according
+          // to SQL standard.
+          SetRollupLevel(0);
+          if (m_output_slice != -1) {
+            m_join->set_ref_item_slice(m_output_slice);
+          }
+          return 0;
+        }
         if (m_join->grouped || m_join->group_optimized_away) {
           SetRollupLevel(m_join->send_group_parts);
           return -1;
