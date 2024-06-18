@@ -394,7 +394,7 @@ CREATE TABLE t1 (
 
 CREATE TABLE t2 (
   col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_int_key INT,
   KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
   KEY col_int_key (col_int_key)
@@ -404,7 +404,7 @@ INSERT INTO t2 VALUES ('qykbaqfyhz','l',NULL);
 
 CREATE TABLE t3 (
   col_int_key INT,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
   KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
