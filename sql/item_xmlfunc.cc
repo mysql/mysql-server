@@ -2529,13 +2529,14 @@ String *Item_func_xml_update::val_str(String *str) {
 
   const MY_XML_NODE *node = &pxml.at(nodeset.at(0).num);
 
-  if (!node->level) {
+  if (node->level == 0) {
     /*
       Root element, without NameTest:
       UpdateXML(xml, '/', 'replacement');
       Just return the replacement string.
     */
-    return rep;
+    tmp_value.copy(*rep);
+    return &tmp_value;
   }
 
   tmp_value.length(0);
