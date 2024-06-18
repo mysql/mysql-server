@@ -1237,6 +1237,7 @@ static int i_s_cmp_per_index_fill_low(
     inconsistent, but it is an acceptable compromise. */
     if (i % 1000 == 0) {
       dict_sys_mutex_exit();
+      std::this_thread::yield();
       dict_sys_mutex_enter();
     }
   }
