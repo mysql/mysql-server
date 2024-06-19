@@ -369,11 +369,11 @@ drop table tb2;
 # epoch transactions at arbitrary points, making a 
 # deterministic testcase difficult.
 
-create table tv (a varchar(20) character set utf8 primary key,
+create table tv (a varchar(20) character set utf8mb3 primary key,
                  b varbinary(5000)) engine=innodb;
-create table tb1(a varchar(20) character set utf8 primary key,
+create table tb1(a varchar(20) character set utf8mb3 primary key,
                  b varbinary(5000)) engine=innodb;
-create table tb2(a varchar(20) character set utf8 primary key,
+create table tb2(a varchar(20) character set utf8mb3 primary key,
                  b varbinary(5000),
                  c varbinary(5000)) engine=innodb;
 
@@ -386,11 +386,11 @@ drop table tb2;
 
 # Blobs in the blob tables on Slave, stored in Ndb
 
-create table tv (a varchar(20) character set utf8 primary key,
+create table tv (a varchar(20) character set utf8mb3 primary key,
                  b varbinary(5000)) engine=ndb;
-create table tb1(a varchar(20) character set utf8 primary key,
+create table tb1(a varchar(20) character set utf8mb3 primary key,
                  b blob) engine=ndb;
-create table tb2(a varchar(20) character set utf8 primary key,
+create table tb2(a varchar(20) character set utf8mb3 primary key,
                  b blob,
                  c blob) engine=ndb;
 

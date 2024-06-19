@@ -175,21 +175,21 @@ Multiple key dependencies (3 x (I 10kB, D))
 -------------------------------------------
 Dependencies are on PK which is case-insensitive
 and supports trailing spaces
-create table tv (a varchar(20) character set utf8 primary key,
+create table tv (a varchar(20) character set utf8mb3 primary key,
 b varbinary(5000)) engine=innodb;
-create table tb1(a varchar(20) character set utf8 primary key,
+create table tb1(a varchar(20) character set utf8mb3 primary key,
 b varbinary(5000)) engine=innodb;
-create table tb2(a varchar(20) character set utf8 primary key,
+create table tb2(a varchar(20) character set utf8mb3 primary key,
 b varbinary(5000),
 c varbinary(5000)) engine=innodb;
 drop table tv;
 drop table tb1;
 drop table tb2;
-create table tv (a varchar(20) character set utf8 primary key,
+create table tv (a varchar(20) character set utf8mb3 primary key,
 b varbinary(5000)) engine=ndb;
-create table tb1(a varchar(20) character set utf8 primary key,
+create table tb1(a varchar(20) character set utf8mb3 primary key,
 b blob) engine=ndb;
-create table tb2(a varchar(20) character set utf8 primary key,
+create table tb2(a varchar(20) character set utf8mb3 primary key,
 b blob,
 c blob) engine=ndb;
 STOP REPLICA;

@@ -2453,7 +2453,7 @@ select b from mytab where a like -1 having `b` like 1;
 drop table mytab;
 
 # Bug #13579318 LIKE SEARCH DOESN'T MATCH ANY ROWS ON A MULTI BYTE CHARSET COLUMN
-create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8mb3 engine ndb;
 
 insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
 --sorted_result
@@ -2477,7 +2477,7 @@ drop table escapetest;
 
 # Bug#15923467 LIKE FUNCTION NOT WORK.
 
-create table a(a varchar(7)) engine=ndb charset=utf8
+create table a(a varchar(7)) engine=ndb charset=utf8mb3
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into a values ('abcdefg');

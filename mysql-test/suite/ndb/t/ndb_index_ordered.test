@@ -412,7 +412,7 @@ create table t1 (
   primary key using hash (a),
   index x1 (b)
 ) engine = ndbcluster
-  default charset = utf8
+  default charset = utf8mb3
   collate = utf8_unicode_ci;
 insert into t1 values (1,'a'),(2,'y'),(3,'z');
 select * from t1 where b = 'b';

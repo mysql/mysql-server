@@ -279,7 +279,7 @@ FLUSH LOGS;
 --echo
 --echo #### Bug#26277771, PART2 ####
 # Bug#26277771 issue due to wrong string length calculation
-CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL PRIMARY KEY) ENGINE=NDB; # 0 1
+CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL PRIMARY KEY) ENGINE=NDB; # 0 1
 INSERT INTO t1 VALUES ('a'); # 1 2
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 INSERT INTO t1 VALUES ('A'); # 1 3
@@ -331,7 +331,7 @@ FLUSH LOGS;
 --echo
 --echo #### Bug#26277771, PART4 ####
 CREATE TABLE t1 (c1 varchar(20) NOT NULL PRIMARY KEY)
-ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_bin; # 0 1
+ENGINE=NDB CHARACTER SET utf8mb3 COLLATE utf8mb3_bin; # 0 1
 INSERT INTO t1 VALUES ('a'); # 1 2
 --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
 INSERT INTO t1 VALUES ('á'); # 1 3

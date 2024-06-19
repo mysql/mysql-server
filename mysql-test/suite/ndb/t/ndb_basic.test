@@ -707,14 +707,14 @@ select * from t1 order by f3;
 drop table t1;
 
 #
-# Bug #25746 - VARCHAR UTF8 PK issue
+# Bug #25746 - VARCHAR utf8mb3 PK issue
 # - prior to bugfix 4209, illegal length parameter would be
 # returned in SELECT *
 
 CREATE TABLE t1 (
 a VARBINARY(40) NOT NULL,
-b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,
-c VARCHAR(256) CHARACTER SET UTF8 NOT NULL,
+b VARCHAR (256) CHARACTER SET utf8mb3 NOT NULL,
+c VARCHAR(256) CHARACTER SET utf8mb3 NOT NULL,
 PRIMARY KEY (b,c))  ENGINE=ndbcluster;
 INSERT INTO t1 VALUES
 ("a","ab","abc"),("b","abc","abcd"),("c","abc","ab"),("d","ab","ab"),("e","abc","abc");
@@ -827,14 +827,14 @@ drop table t10,t20;
 CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb3
   comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 CREATE TABLE `t2` (
   `id` int(11) NOT NULL,
   `obj_id` int(11) DEFAULT NULL,
   UNIQUE KEY `id` (`id`),
   KEY `obj_id` (`obj_id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb3
   comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 --echo # here we used to segv
 --replace_column 10 # 11 #

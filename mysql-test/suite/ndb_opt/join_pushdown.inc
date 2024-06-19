@@ -4661,7 +4661,7 @@ create table t1 (
   name varchar(32),
   key (name)
 )
-default charset = utf8
+default charset = utf8mb3
 engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
@@ -5567,14 +5567,14 @@ CREATE TABLE ndb_order_test (
   user_id int(10) unsigned NOT NULL,
   sort_number int(10) unsigned NOT NULL,
   KEY node_id (node_id,sort_number)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb3
   comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE ndb_user_test (
   user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
   name varchar(20) NOT NULL,
   PRIMARY KEY (user_id)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=2
   comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 

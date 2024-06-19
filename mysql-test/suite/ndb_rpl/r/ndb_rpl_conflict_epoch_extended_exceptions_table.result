@@ -306,9 +306,9 @@ a	b	c	d	d$old	d$new	e	ndb$count > 0	ndb$op_type	ndb$cft_cause	ndb$orig_transid >
 8	9	10	Slave updated data 8	Initial data 8	Slave updated data 8	17	1	update_row	trans_in_conflict	1
 9	10	11	Slave updated data 9	Initial data 9	Slave updated data 9	17	1	update_row	trans_in_conflict	1
 10	11	12	Slave updated data 10	Initial data 10	Slave updated data 10	17	1	update_row	trans_in_conflict	1
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 replace into mysql.ndb_replication values
 ("test", "ｱｱｱ", 3, 7, NULL),
 ("test", "ｱｱｱ", 1, 7, "NDB$EPOCH_TRANS()");
@@ -317,7 +317,7 @@ create table test.`ｱｱｱ$ex`
 ndb$master_server_id  int unsigned,
 ndb$master_epoch      bigint unsigned,
 ndb$count             int unsigned,
-`ｷｷｷ`                  varchar(2000) charset utf8,
+`ｷｷｷ`                  varchar(2000) charset utf8mb3,
 `ｶｶｶ`                  int not null,
 ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
 ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
@@ -325,22 +325,22 @@ ndb$orig_transid      bigint unsigned not null,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
 engine=ndb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table test.`ｱｱｱ` (
 `ｶｶｶ` int primary key,
-`ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+`ｷｷｷ` varchar(2000) charset utf8mb3) engine=ndb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET NAMES latin1;
 MySQLD error output for server 1.1 matching pattern %suspicious % column op_type %
 relevant
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table test.`ｱｱｱ`,test.`ｱｱｱ$ex`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 replace into mysql.ndb_replication values
 ("test", "ｱｱｱ", 3, 7, NULL),
 ("test", "ｱｱｱ", 1, 7, "NDB$EPOCH_TRANS()");
@@ -349,8 +349,8 @@ create table test.`ｱｱｱ$ex`
 ndb$master_server_id  int unsigned,
 ndb$master_epoch      bigint unsigned,
 ndb$count             int unsigned,
-`ｷｷｷ$old`              varchar(2000) charset utf8,
-`ｷｷｷ$new`              varchar(2000) charset utf8,
+`ｷｷｷ$old`              varchar(2000) charset utf8mb3,
+`ｷｷｷ$new`              varchar(2000) charset utf8mb3,
 `ｶｶｶ`                  int not null,
 ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
 ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
@@ -358,21 +358,21 @@ ndb$orig_transid      bigint unsigned not null,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
 engine=ndb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table test.`ｱｱｱ` (
 `ｶｶｶ` int primary key,
-`ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+`ｷｷｷ` varchar(2000) charset utf8mb3) engine=ndb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET NAMES latin1;
 MySQLD error output for server 1.1 matching pattern %suspicious % column op_type %
 relevant
 flush logs;
 drop table test.t1$EX, test.t1, test.t2$ex, test.t2;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table test.`ｱｱｱ`, test.`ｱｱｱ$ex`;
 SET NAMES latin1;
 flush logs;

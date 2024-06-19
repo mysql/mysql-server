@@ -289,9 +289,9 @@ select a, b, c, d, d$old, d$new, e, ndb$count > 0,ndb$op_type,ndb$cft_cause, ndb
 
 
 #
-# Test using table name and column names in utf8
+# Test using table name and column names in utf8mb3
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 eval replace into mysql.ndb_replication values
   ("test", "ｱｱｱ", $SLAVE_SERVER_ID, 7, NULL),
@@ -302,7 +302,7 @@ create table test.`ｱｱｱ$ex`
   ndb$master_server_id  int unsigned,
   ndb$master_epoch      bigint unsigned,
   ndb$count             int unsigned,
-  `ｷｷｷ`                  varchar(2000) charset utf8,
+  `ｷｷｷ`                  varchar(2000) charset utf8mb3,
   `ｶｶｶ`                  int not null,
   ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
   ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
@@ -312,7 +312,7 @@ engine=ndb;
 
 create table test.`ｱｱｱ` (
   `ｶｶｶ` int primary key,
-  `ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+  `ｷｷｷ` varchar(2000) charset utf8mb3) engine=ndb;
 
 SET NAMES latin1;
 
@@ -320,13 +320,13 @@ SET NAMES latin1;
 --let $limit=1
 --source suite/ndb_rpl/t/show_mysqld_warnings.inc
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 drop table test.`ｱｱｱ`,test.`ｱｱｱ$ex`;
 
 #
-# Test referencing old/new values of column names in utf8
+# Test referencing old/new values of column names in utf8mb3
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 eval replace into mysql.ndb_replication values
   ("test", "ｱｱｱ", $SLAVE_SERVER_ID, 7, NULL),
@@ -337,8 +337,8 @@ create table test.`ｱｱｱ$ex`
   ndb$master_server_id  int unsigned,
   ndb$master_epoch      bigint unsigned,
   ndb$count             int unsigned,
-  `ｷｷｷ$old`              varchar(2000) charset utf8,
-  `ｷｷｷ$new`              varchar(2000) charset utf8,
+  `ｷｷｷ$old`              varchar(2000) charset utf8mb3,
+  `ｷｷｷ$new`              varchar(2000) charset utf8mb3,
   `ｶｶｶ`                  int not null,
   ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
   ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
@@ -348,7 +348,7 @@ engine=ndb;
 
 create table test.`ｱｱｱ` (
   `ｶｶｶ` int primary key,
-  `ｷｷｷ` varchar(2000) charset utf8) engine=ndb;
+  `ｷｷｷ` varchar(2000) charset utf8mb3) engine=ndb;
 
 SET NAMES latin1;
 
@@ -363,7 +363,7 @@ flush logs;
 # Cleanup
 --connection master
 drop table test.t1$EX, test.t1, test.t2$ex, test.t2;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 drop table test.`ｱｱｱ`, test.`ｱｱｱ$ex`;
 SET NAMES latin1;
 --sync_slave_with_master slave

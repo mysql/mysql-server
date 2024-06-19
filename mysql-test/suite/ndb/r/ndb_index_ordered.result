@@ -729,10 +729,10 @@ b varchar(1024) not null,
 primary key using hash (a),
 index x1 (b)
 ) engine = ndbcluster
-default charset = utf8
+default charset = utf8mb3
 collate = utf8_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1296	Specified key 'x1' was too long (max = 3056 bytes); statistics will not be generated
 insert into t1 values (1,'a'),(2,'y'),(3,'z');

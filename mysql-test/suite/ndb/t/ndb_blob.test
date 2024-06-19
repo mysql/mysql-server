@@ -431,9 +431,9 @@ drop table t1;
 create table t1 (
   id int(11) unsigned primary key NOT NULL auto_increment,
   msg text NOT NULL
-) engine=ndbcluster default charset=utf8;
+) engine=ndbcluster default charset=utf8mb3;
 insert into t1 (msg) values(
-'Tries to validate (8 byte length + inline bytes) as UTF8 :(
+'Tries to validate (8 byte length + inline bytes) as utf8mb3 :(
 Fast fix: removed validation for Text.  It is not yet indexable
 so bad data will not crash kernel.');
 select * from t1;
@@ -547,14 +547,14 @@ create table `t1` (
   `f1` int(11) not null default -1,
   `f11` text,
   unique key `i1` (`f1`)
-) engine=ndbcluster default charset=utf8;
+) engine=ndbcluster default charset=utf8mb3;
 
 insert into `t1` values (123,null);
 
 create table `t2` (
   `f1` int(11) not null default -1,
   unique key `i2` (`f1`)
-) engine=ndbcluster default charset=utf8;
+) engine=ndbcluster default charset=utf8mb3;
 
 begin;
 delete from t2 where f1=5;   # No such row, no problem

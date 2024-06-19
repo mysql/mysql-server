@@ -218,7 +218,7 @@ drop table t1;
 # removed by jonas as this requires a configure --with-extra-charsets
 #create table t1 (
 #  a char(5) character set ucs2,
-#  b varchar(7) character set utf8,
+#  b varchar(7) character set utf8mb3,
 #  primary key(a, b)
 #) engine=ndb;
 #

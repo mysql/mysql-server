@@ -22,7 +22,7 @@ select count(*) from t1 x, t1ver y
 where x.a = y.a and x.b = y.b;
 count(*)
 1000
-# simple utf8 test
+# simple utf8mb3 test
 create table t2 (
 a int primary key,
 b char(3)

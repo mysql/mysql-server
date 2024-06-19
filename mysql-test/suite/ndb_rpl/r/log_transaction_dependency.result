@@ -537,9 +537,9 @@ DROP TABLE t1;
 FLUSH LOGS;
 
 #### Bug#26277771, PART2 ####
-CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL PRIMARY KEY) ENGINE=NDB;
+CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL PRIMARY KEY) ENGINE=NDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a');
 # Wait for ndb_binlog thread...
@@ -577,9 +577,9 @@ FLUSH LOGS;
 
 #### Bug#26277771, PART4 ####
 CREATE TABLE t1 (c1 varchar(20) NOT NULL PRIMARY KEY)
-ENGINE=NDB CHARACTER SET utf8 COLLATE utf8_bin;
+ENGINE=NDB CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a');
 # Wait for ndb_binlog thread...

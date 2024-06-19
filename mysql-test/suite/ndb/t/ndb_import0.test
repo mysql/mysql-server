@@ -105,7 +105,7 @@ lines terminated by $lt_default;
 select count(*) from t1 x, t1ver y
 where x.a = y.a and x.b = y.b;
 
---echo # simple utf8 test
+--echo # simple utf8mb3 test
 
 perl;
 use strict;

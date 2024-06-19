@@ -548,10 +548,10 @@ create table text2text (pk int primary key,
 --echo # restore to text column with different charset 
 drop table text2text;
 create table text2text (pk int primary key, 
-                        t1 text character set utf8, t2 mediumtext character set utf8, t3 longtext character set utf8, t4 tinytext character set utf8,
-                        t5 mediumtext character set utf8, t6 longtext character set utf8, t7 tinytext character set utf8, t8 text character set utf8,
-                        t9 longtext character set utf8, t10 tinytext character set utf8, t11 text character set utf8, t12 mediumtext character set utf8,
-                        t13 text character set utf8, t14 mediumtext character set utf8, t15 longtext character set utf8, t16 tinytext character set utf8)engine=NDB;
+                        t1 text character set utf8mb3, t2 mediumtext character set utf8mb3, t3 longtext character set utf8mb3, t4 tinytext character set utf8mb3,
+                        t5 mediumtext character set utf8mb3, t6 longtext character set utf8mb3, t7 tinytext character set utf8mb3, t8 text character set utf8mb3,
+                        t9 longtext character set utf8mb3, t10 tinytext character set utf8mb3, t11 text character set utf8mb3, t12 mediumtext character set utf8mb3,
+                        t13 text character set utf8mb3, t14 mediumtext character set utf8mb3, t15 longtext character set utf8mb3, t16 tinytext character set utf8mb3)engine=NDB;
 
 --echo # run restore
 --error 1
@@ -596,10 +596,10 @@ create table text2text(id varchar(5) character set latin1 primary key, val mediu
 --echo # run ndb_select_all to print restored table 
 --exec $NDB_SELECT_ALL -d test text2text -o PRIMARY
 
---echo # ndb_restore TEXT -> TINYTEXT truncation with utf8
+--echo # ndb_restore TEXT -> TINYTEXT truncation with utf8mb3
 drop table text2text;
-set character_set_client=utf8;
-create table text2text(id int primary key, val text character set utf8)engine=ndb;
+set character_set_client=utf8mb3;
+create table text2text(id int primary key, val text character set utf8mb3)engine=ndb;
 insert into text2text values(11111, REPEAT(UNHEX("E38182"), 100));
 insert into text2text values(22222, CONCAT("A",REPEAT(UNHEX("E38182"), 100)));
 
@@ -607,7 +607,7 @@ insert into text2text values(22222, CONCAT("A",REPEAT(UNHEX("E38182"), 100)));
 --source include/ndb_backup.inc
 
 drop table text2text;
-create table text2text(id int primary key, val tinytext character set utf8)engine=ndb;
+create table text2text(id int primary key, val tinytext character set utf8mb3)engine=ndb;
 
 --echo # run restore
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT

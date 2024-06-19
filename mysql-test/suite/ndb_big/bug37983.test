@@ -8,7 +8,7 @@ CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c3` text,
   PRIMARY KEY (`c1`) USING BTREE
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb3;
 
 ## Load table...
 disable_query_log;

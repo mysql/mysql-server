@@ -21,7 +21,7 @@ while ($c)
   --let $sql=$sql, c$c CHAR(2) NULL
   --dec $c
 }
---let $sql= $sql, PRIMARY KEY (pri)) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (pri)
+--let $sql= $sql, PRIMARY KEY (pri)) ENGINE=NDB DEFAULT CHARSET=utf8mb3 PARTITION BY HASH (pri)
 --source suite/ndb_big/run_query_with_retry.inc
 
 --source suite/ndb/include/memory_usage.inc
@@ -111,7 +111,7 @@ CREATE TABLE types (
   en ENUM('one', 'two', 'three'),
   se SET('one', 'two', 'three'),
   PRIMARY KEY (pri)
-) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (pri);
+) ENGINE=NDB DEFAULT CHARSET=utf8mb3 PARTITION BY HASH (pri);
 
 --source suite/ndb/include/memory_usage.inc
 --echo # Memory usage before inserts: $MTR_NDB_DATA_USAGE_PERCENTAGE%
@@ -177,7 +177,7 @@ CREATE UNIQUE INDEX types_date ON types (ts, da, tm, dt, pri);
 #
 
 --echo # Table with BLOB(TEXT) columns
-CREATE TABLE blobs (pri int(11) NOT NULL, data1 TEXT, data2 TEXT, PRIMARY KEY (pri)) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (pri);
+CREATE TABLE blobs (pri int(11) NOT NULL, data1 TEXT, data2 TEXT, PRIMARY KEY (pri)) ENGINE=NDB DEFAULT CHARSET=utf8mb3 PARTITION BY HASH (pri);
 
 --let $fill_percentage= 75
 --echo # Inserting rows into the blobs table until $fill_percentage% memory fill
@@ -226,7 +226,7 @@ SELECT COUNT(*) AS 'Rows inserted into blobs table' FROM blobs;
 while (`SELECT $MTR_NDB_DATA_USAGE_PERCENTAGE < $fill_percentage AND $MTR_NDB_INDEX_USAGE_PERCENTAGE < $fill_percentage AND $table_id < 1500`)
 {
   --inc $table_id
-  --let sql=CREATE TABLE t$table_id (c1 int(11) NOT NULL, c3 text, PRIMARY KEY (c1)) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (c1)
+  --let sql=CREATE TABLE t$table_id (c1 int(11) NOT NULL, c3 text, PRIMARY KEY (c1)) ENGINE=NDB DEFAULT CHARSET=utf8mb3 PARTITION BY HASH (c1)
   --source suite/ndb_big/run_query_with_retry.inc
 
   --let $rows= 100
