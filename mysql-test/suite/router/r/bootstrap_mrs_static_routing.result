@@ -1,0 +1,127 @@
+# MySQL Rest Service schema created.
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
+
+- Storing account in keyring
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the Standalone MySQL Server at 'localhost'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+$ mysqlrouter -c .../mysqlrouter.conf
+
+This Router instance can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+[33m# Configuring `MRS` plugin...[39m
+
+- Registering metadata
+- Creating account(s) (only those that are needed, if any)
+- Storing account in keyring
+- Adjusting configuration file .../mysqlrouter.conf
+
+Once the MySQL Router is started, the MySQL REST Service can be reached at
+    https://localhost:8443/<service-name>
+# File automatically generated during MySQL Router bootstrap
+[DEFAULT]
+logging_folder=TEMP_DIR_FILE_OR_FOLDER
+runtime_folder=TEMP_DIR_FILE_OR_FOLDER
+data_folder=TEMP_DIR_FILE_OR_FOLDER
+keyring_path=TEMP_DIR_FILE_OR_FOLDER
+master_key_path=TEMP_DIR_FILE_OR_FOLDER
+dynamic_state=TEMP_DIR_FILE_OR_FOLDER
+client_ssl_cert=TEMP_DIR_FILE_OR_FOLDER
+client_ssl_key=TEMP_DIR_FILE_OR_FOLDER
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+server_ssl_verify=DISABLED
+unknown_config_option=error
+max_idle_server_connections=64
+router_require_enforce=1
+plugin_folder=ROUTER_PLUGIN_DIRECTORY
+
+[logger]
+level=info
+
+[routing:bootstrap_rw]
+bind_address=0.0.0.0
+bind_port=6446
+destinations=ADDR:PORT
+routing_strategy=first-available
+protocol=classic
+router_require_enforce=0
+
+[routing:bootstrap_ro]
+bind_address=0.0.0.0
+bind_port=6447
+destinations=ADDR:PORT
+routing_strategy=round-robin
+protocol=classic
+router_require_enforce=0
+
+[routing:bootstrap_x_rw]
+bind_address=0.0.0.0
+bind_port=6448
+destinations=ADDR:PORT
+routing_strategy=first-available
+protocol=x
+router_require_enforce=0
+
+[routing:bootstrap_x_ro]
+bind_address=0.0.0.0
+bind_port=6449
+destinations=ADDR:PORT
+routing_strategy=round-robin
+protocol=x
+router_require_enforce=0
+
+[http_server]
+port=8443
+ssl=1
+ssl_cert=TEMP_DIR_FILE_OR_FOLDER
+ssl_key=TEMP_DIR_FILE_OR_FOLDER
+
+[http_auth_realm:default_auth_realm]
+backend=default_auth_backend
+method=basic
+name=default_realm
+
+[rest_router]
+require_realm=default_auth_realm
+
+[rest_api]
+
+[http_auth_backend:default_auth_backend]
+backend=file
+filename=TEMP_DIR_FILE_OR_FOLDER
+
+[rest_routing]
+require_realm=default_auth_realm
+
+[mysql_rest_service]
+mysql_read_only_route=bootstrap_ro
+mysql_read_write_route=bootstrap_rw
+mysql_user=mysql_router_mrs1_RANDOM
+mysql_user_data_access=
+router_id=1
+
+DROP USER 'admin'@'%';
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

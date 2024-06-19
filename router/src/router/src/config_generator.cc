@@ -2430,12 +2430,11 @@ void add_rest_section(
                                           "rest_api");
   }
 
-  // if this is a innodb cluster
-  if (schema_version) {
-    add_http_auth_backend_section(config_file, datadir_path,
-                                  kHttpDefaultAuthBackendName, *schema_version,
-                                  config_cmdln_options, auto_clean);
-  }
+  // Authentication `backend` should be always configured,
+  // its required in both InnoDb Cluster & standalone mode.
+  add_http_auth_backend_section(config_file, datadir_path,
+                                kHttpDefaultAuthBackendName, *schema_version,
+                                config_cmdln_options, auto_clean);
 
   {
     ConfigSectionPrinter rest_routing_section(config_file, config_cmdln_options,

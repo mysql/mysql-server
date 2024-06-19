@@ -1,0 +1,46 @@
+--source include/have_router.inc
+
+--source ../include/mrs/initialize_schema.inc
+
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+
+replace_regex
+   / Bootstrapping MySQL Router.* instance at '.*'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
+   /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/
+   /.*mysqlrouter.* -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/
+   /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
+   /- Adjusting permissions of generated files\n//
+   ;
+
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   --mrs --mrs-global-secret something_important ;
+
+--replace_regex /=.*\/bootstrap_folder\/.*/=TEMP_DIR_FILE_OR_FOLDER//mysql_user=mysql_router_mrs1_.*/mysql_user=mysql_router_mrs1_RANDOM/ /user=mysql_router1_.*/user=mysql_router1_RANDOM/ /plugin_folder=.*/plugin_folder=ROUTER_PLUGIN_DIRECTORY/ /destinations=.*/destinations=ADDR:PORT/
+--cat_file $MYSQL_TMP_DIR/bootstrap_folder/mysqlrouter.conf
+
+# Cleanup
+if (!$KEEP_ROUTER_FILES)
+{
+  --disable_query_log
+  --disable_result_log
+  --let $u1=`SELECT user from mysql.user WHERE user like "mysql_router_mrs1_%";`
+  eval DROP USER $u1@'%';
+  --enable_query_log
+  --enable_result_log
+
+  DROP USER 'admin'@'%';
+  --force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
+}
+
+if ($KEEP_ROUTER_FILES == 1)
+{
+  --echo DROP USER 'admin'@'%';
+}
+
+--source ../include/mrs/cleanup.inc
