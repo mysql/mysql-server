@@ -53,13 +53,6 @@ HttpStaticFolderHandler::HttpStaticFolderHandler(std::string static_basedir,
 void HttpStaticFolderHandler::handle_request(http::base::Request &req) {
   auto &parsed_uri{req.get_uri()};
 
-  if (req.get_method() != HttpMethod::Get &&
-      req.get_method() != HttpMethod::Head) {
-    req.send_error(HttpStatusCode::MethodNotAllowed);
-
-    return;
-  }
-
   if (!require_realm_.empty()) {
     if (auto realm =
             HttpAuthRealmComponent::get_instance().get(require_realm_)) {
@@ -95,6 +88,13 @@ void HttpStaticFolderHandler::handle_request(http::base::Request &req) {
 
       return;
     }
+  }
+
+  if (req.get_method() != HttpMethod::Get &&
+      req.get_method() != HttpMethod::Head) {
+    req.send_error(HttpStatusCode::MethodNotAllowed);
+
+    return;
   }
 
   // if we have a directory, check if it contains a index.html file
