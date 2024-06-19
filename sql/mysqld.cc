@@ -2106,7 +2106,8 @@ static void server_component_init() {
       srv_registry, srv_registry_registration,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
         return 0 != opt->define("MySQL Server", "mysql_server", 1);
-      });
+      },
+      false);
 }
 
 /**

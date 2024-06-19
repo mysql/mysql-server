@@ -35,6 +35,17 @@ template <typename TService>
 class my_service {
  public:
   /**
+    Default contructor: constructs an empty my_service
+  */
+  my_service() : m_service(nullptr), m_registry(nullptr) {}
+
+  /**
+    An acquire convenience constructor
+  */
+  my_service(const char *name, SERVICE_TYPE(registry) * registry) {
+    acquire(name, registry);
+  }
+  /**
     Acquires service by name.
 
     @param name Name of service, with or without component name, to acquire.
@@ -42,8 +53,8 @@ class my_service {
       must be valid (i.e. not released) up to the moment when this instance
       dies.
   */
-  my_service(const char *name, SERVICE_TYPE(registry) * registry)
-      : m_registry(registry) {
+  void acquire(const char *name, SERVICE_TYPE(registry) * registry) {
+    m_registry = registry;
     if (registry->acquire(name, &m_service)) {
       /* NULLed service handle means no valid service managed. */
       m_service = {};
@@ -79,12 +90,24 @@ class my_service {
       : m_service(other.m_service), m_registry(other.m_registry) {
     other.m_service = nullptr;
   }
+  my_service<TService> &operator=(const my_service<TService> &other) = delete;
 
-  ~my_service() {
-    if (this->is_valid()) {
-      m_registry->release(m_service);
-    }
+  my_service<TService> &operator=(my_service<TService> &other) {
+    m_service = other.m_service;
+    m_registry = other.m_registry;
+    other.m_service = nullptr;
   }
+
+  /**
+    Releases the reference, if any, and cleans the instance up.
+  */
+  void release() {
+    if (this->is_valid()) m_registry->release(m_service);
+    m_service = nullptr;
+    m_registry = nullptr;
+  }
+
+  ~my_service() { release(); }
 
   operator TService *() const {
     return reinterpret_cast<TService *>(m_service);

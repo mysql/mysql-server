@@ -38,20 +38,53 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   This class allows a component to have a "weak" reference to a component
   service.
-  When the weak reference is initialized the class checks if the service
-  required already has implementations. If it does, the class takes a reference
-  to the default one and calls the supplied function. If there's no
-  implementation of the service the class registers a listener to the
+
+  @par Operation in default mode (keep references = true)
+  In its default mode (keep references) when the weak reference is initialized
+  the class checks if the service required already has implementations. If it
+  does, the class takes a reference to the default one, calls the supplied
+  function and keeps the reference. If there's no implementation of the service
+  the class registers a listener to the
   dynamic_loader_services_loaded_notification broadcast service by implementing
   a dynamic_loader_services_loaded_notification service that, when called by the
-  dynamic loader, will take a refernece to the desired service and call the
-  function supplied. And then it sets a flag preventing any further calls to the
-  function.
+  dynamic loader, will take a reference to the desired service, call the
+  function supplied and keep the reference until deinit. And then it sets a flag
+  preventing any further calls to the function.
 
-  At deinit time, deinit tries to acquire the foo service and, if successful,
-  calls the supplied function and passes it as a parameter. Note that if the
-  service implementation has been undefined in the meanwhile no call of the
-  deinit supplied function is done.
+  @par
+  At deinit time, if there's an active reference, deinit calls the supplied
+  function and passes it as a parameter. And then releases the reference.
+  Otherwise, no call of the supplied deinit function is done.
+  It also unregisters the dynamic_loader_services_loaded_notification callback,
+  if registered.
+
+  @par Operation in do-not-keep-references mode.
+  When the weak reference is initialized the class checks if the service
+  required already has implementations. If it does, then the class takes a
+  reference to the default implementation, calls the supplied init function and
+  <b>releases</b> the reference. It then proceeds to <b>unconditioanlly</b>
+  register a listener to the dynamic_loader_services_loaded_notification
+  broadcast service by implementing a
+  dynamic_loader_services_loaded_notification service that, when called by the
+  dynamic loader, will take a reference to the desired service, call the
+  function supplied and then release the reference.
+  Every time a new implementation is registered, the notification callback will
+  be called so the weak reference can re-register itself again.
+
+  @par
+  At deinit time, deinit tries to acquire the required service and, if
+  successful, calls the supplied deinit function and passes it as a parameter.
+  Note that if the service implementation has been undefined in the meanwhile no
+  call of the supplied deinit function is done.
+
+  @warning
+  Do not use the do-not-keep-references mode for anyting but the server!
+  It is only justified for the server component (aka the bootstrap component)
+  because if it doesn't use it no one will be able to unload the component
+  implementing the service once captured by the bootstrap component.
+  Yes, unloading service implementation component would be impossible, but
+  that's a desired side effect since there is state that needs to be
+  destroyed properly before the service implementation can be unloaded.
 
   Normal usage pattern is that the @ref weak_service_reference::init() is called
   during component initialization.
@@ -144,10 +177,16 @@ class weak_service_reference {
   */
   inline static SERVICE_TYPE(registry) * registry{nullptr};
   /**
-    A flag stating if the callback service implementation listening
-    for new implementations of the service has been registered.
-  */
+     A flag stating if the callback service implementation listening
+     for new implementations of the service has been registered.
+   */
   inline static bool callback_registered{false};
+
+  /**
+    true when the weak reference class is to keep the reference
+    acquired for reuse until deinit is called.
+  */
+  inline static bool keep_active_reference{true};
 
   /**
     A flag if the init callback function has been called.
@@ -170,10 +209,13 @@ class weak_service_reference {
   */
   std::string listener_name;
 
+  my_service<Service> service_reference;
+
   /**
     @brief A private constructor for the hton
 
     @param func_arg The function to call when there's an implementation.
+    active reference until deinit.
   */
   weak_service_reference(std::function<bool(Service *)> &func_arg)
       : function(func_arg) {
@@ -190,10 +232,20 @@ class weak_service_reference {
     @retval false success
   */
   static bool call_function() {
-    my_service<Service> svc(service_name.c_str(), registry);
-    if (svc.is_valid()) {
-      if (hton->function(svc)) return true;
-      hton->function_called = true;
+    if (keep_active_reference) {
+      if (!hton->service_reference.is_valid())
+        hton->service_reference.acquire(service_name.c_str(), registry);
+
+      if (hton->service_reference.is_valid()) {
+        if (hton->function(hton->service_reference)) return true;
+        hton->function_called = true;
+      }
+    } else {
+      my_service<Service> svc(service_name.c_str(), registry);
+      if (svc.is_valid()) {
+        if (hton->function(svc)) return true;
+        hton->function_called = true;
+      }
     }
     return false;
   }
@@ -207,7 +259,7 @@ class weak_service_reference {
   */
   static DEFINE_BOOL_METHOD(notify,
                             (const char **services, unsigned int count)) try {
-    if (!hton->function_called) {
+    if (!keep_active_reference || !hton->function_called) {
       for (unsigned idx = 0; idx < count; idx++) {
         std::string svc(services[idx]);
         if (svc.starts_with(service_name) &&
@@ -231,6 +283,8 @@ class weak_service_reference {
   @param func_arg A function to be called when an implementation of the service
      is available. Typically used to initialize some state, e.g. allocate
   instance handles or register some features in registries.
+  @param keep_active_reference_arg True if weak_reference is to keep an active
+  reference until deinit.
 
   This is typically called by the component initialization.
   If there's already an implementation of the service required a reference to it
@@ -250,14 +304,16 @@ class weak_service_reference {
   */
   static bool init(SERVICE_TYPE(registry) * reg_arg,
                    SERVICE_TYPE(registry_registration) * reg_reg_arg,
-                   std::function<bool(Service *)> func_arg) {
+                   std::function<bool(Service *)> func_arg,
+                   bool keep_active_reference_arg = true) {
     registry = reg_arg;
+    keep_active_reference = keep_active_reference_arg;
     assert(hton == nullptr);
     hton =
         new weak_service_reference<Service, container, service_name>(func_arg);
-    if (call_function() && hton->function_called) return true;
+    if (call_function()) return true;
 
-    if (!hton->function_called) {
+    if (!hton->function_called || !keep_active_reference) {
       static BEGIN_SERVICE_IMPLEMENTATION(
           x, dynamic_loader_services_loaded_notification) notify
       END_SERVICE_IMPLEMENTATION();
@@ -273,41 +329,60 @@ class weak_service_reference {
   }
 
   /**
-  @brief Deinitializes a weak reference caller class
+    @brief Deinitializes a weak reference caller class
 
-  If the init callback was called it will try to acquire a reference to the
-  service and call the deinit callback if the reference is acquired.
+    If the init callback was called it will try to acquire a reference to the
+    service and call the deinit callback if the reference is acquired.
 
-  Then it will deregister the dynamic_loader_services_loaded_notification
-  implementation, if it's been registered by init().
+    Then it will deregister the dynamic_loader_services_loaded_notification
+    implementation, if it's been registered by init().
 
-  And it will then proceed to delete the state in hton and reset the class.
+    And it will then proceed to delete the state in hton and reset the class.
 
-  @param registry_arg A reference to the registry service implementation
-  @param registry_registration_arg A reference to the registry_registration
-  service implementation
-  @param deinit_func_arg A (deinit) function to call if an implementation of the
-  service required is definied. One typically reverses the action taken by the
-  registration callback here, e.g. diposes of state, deregisters features etc.
+    @param registry_arg A reference to the registry service implementation
+    @param registry_registration_arg A reference to the registry_registration
+    service implementation
+    @param deinit_func_arg A (deinit) function to call if an implementation of
+    the service required is definied. One typically reverses the action taken by
+    the registration callback here, e.g. diposes of state, deregisters features
+    etc.
 
-  @return true
-  @return false
+    @retval true failure
+    @retval false success
   */
   static bool deinit(SERVICE_TYPE(registry) * registry_arg,
                      SERVICE_TYPE(registry_registration) *
                          registry_registration_arg,
                      std::function<bool(Service *)> deinit_func_arg) {
-    if (hton) {
+    // the server may exit before init was called
+    if (hton == nullptr) return false;
+
+    if (keep_active_reference) {
+      if (hton->function_called) {
+        assert(hton->service_reference.is_valid());
+        if (deinit_func_arg(hton->service_reference)) return true;
+      }
+      /*
+        We need to release explicitly here becase it was acquired with the
+        registry at init but we need to release it with the registry argument
+        supplied.
+      */
+      if (hton->service_reference.is_valid()) {
+        my_service<Service> svc(hton->service_reference, registry_arg);
+        svc.release();
+        hton->service_reference.untie();
+      }
+    } else {
       if (hton->function_called) {
         my_service<Service> svc(service_name.c_str(), registry_arg);
         if (svc.is_valid() && deinit_func_arg(svc)) return true;
       }
-      if (callback_registered &&
-          registry_registration_arg->unregister(hton->listener_name.c_str()))
-        return true;
-      delete hton;
-      hton = nullptr;
     }
+    if (callback_registered &&
+        registry_registration_arg->unregister(hton->listener_name.c_str()))
+      return true;
+    delete hton;
+    hton = nullptr;
     registry = nullptr;
     callback_registered = false;
     return false;
