@@ -31,6 +31,7 @@ namespace database {
 
 void QueryState::query_state(MySQLSession *session) {
   MySQLSession::Transaction transaction(session);
+  changed_ = false;
   query_state_impl(session, &transaction);
 }
 
@@ -55,10 +56,7 @@ bool QueryState::was_changed() const { return changed_; }
 
 std::string QueryState::get_json_data() { return json_data_; }
 
-State QueryState::get_state() {
-  changed_ = false;
-  return state_;
-}
+State QueryState::get_state() { return state_; }
 
 void QueryState::query_state_impl(MySQLSession *session,
                                   MySQLSession::Transaction *transaction) {
