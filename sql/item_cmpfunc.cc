@@ -62,6 +62,7 @@
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/histograms/histogram.h"
+#include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"  // json_value, get_json_atom_wrapper
 #include "sql/item_subselect.h"  // Item_subselect
@@ -1340,15 +1341,17 @@ bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
     DTCollation coll;
     coll.set((*left)->collation, (*right)->collation, MY_COLL_CMP_CONV);
     /*
-      DTCollation::set() may have chosen a charset that's a superset of both
-      and "left" and "right", so we need to convert both items.
+      DTCollation::set() may have chosen a charset that is a superset of both
+      and "left" and "right", so both items may need conversion.
+      Note this may be considered redundant for non-row arguments but necessary
+      for row arguments.
      */
-    const char *func_name = owner != nullptr ? owner->func_name() : "";
-    if (agg_item_set_converter(coll, func_name, left, 1, MY_COLL_CMP_CONV, 1,
-                               true) ||
-        agg_item_set_converter(coll, func_name, right, 1, MY_COLL_CMP_CONV, 1,
-                               true))
+    if (convert_const_strings(coll, left, 1, 1)) {
       return true;
+    }
+    if (convert_const_strings(coll, right, 1, 1)) {
+      return true;
+    }
   } else if (try_year_cmp_func(type)) {
     return false;
   } else if (type == REAL_RESULT &&
@@ -3691,12 +3694,10 @@ String *Item_func_if::val_str(String *str) {
     default: {
       Item *item = args[0]->val_bool() ? args[1] : args[2];
       if (current_thd->is_error()) return error_str();
-      String *res;
-      if ((res = item->val_str(str))) {
-        res->set_charset(collation.collation);
-        null_value = false;
-        return res;
-      }
+      String *res = eval_string_arg(collation.collation, item, str);
+      if (res == nullptr) return error_str();
+      null_value = false;
+      return res;
     }
   }
   null_value = true;
@@ -3924,14 +3925,11 @@ String *Item_func_case::val_str(String *str) {
       return val_string_from_time(str);
     default: {
       Item *item = find_item(str);
-      if (item != nullptr) {
-        String *res = item->val_str(str);
-        if (res != nullptr) {
-          res->set_charset(collation.collation);
-          null_value = false;
-          return res;
-        }
-      }
+      if (item == nullptr) return error_str();
+      String *res = eval_string_arg(collation.collation, item, str);
+      if (res == nullptr) return error_str();
+      null_value = false;
+      return res;
     }
   }
   if (current_thd->is_error()) {
@@ -4317,12 +4315,12 @@ String *Item_func_coalesce::str_op(String *str) {
   assert(fixed);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
-    String *res = args[i]->val_str(str);
+    String *res = eval_string_arg(collation.collation, args[i], str);
     if (current_thd->is_error()) return error_str();
     if (res != nullptr) return res;
   }
   null_value = true;
-  return nullptr;
+  return error_str();
 }
 
 bool Item_func_coalesce::val_json(Json_wrapper *wr) {
@@ -6995,15 +6993,15 @@ uint Item_multi_eq::members() { return fields.elements; }
 
   The function checks whether field is occurred in the Item_multi_eq object .
 
-  @param field   field whose occurrence is to be checked
+  @param field   Item field whose occurrence is to be checked
 
   @returns true if multiple equality contains a reference to field, false
   otherwise.
 */
 
-bool Item_multi_eq::contains(const Field *field) const {
+bool Item_multi_eq::contains(const Item_field *field) const {
   for (const Item_field &item : fields) {
-    if (field->eq(item.field)) return true;
+    if (field->eq(&item)) return true;
   }
   return false;
 }
@@ -7308,7 +7306,7 @@ bool Item_multi_eq::eq_specific(const Item *item) const {
     return false;
   }
   for (const Item_field &field : get_fields()) {
-    if (!item_eq->contains(field.field)) {
+    if (!item_eq->contains(&field)) {
       return false;
     }
   }

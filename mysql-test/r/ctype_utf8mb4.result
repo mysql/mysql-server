@@ -1690,7 +1690,11 @@ Warnings:
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 select concat(a, if(b>10, N'æ', N'ß')) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
+concat(a, if(b>10, N'æ', N'ß'))
+aß
+Warnings:
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 drop table t1;
 set names utf8mb4;
 create table t1 (a varchar(10) character set latin1, b int);
@@ -1699,7 +1703,8 @@ select concat(a, if(b>10, _utf8mb4'x', _utf8mb4'y')) from t1;
 concat(a, if(b>10, _utf8mb4'x', _utf8mb4'y'))
 ay
 select concat(a, if(b>10, _utf8mb4'æ', _utf8mb4'ß')) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE) for operation 'concat'
+concat(a, if(b>10, _utf8mb4'æ', _utf8mb4'ß'))
+aß
 drop table t1;
 set names utf8mb4;
 create table t1 (a varchar(10) character set latin1, b int);
@@ -1708,7 +1713,8 @@ select concat(a, if(b>10, _utf8mb4 0x78, _utf8mb4 0x79)) from t1;
 concat(a, if(b>10, _utf8mb4 0x78, _utf8mb4 0x79))
 ay
 select concat(a, if(b>10, _utf8mb4 0xC3A6, _utf8mb4 0xC3AF)) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE) for operation 'concat'
+concat(a, if(b>10, _utf8mb4 0xC3A6, _utf8mb4 0xC3AF))
+aï
 drop table t1;
 set names utf8mb4;
 create table t1 (a varchar(10) character set latin1, b int);
@@ -1717,7 +1723,8 @@ select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
 concat(a, if(b>10, 'x' 'x', 'y' 'y'))
 ayy
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE) for operation 'concat'
+concat(a, if(b>10, 'x' 'æ', 'y' 'ß'))
+ayß
 drop table t1;
 SELECT 'н1234567890' UNION SELECT _binary '1';
 н1234567890
@@ -2334,9 +2341,9 @@ DROP TABLE t2;
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4);
 INSERT INTO t1 VALUES (x'f48fbfbf');
 SELECT CONCAT(utf8mb4, _utf8mb3 '�') FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Cannot convert string '\xBF' from utf8mb4 to utf8mb3
 SELECT CONCAT('a', _utf8mb3 '�') FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Cannot convert string '\xBF' from utf8mb4 to utf8mb3
 DROP TABLE t1;
 #
 # Bug#51675 Server crashes on inserting 4 byte char.

@@ -1566,6 +1566,9 @@ struct TABLE {
   bool m_deduplicate_with_hash_map{false};
 
  public:
+  /// True if character set conversions are always strict
+  bool m_charset_conversion_is_strict{false};
+
   enum Set_operator_type {
     SOT_NONE,
     SOT_UNION_ALL,

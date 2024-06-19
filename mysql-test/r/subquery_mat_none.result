@@ -938,7 +938,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'j'
-Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where false having <in_optimizer>('m',<exists>(/* select#2 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
+Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where false having <in_optimizer>('m',<exists>(/* select#2 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = 'm')))
 
 #
 # 2) Test that subquery materialization is setup for query with

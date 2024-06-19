@@ -1934,28 +1934,6 @@ void Item_func_trim::print(const THD *thd, String *str,
   str->append(')');
 }
 
-Item *Item_func_sysconst::safe_charset_converter(THD *thd,
-                                                 const CHARSET_INFO *tocs) {
-  uint conv_errors;
-  String tmp, cstr, *ostr = val_str(&tmp);
-  if (null_value) {
-    Item *null_item = new Item_null(fully_qualified_func_name());
-    null_item->collation.set(tocs);
-    return null_item;
-  }
-  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors != 0) return nullptr;
-
-  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
-  if (ptr == nullptr) return nullptr;
-  auto conv = new Item_static_string_func(fully_qualified_func_name(), ptr,
-                                          cstr.length(), cstr.charset(),
-                                          collation.derivation);
-  if (conv == nullptr) return nullptr;
-  conv->mark_result_as_const();
-  return conv;
-}
-
 bool Item_func_database::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::do_itemize(pc, res)) return true;

@@ -981,6 +981,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     free_tmp_table(table);
   });
 
+  // All character set conversions into temporary tables are strict:
+  table->m_charset_conversion_is_strict = true;
+
   /*
     We will use TABLE_SHARE's MEM_ROOT for all allocations, so TABLE's
     MEM_ROOT remains uninitialized.

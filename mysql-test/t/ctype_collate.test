@@ -180,7 +180,7 @@ DROP TABLE t1;
 CREATE TABLE t1 
 (s1 CHAR(5) COLLATE latin1_german1_ci,
  s2 CHAR(5) COLLATE latin1_swedish_ci);
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT * FROM t1 WHERE s1 = s2;
 DROP TABLE t1;
 
@@ -190,7 +190,7 @@ CREATE TABLE t1
  s2 CHAR(5) COLLATE latin1_swedish_ci,
  s3 CHAR(5) COLLATE latin1_bin);
 INSERT INTO t1 VALUES ('a','A','A');
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT * FROM t1 WHERE s1 = s2;
 SELECT * FROM t1 WHERE s1 = s3;
 SELECT * FROM t1 WHERE s2 = s3;

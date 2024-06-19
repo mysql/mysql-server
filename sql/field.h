@@ -2054,7 +2054,7 @@ class Field_longstr : public Field_str {
   type_conversion_status check_string_copy_error(
       const char *well_formed_error_pos, const char *cannot_convert_error_pos,
       const char *from_end_pos, const char *end, bool count_spaces,
-      const CHARSET_INFO *cs);
+      const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);
 
  public:
   Field_longstr(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,

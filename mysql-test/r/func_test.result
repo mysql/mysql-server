@@ -932,3 +932,71 @@ col1	col2	col3	col4
 NULL	NULL	d	d
 NULL	NULL	e	e
 DROP TABLE t;
+# Bug#34646522: Literal value with different character set from derived
+#               table causes error
+CREATE TABLE t
+(a VARCHAR(10) CHARACTER SET ascii,
+b VARCHAR(10) CHARACTER SET latin1,
+c VARCHAR(10) CHARACTER SET latin2,
+d VARCHAR(10) CHARACTER SET utf16
+);
+INSERT INTO t VALUES('a', 'a', 'a', 'a');
+SELECT GREATEST(_utf8mb4 'a', a) FROM t;
+GREATEST(_utf8mb4 'a', a)
+a
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+GREATEST(dt.a, t.a)
+a
+SELECT GREATEST(_utf8mb4 'Â±', a) FROM t;
+ERROR HY000: Cannot convert string '\xC3\x82\xC2\xB1' from ascii to utf8mb4
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _utf8mb4 'Â±') AS dt(a);
+ERROR HY000: Cannot convert string '\xC3\x82\xC2\xB1' from utf8mb4 to ascii
+SELECT GREATEST(_utf8mb4 'a', b) FROM t;
+GREATEST(_utf8mb4 'a', b)
+a
+SELECT GREATEST(dt.a, t.b) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+GREATEST(dt.a, t.b)
+a
+SELECT GREATEST(_utf8mb4 'Â±', b) FROM t;
+GREATEST(_utf8mb4 'Â±', b)
+Â±
+SELECT GREATEST(dt.a, t.b) FROM t, (SELECT _utf8mb4 'Â±') AS dt(a);
+GREATEST(dt.a, t.b)
+Â±
+SELECT GREATEST(_utf8mb4 'a', c) FROM t;
+GREATEST(_utf8mb4 'a', c)
+a
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+GREATEST(dt.a, t.c)
+a
+SELECT GREATEST(_utf8mb4 'Â±', c) FROM t;
+ERROR HY000: Cannot convert string '\xC3\x82\xC2\xB1' from latin2 to utf8mb4
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _utf8mb4 'Â±') AS dt(a);
+ERROR HY000: Cannot convert string '\xC3\x82\xC2\xB1' from utf8mb4 to latin2
+SELECT GREATEST(_utf8mb4 'a', d) FROM t;
+GREATEST(_utf8mb4 'a', d)
+a
+SELECT GREATEST(dt.a, t.d) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+GREATEST(dt.a, t.d)
+a
+SELECT GREATEST(_latin1 'a', a) FROM t;
+GREATEST(_latin1 'a', a)
+a
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _latin1 'a') AS dt(a);
+GREATEST(dt.a, t.a)
+a
+SELECT GREATEST(_latin1 'Ã¥', a) FROM t;
+ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from ascii to latin1
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _latin1 'Ã¥') AS dt(a);
+ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to ascii
+SELECT GREATEST(_latin1 'a', c) FROM t;
+GREATEST(_latin1 'a', c)
+a
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _latin1 'a') AS dt(a);
+GREATEST(dt.a, t.c)
+a
+SELECT GREATEST(_latin1 'Ã¥', c) FROM t;
+ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin2 to latin1
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _latin1 'Ã¥') AS dt(a);
+ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
+DROP TABLE t;

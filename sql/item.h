@@ -3280,7 +3280,19 @@ class Item : public Parse_tree_node {
   */
   virtual bool update_aggr_refs(uchar *) { return false; }
 
-  virtual Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs);
+  /**
+    Convert constant string in this object into the specified character set.
+
+    @param thd  thread handler
+    @param tocs target character set
+    @param ignore_errors if true, ignore errors in conversion
+
+    @returns pointer to new Item containing converted character string
+             = NULL: If conversion failed
+  */
+  Item *convert_charset(THD *thd, const CHARSET_INFO *tocs,
+                        bool ignore_errors = false);
+
   /**
     Delete this item.
     Note that item must have been cleanup up by calling Item::cleanup().
@@ -4075,26 +4087,25 @@ class Item_name_const final : public Item {
   }
 };
 
+bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
+                           int item_sep);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
                                         Item **items, uint nitems, uint flags);
-bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
-                            uint nargs, uint flags, int item_sep,
-                            bool only_consts);
 bool agg_item_charsets(DTCollation &c, const char *name, Item **items,
-                       uint nitems, uint flags, int item_sep, bool only_consts);
+                       uint nitems, uint flags, int item_sep);
 inline bool agg_item_charsets_for_string_result(DTCollation &c,
                                                 const char *name, Item **items,
                                                 uint nitems, int item_sep = 1) {
   const uint flags = MY_COLL_ALLOW_SUPERSET_CONV |
                      MY_COLL_ALLOW_COERCIBLE_CONV | MY_COLL_ALLOW_NUMERIC_CONV;
-  return agg_item_charsets(c, name, items, nitems, flags, item_sep, false);
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
 }
 inline bool agg_item_charsets_for_comparison(DTCollation &c, const char *name,
                                              Item **items, uint nitems,
                                              int item_sep = 1) {
   const uint flags = MY_COLL_ALLOW_SUPERSET_CONV |
                      MY_COLL_ALLOW_COERCIBLE_CONV | MY_COLL_DISALLOW_NONE;
-  return agg_item_charsets(c, name, items, nitems, flags, item_sep, true);
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
 }
 
 class Item_num : public Item_basic_constant {
@@ -4105,7 +4116,6 @@ class Item_num : public Item_basic_constant {
   explicit Item_num(const POS &pos) : super(pos) { collation.set_numeric(); }
 
   virtual Item_num *neg() = 0;
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -4575,7 +4585,6 @@ class Item_field : public Item_ident {
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() override { return this; }
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool fix_outer_field(THD *thd, Field **field, Item_ident **ref_field,
                        bool *complete);
   Item *update_value_transformer(uchar *select_arg) override;
@@ -4773,7 +4782,6 @@ class Item_null : public Item_basic_constant {
     str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -5046,17 +5054,6 @@ class Item_param final : public Item, private Settable_routine_parameter {
     return m_param_state == NULL_VALUE;
   }
 
-  /*
-    This method is used to make a copy of a basic constant item when
-    propagating constants in the optimizer. The reason to create a new
-    item and not use the existing one is not precisely known (2005/04/16).
-    Probably we are trying to preserve tree structure of items, in other
-    words, avoid pointing at one item from two different nodes of the tree.
-    Return a new basic constant item if parameter value is a basic
-    constant, assert otherwise. This method is called only if
-    basic_const_item returned true.
-  */
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *clone_item() const override;
   /*
     Implement by-value equality evaluation if parameter value
@@ -5458,8 +5455,6 @@ class Item_func_pi : public Item_float {
   void print(const THD *, String *str, enum_query_type) const override {
     str->append(func_name);
   }
-
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 };
 
 class Item_string : public Item_basic_constant {
@@ -5608,8 +5603,6 @@ class Item_string : public Item_basic_constant {
     return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
                            str_value.length(), collation.collation);
   }
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
-  Item *charset_converter(THD *thd, const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length) {
     str_value.append(str, length);
     max_length = static_cast<uint32>(str_value.numchars() *
@@ -5681,8 +5674,6 @@ class Item_static_string_func : public Item_string {
                           Derivation dv = DERIVATION_COERCIBLE)
       : Item_string(pos, null_name_string, str, length, cs, dv),
         func_name(name_par) {}
-
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 
   void print(const THD *, String *str, enum_query_type) const override {
     str->append(func_name);
@@ -5794,7 +5785,6 @@ class Item_hex_string : public Item_basic_constant {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool eq(const Item *item) const override;
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   static LEX_CSTRING make_hex_str(const char *str, size_t str_length);
   uint decimal_precision() const override;

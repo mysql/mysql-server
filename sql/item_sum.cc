@@ -5722,7 +5722,9 @@ String *Item_lead_lag::val_str(String *str) {
 
   if (compute()) return error_str();
 
-  return m_use_default ? m_default->val_str(str) : m_value->val_str(str);
+  Item *const item = m_use_default ? m_default : m_value;
+
+  return eval_string_arg(collation.collation, item, str);
 }
 
 bool Item_lead_lag::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {

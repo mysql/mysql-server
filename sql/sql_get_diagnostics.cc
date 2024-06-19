@@ -278,8 +278,14 @@ Item *Condition_information_item::make_utf8_string_item(THD *thd,
   /* If a charset was not set, assume that no conversion is needed. */
   const CHARSET_INFO *from_cs = str->charset() ? str->charset() : to_cs;
   Item_string *item = new Item_string(str->ptr(), str->length(), from_cs);
-  /* If necessary, convert the string (ignoring errors), then copy it over. */
-  return item ? item->charset_converter(thd, to_cs, false) : nullptr;
+  if (item == nullptr) return nullptr;
+  if (to_cs == from_cs) return item;
+  /*
+    If necessary, convert the string and create a new object.
+    Errors are ignored, but are unlikely to appear since the target character
+    set is UTF8.
+  */
+  return item->convert_charset(thd, to_cs, true);
 }
 
 /**

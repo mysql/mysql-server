@@ -1370,7 +1370,6 @@ set names utf8mb3;
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, N'x', N'y')) from t1;
---error 1267
 select concat(a, if(b>10, N'æ', N'ß')) from t1;
 drop table t1;
 
@@ -1379,7 +1378,6 @@ set names utf8mb3;
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, _utf8mb3'x', _utf8mb3'y')) from t1;
---error 1267
 select concat(a, if(b>10, _utf8mb3'æ', _utf8mb3'ß')) from t1;
 drop table t1;
 
@@ -1388,7 +1386,6 @@ set names utf8mb3;
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, _utf8mb3 0x78, _utf8mb3 0x79)) from t1;
---error 1267
 select concat(a, if(b>10, _utf8mb3 0xC3A6, _utf8mb3 0xC3AF)) from t1;
 drop table t1;
 
@@ -1397,7 +1394,6 @@ set names utf8mb3;
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
---error 1267
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
 drop table t1;
 

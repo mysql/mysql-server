@@ -70,14 +70,14 @@ CREATE TABLE t1 SELECT
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CASE 
   WHEN 1 
   THEN _latin1'a' COLLATE latin1_danish_ci 
   ELSE _latin1'a' COLLATE latin1_swedish_ci
   END;
 
---error 1270
+--error ER_CANT_AGGREGATE_3COLLATIONS
 SELECT CASE _latin1'a' COLLATE latin1_general_ci
   WHEN _latin1'a' COLLATE latin1_danish_ci  THEN 1
   WHEN _latin1'a' COLLATE latin1_swedish_ci THEN 2
@@ -100,9 +100,9 @@ CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
 #
 # Check COALESCE argument types aggregation
 
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 CREATE TABLE t1 SELECT COALESCE(_latin1'a',_latin2'a');
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 CREATE TABLE t1 SELECT COALESCE('a' COLLATE latin1_swedish_ci,'b' COLLATE latin1_bin);
 CREATE TABLE t1 SELECT 
  COALESCE(1), COALESCE(1.0),COALESCE('a'),
@@ -115,7 +115,7 @@ explain SELECT
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 CREATE TABLE t1 SELECT IFNULL('a' COLLATE latin1_swedish_ci, 'b' COLLATE latin1_bin);
 
 # Test for BUG#10151

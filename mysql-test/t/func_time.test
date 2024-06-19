@@ -722,26 +722,30 @@ SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SE
 set names latin1;
 create table t1 (a varchar(15) character set ascii not null);
 insert into t1 values ('070514-000000');
---source include/turn_off_only_full_group_by.inc
+
+set timestamp = UNIX_TIMESTAMP('2022-02-02 02:02:02');
 
 # Conversion of date_format() result to ASCII
 # is safe with the default locale en_US
---replace_column 1 #
-select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
-# Error for swe7: it is not ASCII compatible
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull'))
+from t1
+group by a;
+# swe7 is not ASCII compatible, but source string is compliant
 set names swe7;
---error 1267
-select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull'))
+from t1
+group by a;
 set names latin1;
 # Conversion of date_format() result to ASCII
 # is not safe with the non-default locale fr_FR
 # because month and day names can have accented characters
 set lc_time_names=fr_FR;
---error 1267
-select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
+--error ER_CANNOT_CONVERT_STRING
+select concat(a,ifnull(min(date_format(now(), '%Y-%M-%d')),' ull'))
+from t1
+group by a;
 set lc_time_names=en_US;
-
---source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+set timestamp = DEFAULT;
 drop table t1;
 
 #

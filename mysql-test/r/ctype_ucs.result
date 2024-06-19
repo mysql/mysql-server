@@ -1238,13 +1238,21 @@ Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select concat(a,if(b<10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Cannot convert string '\x00\xC0' from ucs2 to ascii
 select concat(a,if(b>10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+concat(a,if(b>10,_ucs2 0x00C0,_ucs2 0x0062))
+ab
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select concat(a,if(b<10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+concat(a,if(b<10,_ucs2 0x0062,_ucs2 0x00C0))
+ab
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select concat(a,if(b>10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Cannot convert string '\x00\xC0' from ucs2 to ascii
 select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
 ERROR HY000: Cannot convert string '\x00\xC0' from ucs2 to ascii
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
@@ -3558,8 +3566,6 @@ a	varchar(4)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a tinyint zerofill);
@@ -3575,8 +3581,6 @@ hex(a)
 003000300031
 003000310030
 003100300030
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a tinyint(30) zerofill);
@@ -3593,8 +3597,6 @@ hex(a)
 003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300031
 003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000310030
 003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003000300030003100300030
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a decimal(10,2));
@@ -3606,8 +3608,6 @@ a	varchar(12)	YES		NULL
 select hex(a) from v1;
 hex(a)
 003100320033002E00340035
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a smallint);
@@ -3619,8 +3619,6 @@ a	varchar(6)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a smallint zerofill);
@@ -3638,8 +3636,6 @@ hex(a)
 00300030003100300030
 00300031003000300030
 00310030003000300030
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a mediumint);
@@ -3651,8 +3647,6 @@ a	varchar(9)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a mediumint zerofill);
@@ -3670,8 +3664,6 @@ hex(a)
 00300030003000300030003100300030
 00300030003000300031003000300030
 00300030003000310030003000300030
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a int);
@@ -3683,8 +3675,6 @@ a	varchar(11)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a int zerofill);
@@ -3702,8 +3692,6 @@ hex(a)
 0030003000300030003000300030003100300030
 0030003000300030003000300031003000300030
 0030003000300030003000310030003000300030
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a bigint);
@@ -3715,8 +3703,6 @@ a	varchar(20)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a bigint zerofill);
@@ -3734,8 +3720,6 @@ hex(a)
 00300030003000300030003000300030003000300030003000300030003000300030003100300030
 00300030003000300030003000300030003000300030003000300030003000300031003000300030
 00300030003000300030003000300030003000300030003000300030003000310030003000300030
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a float);
@@ -3747,8 +3731,6 @@ a	varchar(12)	YES		NULL
 select hex(a) from v1;
 hex(a)
 003100320033002E003400350036
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a float zerofill);
@@ -3766,8 +3748,6 @@ hex(a)
 0030003000300030003000300030003100300030002E0031
 0030003000300030003000300031003000300030002E0031
 0030003000300030003000310030003000300030002E0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a double);
@@ -3782,8 +3762,6 @@ a	varchar(22)	YES		NULL
 select hex(a) from v1;
 hex(a)
 003100320033002E003400350036
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a double zerofill);
@@ -3801,8 +3779,6 @@ hex(a)
 00300030003000300030003000300030003000300030003000300030003000300030003100300030002E0031
 00300030003000300030003000300030003000300030003000300030003000300031003000300030002E0031
 00300030003000300030003000300030003000300030003000300030003000310030003000300030002E0031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a year);
@@ -3814,8 +3790,6 @@ a	varchar(4)	YES		NULL
 select hex(a) from v1;
 hex(a)
 0032003000300031
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a bit(64));
@@ -3846,8 +3820,6 @@ hex(a)
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
 0031003900380030002D00300032002D00300033002000300034003A00300035003A00300036
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a date);
@@ -3861,8 +3833,6 @@ select hex(a) from v1;
 hex(a)
 0032003000300031002D00300032002D00300033
 0032003000300031002D00300032002D00300033
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a time);
@@ -3876,8 +3846,6 @@ select hex(a) from v1;
 hex(a)
 00300030003A00300030003A00300031
 00300031003A00300032003A00300033
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create table t1 (a datetime);
@@ -3891,8 +3859,6 @@ select hex(a) from v1;
 hex(a)
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
 0032003000300031002D00300032002D00300033002000300034003A00300035003A00300036
-Warnings:
-Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 drop view v1;
 create function f1 (par1 int) returns int
@@ -4159,7 +4125,7 @@ Note	1003	/* select#1 */ select (v_LastPaymentDate@0 < now()) AS `v_LastPaymentD
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select concat(convert(v_LastPaymentDate@0 using ucs2),convert(now() using ucs2)) AS `CONCAT(v_LastPaymentDate, NOW())`
+Note	1003	/* select#1 */ select concat(v_LastPaymentDate@0,now()) AS `CONCAT(v_LastPaymentDate, NOW())`
 DROP PROCEDURE p1;
 #
 # Bug#52159 returning time type from function and empty left join causes debug assertion

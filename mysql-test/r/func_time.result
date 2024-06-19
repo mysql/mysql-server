@@ -1249,17 +1249,26 @@ TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s")
 set names latin1;
 create table t1 (a varchar(15) character set ascii not null);
 insert into t1 values ('070514-000000');
-select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
+set timestamp = UNIX_TIMESTAMP('2022-02-02 02:02:02');
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull'))
+from t1
+group by a;
 concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull'))
-#
+070514-0000002022-02-02
 set names swe7;
-select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (swe7_swedish_ci,COERCIBLE) for operation 'concat'
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull'))
+from t1
+group by a;
+concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull'))
+070514-0000002022-02-02
 set names latin1;
 set lc_time_names=fr_FR;
-select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation 'concat'
+select concat(a,ifnull(min(date_format(now(), '%Y-%M-%d')),' ull'))
+from t1
+group by a;
+ERROR HY000: Cannot convert string '2022-f...' from latin1 to ascii
 set lc_time_names=en_US;
+set timestamp = DEFAULT;
 drop table t1;
 select DATE_ADD('20071108181000', INTERVAL 1 DAY);
 DATE_ADD('20071108181000', INTERVAL 1 DAY)

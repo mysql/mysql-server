@@ -588,8 +588,6 @@ class Item_func_sysconst : public Item_str_func {
   explicit Item_func_sysconst(const POS &pos) : super(pos) {
     collation.set(system_charset_info, DERIVATION_SYSCONST);
   }
-
-  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   /*
     Used to create correct Item name in new converted item in
     safe_charset_converter, return string representation of this function

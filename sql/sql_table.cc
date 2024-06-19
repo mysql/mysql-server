@@ -4624,7 +4624,7 @@ bool prepare_create_field(THD *thd, const char *error_schema_name,
       stored procedure statement.
     */
     sql_field->constant_default =
-        sql_field->constant_default->safe_charset_converter(thd, save_cs);
+        sql_field->constant_default->convert_charset(thd, save_cs);
 
     if (sql_field->constant_default == nullptr) {
       /* Could not convert */

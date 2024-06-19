@@ -1505,161 +1505,39 @@ const Item *Item::unwrap_for_eq() const {
   return item;
 }
 
-Item *Item::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  Item_func_conv_charset *conv =
-      new Item_func_conv_charset(thd, this, tocs, true);
-  return conv && conv->m_safe ? conv : nullptr;
-}
-
-/**
-  @details
-  Created mostly for mysql_prepare_table(). Important
-  when a string ENUM/SET column is described with a numeric default value:
-
-  CREATE TABLE t1(a SET('a') DEFAULT 1);
-
-  We cannot use generic Item::safe_charset_converter(), because
-  the latter returns a non-fixed Item, so val_str() crashes afterwards.
-  Override Item_num method, to return a fixed item.
-*/
-Item *Item_num::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  /*
-    Item_num returns pure ASCII result,
-    so conversion is needed only in case of "tricky" character
-    sets like UCS2. If tocs is not "tricky", return the item itself.
-  */
-  if (my_charset_is_ascii_based(tocs)) return this;
-
-  uint conv_errors;
-  char buf[64], buf2[64];
-  String tmp(buf, sizeof(buf), &my_charset_bin);
-  String cstr(buf2, sizeof(buf2), &my_charset_bin);
+Item *Item::convert_charset(THD *thd, const CHARSET_INFO *tocs,
+                            bool ignore_errors) {
+  // Function is only applicable to a const value
+  assert(const_item() ||
+         (const_for_execution() && thd->lex->is_exec_started()));
+  String tmp;
   String *ostr = val_str(&tmp);
-  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors > 0) {
-    /*
-      Safe conversion is not possible.
-      We could not convert a string into the requested character set
-      without data loss. The target charset does not cover all the
-      characters from the string. Operation cannot be done correctly.
-    */
-    return nullptr;
-  }
+  if (thd->is_error()) return nullptr;
 
-  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
-  if (ptr == nullptr) return nullptr;
-  auto conv =
-      new Item_string(ptr, cstr.length(), cstr.charset(), collation.derivation);
-  if (conv == nullptr) return nullptr;
-
-  /* Ensure that no one is going to change the result string */
-  conv->mark_result_as_const();
-  conv->fix_char_length(max_char_length());
-  return conv;
-}
-
-Item *Item_func_pi::safe_charset_converter(THD *thd, const CHARSET_INFO *) {
-  char buf[64];
-  String tmp(buf, sizeof(buf), &my_charset_bin);
-  String *s = val_str(&tmp);
-  char *ptr = thd->strmake(s->ptr(), s->length());
-  if (ptr == nullptr) return nullptr;
-  auto conv =
-      new Item_static_string_func(func_name, ptr, s->length(), s->charset());
-  if (conv == nullptr) return nullptr;
-  conv->mark_result_as_const();
-  return conv;
-}
-
-Item *Item_string::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  return charset_converter(thd, tocs, true);
-}
-
-/**
-  Convert a string item into the requested character set.
-
-  @param thd        Thread handle.
-  @param tocs       Character set to to convert the string to.
-  @param lossless   Whether data loss is acceptable.
-
-  @return A new item representing the converted string.
-*/
-Item *Item_string::charset_converter(THD *thd, const CHARSET_INFO *tocs,
-                                     bool lossless) {
-  uint conv_errors;
-  String tmp, cstr, *ostr = val_str(&tmp);
-  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (lossless && conv_errors > 0) {
-    /*
-      Safe conversion is not possible.
-      We could not convert a string into the requested character set
-      without data loss. The target charset does not cover all the
-      characters from the string. Operation cannot be done correctly.
-    */
-    return nullptr;
-  }
-
-  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
-  if (ptr == nullptr) return nullptr;
-  auto conv =
-      new Item_string(ptr, cstr.length(), cstr.charset(), collation.derivation);
-  if (conv == nullptr) return nullptr;
-  /* Ensure that no one is going to change the result string */
-  conv->mark_result_as_const();
-  return conv;
-}
-
-Item *Item_param::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  if (may_evaluate_const(thd)) {
-    String tmp, cstr, *ostr = val_str(&tmp);
-
-    if (null_value) {
-      auto cnvitem = new Item_null();
-      if (cnvitem == nullptr) return nullptr;
-      cnvitem->collation.set(tocs);
-      return cnvitem;
-    } else {
-      uint conv_errors;
-      cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs,
-                &conv_errors);
-
-      if (conv_errors > 0) return nullptr;
-
-      char *ptr = thd->strmake(cstr.ptr(), cstr.length());
-      if (ptr == nullptr) return nullptr;
-      auto cnvitem = new Item_string(ptr, cstr.length(), cstr.charset(),
-                                     collation.derivation);
-      if (cnvitem == nullptr) return nullptr;
-      cnvitem->mark_result_as_const();
-      return cnvitem;
+  if (null_value) {
+    Item_null *const null_item = new Item_null();
+    if (null_item == nullptr) return nullptr;
+    null_item->collation.set(tocs);
+    return null_item;
+  } else {
+    uint conv_errors;
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> cstr;
+    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+    if (!ignore_errors && conv_errors != 0) {
+      report_conversion_error(ostr->charset(), ostr->ptr(), ostr->length(),
+                              tocs);
+      return nullptr;
     }
-  }
-  return Item::safe_charset_converter(thd, tocs);
-}
+    char *ptr = thd->strmake(cstr.ptr(), cstr.length());
+    if (ptr == nullptr) return nullptr;
+    Item_string *const string_item = new (thd->mem_root)
+        Item_string(ptr, cstr.length(), cstr.charset(), collation.derivation);
+    if (string_item == nullptr) return nullptr;
+    string_item->mark_result_as_const();
+    string_item->fix_char_length(max_char_length());
 
-Item *Item_static_string_func::safe_charset_converter(
-    THD *thd, const CHARSET_INFO *tocs) {
-  uint conv_errors;
-  String tmp, cstr, *ostr = val_str(&tmp);
-  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors > 0) {
-    /*
-      Safe conversion is not possible.
-      We could not convert a string into the requested character set
-      without data loss. The target charset does not cover all the
-      characters from the string. Operation cannot be done correctly.
-    */
-    return nullptr;
+    return string_item;
   }
-
-  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
-  if (ptr == nullptr) return nullptr;
-  auto conv = new Item_static_string_func(func_name, ptr, cstr.length(),
-                                          cstr.charset(), collation.derivation);
-  if (conv == nullptr) return nullptr;
-  /* Ensure that no one is going to change the result string */
-  conv->mark_result_as_const();
-  return conv;
 }
 
 bool Item_string::eq(const Item *item) const {
@@ -2812,30 +2690,14 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
                               flags | MY_COLL_DISALLOW_NONE, 1));
 }
 
-bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
-                            uint nargs, uint, int item_sep, bool only_consts) {
-  Item *safe_args[2] = {nullptr, nullptr};
-
-  /*
-    For better error reporting: save the first and the second argument.
-    We need this only if the the number of args is 3 or 2:
-    - for a longer argument list, "Illegal mix of collations"
-      doesn't display each argument's characteristics.
-    - if nargs is 1, then this error cannot happen.
-  */
-  if (nargs >= 2 && nargs <= 3) {
-    safe_args[0] = args[0];
-    safe_args[1] = args[item_sep];
-  }
-
+bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
+                           int item_sep) {
   THD *thd = current_thd;
 
   uint i;
   Item **arg;
   for (i = 0, arg = args; i < nargs; i++, arg += item_sep) {
     size_t dummy_offset;
-    // If told so (from comparison code), only add converter for const values.
-    if (only_consts && !(*arg)->const_item()) continue;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation, &dummy_offset)) {
       /*
@@ -2870,32 +2732,22 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
         my_charset_is_ascii_based(coll.collation))
       continue;
 
-    Item *conv = (*arg)->safe_charset_converter(thd, coll.collation);
-    // @todo - check why the constructors may return error
-    if (thd->is_error()) return true;
-    if (conv == nullptr &&
-        ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv = new Item_func_conv_charset(thd, *arg, coll.collation, true);
-
-    if (conv == nullptr) {
-      if (nargs >= 2 && nargs <= 3) {
-        /* restore the original arguments for better error message */
-        args[0] = safe_args[0];
-        args[item_sep] = safe_args[1];
-      }
-      my_coll_agg_error(args, nargs, fname, item_sep);
-      return true;
+    // Non-const values are converted at runtime
+    if (!(*arg)->may_evaluate_const(thd)) {
+      continue;
     }
+    Item *conv = (*arg)->convert_charset(thd, coll.collation);
+    if (conv == nullptr) return true;
+
+    assert(conv->fixed);
+
+    conv->disable_constant_propagation(nullptr);
 
     // Update the Item pointer in-place
     if (thd->lex->is_exec_started())
       thd->change_item_tree(arg, conv);
     else
       *arg = conv;
-
-    (*arg)->disable_constant_propagation(nullptr);
-
-    if (conv->fix_fields(thd, arg)) return true;
   }
 
   return false;
@@ -2931,11 +2783,10 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
 */
 
 bool agg_item_charsets(DTCollation &coll, const char *fname, Item **args,
-                       uint nargs, uint flags, int item_sep, bool only_consts) {
+                       uint nargs, uint flags, int item_sep) {
   if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
     return true;
-  return agg_item_set_converter(coll, fname, args, nargs, flags, item_sep,
-                                only_consts);
+  return convert_const_strings(coll, args, nargs, item_sep);
 }
 
 void Item_ident_for_show::make_field(Send_field *tmp_field) {
@@ -3356,8 +3207,10 @@ bool Item_field::eq(const Item *item) const {
     where the semijoin-merged 'a' and the top query's 'a' are both named t1.a
     and coexist in the top query.
   */
-  if (fixed && item_field->fixed)
-    return base_item_field()->field == item_field->base_item_field()->field;
+  if (fixed && item_field->fixed) {
+    return base_item_field()->field == item_field->base_item_field()->field &&
+           collation.collation == item->collation.collation;
+  }
   /*
     We may come here when we are trying to find a function in a GROUP BY
     clause from the select list.
@@ -3854,11 +3707,6 @@ my_decimal *Item_null::val_decimal(my_decimal *) { return nullptr; }
 bool Item_null::val_json(Json_wrapper *) {
   null_value = true;
   return false;
-}
-
-Item *Item_null::safe_charset_converter(THD *, const CHARSET_INFO *tocs) {
-  collation.set(tocs);
-  return this;
 }
 
 /*********************** Item_param related ******************************/
@@ -6160,11 +6008,6 @@ void Item_field::bind_fields() {
   if (table_name == nullptr) table_name = *field->table_name;
 }
 
-Item *Item_field::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  no_constant_propagation = true;
-  return Item::safe_charset_converter(thd, tocs);
-}
-
 void Item_field::cleanup() {
   DBUG_TRACE;
   if (!fixed) return;
@@ -6231,9 +6074,9 @@ void Item_field::reset_field() {
 */
 
 Item_multi_eq *Item_field::find_multi_equality(COND_EQUAL *cond_equal) const {
-  while (cond_equal) {
+  while (cond_equal != nullptr) {
     for (Item_multi_eq &item : cond_equal->current_level) {
-      if (item.contains(field)) return &item;
+      if (item.contains(this)) return &item;
     }
     /*
       The field is not found in any of the multiple equalities
@@ -7460,15 +7303,6 @@ bool Item_hex_string::eq(const Item *item) const {
     return !sortcmp(&str_value, arg->val_str(&str), collation.collation);
   }
   return false;
-}
-
-Item *Item_hex_string::safe_charset_converter(THD *, const CHARSET_INFO *tocs) {
-  String tmp, *str = val_str(&tmp);
-
-  auto conv = new Item_string(str->ptr(), str->length(), tocs);
-  if (conv == nullptr) return nullptr;
-  conv->mark_result_as_const();
-  return conv;
 }
 
 /*

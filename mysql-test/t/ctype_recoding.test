@@ -188,7 +188,7 @@ select * from t1 where a=_koi8r'×ÁÓÑ';
 # this is possible, because we have a function with constant arguments:
 select * from t1 where a=concat(_koi8r'×ÁÓÑ');
 # this is not posible, cannot convert _latin1'×ÁÓÑ' into cp1251:
---error 1267
+--error ER_CANNOT_CONVERT_STRING
 select * from t1 where a=_latin1'×ÁÓÑ';
 drop table t1;
 set names latin1;
@@ -250,7 +250,7 @@ create table t1(a char character set cp1251 default _koi8r 0xFF);
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
---error 1067
+--error ER_CANNOT_CONVERT_STRING
 create table t1(a char character set latin1 default _cp1251 0xFF);
 
 --echo End of 4.1 tests

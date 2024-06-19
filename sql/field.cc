@@ -86,6 +86,7 @@
 #include "sql/transaction_info.h"
 #include "sql/tztime.h"             // Time_zone
 #include "sql/vector_conversion.h"  // get_dimensions
+#include "sql_string.h"             // convert_to_printable
 #include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "typelib.h"
@@ -6250,7 +6251,8 @@ type_conversion_status Field_datetimef::store_packed(longlong nr) {
                                      the source string
   @param  end                        end of the source string
   @param  count_spaces               treat trailing spaces as important data
-  @param  cs                         character set of the string
+  @param  from_cs                    character set of the source string
+  @param  to_cs                      character set of the target string
 
   @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
           TYPE_WARN_INVALID_STRING
@@ -6260,7 +6262,7 @@ type_conversion_status Field_datetimef::store_packed(longlong nr) {
 type_conversion_status Field_longstr::check_string_copy_error(
     const char *well_formed_error_pos, const char *cannot_convert_error_pos,
     const char *from_end_pos, const char *end, bool count_spaces,
-    const CHARSET_INFO *cs) {
+    const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs) {
   const char *pos;
   char tmp[32];
   THD *thd = current_thd;
@@ -6268,16 +6270,22 @@ type_conversion_status Field_longstr::check_string_copy_error(
   if (!(pos = well_formed_error_pos) && !(pos = cannot_convert_error_pos))
     return report_if_important_data(from_end_pos, end, count_spaces);
 
-  convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
+  convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), from_cs, 6);
 
-  push_warning_printf(
-      thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-      ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "string", tmp,
-      field_name, thd->get_stmt_da()->current_row_for_condition());
+  if (table->m_charset_conversion_is_strict) {
+    my_error(ER_CANNOT_CONVERT_STRING, MYF(0), tmp, from_cs->csname,
+             to_cs->csname);
+    return TYPE_ERR_BAD_VALUE;
+  } else {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "string", tmp,
+        field_name, thd->get_stmt_da()->current_row_for_condition());
 
-  if (well_formed_error_pos != nullptr) return TYPE_WARN_INVALID_STRING;
+    if (well_formed_error_pos != nullptr) return TYPE_WARN_INVALID_STRING;
 
-  return TYPE_WARN_TRUNCATED;
+    return TYPE_WARN_TRUNCATED;
+  }
 }
 
 /*
@@ -6350,7 +6358,7 @@ type_conversion_status Field_string::store(const char *from, size_t length,
 
   return check_string_copy_error(well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
-                                 from + length, false, cs);
+                                 from + length, false, cs, field_charset);
 }
 
 /**
@@ -6791,7 +6799,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
 
   return check_string_copy_error(well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
-                                 from + length, true, cs);
+                                 from + length, true, cs, field_charset);
 }
 
 type_conversion_status Field_varstring::store(longlong nr, bool unsigned_val) {
@@ -7270,7 +7278,7 @@ type_conversion_status Field_blob::store_internal(const char *from,
     store_ptr_and_length(tmp, copy_length);
     return check_string_copy_error(well_formed_error_pos,
                                    cannot_convert_error_pos, from_end_pos,
-                                   from + length, true, cs);
+                                   from + length, true, cs, field_charset);
   }
 
 oom_error:

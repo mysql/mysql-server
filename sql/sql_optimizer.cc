@@ -69,6 +69,7 @@
 #include "sql/derror.h"      // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Functional_index_error_handler
+#include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
@@ -3744,7 +3745,7 @@ Item_multi_eq *find_item_equal(COND_EQUAL *cond_equal,
   while (cond_equal) {
     List_iterator_fast<Item_multi_eq> li(cond_equal->current_level);
     while ((item = li++)) {
-      if (item->contains(item_field->field)) goto finish;
+      if (item->contains(item_field)) goto finish;
     }
     in_upper_level = true;
     cond_equal = cond_equal->upper_levels;
@@ -3905,7 +3906,7 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       return false;
     }
 
-    if (left_item_equal && left_item_equal == right_item_equal) {
+    if (left_item_equal != nullptr && left_item_equal == right_item_equal) {
       /*
         The equality predicate is inference of one of the existing
         multiple equalities, i.e the condition is already covered
@@ -3929,11 +3930,11 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       cond_equal->current_level.push_back(right_item_equal);
     }
 
-    if (left_item_equal) {
+    if (left_item_equal != nullptr) {
       /* left item was found in the current or one of the upper levels */
-      if (!right_item_equal)
+      if (right_item_equal == nullptr) {
         left_item_equal->add(down_cast<Item_field *>(right_item));
-      else {
+      } else {
         /* Merge two multiple equalities forming a new one */
         if (left_item_equal->merge(thd, right_item_equal)) return true;
         /* Remove the merged multiple equality from the list */
@@ -3944,10 +3945,10 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       }
     } else {
       /* left item was not found neither the current nor in upper levels  */
-      if (right_item_equal) {
+      if (right_item_equal != nullptr) {
         right_item_equal->add(down_cast<Item_field *>(left_item));
       } else {
-        /* None of the fields was found in multiple equalities */
+        /* None of the fields were found in multiple equalities */
         Item_multi_eq *item_equal =
             new Item_multi_eq(down_cast<Item_field *>(left_item),
                               down_cast<Item_field *>(right_item));
@@ -3959,111 +3960,109 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
     return false;
   }
 
-  {
-    /* The predicate of the form field=const/const=field is processed */
-    Item *const_item = nullptr;
-    Item_field *field_item = nullptr;
-    if (left_item->type() == Item::FIELD_ITEM &&
-        (field_item = down_cast<Item_field *>(left_item)) &&
-        field_item->depended_from == nullptr &&
-        right_item->const_for_execution()) {
-      const_item = right_item;
-    } else if (right_item->type() == Item::FIELD_ITEM &&
-               (field_item = down_cast<Item_field *>(right_item)) &&
-               field_item->depended_from == nullptr &&
-               left_item->const_for_execution()) {
-      const_item = left_item;
+  // Handle predicate on form field = const or const = field
+  Item *const_item = nullptr;
+  Item_field *field_item = nullptr;
+  if (left_item->type() == Item::FIELD_ITEM &&
+      (field_item = down_cast<Item_field *>(left_item)) != nullptr &&
+      field_item->depended_from == nullptr &&
+      right_item->const_for_execution()) {
+    const_item = right_item;
+  } else if (right_item->type() == Item::FIELD_ITEM &&
+             (field_item = down_cast<Item_field *>(right_item)) != nullptr &&
+             field_item->depended_from == nullptr &&
+             left_item->const_for_execution()) {
+    const_item = left_item;
+  } else {
+    return false;
+  }
+
+  assert(field_item != nullptr && const_item != nullptr);
+
+  // Don't evaluate subqueries if they are disabled during optimization.
+  if (!evaluate_during_optimization(const_item,
+                                    thd->lex->current_query_block())) {
+    return false;
+  }
+  /*
+    If the constant expression contains a reference to the field
+    (for example, a = (a IS NULL)), we don't want to replace the
+    field with the constant expression as it makes the predicates
+    more complex and may introduce cycles in the Item tree.
+  */
+  if (const_item->walk(&Item::find_field_processor, enum_walk::POSTFIX,
+                       pointer_cast<uchar *>(field_item->field))) {
+    return false;
+  }
+  if (field_item->result_type() != const_item->result_type()) {
+    return false;
+  }
+  if (field_item->result_type() == STRING_RESULT) {
+    const CHARSET_INFO *cs = field_item->field->charset();
+    if (item == nullptr) {
+      Item_func_eq *const eq_item = new Item_func_eq(left_item, right_item);
+      if (eq_item == nullptr || eq_item->set_cmp_func()) return true;
+      eq_item->quick_fix_field();
+      item = eq_item;
     }
-
-    // Don't evaluate subqueries if they are disabled during optimization.
-    if (const_item != nullptr &&
-        !evaluate_during_optimization(const_item,
-                                      thd->lex->current_query_block()))
+    if ((cs != down_cast<Item_func *>(item)->compare_collation()) ||
+        !cs->coll->propagate(cs, nullptr, 0))
       return false;
-
-    /*
-      If the constant expression contains a reference to the field
-      (for example, a = (a IS NULL)), we don't want to replace the
-      field with the constant expression as it makes the predicates
-      more complex and may introduce cycles in the Item tree.
-    */
-    if (const_item != nullptr &&
-        const_item->walk(&Item::find_field_processor, enum_walk::POSTFIX,
-                         pointer_cast<uchar *>(field_item->field)))
+    // Don't build multiple equalities mixing strings and JSON, not even
+    // when they have the same collation, since string comparison and JSON
+    // comparison are very different.
+    if ((field_item->data_type() == MYSQL_TYPE_JSON) !=
+        (const_item->data_type() == MYSQL_TYPE_JSON)) {
       return false;
-
-    if (const_item && field_item->result_type() == const_item->result_type()) {
-      if (field_item->result_type() == STRING_RESULT) {
-        const CHARSET_INFO *cs = field_item->field->charset();
-        if (!item) {
-          Item_func_eq *const eq_item = new Item_func_eq(left_item, right_item);
-          if (eq_item == nullptr || eq_item->set_cmp_func()) return true;
-          eq_item->quick_fix_field();
-          item = eq_item;
-        }
-        if ((cs != down_cast<Item_func *>(item)->compare_collation()) ||
-            !cs->coll->propagate(cs, nullptr, 0))
-          return false;
-        // Don't build multiple equalities mixing strings and JSON, not even
-        // when they have the same collation, since string comparison and JSON
-        // comparison are very different.
-        if ((field_item->data_type() == MYSQL_TYPE_JSON) !=
-            (const_item->data_type() == MYSQL_TYPE_JSON)) {
-          return false;
-        }
-        // Similarly, strings and temporal types have different semantics for
-        // equality comparison.
-        if (const_item->is_temporal()) {
-          // No multiple equality for string columns compared to temporal
-          // values. See also comment in comparable_in_index().
-          if (!field_item->is_temporal()) {
-            return false;
-          }
-          // No multiple equality for TIME columns compared to temporal values.
-          // See also comment in comparable_in_index().
-          if (const_item->is_temporal_with_date() &&
-              !field_item->is_temporal_with_date()) {
-            return false;
-          }
-        }
+    }
+    // Similarly, strings and temporal types have different semantics for
+    // equality comparison.
+    if (const_item->is_temporal()) {
+      // No multiple equality for string columns compared to temporal
+      // values. See also comment in comparable_in_index().
+      if (!field_item->is_temporal()) {
+        return false;
       }
-
-      bool copyfl;
-      Item_multi_eq *multi_eq =
-          find_item_equal(cond_equal, field_item, &copyfl);
-      if (copyfl) {
-        multi_eq = new Item_multi_eq(multi_eq);
-        if (multi_eq == nullptr) return true;
-        cond_equal->current_level.push_back(multi_eq);
+      // No multiple equality for TIME columns compared to temporal values.
+      // See also comment in comparable_in_index().
+      if (const_item->is_temporal_with_date() &&
+          !field_item->is_temporal_with_date()) {
+        return false;
       }
-      if (multi_eq != nullptr) {
-        if (multi_eq->const_arg() != nullptr) {
-          // Make sure that the existing const and new one are of comparable
-          // collation.
-          DTCollation cmp_collation;
-          if (cmp_collation.set(const_item->collation,
-                                multi_eq->const_arg()->collation,
-                                MY_COLL_CMP_CONV) ||
-              cmp_collation.derivation == DERIVATION_NONE) {
-            return false;
-          }
-        }
-        /*
-          When adding this coonst_item, if this Item_multi_eq already had a
-          constant set and it's value is not also equal to this const_item,
-          we'll set the m_always_false = true as a condition cannot have
-          two distinct values at the same time.
-        */
-        if (multi_eq->add(thd, const_item, field_item)) return true;
-      } else {
-        multi_eq = new Item_multi_eq(const_item, field_item);
-        if (multi_eq == nullptr) return true;
-        cond_equal->current_level.push_back(multi_eq);
-      }
-      *simple_equality = true;
-      return false;
     }
   }
+  bool copyfl;
+  Item_multi_eq *multi_eq = find_item_equal(cond_equal, field_item, &copyfl);
+  if (copyfl) {
+    multi_eq = new Item_multi_eq(multi_eq);
+    if (multi_eq == nullptr) return true;
+    cond_equal->current_level.push_back(multi_eq);
+  }
+  if (multi_eq != nullptr) {
+    if (multi_eq->const_arg() != nullptr) {
+      // Ensure that the existing const and new one have comparable collations.
+      DTCollation cmp_collation;
+      if (cmp_collation.set(const_item->collation,
+                            multi_eq->const_arg()->collation,
+                            MY_COLL_CMP_CONV) ||
+          cmp_collation.derivation == DERIVATION_NONE) {
+        return false;
+      }
+    }
+    /*
+      When adding this const item, if this Item_multi_eq already had a constant
+      set and it's value is not also equal to this const_item, set
+      m_always_false = true as a condition cannot have two distinct values at
+      the same time.
+    */
+    if (multi_eq->add(thd, const_item, field_item)) return true;
+  } else {
+    multi_eq = new Item_multi_eq(const_item, field_item);
+    if (multi_eq == nullptr) return true;
+    cond_equal->current_level.push_back(multi_eq);
+  }
+  *simple_equality = true;
+
   return false;
 }
 

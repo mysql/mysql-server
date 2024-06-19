@@ -549,7 +549,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c1`,0,convert(`test`.`t`.`c2` using utf8mb4)) OVER ()  AS `l0` from `test`.`t`
+Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c1`,0,`test`.`t`.`c2`) OVER ()  AS `l0` from `test`.`t`
 EXPLAIN FORMAT=JSON SELECT c1, c2, LEAD(c1, 1, c2) OVER () l1 FROM t;
 EXPLAIN
 {
@@ -592,7 +592,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c1`,1,convert(`test`.`t`.`c2` using utf8mb4)) OVER ()  AS `l1` from `test`.`t`
+Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c1`,1,`test`.`t`.`c2`) OVER ()  AS `l1` from `test`.`t`
 EXPLAIN FORMAT=JSON SELECT c1, c2, LEAD(c2, 1, c1) OVER () l1 FROM t;
 EXPLAIN
 {
@@ -635,7 +635,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(convert(`test`.`t`.`c2` using utf8mb4),1,`test`.`t`.`c1`) OVER ()  AS `l1` from `test`.`t`
+Note	1003	/* select#1 */ select `test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2`,lead(`test`.`t`.`c2`,1,`test`.`t`.`c1`) OVER ()  AS `l1` from `test`.`t`
 Use CREATE TABLE AS to show type of the resulting LEAD function
 CREATE TABLE tt AS SELECT LEAD(c1, 0, c2) OVER () c FROM t;
 CREATE TABLE ts AS SELECT LEAD(c2, 1, c1) OVER () c FROM t;

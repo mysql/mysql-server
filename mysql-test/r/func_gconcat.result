@@ -499,7 +499,7 @@ select collation(group_concat(a,_koi8r'test')) from t1;
 collation(group_concat(a,_koi8r'test'))
 cp1250_general_ci
 select collation(group_concat(a,_koi8r 0xC1C2)) from t1;
-ERROR HY000: Illegal mix of collations (cp1250_general_ci,IMPLICIT) and (koi8r_general_ci,COERCIBLE) for operation 'group_concat'
+ERROR HY000: Cannot convert string '\xC1\xC2' from cp1250 to koi8r
 select collation(group_concat(a,b)) from t1;
 ERROR HY000: Illegal mix of collations (cp1250_general_ci,IMPLICIT) and (koi8r_general_ci,IMPLICIT) for operation 'group_concat'
 drop table t1;

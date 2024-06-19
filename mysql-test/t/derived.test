@@ -3451,3 +3451,58 @@ WITH cte1 AS (
 SELECT a, a FROM cte1 WHERE cte1.a <= r.a;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34646522: Literal value with different character set from derived
+--echo #               table causes error
+--echo #
+
+CREATE TABLE t
+(a VARCHAR(10) CHARACTER SET ascii,
+ b VARCHAR(10) CHARACTER SET latin1,
+ c VARCHAR(10) CHARACTER SET latin2,
+ d VARCHAR(10) CHARACTER SET utf16
+);
+
+SELECT _utf8mb4 'a' AS a UNION SELECT a FROM t;
+SELECT * FROM (SELECT _utf8mb4 'a' AS a) AS dt UNION SELECT a FROM t;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT _utf8mb4 'Â±' AS a UNION SELECT a FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT * FROM (SELECT _utf8mb4 'Â±' AS a) AS dt UNION SELECT a FROM t;
+
+SELECT _utf8mb4 'a' AS a UNION SELECT b FROM t;
+SELECT * FROM (SELECT _utf8mb4 'a' AS a) AS dt UNION SELECT b FROM t;
+
+SELECT _utf8mb4 'Â±' AS a UNION SELECT b FROM t;
+SELECT * FROM (SELECT _utf8mb4 'Â±' AS a) AS dt UNION SELECT b FROM t;
+
+SELECT _utf8mb4 'a' AS a UNION SELECT c FROM t;
+SELECT * FROM (SELECT _utf8mb4 'a' AS a) AS dt UNION SELECT c FROM t;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT _utf8mb4 'Â±' AS a UNION SELECT c FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT * FROM (SELECT _utf8mb4 'Â±' AS a) AS dt UNION SELECT c FROM t;
+
+SELECT _utf8mb4 'a' AS a UNION SELECT d FROM t;
+SELECT * FROM (SELECT _utf8mb4 'a' AS a) AS dt UNION SELECT d FROM t;
+
+SELECT _latin1 'a' AS a UNION SELECT a FROM t;
+SELECT * FROM (SELECT _latin1 'a' AS a) AS dt UNION SELECT a FROM t;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT _latin1 'Ã¥' AS a UNION SELECT a FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT a FROM t;
+
+SELECT _latin1 'a' AS a UNION SELECT c FROM t;
+SELECT * FROM (SELECT _latin1 'a' AS a) AS dt UNION SELECT c FROM t;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT _latin1 'Ã¥' AS a UNION SELECT c FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT c FROM t;
+
+DROP TABLE t;

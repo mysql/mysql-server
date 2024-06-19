@@ -360,11 +360,10 @@ DROP TABLE t1;
 --echo # Bug#35804794: mysqld assertion failure in
 --echo #               Query_block::replace_subquery_in_expr
 
-CREATE TABLE t1 (col varchar(1));
+CREATE TABLE t1 (col varchar(1) CHARACTER SET ASCII);
 
---error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT col
 FROM t1
-WHERE col >= (SELECT MAX(CONCAT('nz' COLLATE utf8mb4_la_0900_as_cs)) FROM t1);
+WHERE col >= (SELECT MAX(CONCAT('å' COLLATE utf8mb4_la_0900_as_cs)) FROM t1);
 
 DROP TABLE t1;

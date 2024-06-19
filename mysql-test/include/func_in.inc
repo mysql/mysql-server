@@ -61,11 +61,11 @@ c char(1) character set latin1 collate latin1_danish_ci
 );
 insert into t1 values ('A','B','C');
 insert into t1 values ('a','c','c');
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select * from t1 where a in (b);
---error 1270
+--error ER_CANT_AGGREGATE_3COLLATIONS
 select * from t1 where a in (b,c);
---error 1271
+--error ER_CANT_AGGREGATE_NCOLLATIONS
 select * from t1 where 'a' in (a,b,c);
 select * from t1 where 'a' in (a);
 select * from t1 where a in ('a');

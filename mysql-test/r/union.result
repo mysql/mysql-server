@@ -3154,7 +3154,7 @@ SELECT _utf8mb4 'a' UNION SELECT a FROM t;
 a
 a
 SELECT _utf8mb4 0xC3A6 UNION SELECT a FROM t;
-ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (ascii_general_ci,IMPLICIT) for operation 'UNION'
+ERROR HY000: Cannot convert string '\xC3\xA6' from utf8mb4 to ascii
 DROP TABLE t;
 #
 # Bug#27849293 INVALID WRITE IN SYSSCHEMA.PR_DIAGNOSTICS

@@ -499,9 +499,9 @@ DROP PREPARE p;
 DROP TABLE t1;
 # Bug#35804794: mysqld assertion failure in
 #               Query_block::replace_subquery_in_expr
-CREATE TABLE t1 (col varchar(1));
+CREATE TABLE t1 (col varchar(1) CHARACTER SET ASCII);
 SELECT col
 FROM t1
-WHERE col >= (SELECT MAX(CONCAT('nz' COLLATE utf8mb4_la_0900_as_cs)) FROM t1);
-ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_la_0900_as_cs,IMPLICIT) for operation '>='
+WHERE col >= (SELECT MAX(CONCAT('å' COLLATE utf8mb4_la_0900_as_cs)) FROM t1);
+col
 DROP TABLE t1;

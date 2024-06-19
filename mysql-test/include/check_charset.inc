@@ -75,6 +75,7 @@ if ($check_for_object_names)
   eval CREATE FUNCTION `straÃe` ( `饽紴缽菠` CHAR(20) CHARACTER SET $cset COLLATE $coll)
        RETURNS CHAR(50)  CHARACTER SET $cset DETERMINISTIC RETURN `饽紴缽菠`;
 
+  --error 0,ER_CANNOT_CONVERT_STRING
   SELECT * FROM `±í¸ñ`;
   eval SELECT `straÃe`(_$cset'한글');
 
@@ -88,6 +89,7 @@ if ($check_for_object_names)
   USE `Êý¾Ý¿â`;
   eval SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
   eval SELECT `straÃe`(_$cset'한글');
+  --error 0,ER_CANNOT_CONVERT_STRING
   SELECT * FROM `±í¸ñ`;
   DROP DATABASE `Êý¾Ý¿â`;
 }

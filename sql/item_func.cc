@@ -3785,9 +3785,11 @@ double Item_func_units::val_real() {
 
 bool Item_func_min_max::resolve_type(THD *thd) {
   // If no arguments have type, type of this operator cannot be determined yet
-  if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
-      args[1]->data_type() == MYSQL_TYPE_INVALID)
-    return false;
+  uint i;
+  for (i = 0; i < arg_count; i++) {
+    if (args[i]->data_type() != MYSQL_TYPE_INVALID) break;
+  }
+  if (i == arg_count) return false;
 
   if (resolve_type_inner(thd)) return true;
   if (reject_geometry_args()) return true;
@@ -3979,8 +3981,11 @@ String *Item_func_min_max::str_op(String *str) {
     */
     String *val_buf = res_in_str ? &m_string_buf : str;
     assert(!res || (res != val_buf && !res->uses_buffer_owned_by(val_buf)));
-    String *val = args[i]->val_str(val_buf);
-    if ((null_value = args[i]->null_value)) return nullptr;
+    String *val = eval_string_arg(collation.collation, args[i], val_buf);
+    if (val == nullptr) {
+      assert(current_thd->is_error() || (args[i]->null_value && is_nullable()));
+      return error_str();
+    }
     if (i == 0 ||
         (sortcmp(val, res, collation.collation) < 0) == m_is_least_func) {
       res = val;

@@ -53,9 +53,9 @@ explain select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
 select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
 select _koi8r'a' COLLATE koi8r_general_ci = _koi8r'A';
 select _koi8r'a' COLLATE koi8r_bin = _koi8r'A';
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select _koi8r'a' COLLATE koi8r_bin = _koi8r'A' COLLATE koi8r_general_ci;
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select _koi8r'a' = _latin1'A';
 
 select strcmp(_koi8r'a', _koi8r'A');
@@ -63,9 +63,9 @@ select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_general_ci);
 select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_bin);
 select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A');
 select strcmp(_koi8r'a' COLLATE koi8r_bin, _koi8r'A');
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A' COLLATE koi8r_bin);
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select strcmp(_koi8r'a', _latin1'A');
 
 select _koi8r'a' LIKE _koi8r'A';
@@ -73,9 +73,9 @@ select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_general_ci;
 select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_bin;
 select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A';
 select _koi8r'a' COLLATE koi8r_bin LIKE _koi8r'A';
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select _koi8r'a' LIKE _latin1'A';
 
 #
@@ -569,5 +569,49 @@ SELECT GREATEST(enum_col, NULL) AS col1,
        GREATEST(enum_col, enum_col) AS col3,
        GREATEST(enum_col, set_col) AS col4
 FROM t UNION SELECT 1, 2, 3, 4;
+
+DROP TABLE t;
+
+--echo # Bug#34646522: Literal value with different character set from derived
+--echo #               table causes error
+
+CREATE TABLE t
+(a VARCHAR(10) CHARACTER SET ascii,
+ b VARCHAR(10) CHARACTER SET latin1,
+ c VARCHAR(10) CHARACTER SET latin2,
+ d VARCHAR(10) CHARACTER SET utf16
+);
+
+INSERT INTO t VALUES('a', 'a', 'a', 'a');
+SELECT GREATEST(_utf8mb4 'a', a) FROM t;
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(_utf8mb4 'Â±', a) FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _utf8mb4 'Â±') AS dt(a);
+SELECT GREATEST(_utf8mb4 'a', b) FROM t;
+SELECT GREATEST(dt.a, t.b) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+SELECT GREATEST(_utf8mb4 'Â±', b) FROM t;
+SELECT GREATEST(dt.a, t.b) FROM t, (SELECT _utf8mb4 'Â±') AS dt(a);
+SELECT GREATEST(_utf8mb4 'a', c) FROM t;
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(_utf8mb4 'Â±', c) FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _utf8mb4 'Â±') AS dt(a);
+SELECT GREATEST(_utf8mb4 'a', d) FROM t;
+SELECT GREATEST(dt.a, t.d) FROM t, (SELECT _utf8mb4 'a') AS dt(a);
+SELECT GREATEST(_latin1 'a', a) FROM t;
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _latin1 'a') AS dt(a);
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(_latin1 'Ã¥', a) FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(dt.a, t.a) FROM t, (SELECT _latin1 'Ã¥') AS dt(a);
+SELECT GREATEST(_latin1 'a', c) FROM t;
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _latin1 'a') AS dt(a);
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(_latin1 'Ã¥', c) FROM t;
+--error ER_CANNOT_CONVERT_STRING
+SELECT GREATEST(dt.a, t.c) FROM t, (SELECT _latin1 'Ã¥') AS dt(a);
 
 DROP TABLE t;

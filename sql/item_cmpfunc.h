@@ -2610,7 +2610,7 @@ class Item_multi_eq final : public Item_bool_func {
   bool add(THD *thd, Item *const_item);
   void add(Item_field *field);
   uint members();
-  bool contains(const Field *field) const;
+  bool contains(const Item_field *field) const;
   /**
     Get the first field of multiple equality, use for semantic checking.
 

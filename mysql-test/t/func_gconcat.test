@@ -299,9 +299,9 @@ create table t2 select group_concat(a) as a from t1;
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t2;
 select collation(group_concat(a,_koi8r'test')) from t1;
---error 1267
+--error ER_CANNOT_CONVERT_STRING
 select collation(group_concat(a,_koi8r 0xC1C2)) from t1;
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select collation(group_concat(a,b)) from t1;
 drop table t1;
 drop table t2;
