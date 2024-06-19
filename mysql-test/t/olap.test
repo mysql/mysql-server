@@ -1366,3 +1366,16 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 INTEGER);
 SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36750571 COUNT as window function can give NULL in conjunction with ROLLUP
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (NULL);
+SELECT a, GROUPING(a),
+       COUNT(*),
+       COUNT(*) OVER(),
+       COUNT(a) OVER() # used to give NULL
+FROM t GROUP BY a WITH ROLLUP
+ORDER BY a;
+DROP TABLE t;

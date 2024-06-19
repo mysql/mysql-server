@@ -4681,7 +4681,7 @@ static ReplaceResult wrap_grouped_expressions_for_rollup(
     // This item must already be a group item, or we wouldn't have
     // wrapped it earlier. No need to do anything more about it,
     // since it's already wrapped (also, don't traverse further).
-    return {ReplaceResult::REPLACE, item};
+    return {ReplaceResult::DONE, item};
   }
 
   int rollup_level = 0;
@@ -4720,6 +4720,8 @@ static bool WalkAndReplaceInner(
   ReplaceResult result = get_new_item(*child_ref, parent, argument_idx);
   if (result.action == ReplaceResult::ERROR) {
     return true;
+  } else if (result.action == ReplaceResult::DONE) {
+    return false;
   }
 
   if (result.action == ReplaceResult::REPLACE) {
@@ -4928,6 +4930,8 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
       wrap_grouped_expressions_for_rollup(this, item, nullptr, 0);
   if (result.action == ReplaceResult::ERROR) {
     return nullptr;
+  } else if (result.action == ReplaceResult::DONE) {
+    return item;
   } else if (result.action == ReplaceResult::REPLACE) {
     item->set_nullable(true);
     return result.replacement;
@@ -4957,21 +4961,22 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
       using Item_tree_walker::stop_at;
     };
     Update_nullability_for_rollup_items info;
-    if (WalkItem(
-            item, enum_walk::PREFIX | enum_walk::POSTFIX,
-            [&info](Item *inner_item) {
-              if (info.is_stopped(inner_item)) {
-                return false;
-              } else if (inner_item->type() == Item::SUM_FUNC_ITEM &&
-                         down_cast<Item_sum *>(inner_item)->real_sum_func() ==
-                             Item_sum::ROLLUP_SUM_SWITCHER_FUNC) {
-                info.stop_at(inner_item);
-                return false;
-              } else {
-                inner_item->set_nullable(true);
-                return false;
-              }
-            })) {
+    if (WalkItem(item, enum_walk::PREFIX | enum_walk::POSTFIX,
+                 [&info](Item *inner_item) {
+                   if (info.is_stopped(inner_item)) return false;
+                   if (inner_item->type() == Item::SUM_FUNC_ITEM &&
+                       down_cast<Item_sum *>(inner_item)->real_sum_func() ==
+                           Item_sum::ROLLUP_SUM_SWITCHER_FUNC) {
+                     info.stop_at(inner_item);
+                   } else if (inner_item->m_is_window_function &&
+                              down_cast<Item_sum *>(inner_item)->sum_func() ==
+                                  Item_sum::COUNT_FUNC) {
+                     // windowed aggregate COUNT is never NULL.
+                   } else if (inner_item->has_grouping_set_dep()) {
+                     inner_item->set_nullable(true);
+                   }
+                   return false;
+                 })) {
       return nullptr;
     }
   }
@@ -5115,13 +5120,16 @@ bool Query_block::resolve_rollup_wfs(THD *thd) {
     *it = new_item;
 
     // Any expression having a window function which involves rollup
-    // expressions should be set nullable.
+    // expressions should be set nullable, except COUNT.
     if (!new_item->is_nullable()) {
       bool any_nullable_wf = false;
       WalkItem(new_item, enum_walk::POSTFIX,
                [&any_nullable_wf](Item *inner_item) {
-                 if (inner_item->real_item()->type() == Item::SUM_FUNC_ITEM &&
-                     inner_item->real_item()->m_is_window_function &&
+                 Item *const real = inner_item->real_item();
+                 if (real->type() == Item::SUM_FUNC_ITEM &&
+                     real->m_is_window_function &&
+                     down_cast<Item_sum *>(real)->sum_func() !=
+                         Item_sum::COUNT_FUNC &&
                      inner_item->has_grouping_set_dep()) {
                    inner_item->set_nullable(true);
                    any_nullable_wf = true;

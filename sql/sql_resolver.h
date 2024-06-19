@@ -68,6 +68,9 @@ struct ReplaceResult {
     // do not traverse further.
     REPLACE,
 
+    /// No replacement needed, do not traverse further
+    DONE,
+
     // Leave this item alone, but keep traversing into its children.
     KEEP_TRAVERSING
   } action;
