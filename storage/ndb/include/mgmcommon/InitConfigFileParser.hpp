@@ -80,14 +80,14 @@ class InitConfigFileParser {
     Uint32 m_lineno;          ///< Current line no in config file
     Uint32 m_sectionLineno;   ///< Where did current section start
 
-    const ConfigInfo *m_info;  // The config info
-    Properties *m_config;      // The config object
-    Properties *m_defaults;    // The user defaults
+    const ConfigInfo *m_info{nullptr};  // The config info
+    Properties *m_config{nullptr};      // The config object
+    Properties *m_defaults{nullptr};    // The user defaults
 
-    Properties *m_currentSection;        // The current section I'm in
-    const Properties *m_userDefaults;    // The defaults of this section
-    const Properties *m_systemDefaults;  // The syst. defaults for this section
-    const Properties *m_currentInfo;     // The "info" for this section
+    Properties *m_currentSection{nullptr};        // The current section I'm in
+    const Properties *m_userDefaults{nullptr};    // user defaults for section
+    const Properties *m_systemDefaults{nullptr};  // system defaults for section
+    const Properties *m_currentInfo{nullptr};     // The "info" for this section
 
     Properties m_userProperties;         // User properties (temporary values)
     ConfigValuesFactory m_configValues;  //
