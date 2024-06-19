@@ -5638,7 +5638,6 @@ bool Item_field::fix_outer_field(THD *thd, Field **base_field,
     }
     if (result == BASE_FIELD_FOUND) {  // base_field is the resolved field
       assert(*base_field != nullptr);
-      Item_ident *resolved_item = this;
       cur_query_expression->accumulate_used_tables(
           (*base_field)->table->pos_in_table_list->map());
       set_field(*base_field);
@@ -5655,7 +5654,6 @@ bool Item_field::fix_outer_field(THD *thd, Field **base_field,
         if (rf == nullptr) return true;
         rf->in_sum_func = thd->lex->in_sum_func;
         *ref_field = rf;
-        resolved_item = rf;
         if (rf->fix_fields(thd, nullptr)) return true;
       }
       /*
@@ -5666,12 +5664,10 @@ bool Item_field::fix_outer_field(THD *thd, Field **base_field,
       if (thd->lex->in_sum_func != nullptr &&
           thd->lex->in_sum_func->base_query_block->nest_level >=
               select->nest_level) {
-        const Item::Type ref_type [[maybe_unused]] = resolved_item->type();
         thd->lex->in_sum_func->max_aggr_level = max(
             thd->lex->in_sum_func->max_aggr_level, int8(select->nest_level));
         set_field(*base_field);
         fixed = true;
-        assert(ref_type == REF_ITEM || ref_type == FIELD_ITEM);
         mark_as_dependent(thd, last_checked_context->query_block,
                           context->query_block, this, *ref_field);
         *complete = true;
