@@ -5666,7 +5666,7 @@ bool Item_field::fix_outer_field(THD *thd, Field **base_field,
       if (thd->lex->in_sum_func != nullptr &&
           thd->lex->in_sum_func->base_query_block->nest_level >=
               select->nest_level) {
-        const Item::Type ref_type = resolved_item->type();
+        const Item::Type ref_type [[maybe_unused]] = resolved_item->type();
         thd->lex->in_sum_func->max_aggr_level = max(
             thd->lex->in_sum_func->max_aggr_level, int8(select->nest_level));
         set_field(*base_field);
