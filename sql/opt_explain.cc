@@ -846,7 +846,7 @@ bool Explain_setop_result::explain_id() { return Explain::explain_id(); }
 bool Explain_setop_result::explain_table_name() {
   // Get the last of UNION's selects
   Query_block *last_query_block =
-      m_query_term->m_children.back()->query_block();
+      m_query_term->child(m_query_term->child_count() - 1)->query_block();
   ;
   // # characters needed to print select_number of last select
   const int last_length =
@@ -883,14 +883,14 @@ bool Explain_setop_result::explain_table_name() {
       '...,'<last_query_block->select_number>'>\0'
   */
   bool overflow = false;
-  for (auto qt : m_query_term->m_children) {
+  for (size_t idx = 0; idx < m_query_term->child_count(); ++idx) {
     if (len + lastop + op_type_len + last_length >= NAME_CHAR_LEN) {
       overflow = true;
       break;
     }
     len += lastop;
     lastop = snprintf(table_name_buffer + len, NAME_CHAR_LEN - len, "%u,",
-                      qt->query_block()->select_number);
+                      m_query_term->child(idx)->query_block()->select_number);
   }
 
   if (overflow || len + lastop >= NAME_CHAR_LEN) {

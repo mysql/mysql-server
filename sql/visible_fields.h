@@ -109,14 +109,20 @@ class VisibleFieldsContainer {
   Container &m_fields;
 };
 
-inline auto VisibleFields(mem_root_deque<Item *> &fields) {
-  return VisibleFieldsContainer<mem_root_deque<Item *>,
-                                mem_root_deque<Item *>::iterator>(fields);
+using VisibleFieldsIterator =
+    VisibleFieldsContainer<mem_root_deque<Item *>,
+                           mem_root_deque<Item *>::iterator>;
+using VisibleFieldsConstIterator =
+    VisibleFieldsContainer<const mem_root_deque<Item *>,
+                           mem_root_deque<Item *>::const_iterator>;
+
+inline VisibleFieldsIterator VisibleFields(mem_root_deque<Item *> &fields) {
+  return VisibleFieldsIterator(fields);
 }
 
-inline auto VisibleFields(const mem_root_deque<Item *> &fields) {
-  return VisibleFieldsContainer<const mem_root_deque<Item *>,
-                                mem_root_deque<Item *>::const_iterator>(fields);
+inline VisibleFieldsConstIterator VisibleFields(
+    const mem_root_deque<Item *> &fields) {
+  return VisibleFieldsConstIterator(fields);
 }
 
 #endif  // SQL_VISIBLE_FIELDS_H

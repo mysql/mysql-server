@@ -91,6 +91,7 @@
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"  // Query_result
+#include "sql/query_term.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
 #include "sql/sql_base.h"                         // setup_fields
@@ -5636,12 +5637,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     return true;
   }
 
-  // We have added to subs_query_expression->fields;
-  // subs_query_expression->types must always be equal to its visible fields.
-  subs_query_expression->types.clear();
-  for (Item *item : subq->query_expr()->first_query_block()->visible_fields()) {
-    subs_query_expression->types.push_back(item);
-  }
+  assert(subs_query_expression->query_term()->term_type() == QT_QUERY_BLOCK);
 
   Table_ref *tr;
   if (transform_subquery_to_derived(
@@ -6835,7 +6831,8 @@ static bool add_partition_by_expr(THD *thd, PT_order_list *partition,
      not already grouped on.
 */
 bool Query_block::setup_counts_over_partitions(
-    THD *thd, Table_ref *derived, Lifted_expressions_map *lifted_expressions,
+    THD *thd, Table_ref *derived [[maybe_unused]],
+    Lifted_expressions_map *lifted_expressions,
     mem_root_deque<Item *> &exprs_added_to_group_by, uint hidden_fields) {
   for (size_t i = 0; i < exprs_added_to_group_by.size() + 1; i++) {
     // 1. Construct PARTITION BY
@@ -6920,8 +6917,8 @@ bool Query_block::setup_counts_over_partitions(
                                                     hidden_fields);
     fields.push_back(cnt);
     cnt->increment_ref_count();
-    // Add a new column to the derived table's query expression
-    derived->derived_query_expression()->types.push_back(cnt);
+    // No set operations in transform of correlated subqueries, so:
+    assert(master_query_expression()->get_unit_column_types() == &fields);
   }
   return false;
 }
@@ -7034,9 +7031,8 @@ bool Query_block::add_inner_fields_to_select_list(
       lifted_exprs->m_field_positions.push_back(fields.size() - hidden_fields);
       fields.push_back(inner_field);
       inner_field->increment_ref_count();
-      // We have added to fields; master_query_expression->types must
-      // always be equal to it;
-      master_query_expression()->types.push_back(inner_field);
+      assert(master_query_expression()->query_term()->term_type() ==
+             QT_QUERY_BLOCK);
     } else {
       // This is the field present in the scalar subquery initially, so it
       // will be first in the derived table's set of fields.
@@ -7129,9 +7125,8 @@ bool Query_block::add_inner_func_calls_to_select_list(
       baptize_item(thd, func, &item_no);
       fields.push_back(func);
       func->increment_ref_count();
-      // We have added to fields; master_query_expression->types must
-      // always be equal to it;
-      master_query_expression()->types.push_back(func);
+      assert(master_query_expression()->query_term()->term_type() ==
+             QT_QUERY_BLOCK);
     }
   }
   return false;
@@ -7426,8 +7421,8 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     fields.push_back(cnt);
     cnt->increment_ref_count();
     m_agg_func_used = true;
-    // Add a new column to the derived table's query expression
-    derived->derived_query_expression()->types.push_back(cnt);
+    assert(derived->derived_query_expression()->query_term()->term_type() ==
+           QT_QUERY_BLOCK);
     *added_card_check = true;
   } else if (subquery_was_explicitly_grouped) {
     // c)
@@ -7449,7 +7444,6 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     int item_no = fields.size() - hidden_fields;
     baptize_item(thd, m_having_cond, &item_no);
     m_added_non_hidden_fields++;
-    derived->derived_query_expression()->types.push_back(m_having_cond);
   }
 
   return false;

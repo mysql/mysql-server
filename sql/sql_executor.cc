@@ -1692,7 +1692,7 @@ AccessPath *GetAccessPathForDerivedTable(
     subjoin = query_expression->first_query_block()->join;
     select_number = query_expression->first_query_block()->select_number;
     tmp_table_param = &subjoin->tmp_table_param;
-  } else if (query_expression->set_operation()->m_is_materialized) {
+  } else if (query_expression->set_operation()->is_materialized()) {
     // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
     // for ROLLUP, and simple table can't have ROLLUP.
     Query_block *const qb = query_expression->set_operation()->query_block();
@@ -3396,9 +3396,10 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(
 
   Query_expression *const qe = query_expression();
 
-  // For IN/EXISTS subqueries, it's ok to optimize with limit 1 for top level
-  // of set operation in the presence of EXCEPT ALL, but in not nested set
-  // operands lest we lose rows significant to the result of the EXCEPT ALL.
+  // For IN/EXISTS subqueries, it's ok to optimize by adding LIMIT 1 for top
+  // level of a set operation in the presence of EXCEPT ALL, but not in nested
+  // set operands, lest we lose rows significant to the result of the EXCEPT
+  // ALL.
   const bool skip_limit =
       (qe->m_contains_except_all &&
        // check that qe inside subquery: no user given

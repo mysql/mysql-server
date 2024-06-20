@@ -2213,7 +2213,6 @@ Query_expression::Query_expression(enum_parsing_context parsing_context)
       m_query_result(nullptr),
       uncacheable(0),
       cleaned(UC_DIRTY),
-      types(current_thd->mem_root),
       select_limit_cnt(HA_POS_ERROR),
       offset_limit_cnt(0),
       item(nullptr),
@@ -2682,9 +2681,9 @@ void print_set_operation(const THD *thd, Query_term *op, String *str, int level,
     Query_term_set_op *qts = down_cast<Query_term_set_op *>(op);
     const bool needs_parens = level > 0;
     if (needs_parens) str->append('(');
-    for (uint i = 0; i < qts->m_children.size(); ++i) {
-      print_set_operation(thd, qts->m_children[i], str, level + 1, query_type);
-      if (i < qts->m_children.size() - 1) {
+    for (uint i = 0; i < qts->child_count(); ++i) {
+      print_set_operation(thd, qts->child(i), str, level + 1, query_type);
+      if (i < qts->child_count() - 1) {
         switch (op->term_type()) {
           case QT_UNION:
             str->append(STRING_WITH_LEN(" union "));
@@ -2698,7 +2697,7 @@ void print_set_operation(const THD *thd, Query_term *op, String *str, int level,
           default:
             assert(false);
         }
-        if (static_cast<signed int>(i) + 1 > qts->m_last_distinct) {
+        if (static_cast<signed int>(i) + 1 > qts->last_distinct()) {
           str->append(STRING_WITH_LEN("all "));
         }
       }
@@ -4457,17 +4456,17 @@ enum_explain_type Query_block::type() const {
     // if left child, call block PRIMARY, else UNION/INTERSECT/EXCEPT
     switch (m_parent->term_type()) {
       case QT_EXCEPT:
-        if (m_parent->m_children[0] == this)
+        if (m_parent->child(0) == this)
           return enum_explain_type::EXPLAIN_PRIMARY;
         else
           return enum_explain_type::EXPLAIN_EXCEPT;
       case QT_UNION:
-        if (m_parent->m_children[0] == this)
+        if (m_parent->child(0) == this)
           return enum_explain_type::EXPLAIN_PRIMARY;
         else
           return enum_explain_type::EXPLAIN_UNION;
       case QT_INTERSECT:
-        if (m_parent->m_children[0] == this)
+        if (m_parent->child(0) == this)
           return enum_explain_type::EXPLAIN_PRIMARY;
         else
           return enum_explain_type::EXPLAIN_INTERSECT;

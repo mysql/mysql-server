@@ -52,6 +52,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql/strings/my_strtoll10.h"
 #include "mysql_time.h"
+#include "mysqld_error.h"
 #include "nulls.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/aggregate_check.h"  // Distinct_check
@@ -3084,10 +3085,10 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
     }
   }
 
-  if (table_name_arg == nullptr || f_name == nullptr || !f_name[0]) {
-    const char *nm = (f_name != nullptr && f_name[0]) ? f_name
-                     : item_name.is_set()             ? item_name.ptr()
-                                                      : "tmp_field";
+  if (table_name_arg == nullptr || f_name == nullptr || f_name[0] == '\0') {
+    const char *nm = (f_name != nullptr && f_name[0] != '\0') ? f_name
+                     : item_name.is_set()                     ? item_name.ptr()
+                                                              : "tmp_field";
     append_identifier(thd, str, nm, strlen(nm));
     return;
   }
@@ -10499,9 +10500,8 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
 
   // Note: when called to join the types of a set operation's select list, the
   // below line is correct only if we have no INTERSECT or EXCEPT in the query
-  // tree. We will recompute this value correctly during prepare_query_term. We
-  // cannot do it correctly here while traversing the leaf query block due to
-  // the recursive nature of the problem.
+  // tree. We will recompute this value correctly during
+  // Query_term::prepare_query_term.
   set_nullable(is_nullable() || item->is_nullable());
 
   set_typelib(item);

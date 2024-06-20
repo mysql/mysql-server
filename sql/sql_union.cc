@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <cstdint>
 #include <cstdio>
 #include <limits>
 #include <memory>
@@ -81,6 +82,7 @@
 #include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
+#include "sql/query_term.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -200,11 +202,11 @@ bool Query_result_union::create_result_table(
                                       ? Temp_table_param::TTP_INTERSECT
                                       : Temp_table_param::TTP_EXCEPT;
     // No duplicate rows will exist after the last operation
-    tmp_table_param.m_last_operation_is_distinct = op->m_last_distinct > 0;
-    assert((op->m_first_distinct < std::numeric_limits<int64_t>::max() ||
+    tmp_table_param.m_last_operation_is_distinct = op->last_distinct() > 0;
+    assert((op->first_distinct() < std::numeric_limits<int64_t>::max() ||
             !tmp_table_param.m_last_operation_is_distinct) &&
-           (op->m_first_distinct <= op->m_last_distinct ||
-            op->m_first_distinct == std::numeric_limits<int64_t>::max()));
+           (op->first_distinct() <= op->last_distinct() ||
+            op->first_distinct() == std::numeric_limits<int64_t>::max()));
     tmp_table_param.force_hash_field_for_unique = true;
   } else if (op->has_mixed_distinct_operators()) {
     // If we have mixed UNION DISTINCT / UNION ALL, we can't use an unique
@@ -331,352 +333,6 @@ bool Query_result_union_direct::postponed_prepare(
   return result->prepare(thd, types, unit);
 }
 
-/// RAII class to automate saving/restoring of current_query_block()
-class Change_current_query_block {
- public:
-  Change_current_query_block(THD *thd_arg)
-      : thd(thd_arg), saved_query_block(thd->lex->current_query_block()) {}
-  void restore() { thd->lex->set_current_query_block(saved_query_block); }
-  ~Change_current_query_block() { restore(); }
-
- private:
-  THD *thd;
-  Query_block *saved_query_block;
-};
-
-/**
-  Create a tmp table for a set operation.
-  @param thd      session context
-  @param qt       query term holding the query result to hold the tmp table
-  @param types    the fields of the tmp table, inherited from
-                  Query_expression::types
-  @param create_options
-                  create options for create_tmp_table
-  @return false on success, true on error
- */
-static bool create_tmp_table_for_set_op(THD *thd, Query_term *qt,
-                                        mem_root_deque<Item *> &types,
-                                        ulonglong create_options) {
-  Query_term_set_op *const parent = qt->parent();
-  const bool distinct = parent->m_last_distinct > 0;
-
-  auto tl = new (thd->mem_root) Table_ref();
-  if (tl == nullptr) return true;
-  qt->set_result_table(tl);
-
-  char *buffer = new (thd->mem_root) char[64 + 1];
-  if (buffer == nullptr) return true;
-  snprintf(buffer, 64, "<%s temporary>", parent->operator_string());
-
-  if (qt->setop_query_result_union()->create_result_table(
-          thd, types, distinct, create_options, buffer, false,
-          /*instantiate_tmp_table*/ parent->m_is_materialized, parent))
-    return true;
-  qt->setop_query_result_union()->table->pos_in_table_list =
-      &qt->result_table();
-  qt->result_table().db = "";
-  // We set the table_name and alias to an empty string here: this avoids
-  // giving the user likely unwanted information about the name of the temporary
-  // table e.g. as:
-  //    Note  1276  Field or reference '<union temporary>.a' of SELECT #3 was
-  //                resolved in SELECT #1
-  // We prefer just "reference 'a'" in such a case.
-  qt->result_table().table_name = "";
-  qt->result_table().alias = "";
-  qt->result_table().table = qt->setop_query_result_union()->table;
-  qt->result_table().query_block = qt->query_block();
-  qt->result_table().set_tableno(0);
-  qt->result_table().set_privileges(SELECT_ACL);
-
-  return false;
-}
-
-/**
-  Prepare the query term nodes and their associated post processing
-  query blocks (i.e. not the ones representing the query specifications),
-  but rather ORDER BY/LIMIT processing (old "fake" query blocks).
-  Also create temporary tables to consolidate set operations as needed,
-  recursively.
-  @param thd    session context
-  @param qt     the query term at the current level in the tree
-  @param common_result
-                For the top node, this is not used: we use query_result()
-                instead.
-                Otherwise, if it is empty, we create one a query result behalf
-                of this node and its siblings. This node is then the designated
-                owning operand, and is responsible for releasing it after
-                execution.  The siblings will see that common_result is not
-                empty and use that.
-  @param added_options
-                options to add for the post processing query block
-  @param create_options
-                options to use for creating tmp table
-  @param level  the current level in the query expression's query term tree
-  @param[in,out] nullable
-                computed nullability for the query's result set columns
-  @returns false on success, true on error
- */
-bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
-                                          Query_result *common_result,
-                                          ulonglong added_options,
-                                          ulonglong create_options, int level,
-                                          Mem_root_array<bool> &nullable) {
-  Change_current_query_block save_and_restore(thd);
-  Query_term_set_op *const parent = qt->parent();
-  // We have a nested set operation structure where the leaf nodes are query
-  // blocks.  We now need to prepare the nodes representing the set
-  // operations. We have already merged nested set operation of the same kind
-  // into multi op form, so at any level the child and parent will usually be of
-  // another kind(1).  We use temporary tables marked with an * below, modulo
-  // ALL optimizations, to consolidate the result of each multi set operation.
-  // E.g.
-  //
-  //                     UNION*
-  //                       |
-  //            +----------------+----------+
-  //            |                |          |
-  //       INTERSECT*     UNARY TERM*   EXCEPT*
-  //            |                |          |
-  //        +---+---+            QB      +--+-+
-  //        |   |   |                    |    |
-  //       QB  QB  UNION*                QB   QB
-  //               QB QB
-  //
-  // (1) an exception is that we do not merge top level trailing UNION ALL nodes
-  // with preceding UNION DISTINCT in order that they can be streamed
-  // efficiently.
-  //
-  // Note that the Query_result is owned by the first sibling
-  // participating in the set operations, so the owning nodes of the above
-  // example are actually:
-  //                     UNION
-  //                       |
-  //            +----------------+----------+
-  //            |                |          |
-  //       INTERSECT*     UNARY TERM   EXCEPT
-  //            |                |          |
-  //        +---+---+            QB*     +--+-+
-  //        |   |   |                    |    |
-  //       QB* QB  UNION                QB*   QB
-  //               QB* QB
-  //
-  mem_root_deque<Item *> level_item_list(thd->mem_root);
-  mem_root_deque<Item *> *il = &level_item_list;
-
-  switch (qt->term_type()) {
-    case QT_UNION:
-    case QT_INTERSECT:
-    case QT_EXCEPT: {
-      auto *qts = down_cast<Query_term_set_op *>(qt);
-      auto *qb = qts->query_block();
-      assert(qts->m_children.size() >= 2);
-
-      if (qts->term_type() == QT_EXCEPT &&
-          qts->m_first_distinct == std::numeric_limits<int64_t>::max())
-        m_contains_except_all = true;
-
-      qb->make_active_options(
-          (added_options & (OPTION_FOUND_ROWS | OPTION_BUFFER_RESULT)) |
-              OPTION_NO_CONST_TABLES | SELECT_NO_UNLOCK,
-          0);
-
-      if (level == 0) {
-        // e.g. Query_result_send or Query_result_create
-        qts->set_setop_query_result(query_result());
-      } else if (common_result != nullptr) {
-        /// We are part of upper level set op
-        qts->set_setop_query_result(common_result);
-      } else {
-        auto rs = new (thd->mem_root) Query_result_union();
-        if (rs == nullptr) return true;
-        qts->set_setop_query_result(rs);
-        qts->set_owning_operand();
-      }
-      qb->set_query_result(qts->setop_query_result());
-
-      // To support SQL T101 "Enhanced nullability determination", the rules
-      // for computing nullability of the result columns of a set operation
-      // require that we perform different computation for UNION, INTERSECT and
-      // EXCEPT, cf. SQL 2014, Vol 2, section 7.17 <query expression>, SR 18
-      // and 20.  When preparing the leaf query blocks in
-      // Query_expression::prepare, type unification for set operations is done
-      // by calling Item_aggregate_type::join_types including setting
-      // nullability.  This works correctly for UNION, but not if we have
-      // INTERSECT and/or EXCEPT in the tree of set operations. We can only do
-      // it correctly here in prepare_query_term since this visits the tree
-      // recursively as required by the rules.
-      //
-      Mem_root_array<bool> child_nullable(thd->mem_root, nullable.size(),
-                                          false);
-
-      // Prepare children
-      for (size_t i = 0; i < qts->m_children.size(); i++) {
-        Query_result *const cmn_result =
-            (i == 0) ? nullptr : qts->m_children[0]->setop_query_result();
-        // operands 1..size-1 inherit operand 0's query_result: they all
-        // contribute to the same result.
-        if (prepare_query_term(thd, qts->m_children[i], cmn_result,
-                               added_options, create_options, level + 1,
-                               child_nullable))
-          return true;
-        for (size_t j = 0; j < nullable.size(); j++) {
-          if (i == 0) {  // left side
-            nullable[j] = child_nullable[j];
-          } else {
-            switch (qt->term_type()) {
-              case QT_UNION:
-                nullable[j] = nullable[j] || child_nullable[j];
-                break;
-              case QT_INTERSECT:
-                nullable[j] = nullable[j] && child_nullable[j];
-                break;
-              case QT_EXCEPT:
-                // Nothing to do, use left side unchanged
-                break;
-              default:
-                assert(false);
-            }
-          }
-        }
-      }
-
-      // Adjust tmp table fields' nullabililty. It is safe to do this because
-      // fields were created with nullability if at least one query block had
-      // nullable field during type joining (UNION semantics), so we will
-      // only ever set nullable here if result field originally was computed
-      // as nullable in join_types. And removing nullability for a Field isn't
-      // a problem.
-      size_t idx = 0;
-      for (auto f : qb->visible_fields()) {
-        f->set_nullable(nullable[idx]);
-        assert(f->type() == Item::FIELD_ITEM);
-        if (nullable[idx]) {
-          down_cast<Item_field *>(f)->field->clear_flag(NOT_NULL_FLAG);
-        } else {
-          if (qt->term_type() == QT_UNION)
-            down_cast<Item_field *>(f)->field->set_flag(NOT_NULL_FLAG);
-          // don't set NOT_NULL_FLAG for INTERSECT, EXCEPT since we may need
-          // to store a NULL value for this field during hashing even though the
-          // logical result of the set operation can not be NULL.
-        }
-        idx++;
-      }
-
-      if (qts->m_is_materialized) {
-        // Set up the result table for name resolution
-        qb->context.table_list = qb->context.first_name_resolution_table =
-            qb->get_table_list();
-        qb->add_joined_table(qb->get_table_list());
-        for (ORDER *order = qb->order_list.first; order; order = order->next) {
-          Item_ident::Change_context ctx(&qb->context);
-          (*order->item)
-              ->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-                     (uchar *)&ctx);
-        }
-
-        thd->lex->set_current_query_block(qb);
-
-        if (qb->prepare(thd, nullptr)) return true;
-
-        if (qb->base_ref_items.is_null())
-          qb->n_child_sum_items += qb->n_sum_items;
-      } else {
-        if (qb->resolve_limits(thd)) return true;
-        if (qb->query_result() != nullptr &&
-            qb->query_result()->prepare(thd, qb->fields, this))
-          return true;
-
-        auto f = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
-        if (f == nullptr) return true;
-        qts->set_fields(f);
-        if (qts->query_block()->get_table_list()->table->fill_item_list(f))
-          return true;
-      }
-    } break;
-    case QT_UNARY: {
-      auto *unary = down_cast<Query_term_unary *>(qt);
-      auto *qb = unary->query_block();
-      assert(unary->m_children.size() == 1);
-
-      qb->make_active_options(
-          (added_options & (OPTION_FOUND_ROWS | OPTION_BUFFER_RESULT)) |
-              OPTION_NO_CONST_TABLES | SELECT_NO_UNLOCK,
-          0);
-
-      if (level == 0) {
-        // e.g. Query_result_send or Query_result_create
-        unary->set_setop_query_result(query_result());
-      } else if (common_result != nullptr) {
-        unary->set_setop_query_result(common_result);
-      } else {
-        auto qr = new (thd->mem_root) Query_result_union();
-        if (qr == nullptr) return true;
-        unary->set_setop_query_result(qr);
-        unary->set_owning_operand();
-      }
-      qb->set_query_result(unary->setop_query_result());
-
-      if (prepare_query_term(thd, unary->m_children[0],
-                             /*common_result*/ nullptr, added_options,
-                             create_options, level + 1, nullable))
-        return true;
-
-      // Set up the result table for name resolution
-      qb->context.table_list = qb->context.first_name_resolution_table =
-          qb->get_table_list();
-      qb->add_joined_table(qb->get_table_list());
-      for (ORDER *order = qb->order_list.first; order; order = order->next) {
-        Item_ident::Change_context ctx(&qb->context);
-        (*order->item)
-            ->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-                   (uchar *)&ctx);
-      }
-
-      thd->lex->set_current_query_block(qb);
-
-      if (qb->prepare(thd, nullptr)) return true;
-
-      if (qb->base_ref_items.is_null())
-        qb->n_child_sum_items += qb->n_sum_items;
-    } break;
-
-    case QT_QUERY_BLOCK: {
-      // The query blocks themselves have already been prepared in
-      // Query_expression::prepare before calling prepare_query_term. Here
-      // we just set up the consolidation tmp table as input to the parent
-      Query_result *inner_qr = common_result;
-
-      if (inner_qr == nullptr) {
-        inner_qr = new (thd->mem_root) Query_result_union();
-        if (inner_qr == nullptr) return true;
-        qt->set_owning_operand();
-      }
-      qt->set_setop_query_result(inner_qr);
-      qt->query_block()->set_query_result(inner_qr);
-      int idx = 0;
-      for (auto field : qt->query_block()->visible_fields())
-        nullable[idx++] = field->is_nullable();
-
-    } break;
-  }
-
-  if (parent != nullptr && common_result == nullptr) {
-    if (create_tmp_table_for_set_op(thd, qt, types, create_options))
-      return true;
-
-    auto pb = parent->query_block();
-    // Parent's input is this tmp table
-    Table_ref &input_to_parent = qt->result_table();
-    pb->m_table_list.link_in_list(&input_to_parent,
-                                  &input_to_parent.next_local);
-    if (pb->get_table_list()->table->fill_item_list(il))
-      return true;  // purecov: inspected
-    pb->fields = *il;
-  }
-
-  return false;
-}
-
 bool Query_expression::can_materialize_directly_into_result() const {
   // There's no point in doing this if we're not already trying to materialize.
   if (!is_set_operation()) {
@@ -711,28 +367,21 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
   assert(!is_prepared());
   Change_current_query_block save_query_block(thd);
 
-  Query_result *tmp_result = nullptr;
-  Query_block *last_query_block = first_query_block();
-  while (last_query_block->next_query_block())
-    last_query_block = last_query_block->next_query_block();
-
   set_query_result(sel_result);
 
   thd->lex->set_current_query_block(first_query_block());
 
-  const bool simple_query_expression = is_simple();
-
   if (is_simple()) {
     // Only one query block. No extra result needed:
-    tmp_result = sel_result;
+    query_term()->query_block()->set_query_result(sel_result);
   } else {
-    set_operation()->m_is_materialized =
+    set_operation()->set_is_materialized(
         query_term()->term_type() != QT_UNION ||
-        set_operation()->m_last_distinct > 0 ||
+        set_operation()->last_distinct() > 0 ||
         global_parameters()->order_list.elements > 0 ||
         ((thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
           thd->lex->sql_command == SQLCOM_REPLACE_SELECT) &&
-         thd->lex->unit == this);
+         thd->lex->unit == this));
     /*
       There exists a query block that consolidates the result, so
       no need to buffer bottom level query block's result.
@@ -742,143 +391,19 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
 
   first_query_block()->context.resolve_in_select_list = true;
 
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
-    // All query blocks get their options in this phase
-    if (is_simple()) sl->set_query_result(tmp_result);
-    sl->make_active_options(added_options | SELECT_NO_UNLOCK, removed_options);
+  ulonglong create_options =
+      first_query_block()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
-    thd->lex->set_current_query_block(sl);
-
-    if (sl == first_recursive) {
-      // create_result_table() depends on current_query_block()
-      save_query_block.restore();
-      /*
-        All next query blocks will read the temporary table, which we must
-        thus create now:
-      */
-      if (derived_table->setup_materialized_derived_tmp_table(thd))
-        return true; /* purecov: inspected */
-      thd->lex->set_current_query_block(sl);
-    }
-
-    if (sl->recursive_reference)  // Make tmp table known to query block:
-      derived_table->common_table_expr()->substitute_recursive_reference(thd,
-                                                                         sl);
-
-    if (sl->prepare(thd, insert_field_list)) return true;
-
-    /*
-      Use items list of underlaid select for derived tables to preserve
-      information about fields lengths and exact types
-    */
-    if (!is_set_operation()) {
-      types.clear();
-      for (Item *item : first_query_block()->visible_fields()) {
-        types.push_back(item);
-      }
-    } else if (sl == first_query_block()) {
-      types.clear();
-      for (Item *item_tmp : sl->visible_fields()) {
-        /*
-          If the outer query has a GROUP BY clause, an outer reference to this
-          query block may have been wrapped in a Item_outer_ref, which has not
-          been fixed yet. An Item_type_holder must be created based on a fixed
-          Item, so use the inner Item instead.
-        */
-        assert(item_tmp->fixed ||
-               (item_tmp->type() == Item::REF_ITEM &&
-                down_cast<Item_ref *>(item_tmp)->ref_type() ==
-                    Item_ref::OUTER_REF));
-        if (!item_tmp->fixed) item_tmp = item_tmp->real_item();
-
-        auto holder = new Item_type_holder(thd, item_tmp);
-        if (!holder) return true; /* purecov: inspected */
-        if (is_recursive()) {
-          holder->set_nullable(true);  // Always nullable, per SQL standard.
-          /*
-            The UNION code relies on join_types() to change some
-            transitional types like MYSQL_TYPE_DATETIME2 into other types; in
-            case this is the only nonrecursive query block join_types() won't
-            be called so we need an explicit call:
-          */
-          holder->join_types(thd, item_tmp);
-        }
-        types.push_back(holder);
-      }
-    } else {
-      if (types.size() != sl->num_visible_fields()) {
-        my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
-        return true;
-      }
-      if (sl->recursive_reference) {
-        /*
-          Recursive query blocks don't determine output types of the result.
-          The only thing to check could be if the recursive query block has a
-          type which can't be cast to the output type of the result.
-          But in MySQL, all types can be cast to each other (at least during
-          resolution; an error may reported when trying to actually insert, for
-          example an INT into a POINT). So no further compatibility check is
-          needed here.
-        */
-      } else {
-        auto it = sl->visible_fields().begin();
-        auto tp = types.begin();
-        for (; it != sl->visible_fields().end() && tp != types.end();
-             ++it, ++tp) {
-          if ((down_cast<Item_type_holder *>(*tp))->join_types(thd, *it))
-            return true;
-        }
-      }
-    }
-
-    if (sl->recursive_reference &&
-        (sl->is_grouped() || sl->m_windows.elements > 0)) {
-      // Per SQL2011.
-      my_error(ER_CTE_RECURSIVE_FORBIDS_AGGREGATION, MYF(0),
-               derived_table->alias);
-      return true;
-    }
-  }
+  if (query_term()->prepare_query_term(thd, this, &save_query_block,
+                                       insert_field_list,
+                                       /*common_result*/ nullptr, added_options,
+                                       removed_options, create_options))
+    return true;
 
   if (is_recursive()) {
     // This had to wait until all query blocks are prepared:
     if (check_materialized_derived_query_blocks(thd))
       return true; /* purecov: inspected */
-  }
-
-  if (!simple_query_expression) {
-    /*
-      Check that it was possible to aggregate all collations together for set
-      operation.  We need this in case of setop DISTINCT, to detect duplicates
-      using the proper collation.
-
-      TODO: consider removing this test in case of UNION ALL.
-    */
-    for (Item *type : types) {
-      if (type->result_type() == STRING_RESULT &&
-          type->collation.derivation == DERIVATION_NONE) {
-        my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), "UNION");
-        return true;
-      }
-    }
-    ulonglong create_options =
-        first_query_block()->active_options() | TMP_TABLE_ALL_COLUMNS;
-
-    // SQL feature T101 enhanced nullability determination: a priori calculated
-    // by join_types (UNION semantics), but needs adjustment for INTERSECT and
-    // EXCEPT: nullable array computed recursively
-    Mem_root_array<bool> nullable(thd->mem_root, types.size(), false);
-    for (size_t i = 0; i < types.size(); i++)
-      nullable[i] = types[i]->is_nullable();  // a priori setting
-
-    // Prepare the tree of set operations, aka the query term tree
-    if (prepare_query_term(thd, query_term(),
-                           /*common_result*/ nullptr, added_options,
-                           create_options, /*level*/ 0, nullable))
-      return true; /* purecov: inspected */
-
-    for (size_t i = 0; i < types.size(); i++)
-      types[i]->set_nullable(nullable[i]);
   }
 
   // Query blocks are prepared, update the state
@@ -916,35 +441,6 @@ static bool finalize_full_text_functions(THD *thd,
 }
 
 /**
-  Optimize the post processing query blocks of the query expression's
-  query term tree recursively.
-  @param thd session context
-  @param qe  the owning query expression
-  @param qt  the current query term to optimize
-  @returns false on success, true on error
- */
-static bool optimize_set_operand(THD *thd, Query_expression *qe,
-                                 Query_term *qt) {
-  if (qt->term_type() == QT_QUERY_BLOCK) return false;  // done already
-  Query_term_set_op *qts = down_cast<Query_term_set_op *>(qt);
-  thd->lex->set_current_query_block(qts->query_block());
-
-  // LIMIT is required for optimization
-  if (qe->set_limit(thd, qts->query_block()))
-    return true; /* purecov: inspected */
-
-  if ((qts->is_unary() || qts->m_is_materialized) &&
-      qts->query_block()->optimize(thd,
-                                   /*finalize_access_paths=*/true))
-    return true;
-  for (Query_term *child : qts->m_children) {
-    if (optimize_set_operand(thd, qe, child)) return true;
-  }
-
-  return false;
-}
-
-/**
   Determine if we should set or add the contribution of the given query block to
   the total row count estimate for the query expression.
   If we have INTERSECT or EXCEPT, only set row estimate for left side since
@@ -963,10 +459,7 @@ static bool contributes_to_rowcount_estimate(Query_block *qb) {
   // or EXCEPT operation anywhere in tree. If so, we can ignore its count.
   Query_term_set_op *parent = query_term->parent();
   while (parent != nullptr) {
-    const auto term_type = parent->term_type();
-    if ((term_type == QT_EXCEPT || term_type == QT_INTERSECT) &&
-        parent->m_children[0] != query_term)
-      return false;
+    if (parent->in_right_side_in_except_or_intersect(query_term)) return false;
     // Even if we are on the left side of an INTERSECT, EXCEPT, the set
     // operation itself could still be in a non-contributing side higher up, so
     // continue checking.
@@ -1057,7 +550,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
   }
 
   if (!is_simple()) {
-    if (optimize_set_operand(thd, this, query_term())) return true;
+    if (query_term()->optimize_query_term(thd, this)) return true;
     if (set_limit(thd, query_term()->query_block())) return true;
     if (!is_union()) query_result()->set_limit(select_limit_cnt);
   }
@@ -1192,151 +685,6 @@ void Query_expression::DebugPrintQueryPlan(THD *thd,
 #endif
 
 /**
-  Helper method: create a materialized access path, estimate its cost and
-  move it to the best place, cf. doc for MoveCompositeIteratorsFromTablePath
-  @param thd      session state
-  @param qt       query term for which we want to create a materialized access
-                  path
-  @param operands the constituent operands (query blocks) we want to materialize
-  @param dest     the destination temporary (materialized) table
-  @param limit    If not HA_POS_ERROR, the maximum number of rows allowed in
-                  the materialized table
-  @return non-empty access path. If empty, this is an error
-*/
-static AccessPath *add_materialized_access_path(
-    THD *thd, Query_term *qt,
-    Mem_root_array<MaterializePathParameters::Operand> &operands, TABLE *dest,
-    ha_rows limit = HA_POS_ERROR) {
-  AccessPath *path = qt->query_block()->join->root_access_path();
-  path = NewMaterializeAccessPath(thd, std::move(operands),
-                                  /*invalidators=*/nullptr, dest, path,
-                                  /*cte=*/nullptr, /*unit=*/nullptr,
-                                  /*ref_slice=*/-1,
-                                  /*rematerialize=*/true, limit,
-                                  /*reject_multiple_rows=*/false);
-  EstimateMaterializeCost(thd, path);
-  return MoveCompositeIteratorsFromTablePath(thd, path, *qt->query_block());
-}
-
-/**
-  Recursively constructs the access path of the set operation, possibly
-  materializing in a tmp table if needed, cf.
-  Query_term_set_op::m_is_materialized
-  @param thd    session context
-  @param parent the parent of qt
-  @param qt     the query term at this level of the tree
-  @param union_all_subpaths
-                if not nullptr, we are part of a UNION all, add constructed
-                access to it.
-  @param calc_found_rows
-                if true, do allow for calculation of number of found rows
-                even in presence of LIMIT.
-  @return access path, if nullptr, this is an error
- */
-AccessPath *make_set_op_access_path(
-    THD *thd, Query_term_set_op *parent, Query_term *qt,
-    Mem_root_array<AppendPathParameters> *union_all_subpaths,
-    bool calc_found_rows) {
-  AccessPath *path = nullptr;
-  switch (qt->term_type()) {
-    case QT_UNION:
-    case QT_INTERSECT:
-    case QT_EXCEPT: {
-      Query_term_set_op *qts = down_cast<Query_term_set_op *>(qt);
-
-      if (!qts->m_is_materialized) {
-        // skip materialization at top level, we can stream all blocks
-        ;
-      } else {
-        TABLE *const dest =
-            qts->m_children[0]->setop_query_result_union()->table;
-        Mem_root_array<MaterializePathParameters::Operand> query_blocks =
-            qts->setup_materialize_set_op(
-                thd, dest, union_all_subpaths != nullptr, calc_found_rows);
-        const bool push_limit_down =
-            qt->term_type() == QT_UNION &&
-            qts->query_block()->order_list.size() == 0 && !calc_found_rows;
-        const ha_rows max_rows = push_limit_down
-                                     ? qts->query_block()->get_limit(thd) +
-                                           qts->query_block()->get_offset(thd)
-                                     : HA_POS_ERROR;
-        path = add_materialized_access_path(thd, qts, query_blocks, dest,
-                                            max_rows);
-        if (union_all_subpaths != nullptr) {
-          AppendPathParameters param;
-          param.path = path;
-          param.join = nullptr;
-          union_all_subpaths->push_back(param);
-        }
-      }
-
-      if (union_all_subpaths != nullptr) {
-        assert(parent == nullptr);
-        TABLE *dest = qts->m_children[0]->setop_query_result_union()->table;
-        size_t start_idx =
-            qts->m_last_distinct == 0 ? 0 : qts->m_last_distinct + 1;
-        for (size_t i = start_idx; i < qts->m_children.size(); ++i) {
-          // append UNION ALL blocks that follow last UNION [DISTINCT]
-          Query_term *const term = qts->m_children[i];
-          Query_block *const block = term->query_block();
-          JOIN *const join = block->join;
-          AccessPath *child_path = join->root_access_path();
-          if (term->term_type() != QT_QUERY_BLOCK) {
-            child_path = make_set_op_access_path(thd, nullptr, term, nullptr,
-                                                 calc_found_rows);
-          }
-          assert(join && join->is_optimized());
-          ConvertItemsToCopy(*join->fields, dest->visible_field_ptr(),
-                             &join->tmp_table_param);
-          AppendPathParameters param;
-          param.path = NewStreamingAccessPath(thd, child_path, join,
-                                              &join->tmp_table_param, dest,
-                                              /*ref_slice=*/-1);
-          param.join = join;
-          CopyBasicProperties(*child_path, param.path);
-          union_all_subpaths->push_back(param);
-        }
-      } else if (parent != nullptr) {
-        assert(union_all_subpaths == nullptr);
-        TABLE *const dest = qts->setop_query_result_union()->table;
-        MaterializePathParameters::Operand param =
-            qts->query_block()->setup_materialize_query_block(path, dest);
-        Mem_root_array<MaterializePathParameters::Operand> operands(
-            thd->mem_root);
-        operands.push_back(std::move(param));
-        path = add_materialized_access_path(thd, parent, operands, dest);
-      }
-    } break;
-
-    case QT_UNARY: {
-      Query_term_unary *qts = down_cast<Query_term_unary *>(qt);
-      path = make_set_op_access_path(thd, qts, qts->m_children[0], nullptr,
-                                     calc_found_rows);
-      if (parent == nullptr) return path;
-      TABLE *const dest = qts->setop_query_result_union()->table;
-      MaterializePathParameters::Operand param =
-          qts->query_block()->setup_materialize_query_block(path, dest);
-      Mem_root_array<MaterializePathParameters::Operand> operands(
-          thd->mem_root);
-      operands.push_back(std::move(param));
-      path = add_materialized_access_path(thd, parent, operands, dest);
-    } break;
-
-    case QT_QUERY_BLOCK: {
-      TABLE *const dest = qt->setop_query_result_union()->table;
-      Mem_root_array<MaterializePathParameters::Operand> operands =
-          parent->setup_materialize_set_op(thd, dest, false, calc_found_rows);
-      path = add_materialized_access_path(thd, parent, operands, dest);
-    } break;
-
-    default:
-      assert(false);
-  }
-
-  return path;
-}
-
-/**
   Make materialization parameters for a query block given its input path
   and destination table,
   @param child_path the input access path
@@ -1392,7 +740,7 @@ Query_term_set_op::setup_materialize_set_op(THD *thd, TABLE *dst_table,
 
     if (term->term_type() != QT_QUERY_BLOCK)
       child_path =
-          make_set_op_access_path(thd, nullptr, term, nullptr, calc_found_rows);
+          term->make_set_op_access_path(thd, nullptr, nullptr, calc_found_rows);
 
     MaterializePathParameters::Operand param =
         term->query_block()->setup_materialize_query_block(child_path,
@@ -1402,7 +750,7 @@ Query_term_set_op::setup_materialize_set_op(THD *thd, TABLE *dst_table,
     param.m_total_operands = m_children.size();
     param.disable_deduplication_by_hash_field =
         (has_mixed_distinct_operators() && !activate_deduplication);
-    operands.push_back(std::move(param));
+    operands.push_back(param);
 
     if (idx == m_last_distinct && idx > 0 && union_distinct_only)
       // The rest will be done by appending.
@@ -1429,7 +777,7 @@ void Query_expression::create_access_paths(THD *thd) {
   // see MaterializeIterator for details.
   bool streaming_allowed = true;
   if (global_parameters()->order_list.size() != 0 ||
-      (!is_simple() && set_operation()->m_is_materialized)) {
+      (!is_simple() && set_operation()->is_materialized())) {
     // If we're sorting, we currently put it in a real table no matter what.
     // This is a legacy decision, because we used to not know whether filesort
     // would want to refer to rows in the table after the sort (sort by row ID).
@@ -1468,8 +816,8 @@ void Query_expression::create_access_paths(THD *thd) {
   // UNION DISTINCT query blocks only, or all blocks.
   if (!streaming_allowed || !is_simple()) {
     AppendPathParameters param;
-    param.path = make_set_op_access_path(
-        thd, /*parent*/ nullptr, m_query_term,
+    param.path = m_query_term->make_set_op_access_path(
+        thd, /*parent*/ nullptr,
         streaming_allowed ? union_all_sub_paths : nullptr, calc_found_rows);
     param.join = nullptr;
     if (!streaming_allowed) union_all_sub_paths->push_back(param);
@@ -1488,7 +836,7 @@ void Query_expression::create_access_paths(THD *thd) {
   // NOTE: If there's a fake_query_block, its JOIN's iterator already handles
   // LIMIT/OFFSET, so we don't do it again here.
   if (streaming_allowed && (limit != HA_POS_ERROR || offset != 0) &&
-      (is_simple() || set_operation()->m_last_distinct == 0)) {
+      (is_simple() || set_operation()->last_distinct() == 0)) {
     m_root_access_path = NewLimitOffsetAccessPath(
         thd, m_root_access_path, limit, offset, calc_found_rows,
         /*reject_multiple_rows=*/false, &send_records);
@@ -1506,48 +854,54 @@ bool Query_expression::explain_query_term(THD *explain_thd,
         return true;
       if (fmt->end_context(CTX_QUERY_SPEC)) return true;
       break;
-    case QT_UNION:
+    case QT_UNION: {
       if (fmt->begin_context(CTX_UNION)) return true;
-      for (auto child_qt : down_cast<Query_term_union *>(qt)->m_children) {
-        if (explain_query_term(explain_thd, query_thd, child_qt)) return true;
+      Query_term_set_op *const qts = down_cast<Query_term_set_op *>(qt);
+      for (size_t idx = 0; idx < qts->child_count(); ++idx) {
+        if (explain_query_term(explain_thd, query_thd, qts->child(idx)))
+          return true;
       }
-      if (down_cast<Query_term_union *>(qt)->m_is_materialized &&
+      if (down_cast<Query_term_union *>(qt)->is_materialized() &&
           explain_query_specification(explain_thd, query_thd, qt,
                                       CTX_UNION_RESULT))
         return true;
       if (fmt->end_context(CTX_UNION)) return true;
-      break;
-    case QT_INTERSECT:
+    } break;
+    case QT_INTERSECT: {
       if (fmt->begin_context(CTX_INTERSECT)) return true;
-      for (auto child_qt : down_cast<Query_term_intersect *>(qt)->m_children) {
-        if (explain_query_term(explain_thd, query_thd, child_qt)) return true;
+      Query_term_set_op *const qts = down_cast<Query_term_set_op *>(qt);
+      for (size_t idx = 0; idx < qts->child_count(); ++idx) {
+        if (explain_query_term(explain_thd, query_thd, qts->child(idx)))
+          return true;
       }
       if (explain_query_specification(explain_thd, query_thd, qt,
                                       CTX_INTERSECT_RESULT))
         return true;
       if (fmt->end_context(CTX_INTERSECT)) return true;
-      break;
-    case QT_EXCEPT:
+    } break;
+    case QT_EXCEPT: {
       if (fmt->begin_context(CTX_EXCEPT)) return true;
-      for (auto child_qt : down_cast<Query_term_except *>(qt)->m_children) {
-        if (explain_query_term(explain_thd, query_thd, child_qt)) return true;
+      Query_term_set_op *const qts = down_cast<Query_term_set_op *>(qt);
+      for (size_t idx = 0; idx < qts->child_count(); ++idx) {
+        if (explain_query_term(explain_thd, query_thd, qts->child(idx)))
+          return true;
       }
       if (explain_query_specification(explain_thd, query_thd, qt,
                                       CTX_EXCEPT_RESULT))
         return true;
       if (fmt->end_context(CTX_EXCEPT)) return true;
-      break;
-    case QT_UNARY:
+    } break;
+    case QT_UNARY: {
       if (fmt->begin_context(CTX_UNARY)) return true;
-      for (auto child_qt : down_cast<Query_term_unary *>(qt)->m_children) {
-        if (explain_query_term(explain_thd, query_thd, child_qt)) return true;
-      }
+      Query_term_set_op *const qts = down_cast<Query_term_set_op *>(qt);
+      if (explain_query_term(explain_thd, query_thd, qts->child(0)))
+        return true;
       if (explain_query_specification(explain_thd, query_thd, qt,
                                       CTX_UNARY_RESULT))
         return true;
       if (fmt->end_context(CTX_UNARY)) return true;
 
-      break;
+    } break;
   }
 
   return false;
@@ -1600,9 +954,9 @@ bool Common_table_expr::clear_all_references() {
     // This loop has found all recursive clones (only readers).
   }
   /*
-    Above, emptying all clones is necessary, to rewind every handler (cursor) to
-    the table's start. Setting materialized=false on all is also important or
-    the writer would skip materialization, see loop at start of
+    Above, emptying all clones is necessary, to rewind every handler (cursor)
+    to the table's start. Setting materialized=false on all is also important
+    or the writer would skip materialization, see loop at start of
     Table_ref::materialize_derived()). There is one "recursive table"
     which we don't find here: it's the UNION DISTINCT tmp table. It's reset in
     unit::execute() of the unit which is the body of the CTE.
@@ -1636,7 +990,7 @@ bool Query_expression::ClearForExecution() {
     // TODO(sgunders): Most of JOIN::reset() should be done in iterators.
     for (auto qt : query_terms<QTC_POST_ORDER>()) {
       if (qt->term_type() == QT_QUERY_BLOCK ||
-          down_cast<Query_term_set_op *>(qt)->m_is_materialized) {
+          down_cast<Query_term_set_op *>(qt)->is_materialized()) {
         Query_block *sl = qt->query_block();
         if (sl->join->is_executed()) {
           sl->join->reset();
@@ -1654,7 +1008,8 @@ bool Query_expression::ClearForExecution() {
 
     // TODO(sgunders): Consider doing this in some iterator instead.
     if (join->m_windows.elements > 0 && !join->m_windowing_steps) {
-      // Initialize state of window functions as end_write_wf() will be shortcut
+      // Initialize state of window functions as end_write_wf() will be
+      // shortcut
       for (Window &w : query_block->join->m_windows) {
         w.reset_all_wf_state();
       }
@@ -1733,7 +1088,7 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
     // LimitOffsetIterator will write skipped OFFSET rows into the JOIN's
     // send_records, so use that.
     send_records_ptr = &first_query_block()->join->send_records;
-  } else if (set_operation()->m_is_materialized) {
+  } else if (set_operation()->is_materialized()) {
     send_records_ptr = &query_term()->query_block()->join->send_records;
   } else {
     // UNION, but without a fake_query_block (may or may not have a
@@ -1753,7 +1108,7 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
         join->join_free();
         thd->inc_examined_row_count(join->examined_rows);
       }
-      if (!is_simple() && set_operation()->m_is_materialized)
+      if (!is_simple() && set_operation()->is_materialized())
         thd->inc_examined_row_count(
             query_term()->query_block()->join->examined_rows);
     });
@@ -1946,12 +1301,12 @@ bool Query_expression::change_query_result(
   For a single query block the column types are taken from the list
   of selected items of this block.
 
-  For a union this function assumes that the type holders were created for
-  unioned column types of all query blocks, by Query_expression::prepare().
+  For a (binary) set operations, this function assumes that the type holders
+  were created for unioned column types of all query blocks, by
+  \c Query_expression::prepare().
 
-  @note
-    The implementation of this function should be in sync with
-    Query_expression::prepare()
+  For unary query terms (\c QT_UNARY), we use return child terms's type
+  information.
 
   @returns List of items as specified in function description.
     May contain hidden fields (item->hidden = true), so the caller
@@ -1959,12 +1314,11 @@ bool Query_expression::change_query_result(
 */
 
 mem_root_deque<Item *> *Query_expression::get_unit_column_types() {
-  return is_set_operation() ? &types : &first_query_block()->fields;
+  return query_term()->types_array();
 }
 
 size_t Query_expression::num_visible_fields() const {
-  return is_set_operation() ? CountVisibleFields(types)
-                            : first_query_block()->num_visible_fields();
+  return query_term()->visible_column_count();
 }
 
 /**
@@ -1980,12 +1334,13 @@ size_t Query_expression::num_visible_fields() const {
 mem_root_deque<Item *> *Query_expression::get_field_list() {
   assert(is_optimized());
 
-  if (is_simple())
+  if (is_simple()) {
     return down_cast<Query_block *>(query_term())->join->fields;
-  else if (set_operation()->m_is_materialized)
+  }
+  if (set_operation()->is_materialized()) {
     return query_term()->query_block()->join->fields;
-  else
-    return query_term()->fields();
+  }
+  return query_term()->fields();
 }
 
 bool Query_expression::walk(Item_processor processor, enum_walk walk,

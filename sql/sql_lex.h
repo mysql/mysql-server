@@ -68,6 +68,7 @@
 #include "sql/item.h"            // Name_resolution_context
 #include "sql/item_subselect.h"  // Subquery_strategy
 #include "sql/iterators/row_iterator.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key_spec.h"  // KEY_CREATE_INFO
 #include "sql/mdl.h"
@@ -705,15 +706,15 @@ class Query_expression {
   */
   Query_block *last_distinct() const {
     auto const setop = down_cast<Query_term_set_op *>(m_query_term);
-    if (setop->m_last_distinct > 0)
-      return setop->m_children[setop->m_last_distinct]->query_block();
+    if (setop->last_distinct() > 0)
+      return setop->child(setop->last_distinct())->query_block();
     else
       return nullptr;
   }
 
   bool has_top_level_distinct() const {
     if (is_simple()) return false;
-    return down_cast<Query_term_set_op *>(m_query_term)->m_last_distinct > 0;
+    return down_cast<Query_term_set_op *>(m_query_term)->last_distinct() > 0;
   }
 
  private:
@@ -782,18 +783,6 @@ class Query_expression {
                     ///< freed
   };
   enum_clean_state cleaned;  ///< cleanliness state
-
- private:
-  /*
-    list of types of items inside union (used for union & derived tables)
-
-    Item_type_holders from which this list consist may have pointers to Field,
-    pointers is valid only after preparing SELECTS of this unit and before
-    any SELECT of this unit execution
-
-    All hidden items are stripped away from this list.
-  */
-  mem_root_deque<Item *> types;
 
  public:
   /**
@@ -976,7 +965,6 @@ class Query_expression {
 #ifndef NDEBUG
   void DebugPrintQueryPlan(THD *thd, const char *keyword) const;
 #endif
-
   /**
     Do everything that would be needed before running Init() on the root
     iterator. In particular, clear out data from previous execution iterations,
@@ -1012,10 +1000,6 @@ class Query_expression {
    */
   Query_block *create_post_processing_block(Query_term_set_op *term);
 
-  bool prepare_query_term(THD *thd, Query_term *qts,
-                          Query_result *common_result, ulonglong added_options,
-                          ulonglong create_options, int level,
-                          Mem_root_array<bool> &nullable);
   void set_prepared() {
     assert(!is_prepared());
     prepared = true;
@@ -1186,6 +1170,23 @@ class Query_block : public Query_term {
   void debugPrint(int level, std::ostringstream &buf) const override;
   /// Minion of debugPrint
   void qbPrint(int level, std::ostringstream &buf) const;
+  bool prepare_query_term(THD *thd, Query_expression *qe,
+                          Change_current_query_block *save_query_block,
+                          mem_root_deque<Item *> *insert_field_list,
+                          Query_result *common_result, ulonglong added_options,
+                          ulonglong removed_options,
+                          ulonglong create_option) override;
+  bool optimize_query_term(THD *, Query_expression *) override {
+    // leaf block optimization done elsewhere
+    return false;
+  }
+
+  AccessPath *make_set_op_access_path(
+      THD *thd, Query_term_set_op *parent,
+      Mem_root_array<AppendPathParameters> *union_all_subpaths,
+      bool calc_found_rows) override;
+
+  mem_root_deque<Item *> *types_array() override;
   Query_term_type term_type() const override { return QT_QUERY_BLOCK; }
   const char *operator_string() const override { return "query_block"; }
   Query_block *query_block() const override {
@@ -1397,10 +1398,14 @@ class Query_block : public Query_term {
   bool add_joined_table(Table_ref *table);
   mem_root_deque<Item *> *get_fields_list() { return &fields; }
 
-  /// Wrappers over fields / get_fields_list() that hide items where
-  /// item->hidden, meant for range-based for loops. See sql/visible_fields.h.
-  auto visible_fields() { return VisibleFields(fields); }
+  /// Wrappers over fields / \c get_fields_list() that hide items where
+  /// item->hidden, meant for range-based for loops.
+  /// See \c sql/visible_fields.h.
+  VisibleFieldsIterator visible_fields() { return VisibleFields(fields); }
   auto visible_fields() const { return VisibleFields(fields); }
+
+  VisibleFieldsIterator types_iterator() override { return visible_fields(); }
+  size_t visible_column_count() const override { return num_visible_fields(); }
 
   /// Check privileges for views that are merged into query block
   bool check_view_privileges(THD *thd, Access_bitmask want_privilege_first,
@@ -2499,14 +2504,14 @@ class Query_block : public Query_term {
 inline bool Query_expression::is_union() const {
   Query_term *qt = query_term();
   while (qt->term_type() == QT_UNARY)
-    qt = down_cast<Query_term_unary *>(qt)->m_children[0];
+    qt = down_cast<Query_term_unary *>(qt)->child(0);
   return qt->term_type() == QT_UNION;
 }
 
 inline bool Query_expression::is_set_operation() const {
   Query_term *qt = query_term();
   while (qt->term_type() == QT_UNARY)
-    qt = down_cast<Query_term_unary *>(qt)->m_children[0];
+    qt = down_cast<Query_term_unary *>(qt)->child(0);
   const Query_term_type type = qt->term_type();
   return type == QT_UNION || type == QT_INTERSECT || type == QT_EXCEPT;
 }
@@ -5027,5 +5032,19 @@ bool accept_for_join(mem_root_deque<Table_ref *> *tables,
 Table_ref *nest_join(THD *thd, Query_block *select, Table_ref *embedding,
                      mem_root_deque<Table_ref *> *jlist, size_t table_cnt,
                      const char *legend);
+
+/// RAII class to automate saving/restoring of current_query_block()
+class Change_current_query_block {
+ public:
+  explicit Change_current_query_block(THD *thd_arg)
+      : thd(thd_arg), saved_query_block(thd->lex->current_query_block()) {}
+  void restore() { thd->lex->set_current_query_block(saved_query_block); }
+  ~Change_current_query_block() { restore(); }
+
+ private:
+  THD *thd;
+  Query_block *saved_query_block;
+};
+
 void get_select_options_str(ulonglong options, std::string *str);
 #endif /* SQL_LEX_INCLUDED */

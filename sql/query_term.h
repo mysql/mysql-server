@@ -23,13 +23,20 @@
 #ifndef QUERY_NODE_INCLUDED
 #define QUERY_NODE_INCLUDED
 
+#include <cstdint>
+#include "my_inttypes.h"
+#include "mysql.h"
+#include "sql/join_optimizer/access_path.h"  // AppendPathParameters
 #include "sql/join_optimizer/materialize_path_parameters.h"  // MaterializePathParameters
+#include "sql/mem_root_array.h"
+#include "sql/query_result.h"
 #include "sql/sql_list.h"
 #include "sql/sql_union.h"
 #include "sql/table.h"
+#include "sql/visible_fields.h"
 
 class Query_block;
-
+class Change_current_query_block;
 /**
   This class hierarchy is used to represent SQL structures between \<query
   expression\> and \<query specification\>. The class Query_expression
@@ -260,23 +267,159 @@ class Query_term {
   */
   virtual size_t child_count() const { return 0; }
 
+  /**
+    a) Prepare query blocks, both leaf blocks and blocks reresenting order
+    by/limit in query primaries with parentesized query expression body with
+    order by clause and/or limit/offset clause (unary query terms). Establish
+    types for all query terms, and set up tmp table for CTE if present and for
+    any materialized tmp tables for unary query terms.
+
+    Types for set operations are calculated bottom-up, so for a unary tmp table,
+    we use the base block's types and names for proper resolution in cases
+    like:
+
+      SELECT column_a FROM t1
+             UNION
+             ( (SELECT column_b FROM t2 ORDER BY column_b LIMIT 3)
+               ORDER BY column_b DESC LIMIT 2 )
+             ORDER BY column_a;
+
+    The second ORDER BY's \c column_b should resolve to its nested \c column_b
+    selected from t2.  This also means that the second order by operation does
+    sorting using the type of \c column_b, not using the common type of
+    \c t1.column_a and \c t2.column_b.
+
+    If the inner SELECT above were a binary set operation, we would order by the
+    joined types of the binary (sub)operation, recursively.
+
+    This function constructs the \c m_types array for each binary set operation
+    query term. Unary terms just use their child's type information.
+
+    We have a nested set operation structure where the leaf nodes are inner
+    query blocks, typically SELECT clauses.  These are prepared with
+    \c Query_block::prepare, called by \c Query_block::prepare_query_term.
+    We also need to prepare the nodes representing the binary set and unary
+    operations.  We have already merged nested set operation of the same kind
+    into multi op form, so at any level the child and parent will usually be of
+    another kind(1).  We a priori create temporary tables marked with an
+    asterisk below, modulo ALL optimizations, to consolidate the result of each
+    multi set and unary operations.  E.g.
+
+                       UNION*
+                         |
+              +----------------+----------+
+              |                |          |
+         INTERSECT*     UNARY TERM*   EXCEPT*
+              |                |          |
+          +---+---+            QB      +--+-+
+          |   |   |                    |    |
+         QB  QB  UNION*                QB   QB
+                 QB QB
+
+    (1) an exception is that we do not merge top level trailing UNION ALL nodes
+    with preceding UNION DISTINCT in order that they can be streamed
+    efficiently.
+
+    Note that the \c Query_result is owned by the first sibling participating in
+    the set operations, so the owning nodes of the above example are actually:
+
+                       UNION
+                         |
+              +----------------+----------+
+              |                |          |
+         INTERSECT*     UNARY TERM   EXCEPT
+              |                |          |
+          +---+---+            QB*     +--+-+
+          |   |   |                    |    |
+         QB* QB  UNION                QB*   QB
+                 QB* QB
+
+
+    @param thd    session context
+    @param qe     query expression query expression directly containing this
+                  query term
+    @param save_query_block
+                  copy of thd->lex->current_query_block()
+                  when Query_expression::prepare was called.
+    @param insert_field_list
+                  pointer to field list if INSERT op, NULL otherwise.
+    @param common_result
+                  for the top node, this is not used: we use query_result()
+                  instead.  Otherwise, if it is empty, we create a query result
+                  on behalf of this node and its siblings. This node is then the
+                  designated owning operand, and is responsible for releasing it
+                  after execution.  The siblings will see that common_result is
+                  not empty and use that.
+    @param added_options
+                  these options will be added to the query blocks.
+    @param removed_options
+                  options that cannot be used for this query
+    @param create_options
+                  options to use for creating tmp table
+    @returns false on success, true on error
+  */
+  virtual bool prepare_query_term(THD *thd, Query_expression *qe,
+                                  Change_current_query_block *save_query_block,
+                                  mem_root_deque<Item *> *insert_field_list,
+                                  Query_result *common_result,
+                                  ulonglong added_options,
+                                  ulonglong removed_options,
+                                  ulonglong create_options) = 0;
+
+  /**
+    Optimize the non-leaf query blocks
+    @param thd  session context
+    @param qe   owning query expression (of this term)
+    @returns true on error, else false
+  */
+  virtual bool optimize_query_term(THD *thd, Query_expression *qe) = 0;
+
+  /**
+    Recursively constructs the access path of the set operation, possibly
+    materializing in a tmp table if needed, cf.
+    \c Query_term_set_op::m_is_materialized
+    @param thd    session context
+    @param parent the parent for which we want to create a materialized access
+                  path, or nullptr
+    @param union_all_subpaths
+                  if not nullptr, we are part of a UNION all, add constructed
+                  access to it.
+    @param calc_found_rows
+                  if true, do allow for calculation of number of found rows
+                  even in presence of LIMIT.
+    @return access path, if nullptr, this is an error
+  */
+  virtual AccessPath *make_set_op_access_path(
+      THD *thd, Query_term_set_op *parent,
+      Mem_root_array<AppendPathParameters> *union_all_subpaths,
+      bool calc_found_rows) = 0;
+
   /// Set the correct value of \c Query_term::m_sibling_idx recursively for
   /// set operations. For \c Query_term_unary, this is done in its constructor.
   /// A no-op for \c Query_block. See also \c set_sibling_idx.
   virtual void label_children() = 0;
 
- protected:
   /**
-    Back pointer to the node whose child we are, or nullptr (root term).
+    Create a temporary table for a set operation.
+
+    @param thd      session context
+    @param create_options
+                    create options for create_tmp_table
+    @return false on success, true on error
   */
-  Query_term_set_op *m_parent{nullptr};
+  bool create_tmp_table(THD *thd, ulonglong create_options);
 
-  /// If parent is non-null, this holds the index of the current sibling.
-  /// Used for efficient iterator traversal up and down the tree.
-  uint m_sibling_idx{0};
+  /// Abstract over visible column types: if query block, we offer an iterator
+  /// over visible fields, for binary set operators we offer an
+  /// iterator over \c m_types, for unary we just call the child's.
+  /// See also the accompanying
+  /// \c visible_column_count.
+  virtual VisibleFieldsIterator types_iterator() = 0;
+  /// Return the number of visible columns of the query term. For query blocks
+  /// this is in general a subset of \c Query_block::fields
+  virtual size_t visible_column_count() const = 0;
 
- public:
-  /// Getter for m_parent, q.v.
+  /// Getter for \c m_parent, q.v.
   Query_term_set_op *parent() const { return m_parent; }
   /// Setter for \c m_sibling_idx, q.v.
   void set_sibling_idx(uint idx) { m_sibling_idx = idx; }
@@ -305,6 +448,8 @@ class Query_term {
     assert(false);  // should be overridden
     return false;
   }
+
+  virtual mem_root_deque<Item *> *types_array() = 0;
 
   // Printable representation
 
@@ -349,28 +494,6 @@ class Query_term {
   */
   virtual Query_block *query_block() const = 0;
 
- protected:
-  /**
-    The query result for this term. Shared between n-ary set operands, the first
-    one holds it, cf. owning_operand. Except at top level, this is always a
-    Query_result_union.
-  */
-  Query_result *m_setop_query_result{nullptr};
-  /**
-    The operand of a n-ary set operation (that owns the common query result) has
-    this set to true. It is always the first one.
-  */
-  bool m_owning_operand{false};
-  /**
-     Result temporary table for the set operation, if applicable
-   */
-  Table_ref *m_result_table{nullptr};
-  /**
-    Used only when streaming, i.e. not materialized result set
-  */
-  mem_root_deque<Item *> *m_fields{nullptr};
-
- public:
   /// Setter for m_setop_query_result, q.v.
   void set_setop_query_result(Query_result *rs) { m_setop_query_result = rs; }
   /// Getter for m_setop_query_result, q.v.
@@ -396,48 +519,57 @@ class Query_term {
   void set_fields(mem_root_deque<Item *> *fields) { m_fields = fields; }
   // Getter for m_fields, q.v.
   mem_root_deque<Item *> *fields() { return m_fields; }
+
+ protected:
+  /**
+    Back pointer to the node whose child we are, or nullptr (root term).
+  */
+  Query_term_set_op *m_parent{nullptr};
+
+  /// If parent is non-null, this holds the index of the current sibling.
+  /// Used for efficient iterator traversal up and down the tree.
+  uint m_sibling_idx{0};
+
+  /**
+    The query result for this term. Shared between n-ary set operands, the first
+    one holds it, cf. owning_operand. Except at top level, this is always a
+    Query_result_union.
+  */
+  Query_result *m_setop_query_result{nullptr};
+  /**
+    The operand of a n-ary set operation (that owns the common query result) has
+    this set to true. It is always the first one.
+  */
+  bool m_owning_operand{false};
+  /**
+     Result temporary table for the set operation, if applicable
+   */
+  Table_ref *m_result_table{nullptr};
+  /**
+    Used only when streaming, i.e. for a not materialized result set
+  */
+  mem_root_deque<Item *> *m_fields{nullptr};
 };
 
 /// Common base class for n-ary set operations, including unary.
 class Query_term_set_op : public Query_term {
-  /// Replaces the old "fake" query block for post processing result set with
-  /// ORDER BY, LIMIT.
-  /// The query block(s) of the query specifications can be found via
-  /// m_children.
-  Query_block *m_block{nullptr};
-
- protected:  // this node type is abstract
-  Query_term_set_op(MEM_ROOT *mem_root) : m_children(mem_root) {}
-
  public:
-  /// Tree structure. Cardinality is one for unary, two or more for UNION,
-  /// EXCEPT, INTERSECT
-  mem_root_deque<Query_term *> m_children;
-  /**
-     Index of last query expression which has <set-op> DISTINCT on its left. In
-     a list of <set-op>ed blocks, UNION is left-associative; so UNION DISTINCT
-     eliminates duplicates in all blocks up to the first one on its right
-     included. Which is why we only need to remember that query block. Is -1
-     for Unary.
-  */
-  int64_t m_last_distinct;
-  /**
-    Presently only needed by EXCEPT set operator: the index of the first
-    DISTINCT set operand: minimum legal value is 1. If not DISTINCT, it should
-    have the value std::numeric_limits<int64_t>::max(). The value is set
-    in PT_set_operation::merge_descendants.
-  */
-  int64_t m_first_distinct;
-  /**
-    true if the result of this set operation is materialized. A priori true
-    unless we have a pure UNION ALL.
-  */
-  bool m_is_materialized{true};
+  mem_root_deque<Item *> *types_array() override { return m_types; }
 
-  /// Getter for m_block, q.v.
+  /// Get child at given index.
+  Query_term *child(size_t idx) const { return m_children[idx]; }
+  /// Getter for \c m_last_distinct, q.v.
+  int64_t last_distinct() const { return m_last_distinct; }
+  /// Getter for \c m_first_distinct, q.v.
+  int64_t first_distinct() const { return m_first_distinct; }
+  /// Getter for \c m_is_materialized, q.v.
+  bool is_materialized() const { return m_is_materialized; }
+  /// Setter for \c m_is_materialized, q.v.
+  void set_is_materialized(bool mat) { m_is_materialized = mat; }
+  /// Getter for \c m_block, q.v.
   Query_block *query_block() const override { return m_block; }
 
-  /// Setter for m_block, q.v.
+  /// Setter for \c m_block, q.v.
   bool set_block(Query_block *b) {
     assert(!m_block);
     if (b == nullptr) return true;
@@ -481,14 +613,90 @@ class Query_term_set_op : public Query_term {
       THD *thd, TABLE *dst_table, bool union_distinct_only,
       bool calc_found_rows);
 
- protected:
+  bool prepare_query_term(THD *thd, Query_expression *qe,
+                          Change_current_query_block *save_query_block,
+                          mem_root_deque<Item *> *insert_field_list,
+                          Query_result *common_result, ulonglong added_options,
+                          ulonglong removed_options,
+                          ulonglong create_option) override;
+
+  bool optimize_query_term(THD *thd, Query_expression *qe) override;
+
+  AccessPath *make_set_op_access_path(
+      THD *thd, Query_term_set_op *parent,
+      Mem_root_array<AppendPathParameters> *union_all_subpaths,
+      bool calc_found_rows) override;
+
+  VisibleFieldsIterator types_iterator() override {
+    return VisibleFields(*m_types);
+  }
+  size_t visible_column_count() const override { return m_types->size(); }
+
+  bool in_right_side_in_except_or_intersect(Query_term *qt) {
+    return (term_type() == QT_EXCEPT || term_type() == QT_INTERSECT) &&
+           m_children[0] != qt;
+  }
+
+ protected:  // this node type is abstract
+  explicit Query_term_set_op(MEM_ROOT *mem_root) : m_children(mem_root) {}
+
   /**
-    Common printing minion for set operations.
-    @param level level in tree
-    @param buf   the buffer to format output into
-    @param type  descriptive string of set operation to use for printing
-   */
+   Common printing minion for set operations.
+   @param level level in tree
+   @param buf   the buffer to format output into
+   @param type  descriptive string of set operation to use for printing
+  */
   void print(int level, std::ostringstream &buf, const char *type) const;
+
+  /// On top level, check that it was possible to aggregate all collations
+  /// together for set operation.  We need this in case of setop DISTINCT, to
+  /// detect duplicates using the proper collation.
+  ///
+  /// TODO: consider removing this test in case of UNION ALL.
+  bool check_joined_types();
+
+  /// Tree structure. Cardinality is one for unary, two or more for UNION,
+  /// EXCEPT, INTERSECT
+  mem_root_deque<Query_term *> m_children;
+
+  /**
+    true if the result of this set operation is materialized. A priori true
+    unless we have a pure UNION ALL.
+  */
+  bool m_is_materialized{true};
+
+  /**
+     Index of last query expression which has <set-op> DISTINCT on its left. In
+     a list of <set-op>ed blocks, UNION is left-associative; so UNION DISTINCT
+     eliminates duplicates in all blocks up to the first one on its right
+     included. Which is why we only need to remember that query block. Is -1
+     for Unary.
+  */
+  int64_t m_last_distinct{0};
+  /**
+    Presently only needed by EXCEPT set operator: the index of the first
+    DISTINCT set operand: minimum legal value is 1. If not DISTINCT, it should
+    have the value \c std::numeric_limits<int64_t>::max(). The value is set
+    in \c PT_set_operation::merge_descendants.
+  */
+  int64_t m_first_distinct{0};
+
+ private:
+  /// Query block for post processing result set with ORDER BY, LIMIT for unary
+  /// and binary set operations
+  Query_block *m_block{nullptr};
+
+  /**
+   List of aggregated type holder items for the set operation query term.
+   Contains only information for the visible expressions of the set operation.
+  */
+  mem_root_deque<Item *> *m_types{nullptr};
+
+  // Need access to m_children:
+  template <Visit_order visit_order, Visit_leaves visit_leaves>
+  friend class Query_terms;  // fast iterator
+  friend class Query_term;
+  friend class PT_set_operation;  // building term tree
 };
 
 /// Node type for n-ary UNION
@@ -567,6 +775,26 @@ class Query_term_unary : public Query_term_set_op {
   Query_term_type term_type() const override { return QT_UNARY; }
   const char *operator_string() const override { return "result"; }
   void debugPrint(int level, std::ostringstream &buf) const override;
+  bool prepare_query_term(THD *thd, Query_expression *qe,
+                          Change_current_query_block *save_query_block,
+                          mem_root_deque<Item *> *insert_field_list,
+                          Query_result *common_result, ulonglong added_options,
+                          ulonglong removed_options,
+                          ulonglong create_options) override;
+  AccessPath *make_set_op_access_path(
+      THD *thd, Query_term_set_op *parent,
+      Mem_root_array<AppendPathParameters> *union_all_subpaths,
+      bool calc_found_rows) override;
+
+  mem_root_deque<Item *> *types_array() override {
+    return m_children[0]->types_array();
+  }
+  size_t visible_column_count() const override {
+    return m_children[0]->visible_column_count();
+  }
+  VisibleFieldsIterator types_iterator() override {
+    return m_children[0]->types_iterator();
+  }
 };
 
 /**
