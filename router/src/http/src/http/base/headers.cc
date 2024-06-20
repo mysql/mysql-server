@@ -50,6 +50,11 @@ void Headers::add(const std::string_view &key, std::string &&value) {
   map_.emplace_back(key, std::move(value));
 }
 
+void Headers::insert(Iterator it, const std::string_view &key,
+                     std::string &&value) {
+  map_.insert(it, Map::value_type{key, std::move(value)});
+}
+
 Headers::Iterator Headers::begin() { return map_.begin(); }
 
 Headers::Iterator Headers::end() { return map_.end(); }

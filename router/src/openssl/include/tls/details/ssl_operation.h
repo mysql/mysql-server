@@ -54,10 +54,11 @@ class Operation {
     Result check_ssl_result(int ssl_result) {
       auto pending = BIO_pending(bio_);
 
-      auto error_cause = SSL_get_error(ssl_, ssl_result);
       Result op_result = ok;
 
       if (ssl_result <= 0) {
+        auto error_cause = SSL_get_error(ssl_, ssl_result);
+
         switch (error_cause) {
           case SSL_ERROR_WANT_READ:
             op_result = want_read;
@@ -146,6 +147,7 @@ class SslWriteOperation : public Operation {
 #endif
 
   static bool is_read_operation() { return false; }
+
   static Result op(BIO *bio, SSL *ssl, const void *buffer,
                    const size_t buffer_size, size_t *out_number_of_bytes_io) {
     AnalyzeOperation op{
@@ -157,6 +159,22 @@ class SslWriteOperation : public Operation {
 
     return op.check_ssl_result(
         write_ex(ssl, buffer, buffer_size, out_number_of_bytes_io));
+  }
+};
+
+class SslHandshakeClientOperation : public Operation {
+ public:
+  static bool is_read_operation() { return false; }
+
+  static Result op(BIO *bio, SSL *ssl, [[maybe_unused]] const void *buffer,
+                   [[maybe_unused]] const size_t buffer_size,
+                   [[maybe_unused]] size_t *out_number_of_bytes_io) {
+    AnalyzeOperation op{
+        bio,
+        ssl,
+    };
+
+    return op.check_ssl_result(SSL_connect(ssl));
   }
 };
 

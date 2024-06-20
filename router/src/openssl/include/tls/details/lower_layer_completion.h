@@ -111,6 +111,46 @@ class LowerLayerWriteCompletionToken {
   mutable SecondToken second_token_;
 };
 
+template <typename FirstToken, typename SecondToken = NOP_token>
+class LowerLayerHandshakeCompletionToken {
+ public:
+  using First_token_type = std::decay_t<FirstToken>;
+  using Second_token_type = std::decay_t<SecondToken>;
+
+  LowerLayerHandshakeCompletionToken(
+      const LowerLayerHandshakeCompletionToken &other)
+      : first_token_{other.first_token_}, second_token_{other.second_token_} {}
+
+  LowerLayerHandshakeCompletionToken(LowerLayerHandshakeCompletionToken &&other)
+      : first_token_{std::move(other.first_token_)},
+        second_token_{std::move(other.second_token_)} {}
+
+  LowerLayerHandshakeCompletionToken(FirstToken &token,
+                                     SecondToken &second_token)
+      : first_token_{std::forward<First_handler_type>(token)},
+        second_token_{std::forward<Second_handler_type>(second_token)} {}
+
+  LowerLayerHandshakeCompletionToken(FirstToken &&token,
+                                     SecondToken &&second_token)
+      : first_token_{token}, second_token_{second_token} {}
+
+  void operator()(std::error_code ec, size_t size) const {
+    first_token_.handle_handshake(ec, size);
+    second_token_(ec, size);
+  }
+
+ private:
+  using First_handler_type =
+      std::conditional_t<std::is_same<FirstToken, First_token_type>::value,
+                         First_token_type &, First_token_type>;
+
+  using Second_handler_type =
+      std::conditional_t<std::is_same<SecondToken, Second_token_type>::value,
+                         Second_token_type &, Second_token_type>;
+  mutable FirstToken first_token_;
+  mutable SecondToken second_token_;
+};
+
 }  // namespace tls
 }  // namespace net
 

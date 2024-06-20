@@ -49,10 +49,16 @@ class ServerConnection : public http::base::Connection<Socket> {
                    RequestHandlerInterface *rhi,
                    ConnectionStatusCallbacks *connection_handler)
       : Parent(std::move(s), allowed_method, connection_handler,
-               CNO_CONNECTION_KIND::CNO_SERVER),
+               CNO_CONNECTION_KIND::CNO_SERVER, CNO_HTTP_VERSION::CNO_HTTP1),
         request_handler_{rhi} {}
 
  private:
+  int on_settings() override {
+    // Server doesn't need to synchronize to settings, it receives settings as
+    // part of the request.
+    return 0;
+  }
+
   int on_cno_message_body(const uint32_t session_id, const char *data,
                           const size_t size) override {
     // We can blindly use session_id with the map because

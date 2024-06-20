@@ -78,7 +78,7 @@ int on_frame_send(void * /*cb_data*/, const struct cno_frame_t *) { return 0; }
 
 int on_pong(void * /*cb_data*/, const char[8]) { return 0; }
 
-int on_settings(void * /*cb_data*/) { return 0; }
+int on_settings(void *cb_data) { return get_cno(cb_data)->on_settings(); }
 
 int on_upgrade(void * /*cb_data*/, uint32_t /*id*/) { return 0; }
 

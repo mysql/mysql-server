@@ -212,6 +212,9 @@ class SslIoCompletionToken {
 
       number_bytes_transfered_ += number_of_bytes;
 
+      debug_print("do_it - ", (SslIO::is_read_operation() ? "read" : "write"),
+                  " - result:", result,
+                  " - number_bytes_transfered_:", number_bytes_transfered_);
       switch (result) {
         case Operation::Result::fatal:
           do_token(make_tls_error(), 0);
@@ -288,6 +291,8 @@ class SslIoCompletionToken {
   }
 
   Operation::Result do_write() {
+    debug_print("do_write - ", (SslIO::is_read_operation() ? "read" : "write"));
+
     if (0 == net::buffer_size(output_)) {
       size_t readbytes;
       bio_read_ex(&readbytes);
@@ -301,6 +306,7 @@ class SslIoCompletionToken {
   }
 
   Operation::Result do_read() {
+    debug_print("do_read - ", (SslIO::is_read_operation() ? "read" : "write"));
     if (0 == input_.size_used()) {
       action_.recv(&tls_layer_.lower_layer_, input_,
                    get_read_handler(std::move(*this)));
@@ -311,6 +317,12 @@ class SslIoCompletionToken {
     bio_write_ex(&written);
     input_.pop(written);
     return do_it();
+  }
+
+  template <typename... Parameters>
+  void debug_print([[maybe_unused]] Parameters &&...parameters) const {
+    //    (std::cout << ... << std::forward<Parameters>(parameters));
+    //    std::cout << std::endl;
   }
 
   template <typename Type>

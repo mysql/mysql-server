@@ -67,8 +67,9 @@ class HTTP_CLIENT_EXPORT Client {
   };
 
  public:
-  Client(io_context &io_context, TlsClientContext &&tls_context);
-  explicit Client(io_context &io_context);
+  Client(io_context &io_context, TlsClientContext &&tls_context,
+         const bool use_http2 = false);
+  explicit Client(io_context &io_context, const bool use_http2 = false);
 
   ~Client();
 
@@ -81,6 +82,8 @@ class HTTP_CLIENT_EXPORT Client {
   const Statistics &statistics() const;
 
  private:
+  void start_http_flow();
+
   class CallbacksPrivateImpl;
   bool is_connected_{false};
   std::error_code error_code_;
@@ -91,6 +94,7 @@ class HTTP_CLIENT_EXPORT Client {
   std::unique_ptr<CallbacksPrivateImpl> callbacks_;
   Request *fill_request_by_callback_{nullptr};
   Statistics statistics_;
+  bool use_http2_{false};
 };
 
 }  // namespace client

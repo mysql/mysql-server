@@ -45,9 +45,10 @@ static std::string format_address_for_url(const std::string &address) {
 
 RestClient::RestClient(IOContext &io_ctx, const std::string &address,
                        uint16_t port, const std::string &username,
-                       const std::string &password)
+                       const std::string &password, const bool use_http2)
     : io_context_{io_ctx},
-      http_client_{std::make_unique<http::client::Client>(io_ctx)} {
+      http_client_{std::make_unique<http::client::Client>(io_ctx, use_http2)},
+      use_http2_{use_http2} {
   uri_.set_port(port);
   uri_.set_host(format_address_for_url(address));
 
@@ -86,7 +87,7 @@ Request RestClient::request_sync(http::base::method::key_type method,
     if (method == http::base::method::Trace) {
       throw std::logic_error("TRACE can't have request-body");
     }
-    req.get_output_headers().add("Content-Type", content_type.c_str());
+    req.get_output_headers().add("content-type", content_type.c_str());
     auto &out_buf = req.get_output_buffer();
     out_buf.add(request_body.data(), request_body.size());
   }
@@ -97,17 +98,19 @@ Request RestClient::request_sync(http::base::method::key_type method,
     if (ui.find(':') == std::string::npos) ui.append(":");
 
     req.get_output_headers().add(
-        "Authorization",
+        "authorization",
         ("Basic " + Base64::encode(std::vector<uint8_t>{ui.begin(), ui.end()}))
             .c_str());
   }
 
   // ask the server to close the connection after this request
-  req.get_output_headers().add("Connection", "close");
-  req.get_output_headers().add("Host", uri.get_host().c_str());
+  if (!use_http2_) {
+    req.get_output_headers().add("connection", "close");
+  }
+  req.get_output_headers().add("host", uri.get_host().c_str());
 
   // tell the server that we would accept error-messages as problem+json
-  req.get_output_headers().add("Accept",
+  req.get_output_headers().add("accept",
                                "application/problem+json, application/json");
   http_client_->send_request(&req);
 

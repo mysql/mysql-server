@@ -113,7 +113,7 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
  public:
   Connection(IOLayer s, base::method::Bitset *allowed_method,
              ConnectionStatusCallbacks *connection_handler,
-             CNO_CONNECTION_KIND kind)
+             CNO_CONNECTION_KIND kind, CNO_HTTP_VERSION version)
       : socket_(std::move(s)),
         allowed_method_(allowed_method),
         connection_handler_{connection_handler} {
@@ -124,8 +124,8 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
     impl::set_socket_parent(&socket_, ss.str().c_str());
     cno_init(&cno_, kind);
     cno::callback_init(&cno_, this);
-    cno_begin(&cno_, CNO_HTTP1);
     output_buffers_.emplace_back(4096);
+    cno_begin(&cno_, version);
   }
 
   ~Connection() override {
@@ -357,13 +357,14 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
 
  protected:  // CnoInterface implementation
   int on_cno_writev(const cno_buffer_t *buffer, size_t count) override {
-    bool was_first;
+    bool was_first = false;
     {
       std::unique_lock<std::mutex> lock(output_buffer_mutex_);
       cno::BufferSequence<> buffers{buffer, count};
 
       bool expected = false;
-      was_first = output_pending_.compare_exchange_weak(expected, true);
+      if (impl::get_socket(&socket_)->is_open())
+        was_first = output_pending_.compare_exchange_weak(expected, true);
       auto source_it = buffers.begin();
 
       while (source_it != buffers.end()) {

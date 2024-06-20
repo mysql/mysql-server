@@ -51,22 +51,27 @@ class HTTP_CLIENT_EXPORT RestClient {
  public:
   RestClient(IOContext &io_ctx, const std::string &default_host,
              uint16_t default_port, const std::string &default_username = {},
-             const std::string &default_password = {});
+             const std::string &default_password = {},
+             const bool use_http2 = false);
 
   // The path, query, fragment parts of the URI, are ignored
   // (overwritten when specifying the request).
   RestClient(IOContext &io_ctx,
-             const HttpUri &default_uri = HttpUri{"http://127.0.0.1"})
+             const HttpUri &default_uri = HttpUri{"http://127.0.0.1"},
+             const bool use_http2 = false)
       : io_context_{io_ctx},
         uri_{default_uri},
-        http_client_{std::make_unique<http::client::Client>(io_ctx)} {}
+        http_client_{std::make_unique<http::client::Client>(io_ctx, use_http2)},
+        use_http2_{use_http2} {}
 
   RestClient(IOContext &io_ctx, TlsClientContext &&tls_context,
-             const HttpUri &default_uri = HttpUri{"http://127.0.0.1"})
+             const HttpUri &default_uri = HttpUri{"http://127.0.0.1"},
+             const bool use_http2 = false)
       : io_context_{io_ctx},
         uri_{default_uri},
         http_client_{std::make_unique<http::client::Client>(
-            io_ctx, std::move(tls_context))} {}
+            io_ctx, std::move(tls_context), use_http2)},
+        use_http2_{use_http2} {}
 
   // Request might be send to different host than the default one.
   // 'uri' parameter overrides default uri settings.
@@ -99,6 +104,7 @@ class HTTP_CLIENT_EXPORT RestClient {
   net::io_context &io_context_;
   HttpUri uri_{"/"};
   std::unique_ptr<http::client::Client> http_client_;
+  bool use_http2_;
 };
 
 #endif  // MYSQL_ROUTER_REST_CLIENT_H_INCLUDED

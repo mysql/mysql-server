@@ -49,6 +49,7 @@ class HTTP_COMMON_EXPORT CnoInterface {
   virtual int on_cno_stream_start(const uint32_t id) = 0;
   virtual int on_cno_stream_end(const uint32_t id) = 0;
   virtual int on_cno_close() = 0;
+  virtual int on_settings() = 0;
 };
 
 }  // namespace cno

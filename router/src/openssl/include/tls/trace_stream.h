@@ -52,6 +52,7 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
  public:
   using native_handle_type = std::nullptr_t;
   using protocol_type = std::nullptr_t;
+  using endpoint_type = typename LowerLevelStream::endpoint_type;
   using VectorOfBuffers = std::vector<net::mutable_buffer>;
   using VectorOfConstBuffers = std::vector<net::const_buffer>;
 
@@ -94,6 +95,13 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
     lower_layer_.async_send(send_buffer_, get_write_handler(ref, handler));
   }
 
+  template <class HandshakeType, class CompletionToken>
+  auto async_handshake(HandshakeType type, CompletionToken &&token) {
+    print("async_handshake type: ", type);
+    WrappedTraceStream ref(this);
+    lower_layer_.async_handshake(type, get_handshake_handler(ref, token));
+  }
+
   template <typename Buffer, typename Handler>
   void async_receive(const Buffer &buffer, Handler &&handler) {
     copy(recv_buffer_, buffer);
@@ -126,6 +134,10 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
     dump(send_buffer_, size);
   }
 
+  void handle_handshake(std::error_code ec, size_t size) {
+    print("handle_handshake error:", ec, ", size:", size);
+  }
+
   template <typename SettableSocketOption>
   stdx::expected<void, std::error_code> set_option(
       const SettableSocketOption &option) {
@@ -156,6 +168,10 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
 
     void handle_write(std::error_code ec, size_t size) {
       if (parent_) parent_->handle_write(ec, size);
+    }
+
+    void handle_handshake(std::error_code ec, size_t size) {
+      if (parent_) parent_->handle_handshake(ec, size);
     }
 
    private:
@@ -251,6 +267,25 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
         Standard_token_result &, Standard_token_result>;
     return net::tls::LowerLayerReadCompletionToken<ReadToken, StandardToken>(
         std::forward<Read_token_handler>(read_token),
+        std::forward<Standard_token_handler>(std_token));
+  }
+
+  template <typename HandshakeToken, typename StandardToken>
+  net::tls::LowerLayerHandshakeCompletionToken<HandshakeToken, StandardToken>
+  get_handshake_handler(HandshakeToken &handshake_token,
+                        StandardToken &std_token) {
+    using Handshake_token_result = std::decay_t<HandshakeToken>;
+    using Handshake_token_handler = std::conditional_t<
+        std::is_same<HandshakeToken, Handshake_token_result>::value,
+        Handshake_token_result &, Handshake_token_result>;
+
+    using Standard_token_result = std::decay_t<StandardToken>;
+    using Standard_token_handler = std::conditional_t<
+        std::is_same<StandardToken, Standard_token_result>::value,
+        Standard_token_result &, Standard_token_result>;
+    return net::tls::LowerLayerHandshakeCompletionToken<HandshakeToken,
+                                                        StandardToken>(
+        std::forward<Handshake_token_handler>(handshake_token),
         std::forward<Standard_token_handler>(std_token));
   }
 
