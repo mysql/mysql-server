@@ -2350,6 +2350,7 @@ void NdbImportImpl::ExecOpWorkerSynch::state_define() {
       }
       Blob *blob = row->m_blobs[attr.m_blobno];
       if (!attr.get_null(row)) {
+        require(blob->m_data);
         if (bh->setValue(blob->m_data, blob->m_blobsize) == -1) {
           m_util.set_error_ndb(m_error, __LINE__, bh->getNdbError());
           break;
@@ -2678,6 +2679,7 @@ void NdbImportImpl::ExecOpWorkerAsynch::state_define() {
       }
       Blob *blob = row->m_blobs[attr.m_blobno];
       if (!attr.get_null(row)) {
+        require(blob->m_data);
         if (bh->setValue(blob->m_data, blob->m_blobsize) == -1) {
           m_util.set_error_ndb(m_error, __LINE__, bh->getNdbError());
           break;
