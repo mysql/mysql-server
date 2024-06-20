@@ -2186,6 +2186,7 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
 bool Arg_comparator::compare_null_values() {
   bool result;
   (void)compare_pair_for_nulls(*left, *right, &result);
+  if (current_thd->is_error()) return false;
   return result;
 }
 
