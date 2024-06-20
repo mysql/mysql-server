@@ -1,0 +1,26 @@
+freebsd_task:
+    install_script:
+    - ASSUME_ALWAYS_YES=yes pkg bootstrap -f && pkg install -y cmocka cmake ninja
+    build_script:
+    - mkdir build
+    - cd build
+    - cmake -GNinja -DWITH_TESTS=ON
+      -DCBOR_CUSTOM_ALLOC=ON
+      -DCMAKE_BUILD_TYPE=Debug
+      -DSANITIZE=OFF
+      ..
+    - ninja -j $(sysctl -n hw.ncpu)
+    test_script:
+    - cd build
+    - ctest -VV
+    matrix:
+    # From gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
+    - name: freebsd-13-2
+      freebsd_instance:
+        image_family: freebsd-13-2
+    - name: freebsd-14-0
+      freebsd_instance:
+        image_family: freebsd-14-0
+    - name: freebsd-15-0-snap
+      freebsd_instance:
+        image_family: freebsd-15-0-snap

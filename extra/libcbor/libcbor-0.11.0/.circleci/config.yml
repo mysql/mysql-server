@@ -1,0 +1,226 @@
+version: 2.1
+
+commands:
+  linux-setup:
+    steps:
+    - run: sudo apt-get update
+    # NEEDRESTART_MODE prevents automatic restarts which seem to hang.
+    - run: sudo NEEDRESTART_MODE=l apt-get install -y cmake ${TOOLCHAIN_PACKAGES}
+    - run: sudo NEEDRESTART_MODE=l apt-get install -y libcmocka-dev libcjson-dev
+  build:
+    steps:
+    - run: >
+        cmake -DWITH_TESTS=ON \
+          -DWITH_EXAMPLES=ON \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DSANITIZE=OFF \
+          -DCOVERAGE="${CMAKE_COVERAGE:='OFF'}" \
+          .
+    - run: make -j 16 VERBOSE=1
+  build-release:
+    steps:
+    - run: >
+        cmake -DWITH_TESTS=ON \
+          -DCMAKE_BUILD_TYPE=Release \
+          .
+    - run: make -j 16 VERBOSE=1
+  test:
+    steps:
+    - run: ctest -VV
+
+orbs:
+  codecov: codecov/codecov@3.2.2
+
+jobs:
+  static-test:
+    machine: &default-machine
+      image: ubuntu-2204:2023.07.2
+    environment:
+      TOOLCHAIN_PACKAGES: g++
+    steps:
+      - checkout
+      - linux-setup
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y clang-format doxygen cppcheck
+      - run: cppcheck --inline-suppr --error-exitcode=1 .
+      - run: bash clang-format.sh --verbose
+      - run: >
+          if ! $(git diff-index --quiet HEAD); then
+            echo "Code formatting doesn't conform to clang-format"
+            echo "Please run clang-format.sh, commit the diff, and push to re-run CI"
+            echo "Excerpt of the diff follows"
+            git diff | head -n 20
+          fi
+      - run: >
+          if doxygen Doxyfile | grep 'warning: '; then
+            echo "Doxygen warning (see above) -- misformatted docs?"
+            exit 1
+          fi
+      - run: >
+          cd doc &&
+          pip3 install -r source/requirements.txt &&
+          make html
+
+  build-and-test:
+    machine:
+      <<: *default-machine
+    environment:
+      TOOLCHAIN_PACKAGES: g++
+      CMAKE_COVERAGE: ON
+    steps:
+      - checkout
+      - linux-setup
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y valgrind
+      - build
+      - test
+      - run: ctest -T Coverage
+      - codecov/upload
+      - run: ctest --output-on-failure -T memcheck | tee memcheck.out
+      - run: >
+          if grep -q 'Memory Leak\|IPW\|Uninitialized Memory Conditional\|Uninitialized Memory Read' memcheck.out; then
+            cat Testing/Temporary/MemoryChecker*
+            exit 1
+          fi;
+
+  build-and-test-clang:
+    machine:
+      <<: *default-machine
+    environment:
+      TOOLCHAIN_PACKAGES: clang
+      CC: clang
+      CXX: clang++
+    steps:
+      - checkout
+      - linux-setup
+      - build
+      - test
+
+  build-and-test-32b:
+    machine:
+      <<: *default-machine
+    steps:
+      - checkout
+      - run: sudo apt-get update
+      - run: sudo NEEDRESTART_MODE=l apt-get install -y cmake gcc-multilib g++-multilib libc6-dev-i386
+      # Make cmocka from source w/ 32b setup
+      - run: git clone https://git.cryptomilk.org/projects/cmocka.git ~/cmocka
+      - run: >
+          cd $(mktemp -d /tmp/build.XXXX) &&
+          cmake ~/cmocka -DCMAKE_TOOLCHAIN_FILE=~/cmocka/cmake/Toolchain-cross-m32.cmake &&
+          make &&
+          sudo make install
+      # Piggyback on the cmocka 32b toolchain
+      - run: >
+          cmake -DWITH_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE=~/cmocka/cmake/Toolchain-cross-m32.cmake \
+            .
+      - run: make -j 16 VERBOSE=1
+      - test
+
+  build-and-test-release-clang:
+    machine:
+      <<: *default-machine
+    environment:
+      TOOLCHAIN_PACKAGES: clang
+      CC: clang
+      CXX: clang++
+    steps:
+      - checkout
+      - linux-setup
+      - build-release
+      - test
+
+  llvm-coverage:
+    machine:
+      <<: *default-machine
+    environment:
+      TOOLCHAIN_PACKAGES: clang
+      CC: clang
+      CXX: clang++
+      CMAKE_COVERAGE: ON
+    steps:
+      - checkout
+      - linux-setup
+      - build
+      - run: make llvm-coverage
+
+
+  build-and-test-arm:
+    machine:
+      <<: *default-machine
+    environment:
+      TOOLCHAIN_PACKAGES: g++
+    resource_class: arm.medium
+    steps:
+      - checkout
+      - linux-setup
+      - build
+      - test
+
+  build-bazel:
+    machine:
+      image: ubuntu-2204:2023.07.2
+    environment:
+      TOOLCHAIN_PACKAGES: g++
+    steps:
+      - checkout
+      - linux-setup
+      - run: sudo apt install apt-transport-https curl gnupg
+      - run: curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
+      - run: sudo mv bazel.gpg /etc/apt/trusted.gpg.d/
+      - run: echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
+      - run: sudo apt update
+      - run: sudo apt install bazel
+      - run: bazel --version
+      - run: >
+          pushd examples/bazel &&
+          bazel run -s src:hello
+
+  build-and-test-osx:
+    macos:
+      xcode: 12.5.1
+    steps:
+      - checkout
+      - run: bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      - run: brew install cmocka cmake
+      - build
+      - test
+
+  
+  build-and-test-win:
+    resource_class: 'windows.medium'
+    machine:
+      image: 'windows-server-2022-gui:current'
+      shell: 'bash.exe'
+    steps:
+      - checkout
+      - run: choco install cmake -y
+      - run: git clone https://git.cryptomilk.org/projects/cmocka.git
+      - run: cd cmocka && git checkout tags/cmocka-1.1.5 
+      - run: /c/Program\ Files/Cmake/bin/cmake -S cmocka -B cmocka_build
+      - run: /c/Program\ Files/Cmake/bin/cmake --build cmocka_build
+      - run: /c/Program\ Files/Cmake/bin/cmake -S . -B libcbor_build -DWITH_TESTS=ON -DCMOCKA_INCLUDE_DIR=cmocka/include -DCMOCKA_LIBRARIES=$(pwd)/cmocka_build/src/Debug/cmocka.lib
+      - run: /c/Program\ Files/Cmake/bin/cmake --build libcbor_build
+      - run: >
+          export PATH="$(pwd)/cmocka_build/src/Debug/:$PATH" &&
+          /c/Program\ Files/Cmake/bin/ctest.exe --test-dir libcbor_build --output-on-failure
+
+workflows:
+  build-and-test:
+    jobs:
+      - static-test
+      - build-and-test
+      - build-and-test-clang
+      - build-and-test-32b
+      - build-and-test-release-clang
+      - build-and-test-arm
+      - build-and-test-win
+      - build-bazel
+      - llvm-coverage
+      # OSX builds are expensive, run only on master
+      - build-and-test-osx:
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: [master]
