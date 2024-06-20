@@ -8,7 +8,7 @@ if (NOT DEFINED CMAKE_MACOSX_RPATH)
 	set(CMAKE_MACOSX_RPATH 0)
 endif()
 
-add_library(cbor ${SOURCES})
+add_library(cbor STATIC ${SOURCES})
 target_include_directories(cbor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Explicitly link math.h if necessary
@@ -20,7 +20,7 @@ endif()
 include(GenerateExportHeader)
 generate_export_header(cbor EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/cbor/cbor_export.h)
 target_include_directories(cbor PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cbor/cbor_export.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cbor)
+do_not_install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cbor/cbor_export.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cbor)
 
 if (NOT ${CBOR_VERSION_MAJOR} EQUAL 0)
 	MESSAGE(FATAL_ERROR "Change the shared library version scheme to reflect https://github.com/PJK/libcbor/issues/52.")
@@ -36,17 +36,17 @@ join_paths(includedir_for_pc_file "\${prefix}" "${CMAKE_INSTALL_INCLUDEDIR}")
 configure_file(libcbor.pc.in libcbor.pc @ONLY)
 
 # http://www.cmake.org/Wiki/CMake:Install_Commands
-install(TARGETS cbor
+do_not_install(TARGETS cbor
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-install(DIRECTORY cbor DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+do_not_install(DIRECTORY cbor DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
                 FILES_MATCHING PATTERN "*.h")
 
-install(FILES cbor.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+do_not_install(FILES cbor.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libcbor.pc"
+do_not_install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libcbor.pc"
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 include(CMakePackageConfigHelpers)
@@ -61,7 +61,7 @@ write_basic_package_version_file(
 	VERSION ${CBOR_VERSION}
   COMPATIBILITY SameMajorVersion
 )
-install(
+do_not_install(
 	FILES
 		${CMAKE_CURRENT_BINARY_DIR}/libcborConfig.cmake
 		${CMAKE_CURRENT_BINARY_DIR}/libcborConfigVersion.cmake

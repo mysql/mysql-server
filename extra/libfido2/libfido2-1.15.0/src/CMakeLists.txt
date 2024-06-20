@@ -102,6 +102,69 @@ list(APPEND COMPAT_SOURCES
 	../openbsd-compat/timingsafe_bcmp.c
 )
 
+# Windows wants only major.minor
+IF(WIN32)
+  SET(FIDO_LIBRARY_VERSION ${FIDO_MAJOR}.${FIDO_MINOR})
+ELSE()
+  SET(FIDO_LIBRARY_VERSION ${FIDO_MAJOR}.${FIDO_MINOR}.${FIDO_PATCH})
+ENDIF()
+
+IF(WIN32)
+  IF(USE_WINHELLO)
+    list(APPEND BASE_LIBRARIES webauthn)
+  ENDIF()
+ENDIF()
+
+list(APPEND BASE_LIBRARIES ${LIBRT})
+
+# Add our own shared library:
+
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+  cbor.c
+  ecdh.c
+  es256.c
+  es384.c
+  rs256.c
+  )
+
+# Silencing deprecated OpenSSL API usage in libfido2
+MY_CHECK_CXX_COMPILER_WARNING("-Wdeprecated-declarations" HAS_WARN_FLAG)
+IF (HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+ADD_SHARED_LIBRARY(fido2
+  ${FIDO_SOURCES} ${COMPAT_SOURCES}
+  SKIP_INSTALL
+  VERSION ${FIDO_LIBRARY_VERSION} SOVERSION ${FIDO_MAJOR}
+  LINK_LIBRARIES
+    ext::cbor
+    ${BASE_LIBRARIES}
+    OpenSSL::Crypto
+    ${HIDAPI_LIBRARIES}
+    ${UDEV_LIBRARIES}
+    ext::zlib
+  NO_UNDEFINED
+  )
+IF(WIN32)
+  TARGET_LINK_LIBRARIES(fido2 wsock32 wsock32 ws2_32 bcrypt setupapi hid)
+ELSEIF(APPLE)
+  TARGET_LINK_LIBRARIES(fido2 "-framework CoreFoundation" "-framework IOKit")
+ENDIF()
+
+IF(WITH_AUTHENTICATION_WEBAUTHN OR WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  INSTALL_PRIVATE_LIBRARY(fido2)
+ENDIF()
+
+# On Linux libcrypto.so.1.1 will be installed in the same
+# directory as libfido2.so.1
+IF(CRYPTO_CUSTOM_LIBRARY)
+  ADD_INSTALL_RPATH(fido2 "\$ORIGIN")
+ENDIF()
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(fido2)
+RETURN()
+################################################################
+
 if(WIN32)
 	list(APPEND BASE_LIBRARIES wsock32 ws2_32 bcrypt setupapi hid)
 	if(USE_PCSC)
@@ -148,9 +211,11 @@ if(BUILD_SHARED_LIBS)
 		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
+IF(DISABLE_THESE_LINES)
 install(FILES fido.h DESTINATION include)
 install(DIRECTORY fido DESTINATION include)
 
 configure_file(libfido2.pc.in libfido2.pc @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libfido2.pc"
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+ENDIF(DISABLE_THESE_LINES)
