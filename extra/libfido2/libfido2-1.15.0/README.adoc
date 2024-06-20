@@ -1,0 +1,144 @@
+== libfido2
+
+image:https://github.com/yubico/libfido2/workflows/linux/badge.svg["Linux Build Status (github actions)", link="https://github.com/Yubico/libfido2/actions"]
+image:https://github.com/yubico/libfido2/workflows/macos/badge.svg["macOS Build Status (github actions)", link="https://github.com/Yubico/libfido2/actions"]
+image:https://github.com/yubico/libfido2/workflows/windows/badge.svg["Windows Build Status (github actions)", link="https://github.com/Yubico/libfido2/actions"]
+image:https://github.com/yubico/libfido2/workflows/fuzzer/badge.svg["Fuzz Status (github actions)", link="https://github.com/Yubico/libfido2/actions"]
+image:https://oss-fuzz-build-logs.storage.googleapis.com/badges/libfido2.svg["Fuzz Status (oss-fuzz)", link="https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:libfido2"]
+
+*libfido2* provides library functionality and command-line tools to
+communicate with a FIDO device over USB or NFC, and to verify attestation and
+assertion signatures.
+
+*libfido2* supports the FIDO U2F (CTAP 1) and FIDO2 (CTAP 2) protocols.
+
+For usage, see the `examples/` directory.
+
+=== License
+
+*libfido2* is licensed under the BSD 2-clause license. See the LICENSE
+file for the full license text.
+
+=== Supported Platforms
+
+*libfido2* is known to work on Linux, macOS, Windows, OpenBSD, and FreeBSD.
+
+=== Documentation
+
+Documentation is available in troff and HTML formats. An
+https://developers.yubico.com/libfido2/Manuals/[online mirror of *libfido2*'s documentation]
+is also available.
+
+=== Bindings
+
+* .NET: https://github.com/borrrden/Fido2Net[Fido2Net]
+* Go: https://github.com/keys-pub/go-libfido2[go-libfido2]
+* Perl: https://github.com/jacquesg/p5-FIDO-Raw[p5-FIDO-Raw]
+* Rust: https://github.com/PvdBerg1998/libfido2[libfido2]
+
+=== Releases
+
+The current release of *libfido2* is 1.15.0. Signed release tarballs are
+available at Yubico's
+https://developers.yubico.com/libfido2/Releases[release page].
+
+=== Dependencies
+
+*libfido2* depends on https://github.com/pjk/libcbor[libcbor],
+https://www.openssl.org[OpenSSL] 1.1 or newer, and https://zlib.net[zlib].
+On Linux, libudev
+(part of https://www.freedesktop.org/wiki/Software/systemd[systemd]) is also
+required.
+
+=== Installation
+
+==== Fedora 35 and 34
+
+  $ sudo dnf install libfido2 libfido2-devel fido2-tools
+
+==== Ubuntu 22.04 (Jammy) and 20.04 (Focal)
+
+  $ sudo apt install libfido2-1 libfido2-dev libfido2-doc fido2-tools
+
+Alternatively, newer versions of *libfido2* are available in Yubico's PPA.
+Follow the instructions for Ubuntu 18.04 (Bionic) below.
+
+==== Ubuntu 18.04 (Bionic)
+
+  $ sudo apt install software-properties-common
+  $ sudo apt-add-repository ppa:yubico/stable
+  $ sudo apt update
+  $ sudo apt install libfido2-1 libfido2-dev libfido2-doc fido2-tools
+
+On Linux, you may need to add a udev rule to be able to access the FIDO
+device. For example, the udev rule may contain the following:
+
+----
+#udev rule for allowing HID access to Yubico devices for FIDO support.
+
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  MODE="0664", GROUP="plugdev", ATTRS{idVendor}=="1050"
+----
+
+==== macOS
+
+  $ brew install libfido2
+
+==== Windows
+
+Please consult Yubico's
+https://developers.yubico.com/libfido2/Releases[release page] for ARM, ARM64,
+Win32, and Win64 artefacts.
+
+=== Building from source
+
+On UNIX-like systems:
+
+  $ cmake -B build
+  $ make -C build
+  $ sudo make -C build install
+
+Depending on the platform,
+https://www.freedesktop.org/wiki/Software/pkg-config/[pkg-config] may need to
+be installed, or the PKG_CONFIG_PATH environment variable set. For complete,
+OS-specific build instructions, please refer to the `.actions/`
+(Linux, macOS, BSD) and `windows/` directories.
+
+=== Build-time Customisation
+
+*libfido2* supports a number of CMake options. Some of the options require
+additional dependencies. Options that are disabled by default are not
+officially supported.
+
+[%autowidth.stretch]
+|===
+|*Option*           |*Description*                            |*Default*
+| BUILD_EXAMPLES    | Build example programs                  | ON
+| BUILD_MANPAGES    | Build man pages                         | ON
+| BUILD_SHARED_LIBS | Build a shared library                  | ON
+| BUILD_STATIC_LIBS | Build a static library                  | ON
+| BUILD_TOOLS       | Build auxiliary tools                   | ON
+| FUZZ              | Enable fuzzing instrumentation          | OFF
+| NFC_LINUX         | Enable netlink NFC support on Linux     | ON
+| USE_HIDAPI        | Use hidapi as the HID backend           | OFF
+| USE_PCSC          | Enable experimental PCSC support        | OFF
+| USE_WINHELLO      | Abstract Windows Hello as a FIDO device | ON
+|===
+
+The USE_HIDAPI option requires https://github.com/libusb/hidapi[hidapi]. The
+USE_PCSC option requires https://github.com/LudovicRousseau/PCSC[pcsc-lite] on
+Linux.
+
+=== Development
+
+Please use https://github.com/Yubico/libfido2/discussions[GitHub Discussions]
+to ask questions and suggest features, and
+https://github.com/Yubico/libfido2/pulls[GitHub pull-requests] for code
+contributions.
+
+=== Reporting bugs
+
+Please use https://github.com/Yubico/libfido2/issues[GitHub Issues] to report
+bugs. To report security issues, please contact security@yubico.com. A PGP
+public key can be found at
+https://www.yubico.com/support/security-advisories/issue-rating-system/.
