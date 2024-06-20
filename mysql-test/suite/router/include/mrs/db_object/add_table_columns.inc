@@ -33,9 +33,20 @@ if ($mrs_sql_id_variable_ob)
   if (!`SELECT $mrs_sql_id_variable_ob`)
   {
     eval SET $mrs_sql_id_variable_ob=mysql_rest_service_metadata.get_sequence_id();
-    eval INSERT INTO mysql_rest_service_metadata.object(id, db_object_id, name) VALUES($mrs_sql_id_variable_ob, $mrs_sql_id_variable, "$mrs_add_db_object");
+    
+    if ($mrs_schema_version == 3)
+    {
+      let $_object_options=`SELECT JSON_MERGE_PATCH(JSON_OBJECT(), IF(FIND_IN_SET("CREATE","$mrs_add_db_object_op"),'{"duality_view_insert":true}',"{}"), IF(FIND_IN_SET("UPDATE","$mrs_add_db_object_op"),'{"duality_view_update":true}',"{}"), IF(FIND_IN_SET("UPDATE","$mrs_add_db_object_op"),'{"duality_view_delete":true}',"{}"))`;
+      eval INSERT INTO mysql_rest_service_metadata.object(id, db_object_id, name, options) VALUES($mrs_sql_id_variable_ob, $mrs_sql_id_variable, "$mrs_add_db_object", '$_object_options');
+    }
+    if ($mrs_schema_version == 2)
+    {
+      eval INSERT INTO mysql_rest_service_metadata.object(id, db_object_id, name) VALUES($mrs_sql_id_variable_ob, $mrs_sql_id_variable, "$mrs_add_db_object");
+    }
   }
 }
+
+
 
 eval INSERT INTO mysql_rest_service_metadata.object_field
        (id, name, object_id, enabled, position, db_column)

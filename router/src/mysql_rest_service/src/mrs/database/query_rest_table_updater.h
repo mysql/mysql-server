@@ -35,9 +35,10 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "mrs/database/duality_view/errors.h"
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/entry/object.h"
 #include "mrs/database/filter_object_generator.h"
-#include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/database/query_uuid.h"
@@ -46,24 +47,30 @@
 
 namespace mrs {
 namespace database {
+namespace dv {
 
-class TableUpdater : public QueryLog {
+class DualityViewUpdater : public QueryLog {
  public:
-  explicit TableUpdater(std::shared_ptr<entry::Object> object,
-                        const ObjectRowOwnership &row_ownership_info = {});
+  using Object = entry::Object;
 
-  PrimaryKeyColumnValues handle_post(MySQLSession *session,
-                                     const rapidjson::Document &doc);
+  explicit DualityViewUpdater(
+      std::shared_ptr<Object> view,
+      const ObjectRowOwnership &row_ownership_info = {});
 
-  PrimaryKeyColumnValues handle_put(MySQLSession *session,
-                                    const rapidjson::Document &doc,
-                                    const PrimaryKeyColumnValues &pk_values);
+  void check(const rapidjson::Document &doc, bool for_update = false) const;
 
-  uint64_t handle_delete(MySQLSession *session,
-                         const PrimaryKeyColumnValues &pk_values);
+  PrimaryKeyColumnValues insert(MySQLSession *session,
+                                const rapidjson::Document &doc);
 
-  uint64_t handle_delete(MySQLSession *session,
-                         const FilterObjectGenerator &filter);
+  PrimaryKeyColumnValues update(MySQLSession *session,
+                                const PrimaryKeyColumnValues &pk_values,
+                                const rapidjson::Document &doc,
+                                bool upsert = false);
+
+  uint64_t delete_(MySQLSession *session,
+                   const PrimaryKeyColumnValues &pk_values);
+
+  uint64_t delete_(MySQLSession *session, const FilterObjectGenerator &filter);
 
   const ObjectRowOwnership &row_ownership_info() const {
     return m_row_ownership_info;
@@ -74,14 +81,16 @@ class TableUpdater : public QueryLog {
   class Operation;
 
  private:
-  std::shared_ptr<entry::Object> m_object;
+  std::shared_ptr<Object> view_;
   ObjectRowOwnership m_row_ownership_info;
   size_t m_affected = 0;
 
  private:
-  std::shared_ptr<entry::BaseTable> get_base_table() const;
+  void check_primary_key(PrimaryKeyColumnValues &pk_values);
 
-  void check_primary_key(const PrimaryKeyColumnValues &pk_values);
+  rapidjson::Document select_one(MySQLSession *session,
+                                 const PrimaryKeyColumnValues &pk_values,
+                                 bool &is_owned) const;
 
   void check_etag_and_lock_rows(MySQLSession *session,
                                 const rapidjson::Value &doc,
@@ -90,6 +99,7 @@ class TableUpdater : public QueryLog {
       MySQLSession *session, const PrimaryKeyColumnValues &pk_values) const;
 };
 
+}  // namespace dv
 }  // namespace database
 }  // namespace mrs
 

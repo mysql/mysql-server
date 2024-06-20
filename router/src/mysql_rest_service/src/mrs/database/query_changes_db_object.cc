@@ -90,7 +90,7 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
     if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2) {
       if (e.user_ownership_v2.has_value()) {
         auto &value = e.user_ownership_v2.value();
-        auto field = e.object_description->get_column_field(value);
+        auto field = e.object_description->get_column(value);
 
         if (field) {
           e.object_description->user_ownership_field.emplace();
@@ -221,7 +221,7 @@ void QueryChangesDbObjectLite::query_entries(MySQLSession *session) {
     if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2) {
       if (e.user_ownership_v2.has_value()) {
         auto &value = e.user_ownership_v2.value();
-        auto field = e.object_description->get_column_field(value);
+        auto field = e.object_description->get_column(value);
 
         if (field) {
           e.object_description->user_ownership_field.emplace();

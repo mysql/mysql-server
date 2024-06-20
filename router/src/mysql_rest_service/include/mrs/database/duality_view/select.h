@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_DATABASE_DUALITY_VIEW_SELECT_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_DATABASE_DUALITY_VIEW_SELECT_H_
 
 #include <map>
 #include <memory>
@@ -31,53 +31,53 @@
 #include <string>
 #include <vector>
 #include "mrs/database/entry/object.h"
+#include "mrs/database/helper/object_row_ownership.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
 
+// Mapping between column names to SQL values (strings must be 'quoted', binary
+// values must be quoted as _binary'string')
 using PrimaryKeyColumnValues = std::map<std::string, mysqlrouter::sqlstring>;
+
 using ColumnValues = std::vector<mysqlrouter::sqlstring>;
-using Tables = std::vector<std::shared_ptr<entry::Table>>;
 
-mysqlrouter::sqlstring format_from_clause(const Tables &table,
-                                          const Tables &join,
-                                          bool is_table = true);
+namespace dv {
 
-mysqlrouter::sqlstring format_where_expr(
-    std::shared_ptr<database::entry::Table> table,
-    const std::string &table_name, const PrimaryKeyColumnValues &f);
+using Table = entry::Table;
+using Field = entry::Field;
+using Column = entry::Column;
+using ForeignKeyReference = entry::ForeignKeyReference;
 
-mysqlrouter::sqlstring format_where_expr(
-    std::shared_ptr<database::entry::Table> table,
-    const PrimaryKeyColumnValues &f);
+mysqlrouter::sqlstring format_key_names(const Table &table);
 
-mysqlrouter::sqlstring format_key_names(
-    std::shared_ptr<database::entry::Table> table);
-
-mysqlrouter::sqlstring format_parameters(
-    std::shared_ptr<database::entry::Object> object, const ColumnValues &f);
-
-mysqlrouter::sqlstring format_key(std::shared_ptr<database::entry::Table> table,
+mysqlrouter::sqlstring format_key(const Table &table,
                                   const PrimaryKeyColumnValues &f);
 
-mysqlrouter::sqlstring format_column_mapping(
-    const entry::JoinedTable::ColumnMapping &map);
+mysqlrouter::sqlstring format_where_expr(const Table &table,
+                                         const std::string &table_name,
+                                         const PrimaryKeyColumnValues &f,
+                                         bool omit_row_owner = false);
 
-mysqlrouter::sqlstring format_left_join(const entry::Table &table,
-                                        const entry::JoinedTable &join);
+mysqlrouter::sqlstring format_where_expr(const Table &table,
+                                         const PrimaryKeyColumnValues &f,
+                                         bool omit_row_owner = false);
+
+mysqlrouter::sqlstring format_join_where_expr(const Table &table,
+                                              const ForeignKeyReference &fk);
 
 class ObjectFieldFilter {
  public:
-  static ObjectFieldFilter from_url_filter(const entry::Object &object,
+  static ObjectFieldFilter from_url_filter(const Table &table,
                                            std::vector<std::string> filter);
-  static ObjectFieldFilter from_object(const entry::Object &object);
+  static ObjectFieldFilter from_object(const Table &table);
 
   bool is_included(std::string_view prefix, std::string_view field) const;
   bool is_filter_configured() const;
 
  private:
-  std::set<std::string, std::less<>> m_filter;
+  std::set<std::string, std::less<>> filter_;
   bool m_exclusive = true;
 
   bool is_parent_included(std::string_view prefix) const;
@@ -86,14 +86,15 @@ class ObjectFieldFilter {
 class JsonQueryBuilder {
  public:
   explicit JsonQueryBuilder(const ObjectFieldFilter &filter,
-                            bool for_update = false, bool for_checksum = false,
+                            const ObjectRowOwnership &row_owner = {},
+                            bool for_update = false,
                             bool for_bigins_as_string = false)
-      : m_filter(filter),
+      : filter_(filter),
+        row_owner_(row_owner),
         for_update_(for_update),
-        for_checksum_(for_checksum),
         bigins_as_string_{for_bigins_as_string} {}
 
-  void process_object(std::shared_ptr<entry::Object> object);
+  void process_view(std::shared_ptr<entry::DualityView> view);
 
   mysqlrouter::sqlstring query() const {
     mysqlrouter::sqlstring q{"SELECT JSON_OBJECT(?) FROM ?"};
@@ -108,8 +109,7 @@ class JsonQueryBuilder {
   mysqlrouter::sqlstring query_one(const PrimaryKeyColumnValues &pk) const {
     mysqlrouter::sqlstring q{"SELECT ?.?(?)"};
 
-    q << select_items() << from_clause()
-      << format_where_expr(m_object->get_base_table(), pk);
+    q << select_items() << from_clause() << format_where_expr(*table_, pk);
 
     if (for_update_) q.append_preformatted(" FOR UPDATE NOWAIT");
 
@@ -120,41 +120,34 @@ class JsonQueryBuilder {
   mysqlrouter::sqlstring from_clause() const;
 
  private:
-  const ObjectFieldFilter &m_filter;
-  std::shared_ptr<entry::Object> m_object;
+  const ObjectFieldFilter &filter_;
+  const ObjectRowOwnership &row_owner_;
+  std::shared_ptr<Table> parent_table_;
+  std::shared_ptr<Table> table_;
   std::string m_path_prefix;
   mysqlrouter::sqlstring m_select_items;
-  Tables m_base_tables;
-  Tables m_joined_tables;
   bool for_update_ = false;
-  bool for_checksum_ = false;
   bool bigins_as_string_ = false;
 
-  void process_object(std::shared_ptr<entry::Object> object,
-                      const std::string &path_prefix, bool unnest_to_first);
+  void process_table(std::shared_ptr<Table> parent_table,
+                     std::shared_ptr<Table> table,
+                     const std::string &path_prefix);
 
-  mysqlrouter::sqlstring subquery_value() const;
-
-  mysqlrouter::sqlstring subquery_object() const;
-
-  mysqlrouter::sqlstring subquery_object_array() const;
-
-  mysqlrouter::sqlstring subquery_array() const;
+  mysqlrouter::sqlstring subquery_object(const ForeignKeyReference &fk) const;
+  mysqlrouter::sqlstring subquery_object_array(
+      const ForeignKeyReference &fk) const;
 
   mysqlrouter::sqlstring make_subselect_where(
-      std::shared_ptr<entry::JoinedTable> ref) const;
+      const ForeignKeyReference &ref) const;
 
-  mysqlrouter::sqlstring make_subquery(
-      const entry::ReferenceField &field) const;
+  mysqlrouter::sqlstring make_subquery(const ForeignKeyReference &ref) const;
 
-  void add_field(std::shared_ptr<entry::ObjectField> field);
-
-  void add_field_value(std::shared_ptr<entry::ObjectField> field);
-
-  void add_joined_table(std::shared_ptr<entry::Table> table);
+  void add_column_field(const Column &column);
+  void add_reference_field(const ForeignKeyReference &fk);
 };
 
+}  // namespace dv
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_DATABASE_DUALITY_VIEW_SELECT_H_

@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "mrs/database/helper/object_query.h"
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/gtid_manager.h"
 #include "mrs/interface/object.h"

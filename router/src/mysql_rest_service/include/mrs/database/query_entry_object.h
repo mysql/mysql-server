@@ -71,8 +71,8 @@ class QueryEntryObject : public mrs::database::QueryEntryObject {
 
   bool m_loading_references;
 
-  std::map<entry::UniversalId, std::shared_ptr<entry::Table>> m_tables;
-  std::map<entry::UniversalId, std::shared_ptr<entry::Object>> m_objects;
+  std::map<entry::UniversalId, std::shared_ptr<entry::ForeignKeyReference>>
+      m_references;
   int m_alias_count = 0;
 };
 
@@ -81,12 +81,6 @@ class QueryEntryObject : public mrs::database::QueryEntryObject {
 namespace v3 {
 
 class QueryEntryObject : public v2::QueryEntryObject {
- public:
-  void query_entries(mysqlrouter::MySQLSession *session,
-                     const std::string &schema_name,
-                     const std::string &object_name,
-                     const UniversalId &db_object_id) override;
-
  private:
   void on_reference_row(const ResultRow &r) override;
   UniversalId query_object(MySQLSession *session,

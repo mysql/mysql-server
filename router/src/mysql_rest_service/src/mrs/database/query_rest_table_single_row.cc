@@ -25,8 +25,8 @@
 #include "mrs/database/query_rest_table_single_row.h"
 #include <stdexcept>
 #include "helper/json/to_string.h"
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/helper/object_checksum.h"
-#include "mrs/database/helper/object_query.h"
 
 namespace mrs {
 namespace database {
@@ -44,24 +44,26 @@ static void json_object_fast_append(std::string &jo, const std::string &key,
   jo.push_back('}');
 }
 
-QueryRestTableSingleRow::QueryRestTableSingleRow(bool encode_bigints_as_string,
-                                                 const bool include_links)
-    : encode_bigints_as_string_{encode_bigints_as_string},
-      include_links_{include_links} {}
+QueryRestTableSingleRow::QueryRestTableSingleRow(
+    const JsonTemplateFactory *factory, bool encode_bigints_as_string,
+    const bool include_links)
+    : QueryRestTable(factory, encode_bigints_as_string, include_links) {}
 
-void QueryRestTableSingleRow::query_entries(
+void QueryRestTableSingleRow::query_entry(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const PrimaryKeyColumnValues &pk,
-    const std::string &url_route, bool compute_etag,
-    const std::string &metadata_gtid) {
+    const PrimaryKeyColumnValues &pk, const dv::ObjectFieldFilter &field_filter,
+    const std::string &url_route, const ObjectRowOwnership &row_ownership,
+    const bool compute_etag, const std::string &metadata_gtid,
+    const bool fetch_any_owner) {
   object_ = object;
   compute_etag_ = compute_etag;
+  metadata_received_ = false;
   metadata_gtid_ = metadata_gtid;
+  items = 0;
+  config_ = {0, 0, false, url_route};
   field_filter_ = &field_filter;
 
-  response = "";
-  items = 0;
-  build_query(object, pk, url_route);
+  build_query(field_filter, url_route, row_ownership, pk, fetch_any_owner);
 
   execute(session);
 }
@@ -75,26 +77,33 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
   if (!metadata_gtid_.empty()) {
     metadata_.insert({"gtid", metadata_gtid_});
   }
+  response = post_process_json(
+      object_, field_filter_ ? *field_filter_ : ObjectFieldFilter{}, {}, r[0],
+      compute_etag_);
 
-  response = r[0];
-  if (compute_etag_) {
-    // calc etag and strip filtered fields
-    process_document_etag_and_filter(object_, *field_filter_, metadata_,
-                                     &response);
-  } else if (!metadata_.empty()) {
+  if (!metadata_.empty()) {
     json_object_fast_append(response, "_metadata",
                             helper::json::to_string(metadata_));
   }
+
+  is_owned_ = r[1] && strcmp(r[1], "1") == 0;
 
   ++items;
 }
 
 void QueryRestTableSingleRow::build_query(
-    std::shared_ptr<database::entry::Object> object,
-    const PrimaryKeyColumnValues &pk, const std::string &url_route) {
-  JsonQueryBuilder qb(*field_filter_, false, compute_etag_,
-                      encode_bigints_as_string_);
-  qb.process_object(object);
+    const ObjectFieldFilter &field_filter, const std::string &url_route,
+    const ObjectRowOwnership &row_ownership, const PrimaryKeyColumnValues &pk,
+    bool fetch_any_owner) {
+  assert(!pk.empty());
+
+  auto where =
+      build_where(fetch_any_owner ? ObjectRowOwnership() : row_ownership);
+
+  dv::JsonQueryBuilder qb(field_filter, row_ownership, false,
+                          // compute_etag_,
+                          encode_bigints_as_strings_);
+  qb.process_view(object_);
 
   std::vector<mysqlrouter::sqlstring> fields;
   if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
@@ -102,12 +111,25 @@ void QueryRestTableSingleRow::build_query(
     fields.emplace_back(
         "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
         "'href', CONCAT(?,'/',CONCAT_WS(',',?))))");
-    fields.back() << url_route << format_key(object->get_base_table(), pk);
+    fields.back() << url_route << dv::format_key(*object_, pk);
   }
 
-  query_ = "SELECT JSON_OBJECT(?) FROM ? WHERE ?;";
-  query_ << fields << qb.from_clause()
-         << format_where_expr(object->get_base_table(), pk);
+  if (where.is_empty()) {
+    where = {"WHERE "};
+    where.append_preformatted(dv::format_where_expr(*object_, pk));
+  } else {
+    where.append_preformatted_sep(" AND ", dv::format_where_expr(*object_, pk));
+  }
+
+  mysqlrouter::sqlstring row_owner_check;
+  if (row_ownership.enabled()) {
+    row_owner_check = row_ownership.owner_check_expr(object_->table_alias);
+  } else {
+    row_owner_check = mysqlrouter::sqlstring("1");
+  }
+
+  query_ = "SELECT JSON_OBJECT(?), ? as is_owned FROM ? ?;";
+  query_ << fields << row_owner_check << qb.from_clause() << where;
 }
 
 }  // namespace database

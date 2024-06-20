@@ -30,12 +30,12 @@
 #include <string>
 #include <vector>
 
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/database/entry/object.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/filter_object_generator.h"
-#include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/database/json_template.h"
@@ -43,7 +43,7 @@
 namespace mrs {
 namespace database {
 
-class QueryRestTable : private QueryLog {
+class QueryRestTable : protected QueryLog {
  public:
   using Object = entry::Object;
   using ObjectField = entry::ObjectField;
@@ -51,12 +51,13 @@ class QueryRestTable : private QueryLog {
   using UniversalId = entry::UniversalId;
   using RowGroupOwnership = entry::RowGroupOwnership;
   using RowUserOwnership = entry::RowUserOwnership;
+  using ObjectFieldFilter = dv::ObjectFieldFilter;
 
   using VectorOfRowGroupOwnershp = std::vector<RowGroupOwnership>;
 
-  QueryRestTable(const JsonTemplateFactory *factory = nullptr,
-                 bool encode_bigints_as_strings = false,
-                 bool include_links = true);
+  explicit QueryRestTable(const JsonTemplateFactory *factory = nullptr,
+                          bool encode_bigints_as_strings = false,
+                          bool include_links = true);
   explicit QueryRestTable(bool encode_bigints_as_strings, bool include_links);
 
  public:
@@ -70,7 +71,7 @@ class QueryRestTable : private QueryLog {
   std::string response;
   uint64_t items{0};
 
- private:
+ protected:
   struct Config {
     uint64_t offset;
     uint64_t limit;
@@ -81,7 +82,7 @@ class QueryRestTable : private QueryLog {
   Config config_;
   std::vector<helper::Column> columns_;
   std::shared_ptr<database::JsonTemplate> serializer_;
-  std::shared_ptr<database::entry::Object> object_;
+  std::shared_ptr<Object> object_;
   const ObjectFieldFilter *field_filter_{nullptr};
   bool compute_etag_{false};
   mysqlrouter::sqlstring where_;

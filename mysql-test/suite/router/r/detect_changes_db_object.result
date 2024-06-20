@@ -157,6 +157,10 @@ OK
 # Modified OBJECT_REFERENCE to be an unnested filed.
 GET /svc/basic_new/t4/2
 {
+    "my_id": 2,
+    "my_date": "1977-01-21 00:00:00.000000",
+    "my_name": "Second row",
+    "my_comments": null,
     "links": [
         {
             "rel": "self",
@@ -164,14 +168,11 @@ GET /svc/basic_new/t4/2
         }
     ],
     "my_id": 2,
-    "my_date": "1977-01-21 00:00:00.000000",
-    "my_name": "Second row",
     "last_name": "White",
     "table2_id": 2,
     "first_name": "Haley",
-    "my_comments": null,
     "_metadata": {
-        "etag": "061036F52CF9471820D547438A7C5F2FEF72F5E88C7248207E2C47A4B2837008"
+        "etag": "E8EECFE5E09F7461A9816F6AEBAC23E6A69D608258D2EEF02FD79D356DAB7ACA"
     }
 }
 OK

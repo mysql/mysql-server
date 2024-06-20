@@ -31,9 +31,10 @@
 #include "helper/json/rapid_json_to_text.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
+#include "mrs/database/duality_view/select.h"  // TODO delme?
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_checksum.h"
-#include "mrs/database/helper/object_query.h"
 #include "mrs/json/json_template_factory.h"
 #include "mrs/json/response_json_template.h"
 #include "mysql/harness/logging/logging.h"
@@ -70,6 +71,7 @@ void QueryRestTable::query_entries(
   metadata_received_ = false;
   items = 0;
   config_ = {offset, limit, is_default_limit, url_route};
+  field_filter_ = &field_filter;
 
   build_query(field_filter, offset, limit + 1, url_route, row_ownership, fog);
 
@@ -88,19 +90,20 @@ void QueryRestTable::on_metadata(unsigned number, MYSQL_FIELD *fields) {
   for (unsigned int i = 0; i < number; ++i) {
     columns_.emplace_back(&fields[i]);
   }
-  serializer_->begin_resultset(config_.offset, config_.limit,
-                               config_.is_default_limit, config_.url_route,
-                               columns_);
+  if (serializer_)
+    serializer_->begin_resultset(config_.offset, config_.limit,
+                                 config_.is_default_limit, config_.url_route,
+                                 columns_);
 }
 
 void QueryRestTable::on_row(const ResultRow &r) {
-  if (compute_etag_) {
-    std::string doc = r[0];
-    // calc etag and strip filtered fields
-    process_document_etag_and_filter(object_, *field_filter_, {}, &doc);
+  auto doc = post_process_json(
+      object_, field_filter_ ? *field_filter_ : ObjectFieldFilter{}, {}, r[0],
+      compute_etag_);
+  if (serializer_) {
     serializer_->push_json_document(doc.c_str());
   } else {
-    serializer_->push_json_document(r[0]);
+    response = doc;
   }
   ++items;
 }
@@ -383,10 +386,10 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   auto where = build_where(row_ownership);
   extend_where(where, fog);
 
-  JsonQueryBuilder qb(field_filter, false, compute_etag_,
-                      encode_bigints_as_strings_);
+  dv::JsonQueryBuilder qb(field_filter, row_ownership, false,
+                          encode_bigints_as_strings_);
 
-  qb.process_object(object_);
+  qb.process_view(object_);
 
   query_ = sqlstring("SELECT JSON_OBJECT(?) as doc FROM ? ? LIMIT ?,?");
   std::vector<sqlstring> json_object_fields;
@@ -394,7 +397,7 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   if (!qb.select_items().is_empty())
     json_object_fields.push_back(qb.select_items());
 
-  auto pk_columns = format_key_names(object_->get_base_table());
+  auto pk_columns = dv::format_key_names(*object_);
 
   if (include_links_) {
     if (pk_columns.is_empty()) {

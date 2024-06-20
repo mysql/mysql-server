@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#include "mrs/database/helper/object_query.h"
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {

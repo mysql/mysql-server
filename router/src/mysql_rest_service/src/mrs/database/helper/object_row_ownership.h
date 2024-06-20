@@ -80,9 +80,11 @@ class ObjectRowOwnership {
 
   bool enabled() const { return !m_owner_column_name.empty(); }
 
-  bool is_owner_id(const entry::Column &column) const {
-    return enabled() && m_table == column.table.lock() &&
-           m_owner_column_name == column.name;
+  bool is_owner_id(const entry::Table &table,
+                   const entry::Column &column) const {
+    return enabled() && m_table->schema == table.schema &&
+           m_table->table == table.table &&
+           m_owner_column_name == column.column_name;
   }
 
   const VectorOfRowGroupOwnership &row_groups() const { return m_row_groups; }

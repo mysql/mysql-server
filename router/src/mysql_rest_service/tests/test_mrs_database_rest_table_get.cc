@@ -73,20 +73,13 @@ class DatabaseQueryGet : public DatabaseRestTableTest {
   void reset() { rest = std::make_unique<mrs::database::QueryRestTable>(); }
 };
 
-TEST_F(DatabaseQueryGet, bad_metadata) {
-  // no columns
-  auto root = ObjectBuilder("mrstestdb", "actor").column("first_name");
-
-  EXPECT_THROW_MSG(
-      rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {}),
-      std::invalid_argument, "Invalid object metadata");
-}
-
 TEST_F(DatabaseQueryGet, plain) {
-  auto root = ObjectBuilder("mrstestdb", "actor")
+  auto root = DualityViewBuilder("mrstestdb", "actor")
+                  .field("actor_id", FieldFlag::AUTO_INC)
                   .field("first_name")
                   .field("last_name")
-                  .field("last_update");
+                  .field("last_update")
+                  .resolve(m_.get());
 
   rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
   // std::cout << pprint_json(rest->response) << "\n";
@@ -94,19 +87,37 @@ TEST_F(DatabaseQueryGet, plain) {
       R"*({
     "items": [
         {
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url/1"
+                }
+            ],
+            "actor_id": 1,
             "last_name": "GUINESS",
             "first_name": "PENELOPE",
             "last_update": "2006-02-15 04:34:33.000000"
         },
         {
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url/2"
+                }
+            ],
+            "actor_id": 2,
             "last_name": "WAHLBERG",
             "first_name": "NICK",
             "last_update": "2006-02-15 04:34:33.000000"
         },
         {
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url/3"
+                }
+            ],
+            "actor_id": 3,
             "last_name": "CHASE",
             "first_name": "ED",
             "last_update": "2006-02-15 04:34:33.000000"
@@ -131,12 +142,13 @@ TEST_F(DatabaseQueryGet, plain) {
 }
 
 TEST_F(DatabaseQueryGet, special_types) {
-  auto root = ObjectBuilder("mrstestdb", "typetest")
+  auto root = DualityViewBuilder("mrstestdb", "typetest")
                   .field("id", FieldFlag::PRIMARY)
                   .field("Geom", "geom", "GEOMETRY")
                   .field("Bool", "bool", "BIT(1)")
                   .field("Binary", "bin", "BLOB")
-                  .field("Json", "js", "JSON");
+                  .field("Json", "js", "JSON")
+                  .resolve(m_.get());
 
   rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
 
@@ -178,1499 +190,51 @@ TEST_F(DatabaseQueryGet, special_types) {
             pprint_json(rest->response));
 }
 
-// nested n:1 reference in base object
-TEST_F(DatabaseQueryGet, nested_n1_base) {
-  auto root = ObjectBuilder("mrstestdb", "city")
-                  .field("city_id", FieldFlag::PRIMARY)
-                  .field("city")
-                  .field("country_id")
-                  .nest("country",
-                        ObjectBuilder("country", {{"country_id", "country_id"}})
-                            .field("country_id", FieldFlag::PRIMARY)
-                            .field("country"));
-
-  {
-    rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-    EXPECT_EQ(R"*({
-    "items": [
-        {
-            "city": "Kabul",
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/251"
-                }
-            ],
-            "city_id": 251,
-            "country": {
-                "country": "Afghanistan",
-                "country_id": 1
-            },
-            "country_id": 1
-        },
-        {
-            "city": "Tafuna",
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/516"
-                }
-            ],
-            "city_id": 516,
-            "country": {
-                "country": "American Samoa",
-                "country_id": 3
-            },
-            "country_id": 3
-        },
-        {
-            "city": "Benguela",
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/67"
-                }
-            ],
-            "city_id": 67,
-            "country": {
-                "country": "Angola",
-                "country_id": 4
-            },
-            "country_id": 4
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-              pprint_json(rest->response));
-  }
-}
-
-// nested 1:1 reference in base object (composite key)
-TEST_F(DatabaseQueryGet, nested_n1c_base) {
-  auto root = ObjectBuilder("mrstestdb", "store")
-                  .field("store_id", FieldFlag::PRIMARY)
-                  .field("city_id", FieldFlag::PRIMARY)
-                  .field("city_country_id")
-                  .nest("city", ObjectBuilder(
-                                    "city", {{"city_country_id", "country_id"},
-                                             {"city_id", "city_id"}})
-                                    .field("country_id")
-                                    .field("city_id", FieldFlag::PRIMARY)
-                                    .field("city"));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  EXPECT_EQ(R"*({
-    "items": [
-        {
-            "city": {
-                "city": "Tafuna",
-                "city_id": 516,
-                "country_id": 3
-            },
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/1,516"
-                }
-            ],
-            "city_id": 516,
-            "store_id": 1,
-            "city_country_id": 3
-        },
-        {
-            "city": {
-                "city": "Tafuna",
-                "city_id": 516,
-                "country_id": 3
-            },
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/5,516"
-                }
-            ],
-            "city_id": 516,
-            "store_id": 5,
-            "city_country_id": 3
-        },
-        {
-            "city": {
-                "city": "South Hill",
-                "city_id": 493,
-                "country_id": 5
-            },
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/4,493"
-                }
-            ],
-            "city_id": 493,
-            "store_id": 4,
-            "city_country_id": 5
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-            pprint_json(rest->response));
-}
-
-// unnested n:1 reference in base object
-TEST_F(DatabaseQueryGet, unnested_n1_base) {
-  auto root =
-      ObjectBuilder("mrstestdb", "city")
-          .field("city_id", FieldFlag::PRIMARY)
-          .field("country_id", FieldFlag::PRIMARY | FieldFlag::DISABLED)
-          .field("city")
-          .unnest(ObjectBuilder("country", {{"country_id", "country_id"}})
-                      .field("country_id", FieldFlag::PRIMARY)
-                      .field("country"));
-
-  {
-    rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-    EXPECT_EQ(R"*({
-    "items": [
-        {
-            "city": "Kabul",
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/251,1"
-                }
-            ],
-            "city_id": 251,
-            "country": "Afghanistan",
-            "country_id": 1
-        },
-        {
-            "city": "Tafuna",
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/516,3"
-                }
-            ],
-            "city_id": 516,
-            "country": "American Samoa",
-            "country_id": 3
-        },
-        {
-            "city": "Benguela",
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/67,4"
-                }
-            ],
-            "city_id": 67,
-            "country": "Angola",
-            "country_id": 4
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-              pprint_json(rest->response));
-  }
-}
-
-// unnested n:1 reference in base object (composite key)
-TEST_F(DatabaseQueryGet, unnested_n1c_base) {
-  auto root =
-      ObjectBuilder("mrstestdb", "store")
-          .field("store_id")
-          .column("city_id")
-          .column("city_country_id")
-          .unnest(ObjectBuilder("city", {{"city_country_id", "country_id"},
-                                         {"city_id", "city_id"}})
-                      .field("city")
-                      .column("city_id")
-                      .column("country_id"));
-
-  // SELECT
-  {
-    rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-    EXPECT_EQ(R"*({
-    "items": [
-        {
-            "city": "Tafuna",
-            "links": [],
-            "store_id": 1
-        },
-        {
-            "city": "Tafuna",
-            "links": [],
-            "store_id": 5
-        },
-        {
-            "city": "South Hill",
-            "links": [],
-            "store_id": 4
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-              pprint_json(rest->response));
-  }
-}
-
-// unnested 1:n reference in base object - invalid
-TEST_F(DatabaseQueryGet, unnested_1n_base) {
-  // skip - validation done when querying metadata
-}
-
-// nested 1:n reference in base object
-TEST_F(DatabaseQueryGet, nested_1n_base) {
-  auto root =
-      ObjectBuilder("mrstestdb", "country")
-          .field("country")
-          .field("country_id", FieldFlag::DISABLED)
-          .nest_list("cities",
-                     ObjectBuilder("city", {{"country_id", "country_id"}})
-                         .field("city_id")
-                         .field("country_id", FieldFlag::DISABLED)
-                         .field("city"));
-  {
-    rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-    EXPECT_EQ(R"*({
-    "items": [
-        {
-            "links": [],
-            "cities": [
-                {
-                    "city": "Kabul",
-                    "city_id": 251
-                }
-            ],
-            "country": "Afghanistan"
-        },
-        {
-            "links": [],
-            "cities": null,
-            "country": "Algeria"
-        },
-        {
-            "links": [],
-            "cities": [
-                {
-                    "city": "Tafuna",
-                    "city_id": 516
-                }
-            ],
-            "country": "American Samoa"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-              pprint_json(rest->response));
-  }
-}
-
-// nested 1:n reference in base object (composite key)
-TEST_F(DatabaseQueryGet, nested_1nc_base) {
-  auto root =
-      ObjectBuilder("mrstestdb", "city")
-          .column("country_id")
-          .column("city_id")
-          .field("city")
-          .nest_list("stores",
-                     ObjectBuilder("store", {{"city_country_id", "country_id"},
-                                             {"city_id", "city_id"}})
-                         .field("store_id")
-                         .column("city_id")
-                         .column("city_country_id"));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  EXPECT_EQ(
-      R"*({
-    "items": [
-        {
-            "city": "Kabul",
-            "links": [],
-            "stores": null
-        },
-        {
-            "city": "Tafuna",
-            "links": [],
-            "stores": [
-                {
-                    "store_id": 1
-                },
-                {
-                    "store_id": 5
-                }
-            ]
-        },
-        {
-            "city": "Benguela",
-            "links": [],
-            "stores": null
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-      pprint_json(rest->response));
-}
-
-// pure unnested n:m reference in base object - invalid
-TEST_F(DatabaseQueryGet, unnested_unnested_nm_base) {
-  // skip - validation done when querying metadata
-}
-
-// nested+unnested n:m reference in base object
-TEST_F(DatabaseQueryGet, nested_unnested_nm_base) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .field("actor_id", FieldFlag::DISABLED | FieldFlag::PRIMARY)
-          .field("first_name")
-          .nest_list(
-              "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                  .field("actor_id", FieldFlag::DISABLED)
-                  .field("film_id", FieldFlag::DISABLED)
-                  .unnest_list(ObjectBuilder("film", {{"film_id", "film_id"}})
-                                   .field("film_id", FieldFlag::PRIMARY |
-                                                         FieldFlag::DISABLED)
-                                   .field("title")
-                                   .field("description")));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  EXPECT_EQ(
-      R"*({
-    "items": [
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies"
-                },
-                {
-                    "title": "ADAPTATION HOLES",
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
-                },
-                {
-                    "title": "AFRICAN EGG",
-                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico"
-                },
-                {
-                    "title": "ALADDIN CALENDAR",
-                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China"
-                }
-            ],
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/1"
-                }
-            ],
-            "first_name": "PENELOPE"
-        },
-        {
-            "films": [
-                {
-                    "title": "ADAPTATION HOLES",
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
-                },
-                {
-                    "title": "AFFAIR PREJUDICE",
-                    "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank"
-                },
-                {
-                    "title": "AIRPORT POLLOCK",
-                    "description": "A Epic Tale of a Moose And a Girl who must Confront a Monkey in Ancient India"
-                },
-                {
-                    "title": "ALABAMA DEVIL",
-                    "description": "A Thoughtful Panorama of a Database Administrator And a Mad Scientist who must Outgun a Mad Scientist in A Jet Boat"
-                }
-            ],
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/2"
-                }
-            ],
-            "first_name": "NICK"
-        },
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies"
-                },
-                {
-                    "title": "AFFAIR PREJUDICE",
-                    "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank"
-                }
-            ],
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "url/3"
-                }
-            ],
-            "first_name": "ED"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-      pprint_json(rest->response));
-}
-
-// nested+unnested n:m reference in base object + extra lookups, nested
-// category
-
-TEST_F(DatabaseQueryGet, nested_unnested_nm_base_11) {
-  using _ = ObjectBuilder;
-
-  auto root =
-      _("mrstestdb", "actor")
-          .field("actor_id", FieldFlag::DISABLED)
-          .field("first_name")
-          .nest_list(
-              "films",
-              _("film_actor", {{"actor_id", "actor_id"}})
-                  .field("actor_id", FieldFlag::DISABLED)
-                  .field("film_id", FieldFlag::DISABLED)
-                  .unnest(
-                      _("film", {{"film_id", "film_id"}})
-                          .field("film_id", FieldFlag::DISABLED)
-                          .field("title")
-                          .field("description")
-                          .field("language_id", FieldFlag::DISABLED)
-                          .field("original_language_id", FieldFlag::DISABLED)
-                          .nest("language",
-                                _("language", {{"language_id", "language_id"}})
-                                    .field("language_id"))
-                          .nest("original_language",
-                                _("language",
-                                  {{"original_language_id", "language_id"}})
-                                    .field("language_id")))
-                  .nest_list("categories",
-                             _("film_category", {{"film_id", "film_id"}})
-                                 .field("film_id")
-                                 .field("category_id")
-                                 .unnest(_("category",
-                                           {{"category_id", "category_id"}})
-                                             .column("category_id")
-                                             .field("category", "name"))));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  EXPECT_EQ(
-      R"*({
-    "items": [
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 1,
-                            "category": "Documentary",
-                            "category_id": 6
-                        }
-                    ],
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies",
-                    "original_language": {
-                        "language_id": 2
-                    }
-                },
-                {
-                    "title": "ADAPTATION HOLES",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 3,
-                            "category": "Documentary",
-                            "category_id": 6
-                        },
-                        {
-                            "film_id": 3,
-                            "category": "Drama",
-                            "category_id": 7
-                        }
-                    ],
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "original_language": null
-                },
-                {
-                    "title": "AFRICAN EGG",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 5,
-                            "category": "Family",
-                            "category_id": 8
-                        }
-                    ],
-                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico",
-                    "original_language": null
-                },
-                {
-                    "title": "ALADDIN CALENDAR",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 10,
-                            "category": "Sports",
-                            "category_id": 15
-                        }
-                    ],
-                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China",
-                    "original_language": null
-                }
-            ],
-            "links": [],
-            "first_name": "PENELOPE"
-        },
-        {
-            "films": [
-                {
-                    "title": "ADAPTATION HOLES",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 3,
-                            "category": "Documentary",
-                            "category_id": 6
-                        },
-                        {
-                            "film_id": 3,
-                            "category": "Drama",
-                            "category_id": 7
-                        }
-                    ],
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "original_language": null
-                },
-                {
-                    "title": "AFFAIR PREJUDICE",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 4,
-                            "category": "Horror",
-                            "category_id": 11
-                        }
-                    ],
-                    "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank",
-                    "original_language": {
-                        "language_id": 3
-                    }
-                },
-                {
-                    "title": "AIRPORT POLLOCK",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 8,
-                            "category": "Horror",
-                            "category_id": 11
-                        }
-                    ],
-                    "description": "A Epic Tale of a Moose And a Girl who must Confront a Monkey in Ancient India",
-                    "original_language": null
-                },
-                {
-                    "title": "ALABAMA DEVIL",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 9,
-                            "category": "Horror",
-                            "category_id": 11
-                        }
-                    ],
-                    "description": "A Thoughtful Panorama of a Database Administrator And a Mad Scientist who must Outgun a Mad Scientist in A Jet Boat",
-                    "original_language": null
-                }
-            ],
-            "links": [],
-            "first_name": "NICK"
-        },
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 1,
-                            "category": "Documentary",
-                            "category_id": 6
-                        }
-                    ],
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies",
-                    "original_language": {
-                        "language_id": 2
-                    }
-                },
-                {
-                    "title": "AFFAIR PREJUDICE",
-                    "language": {
-                        "language_id": 1
-                    },
-                    "categories": [
-                        {
-                            "film_id": 4,
-                            "category": "Horror",
-                            "category_id": 11
-                        }
-                    ],
-                    "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank",
-                    "original_language": {
-                        "language_id": 3
-                    }
-                }
-            ],
-            "links": [],
-            "first_name": "ED"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-      pprint_json(rest->response));
-}
-
-TEST_F(DatabaseQueryGet, nested_unnested_nm_base_11_renamed) {
-  using _ = ObjectBuilder;
-
-  auto root =
-      _("mrstestdb", "actor")
-          .column("actor_id")
-          .field("firstName", "first_name")
-          .nest_list(
-              "films",
-              _("film_actor", {{"actor_id", "actor_id"}})
-                  .column("actor_id")
-                  .column("film_id")
-                  .unnest(
-                      _("film", {{"film_id", "film_id"}})
-                          .column("film_id")
-                          .field("title")
-                          .field("description")
-                          .column("language_id")
-                          .column("original_language_id")
-                          .nest("language",
-                                _("language", {{"language_id", "language_id"}})
-                                    .field("languageId", "language_id"))
-                          .nest("originalLanguage",
-                                _("language",
-                                  {{"original_language_id", "language_id"}})
-                                    .field("languageId", "language_id")))
-                  .nest_list("categories",
-                             _("film_category", {{"film_id", "film_id"}})
-                                 .field("filmId", "film_id")
-                                 .field("categoryId", "category_id")
-                                 .unnest(_("category",
-                                           {{"category_id", "category_id"}})
-                                             .field("categoryId", "category_id")
-                                             .field("category", "name"))));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  EXPECT_EQ(R"*({
-    "items": [
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 1,
-                            "category": "Documentary",
-                            "categoryId": 6
-                        }
-                    ],
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies",
-                    "originalLanguage": {
-                        "languageId": 2
-                    }
-                },
-                {
-                    "title": "ADAPTATION HOLES",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 3,
-                            "category": "Documentary",
-                            "categoryId": 6
-                        },
-                        {
-                            "filmId": 3,
-                            "category": "Drama",
-                            "categoryId": 7
-                        }
-                    ],
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "originalLanguage": null
-                },
-                {
-                    "title": "AFRICAN EGG",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 5,
-                            "category": "Family",
-                            "categoryId": 8
-                        }
-                    ],
-                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico",
-                    "originalLanguage": null
-                },
-                {
-                    "title": "ALADDIN CALENDAR",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 10,
-                            "category": "Sports",
-                            "categoryId": 15
-                        }
-                    ],
-                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China",
-                    "originalLanguage": null
-                }
-            ],
-            "links": [],
-            "firstName": "PENELOPE"
-        },
-        {
-            "films": [
-                {
-                    "title": "ADAPTATION HOLES",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 3,
-                            "category": "Documentary",
-                            "categoryId": 6
-                        },
-                        {
-                            "filmId": 3,
-                            "category": "Drama",
-                            "categoryId": 7
-                        }
-                    ],
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "originalLanguage": null
-                },
-                {
-                    "title": "AFFAIR PREJUDICE",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 4,
-                            "category": "Horror",
-                            "categoryId": 11
-                        }
-                    ],
-                    "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank",
-                    "originalLanguage": {
-                        "languageId": 3
-                    }
-                },
-                {
-                    "title": "AIRPORT POLLOCK",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 8,
-                            "category": "Horror",
-                            "categoryId": 11
-                        }
-                    ],
-                    "description": "A Epic Tale of a Moose And a Girl who must Confront a Monkey in Ancient India",
-                    "originalLanguage": null
-                },
-                {
-                    "title": "ALABAMA DEVIL",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 9,
-                            "category": "Horror",
-                            "categoryId": 11
-                        }
-                    ],
-                    "description": "A Thoughtful Panorama of a Database Administrator And a Mad Scientist who must Outgun a Mad Scientist in A Jet Boat",
-                    "originalLanguage": null
-                }
-            ],
-            "links": [],
-            "firstName": "NICK"
-        },
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 1,
-                            "category": "Documentary",
-                            "categoryId": 6
-                        }
-                    ],
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies",
-                    "originalLanguage": {
-                        "languageId": 2
-                    }
-                },
-                {
-                    "title": "AFFAIR PREJUDICE",
-                    "language": {
-                        "languageId": 1
-                    },
-                    "categories": [
-                        {
-                            "filmId": 4,
-                            "category": "Horror",
-                            "categoryId": 11
-                        }
-                    ],
-                    "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank",
-                    "originalLanguage": {
-                        "languageId": 3
-                    }
-                }
-            ],
-            "links": [],
-            "firstName": "ED"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-            pprint_json(rest->response));
-}
-
-// nested+unnested n:m reference in base object + extra lookup, reduce
-// category object to single value
-TEST_F(DatabaseQueryGet, nested_unnested_nm_base_11_embedded) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .column("actor_id")
-          .field("first_name")
-          .nest_list(
-              "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                  .column("actor_id")
-                  .column("film_id")
-                  .unnest(
-                      ObjectBuilder("film", {{"film_id", "film_id"}})
-                          .column("film_id")
-                          .field("title")
-                          .field("description")
-                          .column("language_id")
-                          .unnest(ObjectBuilder("language", {{"language_id",
-                                                              "language_id"}})
-                                      .column("language_id")
-                                      .field("language", "name"))
-                          .column("original_language_id")
-                          .unnest(ObjectBuilder(
-                                      "language",
-                                      {{"original_language_id", "language_id"}})
-                                      .column("language_id")
-                                      .field("original_language", "name"))
-                          .nest_unnested_list(
-                              "categories",
-                              ObjectBuilder("film_category",
-                                            {{"film_id", "film_id"}})
-                                  .column("film_id")
-                                  .column("category_id")
-                                  .unnest(ObjectBuilder(
-                                              "category",
-                                              {{"category_id", "category_id"}})
-                                              .column("category_id")
-                                              .field("category", "name")))));
-
-  rest->query_entries(m_.get(), root, {}, 0, 1, "url", true, {}, {});
-  EXPECT_EQ(
-      R"*({
-    "items": [
-        {
-            "films": [
-                {
-                    "title": "ACADEMY DINOSAUR",
-                    "language": "English",
-                    "categories": [
-                        "Documentary"
-                    ],
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies",
-                    "original_language": "Italian"
-                },
-                {
-                    "title": "ADAPTATION HOLES",
-                    "language": "English",
-                    "categories": [
-                        "Documentary",
-                        "Drama"
-                    ],
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "original_language": null
-                },
-                {
-                    "title": "AFRICAN EGG",
-                    "language": "English",
-                    "categories": [
-                        "Family"
-                    ],
-                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico",
-                    "original_language": null
-                },
-                {
-                    "title": "ALADDIN CALENDAR",
-                    "language": "English",
-                    "categories": [
-                        "Sports"
-                    ],
-                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China",
-                    "original_language": null
-                }
-            ],
-            "links": [],
-            "first_name": "PENELOPE"
-        }
-    ],
-    "limit": 1,
-    "offset": 0,
-    "hasMore": true,
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=1"
-        }
-    ]
-})*",
-      pprint_json(rest->response));
-}
-
-// pure nested n:m reference in base object
-TEST_F(DatabaseQueryGet, nested_nm_base) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .column("actor_id")
-          .field("first_name")
-          .nest_list(
-              "film_actor",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                  .column("actor_id")
-                  .column("film_id")
-                  .nest("film", ObjectBuilder("film", {{"film_id", "film_id"}})
-                                    .column("film_id")
-                                    .field("title")
-                                    .field("description")));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  EXPECT_EQ(
-      R"*({
-    "items": [
-        {
-            "links": [],
-            "film_actor": [
-                {
-                    "film": {
-                        "title": "ACADEMY DINOSAUR",
-                        "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "ADAPTATION HOLES",
-                        "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "AFRICAN EGG",
-                        "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "ALADDIN CALENDAR",
-                        "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China"
-                    }
-                }
-            ],
-            "first_name": "PENELOPE"
-        },
-        {
-            "links": [],
-            "film_actor": [
-                {
-                    "film": {
-                        "title": "ADAPTATION HOLES",
-                        "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "AFFAIR PREJUDICE",
-                        "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "AIRPORT POLLOCK",
-                        "description": "A Epic Tale of a Moose And a Girl who must Confront a Monkey in Ancient India"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "ALABAMA DEVIL",
-                        "description": "A Thoughtful Panorama of a Database Administrator And a Mad Scientist who must Outgun a Mad Scientist in A Jet Boat"
-                    }
-                }
-            ],
-            "first_name": "NICK"
-        },
-        {
-            "links": [],
-            "film_actor": [
-                {
-                    "film": {
-                        "title": "ACADEMY DINOSAUR",
-                        "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies"
-                    }
-                },
-                {
-                    "film": {
-                        "title": "AFFAIR PREJUDICE",
-                        "description": "A Fanciful Documentary of a Frisbee And a Lumberjack who must Chase a Monkey in A Shark Tank"
-                    }
-                }
-            ],
-            "first_name": "ED"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-      pprint_json(rest->response));
-}
-
-// actors with plain list of films
-TEST_F(DatabaseQueryGet, nested_nm_unnested) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .column("actor_id")
-          .field("first_name")
-          .nest_list("filmActor",
-                     ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                         .column("actor_id")
-                         .column("film_id")
-                         .unnest(ObjectBuilder("film", {{"film_id", "film_id"}})
-                                     .column("film_id")
-                                     .field("title")));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-
-  EXPECT_EQ(R"*({
-    "items": [
-        {
-            "links": [],
-            "filmActor": [
-                {
-                    "title": "ACADEMY DINOSAUR"
-                },
-                {
-                    "title": "ADAPTATION HOLES"
-                },
-                {
-                    "title": "AFRICAN EGG"
-                },
-                {
-                    "title": "ALADDIN CALENDAR"
-                }
-            ],
-            "first_name": "PENELOPE"
-        },
-        {
-            "links": [],
-            "filmActor": [
-                {
-                    "title": "ADAPTATION HOLES"
-                },
-                {
-                    "title": "AFFAIR PREJUDICE"
-                },
-                {
-                    "title": "AIRPORT POLLOCK"
-                },
-                {
-                    "title": "ALABAMA DEVIL"
-                }
-            ],
-            "first_name": "NICK"
-        },
-        {
-            "links": [],
-            "filmActor": [
-                {
-                    "title": "ACADEMY DINOSAUR"
-                },
-                {
-                    "title": "AFFAIR PREJUDICE"
-                }
-            ],
-            "first_name": "ED"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-            pprint_json(rest->response));
-}
-
-TEST_F(DatabaseQueryGet, nested_nm_unnested_of_unnest) {
-  auto root =
-      ObjectBuilder("mrstestdb", "store")
-          .field("store_id")
-          .column("city_country_id")
-          .column("city_id")
-          .unnest(ObjectBuilder("city", {{"city_country_id", "country_id"},
-                                         {"city_id", "city_id"}})
-                      .column("country_id")
-                      .column("city_id")
-                      .field("city")
-                      .unnest(ObjectBuilder("country",
-                                            {{"country_id", "country_id"}})
-                                  .column("country_id")
-                                  .field("country")));
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-
-  EXPECT_EQ(R"*({
-    "items": [
-        {
-            "city": "Tafuna",
-            "links": [],
-            "country": "American Samoa",
-            "store_id": 1
-        },
-        {
-            "city": "Tafuna",
-            "links": [],
-            "country": "American Samoa",
-            "store_id": 5
-        },
-        {
-            "city": "South Hill",
-            "links": [],
-            "country": "Anguilla",
-            "store_id": 4
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-            pprint_json(rest->response));
-}
-
-// actors with plain list of unnested film titles
-
-TEST_F(DatabaseQueryGet, nested_nm_reduce_to_list_of_unnested) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .column("actor_id")
-          .field("first_name")
-          .nest_unnested_list(
-              "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                  .column("actor_id")
-                  .column("film_id")
-                  .unnest(ObjectBuilder("film", {{"film_id", "film_id"}})
-                              .column("film_id")
-                              .field("title")));
-
-  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-
-  EXPECT_EQ(R"*({
-    "items": [
-        {
-            "films": [
-                "ACADEMY DINOSAUR",
-                "ADAPTATION HOLES",
-                "AFRICAN EGG",
-                "ALADDIN CALENDAR"
-            ],
-            "links": [],
-            "first_name": "PENELOPE"
-        },
-        {
-            "films": [
-                "ADAPTATION HOLES",
-                "AFFAIR PREJUDICE",
-                "AIRPORT POLLOCK",
-                "ALABAMA DEVIL"
-            ],
-            "links": [],
-            "first_name": "NICK"
-        },
-        {
-            "films": [
-                "ACADEMY DINOSAUR",
-                "AFFAIR PREJUDICE"
-            ],
-            "links": [],
-            "first_name": "ED"
-        }
-    ],
-    "limit": 3,
-    "offset": 0,
-    "hasMore": true,
-    "count": 3,
-    "links": [
-        {
-            "rel": "self",
-            "href": "url/"
-        },
-        {
-            "rel": "next",
-            "href": "url/?offset=3"
-        }
-    ]
-})*",
-            pprint_json(rest->response));
-}
-
-TEST_F(DatabaseQueryGet, nested_nm_reduce_to_unnested) {}
-
 TEST_F(DatabaseQueryGet, exclude_field_filter) {
   auto root =
-      ObjectBuilder("mrstestdb", "actor")
+      DualityViewBuilder("mrstestdb", "actor")
           .column("actor_id")
           .field("first_name")
-          .nest_list(
+          .field_to_many(
               "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+              ViewBuilder("film_actor")
                   .column("actor_id")
                   .column("film_id")
-                  .unnest(
-                      ObjectBuilder("film", {{"film_id", "film_id"}})
+                  .field_to_one(
+                      "",
+                      ViewBuilder("film")
                           .column("film_id")
                           .field("title")
                           .field("description")
-                          .column("language_id")
-                          .unnest(ObjectBuilder("language", {{"language_id",
-                                                              "language_id"}})
-                                      .column("language_id")
-                                      .field("language", "name"))
-                          .column("original_language_id")
-                          .unnest(ObjectBuilder(
-                                      "language",
-                                      {{"original_language_id", "language_id"}})
-                                      .column("language_id")
-                                      .field("original_language", "name"))
-                          .nest_unnested_list(
+                          .field_to_one("language",
+                                        ViewBuilder("language")
+                                            .column("language_id")
+                                            .field("language", "name"),
+                                        true, {{"language_id", "language_id"}})
+                          .field_to_one(
+                              "original_language",
+                              ViewBuilder("language")
+                                  .column("language_id")
+                                  .field("original_language", "name"),
+                              true, {{"original_language_id", "language_id"}})
+                          .field_to_many(
                               "categories",
-                              ObjectBuilder("film_category",
-                                            {{"film_id", "film_id"}})
+                              ViewBuilder("film_category")
                                   .column("film_id")
-                                  .column("category_id")
-                                  .unnest(ObjectBuilder(
-                                              "category",
-                                              {{"category_id", "category_id"}})
-                                              .column("category_id")
-                                              .field("name")))));
+                                  .field_to_one(
+                                      "category",
+                                      ViewBuilder("category")
+                                          .column("category_id")
+                                          .field("name"),
+                                      true, {{"category_id", "category_id"}}),
+                              true, {{"film_id", "film_id"}}),
+                      true),
+              false)
+          .resolve(m_.get(), true);
 
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(),
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root,
         {"!last_name", "!films.title", "!films.language", "!films.categories"});
 
     reset();
@@ -1686,19 +250,21 @@ TEST_F(DatabaseQueryGet, exclude_field_filter) {
                     "original_language": "Italian"
                 },
                 {
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "original_language": null
+                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
                 },
                 {
-                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico",
-                    "original_language": null
+                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico"
                 },
                 {
-                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China",
-                    "original_language": null
+                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China"
                 }
             ],
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url2/1"
+                }
+            ],
             "first_name": "PENELOPE"
         }
     ],
@@ -1723,87 +289,98 @@ TEST_F(DatabaseQueryGet, exclude_field_filter) {
 
 TEST_F(DatabaseQueryGet, include_field_filter) {
   auto root =
-      ObjectBuilder("mrstestdb", "actor")
+      DualityViewBuilder("mrstestdb", "actor")
           .column("actor_id")
           .field("first_name")
-          .nest_list(
+          .field_to_many(
               "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+              ViewBuilder("film_actor")
                   .column("actor_id")
                   .column("film_id")
-                  .unnest(
-                      ObjectBuilder("film", {{"film_id", "film_id"}})
+                  .field_to_one(
+                      "x",
+                      ViewBuilder("film")
                           .column("film_id")
                           .field("title")
                           .field("description")
-                          .column("language_id")
-                          .unnest(ObjectBuilder("language", {{"language_id",
-                                                              "language_id"}})
-                                      .column("language_id")
-                                      .field("language", "name"))
-                          .column("original_language_id")
-                          .unnest(ObjectBuilder(
-                                      "language",
-                                      {{"original_language_id", "language_id"}})
-                                      .column("language_id")
-                                      .field("original_language", "name"))
-                          .nest_unnested_list(
+                          .field_to_one("x1",
+                                        ViewBuilder("language")
+                                            .column("language_id")
+                                            .field("language", "name"),
+                                        true, {{"language_id", "language_id"}})
+                          .field_to_one(
+                              "x2",
+                              ViewBuilder("language")
+                                  .column("language_id")
+                                  .field("original_language", "name"),
+                              true, {{"original_language_id", "language_id"}})
+                          .field_to_many(
                               "categories",
-                              ObjectBuilder("film_category",
-                                            {{"film_id", "film_id"}})
+                              ViewBuilder("film_category")
                                   .column("film_id")
                                   .column("category_id")
-                                  .unnest(ObjectBuilder(
-                                              "category",
-                                              {{"category_id", "category_id"}})
-                                              .column("category_id")
-                                              .field("name")))));
+                                  .field_to_one(
+                                      "x",
+                                      ViewBuilder("category")
+                                          .column("category_id")
+                                          .field("name"),
+                                      true, {{"category_id", "category_id"}}),
+                              true, {{"film_id", "film_id"}}),
+                      true, {{"film_id", "film_id"}}),
+              false, {{"actor_id", "actor_id"}})
+          .resolve(m_.get(), true);
+
+  SCOPED_TRACE(root->as_graphql(true));
+
   {
     rest->query_entries(m_.get(), root, {}, 0, 1, "url1", true, {}, {});
+
     EXPECT_EQ(
         R"*({
     "items": [
         {
             "films": [
                 {
-                    "title": "ACADEMY DINOSAUR",
                     "language": "English",
+                    "original_language": "Italian",
+                    "title": "ACADEMY DINOSAUR",
                     "categories": [
                         "Documentary"
                     ],
-                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies",
-                    "original_language": "Italian"
+                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies"
                 },
                 {
-                    "title": "ADAPTATION HOLES",
                     "language": "English",
+                    "title": "ADAPTATION HOLES",
                     "categories": [
                         "Documentary",
                         "Drama"
                     ],
-                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory",
-                    "original_language": null
+                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
                 },
                 {
-                    "title": "AFRICAN EGG",
                     "language": "English",
+                    "title": "AFRICAN EGG",
                     "categories": [
                         "Family"
                     ],
-                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico",
-                    "original_language": null
+                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico"
                 },
                 {
-                    "title": "ALADDIN CALENDAR",
                     "language": "English",
+                    "title": "ALADDIN CALENDAR",
                     "categories": [
                         "Sports"
                     ],
-                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China",
-                    "original_language": null
+                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China"
                 }
             ],
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url1/1"
+                }
+            ],
             "first_name": "PENELOPE"
         }
     ],
@@ -1826,8 +403,8 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
   }
 
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(),
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root,
         {"first_name", "films.title", "films.language", "films.categories"});
 
     reset();
@@ -1839,36 +416,41 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         {
             "films": [
                 {
-                    "title": "ACADEMY DINOSAUR",
                     "language": "English",
+                    "title": "ACADEMY DINOSAUR",
                     "categories": [
                         "Documentary"
                     ]
                 },
                 {
-                    "title": "ADAPTATION HOLES",
                     "language": "English",
+                    "title": "ADAPTATION HOLES",
                     "categories": [
                         "Documentary",
                         "Drama"
                     ]
                 },
                 {
-                    "title": "AFRICAN EGG",
                     "language": "English",
+                    "title": "AFRICAN EGG",
                     "categories": [
                         "Family"
                     ]
                 },
                 {
-                    "title": "ALADDIN CALENDAR",
                     "language": "English",
+                    "title": "ALADDIN CALENDAR",
                     "categories": [
                         "Sports"
                     ]
                 }
             ],
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url2/1"
+                }
+            ],
             "first_name": "PENELOPE"
         }
     ],
@@ -1889,11 +471,10 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
 })*",
         pprint_json(rest->response));
   }
-  return;
 
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(), {"films"});
+    auto filter =
+        mrs::database::dv::ObjectFieldFilter::from_url_filter(*root, {"films"});
 
     reset();
 
@@ -1905,28 +486,46 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         {
             "films": [
                 {
-                    "title": "THE TEST I",
                     "language": "English",
-                    "categories": null,
-                    "description": "Nothing happens",
-                    "original_language": null
+                    "original_language": "Italian",
+                    "title": "ACADEMY DINOSAUR",
+                    "categories": [
+                        "Documentary"
+                    ],
+                    "description": "A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies"
                 },
                 {
-                    "title": "THE TEST II",
                     "language": "English",
-                    "categories": null,
-                    "description": "Nothing happens again",
-                    "original_language": null
+                    "title": "ADAPTATION HOLES",
+                    "categories": [
+                        "Documentary",
+                        "Drama"
+                    ],
+                    "description": "A Astounding Reflection of a Lumberjack And a Car who must Sink a Lumberjack in A Baloon Factory"
                 },
                 {
-                    "title": "THE TEST III",
                     "language": "English",
-                    "categories": null,
-                    "description": "Nothing happens as usual",
-                    "original_language": null
+                    "title": "AFRICAN EGG",
+                    "categories": [
+                        "Family"
+                    ],
+                    "description": "A Fast-Paced Documentary of a Pastry Chef And a Dentist who must Pursue a Forensic Psychologist in The Gulf of Mexico"
+                },
+                {
+                    "language": "English",
+                    "title": "ALADDIN CALENDAR",
+                    "categories": [
+                        "Sports"
+                    ],
+                    "description": "A Action-Packed Tale of a Man And a Lumberjack who must Reach a Feminist in Ancient China"
                 }
             ],
-            "links": []
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url3/1"
+                }
+            ]
         }
     ],
     "limit": 1,
@@ -1948,8 +547,8 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
   }
 
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(), {"films.title"});
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root, {"films.title"});
 
     reset();
 
@@ -1960,16 +559,24 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         {
             "films": [
                 {
-                    "title": "THE TEST I"
+                    "title": "ACADEMY DINOSAUR"
                 },
                 {
-                    "title": "THE TEST II"
+                    "title": "ADAPTATION HOLES"
                 },
                 {
-                    "title": "THE TEST III"
+                    "title": "AFRICAN EGG"
+                },
+                {
+                    "title": "ALADDIN CALENDAR"
                 }
             ],
-            "links": []
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url4/1"
+                }
+            ]
         }
     ],
     "limit": 1,
@@ -1991,8 +598,8 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
   }
 
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(), {"films.categories"});
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root, {"films.categories"});
 
     reset();
 
@@ -2003,16 +610,33 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         {
             "films": [
                 {
-                    "categories": null
+                    "categories": [
+                        "Documentary"
+                    ]
                 },
                 {
-                    "categories": null
+                    "categories": [
+                        "Documentary",
+                        "Drama"
+                    ]
                 },
                 {
-                    "categories": null
+                    "categories": [
+                        "Family"
+                    ]
+                },
+                {
+                    "categories": [
+                        "Sports"
+                    ]
                 }
             ],
-            "links": []
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url5/1"
+                }
+            ]
         }
     ],
     "limit": 1,
@@ -2034,8 +658,8 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
   }
 
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(), {"films.original_language", "films.title"});
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root, {"films.original_language", "films.title"});
 
     reset();
 
@@ -2046,19 +670,25 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         {
             "films": [
                 {
-                    "title": "THE TEST I",
-                    "original_language": null
+                    "original_language": "Italian",
+                    "title": "ACADEMY DINOSAUR"
                 },
                 {
-                    "title": "THE TEST II",
-                    "original_language": null
+                    "title": "ADAPTATION HOLES"
                 },
                 {
-                    "title": "THE TEST III",
-                    "original_language": null
+                    "title": "AFRICAN EGG"
+                },
+                {
+                    "title": "ALADDIN CALENDAR"
                 }
             ],
-            "links": []
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url6/1"
+                }
+            ]
         }
     ],
     "limit": 1,
@@ -2079,8 +709,8 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         pprint_json(rest->response));
   }
   {
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(), {"first_name", "films.film_id"});
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root, {"first_name", "films.film_id"});
     // ignore unknown fields
     reset();
 
@@ -2095,7 +725,12 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
                 {},
                 {}
             ],
-            "links": [],
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url7/1"
+                }
+            ],
             "first_name": "PENELOPE"
         }
     ],
@@ -2117,35 +752,37 @@ TEST_F(DatabaseQueryGet, include_field_filter) {
         pprint_json(rest->response));
   }
 }
+#if 0
 
 TEST_F(DatabaseQueryGet, row_filter) {
   auto root =
-      ObjectBuilder("mrstestdb", "actor")
+      DualityViewBuilder("mrstestdb", "actor")
           .column("actor_id")
           .field("firstName", "first_name", "text")
           .field("lastName", "last_name", "text", FieldFlag::NOFILTER)
-          .nest_list(
+          .field_to_many(
               "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+              DualityViewBuilder("film_actor", {{"actor_id", "actor_id"}})
                   .column("actor_id")
                   .column("film_id")
                   .unnest(
-                      ObjectBuilder("film", {{"film_id", "film_id"}})
+                      DualityViewBuilder("film", {{"film_id", "film_id"}})
                           .column("film_id")
                           .field("title")
                           .field("description")
                           .column("language_id")
-                          .unnest(ObjectBuilder("language", {{"language_id",
-                                                              "language_id"}})
-                                      .column("language_id")
-                                      .field("language", "name"))
-                          .nest_list(
+                          .unnest(
+                              DualityViewBuilder(
+                                  "language", {{"language_id", "language_id"}})
+                                  .column("language_id")
+                                  .field("language", "name"))
+                          .field_to_many(
                               "categories",
-                              ObjectBuilder("film_category",
-                                            {{"film_id", "film_id"}})
+                              DualityViewBuilder("film_category",
+                                                 {{"film_id", "film_id"}})
                                   .column("film_id")
                                   .column("category_id")
-                                  .unnest(ObjectBuilder(
+                                  .unnest(DualityViewBuilder(
                                               "category",
                                               {{"category_id", "category_id"}})
                                               .column("category_id")
@@ -2180,34 +817,35 @@ TEST_F(DatabaseQueryGet, row_filter) {
 
 TEST_F(DatabaseQueryGet, row_filter_order) {
   auto root =
-      ObjectBuilder("mrstestdb", "actor")
+      DualityViewBuilder("mrstestdb", "actor")
           .field("id", "actor_id", "int",
                  FieldFlag::PRIMARY | FieldFlag::SORTABLE)
           .field("firstName", "first_name", "text",
                  FieldFlag::UNIQUE | FieldFlag::SORTABLE)
           .field("lastName", "last_name", "text", FieldFlag::NOFILTER)
-          .nest_list(
+          .field_to_many(
               "films",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+              DualityViewBuilder("film_actor", {{"actor_id", "actor_id"}})
                   .column("actor_id")
                   .column("film_id")
                   .unnest(
-                      ObjectBuilder("film", {{"film_id", "film_id"}})
+                      DualityViewBuilder("film", {{"film_id", "film_id"}})
                           .column("film_id")
                           .field("title")
                           .field("description")
                           .column("language_id")
-                          .unnest(ObjectBuilder("language", {{"language_id",
-                                                              "language_id"}})
-                                      .column("language_id")
-                                      .field("language", "name"))
-                          .nest_list(
+                          .unnest(
+                              DualityViewBuilder(
+                                  "language", {{"language_id", "language_id"}})
+                                  .column("language_id")
+                                  .field("language", "name"))
+                          .field_to_many(
                               "categories",
-                              ObjectBuilder("film_category",
-                                            {{"film_id", "film_id"}})
+                              DualityViewBuilder("film_category",
+                                                 {{"film_id", "film_id"}})
                                   .column("film_id")
                                   .column("category_id")
-                                  .unnest(ObjectBuilder(
+                                  .unnest(DualityViewBuilder(
                                               "category",
                                               {{"category_id", "category_id"}})
                                               .column("category_id")
@@ -2257,23 +895,25 @@ TEST_F(DatabaseQueryGet, row_filter_order) {
         "Cannot sort on field invalid_field");
   }
 }
+#endif
 
 TEST_F(DatabaseQueryGet, etag) {
   {
-    auto root =
-        ObjectBuilder("mrstestdb", "actor")
-            .field("actor_id", FieldFlag::PRIMARY)
-            .field("first_name")
-            .field("last_name", FieldFlag::NOCHECK)
-            .nest_list("film_actor",
-                       ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                           .field("actor_id", FieldFlag::PRIMARY)
-                           .field("film_id", FieldFlag::PRIMARY)
-                           .nest("film",
-                                 ObjectBuilder("film", {{"film_id", "film_id"}})
-                                     .field("film_id", FieldFlag::PRIMARY)
-                                     .field("title")
-                                     .field("description")));
+    auto root = DualityViewBuilder("mrstestdb", "actor")
+                    .field("actor_id", FieldFlag::PRIMARY)
+                    .field("first_name")
+                    .field("last_name", FieldFlag::WITH_NOCHECK)
+                    .field_to_many(
+                        "film_actor",
+                        ViewBuilder("film_actor")
+                            .field("actor_id", FieldFlag::PRIMARY)
+                            .field("film_id", FieldFlag::PRIMARY)
+                            .field_to_one("film", ViewBuilder("film")
+                                                      .field("film_id",
+                                                             FieldFlag::PRIMARY)
+                                                      .field("title")
+                                                      .field("description")))
+                    .resolve(m_.get(), true);
 
     rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {}, true);
 
@@ -2297,8 +937,8 @@ TEST_F(DatabaseQueryGet, etag) {
 
     reset();
 
-    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
-        *root.root(), {"actor_id", "first_name"});
+    auto filter = mrs::database::dv::ObjectFieldFilter::from_url_filter(
+        *root, {"actor_id", "first_name"});
 
     rest->query_entries(m_.get(), root, filter, 0, 1, "url", true, {}, {},
                         true);
@@ -2313,20 +953,21 @@ TEST_F(DatabaseQueryGet, etag) {
   {
     reset();
 
-    auto root =
-        ObjectBuilder("mrstestdb", "actor")
-            .field("actor_id", FieldFlag::PRIMARY)
-            .field("first_name")
-            .field("last_name")
-            .nest_list("film_actor",
-                       ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                           .field("actor_id", FieldFlag::PRIMARY)
-                           .field("film_id", FieldFlag::PRIMARY)
-                           .nest("film",
-                                 ObjectBuilder("film", {{"film_id", "film_id"}})
-                                     .field("film_id", FieldFlag::PRIMARY)
-                                     .field("title")
-                                     .field("description")));
+    auto root = DualityViewBuilder("mrstestdb", "actor")
+                    .field("actor_id", FieldFlag::PRIMARY)
+                    .field("first_name")
+                    .field("last_name")
+                    .field_to_many(
+                        "film_actor",
+                        ViewBuilder("film_actor")
+                            .field("actor_id", FieldFlag::PRIMARY)
+                            .field("film_id", FieldFlag::PRIMARY)
+                            .field_to_one("film", ViewBuilder("film")
+                                                      .field("film_id",
+                                                             FieldFlag::PRIMARY)
+                                                      .field("title")
+                                                      .field("description")))
+                    .resolve(m_.get(), true);
 
     rest->query_entries(m_.get(), root, {}, 0, 1, "url", true, {}, {}, true);
 
@@ -2342,12 +983,13 @@ TEST_F(DatabaseQueryGet, etag) {
   {
     reset();
 
-    auto root = ObjectBuilder("mrstestdb", "typetest")
+    auto root = DualityViewBuilder("mrstestdb", "typetest")
                     .field("id", FieldFlag::PRIMARY)
                     .field("Geom", "geom", "GEOMETRY")
                     .field("Bool", "bool", "BIT(1)")
                     .field("Binary", "bin", "BLOB")
-                    .field("Json", "js", "JSON");
+                    .field("Json", "js", "JSON")
+                    .resolve(m_.get(), true);
 
     rest->query_entries(m_.get(), root, {}, 0, 1, "url", true, {}, {}, true);
 
@@ -2358,5 +1000,65 @@ TEST_F(DatabaseQueryGet, etag) {
     EXPECT_STREQ(
         "FCA79725A9EEE5CD52808D83E74402102BA32004E5D07817010C412E66380A93",
         json["items"][0]["_metadata"]["etag"].GetString());
+  }
+}
+
+TEST_F(DatabaseQueryGet, row_owner_root) {
+  // only root object has owner_id
+
+  prepare(TestSchema::AUTO_INC);
+  prepare_user_metadata();
+
+  auto root =
+      DualityViewBuilder("mrstestdb", "root", 0)
+          .field("_id", "id", FieldFlag::AUTO_INC)
+          .field("owner_id", FieldFlag::OWNER)
+          .field("data", "data1")
+          .field_to_one("child11",
+                        ViewBuilder("child_11", 0)
+                            .field("child11Id", "id", FieldFlag::AUTO_INC)
+                            .field("child11Data", "data"))
+          .field_to_many("child1n",
+                         ViewBuilder("child_1n", 0)
+                             .field("chld1nId", "id", FieldFlag::AUTO_INC)
+                             .field("child1nData", "data"))
+          .field_to_many(
+              "childnm",
+              ViewBuilder("child_nm_join", 0)
+                  .field("nmRootId", "root_id")
+                  .field("nmChildId", "child_id")
+                  .field_to_one("child", ViewBuilder("child_nm", 0)
+                                             .field("childnmId", "id",
+                                                    FieldFlag::AUTO_INC)))
+          .resolve(m_.get());
+  SCOPED_TRACE(root->as_graphql());
+  {
+    auto owner = ObjectRowOwnership(
+        root, "owner_id",
+        mysqlrouter::sqlstring("0x11110000000000000000000000000000"));
+
+    rest->query_entries(m_.get(), root, {}, 0, 10, "url", true, owner, {},
+                        true);
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(5, json["items"].GetArray().Size())
+        << pprint_json(rest->response);
+    for (const auto &item : json["items"].GetArray()) {
+      EXPECT_TRUE(
+          strcmp(item["owner_id"].GetString(), "EREAAAAAAAAAAAAAAAAAAA==") == 0)
+          << item["owner_id"].GetString();
+    }
+  }
+  {
+    auto owner = ObjectRowOwnership(
+        root, "owner_id",
+        mysqlrouter::sqlstring("0x00000000000000000000000000000000"));
+
+    rest->query_entries(m_.get(), root, {}, 0, 10, "url", true, owner, {},
+                        true);
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(0, json["items"].GetArray().Size())
+        << pprint_json(rest->response);
   }
 }

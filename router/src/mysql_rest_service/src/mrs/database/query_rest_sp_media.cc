@@ -58,7 +58,7 @@ void QueryRestSPMedia::query_entries(MySQLSession *session, const std::string &,
   items = 0;
   query_ = {"SELECT ! FROM !.! WHERE ?"};
   // query_ << column << schema << object
-  //        << format_where_expr(object->get_base_table(), pk);
+  //        << format_where_expr(object->table, pk);
   auto result = session->query_one(
       query_, [this](auto no, auto fields) { on_metadata(no, fields); });
 

@@ -40,6 +40,11 @@ if (!$mrs_add_db_object_op)
   --let $mrs_add_db_object_op=CREATE,READ,UPDATE,DELETE
 }
 
+if ($mrs_add_db_object_join_columns)
+{
+  --let $mrs_add_db_object_join_columns= AND FIND_IN_SET(COLUMN_NAME, "$mrs_add_db_object_join_columns") > 0
+}
+
 
 --disable_query_log
 --disable_result_log
@@ -104,10 +109,18 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
     }
     eval INSERT INTO mysql_rest_service_metadata.object_field(
            id, parent_reference_id, name, object_id, enabled, position, db_column)
-           SELECT 
+           SELECT
             mysql_rest_service_metadata.get_sequence_id(), IF(INSTR(z.cname,"hidden"),NULL,$mrs_sql_id_variable_object_ref),
             z.cname, $mrs_sql_id_variable_ob, IF(INSTR(z.cname,"hidden"),false,true), z.pos, z.js
-           FROM (SELECT COLUMN_NAME as cname, ORDINAL_POSITION as pos, JSON_SET("{}","$.name",column_name,"$.datatype",data_type, "$.auto_inc", EXTRA like "%auto_increment%", "$.not_null", is_NULLABLE <> "YES", "$.is_primary", COLUMN_KEY like "%PRI%") as js FROM information_schema.columns where TABLE_SCHEMA="$mrs_add_db_object_join_schema" and TABLE_NAME="$mrs_add_db_object_join_table") as z;
+           FROM (SELECT COLUMN_NAME as cname, ORDINAL_POSITION as pos,
+                        JSON_SET("{}","$.name",column_name,"$.datatype",data_type,
+                                 "$.auto_inc", EXTRA like "%auto_increment%", "$.not_null", is_NULLABLE <> "YES",
+                                 "$.is_primary", COLUMN_KEY like "%PRI%") as js
+                        FROM information_schema.columns
+                        WHERE
+                           TABLE_SCHEMA="$mrs_add_db_object_join_schema"
+                           AND TABLE_NAME="$mrs_add_db_object_join_table"
+                            $mrs_add_db_object_join_columns) as z;
 
     let $_id=`SELECT max(position) + 1 FROM mysql_rest_service_metadata.object_field
                      WHERE object_id=$mrs_sql_id_variable_object`;
@@ -134,4 +147,5 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 --let $mrs_add_db_object_join_table=
 --let $mrs_add_db_object_join_on=
 --let $mrs_add_db_object_op=
+--let $mrs_add_db_object_join_columns=
 

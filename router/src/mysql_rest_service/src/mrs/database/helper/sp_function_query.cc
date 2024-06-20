@@ -33,6 +33,7 @@
 #include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/mysql_numeric_value.h"
+#include "mrs/database/entry/object.h"
 
 #include "mysql/harness/logging/logging.h"
 
@@ -78,7 +79,7 @@ ColumnValues create_function_argument_list(
     throw std::invalid_argument(
         "Parameters must be encoded as fields in Json object.");
 
-  auto table = object->base_tables.front();
+  auto table = object->table;
   if (entry::KindType::PARAMETERS != object->kind) {
     throw std::logic_error(
         "Bad object kind for function or procedure db-object.");
@@ -103,7 +104,7 @@ ColumnValues create_function_argument_list(
     if (!pfiled) continue;
 
     if (ownership.user_ownership_enforced &&
-        (ownership.user_ownership_column == pfiled->source->name)) {
+        (ownership.user_ownership_column == pfiled->column_name)) {
       if (!user_id) throw std::invalid_argument("Authentication is required.");
       result.push_back(to_sqlstring(*user_id));
     } else if (pfiled->mode == entry::ModeType::kIN) {
@@ -112,7 +113,7 @@ ColumnValues create_function_argument_list(
         throw std::invalid_argument("Missing required field '"s + pfiled->name +
                                     "'.");
       mysqlrouter::sqlstring sql("?");
-      sql << std::make_pair(&it->value, pfiled->source->type);
+      sql << std::make_pair(&it->value, pfiled->type);
       result.push_back(sql);
     }
   }
@@ -163,12 +164,12 @@ static mysqlrouter::sqlstring to_sqlstring(const std::string &value,
 
 ColumnValues create_function_argument_list(
     const entry::Object *object,
-    const http::base::Uri::QueryElements &url_query,
+    const ::http::base::Uri::QueryElements &url_query,
     const entry::RowUserOwnership &ownership, mrs::UniversalId *user_id) {
   using namespace std::string_literals;
   Url::Keys keys;
 
-  auto table = object->base_tables.front();
+  auto table = object->table;
   if (entry::KindType::PARAMETERS != object->kind) {
     throw std::logic_error(
         "Bad object kind for function or procedure db-object.");
@@ -192,7 +193,7 @@ ColumnValues create_function_argument_list(
     if (!pfiled) continue;
 
     if (ownership.user_ownership_enforced &&
-        (ownership.user_ownership_column == pfiled->source->name)) {
+        (ownership.user_ownership_column == pfiled->column_name)) {
       if (!user_id) throw std::invalid_argument("Authentication is required.");
       result.push_back(to_sqlstring(*user_id));
     } else if (pfiled->mode == entry::ModeType::kIN) {
@@ -201,7 +202,7 @@ ColumnValues create_function_argument_list(
       if (url_query.end() == it)
         throw std::invalid_argument("Missing required field '"s + pfiled->name +
                                     "'.");
-      result.push_back(to_sqlstring(it->second, pfiled->source.get()));
+      result.push_back(to_sqlstring(it->second, pfiled));
     }
   }
 

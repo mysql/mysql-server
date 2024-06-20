@@ -26,9 +26,9 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "mrs/database/filter_object_generator.h"
-
 #include "helper/json/text_to.h"
+#include "mrs/database/filter_object_generator.h"
+#include "test_mrs_object_utils.h"
 
 using namespace mrs::database;
 
@@ -106,6 +106,18 @@ TEST_F(FilterObjectsTest, match_field_by_int_value) {
 TEST_F(FilterObjectsTest, match_field_by_string_value) {
   sut_.parse(json("{\"f1\":\"abc123\"}"));
   ASSERT_EQ(" `f1`='abc123'", sut_.get_result().str());
+}
+
+TEST_F(FilterObjectsTest, match_field_by_binary_value) {
+  auto root = DualityViewBuilder("mrstestdb", "test")
+                  .field("f1", "f1", "BINARY(16)", FieldFlag::PRIMARY)
+                  .resolve();
+
+  FilterObjectGenerator sut(root);
+
+  sut.parse(json("{\"f1\":\"MzMAAAAAAAAAAAAAAAAAAA==\"}"));
+  ASSERT_EQ(" `f1`=FROM_BASE64('MzMAAAAAAAAAAAAAAAAAAA==')",
+            sut.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_fields) {

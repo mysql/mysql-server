@@ -481,87 +481,11 @@ GET /svc/basic/metadata-catalog/t3
     ],
     "members": [
         {
-            "name": "geo4326",
-            "type": "string"
-        },
-        {
-            "name": "geo0",
-            "type": "string"
-        },
-        {
-            "name": "cblob",
-            "type": "blob"
-        },
-        {
-            "name": "cmediumint",
+            "name": "id",
             "type": "numeric"
         },
         {
-            "name": "ctinyint",
-            "type": "numeric"
-        },
-        {
-            "name": "cbit10",
-            "type": "blob"
-        },
-        {
-            "name": "cbit1",
-            "type": "boolean"
-        },
-        {
-            "name": "cbit",
-            "type": "boolean"
-        },
-        {
-            "name": "cset",
-            "type": "string"
-        },
-        {
-            "name": "cenum",
-            "type": "string"
-        },
-        {
-            "name": "cdecimal",
-            "type": "numeric"
-        },
-        {
-            "name": "cdouble",
-            "type": "numeric"
-        },
-        {
-            "name": "cfloat",
-            "type": "numeric"
-        },
-        {
-            "name": "cbin",
-            "type": "blob"
-        },
-        {
-            "name": "cbigint",
-            "type": "numeric"
-        },
-        {
-            "name": "csmallint",
-            "type": "numeric"
-        },
-        {
-            "name": "cyear",
-            "type": "string"
-        },
-        {
-            "name": "ctime",
-            "type": "string"
-        },
-        {
-            "name": "cdate",
-            "type": "string"
-        },
-        {
-            "name": "ctimestamp",
-            "type": "string"
-        },
-        {
-            "name": "cdatetime",
+            "name": "cvarchar",
             "type": "string"
         },
         {
@@ -569,12 +493,88 @@ GET /svc/basic/metadata-catalog/t3
             "type": "string"
         },
         {
-            "name": "cvarchar",
+            "name": "cdatetime",
             "type": "string"
         },
         {
-            "name": "id",
+            "name": "ctimestamp",
+            "type": "string"
+        },
+        {
+            "name": "cdate",
+            "type": "string"
+        },
+        {
+            "name": "ctime",
+            "type": "string"
+        },
+        {
+            "name": "cyear",
+            "type": "string"
+        },
+        {
+            "name": "csmallint",
             "type": "numeric"
+        },
+        {
+            "name": "cbigint",
+            "type": "numeric"
+        },
+        {
+            "name": "cbin",
+            "type": "blob"
+        },
+        {
+            "name": "cfloat",
+            "type": "numeric"
+        },
+        {
+            "name": "cdouble",
+            "type": "numeric"
+        },
+        {
+            "name": "cdecimal",
+            "type": "numeric"
+        },
+        {
+            "name": "cenum",
+            "type": "string"
+        },
+        {
+            "name": "cset",
+            "type": "string"
+        },
+        {
+            "name": "cbit",
+            "type": "boolean"
+        },
+        {
+            "name": "cbit1",
+            "type": "boolean"
+        },
+        {
+            "name": "cbit10",
+            "type": "blob"
+        },
+        {
+            "name": "ctinyint",
+            "type": "numeric"
+        },
+        {
+            "name": "cmediumint",
+            "type": "numeric"
+        },
+        {
+            "name": "cblob",
+            "type": "blob"
+        },
+        {
+            "name": "geo0",
+            "type": "string"
+        },
+        {
+            "name": "geo4326",
+            "type": "string"
         }
     ],
     "links": [

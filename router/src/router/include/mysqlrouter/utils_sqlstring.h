@@ -170,6 +170,10 @@ class ROUTER_MYSQL_EXPORT sqlstring {
   std::string str() const;
   bool is_empty() const;
 
+  inline bool operator==(const sqlstring &other) const {
+    return str() == other.str();
+  }
+
   //! modifies formatting options
   sqlstring &operator<<(const sqlstringformat);
   //! replaces a ? in the format string with a float numeric value
@@ -187,6 +191,8 @@ class ROUTER_MYSQL_EXPORT sqlstring {
   sqlstring &operator<<(const char *);
   //! replaces a ? or ! with the content of the other string verbatim
   sqlstring &operator<<(const sqlstring &);
+  //! replaces a ? with an array of bytes
+  sqlstring &operator<<(const std::vector<uint8_t> &v);
 
   //! appends a pre-formatted sqlstring to a pre-formatted sqlstring
   sqlstring &append_preformatted(const sqlstring &s);

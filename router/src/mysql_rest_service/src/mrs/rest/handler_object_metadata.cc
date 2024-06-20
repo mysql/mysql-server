@@ -63,10 +63,8 @@ HttpResult HandlerMetadata::handle_get(rest::RequestContext *) {
     auto obj = route_->get_object();
 
     for (auto &c : obj->fields) {
-      auto data_field =
-          dynamic_cast<mrs::database::entry::DataField *>(c.get());
-      if (!data_field || !data_field->enabled) continue;
-      auto *column = data_field->source.get();
+      auto column = std::dynamic_pointer_cast<mrs::database::entry::Column>(c);
+      if (!column || !column->enabled) continue;
       auto data_type =
           helper::from_mysql_txt_column_type(column->datatype.c_str())
               .type_json;

@@ -296,9 +296,9 @@ OK
                     "href": "/svc/basic_where/t2/3000"
                 }
             ],
-            "comments": null,
+            "comments": "",
             "_metadata": {
-                "etag": "5DF936CB1185752020C54775C3C4A622ECD820A10382830FBCE77305287E87C4"
+                "etag": "F4EF85E41B3356230F70D5EAC209C9005C6855E0AF4A5ADB8DD2A352EEC677EA"
             }
         }
     ],

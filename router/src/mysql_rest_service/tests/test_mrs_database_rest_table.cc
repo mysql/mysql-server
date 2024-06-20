@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <map>
 #include <vector>
 
 #include "test_mrs_database_rest_table.h"
@@ -55,6 +56,16 @@ constexpr const char *k_test_ddl[] = {
   PRIMARY KEY (`country_id`, `city_id`),
   KEY `idx_fk_city_id` (`city_id`),
   CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`country_id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci)*",
+
+    R"*(CREATE TABLE `city2` (
+  `city_id` smallint unsigned NOT NULL,
+  `city` varchar(50) NOT NULL,
+  `country_id` smallint unsigned NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`city_id`),
+  KEY `idx_fk_city2_id` (`city_id`),
+  CONSTRAINT `fk_city2_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`country_id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci)*",
 
     R"*(CREATE TABLE `store` (
@@ -324,7 +335,7 @@ constexpr const char *k_test_ddl[] = {
 
     R"*(CREATE TABLE t2_base (
       id INT PRIMARY KEY AUTO_INCREMENT,
-      owner_id INT,
+      owner_id BINARY(16),
       ref_11_id INT,
       data1 TEXT,
       data2 INT,
@@ -364,11 +375,11 @@ constexpr const char *k_test_ddl[] = {
 
     R"*(INSERT INTO t2_ref_11 VALUES (20, 'ref11-1', NULL), (21, 'ref11-2', 10))*",
 
-    R"*(INSERT INTO t2_base VALUES (1, 111, NULL, 'data1', 1),
-     (2, 111, NULL, 'data2', 2), (3, 222, NULL, 'data3', 3),
-     (4, 333, NULL, 'data4', 1), (5, 111, NULL, 'data5', 1),
-     (6, 222, NULL, 'data6', 6), (7, 111, NULL, 'data1', 7),
-     (9, 111, 21, 'hello', 1234))*",
+    R"*(INSERT INTO t2_base VALUES (1, 0x11110000000000000000000000000000, NULL, 'data1', 1),
+     (2, 0x11110000000000000000000000000000, NULL, 'data2', 2), (3, 0x22220000000000000000000000000000, NULL, 'data3', 3),
+     (4, 0x33330000000000000000000000000000, NULL, 'data4', 1), (5, 0x11110000000000000000000000000000, NULL, 'data5', 1),
+     (6, 0x22220000000000000000000000000000, NULL, 'data6', 6), (7, 0x11110000000000000000000000000000, NULL, 'data1', 7),
+     (9, 0x11110000000000000000000000000000, 21, 'hello', 1234))*",
 
     R"*(INSERT INTO t2_ref_nm VALUES (1, 'DATA1'), (2, 'DATA2'), (3, 'DATA3'))*",
 
@@ -566,16 +577,22 @@ void DatabaseRestTableTest::SetUp() {
   reset_test();
 }
 
-void DatabaseRestTableTest::TearDown() { drop_schema(); }
+void DatabaseRestTableTest::TearDown() {
+  if (getenv("SKIP_TEARDOWN")) drop_schema();
+}
 
-rapidjson::Document DatabaseRestTableTest::get_one(
-    std::shared_ptr<mrs::database::entry::Object> object,
-    const mrs::database::PrimaryKeyColumnValues &pk) {
-  mrs::database::QueryRestTableSingleRow rest{false};
+std::string DatabaseRestTableTest::select_one(
+    std::shared_ptr<mrs::database::entry::DualityView> view,
+    const mrs::database::PrimaryKeyColumnValues &pk,
+    const mrs::database::dv::ObjectFieldFilter &field_filter,
+    const mrs::database::ObjectRowOwnership &row_owner, bool compute_etag) {
+  mrs::database::QueryRestTableSingleRow rest{nullptr, false,
+                                              select_include_links_};
 
-  rest.query_entries(m_.get(), object, {}, pk, "/");
+  rest.query_entry(m_.get(), view, pk, field_filter, "localhost", row_owner,
+                   compute_etag);
 
-  return make_json(rest.response);
+  return rest.response;
 }
 
 void DatabaseRestTableTest::reset_test() {
@@ -603,6 +620,40 @@ void DatabaseRestTableTest::snapshot() {
   initial_binlog_position_ = std::stoull((*row)[1]);
 }
 
+void DatabaseRestTableTest::expect_rows_added(
+    const std::map<std::string, int> &changes) {
+  assert(!initial_table_sizes_.empty());
+
+  std::map<std::string, int> current_sizes;
+
+  m_->query("SHOW TABLES IN mrstestdb", [&](const auto &row) {
+    current_sizes[row[0]] = 0;
+    return true;
+  });
+  for (auto &t : current_sizes) {
+    t.second =
+        atoi((*m_->query_one("SELECT COUNT(*) FROM mrstestdb." + t.first))[0]);
+  }
+
+  auto rows_added = [&](const std::string &table) {
+    return current_sizes.at(table) - initial_table_sizes_.at(table);
+  };
+
+  for (const auto &ch : changes) {
+    if (current_sizes.find(ch.first) == changes.end())
+      throw std::invalid_argument("invalid table " + ch.first);
+  }
+
+  for (const auto &ch : current_sizes) {
+    if (changes.find(ch.first) == changes.end())
+      EXPECT_EQ(rows_added(ch.first), 0)
+          << "Unexpected changes to table: " + ch.first;
+    else
+      EXPECT_EQ(rows_added(ch.first), changes.at(ch.first))
+          << "Unexpected number of rows in table: " + ch.first;
+  }
+}
+
 void DatabaseRestTableTest::create_schema() {
   for (const char *sql : k_test_ddl) {
     m_->execute(sql);
@@ -613,6 +664,240 @@ void DatabaseRestTableTest::drop_schema() {
   m_->execute("DROP SCHEMA IF EXISTS mrstestdb");
 }
 
+void DatabaseRestTableTest::prepare(TestSchema schema) {
+  const std::map<TestSchema, std::vector<const char *>> k_sql = {
+      {TestSchema::PLAIN,
+       {// plain PKs
+        R"*(CREATE TABLE child_11 (
+      id INT PRIMARY KEY,
+      data VARCHAR(30)
+    ))*",
+
+        R"*(CREATE TABLE root_owner (
+      id BINARY(16) PRIMARY KEY,
+      child_11_id INT,
+      data1 TEXT,
+      data2 INT,
+      FOREIGN KEY (child_11_id) REFERENCES child_11 (id)
+  ))*",
+
+        R"*(CREATE TABLE root (
+      id INT PRIMARY KEY,
+      owner_id BINARY(16),
+      child_11_id INT,
+      data1 TEXT,
+      data2 INT,
+      FOREIGN KEY (child_11_id) REFERENCES child_11 (id)
+  ))*",
+
+        R"*(CREATE TABLE child_1n (
+      id INT PRIMARY KEY,
+      data VARCHAR(30),
+      root_id INT,
+      FOREIGN KEY (root_id) REFERENCES root (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm (
+      id INT,
+      data VARCHAR(30),
+      PRIMARY KEY (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm_join (
+      root_id INT,      
+      child_id INT,
+
+      PRIMARY KEY (root_id, child_id),
+      FOREIGN KEY (root_id) REFERENCES root (id),
+      FOREIGN KEY (child_id) REFERENCES child_nm (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm_join2 (
+      root_id BINARY(16),      
+      child_id INT,
+
+      PRIMARY KEY (root_id, child_id),
+      FOREIGN KEY (root_id) REFERENCES root_owner (id),
+      FOREIGN KEY (child_id) REFERENCES child_nm (id)
+    ))*",
+
+        R"*(INSERT INTO child_11 VALUES (20, 'ref11-1'), (21, 'ref11-2'), (22, 'ref11-3'))*",
+        R"*(INSERT INTO root VALUES (1, 0x11110000000000000000000000000000, NULL, 'data1', 1),
+     (2, 0x11110000000000000000000000000000, NULL, 'data2', 2), (3, 0x22220000000000000000000000000000, NULL, 'data3', 3),
+     (4, 0x33330000000000000000000000000000, NULL, 'data4', 1), (5, 0x11110000000000000000000000000000, NULL, 'data5', 1),
+     (6, 0x22220000000000000000000000000000, NULL, 'data6', 6), (7, 0x11110000000000000000000000000000, NULL, 'data1', 7),
+     (9, 0x11110000000000000000000000000000, 21, 'hello', 1234), (10, 0x33330000000000000000000000000000, null, 'data2', 2))*",
+        R"*(INSERT INTO child_1n VALUES (1, 'ref1n-1', 1), (2, 'ref1n-2', 1),
+        (3, 'ref1n-3', 4),
+        (10, 'test child1', 10), (11, 'test child2', 10))*",
+
+        R"*(INSERT INTO child_nm VALUES (1, 'one'), (2, 'two'), (3, 'three'))*"}},
+
+      {TestSchema::AUTO_INC,
+       {// AUTO_INC PKs
+        R"*(CREATE TABLE child_11_11 (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      data VARCHAR(30)
+    ))*",
+
+        R"*(CREATE TABLE child_11 (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      data VARCHAR(30),
+      child_11_11_id INT,
+      FOREIGN KEY (child_11_11_id) REFERENCES child_11_11 (id)
+    ))*",
+
+        R"*(CREATE TABLE root (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      owner_id BINARY(16),
+      child_11_id INT,
+      data1 TEXT,
+      data2 INT,
+      FOREIGN KEY (child_11_id) REFERENCES child_11 (id)
+  ))*",
+
+        R"*(CREATE TABLE child_1n (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      data VARCHAR(30),
+      root_id INT,
+      FOREIGN KEY (root_id) REFERENCES root (id)
+    ))*",
+
+        R"*(CREATE TABLE child_1n_1n (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      data VARCHAR(30),
+      child_1n_id INT,
+      FOREIGN KEY (child_1n_id) REFERENCES child_1n (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm (
+      id INT AUTO_INCREMENT,
+      data VARCHAR(30),
+      PRIMARY KEY (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm_join (
+      root_id INT,      
+      child_id INT,
+
+      PRIMARY KEY (root_id, child_id),
+      FOREIGN KEY (root_id) REFERENCES root (id),
+      FOREIGN KEY (child_id) REFERENCES child_nm (id)
+    ))*",
+
+        R"*(INSERT INTO child_11_11 VALUES (10, 'abc-1'), (11, 'abc-2'))*",
+
+        R"*(INSERT INTO child_11 VALUES (20, 'ref11-1', NULL), (21, 'ref11-2', 10))*",
+
+        R"*(INSERT INTO root VALUES (1, 0x11110000000000000000000000000000, NULL, 'data1', 1),
+     (2, 0x11110000000000000000000000000000, NULL, 'data2', 2), (3, 0x22220000000000000000000000000000, NULL, 'data3', 3),
+     (4, 0x33330000000000000000000000000000, NULL, 'data4', 1), (5, 0x11110000000000000000000000000000, NULL, 'data5', 1),
+     (6, 0x22220000000000000000000000000000, NULL, 'data6', 6), (7, 0x11110000000000000000000000000000, NULL, 'data1', 7),
+     (9, 0x11110000000000000000000000000000, 21, 'hello', 1234), (10, 0x33330000000000000000000000000000, null, 'data1', 42))*",
+
+        R"*(INSERT INTO child_1n VALUES (1, 'ref1n-1', 1), (2, 'ref1n-2', 1),
+        (3, 'ref1n-3', 4),
+        (4, 'ref1n-4', 9), (5, 'ref1n-5', 9), (6, 'ref1n-6', 9),
+        (10, 'test child1', 10), (11, 'test child2', 10))*",
+
+        R"*(INSERT INTO child_1n_1n VALUES (30, '1n1n-1', 4), (31, '1n1n-2', 4), (32, '1n1n-3', 6))*",
+
+        R"*(INSERT INTO child_nm VALUES (1, 'DATA1'), (2, 'DATA2'), (3, 'DATA3'))*",
+
+        R"*(INSERT INTO child_nm_join VALUES (1, 2), (5, 1), (5, 3),
+            (9, 2), (9, 3))*"}},
+
+      {TestSchema::UUID,
+       {// UUID PKs
+        R"*(CREATE TABLE owner (
+      id BINARY(16) PRIMARY KEY,
+      data VARCHAR(32)
+  ))*",
+
+        R"*(INSERT INTO owner VALUES (0x111, 'one'), (0x222, 'two'))*",
+
+        R"*(CREATE TABLE child_11_11 (
+      id BINARY(16) PRIMARY KEY,
+      data VARCHAR(30)
+    ))*",
+
+        R"*(CREATE TABLE child_11 (
+      id BINARY(16) PRIMARY KEY,
+      data VARCHAR(30),
+      child_11_11_id BINARY(16),
+      FOREIGN KEY (child_11_11_id) REFERENCES child_11_11 (id)
+    ))*",
+
+        R"*(CREATE TABLE root (
+      id BINARY(16) PRIMARY KEY,
+      owner_id BINARY(16),
+      child_11_id BINARY(16),
+      data1 TEXT,
+      data2 INT,
+      FOREIGN KEY (child_11_id) REFERENCES child_11 (id)
+  ))*",
+
+        R"*(CREATE TABLE child_1n (
+      id BINARY(16) PRIMARY KEY,
+      data VARCHAR(30),
+      root_id BINARY(16),
+      FOREIGN KEY (root_id) REFERENCES root (id)
+    ))*",
+
+        R"*(CREATE TABLE child_1n_1n (
+      id BINARY(16) PRIMARY KEY,
+      data VARCHAR(30),
+      child_1n_id BINARY(16),
+      FOREIGN KEY (child_1n_id) REFERENCES child_1n (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm (
+      id BINARY(16) ,
+      data VARCHAR(30),
+      PRIMARY KEY (id)
+    ))*",
+
+        R"*(CREATE TABLE child_nm_join (
+      root_id BINARY(16),      
+      child_id BINARY(16),
+
+      PRIMARY KEY (root_id, child_id),
+      FOREIGN KEY (root_id) REFERENCES root (id),
+      FOREIGN KEY (child_id) REFERENCES child_nm (id)
+    ))*",
+
+        R"*(INSERT INTO child_11_11 VALUES (0x10, 'abc-1'), (0x11, 'abc-2'))*",
+
+        R"*(INSERT INTO child_11 VALUES (0x20, 'ref11-1', NULL), (0x21, 'ref11-2', 0x10))*",
+
+        R"*(INSERT INTO root VALUES (0x1, 0x111, NULL, 'data1', 1),
+     (0x2, 0x111, NULL, 'data2', 2), (0x3, 0x222, NULL, 'data3', 3),
+     (0x4, 0x333, NULL, 'data4', 1), (0x5, 0x111, NULL, 'data5', 1),
+     (0x6, 0x222, NULL, 'data6', 6), (0x7, 0x111, NULL, 'data1', 7),
+     (0x9, 0x111, 0x21, 'hello', 1234))*",
+
+        R"*(INSERT INTO child_1n VALUES (0x30, 'ref1n-1', NULL), (0x31, 'ref1n-2', 0x1))*",
+
+        R"*(INSERT INTO child_nm VALUES (0x1, 'DATA1'), (0x2, 'DATA2'), (0x3, 'DATA3'))*",
+
+        R"*(INSERT INTO child_nm_join VALUES (0x1, 0x2), (0x5, 0x1), (0x5, 0x3))*"}},
+
+      {TestSchema::MULTI, {R"*(CREATE TABLE root (
+      id1 INT AUTO_INCREMENT,
+      id2 BINARY(16),
+      data1 TEXT,
+      data2 INT,
+      PRIMARY KEY(id1, id2)
+  ))*"}}};
+
+  m_->execute("create schema if not exists mrstestdb");
+  m_->execute("use mrstestdb");
+
+  for (const char *sql : k_sql.at(schema)) {
+    m_->execute(sql);
+  }
+}
+
 int DatabaseRestTableTest::num_rows_added(const std::string &table) {
   auto num_rows =
       atoi((*m_->query_one("SELECT COUNT(*) FROM mrstestdb." + table))[0]);
@@ -620,10 +905,99 @@ int DatabaseRestTableTest::num_rows_added(const std::string &table) {
 }
 
 bool DatabaseRestTableTest::binlog_changed() const {
-  auto row = m_->query_one("SHOW MASTER STATUS");
+  auto row = m_->query_one("SHOW BINARY LOG STATUS");
   if (initial_binlog_file_ != (*row)[0]) return true;
 
   if (initial_binlog_position_ != std::stoull((*row)[1])) return true;
 
   return false;
+}
+
+void DatabaseRestTableTest::prepare_user_metadata() {
+  // This should match the latest version of mrs_metadata_schema.sql (with some
+  // FKs to unused tables removed)
+  // Use of this should be minimized in unit-tests, most tests that need the MD
+  // should be done in MTR
+
+  static std::vector<const char *> k_sql = {
+      "DROP SCHEMA IF EXISTS mysql_rest_service_metadata",
+      "CREATE SCHEMA mysql_rest_service_metadata",
+
+      R"*(CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user` (
+  `id` BINARY(16) NOT NULL,
+  `auth_app_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(225) NULL,
+  `email` VARCHAR(255) NULL,
+  `vendor_user_id` VARCHAR(255) NULL,
+  `login_permitted` TINYINT NOT NULL DEFAULT 0,
+  `mapped_user_id` VARCHAR(255) NULL,
+  `app_options` JSON NULL,
+  `auth_string` TEXT NULL,
+  `options` JSON NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_auth_user_auth_app1_idx` (`auth_app_id` ASC) VISIBLE
+) ENGINE = InnoDB;)*",
+
+      R"*(CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_hierarchy` (
+  `user_id` BINARY(16) NOT NULL,
+  `reporting_to_user_id` BINARY(16) NOT NULL,
+  `user_hierarchy_type_id` BINARY(16) NOT NULL,
+  `options` JSON NULL,
+  PRIMARY KEY (`user_id`, `reporting_to_user_id`, `user_hierarchy_type_id`),
+  INDEX `fk_user_hierarchy_auth_user2_idx` (`reporting_to_user_id` ASC) VISIBLE,
+  INDEX `fk_user_hierarchy_hierarchy_type1_idx` (`user_hierarchy_type_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_hierarchy_auth_user1`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_hierarchy_auth_user2`
+    FOREIGN KEY (`reporting_to_user_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION
+) ENGINE = InnoDB;)*",
+
+      R"*(CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group` (
+  `id` BINARY(16) NOT NULL,
+  `specific_to_service_id` BINARY(16) NULL,
+  `caption` VARCHAR(45) NULL,
+  `description` VARCHAR(512) NULL,
+  `options` JSON NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_user_group_service1_idx` (`specific_to_service_id` ASC) VISIBLE
+) ENGINE = InnoDB;)*",
+
+      R"*(CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` (
+  `user_group_id` BINARY(16) NOT NULL,
+  `parent_group_id` BINARY(16) NOT NULL,
+  `group_hierarchy_type_id` BINARY(16) NOT NULL,
+  `level` INT UNSIGNED NOT NULL DEFAULT 0,
+  `options` JSON NULL,
+  PRIMARY KEY (`user_group_id`, `parent_group_id`, `group_hierarchy_type_id`),
+  INDEX `fk_user_group_has_user_group_user_group2_idx` (`parent_group_id` ASC) VISIBLE,
+  INDEX `fk_user_group_has_user_group_user_group1_idx` (`user_group_id` ASC) VISIBLE,
+  INDEX `fk_user_group_hierarchy_group_hierarchy_type1_idx` (`group_hierarchy_type_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_group_has_user_group_user_group1`
+    FOREIGN KEY (`user_group_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_group_has_user_group_user_group2`
+    FOREIGN KEY (`parent_group_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION
+) ENGINE = InnoDB;)*",
+
+      R"*(INSERT INTO mysql_rest_service_metadata.mrs_user
+          (id, name, auth_app_id) VALUES
+          (0x11110000000000000000000000000000, 'UserOne', 0),
+          (0x22220000000000000000000000000000, 'UserTwo', 0),
+          (0x33330000000000000000000000000000, 'UserThree', 0))*",
+  };
+
+  for (const char *sql : k_sql) {
+    m_->execute(sql);
+  }
 }

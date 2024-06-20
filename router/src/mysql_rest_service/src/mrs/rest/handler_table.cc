@@ -43,8 +43,8 @@
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "helper/mysql_numeric_value.h"
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/filter_object_generator.h"
-#include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/query_gtid_executed.h"
 #include "mrs/database/helper/query_retry_on_ro.h"
 #include "mrs/database/query_rest_sp_media.h"
@@ -190,13 +190,14 @@ database::PrimaryKeyColumnValues HandlerTable::get_rest_pk_parameter(
     std::shared_ptr<database::entry::Object> object,
     const HttpUri &requests_uri) {
   auto id = get_path_after_object_name(requests_uri);
-  auto pk_columns = object->get_base_table()->primary_key();
+  auto pk_columns = object->primary_key();
 
   if (id.empty()) return {};
 
   mrs::database::PrimaryKeyColumnValues pk;
   if (1 == pk_columns.size()) {
-    pk[pk_columns[0]->name] = rest_param_to_sql_value(*pk_columns[0], id);
+    pk[pk_columns[0]->column_name] =
+        rest_param_to_sql_value(*pk_columns[0], id);
     return pk;
   }
 
@@ -211,7 +212,7 @@ database::PrimaryKeyColumnValues HandlerTable::get_rest_pk_parameter(
   }
 
   for (size_t i = 0; i < pk_columns.size(); i++) {
-    pk[pk_columns[i]->name] =
+    pk[pk_columns[i]->column_name] =
         rest_param_to_sql_value(*pk_columns[i], pk_values[i]);
   }
 
@@ -222,7 +223,7 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto object = route_->get_object();
-  database::ObjectFieldFilter field_filter;
+  database::dv::ObjectFieldFilter field_filter;
   std::optional<std::string> target_field;
   auto pk = get_rest_pk_parameter(object, ctxt->request->get_uri());
   const auto accepted_content_type =
@@ -242,14 +243,14 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
 
     try {
       field_filter =
-          database::ObjectFieldFilter::from_url_filter(*object, filter);
+          database::dv::ObjectFieldFilter::from_url_filter(*object, filter);
     } catch (const std::exception &e) {
       throw http::Error(HttpStatusCode::BadRequest, e.what());
     }
 
     if (filter.size() == 1) target_field = filter.front();
   } else {
-    field_filter = database::ObjectFieldFilter::from_object(*object);
+    field_filter = database::dv::ObjectFieldFilter::from_object(*object);
   }
 
   std::string raw_value = it_raw ? uri_param.get_query_parameter("raw") : "";
@@ -308,13 +309,13 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
     return {std::move(rest.response), detected_type};
   } else {
     if (raw_value.empty()) {
-      database::QueryRestTableSingleRow rest(opt_encode_bigints_as_string,
-                                             opt_sp_include_links);
-      log_debug(
-          "Rest select single row %s",
-          database::format_key(object->get_base_table(), pk).str().c_str());
-      rest.query_entries(session.get(), object, field_filter, pk,
-                         route_->get_rest_url(), true);
+      database::QueryRestTableSingleRow rest(
+          nullptr, opt_encode_bigints_as_string, opt_sp_include_links);
+      log_debug("Rest select single row %s",
+                database::dv::format_key(*object, pk).str().c_str());
+      rest.query_entry(session.get(), object, pk, field_filter,
+                       route_->get_rest_url(), row_ownership_info(ctxt, object),
+                       true);
 
       if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
       Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
@@ -366,9 +367,10 @@ HttpResult HandlerTable::handle_post(
                       "Invalid JSON document inside the HTTP request, must be "
                       "an JSON object.");
 
-  database::TableUpdater updater(object, row_ownership_info(ctxt, object));
+  database::dv::DualityViewUpdater updater(object,
+                                           row_ownership_info(ctxt, object));
 
-  auto pk = updater.handle_post(session.get(), json_doc);
+  auto pk = updater.insert(session.get(), json_doc);
 
   Counter<kEntityCounterRestAffectedItems>::increment();
 
@@ -379,14 +381,15 @@ HttpResult HandlerTable::handle_post(
     database::QueryRestTableSingleRow fetch_one;
     std::string response_gtid{get_options().metadata.gtid ? gtid : ""};
 
-    fetch_one.query_entries(session.get(), object,
-                            database::ObjectFieldFilter::from_object(*object),
-                            pk, route_->get_rest_url(), true, response_gtid);
+    fetch_one.query_entry(session.get(), object, pk,
+                          database::dv::ObjectFieldFilter::from_object(*object),
+                          route_->get_rest_url(),
+                          row_ownership_info(ctxt, object), true,
+                          response_gtid);
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
   }
-
   // TODO(lkotula): return proper error ! (Shouldn't be in review)
   return {};
 }
@@ -422,12 +425,13 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
   const auto accepted_content_type =
       validate_content_type_encoding(&ctxt->accepts);
 
-  mrs::database::TableUpdater rest(object, row_ownership_info(ctxt, object));
+  database::dv::DualityViewUpdater rest(object,
+                                        row_ownership_info(ctxt, object));
 
   if (!last_path.empty()) {
     auto pk = get_rest_pk_parameter(object, requests_uri);
 
-    count = rest.handle_delete(session.get(), pk);
+    count = rest.delete_(session.get(), pk);
   } else {
     auto query = get_rest_query_parameter(requests_uri);
 
@@ -470,7 +474,7 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
           "Filter must not contain ordering informations.");
 
     log_debug("rest.handle_delete");
-    count = rest.handle_delete(session.get(), fog);
+    count = rest.delete_(session.get(), fog);
 
     if (get_options().query.embed_wait && fog.has_asof() && 0 == count) {
       mrs::monitored::throw_rest_error_asof_timeout_if_not_gtid_executed(
@@ -509,7 +513,8 @@ HttpResult HandlerTable::handle_put(rest::RequestContext *ctxt) {
 
   rapidjson::Document json_doc;
 
-  database::TableUpdater updater(object, row_ownership_info(ctxt, object));
+  database::dv::DualityViewUpdater updater(object,
+                                           row_ownership_info(ctxt, object));
 
   json_doc.Parse((const char *)document.data(), document.size());
 
@@ -533,7 +538,7 @@ HttpResult HandlerTable::handle_put(rest::RequestContext *ctxt) {
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
                              MySQLConnection::kMySQLConnectionUserdataRW);
 
-  pk = updater.handle_put(session.get(), json_doc, pk);
+  pk = updater.update(session.get(), pk, json_doc, true);
 
   Counter<kEntityCounterRestAffectedItems>::increment(updater.affected());
 
@@ -543,9 +548,10 @@ HttpResult HandlerTable::handle_put(rest::RequestContext *ctxt) {
   database::QueryRestTableSingleRow fetch_one;
   std::string response_gtid{get_options().metadata.gtid ? gtid : ""};
 
-  fetch_one.query_entries(session.get(), object,
-                          database::ObjectFieldFilter::from_object(*object), pk,
-                          route_->get_rest_url(), true, response_gtid);
+  fetch_one.query_entry(session.get(), object, pk,
+                        database::dv::ObjectFieldFilter::from_object(*object),
+                        route_->get_rest_url(),
+                        row_ownership_info(ctxt, object), true, response_gtid);
 
   Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
   return std::move(fetch_one.response);
@@ -578,9 +584,11 @@ mrs::database::ObjectRowOwnership HandlerTable::row_ownership_info(
     throw http::Error(HttpStatusCode::Unauthorized);
 
   return mrs::database::ObjectRowOwnership{
-      object->get_base_table(), &route_->get_user_row_ownership(),
+      object, &route_->get_user_row_ownership(),
       ctxt->user.has_user_id ? ctxt->user.user_id : std::optional<UserId>(),
       route_->get_group_row_ownership(), ctxt->user.groups};
+
+  return {};
 }
 
 std::string HandlerTable::get_most_relevant_gtid(

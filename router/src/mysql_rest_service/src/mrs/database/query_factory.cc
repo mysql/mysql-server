@@ -91,7 +91,8 @@ std::shared_ptr<QueryRestTable> QueryFactory::create_query_table() {
 
 std::shared_ptr<QueryRestTableSingleRow>
 QueryFactory::create_query_table_single_row(bool encode_bigints_as_string) {
-  return std::make_shared<QueryRestTableSingleRow>(encode_bigints_as_string);
+  return std::make_shared<QueryRestTableSingleRow>(nullptr,
+                                                   encode_bigints_as_string);
 }
 
 std::shared_ptr<QueryRestSP> QueryFactory::create_query_sp() {

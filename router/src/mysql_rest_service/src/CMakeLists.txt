@@ -96,9 +96,17 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/helper/query_audit_log_maxid.cc
   mrs/database/helper/query_retry_on_ro.cc
   mrs/database/helper/query_gtid_executed.cc
-  mrs/database/helper/object_query.cc
   mrs/database/helper/object_checksum.cc
   mrs/database/helper/sp_function_query.cc
+  mrs/database/entry/object.cc
+  mrs/database/duality_view/json_input.cc
+  mrs/database/duality_view/common.cc
+  mrs/database/duality_view/change.cc
+  mrs/database/duality_view/delete.cc
+  mrs/database/duality_view/insert.cc
+  mrs/database/duality_view/update.cc
+  mrs/database/duality_view/select.cc
+  mrs/database/duality_view/check.cc
 )
 
 TARGET_LINK_LIBRARIES(mysql_rest_service_db

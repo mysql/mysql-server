@@ -28,7 +28,7 @@
 
 #include "helper/json/serializer_to_text.h"
 #include "helper/mysql_column_types.h"
-#include "mrs/database/helper/object_query.h"
+#include "mrs/database/duality_view/select.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -37,7 +37,7 @@ namespace database {
 
 using namespace helper::json;
 using namespace mrs::database::entry;
-using JsonQueryBuilder = mrs::database::JsonQueryBuilder;
+using JsonQueryBuilder = mrs::database::dv::JsonQueryBuilder;
 
 static bool needs_bigint_workaround(enum_field_types type) {
   switch (type) {
@@ -54,6 +54,46 @@ static bool needs_bigint_workaround(enum_field_types type) {
     default:
       return false;
   }
+}
+
+mysqlrouter::sqlstring format_parameters(
+    std::shared_ptr<database::entry::Object> object,
+    const ColumnValues &values) {
+  using namespace std::string_literals;
+  mysqlrouter::sqlstring s;
+
+  auto vit = values.begin();
+  object->foreach_field<entry::Column, bool>(
+      [&s, &vit, values](const entry::Column &c) {
+        if (vit == values.end()) {
+          throw std::runtime_error("Parameter not set:"s + c.name);
+        }
+
+        if (c.type == entry::ColumnType::BINARY) {
+          s.append_preformatted_sep(",", mysqlrouter::sqlstring("TO_BASE64(?)")
+                                             << *vit);
+        } else if (c.type == entry::ColumnType::GEOMETRY) {
+          s.append_preformatted_sep(
+              ",", mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)") << *vit);
+        } else {
+          s.append_preformatted_sep(",", *vit);
+        }
+
+        ++vit;
+
+        return false;
+      });
+
+  return s;
+}
+
+mysqlrouter::sqlstring format_from_clause(
+    std::shared_ptr<database::entry::Object> object) {
+  mysqlrouter::sqlstring result{"!.!"};
+
+  result << object->schema << object->table;
+
+  return result;
 }
 
 const char *QueryRestFunction::get_sql_state() {
@@ -82,7 +122,8 @@ void QueryRestFunction::query_entries_impl(
   json_type_ = JsonType::kNull;
 
   auto parameters = format_parameters(object, values);
-  auto from = format_from_clause(object->base_tables, {}, false);
+  auto from = format_from_clause(
+      object);  // format_from_clause(object->base_tables, {}, false);
 
   query(session, mysqlrouter::sqlstring{"SELECT !(!)"} << from << parameters);
 }

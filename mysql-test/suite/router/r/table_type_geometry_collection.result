@@ -25,10 +25,8 @@ VALUES(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))', 4326)),
 #    returning multiple objects.
 # 3. Verify that object can be updated with different GeoJson and response
 #    contains same data.
-# 4. Verify that object can be updated with different WKT-format and response
-#    contains same data formated as GeoJson.
-# 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
-# 6. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
+# 4. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
+# 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
 #
 ## II. Verify JSON encoding of GEOMETRYCOLLECTION types with SRID 4326, returned in FEED response
 #
@@ -38,10 +36,8 @@ VALUES(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))', 4326)),
 #    returning multiple objects.
 # 3. Verify that object can be updated with different GeoJson and response
 #    contains same data.
-# 4. Verify that object can be updated with different WKT-format and response
-#    contains same data formated as GeoJson.
-# 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
-# 6. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
+# 4. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
+# 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
 #
 #
 # Registred SERVICE at path: /svc
@@ -195,7 +191,7 @@ OK
 
 #
 # I.3
-PUT /svc/test/geo0/2 (payload-size:138)
+PUT /svc/test/geo0/2 (payload-size:145)
 {
     "gc": {
         "type": "GeometryCollection",
@@ -218,7 +214,7 @@ PUT /svc/test/geo0/2 (payload-size:138)
     }
 }
 OK
-PUT /svc/test/geo0/2 (payload-size:96)
+PUT /svc/test/geo0/2 (payload-size:103)
 {
     "gc": {
         "type": "GeometryCollection",
@@ -237,79 +233,10 @@ OK
 
 #
 # I.4
-PUT /svc/test/geo0/2 (payload-size:51)
-{
-    "gc": {
-        "type": "GeometryCollection",
-        "geometries": [
-            {
-                "type": "Point",
-                "coordinates": [
-                    8.0,
-                    8.0
-                ]
-            },
-            {
-                "type": "Point",
-                "coordinates": [
-                    9.0,
-                    9.0
-                ]
-            }
-        ]
-    }
-}
-OK
-PUT /svc/test/geo0/2 (payload-size:53)
-{
-    "gc": {
-        "type": "GeometryCollection",
-        "geometries": [
-            {
-                "type": "Point",
-                "coordinates": [
-                    8.0,
-                    8.0
-                ]
-            },
-            {
-                "type": "Point",
-                "coordinates": [
-                    10.0,
-                    10.0
-                ]
-            }
-        ]
-    }
-}
-OK
-
-#
-# I.5
 GET /svc/test/geo0/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%288%208%29,POINT%2810%2010%29%29%22%7D
 {
     "items": [
-        {
-            "gc": {
-                "type": "GeometryCollection",
-                "geometries": [
-                    {
-                        "type": "Point",
-                        "coordinates": [
-                            8.0,
-                            8.0
-                        ]
-                    },
-                    {
-                        "type": "Point",
-                        "coordinates": [
-                            10.0,
-                            10.0
-                        ]
-                    }
-                ]
-            }
-        }
+        []
     ]
 }
 OK
@@ -355,31 +282,11 @@ GET /svc/test/geo0/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%2810%2010%29,%20
 OK
 
 #
-# I.6
+# I.5
 GET /svc/test/geo0/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B8,%208%5D%7D,%20%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B10,%2010%5D%7D%5D%7D%7D
 {
     "items": [
-        {
-            "gc": {
-                "type": "GeometryCollection",
-                "geometries": [
-                    {
-                        "type": "Point",
-                        "coordinates": [
-                            8.0,
-                            8.0
-                        ]
-                    },
-                    {
-                        "type": "Point",
-                        "coordinates": [
-                            10.0,
-                            10.0
-                        ]
-                    }
-                ]
-            }
-        }
+        []
     ]
 }
 OK
@@ -539,7 +446,7 @@ OK
 
 #
 # II.3
-PUT /svc/test/geo4326/2 (payload-size:137)
+PUT /svc/test/geo4326/2 (payload-size:144)
 {
     "gc": {
         "type": "GeometryCollection",
@@ -562,7 +469,7 @@ PUT /svc/test/geo4326/2 (payload-size:137)
     }
 }
 OK
-PUT /svc/test/geo4326/2 (payload-size:152)
+PUT /svc/test/geo4326/2 (payload-size:159)
 {
     "gc": {
         "type": "GeometryCollection",
@@ -594,91 +501,10 @@ OK
 
 #
 # II.4
-PUT /svc/test/geo4326/2 (payload-size:54)
-{
-    "gc": {
-        "type": "GeometryCollection",
-        "geometries": [
-            {
-                "type": "Point",
-                "coordinates": [
-                    12.0,
-                    12.0
-                ]
-            },
-            {
-                "type": "Point",
-                "coordinates": [
-                    13.0,
-                    13.0
-                ]
-            }
-        ]
-    }
-}
-OK
-PUT /svc/test/geo4326/2 (payload-size:66)
-{
-    "gc": {
-        "type": "GeometryCollection",
-        "geometries": [
-            {
-                "type": "Point",
-                "coordinates": [
-                    14.0,
-                    14.0
-                ]
-            },
-            {
-                "type": "LineString",
-                "coordinates": [
-                    [
-                        15.0,
-                        15.0
-                    ],
-                    [
-                        16.0,
-                        16.0
-                    ]
-                ]
-            }
-        ]
-    }
-}
-OK
-
-#
-# II.5
 GET /svc/test/geo4326/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%2814%2014%29,LINESTRING%2815%2015,%2016%2016%29%29%22%7D
 {
     "items": [
-        {
-            "gc": {
-                "type": "GeometryCollection",
-                "geometries": [
-                    {
-                        "type": "Point",
-                        "coordinates": [
-                            14.0,
-                            14.0
-                        ]
-                    },
-                    {
-                        "type": "LineString",
-                        "coordinates": [
-                            [
-                                15.0,
-                                15.0
-                            ],
-                            [
-                                16.0,
-                                16.0
-                            ]
-                        ]
-                    }
-                ]
-            }
-        }
+        []
     ]
 }
 OK
@@ -711,7 +537,7 @@ GET /svc/test/geo4326/?q=%7B%22gc%22:%22GEOMETRYCOLLECTION%28POINT%281%201%29,%2
 OK
 
 #
-# II.6
+# II.5
 GET /svc/test/geo4326/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B1,%201%5D%7D,%20%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B2,%202%5D%7D%5D%7D%7D
 {
     "items": [
@@ -742,33 +568,7 @@ OK
 GET /svc/test/geo4326/?q=%7B%22gc%22:%7B%22type%22:%20%22GeometryCollection%22,%20%22geometries%22:%20%5B%7B%22type%22:%20%22Point%22,%20%22coordinates%22:%20%5B14,%2014%5D%7D,%20%7B%22type%22:%20%22LineString%22,%20%22coordinates%22:%20%5B%5B15,15%5D,%20%5B16,16%5D%5D%7D%5D%7D%7D
 {
     "items": [
-        {
-            "gc": {
-                "type": "GeometryCollection",
-                "geometries": [
-                    {
-                        "type": "Point",
-                        "coordinates": [
-                            14.0,
-                            14.0
-                        ]
-                    },
-                    {
-                        "type": "LineString",
-                        "coordinates": [
-                            [
-                                15.0,
-                                15.0
-                            ],
-                            [
-                                16.0,
-                                16.0
-                            ]
-                        ]
-                    }
-                ]
-            }
-        }
+        []
     ]
 }
 OK

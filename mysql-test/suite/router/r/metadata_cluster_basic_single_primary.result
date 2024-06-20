@@ -287,7 +287,7 @@ GET /svc/basic/t2/200
     "status": 404
 }
 OK
-POST /svc/basic/t2 (payload-size:51)
+POST /svc/basic/t2 (payload-size:66)
 {
     "id": 3000,
     "date": "1920-12-01 00:00:00.000000",
@@ -298,9 +298,9 @@ POST /svc/basic/t2 (payload-size:51)
             "href": "/svc/basic/t2/3000"
         }
     ],
-    "comments": null,
+    "comments": "",
     "_metadata": {
-        "etag": "F402526F393D843955663BDC9F8B507EF9D21707D905BC62616FDEF10B935A7D"
+        "etag": "0F8FB4DB6780304FDCEF8C96639874C8714A79368024BA36A28746902D2994D1"
     }
 }
 OK
@@ -316,9 +316,9 @@ GET /svc/basic/t2/3000
             "href": "/svc/basic/t2/3000"
         }
     ],
-    "comments": null,
+    "comments": "",
     "_metadata": {
-        "etag": "F402526F393D843955663BDC9F8B507EF9D21707D905BC62616FDEF10B935A7D"
+        "etag": "0F8FB4DB6780304FDCEF8C96639874C8714A79368024BA36A28746902D2994D1"
     }
 }
 OK

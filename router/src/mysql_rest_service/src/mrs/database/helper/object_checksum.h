@@ -25,8 +25,8 @@
 #include <map>
 #include <memory>
 #include <string>
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/entry/object.h"
-#include "mrs/database/helper/object_query.h"
 #include "router/src/http/src/digest.h"
 
 namespace mrs {
@@ -53,12 +53,13 @@ class Sha256Digest : public IDigester {
 void digest_object(std::shared_ptr<entry::Object> object, std::string_view doc,
                    IDigester *digest);
 
-std::string compute_checksum(std::shared_ptr<entry::Object> object,
-                             std::string_view doc);
+// std::string compute_checksum(std::shared_ptr<entry::Object> object,
+//                              std::string_view doc);
 
-void process_document_etag_and_filter(
-    std::shared_ptr<entry::Object> object, const ObjectFieldFilter &filter,
-    const std::map<std::string, std::string> &metadata, std::string *doc);
+std::string post_process_json(
+    std::shared_ptr<entry::Object> view, const dv::ObjectFieldFilter &filter,
+    const std::map<std::string, std::string> &metadata, std::string_view doc,
+    bool compute_checksum = true);
 
 }  // namespace database
 }  // namespace mrs

@@ -20,9 +20,9 @@ GET /svc/sakila/city1/1
     "city_id": 1,
     "country": "Spain",
     "country_id": 87,
-    "last_update": "2006-02-15 04:44:00.000000",
+    "last_update": "2006-02-15 04:45:25.000000",
     "_metadata": {
-        "etag": "549F33F566B28F51AD70CAB81BF8B6B74D0AFCB3644183C03607A56B2B8E5263"
+        "etag": "57448E4D1911A5638AFC799716978AAED1FE746CBADA3E95E682A68F3CA887EE"
     }
 }
 OK

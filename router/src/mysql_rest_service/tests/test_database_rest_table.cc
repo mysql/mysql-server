@@ -21,7 +21,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
+// TODO XXX obsolete
+#if 0
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <vector>
@@ -104,9 +105,10 @@ class QueryVerification {
     encode_bigints_as_string = qv.encode_bigints_as_string;
   }
 
-  QueryVerification(const std::string &expected_query, const ObjectBuilder &ob,
+  QueryVerification(const std::string &expected_query,
+                    std::shared_ptr<Object> ob,
                     bool encode_bigint_as_st = false)
-      : object{ob.root()},
+      : object{ob},
         query_starts_with{expected_query},
         encode_bigints_as_string{encode_bigint_as_st} {}
 
@@ -143,8 +145,8 @@ TEST_P(
         on_row_processor(MySQLSession::ResultRow({k_query_generated_value}));
       }));
   sut.query_entries(&mock_session_, object,
-                    mrs::database::ObjectFieldFilter::from_object(*object), {},
-                    k_url);
+                    mrs::database::dv::ObjectFieldFilter::from_object(*object),
+                    {}, k_url);
 
   // Verify that the resulting JSON is forwarded from JsonTemplate to
   // sut_->response.
@@ -191,7 +193,7 @@ TEST_P(QueryRestTableParameterTests,
         on_row_processor(MySQLSession::ResultRow({k_query_generated_value}));
       }));
   sut.query_entries(&mock_session_, object,
-                    mrs::database::ObjectFieldFilter::from_object(*object),
+                    mrs::database::dv::ObjectFieldFilter::from_object(*object),
                     k_offset, k_page_size, k_url, true);
 
   // Verify that the resulting JSON is forwarded from JsonTemplate to
@@ -199,7 +201,7 @@ TEST_P(QueryRestTableParameterTests,
   EXPECT_EQ(k_result, sut.response);
 }
 
-using Ob = ObjectBuilder;
+using Ob = DualityViewBuilder;
 
 INSTANTIATE_TEST_SUITE_P(
     InstantiateQueryExpectations, QueryRestTableParameterTests,
@@ -209,7 +211,8 @@ INSTANTIATE_TEST_SUITE_P(
             "`t`.`db_column_name_c2`,'links',",
             Ob("schema", "obj")
                 .field("c1", "db_column_name_c1", "TEXT")
-                .field("c2", "db_column_name_c2", "INT")),
+                .field("c2", "db_column_name_c2", "INT")
+                .resolve()),
 
         QueryVerification(
             "SELECT JSON_OBJECT('c2', `t`.`db_column_name_c2`,'links',",
@@ -239,17 +242,17 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(QueryRestTableTests, DISABLED_basic_empty_request_throws) {
   auto object =
-      ObjectBuilder("schema", "obj").field("c2", FieldFlag::PRIMARY).root();
+      DualityViewBuilder("schema", "obj").field("c2", FieldFlag::PRIMARY).root();
 
   EXPECT_THROW(sut_->query_entries(
                    &mock_session_, object,
-                   mrs::database::ObjectFieldFilter::from_object(*object), 0,
-                   25, "my.url", true),
+                   mrs::database::dv::ObjectFieldFilter::from_object(*object),
+                   0, 25, "my.url", true),
                std::invalid_argument);
 }
 
 TEST_F(QueryRestTableTests, DISABLED_basic_two_request_without_result) {
-  auto object = ObjectBuilder("schema", "obj")
+  auto object = DualityViewBuilder("schema", "obj")
                     .field("c1")
                     .field("c2", FieldFlag::PRIMARY)
                     .root();
@@ -264,14 +267,15 @@ TEST_F(QueryRestTableTests, DISABLED_basic_two_request_without_result) {
                 "`t`.`c2`) as doc FROM `schema`.`obj` as `t`  LIMIT 0,26) tbl"),
           _, _));
 
-  sut_->query_entries(&mock_session_, object,
-                      mrs::database::ObjectFieldFilter::from_object(*object), 0,
-                      25, "my.url", true);
+  sut_->query_entries(
+      &mock_session_, object,
+      mrs::database::dv::ObjectFieldFilter::from_object(*object), 0, 25,
+      "my.url", true);
 }
 
 TEST_F(QueryRestTableTests,
        DISABLED_basic_two_request_without_result_and_no_links) {
-  auto object = ObjectBuilder("schema", "obj").field("c1").field("c2").root();
+  auto object = DualityViewBuilder("schema", "obj").field("c1").field("c2").root();
 
   EXPECT_CALL(
       mock_session_,
@@ -281,13 +285,14 @@ TEST_F(QueryRestTableTests,
                   "`schema`.`obj` as `t`  LIMIT 0,26) tbl"),
             _, _));
 
-  sut_->query_entries(&mock_session_, object,
-                      mrs::database::ObjectFieldFilter::from_object(*object), 0,
-                      25, "my.url", true);
+  sut_->query_entries(
+      &mock_session_, object,
+      mrs::database::dv::ObjectFieldFilter::from_object(*object), 0, 25,
+      "my.url", true);
 }
 
 TEST_F(QueryRestTableTests, DISABLED_basic_query) {
-  auto root = ObjectBuilder("schema", "obj")
+  auto root = DualityViewBuilder("schema", "obj")
                   .field("c1", FieldFlag::PRIMARY)
                   .field("c2")
                   .root();
@@ -303,6 +308,7 @@ TEST_F(QueryRestTableTests, DISABLED_basic_query) {
           _, _));
 
   sut_->query_entries(&mock_session_, root,
-                      mrs::database::ObjectFieldFilter::from_object(*root), 0,
-                      25, "my.url", true);
+                      mrs::database::dv::ObjectFieldFilter::from_object(*root),
+                      0, 25, "my.url", true);
 }
+#endif

@@ -30,6 +30,7 @@
 
 #include "helper/json/text_to.h"
 #include "helper/mysql_row.h"
+#include "mrs/database/entry/object.h"
 #include "mrs/interface/rest_error.h"
 
 #include "mysql/harness/logging/logging.h"
@@ -77,6 +78,8 @@ namespace mrs {
 namespace database {
 
 using RestError = mrs::interface::RestError;
+using ForeignKeyReference = entry::ForeignKeyReference;
+using Table = entry::Table;
 
 namespace {
 
@@ -110,10 +113,9 @@ void convert_kind(KindType *out, const char *value) {
 
 class ColumnMappingConverter {
  public:
-  explicit ColumnMappingConverter(std::shared_ptr<entry::JoinedTable> ref_table)
-      : ref_table_(ref_table) {}
+  ColumnMappingConverter() {}
 
-  void operator()(entry::JoinedTable::ColumnMapping *out,
+  void operator()(entry::ForeignKeyReference::ColumnMapping *out,
                   const char *value) const {
     if (nullptr == value) {
       *out = {};
@@ -138,17 +140,9 @@ class ColumnMappingConverter {
             "Column 'metadata', element must contain 'ref' field with string "
             "value.");
 
-      auto lplaceholder = std::make_shared<entry::Column>();
-      lplaceholder->name = col["base"].GetString();
-      auto rplaceholder = std::make_shared<entry::Column>();
-      rplaceholder->name = col["ref"].GetString();
-      rplaceholder->table = ref_table_;
-      out->emplace_back(lplaceholder, rplaceholder);
+      out->emplace_back(col["base"].GetString(), col["ref"].GetString());
     }
   }
-
- private:
-  std::shared_ptr<entry::JoinedTable> ref_table_;
 };
 
 }  // namespace
@@ -161,20 +155,23 @@ QueryEntryObject::UniversalId QueryEntryObject::query_object(
 
   mysqlrouter::sqlstring q{
       "SELECT object.id, object.kind,"
-      " CAST(db_object.crud_operations AS UNSIGNED)"
+      " CAST(db_object.crud_operations AS UNSIGNED),"
+      " (SELECT objf.id FROM mysql_rest_service_metadata.object_field objf"
+      "   WHERE objf.object_id = object.id AND objf.parent_reference_id IS NULL"
+      "    AND db_object.row_user_ownership_column = objf.db_column->>'$.name')"
       "  FROM mysql_rest_service_metadata.object"
       "  JOIN mysql_rest_service_metadata.db_object"
       "    ON object.db_object_id = db_object.id"
       "  WHERE object.db_object_id=?"};
   q << db_object_id;
-
   auto res = query_one(session, q.str());
 
   if (nullptr == res.get()) return {};
 
-  auto base_table = obj->base_tables.back();
   entry::UniversalId::from_raw(&object_id, (*res)[0]);
-  base_table->crud_operations = std::stoi((*res)[2]);
+  obj->crud_operations = std::stoi((*res)[2]);
+
+  from_optional_user_ownership_field_id(&obj->user_ownership_field, (*res)[3]);
 
   convert_kind(&obj->kind, (*res)[1]);
 
@@ -187,23 +184,15 @@ void QueryEntryObject::query_entries(MySQLSession *session,
                                      const UniversalId &db_object_id) {
   // Cleanup
   m_alias_count = 0;
-  m_tables.clear();
-  m_objects.clear();
-  object.reset();
+  m_references.clear();
 
   // Build the query and resulting objects.
-  auto base_table = std::make_shared<entry::BaseTable>();
-  base_table->schema = schema_name;
-  base_table->table = object_name;
-  base_table->table_alias = "t";
-
-  object = std::make_shared<Object>();
-  object->base_tables.push_back(base_table);
-  m_objects[entry::UniversalId{}] = object;
+  object = std::make_shared<entry::Object>();
+  object->schema = schema_name;
+  object->table = object_name;
+  object->table_alias = "t";
 
   entry::UniversalId object_id;
-
-  m_tables[entry::UniversalId{}] = base_table;
 
   object_id = query_object(session, db_object_id, object.get());
 
@@ -236,58 +225,27 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.no_update"
       " FROM mysql_rest_service_metadata.object_field"
       " WHERE object_field.object_id = ?"
-      " ORDER BY object_field.represents_reference_id";
+      " ORDER BY object_field.represents_reference_id, object_field.position";
   query_ << object_id;
 
   execute(session);
 
-  // post-processing... re-order object fields, resolve placeholders
-  for (const auto &o : m_objects) {
-    auto object = o.second;
-    std::sort(
-        object->fields.begin(), object->fields.end(),
-        [](const auto &a, const auto &b) { return a->position > b->position; });
+  // resolve row ownership column
+  if (object->user_ownership_field.has_value())
+    object->user_ownership_field->field =
+        object->get_column(object->user_ownership_field->uid);
+  if (object->user_ownership_field->field)
+    object->user_ownership_field->field->is_row_owner = true;
+
+  for (auto &[_, r] : m_references) {
+    auto v = r->ref_table;
+    if (!v->user_ownership_field.has_value()) continue;
+
+    v->user_ownership_field->field =
+        v->get_column(v->user_ownership_field->uid);
+    if (object->user_ownership_field->field)
+      v->user_ownership_field->field->is_row_owner = true;
   }
-  for (const auto &t : m_tables) {
-    auto table = t.second;
-    auto join = std::dynamic_pointer_cast<entry::JoinedTable>(table);
-    if (join && join->enabled) {
-      entry::JoinedTable::ColumnMapping fixed_mapping;
-      for (auto &c : join->column_mapping) {
-        auto ltable = c.first->table.lock();
-        auto rtable = c.second->table.lock();
-
-        if (!ltable || !rtable) {
-          log_error("Invalid metadata for JOIN for %s", table->table.c_str());
-          continue;
-        }
-
-        auto lcolumn = ltable->get_column(c.first->name);
-        auto rcolumn = rtable->get_column(c.second->name);
-
-        if (!lcolumn)
-          throw std::runtime_error("Invalid column " + ltable->table + "." +
-                                   c.first->name + " in column_mapping");
-
-        if (!rcolumn)
-          throw std::runtime_error("Invalid column " + rtable->table + "." +
-                                   c.second->name + " in column_mapping");
-
-        if (join->to_many)
-          rcolumn->is_foreign = true;
-        else
-          lcolumn->is_foreign = true;
-
-        fixed_mapping.emplace_back(lcolumn, rcolumn);
-      }
-
-      join->column_mapping = fixed_mapping;
-    }
-  }
-
-  // TODO(alfredo) - do some sanity checks
-  // - are there PKs defined
-  // - are there more than 1 row-owner-id or generated columns defined
 }
 
 void QueryEntryObject::set_query_object_reference(
@@ -299,7 +257,6 @@ void QueryEntryObject::set_query_object_reference(
       " object_reference.reference_mapping->>'$.referenced_table',"
       " object_reference.reference_mapping->'$.to_many',"
       " object_reference.reference_mapping->'$.column_mapping',"
-      // TODO reduce_to_value_of_field_id will be removed
       " object_reference.unnest OR "
       "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
       " CAST(object_reference.crud_operations AS UNSIGNED)"
@@ -318,27 +275,24 @@ void QueryEntryObject::on_row(const ResultRow &r) {
 }
 
 void QueryEntryObject::on_reference_row(const ResultRow &r) {
-  auto reference = std::make_shared<entry::JoinedTable>();
+  auto reference = std::make_shared<ForeignKeyReference>();
+  reference->ref_table = std::make_shared<Table>();
 
   entry::UniversalId reference_id;
 
   helper::MySQLRow row(r, metadata_, num_of_metadata_);
   row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
-  row.unserialize(&reference->schema);
-  row.unserialize(&reference->table);
+  row.unserialize(&reference->ref_table->schema);
+  row.unserialize(&reference->ref_table->table);
   row.unserialize(&reference->to_many);
   row.unserialize_with_converter(&reference->column_mapping,
-                                 ColumnMappingConverter{reference});
+                                 ColumnMappingConverter{});
   row.unserialize(&reference->unnest);
-  row.unserialize(&reference->crud_operations);
+  row.unserialize(&reference->ref_table->crud_operations);
 
-  reference->table_alias = "t" + std::to_string(++m_alias_count);
-  m_tables[reference_id] = reference;
+  reference->ref_table->table_alias = "t" + std::to_string(++m_alias_count);
 
-  auto object = std::make_shared<Object>();
-  object->name = reference->table_key();
-  object->base_tables.push_back(reference);
-  m_objects[reference_id] = object;
+  m_references[reference_id] = reference;
 }
 
 void QueryEntryObject::on_field_row(const ResultRow &r) {
@@ -374,116 +328,73 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
   row.unserialize_with_converter(&represents_reference_id,
                                  entry::UniversalId::from_raw_optional);
 
-  auto parent_object_it = m_objects.find(parent_reference_id);
-  if (parent_object_it == m_objects.end()) {
-    log_debug("No parent_object found, referenced by parent_reference_id:%s",
-              to_string(parent_reference_id).c_str());
-    return;
-  }
-  auto parent_object = parent_object_it->second;
+  std::shared_ptr<ForeignKeyReference> parent_ref;
+  std::shared_ptr<Table> table;
+  if (parent_reference_id != entry::UniversalId()) {
+    auto ref_it = m_references.find(parent_reference_id);
+    if (ref_it == m_references.end()) {
+      log_debug("No parent_object found, referenced by parent_reference_id:%s",
+                to_string(parent_reference_id).c_str());
+      return;
+    }
 
-  auto table = m_tables[parent_reference_id];
-  if (!table) {
-    log_debug("No table found, referenced by parent_reference_id:%s",
-              to_string(parent_reference_id).c_str());
-    return;
+    parent_ref = ref_it->second;
+    table = parent_ref->ref_table;
+    assert(table);
+  } else {
+    table = object;
   }
 
   if (represents_reference_id) {
-    auto ofield = std::make_shared<entry::ReferenceField>();
-    ofield->id = field_id;
-
-    log_debug("Reference");
-    CONVERT(&ofield->name);
-    row.unserialize(&ofield->position);
-    CONVERT(&ofield->enabled);
-    row.skip(10);
-    row.unserialize(&ofield->allow_filtering);
-    row.unserialize(&ofield->allow_sorting);
-    row.unserialize(&ofield->no_check);
-    row.unserialize(&ofield->no_update);
-
-    auto reference = m_tables.at(*represents_reference_id);
-
-    bool unnest = false;
-    bool is_array = false;
-    if (auto join = std::dynamic_pointer_cast<entry::JoinedTable>(reference);
-        join) {
-      if (!ofield->enabled) {
-        join->enabled = false;
-      }
-
-      unnest = join->unnest;
-
-      if (join->to_many) {
-        is_array = true;
-      }
-
-      for (const auto &c : join->column_mapping) {
-        c.first->table = table;
-      }
-    }
-
-    // if the represented reference is unnested, the field itself is just a
-    // placeholder and isn't included in the output object
-    if (unnest) {
-      // fields in the unnested object must be added to this object
-      auto &obj = m_objects[*represents_reference_id];
-      if (!obj) {
-        log_debug("Object with 'represents_reference_id', not found.");
-        return;
-      }
-
-      // if we're unnesting a 1:n (array of objects), we need to keep the field
-      // as a reference, so it gets translated as a subquery with an aggregation
-      if (is_array) {
-        ofield->nested_object = m_objects[*represents_reference_id];
-
-        parent_object->fields.push_back(ofield);
-      } else {
-        for (auto f : obj->fields) {
-          parent_object->fields.push_back(f);
-        }
-        for (auto &t : obj->base_tables) {
-          parent_object->base_tables.push_back(t);
-        }
-        m_objects[*represents_reference_id] = parent_object;
-      }
+    if (auto it = m_references.find(*represents_reference_id);
+        it == m_references.end()) {
+      log_error("reference %s not found",
+                to_string(*represents_reference_id).c_str());
+      assert(0);
     } else {
-      ofield->nested_object = m_objects[*represents_reference_id];
+      auto ofield = it->second;
+      ofield->id = field_id;
 
-      parent_object->fields.push_back(ofield);
+      log_debug("Reference");
+      CONVERT(&ofield->name);
+      row.unserialize(&ofield->position);
+      CONVERT(&ofield->enabled);
+      row.skip(10);
+      row.unserialize(&ofield->allow_filtering);
+      row.unserialize(&ofield->allow_sorting);
+      row.skip(2);  // no no_check and no_update in a ref
+
+      table->fields.emplace_back(ofield);
     }
   } else {
-    std::shared_ptr<entry::DataField> dfield;
+    std::shared_ptr<entry::Column> dfield;
 
-    if (parent_object->kind == KindType::PARAMETERS)
+    if (object->kind == KindType::PARAMETERS)
       dfield = std::make_shared<entry::ParameterField>();
     else
-      dfield = std::make_shared<entry::DataField>();
+      dfield = std::make_shared<entry::Column>();
 
     dfield->id = field_id;
     CONVERT(&dfield->name);
     row.unserialize(&dfield->position);
     CONVERT(&dfield->enabled);
 
-    auto column = std::make_shared<entry::Column>();
-    CONVERT(&column->name);
-    row.unserialize(&column->datatype);
+    CONVERT(&dfield->column_name);
+    row.unserialize(&dfield->datatype);
     // disabled fields can come in as NULL
-    if (dfield->enabled || !column->datatype.empty())
-      column->type = column_datatype_to_type(column->datatype);
-    row.unserialize_with_converter(&column->id_generation,
+    if (dfield->enabled || !dfield->datatype.empty())
+      dfield->type = column_datatype_to_type(dfield->datatype);
+    row.unserialize_with_converter(&dfield->id_generation,
                                    IdGenerationTypeConverter());
-    row.unserialize(&column->not_null);
-    row.unserialize(&column->is_primary);
-    row.unserialize(&column->is_unique);
-    CONVERT(&column->is_generated);
+    row.unserialize(&dfield->not_null);
+    row.unserialize(&dfield->is_primary);
+    row.unserialize(&dfield->is_unique);
+    CONVERT(&dfield->is_generated);
     bool parameter_in{false}, parameter_out{false};
     row.unserialize(&parameter_in);
     row.unserialize(&parameter_out);
 
-    if (parent_object->kind == KindType::PARAMETERS) {
+    if (object->kind == KindType::PARAMETERS) {
       auto parameter_field =
           dynamic_cast<entry::ParameterField *>(dfield.get());
       parameter_field->mode = ModeType::kNONE;
@@ -494,19 +405,19 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
       else if (parameter_out)
         parameter_field->mode = ModeType::kOUT;
     }
-    CONVERT_WITH_DEFAULT(&column->srid, static_cast<uint32_t>(0));
+    CONVERT_WITH_DEFAULT(&dfield->srid, static_cast<uint32_t>(0));
     row.unserialize(&dfield->allow_filtering);
     row.unserialize(&dfield->allow_sorting);
-    row.unserialize(&dfield->no_check);
-    row.unserialize(&dfield->no_update);
+    bool no_check, no_update;
+    row.unserialize(&no_check);
+    if (no_check) dfield->with_check = false;
+    row.unserialize(&no_update);
+    if (no_update) dfield->with_update = false;
 
-    dfield->source = column;
-    column->table = table;
     log_debug("Creating dfield name=%s, table=%p", dfield->name.c_str(),
               table.get());
 
-    table->columns.push_back(column);
-    parent_object->fields.push_back(dfield);
+    table->fields.push_back(dfield);
   }
 }
 
@@ -514,28 +425,17 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
 namespace v3 {
 
-void QueryEntryObject::query_entries(MySQLSession *session,
-                                     const std::string &schema_name,
-                                     const std::string &object_name,
-                                     const UniversalId &db_object_id) {
-  v2::QueryEntryObject::query_entries(session, schema_name, object_name,
-                                      db_object_id);
-
-  for (auto &[_, v] : m_objects) {
-    if (!v->user_ownership_field.has_value()) continue;
-
-    v->user_ownership_field->field = v->get_field(v->user_ownership_field->uid);
-  }
-}
-
 QueryEntryObject::UniversalId QueryEntryObject::query_object(
     MySQLSession *session, const UniversalId &db_object_id, Object *obj) {
   entry::UniversalId object_id;
 
   mysqlrouter::sqlstring q{
       "SELECT object.id, object.kind,"
-      " CAST(db_object.crud_operations AS UNSIGNED),"
-      " row_ownership_field_id"
+      " row_ownership_field_id,"
+      " object.options->>'$.duality_view_insert',"
+      " object.options->>'$.duality_view_update',"
+      " object.options->>'$.duality_view_delete',"
+      " object.options->>'$.duality_view_no_check'"
       "  FROM mysql_rest_service_metadata.object"
       "  JOIN mysql_rest_service_metadata.db_object"
       "    ON object.db_object_id = db_object.id"
@@ -546,14 +446,25 @@ QueryEntryObject::UniversalId QueryEntryObject::query_object(
 
   if (nullptr == res.get()) return {};
 
-  auto base_table = obj->base_tables.back();
-
   helper::MySQLRow row(*res, nullptr, res->size());
   row.unserialize_with_converter(&object_id, entry::UniversalId::from_raw);
   row.unserialize_with_converter(&obj->kind, convert_kind);
-  row.unserialize(&base_table->crud_operations);
   row.unserialize_with_converter(&obj->user_ownership_field,
                                  from_optional_user_ownership_field_id);
+  bool with_insert = false, with_update = false, with_delete = false,
+       with_no_check = false;
+  row.unserialize(&with_insert);
+  row.unserialize(&with_update);
+  row.unserialize(&with_delete);
+  row.unserialize(&with_no_check);
+  obj->crud_operations = 0;
+  if (with_insert)
+    obj->crud_operations |= entry::Operation::Values::valueCreate;
+  if (with_update)
+    obj->crud_operations |= entry::Operation::Values::valueUpdate;
+  if (with_delete)
+    obj->crud_operations |= entry::Operation::Values::valueDelete;
+  obj->with_check_ = !with_no_check;
 
   return object_id;
 }
@@ -567,10 +478,13 @@ void QueryEntryObject::set_query_object_reference(
       " object_reference.reference_mapping->>'$.referenced_table',"
       " object_reference.reference_mapping->'$.to_many',"
       " object_reference.reference_mapping->'$.column_mapping',"
-      // TODO reduce_to_value_of_field_id will be removed
       " object_reference.unnest OR "
       "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
-      " object_reference.row_ownership_field_id"
+      " object_reference.row_ownership_field_id,"
+      " object_reference.options->>'$.duality_view_insert',"
+      " object_reference.options->>'$.duality_view_update',"
+      " object_reference.options->>'$.duality_view_delete',"
+      " object_reference.options->>'$.duality_view_no_check'"
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
       "  ON object_field.represents_reference_id = object_reference.id"
@@ -579,32 +493,43 @@ void QueryEntryObject::set_query_object_reference(
 }
 
 void QueryEntryObject::on_reference_row(const ResultRow &r) {
-  auto reference = std::make_shared<entry::JoinedTable>();
-  auto object = std::make_shared<Object>();
+  auto reference = std::make_shared<ForeignKeyReference>();
+  reference->ref_table = std::make_shared<Table>();
 
   entry::UniversalId reference_id;
 
   helper::MySQLRow row(r, metadata_, num_of_metadata_);
   row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
-  row.unserialize(&reference->schema);
-  row.unserialize(&reference->table);
+  row.unserialize(&reference->ref_table->schema);
+  row.unserialize(&reference->ref_table->table);
   row.unserialize(&reference->to_many);
   row.unserialize_with_converter(&reference->column_mapping,
-                                 ColumnMappingConverter{reference});
+                                 ColumnMappingConverter{});
   row.unserialize(&reference->unnest);
 
-  auto base_table = m_tables[entry::UniversalId{}];
-  reference->crud_operations = base_table->crud_operations;
+  bool with_insert = false, with_update = false, with_delete = false,
+       with_no_check = false;
+  row.unserialize(&with_insert);
+  row.unserialize(&with_update);
+  row.unserialize(&with_delete);
+  row.unserialize(&with_no_check);
+  reference->ref_table->crud_operations = 0;
+  if (with_insert)
+    reference->ref_table->crud_operations |=
+        entry::Operation::Values::valueCreate;
+  if (with_update)
+    reference->ref_table->crud_operations |=
+        entry::Operation::Values::valueUpdate;
+  if (with_delete)
+    reference->ref_table->crud_operations |=
+        entry::Operation::Values::valueDelete;
+  reference->ref_table->with_check_ = !with_no_check;
 
   row.unserialize_with_converter(&object->user_ownership_field,
                                  from_optional_user_ownership_field_id);
 
-  reference->table_alias = "t" + std::to_string(++m_alias_count);
-  m_tables[reference_id] = reference;
-
-  object->name = reference->table_key();
-  object->base_tables.push_back(reference);
-  m_objects[reference_id] = object;
+  reference->ref_table->table_alias = "t" + std::to_string(++m_alias_count);
+  m_references[reference_id] = reference;
 }
 
 }  // namespace v3

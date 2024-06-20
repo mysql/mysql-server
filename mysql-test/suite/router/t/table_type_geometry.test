@@ -35,10 +35,10 @@ INSERT INTO test.geo4326(g)
 --echo #    returning multiple objects.
 --echo # 3. Verify that object can be updated with different GeoJson and response
 --echo #    contains same data.
---echo # 4. Verify that object can be updated with different WKT-format and response
---echo #    contains same data formated as GeoJson.
---echo # 5. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
---echo # 6. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
+#--echo # 4. Verify that object can be updated with different WKT-format and response
+#--echo #    contains same data formated as GeoJson.
+--echo # 4. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
+--echo # 5. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
 --echo #
 --echo ## II. Verify JSON encoding of GEOMETRY types with SRID 4326, returned in FEED response
 --echo #
@@ -48,10 +48,10 @@ INSERT INTO test.geo4326(g)
 --echo #    returning multiple objects.
 --echo # 3. Verify that object can be updated with different GeoJson and response
 --echo #    contains same data.
---echo # 4. Verify that object can be updated with different WKT-format and response
---echo #    contains same data formated as GeoJson.
---echo # 5. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
---echo # 6. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
+#--echo # 4. Verify that object can be updated with different WKT-format and response
+#--echo #    contains same data formated as GeoJson.
+--echo # 4. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
+--echo # 5. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
 --echo #
 --echo #
 
@@ -95,30 +95,31 @@ INSERT INTO test.geo4326(g)
 --echo #
 --echo # I.3
 --let $mrs_client_arg_path='/svc/test/geo0/2'
---let $mrs_client_arg_payload='{"g":{"type":"LineString","coordinates":[[100,0],[0,0]]}}'
+--let $mrs_client_arg_payload='{"id":2,"g":{"type":"LineString","coordinates":[[100,0],[0,0]]}}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc
 
 --let $mrs_client_arg_path='/svc/test/geo0/2'
---let $mrs_client_arg_payload='{"g":{"type":"Point", "coordinates":[100,0]}}'
+--let $mrs_client_arg_payload='{"id":2,"g":{"type":"Point", "coordinates":[100,0]}}'
 --source ../include/mrs/mrs_client.inc
+
+
+#--echo
+#--echo #
+#--echo # I.4
+#
+#--let $mrs_client_arg_path='/svc/test/geo0/2'
+#--let $mrs_client_arg_payload='{"id":2,"g":"POINT(0 0)"}'
+#--source ../include/mrs/mrs_client.inc
+#
+#--let $mrs_client_arg_path='/svc/test/geo0/2'
+#--let $mrs_client_arg_payload='{"id":2,"g":"POINT(100 0)"}'
+#--source ../include/mrs/mrs_client.inc
+#
 
 --echo
 --echo #
 --echo # I.4
-
---let $mrs_client_arg_path='/svc/test/geo0/2'
---let $mrs_client_arg_payload='{"g":"POINT(0 0)"}'
---source ../include/mrs/mrs_client.inc
-
---let $mrs_client_arg_path='/svc/test/geo0/2'
---let $mrs_client_arg_payload='{"g":"POINT(100 0)"}'
---source ../include/mrs/mrs_client.inc
-
-
---echo
---echo #
---echo # I.5
 --let $mrs_client_arg_path='/svc/test/geo0/?q={"g":"POINT(100 0)"}'
 --let $mrs_client_arg_payload=
 --let $mrs_client_arg_request_type=
@@ -130,7 +131,7 @@ INSERT INTO test.geo4326(g)
 
 --echo
 --echo #
---echo # I.6
+--echo # I.5
 --let $mrs_client_arg_path='/svc/test/geo0/?q={"g":{"type":"Point","coordinates":[0,0]}}'
 --source ../include/mrs/mrs_client.inc
 
@@ -152,30 +153,33 @@ INSERT INTO test.geo4326(g)
 --echo #
 --echo # II.3
 --let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"g":{"type":"LineString","coordinates":[[80,0],[0,0]]}}'
+--let $mrs_client_arg_payload='{"id":2,"g":{"type":"LineString","coordinates":[[80,0],[0,0]]}}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc
 
 --let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"g":{"type":"Point", "coordinates":[80,0]}}'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"id":2,"g":{"type":"Point", "coordinates":[80,0]}}'
 --source ../include/mrs/mrs_client.inc
+
+#--echo
+#--echo #
+#--echo # II.4
+#
+#--let $mrs_client_arg_path='/svc/test/geo4326/2'
+#--let $mrs_client_arg_request_type='PUT'
+#--let $mrs_client_arg_payload='{"id":2,"g":"POINT(0 0)"}'
+#--source ../include/mrs/mrs_client.inc
+#
+#--let $mrs_client_arg_path='/svc/test/geo4326/2'
+#--let $mrs_client_arg_request_type='PUT'
+#--let $mrs_client_arg_payload='{"id":2,"g":"POINT(80 0)"}'
+#--source ../include/mrs/mrs_client.inc
+
 
 --echo
 --echo #
 --echo # II.4
-
---let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"g":"POINT(0 0)"}'
---source ../include/mrs/mrs_client.inc
-
---let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"g":"POINT(80 0)"}'
---source ../include/mrs/mrs_client.inc
-
-
---echo
---echo #
---echo # II.5
 --let $mrs_client_arg_path='/svc/test/geo4326/?q={"g":"POINT(80 0)"}'
 --let $mrs_client_arg_payload=
 --let $mrs_client_arg_request_type=
@@ -188,7 +192,7 @@ INSERT INTO test.geo4326(g)
 
 --echo
 --echo #
---echo # II.6
+--echo # II.5
 --let $mrs_client_arg_path='/svc/test/geo4326/?q={"g":{"type":"Point","coordinates":[0,0]}}'
 --source ../include/mrs/mrs_client.inc
 

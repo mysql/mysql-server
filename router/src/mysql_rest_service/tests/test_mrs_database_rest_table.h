@@ -29,6 +29,9 @@
 #include <map>
 #include <memory>
 #include <string>
+#include "helper/json/rapid_json_to_text.h"
+#include "helper/json/to_sqlstring.h"
+#include "mrs/database/duality_view/select.h"
 #include "mrs/database/query_rest_table.h"
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/http/error.h"
@@ -42,16 +45,22 @@ class DatabaseRestTableTest : public testing::Test {
   std::map<std::string, int> initial_table_sizes_;
   std::string initial_binlog_file_;
   uint64_t initial_binlog_position_ = 0;
-
+  bool select_include_links_ = false;
   void SetUp() override;
   void TearDown() override;
 
-  void reset_test();
+  virtual void reset_test();
   void snapshot();
+  void expect_rows_added(const std::map<std::string, int> &changes);
 
   void create_schema();
 
   void drop_schema();
+
+  enum class TestSchema { PLAIN, AUTO_INC, UUID, MULTI };
+
+  void prepare(TestSchema test_schema);
+  void prepare_user_metadata();
 
   int num_rows_added(const std::string &table);
 
@@ -65,11 +74,59 @@ class DatabaseRestTableTest : public testing::Test {
 
   bool binlog_changed() const;
 
-  rapidjson::Document get_one(
-      std::shared_ptr<mrs::database::entry::Object> object,
-      const mrs::database::PrimaryKeyColumnValues &pk);
+  std::string select_one(
+      std::shared_ptr<mrs::database::entry::DualityView> view,
+      const mrs::database::PrimaryKeyColumnValues &pk,
+      const mrs::database::dv::ObjectFieldFilter &field_filter = {},
+      const mrs::database::ObjectRowOwnership &row_owner = {},
+      bool compute_etag = true);
 
   void execute(const std::string &sql) { m_->execute(sql); }
+
+  void process_template(std::string templ, std::vector<int> &ids,
+                        std::string *out_input, std::string *out_output) {
+    auto strip = [](std::string_view s, std::string_view open,
+                    std::string_view close) {
+      std::string out;
+      do {
+        auto start = s.find(open);
+        auto end = s.find(close, start);
+        if (start != std::string::npos && end != std::string::npos) {
+          out = s.substr(0, start);
+          out += s.substr(end + close.size());
+        } else {
+          assert(start == std::string::npos && end == std::string::npos);
+          out = s;
+        }
+        s = out;
+      } while (out.find(open) != std::string::npos);
+      return out;
+    };
+
+    // fill-in id placeholders
+    templ = fill_ids(templ, ids);
+    // strip output only parts from input
+    *out_input = strip(templ, "<<o:", ">>");
+    *out_input = str_replace(str_replace(*out_input, "<<i:", ""), ">>", "");
+
+    // strip input only parts from output
+    *out_output = strip(templ, "<<i:", ">>");
+    *out_output = str_replace(str_replace(*out_output, "<<o:", ""), ">>", "");
+  }
+
+  mrs::database::PrimaryKeyColumnValues parse_pk(const std::string &doc) {
+    using namespace helper::json::sql;
+
+    mrs::database::PrimaryKeyColumnValues pk;
+    auto j = make_json(doc);
+    assert(j.IsObject());
+    for (const auto &m : j.GetObject()) {
+      mysqlrouter::sqlstring tmp("?");
+      tmp << m.value;
+      pk[m.name.GetString()] = std::move(tmp);
+    }
+    return pk;
+  }
 };
 
 #define EXPECT_NO_CHANGES() EXPECT_FALSE(binlog_changed())

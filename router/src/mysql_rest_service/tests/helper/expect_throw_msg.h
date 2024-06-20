@@ -28,6 +28,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
+#include "helpers/router_test_helpers.h"
 
 namespace testing {
 namespace internal {
@@ -114,6 +115,15 @@ struct String_msg {
   EXPECT_HTTP_ERROR_(statement, sts, msg, GTEST_NONFATAL_FAILURE_)
 
 #define EXPECT_REST_ERROR(statement, msg) \
-  EXPECT_THROW_MSG(statement, mrs::interface::RestError, msg)
+  EXPECT_THROW_LIKE(statement, mrs::interface::RestError, msg)
+
+#define EXPECT_MYSQL_ERROR(statement, msg) \
+  EXPECT_THROW_LIKE(statement, mysqlrouter::MySQLSession::Error, msg)
+
+#define EXPECT_DUALITY_ERROR(statement, msg) \
+  EXPECT_THROW_LIKE(statement, mrs::database::DualityViewError, msg)
+
+#define EXPECT_JSON_ERROR(statement, msg) \
+  EXPECT_THROW_LIKE(statement, mrs::database::JSONInputError, msg)
 
 #endif  // ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_HELPER_EXPECT_THROW_MSG_H_

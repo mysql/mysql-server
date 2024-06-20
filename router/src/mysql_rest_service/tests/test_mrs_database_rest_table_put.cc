@@ -47,200 +47,56 @@ using testing::Test;
 
 class DatabaseQueryPut : public DatabaseRestTableTest {
  public:
-  void test_put(std::shared_ptr<entry::Object> root,
-                const rapidjson::Document &doc,
-                const PrimaryKeyColumnValues &pk,
-                const ObjectRowOwnership &row_owner = {}) {
-    mrs::database::TableUpdater rest(root, row_owner);
+  PrimaryKeyColumnValues test_put(std::shared_ptr<DualityView> root,
+                                  const std::string &doc,
+                                  const PrimaryKeyColumnValues &pk,
+                                  const ObjectRowOwnership &row_owner = {}) {
+    mrs::database::dv::DualityViewUpdater rest(root, row_owner);
 
-    rest.handle_put(m_.get(), doc, pk);
+    return rest.update(m_.get(), pk, make_json(doc), true);
+  }
+
+  void expect_put(std::shared_ptr<DualityView> root, const std::string &templ,
+                  const PrimaryKeyColumnValues &pk,
+                  const ObjectRowOwnership &row_owner = {}) {
+    std::string input, expected_output;
+    std::vector<int> ids;
+    process_template(templ, ids, &input, &expected_output);
+
+    auto out_pk = test_put(root, input, pk, row_owner);
+
+    auto res = select_one(root, out_pk, {}, row_owner);
+    EXPECT_EQ(pprint_json(expected_output),
+              res.empty() ? res : pprint_json(res))
+        << "RESULT:" << res;
   }
 };
 
-TEST_F(DatabaseQueryPut, missing_fields) {
-  // XXX check that missing field is not disabled too
-}
+#define EXPECT_PUT(f, input, pk) \
+  do {                           \
+    SCOPED_TRACE("");            \
+    expect_put(f, input, pk);    \
+  } while (0)
 
-TEST_F(DatabaseQueryPut, unknown_fields) {
-  // XXX check "links" field allowed
-}
-
-TEST_F(DatabaseQueryPut, type_check_nested) {
-  {
-    auto root =
-        ObjectBuilder("mrstestdb", "country")
-            .field("country_id", FieldFlag::PRIMARY)
-            .nest("nest", ObjectBuilder("city", {{"country_id", "country_id"}})
-                              .column("country_id")
-                              .field("city"));
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-    "country_id": 123,
-    "nest": "AAA"
-  })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest expected to be an Object");
-    }
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-    "country_id": 123,
-    "nest": 1234
-  })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest expected to be an Object");
-    }
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-    "country_id": 123,
-    "nest": []
-  })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error,
-                       "/nest is an Array but wasn't expected to be");
-    }
-  }
-  {
-    auto root =
-        ObjectBuilder("mrstestdb", "country")
-            .field("country_id", FieldFlag::PRIMARY)
-            .nest_list("nest",
-                       ObjectBuilder("city", {{"country_id", "country_id"}})
-                           .column("country_id")
-                           .field("city", "city", "VARCHAR(40)"));
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-      "country_id": 123,
-      "nest": "AAA"
-    })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest expected to be an Array");
-    }
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-      "country_id": 123,
-      "nest": 1234
-    })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest expected to be an Array");
-    }
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-      "country_id": 123,
-      "nest": {}
-    })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest expected to be an Array");
-    }
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-      "country_id": 123,
-      "nest": null
-    })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest expected to be an Array");
-    }
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-    "country_id": 123,
-    "nest": [1234]
-  })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error, "/nest/0 expected to be an Object");
-    }
-
-    {
-      EXPECT_THROW_MSG(test_put(root, make_json(R"*({
-    "country_id": 123,
-    "nest": [{"city":1234}]
-  })*"),
-                                {{"country_id", "5"}}),
-                       std::runtime_error,
-                       "/nest/0/city has invalid value type");
-    }
-  }
-}
-
-TEST_F(DatabaseQueryPut, type_check) {
-  std::vector<std::pair<const char *, entry::ColumnType>> known_types{
-      {"BIT(1)", entry::ColumnType::BOOLEAN},
-      {"BIT", entry::ColumnType::BINARY},
-      {"TINYINT", entry::ColumnType::INTEGER},
-      {"SMALLINT", entry::ColumnType::INTEGER},
-      {"MEDIUMINT", entry::ColumnType::INTEGER},
-      {"INT", entry::ColumnType::INTEGER},
-      {"BIGINT", entry::ColumnType::INTEGER},
-      {"FLOAT", entry::ColumnType::DOUBLE},
-      {"REAL", entry::ColumnType::DOUBLE},
-      {"DOUBLE", entry::ColumnType::DOUBLE},
-      {"DECIMAL(10,2)", entry::ColumnType::DOUBLE},
-      {"CHAR(42)", entry::ColumnType::STRING},
-      {"NCHAR", entry::ColumnType::STRING},
-      {"VARCHAR", entry::ColumnType::STRING},
-      {"NVARCHAR", entry::ColumnType::STRING},
-      {"BINARY", entry::ColumnType::BINARY},
-      {"VARBINARY", entry::ColumnType::BINARY},
-      {"TINYTEXT", entry::ColumnType::STRING},
-      {"TEXT", entry::ColumnType::STRING},
-      {"MEDIUMTEXT", entry::ColumnType::STRING},
-      {"LONGTEXT", entry::ColumnType::STRING},
-      {"TINYBLOB", entry::ColumnType::BINARY},
-      {"BLOB", entry::ColumnType::BINARY},
-      {"MEDIUMBLOB", entry::ColumnType::BINARY},
-      {"LONGBLOB", entry::ColumnType::BINARY},
-      {"JSON", entry::ColumnType::JSON},
-      {"DATETIME", entry::ColumnType::STRING},
-      {"DATE", entry::ColumnType::STRING},
-      {"TIME(6)", entry::ColumnType::STRING},
-      {"YEAR", entry::ColumnType::INTEGER},
-      {"TIMESTAMP", entry::ColumnType::STRING},
-      {"GEOMETRY", entry::ColumnType::GEOMETRY},
-      {"POINT", entry::ColumnType::GEOMETRY},
-      {"LINESTRING", entry::ColumnType::GEOMETRY},
-      {"POLYGON", entry::ColumnType::GEOMETRY},
-      {"GEOMCOLLECTION", entry::ColumnType::GEOMETRY},
-      {"GEOMETRYCOLLECTION", entry::ColumnType::GEOMETRY},
-      {"MULTIPOINT", entry::ColumnType::GEOMETRY},
-      {"MULTILINESTRING", entry::ColumnType::GEOMETRY},
-      {"MULTIPOLYGON", entry::ColumnType::GEOMETRY},
-      {"BOOLEAN", entry::ColumnType::BOOLEAN},
-      {"ENUM", entry::ColumnType::STRING},
-      {"SET", entry::ColumnType::STRING}};
-
-  std::map<entry::ColumnType, std::vector<const char *>> bad_values{
-      {entry::ColumnType::INTEGER, {"32.20", "\"\"", "\"x\""}},
-      {entry::ColumnType::DOUBLE, {"\"\"", "\"x\"", "true"}},
-      {entry::ColumnType::BOOLEAN, {"32.34", "\"x\"", "\"\""}},
-      {entry::ColumnType::STRING, {"42", "32.34", "true"}},
-      {entry::ColumnType::BINARY, {"42", "32.34", "true"}},
-      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true"}},
-      {entry::ColumnType::JSON, {}}};
-
-  for (const auto &type : known_types) {
-    auto root = ObjectBuilder("mrstestdb", "country")
-                    .column("country_id", FieldFlag::PRIMARY)
-                    .field("value", "value", type.first);
-
-    for (const auto &test : bad_values[type.second]) {
-      SCOPED_TRACE(std::string(type.first) + " value=" + test);
-      EXPECT_THROW_MSG(
-          test_put(root, make_json(std::string("{\"value\": ") + test + "}"),
-                   {{"country_id", "1"}}),
-          std::runtime_error, "/value has invalid value type");
-    }
-  }
-}
+#define EXPECT_PUT2(f, input, pk, owner) \
+  do {                                   \
+    SCOPED_TRACE("");                    \
+    expect_put(f, input, pk, owner);     \
+  } while (0)
 
 TEST_F(DatabaseQueryPut, etag_check) {}
 
 TEST_F(DatabaseQueryPut, special_types) {
-  auto root = ObjectBuilder("mrstestdb", "typetest")
-                  .field("id", FieldFlag::PRIMARY)
-                  .field("Geom", "geom", "GEOMETRY")
-                  .field("Bool", "bool", "BIT(1)")
-                  .field("Binary", "bin", "BLOB")
-                  .field("Json", "js", "JSON");
+  auto root =
+      DualityViewBuilder("mrstestdb", "typetest", TableFlag::WITH_UPDATE)
+          .field("id", FieldFlag::PRIMARY)
+          .field("Geom", "geom", "GEOMETRY")
+          .field("Bool", "bool", "BIT(1)")
+          .field("Binary", "bin", "BLOB")
+          .field("Json", "js", "JSON")
+          .resolve(m_.get(), true);
 
-  test_put(root, make_json(R"*({
+  test_put(root, (R"*({
   "id": 1,
   "Bool": false,
   "Geom": {
@@ -263,90 +119,95 @@ TEST_F(DatabaseQueryPut, special_types) {
   EXPECT_STREQ("0", (*row)[2]);
   EXPECT_STREQ("48656C6C6F20576F726C640A", (*row)[3]);
   EXPECT_STREQ("[1, 2, 3]", (*row)[4]);
+
+  auto root_json =
+      DualityViewBuilder("mrstestdb", "typetest", TableFlag::WITH_UPDATE)
+          .field("id", FieldFlag::PRIMARY)
+          .field("Json", "js", "JSON")
+          .resolve(m_.get(), true);
+
+  PrimaryKeyColumnValues pk_1({{"id", "1"}});
+
+  EXPECT_PUT(root_json, (R"*({
+  "id": 1,
+  "Json": []
+  <<o:,"_metadata": {"etag": "D0AC8868B4F9A79D86F0F30B3EED8F2043552877F9D01F50B5742CE3898DFBE2"}>>
+})*"),
+             pk_1);
+
+  EXPECT_PUT(root_json, (R"*({
+  "id": 1,
+  "Json": null
+  <<o:,"_metadata": {"etag": "9F7E9381B9B92091F31BFD7C7DA754D1D9C01A4FD3575F4FC2DCE9C84139FB88"}>>
+})*"),
+             pk_1);
+
+  EXPECT_PUT(root_json, (R"*({
+  "id": 1,
+  "Json": ""
+  <<o:,"_metadata": {"etag": "43B6CB1CD7F9CB9A11F48C109A6582D935048ED509231A0A38D1060AA606FFC4"}>>
+})*"),
+             pk_1);
 }
 
-TEST_F(DatabaseQueryPut, plain_fields) {
-  auto root = ObjectBuilder("mrstestdb", "actor")
+TEST_F(DatabaseQueryPut, update_plain_fields) {
+  auto root = DualityViewBuilder("mrstestdb", "actor", TableFlag::WITH_UPDATE)
                   .field("actorId", "actor_id", "int",
                          FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
                   .field("firstName", "first_name", "text")
                   .field("lastName", "last_name", "text")
-                  .root();
+                  .resolve(m_.get(), true);
 
   // row already exists
   {
-    auto doc = make_json(R"*({
+    auto doc = (R"*({
+    "actorId": 5,
+    "lastName": "Smith",
     "firstName": "Arnold",
-    "lastName": "Smith"
+    "_metadata": {
+      "etag": "2C6A57F4528178F85FA4EE33E2F15E5F20A4CED718F403A732D4A9CA26BEE14B"
+    }
   })*");
 
-    test_put(root, doc, {{"actor_id", "5"}});
+    expect_put(root, doc, {{"actor_id", "5"}});
   }
 
   // try to override PK
   {
-    auto doc = make_json(R"*({
+    auto doc = (R"*({
     "actorId": 123,
-    "firstName": "Arnold",
-    "lastName": "Smith II"
+    "lastName": "Smith II",
+    "firstName": "Arnold"
   })*");
 
-    test_put(root, doc, {{"actor_id", "5"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, base_row_no_exist) {
-  auto root =
-      ObjectBuilder("mrstestdb", "country")
-          .field("country_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("country")
-          .nest_list(
-              "cities",
-              ObjectBuilder("city", {{"country_id", "country_id"}})
-                  .field("city_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                  .field("country_id")
-                  .field("city"))
-          .root();
-
-  {
-    auto doc = make_json(R"*({
-    "country": "Testland",
-    "cities": []
-  })*");
-
-    test_put(root, doc, {{"country_id", "40"}});
-  }
-  {
-    auto doc = make_json(R"*({
-    "country": "Testland",
-    "cities": [{"city": "Test City"}]
-  })*");
-
-    test_put(root, doc, {{"country_id", "41"}});
+    EXPECT_JSON_ERROR(test_put(root, doc, {{"actor_id", "5"}}),
+                      "ID for table `actor` cannot be changed");
   }
 }
 
 TEST_F(DatabaseQueryPut, no_pk) {
-  auto root = ObjectBuilder("mrstestdb", "country")
-                  .field("country_id", FieldFlag::PRIMARY)
-                  .field("country")
-                  .root();
+  auto root =
+      DualityViewBuilder("mrstestdb", "country",
+                         TableFlag::WITH_UPDATE | TableFlag::WITH_NOCHECK)
+          .field("country_id", FieldFlag::PRIMARY)
+          .field("country")
+          .resolve(m_.get(), true);
 
-  auto doc = make_json(R"*({
+  auto doc = (R"*({
     "country": "Testland"
   })*");
 
   {
     EXPECT_REST_ERROR(test_put(root, doc, {}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for country_id");
   }
   {
     EXPECT_REST_ERROR(test_put(root, doc, {{"country", "Testland"}}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for country_id");
   }
   {
     EXPECT_REST_ERROR(test_put(root, doc, {{"bogus_id", "111"}}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for country_id");
   }
   {
     EXPECT_REST_ERROR(
@@ -355,797 +216,281 @@ TEST_F(DatabaseQueryPut, no_pk) {
   }
 
   auto root2 =
-      ObjectBuilder("mrstestdb", "country")
+      DualityViewBuilder("mrstestdb", "country", TableFlag::WITH_UPDATE)
           .field("country_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
           .field("country")
-          .root();
+          .resolve(m_.get(), true);
   {
     EXPECT_REST_ERROR(test_put(root2, doc, {}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for country_id");
   }
 }
 
 TEST_F(DatabaseQueryPut, no_pk_multi) {
-  auto root = ObjectBuilder("mrstestdb", "country")
+  auto root = DualityViewBuilder("mrstestdb", "country", TableFlag::WITH_UPDATE)
                   .field("country_id", FieldFlag::PRIMARY)
                   .field("continent_id", FieldFlag::PRIMARY)
                   .field("country")
-                  .root();
+                  .resolve(m_.get(), true);
 
-  auto doc = make_json(R"*({
+  auto doc = (R"*({
     "country": "Testland"
   })*");
 
   {
     EXPECT_REST_ERROR(test_put(root, doc, {}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for country_id");
   }
   {
     EXPECT_REST_ERROR(test_put(root, doc, {{"country_id", "111"}}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for continent_id");
   }
   {
     EXPECT_REST_ERROR(test_put(root, doc, {{"continent_id", "111"}}),
-                      "Missing primary key column value");
+                      "Missing primary key column value for country_id");
   }
 }
 
-TEST_F(DatabaseQueryPut, plain_autoinc_row_owner) {
+TEST_F(DatabaseQueryPut, plain_owner_notpk) {
+  prepare_user_metadata();
+
   auto root =
-      ObjectBuilder("mrstestdb", "t2_base")
+      DualityViewBuilder("mrstestdb", "t2_base",
+                         TableFlag::WITH_UPDATE | TableFlag::WITH_INSERT)
           .field("id", "id", "int", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("owner_id")
+          .field("owner_id", FieldFlag::OWNER)
           .field("data1", "data1", "text")
           .field("data2", "data2", "int")
-          .root();
+          .resolve(m_.get(), true);
 
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "owner_id",
-                                    mysqlrouter::sqlstring("111"));
+    auto owner = ObjectRowOwnership(
+        root, "owner_id",
+        mysqlrouter::sqlstring("FROM_BASE64('EREAAAAAAAAAAAAAAAAAAA==')"));
 
-    test_put(root, make_json(R"*({
+    expect_put(root, (R"*({
+    "id": 2,
     "data1": "Arnold",
     "data2": 42
+    <<o:,
+    "owner_id": "EREAAAAAAAAAAAAAAAAAAA==",
+    "_metadata": {
+        "etag": "82B454F07CC4CAFEF073EDD2443E52F86F534985FEDA017B37A671DDC823DBCB"
+    }>>
   })*"),
-             {{"id", "20"}}, owner);
+               {{"id", "2"}}, owner);
   }
   // try to put as someone else's row
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "owner_id",
-                                    mysqlrouter::sqlstring("222"));
+    auto owner = ObjectRowOwnership(
+        root, "owner_id",
+        mysqlrouter::sqlstring("FROM_BASE64('EREAAAAAAAAAAAAAAAAAAA==')"));
 
-    test_put(root, make_json(R"*({"owner_id": "ROOT",
+    EXPECT_HTTP_ERROR(test_put(root, (R"*({"id":3,
+    "owner_id": "IiIAAAAAAAAAAAAAAAAAAA==",
     "data1": "Bla",
     "data2": 12
   })*"),
-             {{"id", "21"}}, owner);
+                               {{"id", "3"}}, owner),
+                      403, "Forbidden");
   }
   // allow put own row
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "owner_id",
-                                    mysqlrouter::sqlstring("333"));
+    auto owner = ObjectRowOwnership(
+        root, "owner_id",
+        mysqlrouter::sqlstring("FROM_BASE64('MzMAAAAAAAAAAAAAAAAAAA==')"));
 
-    test_put(
-        root,
-        make_json(R"*({"owner_id": "USER3", "data1": "Joe", "data2": 1})*"),
-        {{"id", "22"}}, owner);
+    expect_put(root,
+               R"*({
+               "id":4,
+               "data1": "Joe",
+               "data2": 1,
+               "owner_id": "MzMAAAAAAAAAAAAAAAAAAA=="
+            <<o:,"_metadata": {
+                "etag": "119BDC8DC691079010C9CEA48BA881DF140530B5484F1EBFD6447D74DD5B26A6"
+               }>>
+            })*",
+               {{"id", "4"}}, owner);
   }
 
-  root = ObjectBuilder("mrstestdb", "t2_base")
-             .field("Id", "id", "int", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-             .field("firstName", "data1", "text")
-             .field("age", "data2", "int")
-             .root();
+  // allow insert new own row
+  {
+    auto owner = ObjectRowOwnership(
+        root, "owner_id",
+        mysqlrouter::sqlstring("FROM_BASE64('MzMAAAAAAAAAAAAAAAAAAA==')"));
+
+    expect_put(root,
+               R"*({
+               "id":44444,
+               "data1": "Joe",
+               "data2": 1,
+               "owner_id": "MzMAAAAAAAAAAAAAAAAAAA=="
+            <<o:,"_metadata": {
+                "etag": "DCB5B06E98D5358096B542DA10C5645DC0B0B10E1D91562D40835FDB7803841A"
+               }>>
+            })*",
+               {{"id", "44444"}}, owner);
+  }
+}
+
+TEST_F(DatabaseQueryPut, plain_owner_pk) {
+  prepare(TestSchema::PLAIN);
+  prepare_user_metadata();
+
+  // pk = owner
+  m_->execute(R"*(INSERT INTO mrstestdb.root_owner (id, data1) VALUES
+   (0x11110000000000000000000000000000, 'one'),
+   (0x22220000000000000000000000000000, 'two'),
+   (0x33330000000000000000000000000000, 'three'))*");
+
+  auto root =
+      DualityViewBuilder("mrstestdb", "root_owner",
+                         TableFlag::WITH_UPDATE | TableFlag::WITH_INSERT)
+          .field("id", FieldFlag::PRIMARY | FieldFlag::OWNER)
+          .field("data1", "data1")
+          .field_to_one("11", ViewBuilder("child_11").field("id").field("data"))
+          .resolve(m_.get(), true);
+
   // owner_id = PK
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "id",
-                                    mysqlrouter::sqlstring("111"));
+    auto owner = ObjectRowOwnership(
+        root, "id",
+        mysqlrouter::sqlstring("FROM_BASE64('EREAAAAAAAAAAAAAAAAAAA==')"));
 
-    test_put(root, make_json(R"*({"firstName": "Joe", "age": 20})*"),
-             {{"id", "25"}}, owner);
+    PrimaryKeyColumnValues pk = {
+        {"id", "FROM_BASE64('EREAAAAAAAAAAAAAAAAAAA==')"}};
+
+    EXPECT_PUT2(root, R"*({
+      "11": {},
+      "id":"EREAAAAAAAAAAAAAAAAAAA==", 
+      "data1": "AAA",
+      "_metadata": {
+        "etag": "4097C48083B100F77EC95EAEE6A565CB873F1B2DFD118928F87D2A00565A7D91"
+      }
+  })*",
+                pk, owner);
   }
   // implicit
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "id",
-                                    mysqlrouter::sqlstring("222"));
+    auto owner = ObjectRowOwnership(
+        root, "id",
+        mysqlrouter::sqlstring("FROM_BASE64('IiIAAAAAAAAAAAAAAAAAAA==')"));
 
-    test_put(root, make_json(R"*({"firstName": "Joe", "age": 20})*"), {},
-             owner);
+    EXPECT_PUT2(root, (R"*({
+                <<o:"11": {},>>
+                "id":"IiIAAAAAAAAAAAAAAAAAAA==",
+                "data1": "BBB"
+                <<o:, "_metadata": {
+        "etag": "C76EE9F6AF8AAECEFFE9663609DA5BFF043C7A3C785DAC750752258DBA071F3F"
+    }>>
+          })*"),
+                {}, owner);
   }
-  // can't insert someone else's row
+  // implicit in json too
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "id",
-                                    mysqlrouter::sqlstring("333"));
+    auto owner = ObjectRowOwnership(
+        root, "id",
+        mysqlrouter::sqlstring("FROM_BASE64('IiIAAAAAAAAAAAAAAAAAAA==')"));
 
-    test_put(root, make_json(R"*({"Id": 0, "firstName": "Joe", "age": 20})*"),
-             {{"id", "26"}}, owner);
+    EXPECT_PUT2(root, (R"*({
+                <<o:"11": {},
+                "id":"IiIAAAAAAAAAAAAAAAAAAA==",>>
+                "data1": "BBB"
+                <<o:, "_metadata": {
+        "etag": "C76EE9F6AF8AAECEFFE9663609DA5BFF043C7A3C785DAC750752258DBA071F3F"
+    }>>
+          })*"),
+                {}, owner);
   }
-  // allow inserting own row
+  // can't insert/update someone else's row
   {
-    auto owner = ObjectRowOwnership(root->get_base_table(), "id",
-                                    mysqlrouter::sqlstring("125"));
-
-    test_put(root, make_json(R"*({"Id": 125, "firstName": "Joe", "age": 20})*"),
-             {{"id", "27"}}, owner);
+    auto owner = ObjectRowOwnership(
+        root, "id",
+        mysqlrouter::sqlstring("FROM_BASE64('IiIAAAAAAAAAAAAAAAAAAA==')"));
+    EXPECT_HTTP_ERROR(
+        test_put(root, (R"*({"data1": "Joe"})*"),
+                 {{"id", "FROM_BASE64('MzMAAAAAAAAAAAAAAAAAAA==')"}}, owner),
+        403, "Forbidden");
   }
-}
-
-TEST_F(DatabaseQueryPut, nested_11_owned_child_autoinc) {
-  auto root = ObjectBuilder("mrstestdb", "city")
-                  .field("city_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                  .field("city")
-                  .column("country_id")
-                  .nest("country",
-                        ObjectBuilder("country", {{"country_id", "country_id"}})
-                            .field("country_id",
-                                   FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                            .field("country"))
-                  .root();
-
-  // create from scratch
   {
-    test_put(root, make_json(R"*({
-    "city": "Test City",
-    "country": {
-        "country": "Test"
+    auto owner = ObjectRowOwnership(
+        root, "id",
+        mysqlrouter::sqlstring("FROM_BASE64('IiIAAAAAAAAAAAAAAAAAAA==')"));
+
+    PrimaryKeyColumnValues pk = {
+        {"id", "FROM_BASE64('EREAAAAAAAAAAAAAAAAAAA==')"}};
+
+    EXPECT_HTTP_ERROR(
+        test_put(root, R"*({"id":"EREAAAAAAAAAAAAAAAAAAA==", "data1": "XXX"})*",
+                 pk, owner),
+        403, "Forbidden");
+  }
+
+  m_->execute("delete from mrstestdb.root_owner");
+  // insert new
+  {
+    auto owner = ObjectRowOwnership(
+        root, "id",
+        mysqlrouter::sqlstring("FROM_BASE64('EREAAAAAAAAAAAAAAAAAAA==')"));
+
+    EXPECT_PUT2(root, R"*({
+    "11": {},
+    "id": "EREAAAAAAAAAAAAAAAAAAA==",
+    "data1": "XXX",
+    "_metadata": {
+        "etag": "847DC45B6C148BC58A14A5FB4AFAF2494098697B6BABFC9113F0DB3CBF61F812"
     }
-  })*"),
-             {{"city_id", "40"}});
-
-    EXPECT_ROWS_ADDED("city", 1);
-    EXPECT_ROWS_ADDED("country", 1);
-  }
-
-  // create a new nested object (deleting the old one)
-  {
-    test_put(root, make_json(R"*({
-    "city": "Test City",
-    "country": {
-        "country": "Testland"
-    }
-  })*"),
-             {{"city_id", "40"}});
-
-    // no changes from previous case
-    EXPECT_ROWS_ADDED("city", 1);
-    EXPECT_ROWS_ADDED("country", 1);
-  }
-
-  auto city = get_one(root, {{"city_id", "40"}});
-  city.RemoveMember("links");
-
-  // update existing nested object (requires id)
-  {
-    city["city"] = "New Test City";
-    city["country"]["country"] = "New Testland";
-
-    test_put(root, city, {{"city_id", "40"}});
-
-    EXPECT_ROWS_ADDED("city", 1);
-    EXPECT_ROWS_ADDED("country", 1);
-
-    city = get_one(root, {{"city_id", "40"}});
-    EXPECT_EQ("New Test City", city["city"].GetString());
-    EXPECT_EQ("New Testland", city["country"]["country"].GetString());
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_11_owned_child_uuid) {
-  auto root = ObjectBuilder("mrstestdb", "t1_base")
-                  .field("id", FieldFlag::PRIMARY | FieldFlag::REV_UUID)
-                  .column("ref_11_id")
-                  .field("data")
-                  .nest("ref", ObjectBuilder("t1_ref_11", {{"ref_11_id", "id"}})
-                                   .field("id", FieldFlag::PRIMARY |
-                                                    FieldFlag::REV_UUID)
-                                   .field("data"))
-                  .root();
-
-  // create a new nested object (deleting the old one)
-  {
-    auto doc = make_json(R"*({
-    "data": "Testland",
-    "ref": {
-        "data": "Capital"
-    }
-  })*");
-
-    test_put(root, doc, {{"id", "'UUID1'"}});
-
-    EXPECT_ROWS_ADDED("t1_base", 1);
-    EXPECT_ROWS_ADDED("t1_ref_11", 1);
-  }
-
-  // XXX try to specify capital_id directly (should error out)
-
-  // update existing nested object (requires id)
-  {
-    auto doc = make_json(R"*({
-      "data" : "Testland",
-      "ref" : {
-        "id" : "UUID2", "data" : "Capital"
-      }
-  })*");
-
-    test_put(root, doc, {{"id", "'UUID2'"}});
-  }
-
-  // assign to null (delete only)
-  {
-    auto doc = make_json(R"*({
-    "data": "Testland",
-    "ref": null
-  })*");
-
-    test_put(root, doc, {{"id", "'UUID3'"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, unnested_11_owned_child_autoinc) {
-  auto root = ObjectBuilder("mrstestdb", "t2_base")
-                  .field("id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                  .column("ref_11_id")
-                  .field("data1")
-                  .field("data2")
-                  .unnest(ObjectBuilder("t2_ref_11", {{"ref_11_id", "id"}})
-                              .field("nestedId", "id", "int",
-                                     FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                              .field("nestedData", "data"))
-                  .root();
-  // create a new nested object
-  {
-    test_put(root, make_json(R"*({
-    "data1": "Testland",
-    "data2": 12,
-    "nestedData": "Capital"
-  })*"),
-             {{"id", "50"}});
-
-    EXPECT_ROWS_ADDED("t2_base", 1);
-    EXPECT_ROWS_ADDED("t2_ref_11", 1);
-  }
-
-  // update existing nested object, with wrong id (requires id)
-  {
-    test_put(root, make_json(R"*({
-    "data1": "Testland",
-    "data2": 123,
-    "id": 100,
-    "nestedData": "Capital"
-  })*"),
-             {{"id", "50"}});
-
-    EXPECT_ROWS_ADDED("t2_base", 1);
-    EXPECT_ROWS_ADDED("t2_ref_11", 1);
-  }
-
-  // assign to null
-  {
-    test_put(root, make_json(R"*({
-    "data1": "Testland",
-    "data2": 1234,
-    "nestedData": null
-  })*"),
-             {{"id", "50"}});
-
-    EXPECT_ROWS_ADDED("t2_base", 1);
-    EXPECT_ROWS_ADDED("t2_ref_11", 0);
-  }
-
-  // change back from null to an object
-  {
-    test_put(root, make_json(R"*({
-    "data1": "Testland",
-    "data2": 1234,
-    "nestedData": "New Data"
-  })*"),
-             {{"id", "50"}});
-
-    EXPECT_ROWS_ADDED("t2_base", 1);
-    EXPECT_ROWS_ADDED("t2_ref_11", 1);
+})*",
+                {}, owner);
   }
 }
 
 TEST_F(DatabaseQueryPut, nested_11_multi) {
   auto root =
-      ObjectBuilder("mrstestdb", "tc2_base")
+      DualityViewBuilder("mrstestdb", "tc2_base",
+                         TableFlag::WITH_INSERT | TableFlag::WITH_NOCHECK)
           .field("id", FieldFlag::PRIMARY)
           .field("sub_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
           .field("data1")
           .field("data2")
           .column("ref_11_id")
           .column("ref_11_sub_id")
-          .nest("ref",
-                ObjectBuilder("tc2_ref_11", {{"ref_11_id", "id"},
-                                             {"ref_11_sub_id", "sub_id"}})
-                    .field("id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                    .field("sub_id", FieldFlag::PRIMARY)
-                    .field("data"))
-          .root();
+          .field_to_one(
+              "ref", ViewBuilder("tc2_ref_11", TableFlag::WITH_UPDATE |
+                                                   TableFlag::WITH_NOCHECK)
+                         .field("id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
+                         .field("sub_id", FieldFlag::PRIMARY)
+                         .field("data"))
+          .resolve(m_.get(), true);
 
   {
-    test_put(root, make_json(R"*({
+    test_put(root, (R"*({
       "id": 222,
       "sub_id": "AB",
       "data1": "AAA",
       "data2": 1,
       "ref": {
-        "sub_id": 888,
-        "data": "REF11"
+        "id": 1,
+        "sub_id": "AA"
       }
     })*"),
              {{"id", "222"}, {"sub_id", "'AB'"}});
 
     EXPECT_ROWS_ADDED("tc2_base", 1);
-    EXPECT_ROWS_ADDED("tc2_ref_11", 1);
-  }
-
-  {
-    test_put(root, make_json(R"*({
-      "id": 222,
-      "sub_id": "AB",
-      "data1": "CHANGED",
-      "data2": 3,
-      "ref": {
-        "sub_id": 888,
-        "data": "REF11"
-      }
-    })*"),
-             {{"id", "222"}, {"sub_id", "'AB'"}});
-
-    EXPECT_ROWS_ADDED("tc2_base", 1);
-    EXPECT_ROWS_ADDED("tc2_ref_11", 1);
+    EXPECT_ROWS_ADDED("tc2_ref_11", 0);
   }
 }
 
 TEST_F(DatabaseQueryPut, nested_n1_ref_child_autoinc) {
-  auto root = ObjectBuilder("mrstestdb", "city")
-                  .field("city_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                  .field("city")
-                  .column("country_id")
-                  .nest("country",
-                        ObjectBuilder("country", {{"country_id", "country_id"}},
-                                      Operation::Values::valueRead)
-                            .field("country_id",
-                                   FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                            .field("country"))
-                  .root();
-}
-
-// 1:n test combinations:
-// root doesnt exist
-// root exists
-// - delete all
-// - all new
-// - delete 2, add one, update 2
-
-TEST_F(DatabaseQueryPut, nested_1n_owned_child_autoinc) {
   auto root =
-      ObjectBuilder("mrstestdb", "country")
-          .field("country_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("country")
-          .nest_list(
-              "cities",
-              ObjectBuilder("city", {{"country_id", "country_id"}})
-                  .field("city_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                  .field("country_id")
-                  .field("city"))
-          .root();
-
-  {
-    auto doc = make_json(R"*({
-    "country": "Testland",
-    "cities": []
-  })*");
-
-    test_put(root, doc, {{"country_id", "50"}});
-  }
-  {
-    auto doc = make_json(R"*({
-    "country": "Testland",
-    "cities": [{"city": "Test City"}, {"city": "Another City"}]
-  })*");
-
-    test_put(root, doc, {{"country_id", "51"}});
-  }
-  {
-    /* original:
-    {
-        "country": "Testland",
-        "cities": [
-            {"city_id": 123, "city": "Test City"},
-            {"city_id": 124, "city": "Deleted City 1"},
-            {"city_id": 125, "city": "Deleted City 2"},
-            {"city_id": 126, "city": "Unchanged City"}
-        ]
-    }
-    */
-    auto doc = make_json(R"*({
-    "country_id": 52,
-    "country": "Testland",
-    "cities": [
-        {"city_id": 123, "city": "Renamed City"},
-        {"city_id": 126, "city": "Unchanged City"},
-        {"city": "New City"}
-    ]
-  })*");
-
-    test_put(root, doc, {{"country_id", "52"}});
-  }
-  // insert nested with pre-defined PKs
-  {
-    auto doc = make_json(R"*({
-    "country": "Testland",
-    "cities": [{"city_id": 111, "city": "Test City"}]
-  })*");
-
-    test_put(root, doc, {{"country_id", "60"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_1n_autoinc_autoinc) {
-  auto root =
-      ObjectBuilder("mrstestdb", "country")
-          .field("country_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("country")
-          .nest_list(
-              "cities",
-              ObjectBuilder("city", {{"country_id", "country_id"}})
-                  .field("city_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-                  .field("country_id")
-                  .field("city"))
-          .root();
-
-  // nested list is empty
-  {
-    auto doc = make_json(R"*({
-      "country": "MyCountry",
-      "cities": []
-  })*");
-
-    test_put(root, doc, {{"country_id", "20"}});
-  }
-
-  // nested list has items, overwrite
-  {
-    auto doc = make_json(R"*({
-    "country": "MyCountry",
-    "cities": [
-      {"city": "MyCity"},
-      {"city": "New MyCity"},
-      {"city": "West MyCity"}
-    ]
-  })*");
-
-    test_put(root, doc, {{"country_id", "20"}});
-  }
-
-  // nested list has items again, but country row doesn't exist
-  {
-    auto doc = make_json(R"*({
-    "country": "MyCountry",
-    "cities": [
-      {"city": "MyCity"},
-      {"city": "New MyCity"},
-      {"city": "West MyCity"}
-    ]
-  })*");
-
-    test_put(root, doc, {{"country_id", "22"}});
-  }
-
-  // bogus country_id in nested row
-  {
-    auto doc = make_json(R"*({
-    "country": "MyCountry",
-    "cities": [
-      {"city": "MyCity", "country_id": 99999}
-    ]
-  })*");
-
-    test_put(root, doc, {{"country_id", "23"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_1n_autoinc_uuid) {}
-
-TEST_F(DatabaseQueryPut, nested_1n_uuid_autoinc) {}
-
-TEST_F(DatabaseQueryPut, nested_1n_uuid_uuid) {
-  auto root =
-      ObjectBuilder("mrstestdb", "t1_base")
-          .field("id", "id", "binary(16)",
-                 FieldFlag::PRIMARY | FieldFlag::REV_UUID)
-          .field("data")
-          .nest_list("refs",
-                     ObjectBuilder("t1_ref_1n", {{"base_id", "id"}})
-                         .field("id", "id", "binary(16)",
-                                FieldFlag::PRIMARY | FieldFlag::REV_UUID)
-                         .field("data")
-                         .column("base_id", "binary(16)"))
-          .root();
-
-  // nested list is empty
-  {
-    auto doc = make_json(R"*({
-      "data": "data1",
-      "refs": []
-  })*");
-
-    test_put(root, doc, {{"id", "FROM_BASE64('VVVJRDEAAAAAAAAAAAAAAA==')"}});
-  }
-
-  // nested list is empty, row already exists
-  {
-    auto doc = make_json(R"*({
-      "data": "data1.1",
-      "refs": []
-  })*");
-
-    test_put(root, doc, {{"id", "FROM_BASE64('VVVJRDEAAAAAAAAAAAAAAA==')"}});
-  }
-
-  auto tmp = get_one(root, {{"id", "FROM_BASE64('VVVJRDEAAAAAAAAAAAAAAA==')"}});
-  std::cout << helper::json::to_string(&tmp) << "\n";
-
-  // bogus id in nested row
-  {
-    auto doc = make_json(R"*({
-    "data": "data2",
-    "refs": [
-      {"data": "refdata", "id": "VVVJRDEAAAAAAAAAAAAAAB=="}
-    ]
-  })*");
-
-    test_put(root, doc, {{"id", "FROM_BASE64('VVVJRDEAAAAAAAAAAAAAAQ==')"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_nm_autoinc_ref) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .field("actor_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("first_name")
-          .field("last_name")
-          .nest_list(
-              "film_actor",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                  .column("actor_id", FieldFlag::PRIMARY)
-                  .column("film_id", FieldFlag::PRIMARY)
-                  .nest("film", ObjectBuilder("film", {{"film_id", "film_id"}},
-                                              Operation::valueRead)
-                                    .field("film_id", FieldFlag::PRIMARY |
-                                                          FieldFlag::AUTO_INC)
-                                    .field("title")))
-          .root();
-
-  {
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": [
-        {"film": {"film_id": 10, "title": "Frozen"}},
-        {"film": {"film_id": 15, "title": "Melted"}}
-    ]
-  })*");
-
-    test_put(root, doc, {{"actor_id", "50"}});
-  }
-  // empty list
-  {
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": []
-  })*");
-
-    test_put(root, doc, {{"actor_id", "51"}});
-  }
-  // add to list
-  {
-    // film_id 10 and 15 already exist
-
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": [
-        {"film": {"film_id": 10, "title": "Frozen"}},
-        {"film": {"film_id": 15, "title": "Melted"}}
-    ]
-  })*");
-
-    test_put(root, doc, {{"actor_id", "52"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_nm_autoinc_ref_extras) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .field("actor_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("first_name")
-          .field("last_name")
-          .nest_list(
-              "film_actor",
-              ObjectBuilder("film_actor2", {{"actor_id", "actor_id"}})
-                  .column("actor_id", FieldFlag::PRIMARY)
-                  .column("film_id", FieldFlag::PRIMARY)
-                  .field("character")
-                  .nest("film", ObjectBuilder("film", {{"film_id", "film_id"}},
-                                              Operation::valueRead)
-                                    .field("film_id", FieldFlag::PRIMARY |
-                                                          FieldFlag::AUTO_INC)
-                                    .field("title")))
-          .root();
-
-  {
-    // 10 and 15 exists
-
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": [
-        {"character": "Helga", "film": {"film_id": 10, "title": "Frozen"}},
-        {"character": "Alsa", "film": {"film_id": 15, "title": "Melted"}}
-    ]
-  })*");
-
-    test_put(root, doc, {{"actor_id", "50"}});
-  }
-  // empty list
-  {
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": []
-  })*");
-
-    test_put(root, doc, {{"actor_id", "51"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_nm_ref_multi) {
-  // also tests differently named FK columns
-  auto root =
-      ObjectBuilder("mrstestdb", "tc2_base")
-          .field("id", FieldFlag::PRIMARY)
-          .field("sub_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("data1")
-          .field("data2")
-          .nest_list(
-              "refs",
-              ObjectBuilder("tc2_ref_nm_join",
-                            {{"base_id", "id"}, {"base_sub_id", "sub_id"}})
-                  .column("base_id", FieldFlag::PRIMARY)
-                  .column("base_sub_id", FieldFlag::PRIMARY)
-                  .column("ref_id", FieldFlag::PRIMARY)
-                  .column("ref_sub_id", FieldFlag::PRIMARY)
-                  .nest("ref", ObjectBuilder(
-                                   "tc2_ref_nm",
-                                   {{"ref_id", "id"}, {"ref_sub_id", "sub_id"}},
-                                   Operation::valueRead)
-                                   .field("id", FieldFlag::PRIMARY)
-                                   .field("sub_id", FieldFlag::PRIMARY)
-                                   .field("data")))
-          .root();
-
-  {
-    test_put(root, make_json(R"*({
-      "id": 222,
-      "sub_id": "AB",
-      "data1": "AAA",
-      "data2": 1,
-      "refs": [
-        {
-          "ref": {
-              "id": 111,
-              "sub_id": 888,
-              "data": "REF1"
-          }
-        },
-        {
-          "ref": {
-              "id": 222,
-              "sub_id": 999,
-              "data": "REF2"
-          }
-        }
-      ]
-    })*"),
-             {{"id", "222"}, {"sub_id", "'AB'"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_nm_ref2_multi) {
-  auto root =
-      ObjectBuilder("mrstestdb", "tc2_base")
-          .field("id", FieldFlag::PRIMARY)
-          .field("sub_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("data1")
-          .field("data2")
-          .nest_list(
-              "refs",
-              ObjectBuilder("tc2_ref_nm_join",
-                            {{"base_id", "id"}, {"base_sub_id", "sub_id"}},
-                            Operation::valueRead)
-                  .column("base_id", FieldFlag::PRIMARY)
-                  .column("base_sub_id", FieldFlag::PRIMARY)
-                  .column("ref_id", FieldFlag::PRIMARY)
-                  .column("ref_sub_id", FieldFlag::PRIMARY)
-                  .nest("ref", ObjectBuilder(
-                                   "tc2_ref_nm",
-                                   {{"ref_id", "id"}, {"ref_sub_id", "sub_id"}},
-                                   Operation::valueRead)
-                                   .field("id", FieldFlag::PRIMARY)
-                                   .field("sub_id", FieldFlag::PRIMARY)
-                                   .field("data")))
-          .root();
-
-  {
-    test_put(root, make_json(R"*({
-      "id": 222,
-      "sub_id": "AB",
-      "data1": "AAA",
-      "data2": 1,
-      "refs": [
-        {
-          "ref": {
-              "id": 111,
-              "sub_id": 888,
-              "data": "REF1"
-          }
-        },
-        {
-          "ref": {
-              "id": 222,
-              "sub_id": 999,
-              "data": "REF2"
-          }
-        }
-      ]
-    })*"),
-             {{"id", "222"}, {"sub_id", "'AB'"}});
-  }
-}
-
-TEST_F(DatabaseQueryPut, nested_nm_autoinc) {
-  auto root =
-      ObjectBuilder("mrstestdb", "actor")
-          .field("actor_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-          .field("first_name")
-          .field("last_name")
-          .nest_list(
-              "film_actor",
-              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
-                  .column("actor_id", FieldFlag::PRIMARY)
-                  .column("film_id", FieldFlag::PRIMARY)
-                  .nest("film", ObjectBuilder("film", {{"film_id", "film_id"}})
-                                    .field("film_id", FieldFlag::PRIMARY |
-                                                          FieldFlag::AUTO_INC)
-                                    .field("title")))
-          .root();
-
-  {
-    // XXX something broken with this case
-
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": [
-        {"film": {"film_id": 19, "title": "Melted"}},
-        {"film": {"title": "Frozen"}}
-    ]
-  })*");
-
-    test_put(root, doc, {{"actor_id", "50"}});
-  }
-  // empty list
-  if (0) {
-    auto doc = make_json(R"*({
-    "first_name": "Angelica",
-    "last_name": "Joline",
-    "film_actor": []
-  })*");
-
-    test_put(root, doc, {{"actor_id", "51"}});
-  }
+      DualityViewBuilder("mrstestdb", "city")
+          .field("city_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
+          .field("city")
+          .column("country_id")
+          .field_to_one(
+              "country",
+              ViewBuilder("country")
+                  .field("country_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
+                  .field("country"))
+          .resolve(m_.get(), true);
 }

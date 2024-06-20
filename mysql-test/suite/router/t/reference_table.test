@@ -24,6 +24,7 @@
 --let $mrs_add_db_object_join_table=country
 --let $mrs_add_db_object_join_on_base=country_id
 --let $mrs_add_db_object_join_on_other=country_id
+--let $mrs_add_db_object_join_columns=country
 --source ../include/mrs/db_object/add_join_flat.inc
 
 --let $mrs_add_db_object=city

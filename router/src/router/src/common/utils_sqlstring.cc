@@ -590,4 +590,26 @@ sqlstring &sqlstring::operator<<(const char *v) {
   return *this;
 }
 
+sqlstring &sqlstring::operator<<(const std::vector<uint8_t> &v) {
+  int esc = next_escape();
+  if (esc != '?')
+    throw std::invalid_argument(
+        "Error formatting SQL query: invalid escape for binary argument");
+
+  if (_format._flags & UseAnsiQuotes)
+    append("_binary\"")
+        .append(escape_sql_string(reinterpret_cast<const char *>(v.data()),
+                                  static_cast<int>(v.size())))
+        .append("\"");
+  else
+    append("_binary'")
+        .append(escape_sql_string(reinterpret_cast<const char *>(v.data()),
+                                  static_cast<int>(v.size())))
+        .append("'");
+
+  append(consume_until_next_escape());
+
+  return *this;
+}
+
 }  // namespace mysqlrouter

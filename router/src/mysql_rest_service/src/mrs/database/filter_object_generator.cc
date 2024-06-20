@@ -99,48 +99,50 @@ class tosGeom {
   }
 
  public:
-  bool acceptable(entry::DataField *dfield, Value *v) const {
+  bool acceptable(entry::Column *dfield, Value *v) const {
     if (!dfield) return false;
-    if (dfield->source->type != entry::ColumnType::GEOMETRY) return false;
+    if (dfield->type != entry::ColumnType::GEOMETRY) return false;
     return v->IsString() || is_geo_json(v);
   }
-  mysqlrouter::sqlstring to_sqlstring(entry::DataField *dfield,
-                                      Value *v) const {
+  mysqlrouter::sqlstring to_sqlstring(entry::Column *dfield, Value *v) const {
     if (v->IsString())
       return mysqlrouter::sqlstring("ST_GeomFromText(?, ?)")
-             << v->GetString() << dfield->source->srid;
+             << v->GetString() << dfield->srid;
 
     return mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?,1,?)")
-           << helper::json::to_string(v) << dfield->source->srid;
+           << helper::json::to_string(v) << dfield->srid;
   }
 };
 
 class tosString {
  public:
-  bool acceptable(entry::DataField *, Value *v) const { return v->IsString(); }
-  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
-    return mysqlrouter::sqlstring("?") << v->GetString();
+  bool acceptable(entry::Column *, Value *v) const { return v->IsString(); }
+  mysqlrouter::sqlstring to_sqlstring(entry::Column *col, Value *v) const {
+    if (col && col->type == entry::ColumnType::BINARY)
+      return mysqlrouter::sqlstring("FROM_BASE64(?)") << v->GetString();
+    else
+      return mysqlrouter::sqlstring("?") << v->GetString();
   }
 };
 
 class tosNumber {
  public:
-  bool acceptable(entry::DataField *, Value *v) const { return v->IsNumber(); }
-  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
+  bool acceptable(entry::Column *, Value *v) const { return v->IsNumber(); }
+  mysqlrouter::sqlstring to_sqlstring(entry::Column *, Value *v) const {
     return mysqlrouter::sqlstring(helper::json::to_string(v).c_str());
   }
 };
 
 class tosBoolean {
  public:
-  bool acceptable(entry::DataField *df, Value *) const {
-    if (df && df->source->type == entry::ColumnType::BOOLEAN) {
+  bool acceptable(entry::Column *df, Value *) const {
+    if (df && df->type == entry::ColumnType::BOOLEAN) {
       return true;
     }
 
     return false;
   }
-  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
+  mysqlrouter::sqlstring to_sqlstring(entry::Column *, Value *v) const {
     if (v->IsBool()) {
       if (v->GetBool()) return {"TRUE"};
       return {"FALSE"};
@@ -152,7 +154,7 @@ class tosBoolean {
 class tosDate {
  public:
   const char *k_date{"$date"};
-  bool acceptable(entry::DataField *, Value *v) const {
+  bool acceptable(entry::Column *, Value *v) const {
     if (!v->IsObject()) return false;
 
     auto it = v->FindMember(k_date);
@@ -162,7 +164,7 @@ class tosDate {
     return it->value.IsString();
   }
 
-  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
+  mysqlrouter::sqlstring to_sqlstring(entry::Column *, Value *v) const {
     auto o = v->GetObject();
     return mysqlrouter::sqlstring("?") << o[k_date].GetString();
   }
@@ -170,8 +172,7 @@ class tosDate {
 
 class Result {
  public:
-  explicit Result(entry::DataField *dfield, Value *v)
-      : dfield_{dfield}, v_{v} {}
+  explicit Result(entry::Column *dfield, Value *v) : dfield_{dfield}, v_{v} {}
 
   template <typename Z>
   Result &operator<<(const Z &t) {
@@ -183,12 +184,12 @@ class Result {
   }
 
   mysqlrouter::sqlstring result;
-  entry::DataField *dfield_;
+  entry::Column *dfield_;
   Value *v_;
 };
 
 template <typename... T>
-mysqlrouter::sqlstring to_sqlstring(entry::DataField *dfield, Value *value) {
+mysqlrouter::sqlstring to_sqlstring(entry::Column *dfield, Value *value) {
   Result r(dfield, value);
   (r << ... << T());
 
@@ -303,8 +304,8 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
   auto name = object->MemberBegin()->name.GetString();
   Value *value = &object->MemberBegin()->value;
   auto field_name = argument_.back().c_str();
-  auto dfield = resolve_field(field_name);
-  auto db_name = resolve_field_name(dfield, field_name, false);
+  auto [table, dfield] = resolve_field(field_name);
+  auto db_name = resolve_field_name(table, dfield, field_name, false);
 
   log_debug("dispatched type %i", static_cast<int>(value->GetType()));
   where_.append_preformatted(" ");
@@ -516,8 +517,9 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   if (parse_simple_object(value)) return;
   log_debug("direct field=value");
 
-  auto dfield = resolve_field(name);
-  mysqlrouter::sqlstring dbname = resolve_field_name(dfield, name, false);
+  auto [table, dfield] = resolve_field(name);
+  mysqlrouter::sqlstring dbname =
+      resolve_field_name(table, dfield, name, false);
 
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
   where_.append_preformatted(
@@ -553,8 +555,9 @@ void FilterObjectGenerator::parse_order(Object object) {
     first = false;
     bool asc = false;
     const auto &field_name = member.first;
-    auto dfield = resolve_field(field_name);
-    order_.append_preformatted(resolve_field_name(dfield, field_name, true));
+    auto [table, dfield] = resolve_field(field_name);
+    order_.append_preformatted(
+        resolve_field_name(table, dfield, field_name, true));
 
     auto value = member.second;
 
@@ -587,31 +590,31 @@ void FilterObjectGenerator::parse_order(Object object) {
   }
 }
 
-std::shared_ptr<entry::DataField> FilterObjectGenerator::resolve_field(
-    const char *name) {
-  if (!object_metadata_) return nullptr;
+std::pair<std::shared_ptr<entry::Table>, std::shared_ptr<entry::Column>>
+FilterObjectGenerator::resolve_field(const char *name) {
+  if (!object_metadata_) return {nullptr, nullptr};
 
   auto field = object_metadata_->get_field(name);
-  return std::dynamic_pointer_cast<entry::DataField>(field);
+  return {object_metadata_, std::dynamic_pointer_cast<entry::Column>(field)};
 }
 
 mysqlrouter::sqlstring FilterObjectGenerator::resolve_field_name(
-    std::shared_ptr<entry::DataField> &dfield, const char *name,
+    const std::shared_ptr<entry::Table> &table,
+    const std::shared_ptr<entry::Column> &dfield, const char *name,
     bool for_sorting) const {
   if (!object_metadata_) return mysqlrouter::sqlstring("!") << name;
 
   if (dfield) {
-    if (!dfield->allow_filtering && !for_sorting)
+    if (!dfield->allow_filtering && !for_sorting && !dfield->is_primary)
       throw RestError("Cannot filter on field "s + name);
-    if (!dfield->allow_sorting && for_sorting)
+    if (!dfield->allow_sorting && for_sorting && !dfield->is_primary)
       throw RestError("Cannot sort on field "s + name);
 
     if (joins_allowed_)
       return mysqlrouter::sqlstring("!.!")
-             << dfield->source->table.lock()->table_alias
-             << dfield->source->name;
+             << table->table_alias << dfield->column_name;
     else
-      return mysqlrouter::sqlstring("!") << dfield->source->name;
+      return mysqlrouter::sqlstring("!") << dfield->column_name;
   }
   // TODO(alfredo) filter on nested fields
   if (!for_sorting)

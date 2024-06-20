@@ -80,7 +80,7 @@ class HandleObjectTests : public Test {
         cached_columns_.emplace_back(a, "text");
       }
 
-      auto builder = ObjectBuilder(schema, object);
+      auto builder = DualityViewBuilder(schema, object);
       builder.field(cached_primary, cached_primary, "text");
       for (auto &a : cached_columns) {
         builder.field(a, a, "text");

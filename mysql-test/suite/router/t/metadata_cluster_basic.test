@@ -87,7 +87,7 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --let $mrs_client_arg_path='/svc/basic/t2'
 --let $mrs_client_arg_exclude_json_pointer='/_metadata/gtid'
 --let $mrs_client_arg_request_type='POST'
---let $mrs_client_arg_payload='{"id":3000, "name":"PUT item", "date":"1920-12-1"}'
+--let $mrs_client_arg_payload='{"id":3000, "name":"PUT item", "date":"1920-12-1", "comments":""}'
 --source ../include/mrs/mrs_client.inc
 
 --source include/rpl/sync.inc

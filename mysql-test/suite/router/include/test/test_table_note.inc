@@ -29,7 +29,7 @@ if ($mrs_schema_version == 2)
 if ($mrs_schema_version == 3)
 {
   INSERT INTO `db_object` (`id`,`db_schema_id`,`name`,`request_path`,`enabled`,`object_type`,`crud_operations`,`format`,`items_per_page`,`media_type`,`auto_detect_media_type`,`requires_auth`,`auth_stored_procedure`, `options`,`details`,`comments`) VALUES (1,@schema_id,'note','/note',1,'TABLE','CREATE,READ,UPDATE,DELETE','FEED',NULL,NULL,0,1,'',NULL,NULL,'');
-  INSERT INTO `object` (`id`,`db_object_id`,`name`,`kind`,`position`,`sdk_options`,`comments`, `row_ownership_field_id`) VALUES (2,1,'MyServiceMrsNotesNote','RESULT',0,NULL,NULL, 9);
+  INSERT INTO `object` (`id`,`db_object_id`,`name`,`kind`,`position`,`sdk_options`,`comments`, `row_ownership_field_id`,`options`) VALUES (2,1,'MyServiceMrsNotesNote','RESULT',0,NULL,NULL, 9, '{"duality_view_insert":true, "duality_view_update":true, "duality_view_delete":true}');
 }
 
 #INSERT INTO `object_field` #(`id`,`object_id`,`parent_reference_id`,`represents_reference_id`,`name`,`position`,`db_column`,`enabled`,`allow_filtering`,`allow_sorting`,`no_check`,`no_update`,`sdk_options`,`comments`) VALUES #(3,2,NULL,?,'userHasNote',1001,NULL,0,1,0,0,0,NULL,NULL);

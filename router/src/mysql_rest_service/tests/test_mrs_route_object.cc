@@ -111,11 +111,9 @@ class RouteObjectTests : public Test {
     obj.format = kDefaultForamt;
     obj.object_description = std::make_shared<mrs::database::entry::Object>();
 
-    auto first_field = std::make_shared<mrs::database::entry::DataField>();
+    auto first_field = std::make_shared<mrs::database::entry::Column>();
     first_field->id = mrs::UniversalId{kFirstColumnId};
     first_field->name = "name";
-    first_field->source = std::make_shared<mrs::database::entry::Column>();
-    first_field->source->name = "name";
     first_field_ = first_field;
     obj.object_description->fields.push_back(first_field_);
 
@@ -152,7 +150,7 @@ class RouteObjectTests : public Test {
   StrictMock<MockMySQLSession> mock_session;
   MakeSharedPtr<StrictMock<MockRouteSchema>> mock_route_schema_;
   std::shared_ptr<Object> sut_;
-  std::shared_ptr<mrs::database::entry::ObjectField> first_field_;
+  std::shared_ptr<mrs::database::entry::Column> first_field_;
 
  private:
   uint64_t last_id_{0};

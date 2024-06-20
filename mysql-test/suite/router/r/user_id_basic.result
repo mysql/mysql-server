@@ -83,13 +83,13 @@ OK
 
 #
 # I.3
-POST /svc/basic/note/ (payload-size:82)
+POST /svc/basic/note/ (payload-size:176)
 {
     "id": 1,
     "tags": null,
     "title": "asdasd",
     "pinned": false,
-    "shared": false,
+    "shared": true,
     "content": "asdasddasdaddasad",
     "lockedDown": false
 }
@@ -116,7 +116,7 @@ OK
 
 #
 # II.3
-PUT /svc/basic/note/1 (payload-size:135)
+PUT /svc/basic/note/1 (payload-size:142)
 {
     "id": 1,
     "tags": "",

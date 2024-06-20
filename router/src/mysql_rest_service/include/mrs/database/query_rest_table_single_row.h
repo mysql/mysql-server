@@ -31,46 +31,45 @@
 #include <vector>
 
 #include "helper/mysql_column.h"
-#include "mrs/database/entry/object.h"
-#include "mrs/database/helper/object_query.h"
-#include "mrs/database/helper/query.h"
+#include "mrs/database/duality_view/select.h"
+#include "mrs/database/query_rest_table.h"
 
 namespace mrs {
 namespace database {
 
-class QueryRestTableSingleRow : private QueryLog {
+class QueryRestTableSingleRow : public QueryRestTable {
  public:
   using Object = entry::Object;
   using ObjectField = entry::ObjectField;
   using PrimaryKeyColumnValues = mrs::database::PrimaryKeyColumnValues;
+  using ObjectFieldFilter = dv::ObjectFieldFilter;
 
  public:
-  explicit QueryRestTableSingleRow(bool encode_bigints_as_string = false,
+  explicit QueryRestTableSingleRow(const JsonTemplateFactory *factory = nullptr,
+                                   bool encode_bigints_as_string = false,
                                    const bool include_links = true);
 
-  virtual void query_entries(MySQLSession *session,
-                             std::shared_ptr<database::entry::Object> object,
-                             const ObjectFieldFilter &field_filter,
-                             const PrimaryKeyColumnValues &pk,
-                             const std::string &url_route,
-                             bool compute_etag = false,
-                             const std::string &metadata_gtid = {});
+  virtual void query_entry(MySQLSession *session,
+                           std::shared_ptr<database::entry::Object> object,
+                           const PrimaryKeyColumnValues &pk,
+                           const dv::ObjectFieldFilter &field_filter,
+                           const std::string &url_route,
+                           const ObjectRowOwnership &row_ownership,
+                           const bool compute_etag = false,
+                           const std::string &metadata_gtid = {},
+                           const bool fetch_any_owner = false);
 
-  std::string response;
-  uint64_t items;
+  bool is_owned() const { return is_owned_; }
 
  private:
-  std::shared_ptr<database::entry::Object> object_;
-  const ObjectFieldFilter *field_filter_{nullptr};
-  bool compute_etag_{false};
   std::string metadata_gtid_{};
-  bool encode_bigints_as_string_;
-  bool include_links_;
+  bool is_owned_ = true;
 
   void on_row(const ResultRow &r) override;
-  void build_query(std::shared_ptr<database::entry::Object> object,
-                   const PrimaryKeyColumnValues &pk,
-                   const std::string &url_route);
+  void build_query(const dv::ObjectFieldFilter &field_filter,
+                   const std::string &url_route,
+                   const ObjectRowOwnership &row_ownership,
+                   const PrimaryKeyColumnValues &pk, bool fetch_any_owner);
 };
 
 }  // namespace database

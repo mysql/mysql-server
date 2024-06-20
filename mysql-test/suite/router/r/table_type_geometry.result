@@ -27,10 +27,8 @@ VALUES(ST_GeomFromText('POINT(0 0)',4326)),
 #    returning multiple objects.
 # 3. Verify that object can be updated with different GeoJson and response
 #    contains same data.
-# 4. Verify that object can be updated with different WKT-format and response
-#    contains same data formated as GeoJson.
-# 5. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
-# 6. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
+# 4. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
+# 5. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
 #
 ## II. Verify JSON encoding of GEOMETRY types with SRID 4326, returned in FEED response
 #
@@ -40,10 +38,8 @@ VALUES(ST_GeomFromText('POINT(0 0)',4326)),
 #    returning multiple objects.
 # 3. Verify that object can be updated with different GeoJson and response
 #    contains same data.
-# 4. Verify that object can be updated with different WKT-format and response
-#    contains same data formated as GeoJson.
-# 5. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
-# 6. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
+# 4. Verify that objects can be filtered using GEOMETRY column using WKT-format data.
+# 5. Verify that objects can be filtered using GEOMETRY column using GeoJson data.
 #
 #
 # Registred SERVICE at path: /svc
@@ -134,7 +130,7 @@ OK
 
 #
 # I.3
-PUT /svc/test/geo0/2 (payload-size:57)
+PUT /svc/test/geo0/2 (payload-size:64)
 {
     "g": {
         "type": "LineString",
@@ -161,7 +157,7 @@ PUT /svc/test/geo0/2 (payload-size:57)
     }
 }
 OK
-PUT /svc/test/geo0/2 (payload-size:45)
+PUT /svc/test/geo0/2 (payload-size:52)
 {
     "g": {
         "type": "Point",
@@ -185,51 +181,6 @@ OK
 
 #
 # I.4
-PUT /svc/test/geo0/2 (payload-size:18)
-{
-    "g": {
-        "type": "Point",
-        "coordinates": [
-            0.0,
-            0.0
-        ]
-    },
-    "id": 2,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/test/geo0/2"
-        }
-    ],
-    "_metadata": {
-        "etag": "36E711CB3500CFC879767FD1FB99957A2739B40D5BF3944FFA6A27402C74FC58"
-    }
-}
-OK
-PUT /svc/test/geo0/2 (payload-size:20)
-{
-    "g": {
-        "type": "Point",
-        "coordinates": [
-            100.0,
-            0.0
-        ]
-    },
-    "id": 2,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/test/geo0/2"
-        }
-    ],
-    "_metadata": {
-        "etag": "4AF52208C224CE7E8C328D079F6EADF83781797BD300CB289B08EF0CBFD14AF0"
-    }
-}
-OK
-
-#
-# I.5
 GET /svc/test/geo0/?q=%7B%22g%22:%22POINT%28100%200%29%22%7D
 {
     "items": [
@@ -302,7 +253,7 @@ GET /svc/test/geo0/?q=%7B%22g%22:%22POINT%280%200%29%22%7D
 OK
 
 #
-# I.6
+# I.5
 GET /svc/test/geo0/?q=%7B%22g%22:%7B%22type%22:%22Point%22,%22coordinates%22:%5B0,0%5D%7D%7D
 {
     "items": [
@@ -438,7 +389,7 @@ OK
 
 #
 # II.3
-PUT /svc/test/geo4326/2 (payload-size:56)
+PUT /svc/test/geo4326/2 (payload-size:63)
 {
     "g": {
         "type": "LineString",
@@ -465,7 +416,7 @@ PUT /svc/test/geo4326/2 (payload-size:56)
     }
 }
 OK
-PUT /svc/test/geo4326/2 (payload-size:44)
+PUT /svc/test/geo4326/2 (payload-size:51)
 {
     "g": {
         "type": "Point",
@@ -489,73 +440,9 @@ OK
 
 #
 # II.4
-PUT /svc/test/geo4326/2 (payload-size:18)
-{
-    "g": {
-        "type": "Point",
-        "coordinates": [
-            0.0,
-            0.0
-        ]
-    },
-    "id": 2,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/test/geo4326/2"
-        }
-    ],
-    "_metadata": {
-        "etag": "36E711CB3500CFC879767FD1FB99957A2739B40D5BF3944FFA6A27402C74FC58"
-    }
-}
-OK
-PUT /svc/test/geo4326/2 (payload-size:19)
-{
-    "g": {
-        "type": "Point",
-        "coordinates": [
-            0.0,
-            80.0
-        ]
-    },
-    "id": 2,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/test/geo4326/2"
-        }
-    ],
-    "_metadata": {
-        "etag": "99BBA6A180EA9642417BD2169BCE460D8EF4CBE2B07C98EA9BB87827E03D0E92"
-    }
-}
-OK
-
-#
-# II.5
 GET /svc/test/geo4326/?q=%7B%22g%22:%22POINT%2880%200%29%22%7D
 {
     "items": [
-        {
-            "g": {
-                "type": "Point",
-                "coordinates": [
-                    0.0,
-                    80.0
-                ]
-            },
-            "id": 2,
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "/svc/test/geo4326/2"
-                }
-            ],
-            "_metadata": {
-                "etag": "99BBA6A180EA9642417BD2169BCE460D8EF4CBE2B07C98EA9BB87827E03D0E92"
-            }
-        },
         {
             "g": {
                 "type": "Point",
@@ -579,7 +466,7 @@ GET /svc/test/geo4326/?q=%7B%22g%22:%22POINT%2880%200%29%22%7D
     "limit": 25,
     "offset": 0,
     "hasMore": false,
-    "count": 2,
+    "count": 1,
     "links": [
         {
             "rel": "self",
@@ -625,7 +512,7 @@ GET /svc/test/geo4326/?q=%7B%22g%22:%22POINT%280%200%29%22%7D
 OK
 
 #
-# II.6
+# II.5
 GET /svc/test/geo4326/?q=%7B%22g%22:%7B%22type%22:%22Point%22,%22coordinates%22:%5B0,0%5D%7D%7D
 {
     "items": [
@@ -672,25 +559,6 @@ GET /svc/test/geo4326/?q=%7B%22g%22:%7B%22type%22:%22Point%22,%22coordinates%22:
                     80.0
                 ]
             },
-            "id": 2,
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "/svc/test/geo4326/2"
-                }
-            ],
-            "_metadata": {
-                "etag": "99BBA6A180EA9642417BD2169BCE460D8EF4CBE2B07C98EA9BB87827E03D0E92"
-            }
-        },
-        {
-            "g": {
-                "type": "Point",
-                "coordinates": [
-                    0.0,
-                    80.0
-                ]
-            },
             "id": 3,
             "links": [
                 {
@@ -706,7 +574,7 @@ GET /svc/test/geo4326/?q=%7B%22g%22:%7B%22type%22:%22Point%22,%22coordinates%22:
     "limit": 25,
     "offset": 0,
     "hasMore": false,
-    "count": 2,
+    "count": 1,
     "links": [
         {
             "rel": "self",

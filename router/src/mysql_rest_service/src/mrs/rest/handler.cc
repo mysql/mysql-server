@@ -36,6 +36,7 @@
 #include "mysqlrouter/component/http_server_component.h"
 
 #include "mrs/authentication/www_authentication_handler.h"
+#include "mrs/database/duality_view/errors.h"
 #include "mrs/http/error.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/rest_error.h"
@@ -424,6 +425,9 @@ class RestRequestHandler : public ::http::base::RequestHandler {
     } catch (const http::Error &e) {
       if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
+    } catch (const mrs::database::JSONInputError &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
+      handle_error(&request_ctxt, e);
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
@@ -455,6 +459,11 @@ class RestRequestHandler : public ::http::base::RequestHandler {
 
   static const http::Error &err_to_http_error(const http::Error &err) {
     return err;
+  }
+
+  static http::Error err_to_http_error(
+      const mrs::database::JSONInputError &err) {
+    return {HttpStatusCode::BadRequest, err.what()};
   }
 
   static http::Error err_to_http_error(const RestError &err) {

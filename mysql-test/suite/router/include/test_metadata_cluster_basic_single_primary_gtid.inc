@@ -109,7 +109,7 @@ exec $MRS_CLIENT_ARGS --path /svc/$test_schema/$test_obj1/20
 --let $mrs_client_arg_write_format='mtr'
 --let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/gtid.inc'
 --let $mrs_client_arg_request_type='POST'
---let $mrs_client_arg_payload='{"id":3000, "name":"PUT item", "date":"1920-12-1"}'
+--let $mrs_client_arg_payload='{"id":3000, "name":"PUT item", "date":"1920-12-1", "comments":""}'
 --source ../include/mrs/mrs_client.inc
 
  # Verify that using post, increments only metadata gtid counter

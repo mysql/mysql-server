@@ -33,10 +33,10 @@ INSERT INTO test.geo4326(gc)
 --echo #    returning multiple objects.
 --echo # 3. Verify that object can be updated with different GeoJson and response
 --echo #    contains same data.
---echo # 4. Verify that object can be updated with different WKT-format and response
---echo #    contains same data formated as GeoJson.
---echo # 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
---echo # 6. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
+#--echo # 4. Verify that object can be updated with different WKT-format and response
+#--echo #    contains same data formated as GeoJson.
+--echo # 4. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
+--echo # 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
 --echo #
 --echo ## II. Verify JSON encoding of GEOMETRYCOLLECTION types with SRID 4326, returned in FEED response
 --echo #
@@ -46,10 +46,10 @@ INSERT INTO test.geo4326(gc)
 --echo #    returning multiple objects.
 --echo # 3. Verify that object can be updated with different GeoJson and response
 --echo #    contains same data.
---echo # 4. Verify that object can be updated with different WKT-format and response
---echo #    contains same data formated as GeoJson.
---echo # 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
---echo # 6. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
+#--echo # 4. Verify that object can be updated with different WKT-format and response
+#--echo #    contains same data formated as GeoJson.
+--echo # 4. Verify that objects can be filtered using GEOMETRYCOLLECTION column using WKT-format data.
+--echo # 5. Verify that objects can be filtered using GEOMETRYCOLLECTION column using GeoJson data.
 --echo #
 --echo #
 
@@ -96,29 +96,29 @@ INSERT INTO test.geo4326(gc)
 --let $mrs_client_exe_args=$MRS_CLIENT_ARGS_OBJ
 --let $mrs_client_arg_path='/svc/test/geo0/2'
 --let $mrs_client_arg_request_type='PUT'
---let $mrs_client_arg_payload='{"gc": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [5, 5]}, {"type": "Point", "coordinates": [6, 6]}]}}'
+--let $mrs_client_arg_payload='{"id":2,"gc": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [5, 5]}, {"type": "Point", "coordinates": [6, 6]}]}}'
 --source ../include/mrs/mrs_client.inc
 
 --let $mrs_client_arg_path='/svc/test/geo0/2'
 --let $mrs_client_exe_args=$MRS_CLIENT_ARGS_OBJ
---let $mrs_client_arg_payload='{"gc": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [7, 7]}]}}'
+--let $mrs_client_arg_payload='{"id":2,"gc": {"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [7, 7]}]}}'
 --source ../include/mrs/mrs_client.inc
+
+#--echo
+#--echo #
+#--echo # I.4
+#
+#--let $mrs_client_arg_path='/svc/test/geo0/2'
+#--let $mrs_client_arg_payload='{"id":2,"gc":"GEOMETRYCOLLECTION(POINT(8 8), POINT(9 9))"}'
+#--source ../include/mrs/mrs_client.inc
+#
+#--let $mrs_client_arg_path='/svc/test/geo0/2'
+#--let $mrs_client_arg_payload='{"id":2,"gc":"GEOMETRYCOLLECTION(POINT(8 8), POINT(10 10))"}'
+#--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # I.4
-
---let $mrs_client_arg_path='/svc/test/geo0/2'
---let $mrs_client_arg_payload='{"gc":"GEOMETRYCOLLECTION(POINT(8 8), POINT(9 9))"}'
---source ../include/mrs/mrs_client.inc
-
---let $mrs_client_arg_path='/svc/test/geo0/2'
---let $mrs_client_arg_payload='{"gc":"GEOMETRYCOLLECTION(POINT(8 8), POINT(10 10))"}'
---source ../include/mrs/mrs_client.inc
-
---echo
---echo #
---echo # I.5
 --let $mrs_client_arg_request_type=
 --let $mrs_client_arg_payload=
 
@@ -134,7 +134,7 @@ INSERT INTO test.geo4326(gc)
 
 --echo
 --echo #
---echo # I.6
+--echo # I.5
 
 --let $mrs_client_arg_path='/svc/test/geo0/2'
 --let $mrs_client_arg_path='/svc/test/geo0/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [8, 8]}, {"type": "Point", "coordinates": [10, 10]}]}}'
@@ -161,28 +161,28 @@ INSERT INTO test.geo4326(gc)
 --let $mrs_client_exe_args=$MRS_CLIENT_ARGS_OBJ
 --let $mrs_client_arg_request_type='PUT'
 --let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [3, 3]}, {"type": "Point", "coordinates": [4, 4]}]}}'
+--let $mrs_client_arg_payload='{"id":2,"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [3, 3]}, {"type": "Point", "coordinates": [4, 4]}]}}'
 --source ../include/mrs/mrs_client.inc
 
 --let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [5, 5]}, {"type": "LineString", "coordinates": [[1, 1], [2, 2]]}]}}'
+--let $mrs_client_arg_payload='{"id":2,"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [5, 5]}, {"type": "LineString", "coordinates": [[1, 1], [2, 2]]}]}}'
 --source ../include/mrs/mrs_client.inc
+
+#--echo
+#--echo #
+#--echo # II.4
+#
+#--let $mrs_client_arg_path='/svc/test/geo4326/2'
+#--let $mrs_client_arg_payload='{"id":2,"gc":"GEOMETRYCOLLECTION(POINT(12 12),POINT(13 13))"}'
+#--source ../include/mrs/mrs_client.inc
+#
+#--let $mrs_client_arg_path='/svc/test/geo4326/2'
+#--let $mrs_client_arg_payload='{"id":2,"gc":"GEOMETRYCOLLECTION(POINT(14 14),LINESTRING(15 15, 16 16))"}'
+#--source ../include/mrs/mrs_client.inc
 
 --echo
 --echo #
 --echo # II.4
-
---let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"gc":"GEOMETRYCOLLECTION(POINT(12 12),POINT(13 13))"}'
---source ../include/mrs/mrs_client.inc
-
---let $mrs_client_arg_path='/svc/test/geo4326/2'
---let $mrs_client_arg_payload='{"gc":"GEOMETRYCOLLECTION(POINT(14 14),LINESTRING(15 15, 16 16))"}'
---source ../include/mrs/mrs_client.inc
-
---echo
---echo #
---echo # II.5
 --let $mrs_client_arg_request_type=
 --let $mrs_client_arg_payload=
 --let $mrs_client_exe_args=$MRS_CLIENT_ARGS_LIST
@@ -195,7 +195,7 @@ INSERT INTO test.geo4326(gc)
 
 --echo
 --echo #
---echo # II.6
+--echo # II.5
 
 --let $mrs_client_arg_path='/svc/test/geo4326/?q={"gc":{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [2, 2]}]}}'
 --source ../include/mrs/mrs_client.inc

@@ -74,7 +74,7 @@ OK
 # II.2
 PUT /svc/basic/t2/1 (payload-size:34)
 {
-    "message": "Document has missing field: table2.date",
+    "message": "Invalid input JSON document: Field \"name\" for table `table2` missing in JSON input",
     "status": 400
 }
 OK
