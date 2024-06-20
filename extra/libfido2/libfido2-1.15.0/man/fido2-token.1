@@ -1,0 +1,421 @@
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"    1. Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"    2. Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in
+.\"       the documentation and/or other materials provided with the
+.\"       distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd $Mdocdate: April 11 2022 $
+.Dt FIDO2-TOKEN 1
+.Os
+.Sh NAME
+.Nm fido2-token
+.Nd find and manage a FIDO2 authenticator
+.Sh SYNOPSIS
+.Nm
+.Fl C
+.Op Fl d
+.Ar device
+.Nm
+.Fl D
+.Op Fl d
+.Fl i
+.Ar cred_id
+.Ar device
+.Nm
+.Fl D
+.Fl b
+.Op Fl d
+.Fl k Ar key_path
+.Ar device
+.Nm
+.Fl D
+.Fl b
+.Op Fl d
+.Fl n Ar rp_id
+.Op Fl i Ar cred_id
+.Ar device
+.Nm
+.Fl D
+.Fl e
+.Op Fl d
+.Fl i
+.Ar template_id
+.Ar device
+.Nm
+.Fl D
+.Fl u
+.Op Fl d
+.Ar device
+.Nm
+.Fl G
+.Fl b
+.Op Fl d
+.Fl k Ar key_path
+.Ar blob_path
+.Ar device
+.Nm
+.Fl G
+.Fl b
+.Op Fl d
+.Fl n Ar rp_id
+.Op Fl i Ar cred_id
+.Ar blob_path
+.Ar device
+.Nm
+.Fl I
+.Op Fl cd
+.Op Fl k Ar rp_id Fl i Ar cred_id
+.Ar device
+.Nm
+.Fl L
+.Op Fl bder
+.Op Fl k Ar rp_id
+.Op device
+.Nm
+.Fl R
+.Op Fl d
+.Ar device
+.Nm
+.Fl S
+.Op Fl adefu
+.Ar device
+.Nm
+.Fl S
+.Op Fl d
+.Fl i Ar template_id
+.Fl n Ar template_name
+.Ar device
+.Nm
+.Fl S
+.Op Fl d
+.Fl l Ar pin_length
+.Ar device
+.Nm
+.Fl S
+.Fl b
+.Op Fl d
+.Fl k Ar key_path
+.Ar blob_path
+.Ar device
+.Nm
+.Fl S
+.Fl b
+.Op Fl d
+.Fl n Ar rp_id
+.Op Fl i Ar cred_id
+.Ar blob_path
+.Ar device
+.Nm
+.Fl S
+.Fl c
+.Op Fl d
+.Fl i Ar cred_id
+.Fl k Ar user_id
+.Fl n Ar name
+.Fl p Ar display_name
+.Ar device
+.Nm
+.Fl S
+.Fl m
+.Ar rp_id
+.Ar device
+.Nm
+.Fl V
+.Sh DESCRIPTION
+.Nm
+manages a FIDO2 authenticator.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl C Ar device
+Changes the PIN of
+.Ar device .
+The user will be prompted for the current and new PINs.
+.It Fl D Fl i Ar id Ar device
+Deletes the resident credential specified by
+.Ar id
+from
+.Ar device ,
+where
+.Ar id
+is the credential's base64-encoded id.
+The user will be prompted for the PIN.
+.It Fl D Fl b Fl k Ar key_path Ar device
+Deletes a
+.Dq largeBlob
+encrypted with
+.Ar key_path
+from
+.Ar device ,
+where
+.Ar key_path
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
+A PIN or equivalent user-verification gesture is required.
+.It Fl D Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar device
+Deletes a
+.Dq largeBlob
+corresponding to
+.Ar rp_id
+from
+.Ar device .
+If
+.Ar rp_id
+has multiple credentials enrolled on
+.Ar device ,
+the credential ID must be specified using
+.Fl i Ar cred_id ,
+where
+.Ar cred_id
+is a base64-encoded blob.
+A PIN or equivalent user-verification gesture is required.
+.It Fl D Fl e Fl i Ar id Ar device
+Deletes the biometric enrollment specified by
+.Ar id
+from
+.Ar device ,
+where
+.Ar id
+is the enrollment's template base64-encoded id.
+The user will be prompted for the PIN.
+.It Fl D Fl u Ar device
+Disables the CTAP 2.1
+.Dq user verification always
+feature on
+.Ar device .
+.It Fl G Fl b Fl k Ar key_path Ar blob_path Ar device
+Gets a CTAP 2.1
+.Dq largeBlob
+encrypted with
+.Ar key_path
+from
+.Ar device ,
+where
+.Ar key_path
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
+The blob is written to
+.Ar blob_path .
+A PIN or equivalent user-verification gesture is required.
+.It Fl G Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar blob_path Ar device
+Gets a CTAP 2.1
+.Dq largeBlob
+associated with
+.Ar rp_id
+from
+.Ar device .
+If
+.Ar rp_id
+has multiple credentials enrolled on
+.Ar device ,
+the credential ID must be specified using
+.Fl i Ar cred_id ,
+where
+.Ar cred_id
+is a base64-encoded blob.
+The blob is written to
+.Ar blob_path .
+A PIN or equivalent user-verification gesture is required.
+.It Fl I Ar device
+Retrieves information on
+.Ar device .
+.It Fl I Fl c Ar device
+Retrieves resident credential metadata from
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl I Fl k Ar rp_id Fl i Ar cred_id Ar device
+Prints the credential id (base64-encoded) and public key
+(PEM encoded) of the resident credential specified by
+.Ar rp_id
+and
+.Ar cred_id ,
+where
+.Ar rp_id
+is a UTF-8 relying party id, and
+.Ar cred_id
+is a base64-encoded credential id.
+The user will be prompted for the PIN.
+.It Fl L
+Produces a list of authenticators found by the operating system.
+.It Fl L Fl b Ar device
+Produces a list of CTAP 2.1
+.Dq largeBlobs
+on
+.Ar device .
+A PIN or equivalent user-verification gesture is required.
+.It Fl L Fl e Ar device
+Produces a list of biometric enrollments on
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl L Fl r Ar device
+Produces a list of relying parties with resident credentials on
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl L Fl k Ar rp_id Ar device
+Produces a list of resident credentials corresponding to
+relying party
+.Ar rp_id
+on
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl R
+Performs a reset on
+.Ar device .
+.Nm
+will NOT prompt for confirmation.
+.It Fl S
+Sets the PIN of
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl S Fl a Ar device
+Enables CTAP 2.1 Enterprise Attestation on
+.Ar device .
+.It Fl S Fl b Fl k Ar key_path Ar blob_path Ar device
+Sets a CTAP 2.1
+.Dq largeBlob
+encrypted with
+.Ar key_path
+on
+.Ar device ,
+where
+.Ar key_path
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
+The blob is read from
+.Fa blob_path .
+A PIN or equivalent user-verification gesture is required.
+.It Fl S Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar blob_path Ar device
+Sets a CTAP 2.1
+.Dq largeBlob
+associated with
+.Ar rp_id
+on
+.Ar device .
+The blob is read from
+.Fa blob_path .
+If
+.Ar rp_id
+has multiple credentials enrolled on
+.Ar device ,
+the credential ID must be specified using
+.Fl i Ar cred_id ,
+where
+.Ar cred_id
+is a base64-encoded blob.
+A PIN or equivalent user-verification gesture is required.
+.It Fl S Fl c Fl i Ar cred_id Fl k Ar user_id Fl n Ar name Fl p Ar display_name Ar device
+Sets the
+.Ar name
+and
+.Ar display_name
+attributes of the resident credential identified by
+.Ar cred_id
+and
+.Ar user_id ,
+where
+.Ar name
+and
+.Ar display_name
+are UTF-8 strings and
+.Ar cred_id
+and
+.Ar user_id
+are base64-encoded blobs.
+A PIN or equivalent user-verification gesture is required.
+.It Fl S Fl e Ar device
+Performs a new biometric enrollment on
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl S Fl e Fl i Ar template_id Fl n Ar template_name Ar device
+Sets the friendly name of the biometric enrollment specified by
+.Ar template_id
+to
+.Ar template_name
+on
+.Ar device ,
+where
+.Ar template_id
+is base64-encoded and
+.Ar template_name
+is a UTF-8 string.
+The user will be prompted for the PIN.
+.It Fl S Fl f Ar device
+Forces a PIN change on
+.Ar device .
+The user will be prompted for the PIN.
+.It Fl S Fl l Ar pin_length Ar device
+Sets the minimum PIN length of
+.Ar device
+to
+.Ar pin_length .
+The user will be prompted for the PIN.
+.It Fl S Fl m Ar rp_id Ar device
+Sets the list of relying party IDs that are allowed to retrieve
+the minimum PIN length of
+.Ar device .
+Multiple IDs may be specified, separated by commas.
+The user will be prompted for the PIN.
+.It Fl S Fl u Ar device
+Enables the CTAP 2.1
+.Dq user verification always
+feature on
+.Ar device .
+.It Fl V
+Prints version information.
+.It Fl d
+Causes
+.Nm
+to emit debugging output on
+.Em stderr .
+.El
+.Pp
+If a
+.Em tty
+is available,
+.Nm
+will use it to prompt for PINs.
+Otherwise,
+.Em stdin
+is used.
+.Pp
+.Nm
+exits 0 on success and 1 on error.
+.Sh SEE ALSO
+.Xr fido2-assert 1 ,
+.Xr fido2-cred 1
+.Sh CAVEATS
+The actual user-flow to perform a reset is outside the scope of the
+FIDO2 specification, and may therefore vary depending on the
+authenticator.
+Yubico authenticators do not allow resets after 5 seconds from
+power-up, and expect a reset to be confirmed by the user through
+touch within 30 seconds.
+.Pp
+An authenticator's path may contain spaces.
+.Pp
+Resident credentials are called
+.Dq discoverable credentials
+in CTAP 2.1.
+.Pp
+Whether the CTAP 2.1
+.Dq user verification always
+feature is activated or deactivated after an authenticator reset
+is vendor-specific.
