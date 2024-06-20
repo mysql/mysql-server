@@ -2,15 +2,15 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
-cmake_minimum_required(VERSION 3.7)
+# cmake_minimum_required(VERSION 3.7)
 
 # detect AppleClang; needs to come before project()
-cmake_policy(SET CMP0025 NEW)
+# cmake_policy(SET CMP0025 NEW)
 
 project(libfido2 C)
 # Set PIE flags for POSITION_INDEPENDENT_CODE targets, added in CMake 3.14.
 if(POLICY CMP0083)
-	cmake_policy(SET CMP0083 NEW)
+#	cmake_policy(SET CMP0083 NEW)
 endif()
 
 include(CheckCCompilerFlag)
@@ -20,24 +20,31 @@ include(CheckSymbolExists)
 include(CheckIncludeFiles)
 include(CheckTypeSize)
 include(GNUInstallDirs)
-include(CheckPIESupported OPTIONAL RESULT_VARIABLE CHECK_PIE_SUPPORTED)
+# include(CheckPIESupported OPTIONAL RESULT_VARIABLE CHECK_PIE_SUPPORTED)
 if(CHECK_PIE_SUPPORTED)
 	check_pie_supported(LANGUAGES C)
 endif()
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_COLOR_MAKEFILE OFF)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+#set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+#set(CMAKE_COLOR_MAKEFILE OFF)
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 set(FIDO_MAJOR "1")
 set(FIDO_MINOR "15")
 set(FIDO_PATCH "0")
 set(FIDO_VERSION ${FIDO_MAJOR}.${FIDO_MINOR}.${FIDO_PATCH})
 
-option(BUILD_TESTS       "Build the regress tests"                 ON)
-option(BUILD_EXAMPLES    "Build example programs"                  ON)
+# Rename some options, to avoid conflicts with other projects/packages.
+# Do not rename everything, we want to minimize our diff.
+# BUILD_TESTS    is OFF elsewhere also.
+# BUILD_EXAMPLES is OFF elsewhere also.
+# BUILD_STATIC_LIBS conflicts with with extra/curl.
+# BUILD_SHARED_LIBS conflicts with several 3rd party packages.
+
+option(BUILD_TESTS       "Build the regress tests"                 OFF)
+option(BUILD_EXAMPLES    "Build example programs"                  OFF)
 option(BUILD_MANPAGES    "Build man pages"                         ON)
-option(BUILD_SHARED_LIBS "Build a shared library"                  ON)
-option(BUILD_STATIC_LIBS "Build a static library"                  ON)
+option(FIDO_BUILD_SHARED_LIBS "Build a shared library"             ON)
+option(FIDO_BUILD_STATIC_LIBS "Build a static library"             ON)
 option(BUILD_TOOLS       "Build tool programs"                     ON)
 option(FUZZ              "Enable fuzzing instrumentation"          OFF)
 option(USE_HIDAPI        "Use hidapi as the HID backend"           OFF)
@@ -54,7 +61,7 @@ if(BUILD_SHARED_LIBS)
 elseif(BUILD_STATIC_LIBS)
 	set(_FIDO2_LIBRARY fido2)
 else()
-	message(FATAL_ERROR "Nothing to build (BUILD_*_LIBS=OFF)")
+#	message(FATAL_ERROR "Nothing to build (BUILD_*_LIBS=OFF)")
 endif()
 
 if(CYGWIN OR MSYS OR MINGW)
@@ -62,7 +69,13 @@ if(CYGWIN OR MSYS OR MINGW)
 endif()
 
 if(WIN32)
+  IF(WIN32_CLANG)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+    STRING_APPEND(CMAKE_C_FLAGS
+      " -Wno-tautological-constant-out-of-range-compare")
+  ELSE()
 	add_definitions(-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0600)
+  ENDIF()
 endif()
 
 if(APPLE)
@@ -71,11 +84,14 @@ if(APPLE)
 endif()
 
 if(NOT MSVC)
+    if(NOT APPLE)
 	set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_POSIX_C_SOURCE=200809L")
+    endif()
 	set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_BSD_SOURCE")
 	if(APPLE)
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_DARWIN_C_SOURCE")
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D__STDC_WANT_LIB_EXT1__=1")
+		set(FIDO_CFLAGS "${FIDO_CFLAGS} -Wno-deprecated-declarations")
 	elseif((CMAKE_SYSTEM_NAME STREQUAL "Linux") OR MINGW OR CYGWIN)
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_GNU_SOURCE")
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_DEFAULT_SOURCE")
@@ -169,6 +185,7 @@ endif()
 
 
 if(MSVC)
+  IF(DISABLE_THESE_LINES)
 	if((NOT CBOR_INCLUDE_DIRS) OR (NOT CBOR_LIBRARY_DIRS) OR
 	   (NOT CRYPTO_INCLUDE_DIRS) OR (NOT CRYPTO_LIBRARY_DIRS) OR
 	   (NOT ZLIB_INCLUDE_DIRS) OR (NOT ZLIB_LIBRARY_DIRS))
@@ -176,6 +193,7 @@ if(MSVC)
 		   "{CBOR,CRYPTO,ZLIB}_{INCLUDE,LIBRARY}_DIRS when "
 		   "building under msvc")
 	endif()
+  ENDIF(DISABLE_THESE_LINES)
 	if(BUILD_TESTS AND BUILD_SHARED_LIBS AND
 	   ((NOT CBOR_BIN_DIRS) OR (NOT ZLIB_BIN_DIRS) OR (NOT CRYPTO_BIN_DIRS)))
 		message(FATAL_ERROR "please define {CBOR,CRYPTO,ZLIB}_BIN_DIRS "
@@ -209,7 +227,9 @@ if(MSVC)
 	string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR
 	    ${MSVC_DISABLED_WARNINGS_LIST})
 	string(REGEX REPLACE "[/-]W[1234][ ]?" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+     IF(NOT WIN32_CLANG)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -MP -W4 -WX ${MSVC_DISABLED_WARNINGS_STR}")
+     ENDIF()
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Od /Z7 /guard:cf /sdl /RTCcsu")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi /guard:cf /sdl")
 	if(USE_WINHELLO)
@@ -217,6 +237,7 @@ if(MSVC)
 	endif()
 	set(NFC_LINUX OFF)
 else()
+  IF(DISABLE_THESE_LINES)
 	include(FindPkgConfig)
 	pkg_search_module(CBOR libcbor)
 	pkg_search_module(CRYPTO libcrypto)
@@ -231,6 +252,7 @@ else()
 	if(NOT ZLIB_FOUND)
 		message(FATAL_ERROR "could not find zlib")
 	endif()
+  ENDIF(DISABLE_THESE_LINES)
 
 	if(NOT CBOR_LIBRARIES)
 		set(CBOR_LIBRARIES "cbor")
@@ -239,6 +261,7 @@ else()
 		set(CRYPTO_LIBRARIES "crypto")
 	endif()
 
+  IF(DISABLE_THESE_LINES)
 	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 		pkg_search_module(UDEV libudev REQUIRED)
 		set(UDEV_NAME "udev")
@@ -292,6 +315,7 @@ else()
 	else()
 		set(USE_WINHELLO OFF)
 	endif()
+  ENDIF(DISABLE_THESE_LINES)
 
 	add_compile_options(-Wall)
 	add_compile_options(-Wextra)
@@ -322,7 +346,7 @@ else()
 
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g2")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer")
-	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2")
+	# set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2")
 
 	if(CRYPTO_VERSION VERSION_GREATER_EQUAL 3.0)
 		add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
@@ -389,6 +413,7 @@ else()
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
+IF(DISABLE_THESE_LINES)
 include_directories(${CBOR_INCLUDE_DIRS})
 include_directories(${CRYPTO_INCLUDE_DIRS})
 include_directories(${HIDAPI_INCLUDE_DIRS})
@@ -468,6 +493,7 @@ message(STATUS "USE_HIDAPI: ${USE_HIDAPI}")
 message(STATUS "USE_PCSC: ${USE_PCSC}")
 message(STATUS "USE_WINHELLO: ${USE_WINHELLO}")
 message(STATUS "NFC_LINUX: ${NFC_LINUX}")
+ENDIF(DISABLE_THESE_LINES)
 
 if(BUILD_TESTS)
 	enable_testing()

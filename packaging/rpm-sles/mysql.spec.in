@@ -1195,7 +1195,7 @@ fi
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.13.0
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.15.0
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
