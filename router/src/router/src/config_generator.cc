@@ -2343,14 +2343,14 @@ void add_metadata_cache_routing_section(
 static void add_http_auth_backend_section(
     std::ostream &config_file, const mysql_harness::Path &datadir,
     const std::string_view auth_backend_name,
-    const mysqlrouter::MetadataSchemaVersion schema_version,
+    const std::optional<mysqlrouter::MetadataSchemaVersion> &schema_version,
     const std::map<std::string, std::string> &config_cmdln_options,
     AutoCleaner &auto_cleaner) {
   ConfigSectionPrinter http_backend_section{
       config_file, config_cmdln_options,
       "http_auth_backend:" + std::string(auth_backend_name)};
-  if (metadata_schema_version_is_compatible(kNewMetadataVersion,
-                                            schema_version)) {
+  if (schema_version.has_value() && metadata_schema_version_is_compatible(
+                                        kNewMetadataVersion, *schema_version)) {
     ADD_CONFIG_LINE_CHECKED(http_backend_section, "backend",
                             std::string(kHttpAuthPluginDefaultBackend),
                             http_backend_supported_options);
@@ -2433,7 +2433,7 @@ void add_rest_section(
   // Authentication `backend` should be always configured,
   // its required in both InnoDb Cluster & standalone mode.
   add_http_auth_backend_section(config_file, datadir_path,
-                                kHttpDefaultAuthBackendName, *schema_version,
+                                kHttpDefaultAuthBackendName, schema_version,
                                 config_cmdln_options, auto_clean);
 
   {
