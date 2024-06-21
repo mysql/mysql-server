@@ -13,7 +13,7 @@ TEST START
 RUN DROP SCHEMA if EXISTS mysqlxplugin
 
 0 rows affected
-RUN CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8'
+RUN CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8mb3'
 
 1 rows affected
 RUN USE mysqlxplugin

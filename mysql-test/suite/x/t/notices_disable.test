@@ -95,7 +95,7 @@
 -->stmtsql SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 -->recvresult
 
--->stmtsql prepare stmt from 'create table test.t1 (a varchar(10) character set utf8)';
+-->stmtsql prepare stmt from 'create table test.t1 (a varchar(10) character set utf8mb3)';
 -->recvresult
 
 -->stmtsql execute stmt;

@@ -27,7 +27,7 @@
 --write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS dbmysqlxplugintest;
- CREATE SCHEMA dbmysqlxplugintest DEFAULT CHARSET='utf8';
+ CREATE SCHEMA dbmysqlxplugintest DEFAULT CHARSET='utf8mb3';
  USE dbmysqlxplugintest;
 
  CREATE TABLE Categories (

@@ -51,7 +51,7 @@ grant select on *.* to readuser@localhost;
 #-- "Create relational TABLE "
 -->sql
  DROP SCHEMA if EXISTS xplugintest;
- CREATE SCHEMA xplugintest DEFAULT CHARSET='utf8';
+ CREATE SCHEMA xplugintest DEFAULT CHARSET='utf8mb3';
  USE xplugintest;
  CREATE TABLE categories (
    categoryid int NOT NULL AUTO_INCREMENT,

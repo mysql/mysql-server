@@ -34,7 +34,7 @@ LET $orig_sql_safe_updates = `select @@global.sql_safe_updates`;
 --write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS MySQLXplugin;
- CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8';
+ CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8mb3';
  USE MySQLXplugin;
 
  CREATE TABLE Categories (

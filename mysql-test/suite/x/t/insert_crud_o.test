@@ -33,7 +33,7 @@ grant all on *.* to insertcruduser@localhost;
 --write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD.xpl
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
- CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
+ CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8mb3';
  USE mysqlxplugin;
  CREATE TABLE categories (
    CategoryID int NOT NULL AUTO_INCREMENT,

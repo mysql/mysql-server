@@ -3,7 +3,7 @@ grant select on *.* to readuser@localhost;
 RUN DROP SCHEMA if EXISTS xplugintest
 
 0 rows affected
-RUN CREATE SCHEMA xplugintest DEFAULT CHARSET='utf8'
+RUN CREATE SCHEMA xplugintest DEFAULT CHARSET='utf8mb3'
 
 1 rows affected
 RUN USE xplugintest
