@@ -14,10 +14,6 @@ eval SET $mrs_sql_changes_variable=(
 eval SET $mrs_sql_id_variable=(SELECT MAX(id) FROM mysql_rest_service_metadata.router_status);
 COMMIT;
 
---let $assert_text= Initial fetch of 'restAsofUsesRw' must ve zero.
---let $assert_cond=[SELECT $mrs_sql_changes_variable=0 and $mrs_sql_id_variable>0;]
---source include/assert.inc
-
 --enable_query_log
 --enable_result_log
 

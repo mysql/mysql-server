@@ -32,11 +32,6 @@
 --source ../include/mrs/end_object_definition.inc
 --source include/rpl/sync.inc
 
---source ../include/mrs/changes/fetch_asof_ro_count.inc
---source ../include/mrs/changes/fetch_asof_rw_count.inc
---source ../include/mrs/changes/fetch_asof_switches_ro_to_rw_count.inc
---source ../include/mrs/changes/fetch_metadata_gtids.inc
-
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 

@@ -6,19 +6,6 @@ if (!$mrs_sql_changes_variable)
 --disable_query_log
 --disable_result_log
 
-if (!$_mrs_not_first_object_fetch)
-{
-  eval SET $mrs_sql_changes_variable=0;
-  if (!$mrs_do_not_wait_at_fetch)
-  {
-    --source ./wait_object.inc
-  }
-  --let $_mrs_not_first_object_fetch=1
-}
-
---disable_query_log
---disable_result_log
-
 eval SET $mrs_sql_changes_variable=(
            SELECT IF(v is NULL,NULL,v+0) FROM (SELECT details->>"$.changesObjects" as v
            FROM mysql_rest_service_metadata.router_status

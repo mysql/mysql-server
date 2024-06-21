@@ -6,7 +6,12 @@ if (!$mrs_sql_changes_variable)
 if (!$mrs_changes_current_is)
 {
   --let $mrs_changes_current_is= > $mrs_sql_changes_variable
+  if ($mrs_changes_inc)
+  {
+    --let $mrs_changes_current_is= = ($mrs_sql_changes_variable+$mrs_changes_inc)
+  }
 }
+
 
 --disable_query_log
 --disable_result_log
@@ -18,17 +23,15 @@ if (!$mrs_changes_current_is)
 --enable_query_log
 --enable_result_log
 
-if ($_mrs_not_first_file_fetch)
-{
-  --source ./fetch_files.inc
-}
+--source ./fetch_files.inc
 
-if ($DEBUG==1)
+if ($ROUTER_MRS_DEBUG==1)
 {
-  --let $new_value=`SELECT $mrs_sql_changes_variable`
+  --let $new_value=`SELECT $_mrs_sql_changes_variable_after_fetch`
   --echo Wait files - old limit: $old_value, new limit: $new_value
 }
 
+--let $mrs_changes_inc=
 --let $mrs_changes_current_is=
 --let $mrs_schema_id_sql_variable=
 if ($_mrs_not_first_file_fetch==1)

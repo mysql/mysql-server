@@ -12,7 +12,8 @@ if (!$test_obj2)
 {
     --die "Variable 'test_obj2' is required."
 }
-START TRANSACTION;
+--source ../include/mrs/start_object_definition.inc
+# Service create outside the definition block.
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/$test_schema
 --source ../include/mrs/db_schema/add.inc
@@ -26,7 +27,7 @@ START TRANSACTION;
 --let $mrs_add_db_object_path=/$test_obj2
 --let $mrs_add_db_object_options=$test_options
 --source ../include/mrs/db_object/add.inc
-COMMIT;
+--source ../include/mrs/end_object_definition.inc
 --source include/rpl/sync.inc
 
 --source ../include/mrs/changes/fetch_asof_ro_count.inc

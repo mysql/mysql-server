@@ -6,6 +6,11 @@ if (!$mrs_sql_changes_variable)
 if (!$mrs_changes_current_is)
 {
   --let $mrs_changes_current_is= > $mrs_sql_changes_variable
+
+  if ($mrs_changes_inc)
+  {
+     --let $mrs_changes_current_is= = ($mrs_changes_inc + $mrs_sql_changes_variable)
+  }
 }
 
 --disable_query_log
@@ -19,16 +24,15 @@ if (!$mrs_changes_current_is)
 --enable_query_log
 --enable_result_log
 
-if ($_mrs_not_first_object_fetch)
-{
-  --source ./fetch_object.inc
-}
+--source ./fetch_object.inc
 
 if ($DEBUG)
 {
   --let $new_value=`SELECT $mrs_sql_changes_variable`
   --echo Wait object - old limit: $old_value, new limit: $new_value
 }
+
+--let $mrs_changes_inc=
 --let $mrs_changes_current_is=
 --let $mrs_schema_id_sql_variable=
 if ($_mrs_not_first_object_fetch==1)

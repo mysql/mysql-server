@@ -139,6 +139,8 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 --enable_result_log
 
 
+--inc $_mrs_object_definitions
+
 --let $mrs_schema_id_sql_variable=
 --let $mrs_sql_id_variable_ob=
 --let $mrs_sql_id_variable=

@@ -62,6 +62,8 @@ SET @schema_id2=@content_set_id;
 
 --source ../include/mrs/end_object_definition.inc
 
+--let $mrs_changes_inc=2
+--source ../include/mrs/changes/wait_files.inc
 
 # Sync with newly created REST object
 # wait for the creation
@@ -167,7 +169,6 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # II.1
-
 --let $mrs_sql_id_variable=@schema_id2
 --let $mrs_modify_options='{"defaultStaticContent":{"index.html":"first page", "other.html":"second page"}}'
 --source ../include/mrs/content_set/modify_options.inc
