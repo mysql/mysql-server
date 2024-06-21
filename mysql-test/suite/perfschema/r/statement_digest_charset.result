@@ -5,9 +5,9 @@ SET NAMES cp1251;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 CREATE TABLE долен_регистър_1251a (s1 INT);
 CREATE TABLE ДоЛеН_регистър_1251b (s1 INT, s2 INT);
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 (s1 INT);
 SET NAMES latin1;
 SELECT * FROM performance_schema.events_statements_summary_by_digest

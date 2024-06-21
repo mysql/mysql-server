@@ -1,5 +1,5 @@
 --disable_query_log
-call mtr.add_suppression('--character-set-server: ''utf8'' is currently an alias for the character set utf8mb3, but will be an alias for utf8mb4 in a future release. please consider using utf8mb4 in order to be unambiguous.');
+call mtr.add_suppression('--character-set-server:');
 --enable_query_log
 
 # Tests for PERFORMANCE_SCHEMA
@@ -14,6 +14,6 @@ select 'Ok, the server started' as result;
 # Should contain ANSI, since we started the server with -a (stands for --ansi)
 select @@SQL_MODE;
 
-# Should be utf8
+# Should be utf8mb3
 select @@character_set_server;
 show global variables like 'character_set_system';

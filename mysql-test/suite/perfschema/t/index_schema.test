@@ -5,11 +5,11 @@
 select TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA, INDEX_NAME, INDEX_TYPE, INDEX_COMMENT
   from INFORMATION_SCHEMA.STATISTICS
   where TABLE_SCHEMA = "performance_schema" and SEQ_IN_INDEX = 1
-  order by TABLE_NAME collate utf8_general_ci, INDEX_NAME;
+  order by TABLE_NAME COLLATE utf8mb3_general_ci, INDEX_NAME;
 
 # List of index columns
 select TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA, INDEX_NAME, SEQ_IN_INDEX,
   COLUMN_NAME, CARDINALITY, NULLABLE
   from INFORMATION_SCHEMA.STATISTICS
   where TABLE_SCHEMA = "performance_schema"
-  order by TABLE_NAME collate utf8_general_ci, INDEX_NAME, SEQ_IN_INDEX;
+  order by TABLE_NAME COLLATE utf8mb3_general_ci, INDEX_NAME, SEQ_IN_INDEX;
