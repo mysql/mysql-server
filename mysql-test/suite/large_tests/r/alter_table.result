@@ -1,6 +1,8 @@
 drop table if exists t1;
 create table `t1` (`c1` tinyint unsigned not null, key `c1` (`c1`))
-engine=myisam default charset=utf8;
+engine=myisam default charset=utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 alter table `t1` disable keys;
 insert into t1 values (1),(2),(3),(4);
 insert into t1 select * from t1;

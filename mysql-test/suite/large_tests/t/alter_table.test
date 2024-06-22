@@ -3,6 +3,13 @@
 # - debug build     ~ 8h
 # - space consumption in minimum 60 GB on disk
 #
+# New data, RelWithDebInfo build, gcc 13
+# 'lscpu' says: Model name: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+# time ./mtr large_tests.alter_table --big-test --testcase-timeout=10000
+# real    348m53,679s
+# user    212m40,468s
+# sys     133m22,696s
+
 #   Therefore we skip in case '--big-test' is not assigned.
 --source include/big_test.inc
 #   Hence we skip on debug builds.
@@ -20,7 +27,7 @@ drop table if exists t1;
 --enable_warnings
 
 create table `t1` (`c1` tinyint unsigned not null, key `c1` (`c1`))
-engine=myisam default charset=utf8;
+engine=myisam default charset=utf8mb3;
 alter table `t1` disable keys;
 insert into t1 values (1),(2),(3),(4);
 insert into t1 select * from t1;
