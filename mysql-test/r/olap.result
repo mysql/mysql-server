@@ -2425,3 +2425,11 @@ SELECT a, b, c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
 a	b	c	count
 NULL	NULL	NULL	0
 DROP TABLE t1;
+#
+# Bug#36444257: `false' in operator at sql/sql_executor.cc
+#
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
+SUM(TAN(0)) OVER()
+0
+DROP TABLE t1;
