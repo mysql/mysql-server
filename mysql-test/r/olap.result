@@ -2365,3 +2365,10 @@ EXECUTE ps;
 x
 DROP PREPARE ps;
 DROP TABLE t;
+#
+# Bug#36444257: `false' in operator at sql/sql_executor.cc
+#
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
+SUM(TAN(0)) OVER()
+DROP TABLE t1;
