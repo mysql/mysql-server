@@ -1330,3 +1330,11 @@ GROUP BY CUBE(f2);
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36444257: `false' in operator at sql/sql_executor.cc
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
+DROP TABLE t1;

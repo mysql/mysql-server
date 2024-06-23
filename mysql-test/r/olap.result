@@ -2387,3 +2387,10 @@ GROUP BY CUBE(f2);
 ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#36444257: `false' in operator at sql/sql_executor.cc
+#
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
+SUM(TAN(0)) OVER()
+DROP TABLE t1;

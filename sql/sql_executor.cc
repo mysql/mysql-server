@@ -4268,6 +4268,12 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
         return {ReplaceResult::REPLACE, item_field};
       }
     }
+    // A const item that is part of group by and not found in
+    // select list will not be found in "fields" (It's not added
+    // as a hidden item).
+    if (unwrap_rollup_group(sub_item)->const_item()) {
+      return {ReplaceResult::REPLACE, sub_item};
+    }
     assert(false);
     return {ReplaceResult::ERROR, nullptr};
   };
