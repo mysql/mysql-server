@@ -1,0 +1,15 @@
+-- source include/have_ndb.inc
+
+#
+# Show all the system variables installed by ndbcluster plugin
+# - these can easily be found since each variable is
+#   prefixed with ndb_
+# - exclude the "ndb_dbg_" variable since it's only
+#   installed in debug compiled binaries.
+# - don't show the variables actual value
+#
+--replace_column 2 #
+--sorted_result
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and
+                            Variable_name NOT LIKE 'ndb_dbg\_%';
+

@@ -1,22 +1,8 @@
 -- source include/have_ndb.inc
 
 #
-# Basic test of the ndbcluster plugin 
+# Basic tests and a random assortment of bug fixes for the ndbcluster plugin
 #
-
-#
-# Show status and variables
-#
---replace_column 2 #
---sorted_result
-SHOW GLOBAL STATUS LIKE 'ndb\_%';
---replace_column 2 #
---sorted_result
-# Avoid deprecations warnings from SHOW GLOBAL VARIABLES
---disable_warnings
-SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
-                            Variable_name NOT LIKE 'ndb_dbg\_%';
---enable_warnings
 
 #
 # Create a normal table with primary key
