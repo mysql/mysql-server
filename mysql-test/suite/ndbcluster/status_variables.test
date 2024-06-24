@@ -1,0 +1,12 @@
+-- source include/have_ndb.inc
+
+#
+# Show all the status variables installed by ndbcluster plugin
+# - these can easily be found since each variable is
+#   prefixed with ndb_
+# - don't show the variables actual value
+#
+--replace_column 2 #
+--sorted_result
+SHOW GLOBAL STATUS LIKE 'ndb\_%';
+
