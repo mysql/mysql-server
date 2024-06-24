@@ -2428,7 +2428,7 @@ bool sp_head::execute_external_routine_core(THD *thd) {
   my_service<SERVICE_TYPE(external_program_execution)> service(
       "external_program_execution", srv_registry);
 
-  if ((err_status = init_external_routine(service))) return err_status;
+  if ((err_status = init_external_routine(&service))) return err_status;
 
   Diagnostics_area *caller_da = thd->get_stmt_da();
   Diagnostics_area sp_da(false);
@@ -2713,23 +2713,23 @@ bool sp_head::set_external_program_handle(external_program_handle sp) {
 }
 
 bool sp_head::init_external_routine(
-    my_service<SERVICE_TYPE(external_program_execution)> &service) {
+    my_service<SERVICE_TYPE(external_program_execution)> *service) {
   assert(!is_sql());
 
-  if (!service.is_valid()) {
+  if (!service->is_valid()) {
     my_error(ER_LANGUAGE_COMPONENT_NOT_AVAILABLE, MYF(0));
     return true;
   }
 
   if (m_language_stored_program == nullptr) {
-    if (service->init(reinterpret_cast<stored_program_handle>(this), nullptr,
-                      &m_language_stored_program)) {
+    if ((*service)->init(reinterpret_cast<stored_program_handle>(this), nullptr,
+                         &m_language_stored_program)) {
       my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
                m_chistics->language.str);
       m_language_stored_program = nullptr;
       return true;
     }
-    if (service->parse(m_language_stored_program, nullptr)) return true;
+    if ((*service)->parse(m_language_stored_program, nullptr)) return true;
   }
   return false;
 }

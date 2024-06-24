@@ -993,7 +993,7 @@ class sp_head {
      @returns false on success; true on failure
   */
   bool init_external_routine(
-      my_service<SERVICE_TYPE(external_program_execution)> &service);
+      my_service<SERVICE_TYPE(external_program_execution)> *service);
 
  private:
   /// Copy sp name from parser.

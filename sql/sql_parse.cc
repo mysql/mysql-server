@@ -4282,7 +4282,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
               "external_program_execution", srv_registry);
           if (!sp_service.is_valid())
             push_warning(thd, ER_LANGUAGE_COMPONENT_NOT_AVAILABLE);
-          else if (lex->sphead->init_external_routine(sp_service))
+          else if (lex->sphead->init_external_routine(&sp_service))
             goto error;
         } else {
           push_warning(thd, ER_LANGUAGE_COMPONENT_NOT_AVAILABLE);
