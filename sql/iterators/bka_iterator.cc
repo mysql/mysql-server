@@ -101,7 +101,7 @@ BKAIterator::BKAIterator(THD *thd,
 bool BKAIterator::Init() {
   if (!m_outer_input_tables.has_blob_column()) {
     size_t upper_row_size =
-        pack_rows::ComputeRowSizeUpperBound(m_outer_input_tables);
+        pack_rows::ComputeRowSizeUpperBoundSansBlobs(m_outer_input_tables);
     if (m_outer_row_buffer.reserve(upper_row_size)) {
       my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
       return true;

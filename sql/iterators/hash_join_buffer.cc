@@ -50,8 +50,7 @@ LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
     LinkedImmutableString next_ptr, size_t row_size_upper_bound, bool *full) {
   if (tables.has_blob_column()) {
     // The row size upper bound can have changed.
-    row_size_upper_bound = ComputeRowSizeUpperBound(tables,
-                                                    /* check_blob_null */ true);
+    row_size_upper_bound = ComputeRowSizeUpperBound(tables);
   }
 
   const size_t required_value_bytes =
@@ -213,7 +212,9 @@ bool HashJoinRowBuffer::Init() {
 
   // NOTE: Will be ignored and re-calculated if there are any blobs in the
   // table.
-  m_row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
+  m_row_size_upper_bound = m_tables.has_blob_column()
+                               ? 0
+                               : ComputeRowSizeUpperBoundSansBlobs(m_tables);
 
   m_hash_map.reset(new HashMap());
   if (m_hash_map == nullptr) {

@@ -268,12 +268,14 @@ bool HashJoinIterator::Init() {
   // b) when constructing a join key from join conditions.
   size_t upper_row_size = 0;
   if (!m_build_input_tables.has_blob_column()) {
-    upper_row_size = ComputeRowSizeUpperBound(m_build_input_tables);
+    upper_row_size =
+        pack_rows::ComputeRowSizeUpperBoundSansBlobs(m_build_input_tables);
   }
 
   if (!m_probe_input_tables.has_blob_column()) {
-    upper_row_size = std::max(upper_row_size,
-                              ComputeRowSizeUpperBound(m_probe_input_tables));
+    upper_row_size =
+        std::max(upper_row_size,
+                 ComputeRowSizeUpperBoundSansBlobs(m_probe_input_tables));
   }
 
   if (m_temporary_row_and_join_key_buffer.reserve(upper_row_size)) {

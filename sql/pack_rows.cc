@@ -123,15 +123,22 @@ void TableCollection::AddTable(TABLE *tab, bool store_contents_of_null_rows) {
   m_tables.push_back(std::move(table));
 }
 
-// Calculate how many bytes the data in the column uses. We don't bother
-// calculating the exact size for all types, since we consider reserving some
-// extra bytes in buffers harmless. In particular, as long as the column is not
-// of type BLOB, TEXT, JSON or GEOMETRY, we return an upper bound of the storage
-// size. In the case of said types, we return the actual storage size; we do not
-// want to return 4 gigabytes for a BLOB column if it only contains 10 bytes of
-// data.
+/**
+   Calculate how many bytes the data in the column uses. We don't bother
+   calculating the exact size for all types, since we consider reserving some
+   extra bytes in buffers harmless. In particular, as long as the column is not
+   of type BLOB, TEXT, JSON or GEOMETRY, we return an upper bound of the storage
+   size. In the case of said types, we return the actual storage size; we do not
+   want to return 4 gigabytes for a BLOB column if it only contains 10 bytes of
+   data.
+   @param column     the column to calculate size for
+   @param skip_blob_null_check
+                     If true, disregard the NULL status of blob columns,
+                     presuming the table buffer has valid data for the blob;
+                     count that.
+*/
 static size_t CalculateColumnStorageSize(const Column &column,
-                                         bool check_blob_null) {
+                                         bool skip_blob_null_check) {
   bool is_blob_column = false;
   switch (column.field_type) {
     case MYSQL_TYPE_DECIMAL:
@@ -189,7 +196,7 @@ static size_t CalculateColumnStorageSize(const Column &column,
     // does not include the size of the length variable for blob types, so we
     // have to add that ourselves.
     const Field_blob *field_blob = down_cast<const Field_blob *>(column.field);
-    return (check_blob_null && field_blob->is_null())
+    return (!skip_blob_null_check && field_blob->is_null())
                ? 0
                : field_blob->data_length() + field_blob->pack_length_no_ptr();
   }
@@ -197,19 +204,40 @@ static size_t CalculateColumnStorageSize(const Column &column,
   return column.field->max_data_length();
 }
 
-size_t ComputeRowSizeUpperBound(const TableCollection &tables,
-                                bool check_blob_null) {
+size_t ComputeRowSizeUpperBound(const TableCollection &tables) {
   size_t total_size = tables.ref_and_null_bytes_size();
   for (const Table &table : tables.tables()) {
     for (const Column &column : table.columns) {
-      // Even though we only store non-null columns, we count up the size of all
-      // columns unconditionally (unless check_blob_null is given in which case,
-      // we do check if a blob is null before computing its size).
-      // This means that, modulo check_blob_null, NULL columns may very well be
-      // counted here, but the only effect is that we end up reserving a bit too
-      // much space in the buffer for holding the row data. That is more welcome
-      // than having to call Field::is_null() for every column in every row.
-      total_size += CalculateColumnStorageSize(column, check_blob_null);
+      // Even though we only store non-null columns, we count up the size of
+      // all columns unconditionally for non-blobs.  This means that NULL
+      // columns may very well be counted here, but the only effect is that we
+      // end up reserving a bit too much space in the buffer for holding the
+      // row data. That is more welcome than having to call Field::is_null()
+      // for every column in every row.  For blobs, we may or may not check
+      // NULLs, see predicate in final argument.
+      total_size +=
+          CalculateColumnStorageSize(column,
+                                     /*skip_blob_null_check*/
+                                     table.store_contents_of_null_rows);
+    }
+  }
+
+  return total_size;
+}
+
+size_t ComputeRowSizeUpperBoundSansBlobs(const TableCollection &tables) {
+  assert(!tables.has_blob_column());
+  size_t total_size = tables.ref_and_null_bytes_size();
+  for (const Table &table : tables.tables()) {
+    for (const Column &column : table.columns) {
+      // Even though we only store non-null columns, we count up the size of
+      // all columns unconditionally.  This means that NULL columns may very
+      // well be counted here, but the only effect is that we end up reserving
+      // a bit too much space in the buffer for holding the row data. That is
+      // more welcome than having to call Field::is_null() for every column in
+      // every row.
+      total_size += CalculateColumnStorageSize(column,
+                                               /*skip_blob_null_check*/ false);
     }
   }
 

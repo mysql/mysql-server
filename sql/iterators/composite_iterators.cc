@@ -197,9 +197,14 @@ AggregateIterator::AggregateIterator(
       m_join(join),
       m_rollup(rollup),
       m_tables(std::move(tables)) {
-  const size_t upper_data_length = ComputeRowSizeUpperBound(m_tables);
-  m_first_row_this_group.reserve(upper_data_length);
-  m_first_row_next_group.reserve(upper_data_length);
+  if (!tables.has_blob_column()) {
+    // If blob, we reserve lazily in StoreFromTableBuffers since we can't know
+    // upper bound here.
+    const size_t upper_data_length =
+        ComputeRowSizeUpperBoundSansBlobs(m_tables);
+    m_first_row_this_group.reserve(upper_data_length);
+    m_first_row_next_group.reserve(upper_data_length);
+  }
 }
 
 bool AggregateIterator::Init() {
@@ -1391,7 +1396,7 @@ class MaterializeIterator final : public TableRowIterator {
   // values are allocated. The actual hash map is on the regular heap.
   unique_ptr_destroy_only<MEM_ROOT> m_mem_root;
   MEM_ROOT *m_overflow_mem_root{nullptr};
-  size_t m_row_size_upper_bound;
+  size_t m_row_size_upper_bound{0};
 
   // The hash map where the rows are stored.
   std::unique_ptr<hash_map_type> m_hash_map;
@@ -2071,7 +2076,10 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     ta[0] = t;
     TableCollection tc(ta, false, 0, 0);
     m_table_collection = tc;
-    m_row_size_upper_bound = ComputeRowSizeUpperBound(m_table_collection);
+    if (!m_table_collection.has_blob_column()) {
+      m_row_size_upper_bound =
+          ComputeRowSizeUpperBoundSansBlobs(m_table_collection);
+    }
     m_overflow_mem_root = thd()->mem_root;
   }
 
@@ -2921,16 +2929,14 @@ bool SpillState::save_offending_row() {
   // Save offending row, we may not be able to write it in first set of
   // chunk files, so make a copy. This space goes out of the normal mem_root
   // since it's only one row.
-  if (m_offending_row.m_buffer.reserve(
-          m_table_collection.has_blob_column()
-              ? 0
-              : ComputeRowSizeUpperBound(m_table_collection)) ||
-      StoreFromTableBuffers(m_table_collection, &m_offending_row.m_buffer)) {
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             ComputeRowSizeUpperBound(m_table_collection));
-    return true;
+  if (!m_table_collection.has_blob_column()) {
+    const size_t max_row_size =
+        ComputeRowSizeUpperBoundSansBlobs(m_table_collection);
+    if (m_offending_row.m_buffer.reserve(max_row_size)) {
+      return true;
+    }
   }
-  return false;
+  return StoreFromTableBuffers(m_table_collection, &m_offending_row.m_buffer);
 }
 
 bool SpillState::compute_chunk_file_sets(const Operand *current_operand) {
@@ -2983,13 +2989,12 @@ bool SpillState::compute_chunk_file_sets(const Operand *current_operand) {
   m_offending_row.m_chunk_offset = chunk_offset(chunk_index);
   m_offending_row.m_set = chunk_index_to_set(chunk_index);
   // Set up the row buffer used when deserializing chunk rows.
-  const size_t upper_row_size =
-      m_table_collection.has_blob_column()
-          ? 0
-          : ComputeRowSizeUpperBound(m_table_collection);
-  if (m_row_buffer.reserve(upper_row_size)) {
-    my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
-    return true;  // oom
+  if (!m_table_collection.has_blob_column()) {
+    const size_t upper_row_size =
+        ComputeRowSizeUpperBoundSansBlobs(m_table_collection);
+    if (m_row_buffer.reserve(upper_row_size)) {
+      return true;
+    }
   }
 
   m_chunk_files.resize(std::min(m_num_chunks, HashJoinIterator::kMaxChunks));

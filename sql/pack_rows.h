@@ -167,14 +167,16 @@ enum class NullRowFlag {
 ///     - Space for a NULL flag per nullable table (tables on the inner side of
 ///     an outer join).
 /// 3) Size of the buffer returned by pack() on all columns marked in the
-///    read_set_internal.
-///
-/// Note that if any of the tables has a BLOB/TEXT column, this function looks
-/// at the data stored in the record buffers. This means that the function can
-/// not be called before reading any rows if \c tables.has_blob_column is true.
-/// The argument \c check_blob_null will also check null value for BLOBs.
-size_t ComputeRowSizeUpperBound(const TableCollection &tables,
-                                bool check_blob_null = false);
+///    \c read_set_internal.
+/// We do not necessarily have valid data in the table buffers, so we do not try
+/// to calculate size for blobs.
+size_t ComputeRowSizeUpperBoundSansBlobs(const TableCollection &tables);
+/// Similar to ComputeRowSizeUpperBoundSansBlobs, but will calculate blob size
+/// as well.  To do this, we need to look at the data stored in the record
+/// buffers.
+/// \note{This means that the function cannot be called without making sure
+/// there is valid data in the table buffers.}
+size_t ComputeRowSizeUpperBound(const TableCollection &tables);
 
 /// Take the data marked for reading in "tables" and store it in the provided
 /// buffer. What data to store is determined by the read set of each table.
