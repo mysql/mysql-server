@@ -47,12 +47,12 @@ class Object : public std::enable_shared_from_this<Object>,
                public mrs::interface::Object {
  public:
   using EntryDbObject = database::entry::DbObject;
-  using EntryObject = std::shared_ptr<database::entry::Object>;
+  using EntryObjectPtr = std::shared_ptr<database::entry::Object>;
   using HandlerFactory = mrs::interface::HandlerFactory;
   using QueryFactory = mrs::interface::QueryFactory;
 
  public:
-  Object(const EntryDbObject &pe, RouteSchemaPtr schema,
+  Object(const EntryDbObject &db_entry, RouteSchemaPtr schema,
          collector::MysqlCacheManager *cache, const bool is_ssl,
          mrs::interface::AuthorizeManager *auth_manager,
          mrs::GtidManager *gtid_manager,
@@ -72,8 +72,7 @@ class Object : public std::enable_shared_from_this<Object>,
   const std::string &get_object_path() override;
   const std::string &get_object_name() override;
   const std::string &get_schema_name() override;
-  EntryObject get_cached_object() override;
-  const std::vector<Column> &get_cached_columnes() override;
+  EntryObjectPtr get_object() override;
   const std::string &get_options() override;
   const Fields &get_parameters() override;
   uint32_t get_on_page() override;
@@ -100,8 +99,6 @@ class Object : public std::enable_shared_from_this<Object>,
   void handlers_for_sp();
   void handlers_for_function();
   void update_variables();
-  void cache_object();
-  void cache_columns();
   static std::string extract_first_slash(const std::string &value);
 
   RouteSchemaPtr schema_;
@@ -113,10 +110,6 @@ class Object : public std::enable_shared_from_this<Object>,
   std::string object_name_;
   std::string json_description_;
   collector::MysqlCacheManager *cache_;
-  EntryObject cached_object_;
-  std::vector<Column> cached_columns_;
-  // TODO(lkotula): We should cache the primary-key type and use it later on
-  // (Shouldn't be in review)
   bool is_ssl_;
   std::string url_route_;
   std::string url_rest_canonical_;

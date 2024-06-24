@@ -34,6 +34,8 @@
 #include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
 
+#include "helper/mysql_column_types.h"
+
 namespace mrs {
 namespace rest {
 
@@ -47,16 +49,6 @@ HandlerMetadata::HandlerMetadata(Route *route,
               auth_manager),
       route_{route} {}
 
-// TODO(lkotula): remove or finish (Shouldn't be in review)
-// class JsonDocument {
-// public:
-//  using Document = rapidjson::Document;
-//
-// public:
-// private:
-//  Document json_doc_{rapidjson::kObjectType};
-//  Document::AllocatorType &allocator = json_doc_.GetAllocator();
-//};
 void HandlerMetadata::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
@@ -68,21 +60,30 @@ HttpResult HandlerMetadata::handle_get(rest::RequestContext *) {
     rapidjson::Value primary_key(rapidjson::kArrayType);
     rapidjson::Value links(rapidjson::kArrayType);
     rapidjson::Value members(rapidjson::kArrayType);
-    auto &columns = route_->get_cached_columnes();
-    const std::string *primary_column{nullptr};
+    auto obj = route_->get_object();
 
-    for (auto &c : columns) {
+    for (auto &c : obj->fields) {
+      auto data_field =
+          dynamic_cast<mrs::database::entry::DataField *>(c.get());
+      if (!data_field || !data_field->enabled) continue;
+      auto *column = data_field->source.get();
+      auto data_type =
+          helper::from_mysql_txt_column_type(column->datatype.c_str())
+              .type_json;
+
       rapidjson::Value json_column(rapidjson::kObjectType);
-      json_column.AddMember("name", rapidjson::Value(c.name.c_str(), allocator),
-                            allocator);
+      json_column.AddMember(
+          "name", rapidjson::Value(c->name.c_str(), allocator), allocator);
       json_column.AddMember(
           "type",
-          rapidjson::Value(helper::to_string(c.type_json).c_str(), allocator),
+          rapidjson::Value(helper::to_string(data_type).c_str(), allocator),
           allocator);
+
       members.PushBack(json_column, allocator);
 
-      if (c.is_primary) {
-        primary_column = &c.name;
+      if (column->is_primary) {
+        primary_key.PushBack(rapidjson::Value(c->name.c_str(), allocator),
+                             allocator);
       }
     }
 
@@ -113,10 +114,6 @@ HttpResult HandlerMetadata::handle_get(rest::RequestContext *) {
     links.PushBack(json_link_can, allocator);
     links.PushBack(json_link_desc, allocator);
 
-    if (primary_column)
-      primary_key.PushBack(rapidjson::Value(primary_column->c_str(), allocator),
-                           allocator);
-
     json_doc.SetObject()
         .AddMember(
             "name",
@@ -132,7 +129,6 @@ HttpResult HandlerMetadata::handle_get(rest::RequestContext *) {
 
     json_doc.Accept(json_writer);
   }
-
   return std::string(json_buf.GetString(), json_buf.GetLength());
 }
 
@@ -142,13 +138,13 @@ HttpResult HandlerMetadata::handle_post(
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-HttpResult HandlerMetadata::handle_delete([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerMetadata::handle_delete(
+    [[maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-HttpResult HandlerMetadata::handle_put([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerMetadata::handle_put(
+    [[maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 

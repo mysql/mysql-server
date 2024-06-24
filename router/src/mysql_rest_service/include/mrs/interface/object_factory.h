@@ -30,7 +30,6 @@
 #include "mrs/database/entry/db_object.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
-#include "mrs/interface/object.h"
 #include "mrs/interface/object_manager.h"
 #include "mrs/interface/object_schema.h"
 #include "mrs/rest/entry/app_content_file.h"

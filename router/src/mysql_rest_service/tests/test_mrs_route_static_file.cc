@@ -228,12 +228,3 @@ TEST_F(RouteStaticFileTests, second_activation_recreates_handler) {
 
   delete_sut();
 }
-
-TEST_F(RouteStaticFileTests, get_cached_columns) {
-  const mrs::UniversalId kServiceId{22};
-  const mrs::UniversalId kSchemaId{11};
-  auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
-  make_sut(pe);
-
-  ASSERT_EQ(0, sut_->get_cached_columnes().size());
-}

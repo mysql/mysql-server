@@ -25,12 +25,14 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_DB_OBJECT_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_DB_OBJECT_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "mrs/database/entry/entry.h"
 #include "mrs/database/entry/field.h"
+#include "mrs/database/entry/object.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/entry/set_operation.h"
@@ -74,6 +76,7 @@ class DbObject {
   std::string options_json_schema;
   std::string options_json_service;
   ResultSets fields;
+  std::shared_ptr<Object> object_description;
 };
 
 }  // namespace entry

@@ -90,8 +90,8 @@ HandlerFunction::HandlerFunction(Route *r,
       route_{r},
       auth_manager_{auth_manager} {}
 
-HttpResult HandlerFunction::handle_delete([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerFunction::handle_delete(
+    [[maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
@@ -125,8 +125,8 @@ static HttpResult handler_mysqlerror(const mysqlrouter::MySQLSession::Error &e,
   return HttpResult(status, std::move(json), HttpResult::Type::typeJson);
 }
 
-HttpResult HandlerFunction::handle_put([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerFunction::handle_put(
+    [[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
 
   auto session =
@@ -136,7 +136,7 @@ HttpResult HandlerFunction::handle_put([
   // be in review)
   auto data = input_buffer.pop_front(input_buffer.length());
 
-  auto obj = route_->get_cached_object();
+  auto obj = route_->get_object();
   auto user_row_ownership = route_->get_user_row_ownership();
   auto values = database::create_function_argument_list(
       obj.get(), data, user_row_ownership,
@@ -198,15 +198,15 @@ void HandlerFunction::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
-HttpResult HandlerFunction::handle_get([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerFunction::handle_get(
+    [[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
 
   Url::Keys keys;
   Url::Values values;
 
   auto &requests_uri = ctxt->request->get_uri();
-  auto obj = route_->get_cached_object();
+  auto obj = route_->get_object();
   auto user_row_ownership = route_->get_user_row_ownership();
 
   auto sql_values = database::create_function_argument_list(

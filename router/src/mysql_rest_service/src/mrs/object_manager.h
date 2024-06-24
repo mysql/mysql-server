@@ -40,9 +40,6 @@
 #include "mrs/interface/object_schema.h"
 #include "mrs/interface/state.h"
 
-// TODO(lkotula): Remove this (Shouldn't be in review)
-#include "mrs/interface/object_schema.h"
-
 namespace mrs {
 
 class ObjectManager : public mrs::interface::ObjectManager {

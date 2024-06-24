@@ -16,6 +16,10 @@
 --echo # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
 --echo # 7. Verify generation of JSON object from sprtial types
 --echo #
+--echo ## II. Verify schema metadata catlog
+--echo #
+--echo # 1. Verify objects presented in Mysql schemas metadata catalog
+--echo # 2. Verify obecjts-fields presented in Mysql schemas metadata catalog
 --echo #
 
 --source ../include/mrs/start_object_definition.inc
@@ -93,6 +97,17 @@ let $MRS_CLIENT_EXC=$MRS_CLIENT_ARGS
 --echo # I.7
 --exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=geo0
 --exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=geo4326
+
+
+--echo
+--echo #
+--echo # II.1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/metadata-catalog
+
+--echo
+--echo #
+--echo # II.2
+--exec $MRS_CLIENT_ARGS --path /svc/basic/metadata-catalog/t3
 
 # Cleanup
 --source ../include/mrs/cleanup.inc

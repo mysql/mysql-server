@@ -40,15 +40,16 @@ using namespace helper;
 
 using Allowed = mrs::database::entry::DbObject::Format;
 using Fields = Object::Fields;
+using EntryObjectPtr = Object::EntryObjectPtr;
 
-Object::Object(const EntryDbObject &pe, RouteSchemaPtr schema,
+Object::Object(const EntryDbObject &db_entry, RouteSchemaPtr schema,
                collector::MysqlCacheManager *cache, const bool is_ssl,
                mrs::interface::AuthorizeManager *auth_manager,
                mrs::GtidManager *gtid_manager,
                std::shared_ptr<HandlerFactory> handler_factory,
                std::shared_ptr<QueryFactory> query_factory)
     : schema_{schema},
-      pe_{pe},
+      pe_{db_entry},
       cache_{cache},
       is_ssl_{is_ssl},
       auth_manager_{auth_manager},
@@ -129,8 +130,6 @@ bool Object::update(const void *pv, RouteSchemaPtr schema) {
     result = true;
 
   pe_ = pe;
-  cached_columns_.clear();
-  cached_object_.reset();
   update_variables();
 
   return result;
@@ -184,60 +183,11 @@ void Object::update_variables() {
   access_flags_ = pe_.operation;
 }
 
-void Object::cache_object() {
-  auto object = query_factory_->create_query_object();
-  auto session =
-      cache_->get_instance(collector::kMySQLConnectionMetadataRO, false);
-  object->query_entries(session.get(), schema_name_, object_name_, pe_.id);
-
-  cached_object_ = object->object;
-}
-
-Object::EntryObject Object::get_cached_object() {
-  // TODO(alfredo) is this caching needed or should this just be queried
-  // together with pe_?
-  if (!cached_object_) {
-    cache_object();
-  }
-
-  return cached_object_;
-}
-
-void Object::cache_columns() {
-  auto table_columns = query_factory_->create_query_table_columns();
-  auto session =
-      cache_->get_instance(collector::kMySQLConnectionUserdataRO, false);
-  table_columns->query_entries(session.get(), schema_name_, object_name_);
-
-  cached_columns_ = table_columns->columns;
-
-  std::vector<std::string_view> internal_columns;
-
-  if (get_user_row_ownership().user_ownership_enforced)
-    internal_columns.emplace_back(
-        get_user_row_ownership().user_ownership_column);
-
-  for (auto &group : get_group_row_ownership()) {
-    internal_columns.emplace_back(group.row_group_ownership_column);
-  }
-
-  container::remove_if(cached_columns_, [&internal_columns](const Column &c) {
-    if (c.is_primary) return false;
-    return container::any_of(internal_columns, c.name);
-  });
-}
-
-const std::vector<Column> &Object::get_cached_columnes() {
-  if (cached_columns_.empty()) {
-    cache_columns();
-  }
-
-  return cached_columns_;
-}
-
 Object::RouteSchema *Object::get_schema() { return schema_.get(); }
 
 const std::string &Object::get_object_path() { return pe_.object_path; }
+
+EntryObjectPtr Object::get_object() { return pe_.object_description; }
 
 const std::string &Object::get_object_name() { return object_name_; }
 const std::string &Object::get_schema_name() { return schema_name_; }

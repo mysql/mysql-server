@@ -22,6 +22,10 @@
 # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
 # 7. Verify generation of JSON object from sprtial types
 #
+## II. Verify schema metadata catlog
+#
+# 1. Verify objects presented in Mysql schemas metadata catalog
+# 2. Verify obecjts-fields presented in Mysql schemas metadata catalog
 #
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
@@ -439,6 +443,162 @@ GET /svc/basic/t3?f=geo4326
                     90.0
                 ]
             }
+        }
+    ]
+}
+OK
+
+#
+# II.1
+GET /svc/basic/metadata-catalog
+{
+    "items": [
+        {
+            "name": "/t3",
+            "links": [
+                {
+                    "rel": "describes",
+                    "href": "/svc/basic/t3"
+                },
+                {
+                    "rel": "canonical",
+                    "href": "/svc/basic/metadata-catalog/t3"
+                }
+            ]
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/metadata-catalog/"
+        }
+    ]
+}
+OK
+
+#
+# II.2
+GET /svc/basic/metadata-catalog/t3
+{
+    "name": "/t3",
+    "primaryKey": [
+        "id"
+    ],
+    "members": [
+        {
+            "name": "geo4326",
+            "type": "string"
+        },
+        {
+            "name": "geo0",
+            "type": "string"
+        },
+        {
+            "name": "cblob",
+            "type": "blob"
+        },
+        {
+            "name": "cmediumint",
+            "type": "numeric"
+        },
+        {
+            "name": "ctinyint",
+            "type": "numeric"
+        },
+        {
+            "name": "cbit10",
+            "type": "blob"
+        },
+        {
+            "name": "cbit1",
+            "type": "boolean"
+        },
+        {
+            "name": "cbit",
+            "type": "boolean"
+        },
+        {
+            "name": "cset",
+            "type": "string"
+        },
+        {
+            "name": "cenum",
+            "type": "string"
+        },
+        {
+            "name": "cdecimal",
+            "type": "numeric"
+        },
+        {
+            "name": "cdouble",
+            "type": "numeric"
+        },
+        {
+            "name": "cfloat",
+            "type": "numeric"
+        },
+        {
+            "name": "cbin",
+            "type": "blob"
+        },
+        {
+            "name": "cbigint",
+            "type": "numeric"
+        },
+        {
+            "name": "csmallint",
+            "type": "numeric"
+        },
+        {
+            "name": "cyear",
+            "type": "string"
+        },
+        {
+            "name": "ctime",
+            "type": "string"
+        },
+        {
+            "name": "cdate",
+            "type": "string"
+        },
+        {
+            "name": "ctimestamp",
+            "type": "string"
+        },
+        {
+            "name": "cdatetime",
+            "type": "string"
+        },
+        {
+            "name": "ctext",
+            "type": "string"
+        },
+        {
+            "name": "cvarchar",
+            "type": "string"
+        },
+        {
+            "name": "id",
+            "type": "numeric"
+        }
+    ],
+    "links": [
+        {
+            "rel": "collection",
+            "href": "/svc/basic/metadata-catalog",
+            "mediaType": "application/json"
+        },
+        {
+            "rel": "canonical",
+            "href": "/svc/basic/metadata-catalog/t3"
+        },
+        {
+            "rel": "describes",
+            "href": "/svc/basic/t3"
         }
     ]
 }

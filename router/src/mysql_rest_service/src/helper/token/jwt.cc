@@ -34,11 +34,8 @@
 #include "helper/json/to_string.h"
 #include "helper/token/jwt.h"
 
-#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
 #include "mysqlrouter/base64.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 namespace helper {
 

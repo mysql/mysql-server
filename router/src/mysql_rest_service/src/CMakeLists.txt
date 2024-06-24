@@ -30,6 +30,30 @@ TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_if
     ${CMAKE_CURRENT_BINARY_DIR}/../include/
     )
 
+ADD_LIBRARY(mysql_rest_service_helper
+  STATIC
+  helper/media_detector.cc
+  helper/media_type.cc
+  helper/json/to_string.cc
+  helper/json/to_sqlstring.cc
+  helper/json/jvalue.cc
+  helper/token/jwt.cc
+  helper/mysql_column_types.cc
+  helper/mysql_numeric_value.cc
+  )
+
+TARGET_LINK_LIBRARIES(mysql_rest_service_helper
+  mysql_rest_service_if
+  harness-library
+  router_lib
+  http_common
+  )
+
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_helper
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/router/include/
+  )
+
 ADD_LIBRARY(mysql_rest_service_db
   STATIC
   mrs/database/filter_object_generator.cc
@@ -104,14 +128,6 @@ TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_json
 ADD_LIBRARY(mysql_rest_service_impl
   collector/counted_mysql_session.cc
   collector/mysql_cache_manager.cc
-  helper/media_detector.cc
-  helper/media_type.cc
-  helper/json/to_string.cc
-  helper/json/to_sqlstring.cc
-  helper/json/jvalue.cc
-  helper/token/jwt.cc
-  helper/mysql_column_types.cc
-  helper/mysql_numeric_value.cc
   mrs/authentication/helper/crypto.cc
   mrs/authentication/helper/http_result.cc
   mrs/authentication/helper/scram.cc
@@ -176,7 +192,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   SOURCES
   mysql_rest_service_plugin_config.cc
   mysql_rest_service_plugin.cc
-  REQUIRES io_component;router_lib;routing;http_server;mysql_rest_service_impl;mysql_rest_service_db;mysql_rest_service_json
+  REQUIRES io_component;router_lib;routing;http_server;mysql_rest_service_impl;mysql_rest_service_db;mysql_rest_service_json;mysql_rest_service_helper
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 

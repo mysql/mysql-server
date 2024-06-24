@@ -51,6 +51,7 @@ class QueryEntryDbObject : protected Query {
 
  protected:
   void on_row(const ResultRow &r) override;
+  static std::string skip_starting_slash(const std::string &value);
 
   uint64_t audit_log_id_{0};
 };

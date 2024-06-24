@@ -28,6 +28,7 @@
 #include "helper/mysql_row.h"
 
 #include "mrs/database/query_entries_audit_log.h"
+#include "mrs/database/query_entries_object.h"
 #include "mrs/database/query_entry_fields.h"
 #include "mrs/database/query_entry_group_row_security.h"
 
@@ -80,6 +81,11 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
     qp.query_parameters(session, e.id);
     auto &r = qp.get_result();
     e.fields = std::move(r);
+
+    QueryEntryObject qo;
+    qo.query_entries(session, skip_starting_slash(e.db_schema),
+                     skip_starting_slash(e.db_table), e.id);
+    e.object_description = qo.object;
   }
 
   entries.swap(local_path_entries);

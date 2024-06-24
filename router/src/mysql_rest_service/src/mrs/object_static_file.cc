@@ -145,15 +145,7 @@ const std::string &ObjectStaticFile::get_options() {
   return cse_.options_json_service;
 }
 
-interface::Object::EntryObject ObjectStaticFile::get_cached_object() {
-  static EntryObject empty;
-  return empty;
-}
-
-const std::vector<Column> &ObjectStaticFile::get_cached_columnes() {
-  static std::vector<Column> empty;
-  return empty;
-}
+interface::Object::EntryObjectPtr ObjectStaticFile::get_object() { return {}; }
 
 const mrs::interface::Object::Fields &ObjectStaticFile::get_parameters() {
   static mrs::interface::Object::Fields empty;

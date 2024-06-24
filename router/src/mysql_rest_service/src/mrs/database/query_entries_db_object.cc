@@ -30,12 +30,9 @@
 
 #include "helper/mysql_row.h"
 #include "mrs/database/helper/query_audit_log_maxid.h"
+#include "mrs/database/query_entries_object.h"
 #include "mrs/database/query_entry_fields.h"
 #include "mrs/database/query_entry_group_row_security.h"
-
-#include "mysql/harness/logging/logging.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
@@ -88,14 +85,20 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
   if (!query_.done()) query_ << mysqlrouter::sqlstring{""};
   execute(session);
 
-  QueryEntryGroupRowSecurity qg;
-  QueryEntryFields qp;
   for (auto &e : entries) {
+    QueryEntryGroupRowSecurity qg;
     qg.query_group_row_security(session, e.id);
     e.row_group_security = std::move(qg.get_result());
+
+    QueryEntryFields qp;
     qp.query_parameters(session, e.id);
     auto &r = qp.get_result();
     e.fields = std::move(r);
+
+    QueryEntryObject qo;
+    qo.query_entries(session, skip_starting_slash(e.db_schema),
+                     skip_starting_slash(e.db_table), e.id);
+    e.object_description = qo.object;
   }
 
   transaction.commit();
@@ -106,8 +109,6 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
 template <typename Map>
 auto get_map_converter(Map *map, const typename Map::mapped_type value) {
   return [map, value](auto *out, const char *v) {
-    log_debug("map_converter: %s", v);
-
     auto e = v ? map->find(v) : map->end();
 
     if (e != map->end()) {
@@ -176,6 +177,14 @@ void QueryEntryDbObject::on_row(const ResultRow &row) {
   //  group_security.
 
   entry.deleted = false;
+}
+
+std::string QueryEntryDbObject::skip_starting_slash(const std::string &value) {
+  if (value.length()) {
+    if (value[0] == '/') return value.substr(1);
+  }
+
+  return value;
 }
 
 }  // namespace database

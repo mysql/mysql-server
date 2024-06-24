@@ -29,11 +29,8 @@
 #include <string_view>
 
 #include "my_sys.h"
-#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/strings/m_ctype.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 namespace helper {
 
@@ -187,9 +184,6 @@ std::string txt_from_mysql_column_type(const MYSQL_FIELD *field) {
 }
 
 JsonType from_mysql_column_type(const MYSQL_FIELD *field) {
-  log_debug("field->type:%i, field->length:%i", (int)field->type,
-            (int)field->length);
-  log_debug("field->charsetnr:%i", (int)field->charsetnr);
   switch (field->type) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:

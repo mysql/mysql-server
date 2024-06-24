@@ -120,8 +120,6 @@ class HandleObjectTests : public Test {
       EXPECT_CALL(parent_.mock_session, get_connection_parameters())
           .WillRepeatedly(Return(ConnParam{}));
 
-      EXPECT_CALL(parent_.mock_route, get_cached_object())
-          .WillRepeatedly(Return(cached_object_));
       //      EXPECT_CALL(parent_.mock_route, get_cached_columnes())
       //          .WillRepeatedly(ReturnRef(cached_columns_));
 
@@ -158,10 +156,11 @@ class HandleObjectTests : public Test {
 };
 
 TEST_F(HandleObjectTests, fetch_object_feed) {
-  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
-                                                                      ""};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership {
+    false, ""
+  };
   const mrs::interface::Object::VectorOfRowGroupOwnership
-      k_group_row_ownership{};
+      k_group_row_ownership {};
   const std::string k_cached_primary{"column1"};
   GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
@@ -187,10 +186,11 @@ TEST_F(HandleObjectTests, fetch_object_feed) {
 }
 
 TEST_F(HandleObjectTests, fetch_object_single) {
-  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
-                                                                      ""};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership {
+    false, ""
+  };
   const mrs::interface::Object::VectorOfRowGroupOwnership
-      k_group_row_ownership{};
+      k_group_row_ownership {};
   const std::string k_cached_primary{"column1"};
   GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
@@ -216,10 +216,11 @@ TEST_F(HandleObjectTests, fetch_object_single) {
 }
 
 TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
-  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
-                                                                      ""};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership {
+    false, ""
+  };
   const mrs::interface::Object::VectorOfRowGroupOwnership
-      k_group_row_ownership{};
+      k_group_row_ownership {};
   const std::string k_cached_primary{"column1"};
   GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
@@ -245,10 +246,11 @@ TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
 }
 
 TEST_F(HandleObjectTests, delete_single_object) {
-  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
-                                                                      ""};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership {
+    false, ""
+  };
   const mrs::interface::Object::VectorOfRowGroupOwnership
-      k_group_row_ownership{};
+      k_group_row_ownership {};
   const std::string k_cached_primary{"column1"};
   GeneralExpectations expectations{*this,
                                    k_user_row_ownership,

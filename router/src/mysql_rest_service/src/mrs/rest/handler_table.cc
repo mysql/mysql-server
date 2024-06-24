@@ -221,7 +221,7 @@ database::PrimaryKeyColumnValues HandlerTable::get_rest_pk_parameter(
 HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
-  auto object = route_->get_cached_object();
+  auto object = route_->get_object();
   database::ObjectFieldFilter field_filter;
   std::optional<std::string> target_field;
   auto pk = get_rest_pk_parameter(object, ctxt->request->get_uri());
@@ -343,7 +343,7 @@ HttpResult HandlerTable::handle_post(
     const std::vector<uint8_t> &document) {
   using namespace helper::json::sql;
   rapidjson::Document json_doc;
-  auto object = route_->get_cached_object();
+  auto object = route_->get_object();
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
                              MySQLConnection::kMySQLConnectionUserdataRW);
 
@@ -413,7 +413,7 @@ std::string HandlerTable::get_rest_query_parameter(
 HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto last_path = get_path_after_object_name(requests_uri);
-  auto object = route_->get_cached_object();
+  auto object = route_->get_object();
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
                              MySQLConnection::kMySQLConnectionUserdataRW);
   auto addr = get_tcpaddr(session->get_connection_parameters());
@@ -503,7 +503,7 @@ HttpResult HandlerTable::handle_put(rest::RequestContext *ctxt) {
   auto &input_buffer = ctxt->request->get_input_buffer();
   auto size = input_buffer.length();
   auto document = input_buffer.pop_front(size);
-  auto object = route_->get_cached_object();
+  auto object = route_->get_object();
 
   auto pk = get_rest_pk_parameter(object, ctxt->request->get_uri());
 
