@@ -69,30 +69,30 @@ USE mysql;
 DROP TABLE `slave_master_info`;
 CREATE TABLE `slave_master_info` (
   `Number_of_lines` INT(10) UNSIGNED NOT NULL COMMENT 'Number of lines in the file.',
-  `Master_log_name` TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
+  `Master_log_name` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
   `Master_log_pos` bigint(20) UNSIGNED NOT NULL COMMENT 'The master log position of the last read event.',
-  `Host` CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '' COMMENT 'The host name of the master.',
-  `User_name` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
-  `User_password` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
+  `Host` CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL DEFAULT '' COMMENT 'The host name of the master.',
+  `User_name` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The user name used to connect to the master.',
+  `User_password` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The password used to connect to the master.',
   `Port` INT(10) UNSIGNED NOT NULL COMMENT 'The network port used to connect to the master.',
   `Connect_retry` INT(10) UNSIGNED NOT NULL COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',
   `Enabled_ssl` TINYINT(1) NOT NULL COMMENT 'Indicates whether the server supports SSL connections.',
-  `Ssl_ca` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
-  `Ssl_capath` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
-  `Ssl_cert` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',
-  `Ssl_cipher` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',
-  `Ssl_key` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',
+  `Ssl_ca` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
+  `Ssl_capath` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
+  `Ssl_cert` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL certificate file.',
+  `Ssl_cipher` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the cipher in use for the SSL connection.',
+  `Ssl_key` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The name of the SSL key file.',
   `Ssl_verify_server_cert` TINYINT(1) NOT NULL COMMENT 'Whether to verify the server certificate.',
   `Heartbeat` FLOAT NOT NULL,
-  `Bind` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
-  `Ignored_server_ids` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
-  `Uuid` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
+  `Bind` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
+  `Ignored_server_ids` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
+  `Uuid` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The master server uuid.',
   `Retry_count` BIGINT(20) UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
-  `Ssl_crl` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
-  `Ssl_crlpath` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  `Ssl_crl` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
+  `Ssl_crlpath` TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` TINYINT(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   PRIMARY KEY (`Host`,`Port`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' TABLESPACE=mysql;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 COMMENT='Master Information' TABLESPACE=mysql;
 
 --echo # Running mysql_upgrade to update slave_master_info table
 
@@ -151,7 +151,7 @@ INSERT INTO t1 VALUES (1);
 # on mysql.slave_master_info table
 
 ALTER TABLE slave_master_info
-  MODIFY Host CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NULL COMMENT 'The host name of the master.',
+  MODIFY Host CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NULL COMMENT 'The host name of the master.',
   ALTER COLUMN Channel_name DROP DEFAULT;
 
 # Second part: switching positions of Tls_version and Channel_name
@@ -164,7 +164,7 @@ CALL mtr.add_suppression('Error creating connection metadata');
 
 # Change the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL
   COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
   AFTER Tls_version;
 
@@ -193,7 +193,7 @@ START REPLICA;
 
 # Restore the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL
   COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
   AFTER Enabled_auto_position;
 
@@ -254,7 +254,7 @@ INSERT INTO t1 VALUES (4);
 
 # Change the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL
   COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
   AFTER Tls_version;
 
@@ -279,7 +279,7 @@ RESET REPLICA ALL;
 
 # Restore the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info
-  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL
   COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
   AFTER Enabled_auto_position;
 

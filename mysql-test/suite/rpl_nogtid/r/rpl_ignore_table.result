@@ -133,11 +133,11 @@ delete from mysql.tables_priv where user like "mysqltest%";
 delete from mysql.tables_priv where user like "mysqltest%";
 DROP TABLE IF EXISTS t5;
 CREATE TABLE t5 (
-word varchar(50) collate utf8_unicode_ci NOT NULL default ''
-) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+word varchar(50) COLLATE utf8mb3_unicode_ci NOT NULL default ''
+) DEFAULT CHARSET=utf8mb3 COLLATE utf8mb3_unicode_ci;
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SET @@session.character_set_client=33,@@session.collation_connection=192;
 Warnings:

@@ -171,8 +171,8 @@ connection master;
 DROP TABLE IF EXISTS t5;
 --enable_warnings
 CREATE TABLE t5 (
- word varchar(50) collate utf8_unicode_ci NOT NULL default ''
-) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+ word varchar(50) COLLATE utf8mb3_unicode_ci NOT NULL default ''
+) DEFAULT CHARSET=utf8mb3 COLLATE utf8mb3_unicode_ci;
 SET @@session.character_set_client=33,@@session.collation_connection=192;
 CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
 INSERT INTO t5 (word)  VALUES ('TEST’');

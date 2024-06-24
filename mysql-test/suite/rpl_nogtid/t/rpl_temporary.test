@@ -255,7 +255,7 @@ connection master;
 drop table t1;
 
 #
-#14157: utf8 encoding in binlog without set character_set_client
+#14157: utf8mb3 encoding in binlog without set character_set_client
 #
 --write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 create table t1 (a int);
