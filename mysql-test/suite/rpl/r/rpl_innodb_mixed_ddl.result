@@ -33,15 +33,15 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 ******************** DDL for database ********************
 DROP DATABASE IF EXISTS test_rpl;
 DROP DATABASE IF EXISTS test_rpl_1;
-CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE DATABASE test_rpl_1 CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 ALTER DATABASE test_rpl_1 CHARACTER SET latin1 COLLATE latin1_general_ci;
 DROP DATABASE test_rpl_1;
-CREATE DATABASE test_rpl CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE DATABASE test_rpl CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 ALTER DATABASE test_rpl CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 ==========MASTER==========
@@ -151,10 +151,10 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS test_rpl
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS test_rpl_1
-master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci
+master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl_1 CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci
 master-bin.000001	#	Query	#	#	ALTER DATABASE test_rpl_1 CHARACTER SET latin1 COLLATE latin1_general_ci
 master-bin.000001	#	Query	#	#	DROP DATABASE test_rpl_1
-master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl CHARACTER SET utf8 COLLATE utf8_general_ci
+master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci
 master-bin.000001	#	Query	#	#	ALTER DATABASE test_rpl CHARACTER SET latin1 COLLATE latin1_swedish_ci
 master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE TABLE t0 (a int auto_increment not null, c int not null, PRIMARY KEY(a), KEY index2 (c)) ENGINE=innodb
 master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t0 DROP INDEX index2

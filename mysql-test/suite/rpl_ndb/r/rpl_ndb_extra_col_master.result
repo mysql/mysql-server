@@ -845,17 +845,17 @@ c1	hex(c4)	c5
 DROP TABLE t5;
 
 include/rpl/reset.inc
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_LOG_BIN=0;
-CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='NDB';
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET utf8mb3 NOT NULL) ENGINE='NDB';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='NDB';
 INSERT IGNORE INTO t1 VALUES ();
-SET @text= REPEAT(_utf8'ç', 255);
+SET @text= REPEAT(_utf8mb3'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
@@ -1708,17 +1708,17 @@ c1	hex(c4)	c5
 DROP TABLE t5;
 
 include/rpl/reset.inc
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_LOG_BIN=0;
-CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='NDB';
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET utf8mb3 NOT NULL) ENGINE='NDB';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='NDB';
 INSERT IGNORE INTO t1 VALUES ();
-SET @text= REPEAT(_utf8'ç', 255);
+SET @text= REPEAT(_utf8mb3'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
 SELECT * FROM t1 ORDER BY c1;
 c1	c2

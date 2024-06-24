@@ -4,9 +4,9 @@ CREATE TABLE `t1` (
 `id` bigint unsigned NOT NULL auto_increment,
 `val` varchar(255),
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (val) VALUES (REPEAT('a', 255));
 INSERT INTO t1 (val) SELECT val FROM t1;
 INSERT INTO t1 (val) SELECT val FROM t1;

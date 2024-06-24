@@ -84,8 +84,8 @@ SET @@session.collation_server=latin1_german1_ci;
 --connection slave
 SET @restore_slave_character_set_database=@@global.character_set_database;
 SET @restore_slave_collation_server=@@global.collation_server;
-SET @@global.character_set_database=utf8;
-SET @@session.character_set_database=utf8;
+SET @@global.character_set_database=utf8mb3;
+SET @@session.character_set_database=utf8mb3;
 SET @@global.collation_server=utf8_bin;
 SET @@session.collation_server=utf8_bin;
 

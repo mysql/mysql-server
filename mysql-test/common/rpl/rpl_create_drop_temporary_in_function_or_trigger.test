@@ -31,7 +31,7 @@
 # WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
 
 # CREATE FUNCTION USING func_or_trig_body PROVIDED BY MAIN TEST SCRIPT
---let $header=CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+--let $header=CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 --let $begin=BEGIN
 --let $return=RETURN 0;
 --let $end=END

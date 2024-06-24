@@ -46,7 +46,7 @@ CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL auto_increment,
   `val` varchar(255),
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 (val) VALUES (REPEAT('a', 255));
 INSERT INTO t1 (val) SELECT val FROM t1;

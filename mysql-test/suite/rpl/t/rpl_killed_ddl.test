@@ -147,7 +147,7 @@ send CREATE DATABASE d2;
 source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send ALTER DATABASE d1
-       DEFAULT CHARACTER SET = 'utf8';
+       DEFAULT CHARACTER SET = 'utf8mb3';
 source include/rpl/kill_query_and_diff_source_replica.inc;
 
 send DROP DATABASE d1;

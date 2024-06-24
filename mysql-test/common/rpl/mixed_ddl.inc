@@ -23,10 +23,10 @@ connection master;
 DROP DATABASE IF EXISTS test_rpl;
 DROP DATABASE IF EXISTS test_rpl_1;
 --enable_warnings
-CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE DATABASE test_rpl_1 CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 ALTER DATABASE test_rpl_1 CHARACTER SET latin1 COLLATE latin1_general_ci;
 DROP DATABASE test_rpl_1;
-CREATE DATABASE test_rpl CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE DATABASE test_rpl CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 ALTER DATABASE test_rpl CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 --source common/rpl/mixed_check_db.inc
 

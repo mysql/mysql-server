@@ -12,7 +12,7 @@
 --source include/rpl/init_source_replica.inc
 --disable_abort_on_error
 --connection master
-ALTER DATABASE does_not_exist CHARACTER SET  utf8;
+ALTER DATABASE does_not_exist CHARACTER SET  utf8mb3;
 --source include/rpl/sync_to_replica.inc
 --connection master
 --source include/rpl/sync_to_replica.inc

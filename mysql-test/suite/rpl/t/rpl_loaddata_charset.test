@@ -9,7 +9,7 @@ source include/rpl/init_source_replica.inc;
 # (LOAD DATA INFILE need it)
 #
 connection master;
-create table t1 (a varchar(10) character set utf8);
+create table t1 (a varchar(10) character set utf8mb3);
 load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set @@character_set_database=koi8r;
 load data infile '../../std_data/loaddata6.dat' into table t1;

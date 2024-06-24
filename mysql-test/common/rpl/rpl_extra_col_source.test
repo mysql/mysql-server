@@ -1026,11 +1026,11 @@ sync_slave_with_master;
 
 -- source include/rpl/reset.inc
 -- connection master
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 # CREATE Different tables on master and slave
 SET SQL_LOG_BIN=0;
--- eval CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE=$engine_type
+-- eval CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET utf8mb3 NOT NULL) ENGINE=$engine_type
 SET SQL_LOG_BIN=1;
 -- connection slave
 -- eval CREATE TABLE t1 (c1 INT) ENGINE=$engine_type
@@ -1042,7 +1042,7 @@ SET SQL_LOG_BIN=1;
 INSERT IGNORE INTO t1 VALUES (); 
 
 # insert multi-byte chars that will take more than 255 bytes 
-SET @text= REPEAT(_utf8'ç', 255);
+SET @text= REPEAT(_utf8mb3'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
 -- enable_warnings
 

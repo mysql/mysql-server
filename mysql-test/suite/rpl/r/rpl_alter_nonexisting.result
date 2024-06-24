@@ -13,7 +13,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-ALTER DATABASE does_not_exist CHARACTER SET  utf8;
+ALTER DATABASE does_not_exist CHARACTER SET  utf8mb3;
 ERROR 42Y07: Database 'does_not_exist' doesn't exist
 include/rpl/sync_to_replica.inc
 include/rpl/sync_to_replica.inc

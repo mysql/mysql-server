@@ -11,13 +11,13 @@ CREATE TABLE non_trans_table1 (i INT) ENGINE=MYISAM;
 INSERT INTO non_trans_table1 VALUES (1);
 CREATE TABLE non_trans_table2 (i INT) ENGINE=MYISAM;
 INSERT INTO non_trans_table2 VALUES (1);
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -299,13 +299,13 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -587,13 +587,13 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -868,13 +868,13 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -1156,13 +1156,13 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -1411,13 +1411,13 @@ END;
 DELETE FROM non_trans_table2;
 include/rpl/deprecated/show_binlog_events.inc
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -1667,13 +1667,13 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.
@@ -1923,13 +1923,13 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; DELETE FROM non_trans_table2
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
+CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8mb3
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 RETURN 0;
 END;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 # into binlog when using the FUNCTION IN SELECT QUERY.

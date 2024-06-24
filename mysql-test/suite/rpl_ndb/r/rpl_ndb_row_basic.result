@@ -472,70 +472,70 @@ a	b	c
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
 include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (i INT NOT NULL,
-c CHAR(16) CHARACTER SET utf8 NOT NULL,
+c CHAR(16) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t2 (i INT NOT NULL,
-c CHAR(16) CHARACTER SET utf8 NOT NULL,
+c CHAR(16) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
-ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8mb3 NOT NULL;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t3 (i INT NOT NULL,
-c CHAR(128) CHARACTER SET utf8 NOT NULL,
+c CHAR(128) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
-ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8mb3 NOT NULL;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t4 (i INT NOT NULL,
-c CHAR(128) CHARACTER SET utf8 NOT NULL,
+c CHAR(128) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t5 (i INT NOT NULL,
-c CHAR(255) CHARACTER SET utf8 NOT NULL,
+c CHAR(255) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
-ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8mb3 NOT NULL;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t6 (i INT NOT NULL,
-c CHAR(255) CHARACTER SET utf8 NOT NULL,
+c CHAR(255) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
-ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8mb3 NOT NULL;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t7 (i INT NOT NULL,
-c CHAR(255) CHARACTER SET utf8 NOT NULL,
+c CHAR(255) CHARACTER SET utf8mb3 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET @saved_replica_type_conversions = @@replica_type_conversions;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 [expecting slave to replicate correctly]
 INSERT INTO t1 VALUES (1, "", 1);
-INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+INSERT INTO t1 VALUES (2, repeat(_utf8mb3'a', 16), 2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 [expecting slave to replicate correctly]
 INSERT INTO t2 VALUES (1, "", 1);
-INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+INSERT INTO t2 VALUES (2, repeat(_utf8mb3'a', 16), 2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t2, slave:t2]
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
@@ -546,30 +546,30 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 include/rpl/reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t4 VALUES (1, "", 1);
-INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+INSERT INTO t4 VALUES (2, repeat(_utf8mb3'a', 128), 2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t4, slave:t4]
 [expecting slave to stop]
 INSERT INTO t5 VALUES (1, "", 1);
-INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
+INSERT INTO t5 VALUES (2, repeat(_utf8mb3'a', 255), 2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/wait_for_applier_error.inc [errno=13146]
 include/rpl/reset.inc
 [expecting slave to stop]
 INSERT INTO t6 VALUES (1, "", 1);
-INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
+INSERT INTO t6 VALUES (2, repeat(_utf8mb3'a', 255), 2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/wait_for_applier_error.inc [errno=13146]
 include/rpl/reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t7 VALUES (1, "", 1);
-INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+INSERT INTO t7 VALUES (2, repeat(_utf8mb3'a', 255), 2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t7, slave:t7]
 drop table t1, t2, t3, t4, t5, t6, t7;

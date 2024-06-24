@@ -3,9 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-CREATE TABLE char128_utf8 (i1 INT NOT NULL, c CHAR(128) CHARACTER SET utf8 NOT NULL, i2 INT NOT NULL);
+CREATE TABLE char128_utf8 (i1 INT NOT NULL, c CHAR(128) CHARACTER SET utf8mb3 NOT NULL, i2 INT NOT NULL);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO char128_utf8 VALUES ( 1, "123", 1 );
 SELECT * FROM char128_utf8;
 i1	c	i2

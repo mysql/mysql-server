@@ -94,7 +94,7 @@ WHERE index_name = 'idx_id';
 
 # This prints warning 3719:
 #
-# 'utf8' is currently an alias for the character set UTF8MB3, which will be
+# 'utf8mb3' is currently an alias for the character set UTF8MB3, which will be
 # replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in
 # order to be unambiguous.
 #
