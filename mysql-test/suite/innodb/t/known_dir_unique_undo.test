@@ -11,6 +11,8 @@
 --echo #    anything found will be used as before.  But a warning message will be put into the error log.
 --echo #
 
+--source include/have_innodb_default_undo_tablespaces.inc
+
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
