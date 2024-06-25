@@ -170,13 +170,23 @@ static inline ulint fts_select_index_by_hash(const CHARSET_INFO *cs,
   return (static_cast<ulong>(nr1) % FTS_NUM_AUX_INDEX);
 }
 
-/** Select the FTS auxiliary index for the given character.
+/** Select the FTS auxiliary table for the given character.
 @param[in]      cs      charset
 @param[in]      str     string
 @param[in]      len     string length in bytes
-@retval the index to use for the string */
+@retval the auxiliary table number to use for the string, zero-based */
 static inline ulint fts_select_index(const CHARSET_INFO *cs, const byte *str,
                                      ulint len) {
+  /* Words which compare equal using the character set's collation (have
+  the same sort order) MUST go into the same auxiliary table.
+  This is necessary as selecting a word using the equality operator will
+  select all words equal in the table's/field's collation order.
+  Other parts of FTS (e.g. index optimization) depend on this property.
+
+  This property is guaranteed by using collation-provided transforms,
+  which provide binary-equal values for collation-equal arguments:
+  weight string (strnxfrm) for alphabetic scripts, and collation hash
+  for non-alphabetic (CJK = Chinese, Korean and Japanese). */
   ulint selected;
 
   if (fts_is_charset_cjk(cs)) {
