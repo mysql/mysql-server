@@ -1943,8 +1943,11 @@ static void log_files_truncate(log_t &log) {
   log_files_write_allowed_validate(log);
   ut_a(log_files_is_truncate_allowed(log));
 
+  /* We add one to prevent truncating the file to exactly the current write
+  position as we want to use log_files_update_current_file_low() which in
+  case lsn is at boundary between two files, tries to open the next */
   const os_offset_t end_offset = ut_uint64_align_up(
-      log.m_current_file.offset(log.write_lsn.load()), UNIV_PAGE_SIZE);
+      log.m_current_file.offset(log.write_lsn.load() + 1), UNIV_PAGE_SIZE);
 
   const os_offset_t new_size =
       std::max(end_offset, log.m_capacity.next_file_size());
