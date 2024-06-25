@@ -97,6 +97,7 @@ SET(MYSYS_SOURCES
   my_thread.cc
   my_thr_init.cc
   my_user.cc
+  my_version.cc
   my_write.cc
   pack.cc
   print_version.cc

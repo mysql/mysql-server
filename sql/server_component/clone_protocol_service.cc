@@ -245,55 +245,6 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
   return (err);
 }
 
-/* Clone-related macros to parse version strings and determine if clone
-should be allowed */
-/** Size of the parsed version strings array */
-constexpr unsigned int CLONE_PARSE_ARRAY_SIZE = 4;
-/** Parsed version strings array type */
-typedef std::array<std::string, CLONE_PARSE_ARRAY_SIZE> ParseArray;
-
-/** Index of the array correpsonding to parts of version */
-constexpr unsigned int MAJOR = 0;
-constexpr unsigned int MINOR = 1;
-constexpr unsigned int PATCH = 2;
-constexpr unsigned int BUILD = 3;
-
-/* Patch version in 8.0.37 where wl15989 is backported */
-constexpr unsigned long CLONE_BACKPORT_VERSION = 37;
-
-/** Parse a version string into an array of strings corresponding to the MAJOR,
-MINOR, PATCH and BUILD versions. A string of length 0 is filled in case a
-particular version string could not be parsed. For example,
-  "Major.Minor.Patch-Build" yields ["Major", "Minor", "Patch", "Build"],
-  "8.0.23-SR1"              yields ["8", "0", "23", "SR1"],
-  "8.0.-u5"                 yields ["8", "0", "", "u5"]
-@note: This function allocates the array, populates it and returns the array
-@param version input version string
-*/
-static ParseArray parse_version_string(std::string version) {
-  ParseArray parsed;
-  auto parse_next_part{[&parsed, &version](size_t index, char delimiter) {
-    const auto pos = version.find(delimiter);
-    if (pos != std::string::npos) {
-      /* pos + 1 to skip the delimiter*/
-      parsed[index] = version.substr(0, pos);
-      version.erase(0, pos + 1);
-    } else {
-      /* MAJOR part of the version string to expected to be present always */
-      assert(index != MAJOR);
-      /* unable to parse, store rest of the string and make it empty */
-      parsed[index] = version.substr(0, version.length());
-      version.erase(0, version.length());
-    }
-  }};
-
-  parse_next_part(MAJOR, '.');
-  parse_next_part(MINOR, '.');
-  parse_next_part(PATCH, '-');
-  parsed[BUILD] = version;
-  return parsed;
-}
-
 /** Test specific function to configure the version strings of the donor and
 recipient to cover various scenarios where clone is allowed or not. This
 function will modify the input to ensure correct error message is printed.
@@ -339,40 +290,6 @@ static void test_configure_versions([[maybe_unused]] std::string &config_val,
   });
 }
 
-/**
- Compares versions and determine if clone is allowed. Clone is allowed if both
- the donor and recipient have exactly same version string. In version series 8.1
- and above, cloning is allowed if Major and Minor versions match. In 8.0 series,
- clone is allowed if patch version is above clone backport version. In this
- comparison, suffixes are ignored: i.e. 8.0.25 should be the same as
- 8.0.25-debug, but 8.0.25 isn't the same as 8.0.251
- @param ver1 version1 string
- @param ver2 version2 string
- @return true if cloning is allowed between ver1 and ver2, false otherwise
- */
-inline bool compare_server_version(std::string ver1, std::string ver2) {
-  if (ver1 == ver2) {
-    return true;
-  }
-  const auto parse_v1 = parse_version_string(ver1);
-  const auto parse_v2 = parse_version_string(ver2);
-
-  if ((parse_v1[MAJOR] != parse_v2[MAJOR]) ||
-      (parse_v1[MINOR] != parse_v2[MINOR])) {
-    return false;
-  } else if ((parse_v1[MAJOR] == "8") && (parse_v1[MINOR] == "0")) {
-    /* Specific checks for clone across 8.0 series */
-    try {
-      return ((parse_v1[PATCH] == parse_v2[PATCH]) ||
-              (std::stoul(parse_v1[PATCH]) >= CLONE_BACKPORT_VERSION &&
-               std::stoul(parse_v2[PATCH]) >= CLONE_BACKPORT_VERSION));
-    } catch (...) {
-      return false;
-    }
-  }
-  return true;
-}
-
 DEFINE_METHOD(int, mysql_clone_validate_configs,
               (THD * thd, Mysql_Clone_Key_Values &configs)) {
   int last_error = 0;
@@ -408,7 +325,7 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
     } else if (config_name.compare("version") == 0) {
       /* test specific modifications to version strings */
       test_configure_versions(config_val, donor_val);
-      if (compare_server_version(config_val, donor_val)) {
+      if (are_versions_clone_compatible(config_val, donor_val)) {
         continue;
       }
       critical_error = ER_CLONE_DONOR_VERSION;

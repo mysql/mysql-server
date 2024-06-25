@@ -979,6 +979,10 @@ extern void set_psi_tls_channel_service(void *psi);
 /* Total physical memory available */
 [[nodiscard]] extern unsigned long long my_physical_memory();
 
+/* Compares versions and determine if clone is allowed */
+[[nodiscard]] extern bool are_versions_clone_compatible(std::string ver1,
+                                                        std::string ver2);
+
 /**
   @} (end of group MYSYS)
 */
