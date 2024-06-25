@@ -1536,3 +1536,20 @@ SET character_set_client = default;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36368181: Assertion failure in operator() at sql/sql_derived.cc
+--echo #
+CREATE TABLE t1 (f1 INTEGER);
+# dt2.field1 which is used in condition pushdown has an expression which
+# involves one outer reference "dt1.f1" which is also a view reference
+# (since dt1 gets merged) and a column which is not a outer reference
+# "t1.f1". This would earlier fail some checks during cloning.
+SELECT *
+FROM (SELECT * FROM t1) AS dt1
+WHERE (SELECT 1
+       FROM (SELECT (dt1.f1+t1.f1) AS field1
+             FROM t1
+             GROUP BY field1) dt2
+       WHERE dt2.field1 = 1);
+DROP TABLE t1;

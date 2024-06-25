@@ -2421,4 +2421,17 @@ SET optimizer_switch=default;
 SET character_set_client = default;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#36368181: Assertion failure in operator() at sql/sql_derived.cc
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT *
+FROM (SELECT * FROM t1) AS dt1
+WHERE (SELECT 1
+FROM (SELECT (dt1.f1+t1.f1) AS field1
+FROM t1
+GROUP BY field1) dt2
+WHERE dt2.field1 = 1);
+f1
+DROP TABLE t1;
 SET explain_format = DEFAULT;
