@@ -1801,18 +1801,6 @@ sub command_line_setup {
     'valgrind-path=s'           => \$opt_valgrind_path,
     'valgrind-secondary-engine' => \$opt_valgrind_secondary_engine,
     'valgrind|valgrind-all'     => \$opt_valgrind,
-    'valgrind-options=s'        => sub {
-      my ($opt, $value) = @_;
-      # Deprecated option unless it's what we know pushbuild uses
-      if (option_equals($value, "--gen-suppressions=all --show-reachable=yes"))
-      {
-        push(@valgrind_args, $_) for (split(' ', $value));
-        return;
-      }
-      die("--valgrind-options=s is deprecated. Use ",
-          "--valgrind-option=s, to be specified several",
-          " times if necessary");
-    },
 
     # Directories
     'clean-vardir'    => \$opt_clean_vardir,
@@ -8143,7 +8131,6 @@ Options for valgrind
                         with valgrind.
   valgrind-option=ARGS  Option to give valgrind, replaces default option(s), can
                         be specified more then once.
-  valgrind-options=ARGS Deprecated, use --valgrind-option.
   valgrind-path=<EXE>   Path to the valgrind executable.
 
 Misc options
