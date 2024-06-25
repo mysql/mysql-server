@@ -5527,7 +5527,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
   }
 
   /* Get the se_private_id field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_ID") + DD_FIELD_OFFSET,
       &len);
@@ -5599,10 +5599,11 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
   }
 
   /* Get the se_private_id field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_ID") + DD_FIELD_OFFSET,
       &len);
+
   /* When table is partitioned table, the se_private_id is null. */
   if (len != 8) {
     *table = nullptr;
@@ -5664,7 +5665,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
 
   /* Get the hidden attribute, and skip if it's a hidden column. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
   hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
@@ -5675,24 +5676,24 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   }
 
   /* Get the column name. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET, &len);
   *col_name = mem_heap_strdupl(heap, (const char *)field, len);
 
   /* Get the position. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_ORDINAL_POSITION") + DD_FIELD_OFFSET,
       &len);
   pos = mach_read_from_4(field) - 1;
 
   /* Get the is_virtual attribute. */
-  field = (const byte *)rec_get_nth_field(nullptr, rec, offsets, 21, &len);
+  field = rec_get_nth_field(nullptr, rec, offsets, 21, &len);
   is_virtual = mach_read_from_1(field) & 0x01;
 
   /* Get the se_private_data field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
       &len);
@@ -5818,7 +5819,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
 
   /* Get the is_virtual attribute, and skip if it's not a virtual column. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_IS_VIRTUAL") + DD_FIELD_OFFSET, &len);
   is_virtual = mach_read_from_1(field) & 0x01;
@@ -5828,7 +5829,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   }
 
   /* Get the hidden attribute, and skip if it's a hidden column. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
   hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
@@ -5838,14 +5839,14 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   }
 
   /* Get the position. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_ORDINAL_POSITION") + DD_FIELD_OFFSET,
       &len);
   origin_pos = mach_read_from_4(field) - 1;
 
   /* Get the se_private_data field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
       &len);
@@ -5952,7 +5953,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
   }
 
   /* Get the se_private_data field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
       &len);
@@ -6102,7 +6103,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
   }
 
   /* Get the se_private_data field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
       &len);
@@ -6176,7 +6177,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   memcpy(*name, field, len);
 
   /* Get the options string. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_OPTIONS") + DD_FIELD_OFFSET, &len);
 
@@ -6220,7 +6221,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   delete o;
 
   /* Get the se_private_data field. */
-  field = (const byte *)rec_get_nth_field(
+  field = rec_get_nth_field(
       nullptr, rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
       &len);

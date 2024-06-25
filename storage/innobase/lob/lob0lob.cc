@@ -1287,7 +1287,7 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
       continue;
     }
 
-    byte *data = rec_get_nth_field(index, rec, offsets, i, &len);
+    const byte *data = rec_get_nth_field(index, rec, offsets, i, &len);
 
     if (len == UNIV_SQL_NULL) {
       continue;
@@ -1297,9 +1297,8 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
       ulint local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-      byte *field_ref = data + local_len;
-      ref_t ref(field_ref);
-      if (!ref.check_space_id(index)) {
+      const byte *field_ref = data + local_len;
+      if (!ref_t{const_cast<byte *>(field_ref)}.check_space_id(index)) {
         return (false);
       }
     }

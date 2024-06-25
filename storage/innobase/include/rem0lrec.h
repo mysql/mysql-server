@@ -131,43 +131,6 @@ static inline ulint rec_get_nth_field_size_low(const rec_t *rec, ulint n) {
   return (next_os - os);
 }
 
-/** Get an offset to the nth data field in a record.
-@param[in]   offsets  array returned by rec_get_offsets()
-@param[in]   n        index of the field
-@param[out]  len      length of the field; UNIV_SQL_NULL if SQL null;
-                      UNIV_SQL_ADD_COL_DEFAULT if it's default value and no
-                      value inlined
-@return offset from the origin of rec */
-static inline ulint rec_get_nth_field_offs_low(const ulint *offsets, ulint n,
-                                               ulint *len) {
-  ulint offs;
-  ulint length;
-  ut_ad(n < rec_offs_n_fields(offsets));
-  ut_ad(len);
-
-  if (n == 0) {
-    offs = 0;
-  } else {
-    offs = rec_offs_base(offsets)[n] & REC_OFFS_MASK;
-  }
-
-  length = rec_offs_base(offsets)[1 + n];
-
-  if (length & REC_OFFS_SQL_NULL) {
-    length = UNIV_SQL_NULL;
-  } else if (length & REC_OFFS_DEFAULT) {
-    length = UNIV_SQL_ADD_COL_DEFAULT;
-  } else if (length & REC_OFFS_DROP) {
-    length = UNIV_SQL_INSTANT_DROP_COL;
-  } else {
-    length &= REC_OFFS_MASK;
-    length -= offs;
-  }
-
-  *len = length;
-  return (offs);
-}
-
 /** The following function is used to get the offset to the nth
 data field in an old-style record.
 @param[in]   rec  record
@@ -214,14 +177,6 @@ static inline ulint rec_get_nth_field_offs_old_low(const rec_t *rec, ulint n,
   ut_ad(*len < UNIV_PAGE_SIZE);
 
   return (os);
-}
-
-/** Returns nonzero if the extern bit is set in nth field of rec.
-@param[in]  offsets  array returned by rec_get_offsets()
-@param[in]  n        index of the field
-@return nonzero if externally stored */
-static inline ulint rec_offs_nth_extern_low(const ulint *offsets, ulint n) {
-  return (rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL);
 }
 
 /** Mark the nth field as externally stored.

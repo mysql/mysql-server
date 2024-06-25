@@ -193,7 +193,9 @@ void log_buffer_flush_to_disk(log_t &log, bool sync = true);
 
 /** Requests flush of the log buffer.
 @param[in]	sync	true: wait until the flush is done */
-void log_buffer_flush_to_disk(bool sync = true);
+inline void log_buffer_flush_to_disk(bool sync = true) {
+  log_buffer_flush_to_disk(*log_sys, sync);
+}
 
 /** Writes the log buffer to the log file. It is intended to be called from
 background master thread periodically. If the log writer threads are active,
