@@ -39,6 +39,7 @@ uint64_t QueryState::get_last_update() { return audit_log_id_; }
 
 void QueryState::on_row(const ResultRow &r) {
   if (r.size() < 2) return;
+  has_rows_ = true;
   auto state_new = atoi(r[0]) ? stateOn : stateOff;
 
   if (r[1])
@@ -64,7 +65,11 @@ void QueryState::query_state_impl(MySQLSession *session,
   auto audit_log_id = query_audit_id.query_max_id(session);
   query_ =
       "SELECT service_enabled,data FROM mysql_rest_service_metadata.config;";
+  has_rows_ = false;
   execute(session);
+  if (!has_rows_) {
+    throw NoRows("QueryState: the query returned no data");
+  }
   transaction->commit();
   audit_log_id_ = audit_log_id;
 }

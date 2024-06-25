@@ -42,11 +42,17 @@ class QueryState : public Query {
   State get_state();
   std::string get_json_data();
 
+  class NoRows : public std::runtime_error {
+   public:
+    explicit NoRows(const std::string &msg) : std::runtime_error(msg) {}
+  };
+
  protected:
   void query_state_impl(MySQLSession *session,
                         MySQLSession::Transaction *transaction);
   State state_{stateOff};
   bool changed_{true};
+  bool has_rows_{false};
   std::string json_data_;
   uint64_t audit_log_id_{0};
   void on_row(const ResultRow &r) override;

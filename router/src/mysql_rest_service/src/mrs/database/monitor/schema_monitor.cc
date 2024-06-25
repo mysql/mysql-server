@@ -153,6 +153,7 @@ void SchemaMonitor::stop() {
 void SchemaMonitor::run() {
   log_system("Starting MySQL REST Metadata monitor");
 
+  bool force_clear{true};
   do {
     try {
       auto session_check_version =
@@ -258,25 +259,34 @@ void SchemaMonitor::run() {
                 entities_manager_->fetch_counters());
           } catch (const std::exception &exc) {
             log_error(
-                "Storing statistics failed, because of following error:%s.",
+                "Storing statistics failed, because of the following error:%s.",
                 exc.what());
           }
         }
       } while (wait_until_next_refresh());
+    } catch (const mrs::database::QueryState::NoRows &exc) {
+      log_error("Can't refresh MRDS layout, because of the following error:%s.",
+                exc.what());
+      force_clear = true;
     } catch (const mysqlrouter::MySQLSession::Error &exc) {
-      log_error("Can't refresh MRDS layout, because of following error:%s.",
+      log_error("Can't refresh MRDS layout, because of the following error:%s.",
                 exc.what());
       if (exc.code() == 1049 /*unknown database*/ ||
           exc.code() == 1146 /*table does not exist*/) {
-        dbobject_manager_->clear();
-        auth_manager_->clear();
+        force_clear = true;
       }
     } catch (const std::exception &exc) {
       // TODO(lkotula): For now we ignore those errors (Shouldn't be in
       // review)
 
-      log_error("Can't refresh MRDS layout, because of following error:%s.",
+      log_error("Can't refresh MRDS layout, because of the following error:%s.",
                 exc.what());
+    }
+
+    if (force_clear) {
+      dbobject_manager_->clear();
+      auth_manager_->clear();
+      force_clear = false;
     }
   } while (wait_until_next_refresh());
 
