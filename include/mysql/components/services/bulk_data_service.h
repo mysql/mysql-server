@@ -477,7 +477,85 @@ struct Column_meta {
   @param[in]  out  output stream into which object will be printed
   @return given output stream. */
   std::ostream &print(std::ostream &out) const;
+
+  std::string get_type_string() const;
 };
+
+inline std::string Column_meta::get_type_string() const {
+  switch (m_type) {
+    case MYSQL_TYPE_DECIMAL:
+      return "decimal";
+    case MYSQL_TYPE_TINY:
+      return "tiny";
+    case MYSQL_TYPE_SHORT:
+      return "short";
+    case MYSQL_TYPE_LONG:
+      return "long";
+    case MYSQL_TYPE_FLOAT:
+      return "float";
+    case MYSQL_TYPE_DOUBLE:
+      return "double";
+    case MYSQL_TYPE_NULL:
+      return "null";
+    case MYSQL_TYPE_TIMESTAMP:
+      return "timestamp";
+    case MYSQL_TYPE_LONGLONG:
+      return "longlong";
+    case MYSQL_TYPE_INT24:
+      return "int";
+    case MYSQL_TYPE_DATE:
+      return "date";
+    case MYSQL_TYPE_TIME:
+      return "time";
+    case MYSQL_TYPE_DATETIME:
+      return "datetime";
+    case MYSQL_TYPE_YEAR:
+      return "year";
+    case MYSQL_TYPE_NEWDATE:
+      return "date";
+    case MYSQL_TYPE_VARCHAR:
+      return "varchar";
+    case MYSQL_TYPE_BIT:
+      return "bit";
+    case MYSQL_TYPE_TIMESTAMP2:
+      return "timestamp";
+    case MYSQL_TYPE_DATETIME2:
+      return "datetime";
+    case MYSQL_TYPE_TIME2:
+      return "time";
+    case MYSQL_TYPE_TYPED_ARRAY:
+      return "typed_array";
+    case MYSQL_TYPE_VECTOR:
+      return "vector";
+    case MYSQL_TYPE_INVALID:
+      return "invalid";
+    case MYSQL_TYPE_BOOL:
+      return "bool";
+    case MYSQL_TYPE_JSON:
+      return "json";
+    case MYSQL_TYPE_NEWDECIMAL:
+      return "decimal";
+    case MYSQL_TYPE_ENUM:
+      return "enum";
+    case MYSQL_TYPE_SET:
+      return "set";
+    case MYSQL_TYPE_TINY_BLOB:
+      return "tiny_blob";
+    case MYSQL_TYPE_MEDIUM_BLOB:
+      return "medium_blob";
+    case MYSQL_TYPE_LONG_BLOB:
+      return "long_blob";
+    case MYSQL_TYPE_BLOB:
+      return "blob";
+    case MYSQL_TYPE_VAR_STRING:
+      return "var_string";
+    case MYSQL_TYPE_STRING:
+      return "string";
+    case MYSQL_TYPE_GEOMETRY:
+      return "geometry";
+  }
+  return "invalid";
+}
 
 inline bool Column_meta::can_be_stored_externally() const {
   switch (m_type) {
