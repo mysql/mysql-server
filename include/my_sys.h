@@ -713,7 +713,9 @@ extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
 extern size_t dirname_part(char *to, const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
-#define base_name(A) (A + dirname_length(A))
+ALWAYS_INLINE const char *base_name(const char *A) {
+  return A + dirname_length(A);
+}
 extern int test_if_hard_path(const char *dir_name);
 extern bool has_path(const char *name);
 extern char *convert_dirname(char *to, const char *from, const char *from_end);
