@@ -72,6 +72,12 @@
 class HashJoinCondition;
 class THD;
 
+struct StoreLinkedInfo {
+  bool m_dont_error{false};  // input
+  bool m_full{false};        // output
+  size_t m_bytes_stored{0};  // output
+};
+
 namespace hash_join_buffer {
 
 /// The key type for the hash structure in HashJoinRowBuffer.
@@ -211,7 +217,7 @@ class HashJoinRowBuffer {
   // of memory), returns nullptr. Otherwise, returns a pointer to the newly
   // packed string.
   LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
-      LinkedImmutableString next_ptr, bool *full);
+      LinkedImmutableString next_ptr, StoreLinkedInfo *info);
 };
 
 }  // namespace hash_join_buffer
@@ -220,6 +226,6 @@ class HashJoinRowBuffer {
 LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
     MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root,
     const pack_rows::TableCollection &tables, LinkedImmutableString next_ptr,
-    size_t row_size_upper_bound, bool *full);
+    size_t row_size_upper_bound, StoreLinkedInfo *info);
 
 #endif  // SQL_ITERATORS_HASH_JOIN_BUFFER_H_

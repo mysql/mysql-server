@@ -522,3 +522,138 @@ EXPLAIN
 
 DROP VIEW v;
 DROP TABLE t;
+#
+# Bug#36739383 Assertion `false' materialize_iterator::SpillState::
+#              read_next_row_secondary_over
+#
+CREATE TABLE t(i int, b LONGTEXT);
+INSERT INTO t VALUES (0, REPEAT('x', 120000)),
+/* next row is too large on its own, drop spill
+handling entirely revert to indexed tmp table
+de-duplication */
+(0, REPEAT('y', @@set_operations_buffer_size)),
+(0, REPEAT('z', 12000));
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET optimizer_trace='enabled=on';
+SELECT LENGTH(b) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
+LENGTH(b)
+12000
+120000
+262144
+SELECT JSON_PRETTY(JSON_EXTRACT(
+trace,
+'$.steps[*].join_execution.steps[*]."materialize for intersect"')) AS info
+FROM information_schema.OPTIMIZER_TRACE AS t;
+info
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": [
+            {
+              "spill handling not attempted due to large row, reverting to index": {
+                "steps": [
+                  {
+                    "creating_tmp_table": {
+                      "tmp_table_info": {
+                        "table": "derived",
+                        "columns": 4,
+                        "location": "TempTable",
+                        "key_length": 8,
+                        "row_length": 33,
+                        "unique_constraint": true,
+                        "makes_grouped_rows": false,
+                        "in_plan_at_position": 0,
+                        "cannot_insert_duplicates": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "select#": 2
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 3
+  }
+]
+TRUNCATE t;
+INSERT INTO t VALUES (0, REPEAT('x', 12000)),
+/* next row is too large because we can't fit two
+                        such in hash map drop spill handling entirely
+                        revert to indexed tmp table de-duplication */
+                     (0, REPEAT('x', 140000)),
+                     (0, REPEAT('z', 120000));
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT LENGTH(b) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
+LENGTH(b)
+12000
+120000
+140000
+SELECT JSON_PRETTY(JSON_EXTRACT(
+trace,
+'$.steps[*].join_execution.steps[*]."materialize for intersect"')) AS info
+FROM information_schema.OPTIMIZER_TRACE AS t;
+info
+[
+  {
+    "steps": [
+      {
+        "de-duplicate with hash table": {
+          "steps": [
+            {
+              "spill handling not attempted due to large row, reverting to index": {
+                "steps": [
+                  {
+                    "creating_tmp_table": {
+                      "tmp_table_info": {
+                        "table": "derived",
+                        "columns": 4,
+                        "location": "TempTable",
+                        "key_length": 8,
+                        "row_length": 33,
+                        "unique_constraint": true,
+                        "makes_grouped_rows": false,
+                        "in_plan_at_position": 0,
+                        "cannot_insert_duplicates": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "select#": 2
+  },
+  {
+    "steps": [
+      {
+        "de-duplicate with index": {
+          "steps": []
+        }
+      }
+    ],
+    "select#": 3
+  }
+]
+SET optimizer_trace='enabled=default';
+DROP TABLE t;

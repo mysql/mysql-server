@@ -1448,8 +1448,9 @@ class MaterializeIterator final : public TableRowIterator {
                                     bool *spill);
   void backup_or_restore_blob_pointers(bool backup);
   void update_row_in_hash_map();
-  bool store_row_in_hash_map();
-  bool handle_hash_map_full(const Operand &operand, ha_rows *stored_rows);
+  bool store_row_in_hash_map(bool *single_row_too_large);
+  bool handle_hash_map_full(const Operand &operand, ha_rows *stored_rows,
+                            bool single_row_too_large);
   bool process_row(const Operand &operand, Operands &operands, TABLE *t,
                    uchar *set_counter_0, uchar *set_counter_1, bool *read_next);
   bool process_row_hash(const Operand &operand, TABLE *t, ha_rows *stored_rows);
@@ -1976,7 +1977,8 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     return true;
   }
 
-  spill = store_row_in_hash_map();
+  bool dummy;
+  spill = store_row_in_hash_map(&dummy);
   if (spill) {
     // It fit before, should fit now
     assert(false);
@@ -2243,20 +2245,38 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
   return false;
 }
 
+/// Handle the situation that the in-memory hash map is full.
+/// @param operand       the left operand
+/// @param stored_rows   pointer to the number of stored rows on the output tmp
+///                      table
+/// @param single_row_too_large
+///                      if true, we found a (blob) row so large compared to
+///                      set_operations_buffer_size, that we do not attempt
+///                      spill handling, move directly to index based
+///                      de-duplication
+/// @return true on error, false on success
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::handle_hash_map_full(const Operand &operand,
-                                                         ha_rows *stored_rows) {
-  if (m_spill_state.spill()) {
-    m_spill_state.set_secondary_overflow();
+bool MaterializeIterator<Profiler>::handle_hash_map_full(
+    const Operand &operand, ha_rows *stored_rows, bool single_row_too_large) {
+  if (thd()->is_error()) return true;
+  if (m_spill_state.spill() || single_row_too_large) {
+    assert((m_spill_state.spill() && !single_row_too_large) ||
+           (!m_spill_state.spill() && single_row_too_large));
     Opt_trace_context *trace = &thd()->opt_trace;
     Opt_trace_object trace_wrapper(trace);
-    Opt_trace_object trace_exec(trace,
-                                "spill handling overflow, reverting to index");
+    Opt_trace_object trace_exec(
+        trace, m_spill_state.spill()
+                   ? "spill handling overflow, reverting to index"
+                   : "spill handling not attempted due to large row, reverting "
+                     "to index");
     Opt_trace_array trace_steps(trace, "steps");
     m_use_hash_map = false;
 
-    // Save current row for later use, see save_operand_to_IF_chunk_files
-    if (m_spill_state.save_offending_row()) return true;
+    if (m_spill_state.spill()) {
+      m_spill_state.set_secondary_overflow();
+      // Save current row for later use, see save_operand_to_IF_chunk_files
+      if (m_spill_state.save_offending_row()) return true;
+    }
 
     TABLE *const t = table();
     close_tmp_table(t);
@@ -2266,7 +2286,6 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(const Operand &operand,
     if (t->file->ha_index_init(0, false) != 0) return true;
 
     if (materialize_hash_map(t, stored_rows)) return true;
-
     return false;
   }
   if (m_spill_state.init(operand, m_hash_map.get(), m_rows_in_hash_map,
@@ -2282,13 +2301,19 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(const Operand &operand,
   positioned on it.  Links any existing entry behind it, i.e. we insert at
   front of the hash bucket, cf.  StoreLinkedImmutableStringFromTableBuffers.
   Update \c m_rows_in_hash_map.
-  @returns true on error
+  @param[out] single_row_too_large
+                  set if we discover that we have a single
+                  blob which is so large that it consumes (most) of the entire
+                  allocated space (cf. set_operations_buffer_size).
+  @returns true on error, which will also set \c single_row_too_large if
+                  relevant
  */
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::store_row_in_hash_map() {
+bool MaterializeIterator<Profiler>::store_row_in_hash_map(
+    bool *single_row_too_large) {
   // Save the contents of all columns and make the hash map iterator's value
   // field ("->second") point to it.
-  bool dummy = false;
+
   // Special case: when we are re-reading a HF chunk set for operand 2..n
   // (right_operand), we can in some rare cases overflow even though the HF
   // chunk fit in our dedicated mem_root for the left operand, the reason being
@@ -2304,13 +2329,42 @@ bool MaterializeIterator<Profiler>::store_row_in_hash_map() {
   assert(m_overflow_mem_root != nullptr);
   const bool is_right_operand = m_spill_state.read_state() ==
                                 SpillState::ReadingState::SS_READING_RIGHT_HF;
-
+  StoreLinkedInfo info{!is_right_operand, false, 0};
   LinkedImmutableString last_row_stored =
       StoreLinkedImmutableStringFromTableBuffers(
           m_mem_root.get(), (is_right_operand ? m_overflow_mem_root : nullptr),
-          m_table_collection, m_next_ptr, m_row_size_upper_bound,
-          (is_right_operand ? &dummy : nullptr));
+          m_table_collection, m_next_ptr, m_row_size_upper_bound, &info);
+
+  const bool too_large_row =
+      m_spill_state.read_state() == SpillState::ReadingState::SS_NONE &&
+      info.m_bytes_stored * 2 > thd()->variables.set_operations_buffer_size;
+
+  if (last_row_stored != nullptr && too_large_row) {
+    // We haven't started spill handling, and we can't even fit two rows of this
+    // size in the hash map, immediately fall back on index based tmp table
+    // de-duplication; do not attempt spill handling.
+    m_hash_map_iterator->second = last_row_stored;
+    m_rows_in_hash_map++;
+    *single_row_too_large = true;
+    return true;
+  }
   if (last_row_stored == nullptr) {
+    if (too_large_row) {
+      // just store it in m_overflow_mem_root so we can immediately fall back
+      // on index based tmp table de-duplication; do not attempt spill
+      // handling.
+      last_row_stored = StoreLinkedImmutableStringFromTableBuffers(
+          m_mem_root.get(), m_overflow_mem_root, m_table_collection, m_next_ptr,
+          m_row_size_upper_bound, &info);
+      if (last_row_stored == nullptr) {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 ComputeRowSizeUpperBound(m_table_collection));
+        return true;
+      }
+      m_hash_map_iterator->second = last_row_stored;
+      m_rows_in_hash_map++;
+      *single_row_too_large = true;
+    }  // else too many rows, initiate spill handling
     return true;
   }
   m_hash_map_iterator->second = last_row_stored;
@@ -2370,7 +2424,7 @@ bool MaterializeIterator<Profiler>::process_row_hash(const Operand &operand,
 
   if (spill_to_disk) {
     assert(left_operand);
-    return handle_hash_map_full(operand, stored_rows);
+    return handle_hash_map_full(operand, stored_rows, false);
   }
 
   switch (t->set_op_type()) {
@@ -2523,8 +2577,9 @@ bool MaterializeIterator<Profiler>::process_row_hash(const Operand &operand,
     case TABLE::SOT_NONE:
       assert(false);
   }
-
-  return store_row_in_hash_map() && handle_hash_map_full(operand, stored_rows);
+  bool single_row_too_large{false};
+  return store_row_in_hash_map(&single_row_too_large) &&
+         handle_hash_map_full(operand, stored_rows, single_row_too_large);
 }
 
 template <typename Profiler>
@@ -3052,6 +3107,7 @@ bool SpillState::spread_hash_map_to_HF_chunk_files() {
         if (StoreFromTableBuffers(m_table_collection, &m_row_buffer)) {
           return true;
         }
+
         // Hash row's content with tertiary hash to determine its chunk index,
         // and write it if its set index equals the current set. This way,
         // all rows belonging to a set are stored consecutively, and sets in
