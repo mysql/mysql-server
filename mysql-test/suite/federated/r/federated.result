@@ -720,7 +720,7 @@ OR (col2 = 'three Three' AND col3 = 33);
 id	col1	col2	col3	col4
 3	3	three Three	33	33333
 5	5	five 5 five five 5	5	55555
-SELECT /*+ INDEX_MERGE(t1 PRIMARY,col3) */* FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
+SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
 OR (col2 = 444 AND col3 = 4444444);
 id	col1	col2	col3	col4
 SELECT * FROM federated.t1 WHERE id = 1 
