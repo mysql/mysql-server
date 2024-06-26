@@ -175,12 +175,14 @@ class DbUtil : public SimulatedBlock {
    * information.
    */
   struct Prepare {
-    Prepare(Page32_pool &ap) : preparePages(ap) {}
+    Prepare(Page32_pool &ap) : internalFlag(false), preparePages(ap) {}
 
     /*** Client info ***/
     Uint32 clientRef;
     Uint32 clientData;
     Uint32 schemaTransId;
+
+    bool internalFlag;  // flag if operation is internal
 
     /**
      * SimpleProp sent in UTIL_PREPARE_REQ
@@ -223,7 +225,11 @@ class DbUtil : public SimulatedBlock {
     PreparedOperation(AttrMappingBuffer::DataBufferPool &am,
                       AttrInfoBuffer::DataBufferPool &ai,
                       ResultSetInfoBuffer::DataBufferPool &rs)
-        : releaseFlag(false), attrMapping(am), attrInfo(ai), rsInfo(rs) {
+        : releaseFlag(false),
+          internalFlag(false),
+          attrMapping(am),
+          attrInfo(ai),
+          rsInfo(rs) {
       pkBitmask.clear();
     }
 
@@ -234,6 +240,7 @@ class DbUtil : public SimulatedBlock {
     bool releaseFlag;    // flag if operation release after completion
     UtilPrepareReq::OperationTypeValue operationType;
 
+    bool internalFlag;  // flag if operation is internal
     /**
      * Attribute Mapping
      *
@@ -406,6 +413,10 @@ class DbUtil : public SimulatedBlock {
   Operation_pool c_operationPool;
   PreparedOperation_pool c_preparedOperationPool;
   Transaction_pool c_transactionPool;
+
+  Uint32 c_freeInternalPreparedOps;
+
+  Uint32 c_freeInternalRunningPrepares;
 
   DataBuffer<1, ArrayPool<DataBufferSegment<1>>>::DataBufferPool
       c_attrMappingPool;
