@@ -470,7 +470,7 @@ while($c <= 4)
 
   CREATE TABLE fk_to_acl_table
     (Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
-     User char(32) COLLATE utf8_bin DEFAULT '' NOT NULL,
+     User char(32) COLLATE utf8mb3_bin DEFAULT '' NOT NULL,
      address CHAR(255),
      FOREIGN KEY (Host, User) REFERENCES mysql.user(Host,User));
   UPDATE user_bk SET user='u2' WHERE user LIKE 'u2x';
