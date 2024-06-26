@@ -1504,7 +1504,7 @@ int runTestMultiMGMDDisconnection(NDBT_Context *ctx, NDBT_Step *step) {
 int runTestMyCnf(NDBT_Context *ctx, NDBT_Step *step) {
   /* Construct path name to my.cnf */
   NDBT_Workingdir wd("test_mgmd");
-  BaseString my_cnf_file = path(wd.path(), "my.cnf");
+  BaseString my_cnf_file = path(wd.path(), "my.cnf", NULL);
 
   /* Create args to start mgmd using a my.cnf file */
   NdbProcess::Args args;
