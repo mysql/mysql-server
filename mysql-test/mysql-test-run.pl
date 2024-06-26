@@ -831,7 +831,7 @@ sub main {
   if ($group_replication) {
     $ports_per_thread = $ports_per_thread + 10;
   }
-  
+
   if ($router_test) {
     $ENV{'MTR_ROUTER_PORT_OFFSET'} = $ports_per_thread - 10;
     $ports_per_thread = $ports_per_thread + 10;
@@ -3437,8 +3437,7 @@ sub environment_setup {
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'MYSQLROUTER'}         = $exe_mysqlrouter;
   $ENV{'MYSQLROUTER_KEYRING'} = $exe_mysqlrouter_keyring;
-  # TODO: what about this?
-  $ENV{'MYSQLROUTER_BOOTSTRAP'}= mysqlrouter_bootstrap_arguments();
+  $ENV{'MYSQLROUTER_BOOTSTRAP'} = mysqlrouter_bootstrap_arguments();
 
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
   $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
@@ -3499,7 +3498,7 @@ sub environment_setup {
   # Setup env so childs can execute mysqlrouter_mrs_client
   my $exe_router_mrs_client = mtr_exe_exists("$path_client_bindir/mysqlrouter_mrs_client");
   $ENV{'MRS_CLIENT'} = native_path($exe_router_mrs_client);
-  
+
   # my_print_defaults
   my $exe_my_print_defaults =
     mtr_exe_exists("$path_client_bindir/my_print_defaults");
@@ -5222,7 +5221,10 @@ sub run_testcase ($) {
     #  $config_router = ();
     #}
     if ($tinfo->{router_bootstrap_test}) {
-      my $routing_plugin = find_plugin("routing", "plugin_output_directory") or die();
+      my $routing_plugin = find_plugin("routing", "plugin_output_directory");
+      if (!$routing_plugin) {
+        $routing_plugin = find_router_plugin_in_package("routing") or die();
+      }
       my $plugin_dir = dirname($routing_plugin);
       $ENV{"ROUTER_PLUGIN_DIRECTORY"} = $plugin_dir;
     }
@@ -6795,7 +6797,7 @@ sub run_msyqlrouter_keyring_util($$$$) {
   for my $arg (@$additional_args) {
     mtr_add_arg($args, $arg);
   }
-  
+
   My::SafeProcess->run(name  => "mysqlrouter_keyring",
                        path  => $exe_mysqlrouter_keyring,
                        args  => \$args);
@@ -6810,11 +6812,11 @@ sub router_create_keyring($) {
   unlink($keyring_master_file) if -e $keyring_master_file;
 
   run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "init", []);
-  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set", 
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set",
                       ["mysqlrouter", "password", "mysqlrouter"]);
-  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set", 
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set",
                       ["root", "password", ""]);
-  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set", 
+  run_msyqlrouter_keyring_util($keyring_file, $keyring_master_file, "set",
                       ["rest-user", "jwt_secret", "secret12345"]);
 }
 
@@ -6849,7 +6851,10 @@ sub create_router_config($$) {
     $current_router_template= "include/default_my-router.cnf";
   }
 
-  my $routing_plugin = find_plugin("routing", "plugin_output_directory") or die();
+  my $routing_plugin = find_plugin("routing", "plugin_output_directory");
+  if (!$routing_plugin) {
+    $routing_plugin = find_router_plugin_in_package("routing") or die();
+  }
   my $plugin_dir = dirname($routing_plugin);
   my $factory = My::RouterConfigFactory->new();
   my $router_config =
