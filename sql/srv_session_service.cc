@@ -97,7 +97,8 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
       Connection_handler_manager::get_instance();
 
   if (simulate_reach_max_connections ||
-      !conn_manager->check_and_incr_conn_count(ignore_max_connection_limit)) {
+      !conn_manager->check_and_incr_conn_count(ignore_max_connection_limit,
+                                               true)) {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
     return nullptr;

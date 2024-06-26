@@ -55,6 +55,8 @@ struct Connection_handler_functions;
 uint Connection_handler_manager::connection_count = 0;
 ulong Connection_handler_manager::max_used_connections = 0;
 ulong Connection_handler_manager::max_used_connections_time = 0;
+std::atomic_ulong Connection_handler_manager::incoming_connection_count = 0;
+
 THD_event_functions *Connection_handler_manager::event_functions = nullptr;
 THD_event_functions *Connection_handler_manager::saved_event_functions =
     nullptr;
@@ -102,7 +104,7 @@ bool Connection_handler_manager::valid_connection_count() {
 }
 
 bool Connection_handler_manager::check_and_incr_conn_count(
-    bool is_admin_connection) {
+    bool is_admin_connection, bool internal_session) {
   bool connection_accepted = true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
@@ -118,7 +120,7 @@ bool Connection_handler_manager::check_and_incr_conn_count(
     m_connection_errors_max_connection++;
   } else {
     ++connection_count;
-
+    if (!internal_session) ++incoming_connection_count;
     if (connection_count > max_used_connections) {
       max_used_connections = connection_count;
       max_used_connections_time = time(nullptr);
@@ -254,7 +256,7 @@ bool Connection_handler_manager::unload_connection_handler() {
 void Connection_handler_manager::process_new_connection(
     Channel_info *channel_info) {
   if (connection_events_loop_aborted() ||
-      !check_and_incr_conn_count(channel_info->is_admin_connection())) {
+      !check_and_incr_conn_count(channel_info->is_admin_connection(), false)) {
     channel_info->send_error_and_close_channel(ER_CON_COUNT_ERROR, 0, true);
     delete channel_info;
     return;

@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <atomic>
 
 #include "mysql/psi/mysql_cond.h"  // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"
@@ -118,6 +119,10 @@ class Connection_handler_manager {
   static ulong max_used_connections;       // Protected by LOCK_connection_count
   static ulong max_used_connections_time;  // Protected by LOCK_connection_count
 
+  // Atomic status variables.
+  static std::atomic_ulong
+      incoming_connection_count;  // Only external sessions.
+
   // System variable
   static ulong thread_handling;
 
@@ -166,13 +171,18 @@ class Connection_handler_manager {
 
     @param ignore_max_connection_count  true if checking for a limit
                                         specified by the max-connections
-                                        server option should be skipped
+                                        server option should be skipped.
+
+    @param internal_session true if this is an internal session created
+                            by the session service. If this is the case,
+                            we will not count this as an incoming connection.
 
     @retval
       true   max_connections NOT exceeded
       false  max_connections reached
   */
-  bool check_and_incr_conn_count(bool ignore_max_connection_count);
+  bool check_and_incr_conn_count(bool ignore_max_connection_count,
+                                 bool internal_session);
 
   /**
     Reset the max_used_connections counter to the number of current
@@ -191,6 +201,10 @@ class Connection_handler_manager {
     */
     if (connection_count == 0) mysql_cond_signal(&COND_connection_count);
     mysql_mutex_unlock(&LOCK_connection_count);
+  }
+
+  static ulong get_incoming_connects() {
+    return incoming_connection_count.load();
   }
 
   void inc_aborted_connects() { m_aborted_connects++; }

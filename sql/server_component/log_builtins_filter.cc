@@ -337,27 +337,31 @@ static void log_builtins_filter_set_defaults(log_filter_ruleset *ruleset) {
   ruleset->count++;
   builtin_count++;
 
-  // Throttle background histogram update errors.
+  // Log throttle lambda: Emit <err_code> max <per_minute> times per minute.
+  auto throttle_per_minute = [&](const int err_code, const int per_minute) {
+    log_filter_rule *tr = log_builtins_filter_rule_init(ruleset);
+    tr->verb = LOG_FILTER_THROTTLE;
+    tr->cond = LOG_FILTER_COND_EQ;
+    log_item_set(&tr->match, LOG_ITEM_SQL_ERRCODE)->data_integer = err_code;
+    log_item_set(&tr->aux, LOG_ITEM_GEN_INTEGER)->data_integer = per_minute;
+    ruleset->count++;
+    builtin_count++;
+  };
 
-  // Initialize a new rule.
-  r = log_builtins_filter_rule_init(ruleset);
+  // Throttle background histogram update errors: Once per minute.
+  throttle_per_minute(ER_BACKGROUND_HISTOGRAM_UPDATE, 1);
 
-  // Condition/comparator: equal.
-  r->cond = LOG_FILTER_COND_EQ;
-
-  // Match information: MySQL error code.
-  log_item_set(&r->match, LOG_ITEM_SQL_ERRCODE)->data_integer =
-      ER_BACKGROUND_HISTOGRAM_UPDATE;
-
-  // Action/verb: throttle (rate-limit).
-  r->verb = LOG_FILTER_THROTTLE;
-
-  // Auxiliary information: maximum number of messages per minute.
-  log_item_set(&r->aux, LOG_ITEM_GEN_INTEGER)->data_integer = 1;
-
-  // Rule complete, be counted.
-  ruleset->count++;
-  builtin_count++;
+  // Throttle thread pool errors: Ten times every minute.
+  throttle_per_minute(ER_THREAD_POOL_ALLOC_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_SOCKETPAIR_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_LOW_LEVEL_INIT_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED_WITH_ERRNO, 10);
+  throttle_per_minute(ER_THREAD_POOL_CREATE_THREAD_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_LOW_LEVEL_INIT_ALLOC_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_CREATE_EPOLL_FAILED, 10);
+  throttle_per_minute(ER_THREAD_POOL_EPOLL_WAIT_ERROR, 10);
+  throttle_per_minute(ER_THREAD_POOL_POLL_WAIT_ERROR, 10);
 }
 
 /**

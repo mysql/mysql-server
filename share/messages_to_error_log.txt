@@ -3393,7 +3393,7 @@ ER_THREAD_POOL_FAILED_PROCESS_CONNECT_EVENT
 ER_THREAD_POOL_FAILED_TO_CREATE_POOL
   eng "Can't create pool thread (error %d, errno: %d)."
 
-ER_THREAD_POOL_RATE_LIMITED_ERROR_MSGS
+OBSOLETE_ER_THREAD_POOL_RATE_LIMITED_ERROR_MSGS
   eng "%.*s."
 
 ER_TRHEAD_POOL_LOW_LEVEL_INIT_FAILED
@@ -12229,7 +12229,7 @@ ER_CONN_INIT_CONNECT_IGNORED_MFA
 ER_SECONDARY_ENGINE_DDL_FAILED
   eng "Execution of alter table %s %s failed because %s."
 
-ER_THREAD_POOL_CONNECTION_REPORT
+OBSOLETE_ER_THREAD_POOL_CONNECTION_REPORT
    eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
 
 ER_WARN_SCHEDULED_TASK_RUN_FAILED
@@ -12828,6 +12828,39 @@ ER_IMDS_OCI_WARNING
 
 ER_IMDS_OCI_ERROR
   eng "%s"
+
+ER_THREAD_POOL_CONNECTION_INIT_REPORT
+   eng "TP conn (init: in, queue, auth, err, ok. port: managed(delta), active, opened, closed, added, dropped): %s"
+
+ER_THREAD_POOL_ALLOC_FAILED
+   eng "Thread pool failed to allocate %s."
+
+ER_THREAD_POOL_SOCKETPAIR_FAILED
+   eng "socketpair() failed with errno: %d"
+
+ER_THREAD_POOL_LOW_LEVEL_INIT_FAILED
+   eng "tp_client_low_level_init() failed"
+
+ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED
+   eng "tp_client_low_level_arm() failed"
+
+ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED_WITH_ERRNO
+   eng "tp_client_low_level_arm() failed with %d"
+
+ER_THREAD_POOL_CREATE_THREAD_FAILED
+   eng "Can't create pool thread (error %d, errno: %d)"
+
+ER_THREAD_POOL_LOW_LEVEL_INIT_ALLOC_FAILED
+   eng "tp_client_low_level_init() for wait context failed to allocate memory"
+
+ER_THREAD_POOL_CREATE_EPOLL_FAILED
+   eng "epoll_create() failed with %d"
+
+ER_THREAD_POOL_EPOLL_WAIT_ERROR
+   eng "Thread pool epoll_wait() error: errno=%d."
+
+ER_THREAD_POOL_POLL_WAIT_ERROR
+   eng "Thread pool poll_wait() error: errno=%d."
 
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
