@@ -188,6 +188,9 @@ component_test_event_tracking_consumer  	        plugin_output_directory no COMP
 # component_test_event_tracking_producer_a
 component_test_event_tracking_producer_a  	        plugin_output_directory no COMPONENT_TEST_EVENT_TRACKING_PRODUCER_A
 
+# component test_server_telemetry_logs
+component_test_server_telemetry_logs       plugin_output_directory no TEST_SERVER_TELEMETRY_LOGS_COMPONENT
+
 # component_test_execute_prepared_statement
 component_test_execute_prepared_statement  plugin_output_directory  no  COMPONENT_TEST_EXECUTE_PREPARED_STATEMENT
 

@@ -231,6 +231,10 @@ void pfs_automated_sizing(PFS_global_param *param) {
     param->m_metric_class_sizing = 0;
 #endif
 
+#ifndef HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
+    param->m_logger_class_sizing = 0;
+#endif
+
     const PFS_sizing_data *heuristic;
     heuristic = estimate_hints(param);
     apply_heuristic(param, heuristic);
@@ -290,6 +294,7 @@ void pfs_automated_sizing(PFS_global_param *param) {
     param->m_memory_class_sizing = 0;
     param->m_meter_class_sizing = 0;
     param->m_metric_class_sizing = 0;
+    param->m_logger_class_sizing = 0;
     param->m_metadata_lock_sizing = 0;
     param->m_max_digest_length = 0;
     param->m_max_sql_text_length = 0;

@@ -41,6 +41,7 @@
 #define HAVE_PSI_THREAD_INTERFACE
 #define HAVE_PSI_TRANSACTION_INTERFACE
 #define HAVE_PSI_TLS_CHANNEL_INTERFACE
+#define HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
 
 #include "storage/perfschema/pfs.h"
 
@@ -52,6 +53,8 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/mysql_server_telemetry_logs_client_service.h>
+#include <mysql/components/services/mysql_server_telemetry_logs_service.h>
 #include <mysql/components/services/mysql_server_telemetry_metrics_service.h>
 #include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 #include <mysql/components/services/pfs_notification.h>
@@ -109,6 +112,8 @@
 #include "sql/sql_const.h"
 #include "sql/sql_digest.h"
 #include "sql/sql_error.h"
+#include "storage/perfschema/mysql_server_telemetry_logs_client_service_imp.h"
+#include "storage/perfschema/mysql_server_telemetry_logs_service_imp.h"
 #include "storage/perfschema/mysql_server_telemetry_traces_service_imp.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_column_values.h"
@@ -164,6 +169,7 @@
 #define DISABLE_PSI_TRANSACTION
 #define DISABLE_PSI_TLS_CHANNEL
 #define DISABLE_PSI_SERVER_TELEMETRY_TRACES
+#define DISABLE_PSI_SERVER_TELEMETRY_LOGS
 #endif /* IN_DOXYGEN */
 
 static constexpr uint STATE_FLAG_STATEMENT_TELEMETRY =
@@ -9688,6 +9694,10 @@ PSI_metric_service_v1 pfs_metric_service_v1 = {
     pfs_register_change_notification_v1, pfs_unregister_change_notification_v1,
     pfs_send_change_notification_v1};
 
+PSI_logs_client_service_v1 pfs_logs_client_service_v1 = {
+    pfs_register_logger_client_v1, pfs_unregister_logger_client_v1,
+    pfs_check_enabled_v1, pfs_log_emit_v1};
+
 static void *get_system_interface(int version) {
   switch (version) {
     case PSI_SYSTEM_VERSION_1:
@@ -9906,6 +9916,15 @@ static void *get_metric_interface(int version) {
   }
 }
 
+static void *get_logs_client_interface(int version) {
+  switch (version) {
+    case PSI_LOGGER_CLIENT_VERSION_1:
+      return &pfs_logs_client_service_v1;
+    default:
+      return nullptr;
+  }
+}
+
 struct PSI_cond_bootstrap pfs_cond_bootstrap = {get_cond_interface};
 
 struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap = {
@@ -9947,6 +9966,9 @@ struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap = {
     get_tls_channel_interface};
 
 struct PSI_metric_bootstrap pfs_metric_bootstrap = {get_metric_interface};
+
+struct PSI_logs_client_bootstrap pfs_logs_client_bootstrap = {
+    get_logs_client_interface};
 
 struct PSI_transaction_bootstrap pfs_transaction_bootstrap = {
     get_transaction_interface};
@@ -10006,6 +10028,8 @@ static void *services[] = {
     REFERENCES_SERVICE(performance_schema, psi_tls_channel_v1),
     REFERENCES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
     REFERENCES_SERVICE(performance_schema, mysql_server_telemetry_metrics_v1),
+    REFERENCES_SERVICE(performance_schema, mysql_server_telemetry_logs),
+    REFERENCES_SERVICE(performance_schema, mysql_server_telemetry_logs_client),
     REFERENCES_SERVICE(performance_schema, psi_metric_v1),
     REFERENCES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
     REFERENCES_SERVICE(mysql_server, pfs_notification_v3),

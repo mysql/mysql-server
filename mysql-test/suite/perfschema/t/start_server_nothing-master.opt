@@ -50,3 +50,4 @@
 
 --loose-performance_schema_max_meter_classes=0
 --loose-performance_schema_max_metric_classes=0
+--loose-performance_schema_max_logger_classes=0

@@ -79,6 +79,8 @@ pfs_tls_channel.h
 pfs_user.h
 pfs_variable.h
 pfs_visitor.h
+mysql_server_telemetry_logs_service_imp.h
+mysql_server_telemetry_logs_client_service_imp.h
 mysql_server_telemetry_metrics_service_imp.h
 mysql_server_telemetry_traces_service_imp.h
 table_accounts.h
@@ -160,6 +162,7 @@ table_session_variables.h
 table_setup_actors.h
 table_setup_consumers.h
 table_setup_instruments.h
+table_setup_loggers.h
 table_setup_meters.h
 table_setup_metrics.h
 table_setup_objects.h
@@ -249,6 +252,8 @@ pfs_tls_channel.cc
 pfs_user.cc
 pfs_variable.cc
 pfs_visitor.cc
+mysql_server_telemetry_logs_service_imp.cc
+mysql_server_telemetry_logs_client_service_imp.cc
 mysql_server_telemetry_metrics_service_imp.cc
 mysql_server_telemetry_traces_service_imp.cc
 service_pfs_notification.cc
@@ -334,6 +339,7 @@ table_session_variables.cc
 table_setup_actors.cc
 table_setup_consumers.cc
 table_setup_instruments.cc
+table_setup_loggers.cc
 table_setup_meters.cc
 table_setup_metrics.cc
 table_setup_objects.cc
@@ -411,6 +417,7 @@ OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrument
 OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
 OPTION(DISABLE_PSI_TLS_CHANNEL "Exclude the performance schema tls channel instrumentation" OFF)
 OPTION(DISABLE_PSI_SERVER_TELEMETRY_TRACES "Exclude the performance schema server telemetry traces instrumentation" OFF)
+OPTION(DISABLE_PSI_SERVER_TELEMETRY_LOGS "Exclude the performance schema server telemetry logs instrumentation" OFF)
 OPTION(DISABLE_PSI_METRICS "Exclude the performance schema server telemetry metrics instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
@@ -434,5 +441,6 @@ MARK_AS_ADVANCED(DISABLE_PSI_ERROR)
 MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
 MARK_AS_ADVANCED(DISABLE_PSI_TLS_CHANNEL)
 MARK_AS_ADVANCED(DISABLE_PSI_SERVER_TELEMETRY_TRACES)
+MARK_AS_ADVANCED(DISABLE_PSI_SERVER_TELEMETRY_LOGS)
 MARK_AS_ADVANCED(DISABLE_PSI_METRICS)
 

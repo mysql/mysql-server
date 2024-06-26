@@ -89,6 +89,9 @@ class log_builtins_imp {
                        (log_item_data * lid, const char *s, size_t s_len));
   static DEFINE_METHOD(bool, item_set_cstring,
                        (log_item_data * lid, const char *s));
+  static DEFINE_METHOD(void, line_set_flag,
+                       (log_line * ll, log_line_flags_mask mask,
+                        log_line_flags_mask value));
 
   static DEFINE_METHOD(log_item_data *, item_set_with_key,
                        (log_item * li, log_item_type t, const char *key,

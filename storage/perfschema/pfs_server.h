@@ -37,6 +37,7 @@
 #include "mysql/psi/psi_error.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_logger_client.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_metric.h"
@@ -92,6 +93,9 @@
 #ifndef PFS_MAX_METRIC_CLASS
 #define PFS_MAX_METRIC_CLASS 600
 #endif
+#ifndef PFS_MAX_LOGGER_CLASS
+#define PFS_MAX_LOGGER_CLASS 80
+#endif
 
 #ifndef PFS_MAX_GLOBAL_SERVER_ERRORS
 #define PFS_MAX_GLOBAL_SERVER_ERRORS \
@@ -146,6 +150,9 @@ struct PFS_global_param {
 
   /** Default meter instrument configuration option. */
   char *m_pfs_meter;
+
+  /** Default logger instrument configuration option. */
+  char *m_pfs_logger;
 
   /**
     Maximum number of instrumented mutex classes.
@@ -298,6 +305,12 @@ struct PFS_global_param {
   */
   ulong m_metric_class_sizing;
 
+  /**
+    Maximum number of instrumented logger classes.
+    @sa logger_class_lost.
+  */
+  ulong m_logger_class_sizing;
+
   long m_metadata_lock_sizing;
 
   long m_max_digest_length;
@@ -354,6 +367,8 @@ void pre_initialize_performance_schema();
   bootstrap
   @param [out] metric_bootstrap Telemetry metrics instrumentation service
   bootstrap
+  @param [out] logs_client_bootstrap Telemetry logs client instrumentation
+  service bootstrap
   @retval 0 success
 */
 int initialize_performance_schema(
@@ -371,7 +386,8 @@ int initialize_performance_schema(
     PSI_data_lock_bootstrap **data_lock_bootstrap,
     PSI_system_bootstrap **system_bootstrap,
     PSI_tls_channel_bootstrap **tls_channel_bootstrap,
-    PSI_metric_bootstrap **metric_bootstrap);
+    PSI_metric_bootstrap **metric_bootstrap,
+    PSI_logs_client_bootstrap **logs_client_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 
@@ -412,6 +428,17 @@ void init_pfs_meter_array();
   Process one PFS_METER configuration string.
 */
 int add_pfs_meter_to_array(const char *name, const char *value);
+
+/**
+  Initialize the dynamic array holding individual logger instrument settings
+  collected from the server configuration options.
+*/
+void init_pfs_logger_array();
+
+/**
+  Process one PFS_LOGGER configuration string.
+*/
+int add_pfs_logger_to_array(const char *name, const char *value);
 
 /**
   Shutdown the performance schema.

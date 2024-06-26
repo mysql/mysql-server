@@ -118,6 +118,7 @@ memory/performance_schema/file_class	NULL
 memory/performance_schema/file_handle	NULL
 memory/performance_schema/file_instances	NULL
 memory/performance_schema/hosts	NULL
+memory/performance_schema/logger_class	NULL
 memory/performance_schema/memory_class	NULL
 memory/performance_schema/memory_summary_by_account_by_event_name	NULL
 memory/performance_schema/memory_summary_by_host_by_event_name	NULL
@@ -345,6 +346,7 @@ memory/performance_schema/file_class	NULL
 memory/performance_schema/file_handle	NULL
 memory/performance_schema/file_instances	NULL
 memory/performance_schema/hosts	NULL
+memory/performance_schema/logger_class	NULL
 memory/performance_schema/memory_class	NULL
 memory/performance_schema/memory_summary_by_account_by_event_name	NULL
 memory/performance_schema/memory_summary_by_host_by_event_name	NULL

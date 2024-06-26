@@ -148,6 +148,12 @@ static PSI_metric_info_v1 ps_metrics[] = {
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
      get_metric_simple_integer<decltype(metric_class_lost)>,
      &metric_class_lost},
+    {"logger_lost", "",
+     "How many logger instruments could not be loaded "
+     "(Performance_schema_logger_lost)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(logger_class_lost)>,
+     &logger_class_lost},
     {"mutex_classes_lost", "",
      "How many mutex instruments could not be loaded "
      "(Performance_schema_mutex_classes_lost)",

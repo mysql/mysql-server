@@ -35,6 +35,8 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #include "sql/mysqld.h"
+#include "storage/perfschema/mysql_server_telemetry_logs_client_service_imp.h"
+#include "storage/perfschema/mysql_server_telemetry_logs_service_imp.h"
 #include "storage/perfschema/mysql_server_telemetry_metrics_service_imp.h"
 #include "storage/perfschema/mysql_server_telemetry_traces_service_imp.h"
 #include "storage/perfschema/pfs.h"
@@ -70,6 +72,7 @@ PFS_table_stat PFS_table_stat::g_reset_template;
 static void cleanup_performance_schema();
 void cleanup_instrument_config();
 void cleanup_meter_config();
+void cleanup_logger_config();
 
 void pre_initialize_performance_schema() {
   record_main_thread_id();
@@ -109,7 +112,8 @@ int initialize_performance_schema(
     PSI_data_lock_bootstrap **data_lock_bootstrap,
     PSI_system_bootstrap **system_bootstrap,
     PSI_tls_channel_bootstrap **tls_channel_bootstrap,
-    PSI_metric_bootstrap **metric_bootstrap) {
+    PSI_metric_bootstrap **metric_bootstrap,
+    PSI_logs_client_bootstrap **logs_client_bootstrap) {
   bool init_failed = false;
 
   *thread_bootstrap = nullptr;
@@ -130,6 +134,7 @@ int initialize_performance_schema(
   *system_bootstrap = nullptr;
   *tls_channel_bootstrap = nullptr;
   *metric_bootstrap = nullptr;
+  *logs_client_bootstrap = nullptr;
 
   pfs_enabled = param->m_enabled;
 
@@ -167,7 +172,8 @@ int initialize_performance_schema(
       init_digest_hash(param) || init_program(param) ||
       init_program_hash(param) || init_prepared_stmt(param) ||
       init_meter_class(param->m_meter_class_sizing) ||
-      init_metric_class(param->m_metric_class_sizing) || init_error(param)) {
+      init_metric_class(param->m_metric_class_sizing) ||
+      init_logger_class(param->m_logger_class_sizing) || init_error(param)) {
     /*
       The performance schema initialization failed.
       Free the memory used, and disable the instrumentation.
@@ -249,6 +255,7 @@ int initialize_performance_schema(
       *system_bootstrap = &pfs_system_bootstrap;
       *tls_channel_bootstrap = &pfs_tls_channel_bootstrap;
       *metric_bootstrap = &pfs_metric_bootstrap;
+      *logs_client_bootstrap = &pfs_logs_client_bootstrap;
     }
   }
 
@@ -274,6 +281,22 @@ int initialize_performance_schema(
        it still needs to be initialized.
   */
   init_pfs_tls_channels_instrumentation();
+
+  /*
+     Initialize telemetry logs service.
+    This must be done:
+    - after the memory allocation for mutex instrumentation,
+      so that mutex LOCK_pfs_logging_callback gets instrumented
+      (if the instrumentation is enabled),
+    - Even if the mutex LOCK_pfs_logging_callback ends up not instrumented,
+       it still needs to be initialized.
+  */
+  initialize_mysql_server_telemetry_logs_service();
+
+  /*
+     Initialize telemetry logs client service.
+  */
+  initialize_mysql_server_telemetry_logs_client_service();
 
   /*
     Initialize telemetry metrics instrument service.
@@ -316,6 +339,7 @@ static void cleanup_performance_schema() {
 
   cleanup_instrument_config();
   cleanup_meter_config();
+  cleanup_logger_config();
 
   /*
     All the LF_HASH
@@ -365,6 +389,8 @@ static void cleanup_performance_schema() {
   cleanup_mysql_server_telemetry_metrics_service();
   cleanup_mysql_server_metrics_instrument_service();
   cleanup_mysql_server_telemetry_traces_service();
+  cleanup_mysql_server_telemetry_logs_service();
+  cleanup_mysql_server_telemetry_logs_client_service();
   cleanup_pfs_tls_channels_instrumentation();
   cleanup_pfs_plugin_table();
   cleanup_error();
@@ -382,6 +408,7 @@ static void cleanup_performance_schema() {
   cleanup_memory_class();
   cleanup_meter_class();
   cleanup_metric_class();
+  cleanup_logger_class();
 
   cleanup_instruments();
 }
@@ -515,6 +542,25 @@ void cleanup_meter_config() {
 }
 
 /**
+  Initialize the dynamic array used to hold PFS_LOGGER configuration
+  options.
+*/
+void init_pfs_logger_array() {
+  pfs_logger_config_array = new Pfs_logger_config_array(PSI_NOT_INSTRUMENTED);
+}
+
+/**
+  Deallocate the PFS_LOGGER array.
+*/
+void cleanup_logger_config() {
+  if (pfs_logger_config_array != nullptr) {
+    my_free_container_pointers(*pfs_logger_config_array);
+  }
+  delete pfs_logger_config_array;
+  pfs_logger_config_array = nullptr;
+}
+
+/**
   Process one performance_schema_meter configuration string. Isolate the
   instrument name, evaluate the option values, and store them in a dynamic
   array. Return 'false' for success, 'true' for error.
@@ -540,6 +586,7 @@ int add_pfs_meter_to_array(const char *name, const char *value) {
 
   /* Copy the meter instrument name */
   e->m_name = (char *)e + sizeof(PFS_meter_config);
+
   memcpy(e->m_name, name, name_length);
   e->m_name_length = (uint)name_length;
   e->m_name[name_length] = '\0';
@@ -623,6 +670,79 @@ int add_pfs_meter_to_array(const char *name, const char *value) {
 
   /* Add to the array of default startup options */
   if (pfs_meter_config_array->push_back(e)) {
+    my_free(e);
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
+  Process one performance_schema_logger configuration string. Isolate the
+  instrument name, evaluate the option values, and store them in a dynamic
+  array. Return 'false' for success, 'true' for error.
+
+  @param name    Instrument name
+  @param value   Configuration option: 'level:INFO', 'level:NONE', etc.
+  @return 0 for success, non zero for errors
+*/
+
+int add_pfs_logger_to_array(const char *name, const char *value) {
+  const size_t name_length = strlen(name);
+  const size_t value_length = strlen(value);
+
+  /* Allocate structure plus string buffers plus null terminators */
+  auto *e = (PFS_logger_config *)my_malloc(
+      PSI_NOT_INSTRUMENTED,
+      sizeof(PFS_logger_config) + name_length + 1 + value_length + 1,
+      MYF(MY_WME));
+  if (!e) {
+    return 1;
+  }
+
+  /* Copy the logger instrument name */
+  e->m_name = (char *)e + sizeof(PFS_logger_config);
+  memcpy(e->m_name, name, name_length);
+  e->m_name_length = (uint)name_length;
+  e->m_name[name_length] = '\0';
+
+  /*
+   Value string must have a "<property_name>:<property value>" form,
+   for example "level:INFO", split it into pieces.
+  */
+  const char *val_delimiter = strchr(value, ':');
+  if (val_delimiter == nullptr) {
+    my_free(e);
+    return 1;
+  }
+  const size_t val_len = val_delimiter - value;
+  const char *property_name = value;
+  const char *property_value = val_delimiter + 1;
+
+  /* must match the only supported property - level */
+  if (val_len != strlen("level") ||
+      (strncmp(property_name, "level", val_len) &&
+       strncmp(property_name, "LEVEL", val_len))) {
+    my_free(e);
+    return 1;
+  }
+
+  /* Set flags accordingly */
+  if (!my_strcasecmp(&my_charset_latin1, property_value, "error")) {
+    e->m_level = OTELLogLevel::TLOG_ERROR;
+  } else if (!my_strcasecmp(&my_charset_latin1, property_value, "warn")) {
+    e->m_level = OTELLogLevel::TLOG_WARN;
+  } else if (!my_strcasecmp(&my_charset_latin1, property_value, "info")) {
+    e->m_level = OTELLogLevel::TLOG_INFO;
+  } else if (!my_strcasecmp(&my_charset_latin1, property_value, "debug")) {
+    e->m_level = OTELLogLevel::TLOG_DEBUG;
+  } else {
+    my_free(e);
+    return 1;
+  }
+
+  /* Add to the array of default startup options */
+  if (pfs_logger_config_array->push_back(e)) {
     my_free(e);
     return 1;
   }

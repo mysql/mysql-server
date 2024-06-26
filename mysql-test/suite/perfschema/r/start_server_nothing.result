@@ -136,6 +136,7 @@ performance_schema_max_file_classes	0
 performance_schema_max_file_handles	0
 performance_schema_max_file_instances	0
 performance_schema_max_index_stat	0
+performance_schema_max_logger_classes	0
 performance_schema_max_memory_classes	0
 performance_schema_max_metadata_locks	0
 performance_schema_max_meter_classes	0
@@ -217,6 +218,7 @@ memory/performance_schema/file_class	YES	NULL	global_statistics	1	Memory used fo
 memory/performance_schema/file_handle	YES	NULL	global_statistics	1	Memory used for table performance_schema.file_handle
 memory/performance_schema/file_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.file_instances
 memory/performance_schema/hosts	YES	NULL	global_statistics	1	Memory used for table performance_schema.hosts
+memory/performance_schema/logger_class	YES	NULL	global_statistics	1	Memory used for logger instrument classes
 memory/performance_schema/memory_class	YES	NULL	global_statistics	1	Memory used for memory instrument classes
 memory/performance_schema/memory_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_account_by_event_name
 memory/performance_schema/memory_summary_by_host_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_host_by_event_name

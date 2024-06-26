@@ -68,11 +68,32 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_time.h"  // str_to_datetime()
 #endif
 
+#include <mysql/psi/mysql_telemetry_logs_client.h>
+extern PSI_logger_key key_error_logger;
+
 PSI_memory_key key_memory_log_error_loaded_services;
 PSI_memory_key key_memory_log_error_stack;
 
 using std::string;
 using std::unique_ptr;
+
+// helper to add telemetry log record attribute from log item field
+#define ADD_STR_ATTR(rec, ll, type, name)                               \
+  if (ll->seen & type) {                                                \
+    const int m = log_line_index_by_type(ll, type);                     \
+    if (m >= 0 && ll->item[m].data.data_string.length > 0) {            \
+      rec.add_attribute_string(name, ll->item[m].data.data_string.str); \
+    }                                                                   \
+  }
+
+#define ADD_INT_ATTR(rec, ll, type, name)                                     \
+  if (ll->seen & type) {                                                      \
+    const int m = log_line_index_by_type(ll, type);                           \
+    if (m >= 0) {                                                             \
+      rec.add_attribute_uint64(name,                                          \
+                               (uint64_t)(int)ll->item[m].data.data_integer); \
+    }                                                                         \
+  }
 
 /**
   Initial log-processor:
@@ -583,8 +604,10 @@ void log_item_free(log_item *li) {
 log_line *log_line_init() {
   log_line *ll;
   if ((ll = static_cast<log_line *>(my_malloc(
-           key_memory_log_error_stack, sizeof(log_line), MYF(0)))) != nullptr)
+           key_memory_log_error_stack, sizeof(log_line), MYF(0)))) != nullptr) {
     memset(ll, 0, sizeof(log_line));
+    ll->flags = LOG_LINE_EMIT_TELEMETRY;
+  }
   return ll;
 }
 
@@ -1099,6 +1122,20 @@ bool log_line_error_stack_run(log_line *ll) {
 }
 
 /**
+  Set/reset one or more log line flags.
+
+  Example to set the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, LOG_LINE_EMIT_TELEMETRY);
+  to reset the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, 0);
+*/
+void log_line_set_flag(log_line *ll, log_line_flags_mask mask,
+                       log_line_flags_mask value) {
+  ll->flags &= ~mask;
+  ll->flags |= (mask & value);
+}
+
+/**
   Complete, filter, and write submitted log items.
 
   This expects a log_line collection of log-related key/value pairs,
@@ -1299,6 +1336,56 @@ int log_line_submit(log_line *ll) {
         }
       }
     });
+
+#ifdef HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
+    {
+      /* telemetry logging */
+      if (ll->flags & LOG_LINE_EMIT_TELEMETRY) {
+        int n = log_line_index_by_type(ll, LOG_ITEM_LOG_MESSAGE);
+        if (n >= 0 && ll->item[n].data.data_string.length > 0) {
+          const char *msg = ll->item[n].data.data_string.str;
+
+          // map log level to OTELLevel
+          OTELLogLevel level = OTELLogLevel::TLOG_ERROR;
+          if (ll->seen & LOG_ITEM_LOG_PRIO) {
+            n = log_line_index_by_type(ll, LOG_ITEM_LOG_PRIO);
+            if (n >= 0) {
+              switch ((int)ll->item[n].data.data_integer) {
+                case ERROR_LEVEL:
+                case SYSTEM_LEVEL:
+                  level = OTELLogLevel::TLOG_ERROR;
+                  break;
+                case WARNING_LEVEL:
+                  level = OTELLogLevel::TLOG_WARN;
+                  break;
+                case INFORMATION_LEVEL:
+                  level = OTELLogLevel::TLOG_INFO;
+                  break;
+              }
+            }
+          }
+
+          PSI_LogRecord rec(key_error_logger, level, msg);
+          if (rec.check_enabled()) {
+            ADD_INT_ATTR(rec, ll, LOG_ITEM_SQL_ERRCODE, "err_code");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SQL_ERRSYMBOL, "err_symbol");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SQL_STATE, "SQL_state");
+            ADD_INT_ATTR(rec, ll, LOG_ITEM_SRV_THREAD, "thread");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SRC_FILE, "source_file");
+            ADD_INT_ATTR(rec, ll, LOG_ITEM_SRC_LINE, "source_line");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SRC_FUNC, "function");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SRV_COMPONENT, "component");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SRV_SUBSYS, "subsystem");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_MSC_USER, "user");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_MSC_HOST, "host");
+            ADD_INT_ATTR(rec, ll, LOG_ITEM_SYS_ERRNO, "OS_errno");
+            ADD_STR_ATTR(rec, ll, LOG_ITEM_SYS_STRERROR, "OS_errmsg");
+            rec.emit();
+          }
+        }
+      }
+    }
+#endif  // HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
 
     /*
       We were called before even the buffered sink (and our locks)
@@ -2421,6 +2508,24 @@ DEFINE_METHOD(bool, log_builtins_imp::item_set_lexstring,
 DEFINE_METHOD(bool, log_builtins_imp::item_set_cstring,
               (log_item_data * lid, const char *s)) {
   return log_item_set_cstring(lid, s);
+}
+
+/**
+  Set/reset one or more log line flags.
+
+  Example to set the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, LOG_LINE_EMIT_TELEMETRY);
+  to reset the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, 0);
+
+  @param           ll                  log line structure
+  @param           mask                mask that defines flags to be changed
+  @param           value               value to set to selected flags
+*/
+DEFINE_METHOD(void, log_builtins_imp::line_set_flag,
+              (log_line * ll, log_line_flags_mask mask,
+               log_line_flags_mask value)) {
+  return log_line_set_flag(ll, mask, value);
 }
 
 /**

@@ -169,6 +169,7 @@ memory/performance_schema/file_class
 memory/performance_schema/file_handle
 memory/performance_schema/file_instances
 memory/performance_schema/hosts
+memory/performance_schema/logger_class
 memory/performance_schema/memory_class
 memory/performance_schema/memory_summary_by_account_by_event_name
 memory/performance_schema/memory_summary_by_host_by_event_name

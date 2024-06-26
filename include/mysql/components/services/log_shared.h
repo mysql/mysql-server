@@ -156,6 +156,11 @@ typedef enum enum_log_item_type {
   LOG_ITEM_RET_BUFFER = 1 << 30      /**< sink's output to pfs table */
 } log_item_type;
 
+/** Log line flags */
+typedef enum enum_log_line_flags {
+  LOG_LINE_EMIT_TELEMETRY = 1 << 0 /**< emit log line as telemetry record */
+} log_line_flags;
+
 /* some suggested keys for generic items */
 
 /** DIAGNOSTICS: for da->message_text() */
@@ -220,6 +225,9 @@ typedef struct _log_line log_line;
 
 /** log iter: an iterator over the collection of log items in a log line */
 typedef struct _log_item_iter log_item_iter;
+
+/** a bit mask with flags describing a log line */
+typedef uint64 log_line_flags_mask;
 
 /** advisory. components must not rely on others using the same value. */
 #define LOG_BUFF_MAX 8192

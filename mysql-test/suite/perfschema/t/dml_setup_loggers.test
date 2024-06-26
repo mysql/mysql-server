@@ -1,0 +1,51 @@
+# Tests for PERFORMANCE_SCHEMA
+--source include/have_server_telemetry_logs.inc
+
+# The query result are not re producible,
+# due to variations in platforms and plugins
+# We still execute the select statement, for:
+# - code coverage
+# - make sure it does not crash
+# - valgrind coverage
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_loggers;
+
+SELECT * FROM performance_schema.setup_loggers
+  where name like 'component%' limit 1;
+
+select * from performance_schema.setup_loggers
+  where name='FOO';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.setup_loggers
+  set name='FOO', description='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.setup_loggers
+  set name='FOO', description='BAR', level='none';
+
+UPDATE performance_schema.setup_loggers
+  SET level='error';
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_loggers;
+--enable_result_log
+
+UPDATE performance_schema.setup_loggers
+  SET level='info';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.setup_loggers
+  where name <> 'FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.setup_loggers;
+
+LOCK TABLES performance_schema.setup_loggers READ;
+UNLOCK TABLES;
+
+LOCK TABLES performance_schema.setup_loggers WRITE;
+UNLOCK TABLES;
+

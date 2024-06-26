@@ -107,6 +107,7 @@ typedef struct _log_line {
   log_item output_buffer;       ///< buffer a service can return its output in
   int count;                    ///< number of key/value pairs ("log items")
   log_item item[LOG_ITEM_MAX];  ///< log items
+  log_line_flags_mask flags;    ///< bit field with extra flags
 } log_line;
 
 extern log_filter_ruleset *log_filter_builtin_rules;  // what it says on the tin

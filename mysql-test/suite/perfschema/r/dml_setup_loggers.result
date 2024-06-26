@@ -1,0 +1,25 @@
+SELECT * FROM performance_schema.setup_loggers;
+SELECT * FROM performance_schema.setup_loggers
+where name like 'component%' limit 1;
+select * from performance_schema.setup_loggers
+where name='FOO';
+insert into performance_schema.setup_loggers
+set name='FOO', description='BAR';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_loggers'
+insert into performance_schema.setup_loggers
+set name='FOO', description='BAR', level='none';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_loggers'
+UPDATE performance_schema.setup_loggers
+SET level='error';
+SELECT * FROM performance_schema.setup_loggers;
+UPDATE performance_schema.setup_loggers
+SET level='info';
+delete from performance_schema.setup_loggers
+where name <> 'FOO';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_loggers'
+delete from performance_schema.setup_loggers;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_loggers'
+LOCK TABLES performance_schema.setup_loggers READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.setup_loggers WRITE;
+UNLOCK TABLES;

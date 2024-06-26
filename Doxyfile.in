@@ -1024,6 +1024,7 @@ RECURSIVE              = YES
 EXCLUDE                = cmd-line-utils \
                          client/mysqlbinlog.cc \
                          components/test \
+                         components/test_server_telemetry_logs \
                          components/test_server_telemetry_metrics \
                          components/test_server_telemetry_traces \
                          extra \

@@ -397,6 +397,8 @@ MySQL clients support the protocol:
   @subpage PAGE_MYSQL_SERVER_METRICS_INSTRUMENT_SERVICE
   @subpage PAGE_MYSQL_SERVER_TELEMETRY_METRICS_SERVICE
   @subpage PAGE_MYSQL_GLOBAL_VARIABLE_ATTRIBUTES_SERVICE
+  @subpage PAGE_MYSQL_SERVER_TELEMETRY_LOGS_SERVICE
+  @subpage PAGE_MYSQL_SERVER_TELEMETRY_LOGS_CLIENT_SERVICE
 */
 
 
@@ -828,8 +830,10 @@ MySQL clients support the protocol:
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
+#include <mysql/psi/mysql_telemetry_logs_client.h>  // mysql_log_client_register
 #include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 #include "pfs_metric_provider.h"
+#include "pfs_telemetry_logs_client_provider.h"
 #include "sql/binlog/services/iterator/file_storage.h"
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_filter.h"
@@ -1690,6 +1694,7 @@ static int remaining_argc;
 static char **remaining_argv;
 
 void unregister_server_metric_sources();
+void unregister_server_telemetry_loggers();
 
 /**
  Holds the "original" (i.e. as on startup) set of arguments.
@@ -2739,6 +2744,7 @@ static void clean_up(bool print_message) {
 
   unregister_pfs_metric_sources();
   unregister_server_metric_sources();
+  unregister_server_telemetry_loggers();
 
   authentication_policy::deinit();
   denit_command_maps();
@@ -6454,6 +6460,19 @@ void unregister_server_metric_sources() {
   mysql_meter_unregister(core_meters, std::size(core_meters));
 }
 
+PSI_logger_key key_error_logger = 0;
+
+static PSI_logger_info_v1 err_loggers[] = {
+    {"error_log", "MySQL error logger", 0, &key_error_logger}};
+
+void register_server_telemetry_loggers() {
+  mysql_log_client_register(err_loggers, std::size(err_loggers), "error");
+}
+
+void unregister_server_telemetry_loggers() {
+  mysql_log_client_unregister(err_loggers, std::size(err_loggers));
+}
+
 int init_common_variables() {
 #if defined(HAVE_BUILD_ID_SUPPORT)
   my_find_build_id(server_build_id);
@@ -9021,6 +9040,7 @@ int mysqld_main(int argc, char **argv)
   */
   init_pfs_instrument_array();
   init_pfs_meter_array();
+  init_pfs_logger_array();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   heo_error = handle_early_options();
@@ -9060,7 +9080,7 @@ int mysqld_main(int argc, char **argv)
           &psi_mdl_hook, &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
           &psi_transaction_hook, &psi_memory_hook, &psi_error_hook,
           &psi_data_lock_hook, &psi_system_hook, &psi_tls_channel_hook,
-          &psi_metric_hook);
+          &psi_metric_hook, &psi_logs_client_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled) {
         pfs_param.m_enabled = false;
         LogErr(WARNING_LEVEL, ER_PERFSCHEMA_INIT_FAILED);
@@ -9228,6 +9248,14 @@ int mysqld_main(int argc, char **argv)
     service = psi_metric_hook->get_interface(PSI_CURRENT_METRIC_VERSION);
     if (service != nullptr) {
       set_psi_metric_service(service);
+    }
+  }
+
+  if (psi_logs_client_hook != nullptr) {
+    service =
+        psi_logs_client_hook->get_interface(PSI_CURRENT_LOGGER_CLIENT_VERSION);
+    if (service != nullptr) {
+      set_psi_logs_client_service(service);
     }
   }
 
@@ -9927,6 +9955,8 @@ int mysqld_main(int argc, char **argv)
   register_server_metric_sources();
   register_pfs_metric_sources();
 
+  register_server_telemetry_loggers();
+
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
   (void)MYSQL_SET_STAGE(0, __FILE__, __LINE__);
@@ -9973,6 +10003,8 @@ int mysqld_main(int argc, char **argv)
   */
   unregister_pfs_metric_sources();
   unregister_server_metric_sources();
+
+  unregister_server_telemetry_loggers();
 
   mysql_event_tracking_shutdown_notify(
       AUDIT_EVENT(EVENT_TRACKING_SHUTDOWN_SHUTDOWN),
@@ -11272,6 +11304,18 @@ static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
+static int show_telemetry_logs_support(THD * /*unused*/, SHOW_VAR *var,
+                                       char *buf) {
+  var->type = SHOW_BOOL;
+  var->value = buf;
+#ifdef HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
+  *(pointer_cast<bool *>(buf)) = true;
+#else
+  *(pointer_cast<bool *>(buf)) = false;
+#endif /* HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE */
+  return 0;
+}
+
 static int show_telemetry_metrics_support(THD * /*unused*/, SHOW_VAR *var,
                                           char *buf) {
   var->type = SHOW_BOOL;
@@ -11692,6 +11736,8 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Resource_group_supported", (char *)show_resource_group_support, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Telemetry_logs_supported", (char *)show_telemetry_logs_support, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Telemetry_metrics_supported", (char *)show_telemetry_metrics_support,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Telemetry_traces_supported", (char *)show_telemetry_traces_support,
@@ -12033,6 +12079,109 @@ static int parse_replicate_rewrite_db(char **key, char **val, char *argument) {
 }
 
 /**
+  Extract instrument name and value from argument
+  and (on success) store it to the instrument configuration array.
+
+  @param argument The configuration value to parse.
+
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static bool process_opt_pfs_instrument(char *argument) {
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    Parse instrument name and value from argument string. Handle leading
+    and trailing spaces. Also handle single quotes.
+
+    Acceptable:
+      performance_schema_instrument = ' foo/%/bar/  =  ON  '
+      performance_schema_instrument = '%=OFF'
+    Not acceptable:
+      performance_schema_instrument = '' foo/%/bar = ON ''
+      performance_schema_instrument = '%='OFF''
+  */
+  char *name = argument, *p = nullptr, *val = nullptr;
+  bool quote = false; /* true if quote detected */
+  bool error = true;  /* false if no errors detected */
+  const int PFS_BUFFER_SIZE = 128;
+  char orig_argument[PFS_BUFFER_SIZE + 1];
+  orig_argument[0] = 0;
+
+  if (!argument) goto pfs_error;
+
+  /* Save original argument string for error reporting */
+  strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+
+  /* Split instrument name and value at the equal sign */
+  if (!(p = strchr(argument, '='))) goto pfs_error;
+
+  /* Get option value */
+  val = p + 1;
+  if (!*val) goto pfs_error;
+
+  /* Trim leading spaces and quote from the instrument name */
+  while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\''))) {
+    /* One quote allowed */
+    if (*name == '\'') {
+      if (!quote)
+        quote = true;
+      else
+        goto pfs_error;
+    }
+    name++;
+  }
+
+  /* Trim trailing spaces from instrument name */
+  while ((p > name) && my_isspace(mysqld_charset, p[-1])) p--;
+  *p = 0;
+
+  /* Remove trailing slash from instrument name */
+  if (p > name && (p[-1] == '/')) p[-1] = 0;
+
+  if (!*name) goto pfs_error;
+
+  /* Trim leading spaces from option value */
+  while (*val && my_isspace(mysqld_charset, *val)) val++;
+
+  /* Trim trailing spaces and matching quote from value */
+  p = val + strlen(val);
+  while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\'')) {
+    /* One matching quote allowed */
+    if (p[-1] == '\'') {
+      if (quote)
+        quote = false;
+      else
+        goto pfs_error;
+    }
+    p--;
+  }
+
+  *p = 0;
+
+  if (!*val) goto pfs_error;
+
+  /* Add instrument name and value to array of configuration options */
+  if (add_pfs_instr_to_array(name, val)) goto pfs_error;
+
+  error = false;
+
+pfs_error:
+  if (error) {
+    LogErr(WARNING_LEVEL, ER_INVALID_INSTRUMENT, orig_argument);
+    return true;
+  }
+
+  // success
+  return false;
+#else
+  // success (ignored)
+  return false;
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+}
+
+/**
   Extract telemetry meter name and attribute values from argument
   and (on success) store it to the meter configuration array.
   @param argument The configuration value to parse.
@@ -12129,6 +12278,109 @@ pfs_error_meter:
   return false;
 #else
   // success (ignored)
+  return false;
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+}
+
+/**
+  Extract logger name and level value from argument
+  and (on success) store it to the logger configuration array.
+
+  @param argument The configuration value to parse.
+
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static bool process_opt_pfs_logger(char *argument) {
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    Parse instrument name and value from argument string. Handle leading
+    and trailing spaces. Also handle single quotes.
+
+    Acceptable:
+      performance_schema_logger = ' foo/%/bar/  =  level:INFO  '
+      performance_schema_logger = '%=level:NONE'
+    Not acceptable:
+      performance_schema_logger = '' foo/%/bar = level:INFO ''
+      performance_schema_logger = '%='level:ERROR''
+  */
+  char *name = argument, *p = nullptr, *val = nullptr;
+  bool quote = false; /* true if quote detected */
+  bool error = true;  /* false if no errors detected */
+  const int PFS_BUFFER_SIZE = 128;
+  char orig_argument[PFS_BUFFER_SIZE + 1];
+  orig_argument[0] = 0;
+
+  if (!argument) goto pfs_error_logger;
+
+  /* Save original argument string for error reporting */
+  strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+
+  /* Split instrument name and value at the equal sign */
+  if (!(p = strchr(argument, '='))) goto pfs_error_logger;
+
+  /* Get option value */
+  val = p + 1;
+  if (!*val) goto pfs_error_logger;
+
+  /* Trim leading spaces and quote from the instrument name */
+  while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\''))) {
+    /* One quote allowed */
+    if (*name == '\'') {
+      if (!quote)
+        quote = true;
+      else
+        goto pfs_error_logger;
+    }
+    name++;
+  }
+
+  /* Trim trailing spaces from instrument name */
+  while ((p > name) && my_isspace(mysqld_charset, p[-1])) p--;
+  *p = 0;
+
+  /* Remove trailing slash from instrument name */
+  if (p > name && (p[-1] == '/')) p[-1] = 0;
+
+  if (!*name) goto pfs_error_logger;
+
+  /* Trim leading spaces from option value */
+  while (*val && my_isspace(mysqld_charset, *val)) val++;
+
+  /* Trim trailing spaces and matching quote from value */
+  p = val + strlen(val);
+  while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\'')) {
+    /* One matching quote allowed */
+    if (p[-1] == '\'') {
+      if (quote)
+        quote = false;
+      else
+        goto pfs_error_logger;
+    }
+    p--;
+  }
+
+  *p = 0;
+
+  if (!*val) goto pfs_error_logger;
+
+  /* Add instrument name and values to array of configuration options */
+  if (add_pfs_logger_to_array(name, val)) goto pfs_error_logger;
+
+  error = false;
+
+pfs_error_logger:
+  if (error) {
+    LogErr(WARNING_LEVEL, ER_INVALID_LOGGER, orig_argument);
+    return true;
+  }
+
+  // success
+  return false;
+#else
+  // success (ignore)
   return false;
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 }
@@ -12500,94 +12752,14 @@ bool mysqld_get_one_option(int optid,
     case OPT_PLUGIN_LOAD_ADD:
       opt_plugin_load_list_ptr->push_back(new i_string(argument));
       break;
-    case OPT_PFS_INSTRUMENT: {
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-      /*
-        Parse instrument name and value from argument string. Handle leading
-        and trailing spaces. Also handle single quotes.
-
-        Acceptable:
-          performance_schema_instrument = ' foo/%/bar/  =  ON  '
-          performance_schema_instrument = '%=OFF'
-        Not acceptable:
-          performance_schema_instrument = '' foo/%/bar = ON ''
-          performance_schema_instrument = '%='OFF''
-      */
-      char *name = argument, *p = nullptr, *val = nullptr;
-      bool quote = false; /* true if quote detected */
-      bool error = true;  /* false if no errors detected */
-      const int PFS_BUFFER_SIZE = 128;
-      char orig_argument[PFS_BUFFER_SIZE + 1];
-      orig_argument[0] = 0;
-
-      if (!argument) goto pfs_error;
-
-      /* Save original argument string for error reporting */
-      strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
-
-      /* Split instrument name and value at the equal sign */
-      if (!(p = strchr(argument, '='))) goto pfs_error;
-
-      /* Get option value */
-      val = p + 1;
-      if (!*val) goto pfs_error;
-
-      /* Trim leading spaces and quote from the instrument name */
-      while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\''))) {
-        /* One quote allowed */
-        if (*name == '\'') {
-          if (!quote)
-            quote = true;
-          else
-            goto pfs_error;
-        }
-        name++;
-      }
-
-      /* Trim trailing spaces from instrument name */
-      while ((p > name) && my_isspace(mysqld_charset, p[-1])) p--;
-      *p = 0;
-
-      /* Remove trailing slash from instrument name */
-      if (p > name && (p[-1] == '/')) p[-1] = 0;
-
-      if (!*name) goto pfs_error;
-
-      /* Trim leading spaces from option value */
-      while (*val && my_isspace(mysqld_charset, *val)) val++;
-
-      /* Trim trailing spaces and matching quote from value */
-      p = val + strlen(val);
-      while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\'')) {
-        /* One matching quote allowed */
-        if (p[-1] == '\'') {
-          if (quote)
-            quote = false;
-          else
-            goto pfs_error;
-        }
-        p--;
-      }
-
-      *p = 0;
-
-      if (!*val) goto pfs_error;
-
-      /* Add instrument name and value to array of configuration options */
-      if (add_pfs_instr_to_array(name, val)) goto pfs_error;
-
-      error = false;
-
-    pfs_error:
-      if (error) {
-        LogErr(WARNING_LEVEL, ER_INVALID_INSTRUMENT, orig_argument);
-        return false;
-      }
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+    case OPT_PFS_INSTRUMENT:
+      if (process_opt_pfs_instrument(argument)) return false;
       break;
-    }
     case OPT_PFS_METER:
       if (process_opt_pfs_meter(argument)) return false;
+      break;
+    case OPT_PFS_LOGGER:
+      if (process_opt_pfs_logger(argument)) return false;
       break;
     case OPT_THREAD_CACHE_SIZE:
       thread_cache_size_specified = true;

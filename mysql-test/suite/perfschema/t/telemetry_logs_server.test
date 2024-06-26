@@ -1,0 +1,136 @@
+################################################################################
+# Test case to test telemetry logs service functionality using test component.
+################################################################################
+
+--source include/have_server_telemetry_logs.inc
+--source include/have_no_telemetry_component.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+# Make test deteministic by controlling built-in loggers
+UPDATE performance_schema.setup_loggers SET level='none';
+
+# Install required components.
+INSTALL COMPONENT 'file://component_test_server_telemetry_logs_export';
+INSTALL COMPONENT 'file://component_test_server_telemetry_logs_client';
+
+--echo ##############
+--echo # Operations #
+--echo ##############
+
+--echo # List available loggers
+SELECT * FROM performance_schema.setup_loggers;
+
+--echo # No message should not be logged when level = none
+UPDATE performance_schema.setup_loggers SET level='none';
+SELECT * FROM performance_schema.setup_loggers;
+
+--disable_result_log
+SELECT test_emit_log("error", "message #1");
+SELECT test_emit_log("info", "message #2");
+--enable_result_log
+
+--echo # Message with level lower than error should not be logged when level = error
+UPDATE performance_schema.setup_loggers SET level="error";
+UPDATE performance_schema.setup_loggers SET level='none' WHERE name='logger/error/error_log';
+
+--disable_result_log
+SELECT test_emit_log("debug", "message #3");
+SELECT test_emit_log("info", "message #4");
+SELECT test_emit_log("warn", "message #5");
+SELECT test_emit_log("error", "message #6");
+--enable_result_log
+
+--echo # Test internal filtering by test component
+SET GLOBAL test_server_telemetry_logs.filter_severity=-1;
+
+--disable_result_log
+SELECT test_emit_log("debug", "message #7");
+SELECT test_emit_log("info", "message #8");
+SELECT test_emit_log("warn", "message #9");
+SELECT test_emit_log("error", "message #10");
+SELECT test_emit_log("invalid", "message #11");
+--enable_result_log
+
+--echo # Test complex logging with attributes
+SET GLOBAL test_server_telemetry_logs.filter_severity=9999;
+SELECT test_emit_log_with_attributes("error", "message #12");
+SELECT test_emit_log_with_attributes("invalid", "message #13");
+
+--echo # Test internal filtering by test component for complex log records
+SET GLOBAL test_server_telemetry_logs.filter_severity=2;
+UPDATE performance_schema.setup_loggers SET level="debug";
+SELECT test_emit_log_with_attributes("debug", "message #14");
+SET GLOBAL test_server_telemetry_logs.filter_severity=9999;
+
+--echo # Test C++ logging wrappers
+UPDATE performance_schema.setup_loggers SET level="warn";
+SELECT test_log_wrappers(1, "test");
+
+--echo # Test for possible array holes when registering/unregistering loggers
+SELECT * FROM performance_schema.setup_loggers;
+SELECT test_log_registration();
+SELECT * FROM performance_schema.setup_loggers;
+
+--echo # Test invalid operations (error handling)
+SELECT test_invalid_operations();
+SELECT test_invalid_operations_export();
+
+--echo # Test that MySQL error log entries are also emitted as telemetry logs
+call mtr.add_suppression("Test message");
+UPDATE performance_schema.setup_loggers SET level='warn' WHERE name='logger/error/error_log';
+SELECT test_error_log();
+
+--echo # Test reloading the components
+UPDATE performance_schema.setup_loggers SET level="none";
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_logs_export';
+INSTALL COMPONENT 'file://component_test_server_telemetry_logs_export';
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_logs_client';
+INSTALL COMPONENT 'file://component_test_server_telemetry_logs_client';
+
+--echo # Restart server with restricted num. of instrument classes
+--let $restart_parameters="restart: --performance_schema_max_logger_classes=1"
+--source include/restart_mysqld.inc
+SHOW STATUS LIKE 'Performance_schema_logger_lost';
+SHOW GLOBAL VARIABLES LIKE "performance_schema_max_logger_classes";
+
+--echo # Restart server, test '--performance_schema_logger' parameter to change the default log level
+--let $restart_parameters="restart: --performance_schema_logger='logger/test_logs_componentA/%=level:ERROR' --performance_schema_logger='logger/test_logs_componentA/test2=level:debug'"
+--let $do_not_echo_parameters = 1;
+--source include/restart_mysqld.inc
+--let $do_not_echo_parameters =;
+SELECT name, level FROM performance_schema.setup_loggers;
+
+# Benchmark results are non-deterministic, uncomment when testing manually
+#--echo # Benchmark 10k loops (x3 logger calls) with logger enabled (telemetry callback registered)
+#UPDATE performance_schema.setup_loggers SET level="debug";
+#SELECT test_log_wrappers(10000, "logger enabled, backend registered");
+
+#--echo # Benchmark 10k loops (x3 logger calls) with logger disabled (telemetry callback registered)
+#UPDATE performance_schema.setup_loggers SET level="none";
+#SELECT test_log_wrappers(10000, "logger disabled, backend registered");
+
+#--echo # Benchmark 10k loops (x3 logger calls) with logger disabled (no telemetry callback registered)
+#SELECT test_unregister_callback();
+#SELECT test_log_wrappers(10000, "logger disabled, backend unregistered");
+
+#--echo # Benchmark 10k loops (x3 logger calls) with logger enabled (no telemetry callback registered)
+#UPDATE performance_schema.setup_loggers SET level="debug";
+#SELECT test_log_wrappers(10000, "logger enabled, backend unregistered");
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_logs_client';
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_logs_export';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+cat_file $MYSQLD_DATADIR/test_server_telemetry_logs_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_logs_component.log;

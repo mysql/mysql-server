@@ -135,6 +135,7 @@
 #include "storage/perfschema/table_setup_actors.h"
 #include "storage/perfschema/table_setup_consumers.h"
 #include "storage/perfschema/table_setup_instruments.h"
+#include "storage/perfschema/table_setup_loggers.h"
 #include "storage/perfschema/table_setup_meters.h"
 #include "storage/perfschema/table_setup_metrics.h"
 #include "storage/perfschema/table_setup_objects.h"
@@ -507,6 +508,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_setup_actors::m_share,
     &table_setup_consumers::m_share,
     &table_setup_instruments::m_share,
+    &table_setup_loggers::m_share,
     &table_setup_meters::m_share,
     &table_setup_metrics::m_share,
     &table_setup_objects::m_share,

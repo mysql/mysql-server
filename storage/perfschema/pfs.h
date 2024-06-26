@@ -65,6 +65,7 @@ extern struct PSI_thread_bootstrap pfs_thread_bootstrap;
 extern struct PSI_transaction_bootstrap pfs_transaction_bootstrap;
 extern struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap;
 extern struct PSI_metric_bootstrap pfs_metric_bootstrap;
+extern struct PSI_logs_client_bootstrap pfs_logs_client_bootstrap;
 
 /** Performance schema Thread Local Storage.  */
 extern thread_local PFS_thread *THR_PFS;

@@ -41,6 +41,7 @@
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
 #include "storage/perfschema/unittest/stub_print_error.h"
+#include "storage/perfschema/unittest/stub_server_logs.h"
 #include "storage/perfschema/unittest/stub_server_telemetry.h"
 #include "storage/perfschema/unittest/stub_telemetry_metrics.h"
 #include "unittest/mytap/tap.h"
@@ -106,6 +107,7 @@ static void test_bootstrap() {
   PSI_system_bootstrap *system_boot;
   PSI_tls_channel_bootstrap *tls_channel_boot;
   PSI_metric_bootstrap *metric_boot;
+  PSI_logs_client_bootstrap *logs_client_boot;
   PFS_global_param param;
 
   diag("test_bootstrap");
@@ -149,6 +151,7 @@ static void test_bootstrap() {
   param.m_memory_class_sizing = 0;
   param.m_meter_class_sizing = 0;
   param.m_metric_class_sizing = 0;
+  param.m_logger_class_sizing = 0;
   param.m_metadata_lock_sizing = 0;
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 0;
@@ -181,7 +184,8 @@ static void test_bootstrap() {
       &param, &thread_boot, &mutex_boot, &rwlock_boot, &cond_boot, &file_boot,
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
-      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot);
+      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot,
+      &logs_client_boot);
   ok(thread_boot != nullptr, "thread_boot");
   ok(mutex_boot != nullptr, "mutex_boot");
   ok(rwlock_boot != nullptr, "rwlock_boot");
@@ -199,6 +203,7 @@ static void test_bootstrap() {
   ok(data_lock_boot != nullptr, "data_lock_boot");
   ok(tls_channel_boot != nullptr, "tls_channel_boot");
   ok(metric_boot != nullptr, "metric_boot");
+  ok(logs_client_boot != nullptr, "logs_client_boot");
 
   ok(thread_boot->get_interface != nullptr, "thread_boot->get_interface");
   ok(mutex_boot->get_interface != nullptr, "mutex_boot->get_interface");
@@ -219,6 +224,8 @@ static void test_bootstrap() {
   ok(tls_channel_boot->get_interface != nullptr,
      "tls_channel_boot->get_interface");
   ok(metric_boot->get_interface != nullptr, "metric_boot->get_interface");
+  ok(logs_client_boot->get_interface != nullptr,
+     "logs_client_boot->get_interface");
 
   psi = thread_boot->get_interface(0);
   ok(psi == nullptr, "no thread version 0");
@@ -323,6 +330,11 @@ static void test_bootstrap() {
   psi = metric_boot->get_interface(PSI_METRIC_VERSION_1);
   ok(psi != nullptr, "metric version 1");
 
+  psi = logs_client_boot->get_interface(0);
+  ok(psi == nullptr, "no logs client version 0");
+  psi = logs_client_boot->get_interface(PSI_LOGGER_CLIENT_VERSION_1);
+  ok(psi != nullptr, "logs client version 1");
+
   shutdown_performance_schema();
 }
 
@@ -341,7 +353,8 @@ static void load_perfschema(
     PSI_data_lock_service_t **data_lock_service,
     PSI_system_service_t **system_service,
     PSI_tls_channel_service_t **tls_channel_service,
-    PSI_metric_service_t **metric_service) {
+    PSI_metric_service_t **metric_service,
+    PSI_logs_client_service_t **logs_client_service) {
   PSI_thread_bootstrap *thread_boot;
   PSI_mutex_bootstrap *mutex_boot;
   PSI_rwlock_bootstrap *rwlock_boot;
@@ -360,6 +373,7 @@ static void load_perfschema(
   PSI_system_bootstrap *system_boot;
   PSI_tls_channel_bootstrap *tls_channel_boot;
   PSI_metric_bootstrap *metric_boot;
+  PSI_logs_client_bootstrap *logs_client_boot;
   PFS_global_param param;
 
   memset(&param, 0xFF, sizeof(param));
@@ -401,6 +415,7 @@ static void load_perfschema(
   param.m_memory_class_sizing = 10;
   param.m_meter_class_sizing = 5;
   param.m_metric_class_sizing = 10;
+  param.m_logger_class_sizing = 10;
   param.m_metadata_lock_sizing = 10;
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 1000;
@@ -434,7 +449,8 @@ static void load_perfschema(
       &param, &thread_boot, &mutex_boot, &rwlock_boot, &cond_boot, &file_boot,
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
-      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot);
+      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot,
+      &logs_client_boot);
   *thread_service = (PSI_thread_service_t *)thread_boot->get_interface(
       PSI_CURRENT_THREAD_VERSION);
   *mutex_service =
@@ -473,6 +489,9 @@ static void load_perfschema(
           PSI_TLS_CHANNEL_VERSION_1);
   *metric_service =
       (PSI_metric_service_t *)metric_boot->get_interface(PSI_METRIC_VERSION_1);
+  *logs_client_service =
+      (PSI_logs_client_service_t *)logs_client_boot->get_interface(
+          PSI_LOGGER_CLIENT_VERSION_1);
 
   /* Reset every consumer to a known state */
   flag_global_instrumentation = true;
@@ -498,6 +517,7 @@ static void test_bad_registration() {
   PSI_system_service_t *system_service;
   PSI_tls_channel_service_t *tls_channel_service;
   PSI_metric_service_t *metric_service;
+  PSI_logs_client_service_t *logs_client_service;
 
   diag("test_bad_registration");
 
@@ -506,7 +526,7 @@ static void test_bad_registration() {
                   &mdl_service, &idle_service, &stage_service,
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
-                  &tls_channel_service, &metric_service);
+                  &tls_channel_service, &metric_service, &logs_client_service);
   /*
     Test that length('wait/synch/mutex/' (17) + category + '/' (1)) < 32
     --> category can be up to 13 chars for a mutex.
@@ -906,6 +926,7 @@ static void test_init_disabled() {
   PSI_system_service_t *system_service;
   PSI_tls_channel_service_t *tls_channel_service;
   PSI_metric_service_t *metric_service;
+  PSI_logs_client_service_t *logs_client_service;
 
   diag("test_init_disabled");
 
@@ -914,7 +935,7 @@ static void test_init_disabled() {
                   &mdl_service, &idle_service, &stage_service,
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
-                  &tls_channel_service, &metric_service);
+                  &tls_channel_service, &metric_service, &logs_client_service);
 
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[] = {{&mutex_key_A, "M-A", 0, 0, ""}};
@@ -1347,6 +1368,7 @@ static void test_locker_disabled() {
   PSI_system_service_t *system_service;
   PSI_tls_channel_service_t *tls_channel_service;
   PSI_metric_service_t *metric_service;
+  PSI_logs_client_service_t *logs_client_service;
 
   diag("test_locker_disabled");
 
@@ -1355,7 +1377,7 @@ static void test_locker_disabled() {
                   &mdl_service, &idle_service, &stage_service,
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
-                  &tls_channel_service, &metric_service);
+                  &tls_channel_service, &metric_service, &logs_client_service);
 
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[] = {{&mutex_key_A, "M-A", 0, 0, ""}};
@@ -1722,6 +1744,7 @@ static void test_file_instrumentation_leak() {
   PSI_system_service_t *system_service;
   PSI_tls_channel_service_t *tls_channel_service;
   PSI_metric_service_t *metric_service;
+  PSI_logs_client_service_t *logs_client_service;
 
   diag("test_file_instrumentation_leak");
 
@@ -1730,7 +1753,7 @@ static void test_file_instrumentation_leak() {
                   &mdl_service, &idle_service, &stage_service,
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
-                  &tls_channel_service, &metric_service);
+                  &tls_channel_service, &metric_service, &logs_client_service);
 
   PSI_file_key file_key_A;
   PSI_file_key file_key_B;
@@ -1856,6 +1879,7 @@ static void test_event_name_index() {
   const PSI_data_lock_service_t *data_lock_service;
   const PSI_tls_channel_service_t *tls_channel_service;
   const PSI_metric_service_t *metric_service;
+  const PSI_logs_client_service_t *logs_client_service;
 
   PSI_thread_bootstrap *thread_boot;
   PSI_mutex_bootstrap *mutex_boot;
@@ -1875,6 +1899,7 @@ static void test_event_name_index() {
   PSI_system_bootstrap *system_boot;
   PSI_tls_channel_bootstrap *tls_channel_boot;
   PSI_metric_bootstrap *metric_boot;
+  PSI_logs_client_bootstrap *logs_client_boot;
   PFS_global_param param;
 
   diag("test_event_name_index");
@@ -1917,6 +1942,7 @@ static void test_event_name_index() {
   param.m_memory_class_sizing = 12;
   param.m_meter_class_sizing = 5;
   param.m_metric_class_sizing = 10;
+  param.m_logger_class_sizing = 10;
   param.m_metadata_lock_sizing = 10;
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 1000;
@@ -1962,7 +1988,8 @@ static void test_event_name_index() {
       &param, &thread_boot, &mutex_boot, &rwlock_boot, &cond_boot, &file_boot,
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
-      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot);
+      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot,
+      &logs_client_boot);
   ok(thread_boot != nullptr, "thread_bootstrap");
   ok(mutex_boot != nullptr, "mutex_bootstrap");
   ok(rwlock_boot != nullptr, "rwlock_bootstrap");
@@ -1980,6 +2007,7 @@ static void test_event_name_index() {
   ok(data_lock_boot != nullptr, "data_lock_bootstrap");
   ok(tls_channel_boot != nullptr, "tls_channel_bootstrap");
   ok(metric_boot != nullptr, "metric_bootstrap");
+  ok(logs_client_boot != nullptr, "logs_client_bootstrap");
 
   thread_service = (PSI_thread_service_t *)thread_boot->get_interface(
       PSI_CURRENT_THREAD_VERSION);
@@ -2034,6 +2062,10 @@ static void test_event_name_index() {
   metric_service =
       (PSI_metric_service_t *)metric_boot->get_interface(PSI_METRIC_VERSION_1);
   ok(metric_service != nullptr, "metric_service");
+  logs_client_service =
+      (PSI_logs_client_service_t *)logs_client_boot->get_interface(
+          PSI_LOGGER_CLIENT_VERSION_1);
+  ok(logs_client_service != nullptr, "logs_client_service");
 
   const PFS_mutex_class *mutex_class;
   PSI_mutex_key dummy_mutex_key_1;
@@ -2131,6 +2163,7 @@ static void test_memory_instruments() {
   PSI_system_service_t *system_service;
   PSI_tls_channel_service_t *tls_channel_service;
   PSI_metric_service_t *metric_service;
+  PSI_logs_client_service_t *logs_client_service;
   PSI_thread *owner;
 
   diag("test_memory_instruments");
@@ -2140,7 +2173,7 @@ static void test_memory_instruments() {
                   &mdl_service, &idle_service, &stage_service,
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
-                  &tls_channel_service, &metric_service);
+                  &tls_channel_service, &metric_service, &logs_client_service);
 
   PSI_memory_key memory_key_A;
   PSI_memory_info all_memory[] = {{&memory_key_A, "M-A", 0, 0, ""}};
@@ -2232,6 +2265,7 @@ static void test_leaks() {
   PSI_system_bootstrap *system_boot;
   PSI_tls_channel_bootstrap *tls_channel_boot;
   PSI_metric_bootstrap *metric_boot;
+  PSI_logs_client_bootstrap *logs_client_boot;
   PFS_global_param param;
 
   /* Allocate everything, to make sure cleanup does not forget anything. */
@@ -2270,6 +2304,7 @@ static void test_leaks() {
   param.m_memory_class_sizing = 10;
   param.m_meter_class_sizing = 5;
   param.m_metric_class_sizing = 10;
+  param.m_logger_class_sizing = 10;
   param.m_metadata_lock_sizing = 1000;
   param.m_digest_sizing = 1000;
   param.m_program_sizing = 1000;
@@ -2305,7 +2340,8 @@ static void test_leaks() {
       &param, &thread_boot, &mutex_boot, &rwlock_boot, &cond_boot, &file_boot,
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
-      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot);
+      &data_lock_boot, &system_boot, &tls_channel_boot, &metric_boot,
+      &logs_client_boot);
   ok(thread_boot != nullptr, "thread bootstrap");
   ok(mutex_boot != nullptr, "mutex bootstrap");
   ok(rwlock_boot != nullptr, "rwlock bootstrap");
@@ -2369,6 +2405,7 @@ static void test_file_operations() {
   PSI_system_service_t *system_service;
   PSI_tls_channel_service_t *tls_channel_service;
   PSI_metric_service_t *metric_service;
+  PSI_logs_client_service_t *logs_client_service;
 
   diag("test_file_operations SETUP");
 
@@ -2377,7 +2414,7 @@ static void test_file_operations() {
                   &mdl_service, &idle_service, &stage_service,
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
-                  &tls_channel_service, &metric_service);
+                  &tls_channel_service, &metric_service, &logs_client_service);
 
   PFS_file_class *file_class;
   PSI_thread *thread_A, *thread_B;
@@ -2688,7 +2725,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(423);
+  plan(429);
 
   MY_INIT("pfs-t");
   do_all_tests();

@@ -99,6 +99,7 @@ session_variables
 setup_actors
 setup_consumers
 setup_instruments
+setup_loggers
 setup_meters
 setup_metrics
 setup_objects

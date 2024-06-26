@@ -27,6 +27,8 @@
 #include "mysql/components/services/registry.h"
 
 // pfs services
+#include <mysql/components/services/mysql_server_telemetry_logs_client_service.h>
+#include <mysql/components/services/mysql_server_telemetry_logs_service.h>
 #include <mysql/components/services/mysql_server_telemetry_metrics_service.h>
 #include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 #include <mysql/components/services/pfs_notification.h>
@@ -89,6 +91,11 @@ extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
 extern SERVICE_TYPE(psi_tls_channel_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_tls_channel_v1);
+extern SERVICE_TYPE(mysql_server_telemetry_logs)
+    SERVICE_IMPLEMENTATION(performance_schema, mysql_server_telemetry_logs);
+extern SERVICE_TYPE(mysql_server_telemetry_logs_client)
+    SERVICE_IMPLEMENTATION(performance_schema,
+                           mysql_server_telemetry_logs_client);
 extern SERVICE_TYPE(mysql_server_telemetry_traces_v1)
     SERVICE_IMPLEMENTATION(performance_schema,
                            mysql_server_telemetry_traces_v1);

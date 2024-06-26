@@ -77,3 +77,5 @@ LEX_CSTRING error_class_name = {STRING_WITH_LEN("error")};
 LEX_CSTRING meter_instrument_prefix = {STRING_WITH_LEN("meter")};
 
 LEX_CSTRING metric_instrument_prefix = {STRING_WITH_LEN("metric")};
+
+LEX_CSTRING logger_instrument_prefix = {STRING_WITH_LEN("logger")};

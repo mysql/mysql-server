@@ -73,6 +73,8 @@ extern LEX_CSTRING memory_instrument_prefix;
 extern LEX_CSTRING meter_instrument_prefix;
 /** String prefix for all metric instruments. */
 extern LEX_CSTRING metric_instrument_prefix;
+/** String prefix for all logger instruments. */
+extern LEX_CSTRING logger_instrument_prefix;
 /** Name of the global error class. */
 extern LEX_CSTRING error_class_name;
 

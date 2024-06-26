@@ -120,6 +120,7 @@ extern PFS_builtin_memory_class builtin_memory_meter_class;
 extern PFS_builtin_memory_class builtin_memory_meter;
 extern PFS_builtin_memory_class builtin_memory_metric_class;
 extern PFS_builtin_memory_class builtin_memory_metric;
+extern PFS_builtin_memory_class builtin_memory_logger_class;
 
 extern PFS_builtin_memory_class builtin_memory_setup_actor;
 extern PFS_builtin_memory_class builtin_memory_setup_object;

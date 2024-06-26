@@ -10,31 +10,31 @@ INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
 SELECT test_component_metric_log('TEST - Check registration with slot holes:');
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-421
+422
 SELECT test_register_metric_a();
 test_register_metric_a()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-422
+423
 SELECT test_register_metric_b();
 test_register_metric_b()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-423
+424
 SELECT test_unregister_metric_a();
 test_unregister_metric_a()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-422
+423
 SELECT test_unregister_metric_b();
 test_unregister_metric_b()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-421
+422
 SELECT test_component_metric_log('TEST - All metrics exported except ones in mysql.x group:');
 UPDATE performance_schema.setup_meters SET enabled = 'YES';
 UPDATE performance_schema.setup_meters SET enabled = 'NO' WHERE NAME='mysql.x';
@@ -301,6 +301,7 @@ test_report_metrics > report start:
  > metric 'hosts_lost': unit='', desc='The number of times a row could not be added to the hosts table because it was full (Performance_schema_hosts_lost)'
  > metric 'index_stat_lost': unit='', desc='The number of indexes for which statistics were lost (Performance_schema_index_stat_lost)'
  > metric 'locker_lost': unit='', desc='How many events are 'lost' or not recorded (Performance_schema_locker_lost)'
+ > metric 'logger_lost': unit='', desc='How many logger instruments could not be loaded (Performance_schema_logger_lost)'
  > metric 'memory_classes_lost': unit='', desc='The number of times a memory instrument could not be loaded (Performance_schema_memory_classes_lost)'
  > metric 'metadata_lock_lost': unit='', desc='The number of metadata locks that could not be instrumented in the metadata_locks table (Performance_schema_metadata_lock_lost)'
  > metric 'meter_lost': unit='', desc='How many meter instruments could not be loaded (Performance_schema_meter_lost)'
@@ -324,7 +325,7 @@ test_report_metrics > report start:
  > metric 'thread_classes_lost': unit='', desc='How many thread instruments could not be loaded (Performance_schema_thread_classes_lost)'
  > metric 'thread_instances_lost': unit='', desc='The number of thread instances that could not be instrumented in the threads table (Performance_schema_thread_instances_lost)'
  > metric 'users_lost': unit='', desc='The number of times a row could not be added to the users table because it was full (Performance_schema_users_lost)'
-< meter 'mysql.perf_schema' end (33 metrics)
+< meter 'mysql.perf_schema' end (34 metrics)
 > meter 'mysql.stats' (desc='MySql core metrics', frequency=10) start:
  > metric 'aborted_clients': unit='', desc='The number of connections that were aborted because the client died without closing the connection properly (Aborted_clients)'
  > metric 'aborted_connects': unit='', desc='The number of failed attempts to connect to the MySQL server (Aborted_connects)'
@@ -616,7 +617,7 @@ test_report_metrics > report start:
  > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
  > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
 < meter 'mysql.x.stmt' end (16 metrics)
-test_report_metrics < done reporting (total meters=12, metrics=375)
+test_report_metrics < done reporting (total meters=12, metrics=376)
 TEST - All metrics exported:
 *** Meter change notification: mysql.x updated
 *** Meter change - silently enumerate metrics for mysql.x
@@ -704,6 +705,7 @@ test_report_metrics > report start:
  > metric 'hosts_lost': unit='', desc='The number of times a row could not be added to the hosts table because it was full (Performance_schema_hosts_lost)'
  > metric 'index_stat_lost': unit='', desc='The number of indexes for which statistics were lost (Performance_schema_index_stat_lost)'
  > metric 'locker_lost': unit='', desc='How many events are 'lost' or not recorded (Performance_schema_locker_lost)'
+ > metric 'logger_lost': unit='', desc='How many logger instruments could not be loaded (Performance_schema_logger_lost)'
  > metric 'memory_classes_lost': unit='', desc='The number of times a memory instrument could not be loaded (Performance_schema_memory_classes_lost)'
  > metric 'metadata_lock_lost': unit='', desc='The number of metadata locks that could not be instrumented in the metadata_locks table (Performance_schema_metadata_lock_lost)'
  > metric 'meter_lost': unit='', desc='How many meter instruments could not be loaded (Performance_schema_meter_lost)'
@@ -727,7 +729,7 @@ test_report_metrics > report start:
  > metric 'thread_classes_lost': unit='', desc='How many thread instruments could not be loaded (Performance_schema_thread_classes_lost)'
  > metric 'thread_instances_lost': unit='', desc='The number of thread instances that could not be instrumented in the threads table (Performance_schema_thread_instances_lost)'
  > metric 'users_lost': unit='', desc='The number of times a row could not be added to the users table because it was full (Performance_schema_users_lost)'
-< meter 'mysql.perf_schema' end (33 metrics)
+< meter 'mysql.perf_schema' end (34 metrics)
 > meter 'mysql.stats' (desc='MySql core metrics', frequency=10) start:
  > metric 'aborted_clients': unit='', desc='The number of connections that were aborted because the client died without closing the connection properly (Aborted_clients)'
  > metric 'aborted_connects': unit='', desc='The number of failed attempts to connect to the MySQL server (Aborted_connects)'
@@ -1066,7 +1068,7 @@ test_report_metrics > report start:
  > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
  > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
 < meter 'mysql.x.stmt' end (16 metrics)
-test_report_metrics < done reporting (total meters=12, metrics=421)
+test_report_metrics < done reporting (total meters=12, metrics=422)
 TEST - Register duplicate meters/metrics:
 test_duplicate_metrics > called
 *** Meter change notification: mysql.test4 added

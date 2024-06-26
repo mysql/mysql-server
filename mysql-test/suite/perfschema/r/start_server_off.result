@@ -129,6 +129,7 @@ Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_logger_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
 Performance_schema_meter_lost	0
@@ -188,6 +189,7 @@ Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_logger_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
 Performance_schema_meter_lost	0
@@ -222,6 +224,7 @@ Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_logger_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
 Performance_schema_meter_lost	0

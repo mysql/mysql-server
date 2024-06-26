@@ -72,6 +72,7 @@
 #include "mysql/components/services/bits/psi_memory_bits.h"
 #include "mysql/components/services/bits/psi_metric_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
+#include "mysql/components/services/bits/server_telemetry_logs_client_bits.h"
 #include "sql/stream_cipher.h"
 #include "string_with_len.h"
 
@@ -85,6 +86,7 @@ struct PSI_data_lock_bootstrap;
 struct PSI_error_bootstrap;
 struct PSI_file_bootstrap;
 struct PSI_idle_bootstrap;
+struct PSI_logs_client_bootstrap;
 struct PSI_mdl_bootstrap;
 struct PSI_memory_bootstrap;
 struct PSI_metric_bootstrap;
@@ -955,6 +957,8 @@ extern void set_psi_memory_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_mutex_bootstrap *psi_mutex_hook;
 extern void set_psi_metric_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_metric_bootstrap *psi_metric_hook;
+extern void set_psi_logs_client_service(void *psi);
+extern MYSQL_PLUGIN_IMPORT PSI_logs_client_bootstrap *psi_logs_client_hook;
 extern void set_psi_mutex_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_rwlock_bootstrap *psi_rwlock_hook;
 extern void set_psi_rwlock_service(void *psi);

@@ -1319,12 +1319,25 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         size = metric_class_max * sizeof(PFS_metric_class);
         total_memory += size;
         break;
+      case 253:
+        name = "(pfs_logger_class).size";
+        size = sizeof(PFS_logger_class);
+        break;
+      case 254:
+        name = "(pfs_logger_class).count";
+        size = logger_class_max;
+        break;
+      case 255:
+        name = "(pfs_logger_class).memory";
+        size = logger_class_max * sizeof(PFS_logger_class);
+        total_memory += size;
+        break;
 
       /*
         This case must be last,
         for aggregation in total_memory.
       */
-      case 253:
+      case 256:
         name = "performance_schema.memory";
         size = total_memory;
         break;
@@ -1581,6 +1594,8 @@ static SHOW_VAR pfs_status_vars[] = {
     {"Performance_schema_meter_lost", (char *)&meter_class_lost, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"Performance_schema_metric_lost", (char *)&metric_class_lost, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Performance_schema_logger_lost", (char *)&logger_class_lost, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

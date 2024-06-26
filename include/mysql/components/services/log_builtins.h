@@ -244,6 +244,18 @@ DECLARE_METHOD(bool, item_set_lexstring,
 DECLARE_METHOD(bool, item_set_cstring, (log_item_data * lid, const char *s));
 
 /**
+  Set/reset one or more log line flags.
+
+  Example to set the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, LOG_LINE_EMIT_TELEMETRY);
+  to reset the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, 0);
+*/
+DECLARE_METHOD(void, line_set_flag,
+               (log_line * ll, log_line_flags_mask mask,
+                log_line_flags_mask value));
+
+/**
   Create new log item with key name "key", and allocation flags of
   "alloc" (see enum_log_item_free).
   Will return a pointer to the item's log_item_data struct for
@@ -756,6 +768,7 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
 #define log_set_float log_bi->item_set_float
 #define log_set_lexstring log_bi->item_set_lexstring
 #define log_set_cstring log_bi->item_set_cstring
+#define log_line_set_flag log_bi->line_set_flag
 #define log_malloc log_bs->malloc
 #define log_free log_bs->free
 #define log_msg log_bs->substitutev
@@ -1491,6 +1504,16 @@ class LogEvent {
         log_line_item_set_with_key(this->ll, LOG_ITEM_GEN_LEX_STRING, key,
                                    LOG_ITEM_FREE_NONE),
         val);
+    return *this;
+  }
+
+  /**
+    Mark log line to skip being additionally emitted as a telemetry log record.
+
+    @retval      the LogEvent, for easy fluent-style chaining.
+  */
+  LogEvent &notelemetry() {
+    log_line_set_flag(this->ll, LOG_LINE_EMIT_TELEMETRY, 0);
     return *this;
   }
 };
