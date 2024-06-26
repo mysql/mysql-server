@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,12 +178,14 @@ public:
    * information.
    */
   struct Prepare {
-    Prepare(Page32_pool & ap) : preparePages(ap) {}
+    Prepare(Page32_pool &ap) : internalFlag(false), preparePages(ap) {}
 
     /*** Client info ***/
     Uint32 clientRef;
     Uint32 clientData;
     Uint32 schemaTransId;
+
+    bool internalFlag;  // flag if operation is internal
 
     /** 
      * SimpleProp sent in UTIL_PREPARE_REQ 
@@ -227,9 +229,12 @@ public:
   struct PreparedOperation {
     PreparedOperation(AttrMappingBuffer::DataBufferPool & am,
 		      AttrInfoBuffer::DataBufferPool & ai,
-		      ResultSetInfoBuffer::DataBufferPool & rs) :
-      releaseFlag(false), attrMapping(am), attrInfo(ai), rsInfo(rs)
-    {
+                      ResultSetInfoBuffer::DataBufferPool &rs)
+        : releaseFlag(false),
+          internalFlag(false),
+          attrMapping(am),
+          attrInfo(ai),
+          rsInfo(rs) {
       pkBitmask.clear();
     }
 
@@ -240,6 +245,7 @@ public:
     bool      releaseFlag;     // flag if operation release after completion
     UtilPrepareReq::OperationTypeValue operationType;
 
+    bool internalFlag;  // flag if operation is internal
     /**
      * Attribute Mapping
      *
@@ -419,8 +425,13 @@ public:
   PreparedOperation_pool    c_preparedOperationPool;
   Transaction_pool          c_transactionPool;
 
+  Uint32 c_freeInternalPreparedOps;
+
+  Uint32 c_freeInternalRunningPrepares;
+
   DataBuffer<1,ArrayPool<DataBufferSegment<1> > >::DataBufferPool   c_attrMappingPool;
   DataBuffer<11,ArrayPool<DataBufferSegment<11> > >::DataBufferPool  c_dataBufPool;
+
   Prepare_dllist                  c_runningPrepares;
   Transaction_dllist              c_seizingTransactions; // Being seized at TC
   Transaction_dllist              c_runningTransactions; // Seized and now exec.

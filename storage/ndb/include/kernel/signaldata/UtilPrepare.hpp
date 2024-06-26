@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,7 @@ class UtilPrepareReq {
    */
   friend class DbUtil;
   friend class Trix;
+  friend class Dbdict;
 
   /**
    * For printing
@@ -71,7 +72,7 @@ public:
     Insert             = 2,
     Delete             = 3,
     Write	       = 4,
-    Probe              = 5  // check existance...
+    Probe              = 5  // check existence...
   };
 
   enum KeyValue {
@@ -85,8 +86,10 @@ public:
     ReorgInd           = 8
   };
 
+  enum Flags { InternalOperation = 1 };
+
   // Signal constants
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   STATIC_CONST( PROPERTIES_SECTION = 0 );
   STATIC_CONST( NoOfSections = 1 );
 
@@ -96,6 +99,7 @@ private:
   Uint32 senderData; // MUST be no 1!
   Uint32 senderRef;
   Uint32 schemaTransId;
+  Uint32 flags;
 };
 
 /**

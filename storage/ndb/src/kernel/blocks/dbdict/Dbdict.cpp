@@ -17894,6 +17894,7 @@ Dbdict::prepareUtilTransaction(Callback *pcallback,
 
   utilPrepareReq->setSenderRef(reference());
   utilPrepareReq->setSenderData(senderData);
+  utilPrepareReq->flags = 0;
 
   const Uint32 pageSizeInWords = 128;
   Uint32 propPage[pageSizeInWords];

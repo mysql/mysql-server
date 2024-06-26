@@ -143,6 +143,10 @@ void
 DbUtil::releasePrepare(PreparePtr prepPtr) {
   prepPtr.p->preparePages.release();
   c_runningPrepares.release(prepPtr);  // Automatic release in pool
+  if (prepPtr.p->internalFlag) {
+    c_freeInternalRunningPrepares++;
+    prepPtr.p->internalFlag = false;
+  }
 }
 
 void 
@@ -152,6 +156,10 @@ DbUtil::releasePreparedOperation(PreparedOperationPtr prepOpPtr) {
   prepOpPtr.p->rsInfo.release();
   prepOpPtr.p->pkBitmask.clear();
   c_preparedOperationPool.release(prepOpPtr);  // No list holding these structs
+  if (prepOpPtr.p->internalFlag) {
+    c_freeInternalPreparedOps++;
+    prepOpPtr.p->internalFlag = false;
+  }
 }
 
 void
@@ -192,6 +200,27 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
 
   {
+    /**
+     * UTIL_PREPARE_REQ can be send by client blocks
+     * to create a PreparedOperation template in DBUTIL
+     * which can later be used by one or more
+     * UTIL_EXECUTE_REQ signals to define and execute
+     * one or more operations in a transaction, one
+     * or more times before releasing the prepared
+     * operations with UTIL_RELEASE_REQ
+     *
+     * UTIL_PREPARE_REQ allocates a Prepare(Request) record
+     * for the duration of the PREPARE_REQ.
+     * UTIL_PREPARE_REQ allocates a PreparedOperation record
+     * for the duration of the PreparedOperation existing
+     * (until UTIL_RELEASE_REQ)
+     *
+     * UTIL_PREPARE_REQ requests can be marked as
+     * internal, in which case they can use a reserved
+     * pool of Prepare and PreparedOperation records to
+     * avoid concurrent non-internal requests starving
+     * them.
+     */
     /* ** Dimensioning inputs : */
     Uint32 maxUIBuildBatchSize = 64;
     ndb_mgm_get_int_parameter(p, CFG_DB_UI_BUILD_MAX_BATCHSIZE,
@@ -207,8 +236,20 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     
     /* Based on existing setting, probably excessive */
     const Uint32 MaxNonSchemaBuildOps = 48;
-    const Uint32 MaxPreparedOps = 6;  //  three hardcoded, one for setval, two for test
-    const Uint32 NumConcurrentPrepares = 1;  /* One parallel prepare */
+
+    //  4 hardcoded and defined at startup, 1 internal 1 for api events
+    const Uint32 HardcodedOps = 4;           /* SEQUENCE Service */
+    const Uint32 MaxInternalPreparedOps = 1; /* TRIX ops - serialised */
+    const Uint32 MaxExternalPreparedOps = 1; /* DICT Event ops */
+    const Uint32 MaxPreparedOps =
+        HardcodedOps + MaxInternalPreparedOps + MaxExternalPreparedOps;
+
+    const Uint32 MaxInternalConcurrentPrepares =
+        MaxInternalPreparedOps; /* TRIX ops */
+    const Uint32 MaxExternalConcurrentPrepares =
+        MaxExternalPreparedOps; /* DICT Event ops */
+    const Uint32 NumConcurrentPrepares =
+        MaxInternalConcurrentPrepares + MaxExternalConcurrentPrepares;
     
     const Uint32 SparePages = 5;             /* Arbitrary */    
     const Uint32 PagesPerPreparingOp = 5;    /* Arbitrary */
@@ -281,8 +322,11 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
       ndbout_c("  DataBuffWordsPerOp : %u", DataBuffWordsPerOp);
       ndbout_c("  numDataBuffers : %u", numDataBuffers);
       ndbout_c("  numPages : %u", numPages);
+      ndbout_c("  MaxInternalPreparedOps : %u", MaxInternalPreparedOps);
+      ndbout_c("  MaxInternalConcurrentPrepares : %u",
+               MaxInternalConcurrentPrepares);
     }
-      
+
 
     /* ** Settings */
     
@@ -293,6 +337,9 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     c_transactionPool.setSize(MaxConcurrentTrans);
     c_attrMappingPool.setSize(MaxAttributeMappings);
     c_dataBufPool.setSize(numDataBuffers);
+
+    c_freeInternalPreparedOps = MaxInternalPreparedOps;
+    c_freeInternalRunningPrepares = MaxInternalConcurrentPrepares;
   }
 
   {
@@ -1106,6 +1153,7 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   const Uint32 senderRef    = req->senderRef;
   const Uint32 senderData   = req->senderData;
   const Uint32 schemaTransId= req->schemaTransId;
+  const Uint32 flags = req->flags;
 
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
@@ -1131,8 +1179,16 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
 		       senderRef, senderData);
     return;
   }
-  if (!c_runningPrepares.seizeFirst(prepPtr))
-  {
+
+  const bool internalPrepOp = flags & UtilPrepareReq::InternalOperation;
+  ndbassert(c_runningPrepares.getPool().getNoOfFree() >=
+            c_freeInternalRunningPrepares);
+  const Uint32 freePrepares =
+      (internalPrepOp ? c_freeInternalRunningPrepares
+                      : c_runningPrepares.getPool().getNoOfFree() -
+                            c_freeInternalRunningPrepares);
+
+  if (freePrepares == 0) {
     jam();
     releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
@@ -1142,8 +1198,17 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
       ndbrequire(false);
     }
     return;
-  };
-  handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
+  }
+
+  jam();
+  ndbrequire(c_runningPrepares.seizeFirst(prepPtr));
+  if (internalPrepOp) {
+    jam();
+    ndbrequire(c_freeInternalRunningPrepares > 0);
+    c_freeInternalRunningPrepares--;
+    prepPtr.p->internalFlag = true;
+  }
+  ndbrequire(handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION));
   const Uint32 noPages  = (ptr.sz + sizeof(Page32)) / sizeof(Page32);
   ndbassert(noPages > 0);
   if (!prepPtr.p->preparePages.seize(noPages)) {
@@ -1354,7 +1419,13 @@ DbUtil::prepareOperation(Signal* signal,
    * Seize and store PreparedOperation struct
    *******************************************/
   PreparedOperationPtr prepOpPtr;  
-  if(!c_preparedOperationPool.seize(prepOpPtr)) {
+  const bool internalPrepOp = prepPtr.p->internalFlag;
+  ndbassert(c_preparedOperationPool.getNoOfFree() >= c_freeInternalPreparedOps);
+  const Uint32 freePrepares =
+      (internalPrepOp
+           ? c_freeInternalPreparedOps
+           : c_preparedOperationPool.getNoOfFree() - c_freeInternalPreparedOps);
+  if (freePrepares == 0) {
     jam();
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1365,7 +1436,15 @@ DbUtil::prepareOperation(Signal* signal,
     }
     return;
   }
+  ndbrequire(c_preparedOperationPool.seize(prepOpPtr));
+  if (internalPrepOp) {
+    jam();
+    ndbrequire(c_freeInternalPreparedOps > 0);
+    c_freeInternalPreparedOps--;
+    prepOpPtr.p->internalFlag = true;
+  }
   prepPtr.p->prepOpPtr = prepOpPtr;
+  ndbrequire(prepPtr.p->internalFlag == prepOpPtr.p->internalFlag);
 
   /********************
    * Read request info
