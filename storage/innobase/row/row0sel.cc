@@ -2687,9 +2687,10 @@ void row_sel_field_store_in_mysql_format_func(
       happens for end range comparison. So length can
       vary according to secondary index record length. */
       ut_ad((templ->is_virtual && !field) ||
-            (field && field->prefix_len ? field->prefix_len == len
-             : clust_templ_for_sec      ? 1
-                                        : mysql_col_len == len));
+            ((field && field->prefix_len)
+                 ? field->prefix_len == len
+                 : (clust_templ_for_sec || mysql_col_len == len)));
+
       memcpy(dest, data, len);
   }
 }
@@ -3880,12 +3881,17 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
     for (ulint i = 0; i < prebuilt->n_template; ++i) {
       const auto &templ = prebuilt->mysql_template[i];
 
-      if (templ.is_virtual && templ.icp_rec_field_no != ULINT_UNDEFINED &&
-          !row_sel_store_mysql_field(
-              mysql_rec, prebuilt, rec, prebuilt->index, prebuilt->index,
-              offsets, templ.icp_rec_field_no, &templ, ULINT_UNDEFINED, nullptr,
-              prebuilt->blob_heap)) {
-        return (false);
+      if (templ.is_virtual && templ.icp_rec_field_no != ULINT_UNDEFINED) {
+        ut_a(!templ.is_multi_val);
+        bool stored = row_sel_store_mysql_field(
+            mysql_rec, prebuilt, rec, prebuilt->index, prebuilt->index, offsets,
+            templ.icp_rec_field_no, &templ, ULINT_UNDEFINED, nullptr,
+            prebuilt->blob_heap);
+        /* The only reason row_sel_store_mysql_field might return false
+        is when it encounters an externally stored value (blob). However
+        such values can't be fields of secondary indexes. */
+        ut_ad(stored);
+        ut_o(if (!stored) return false);
       }
     }
   }
@@ -3895,10 +3901,10 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
       record_buffer->set_out_of_range(true);
     }
 
-    return (true);
+    return true;
   }
 
-  return (false);
+  return false;
 }
 
 /** Traverse to next/previous record.
@@ -4964,10 +4970,15 @@ rec_loop:
     /** Compare the last record of the page with end range
     passed to InnoDB when there is no ICP and number of
     loops in row_search_mvcc for rows found but not
-    reporting due to search views etc. */
+    reporting due to search views etc.
+    When scanning a multi-value index, we don't perform the
+    check because we cannot convert the indexed value
+    (single scalar element) into the primary index (virtual)
+    column type (array of values).  */
     if (prev_rec != nullptr && !prebuilt->innodb_api &&
         prebuilt->m_mysql_handler->end_range != nullptr &&
-        prebuilt->idx_cond == false && end_loop >= 100) {
+        prebuilt->idx_cond == false && end_loop >= 100 &&
+        !(clust_templ_for_sec && index->is_multi_value())) {
       dict_index_t *key_index = prebuilt->index;
 
       if (end_range_cache == nullptr) {
@@ -5630,9 +5641,14 @@ rec_loop:
 
       /* If we are filling a server-provided buffer, and the
       server has pushed down an end range condition, evaluate
-      the condition to prevent that we read too many rows. */
+      the condition to prevent that we read too many rows.
+      When scanning a multi-value index, we don't perform the
+      check because we cannot convert the indexed value
+      (single scalar element) into the primary index (virtual)
+      column type (array of values). */
       if (record_buffer != nullptr &&
-          prebuilt->m_mysql_handler->end_range != nullptr) {
+          prebuilt->m_mysql_handler->end_range != nullptr &&
+          !(clust_templ_for_sec && index->is_multi_value())) {
         /* If the end-range condition refers to a
         virtual column and we are reading from the
         clustered index, next_buf does not have the
