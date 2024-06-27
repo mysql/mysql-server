@@ -513,6 +513,7 @@ SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5'
 SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
   AND col3 = 5
   AND col4 = 55555;
+--skip_if_hypergraph  # Bug#35362984.
 SELECT * FROM federated.t1 WHERE id = 5 
   AND col2 = 'Two two' AND col3 = 22
   AND col4 = 33;
