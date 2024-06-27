@@ -61,6 +61,11 @@ void bulk_load_enable_slow_io_debug() { g_slow_io_debug = true; }
 void bulk_load_disable_slow_io_debug() { g_slow_io_debug = false; }
 #endif /* UNIV_DEBUG */
 
+#ifndef UNIV_PFS_THREAD
+#define bulk_flusher_thread_key PFS_NOT_INSTRUMENTED
+#define bulk_alloc_thread_key PFS_NOT_INSTRUMENTED
+#endif
+
 void Bulk_flusher::start(space_id_t space_id, size_t flusher_number,
                          size_t queue_size) {
   m_space_id = space_id;

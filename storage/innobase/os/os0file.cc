@@ -6161,6 +6161,10 @@ static void io_handler_thread(ulint segment) {
 mysql_pfs_key_t io_ibuf_thread_key;
 mysql_pfs_key_t io_read_thread_key;
 mysql_pfs_key_t io_write_thread_key;
+#else
+#define io_ibuf_thread_key PFS_NOT_INSTRUMENTED
+#define io_read_thread_key PFS_NOT_INSTRUMENTED
+#define io_write_thread_key PFS_NOT_INSTRUMENTED
 #endif /* UNIV_PFS_THREAD */
 
 void AIO::start_threads() {

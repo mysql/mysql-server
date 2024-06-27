@@ -21,6 +21,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF(DISABLE_ALL_PSI)
+  RETURN()
+ENDIF()
+
 DISABLE_MISSING_PROFILE_WARNING()
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 

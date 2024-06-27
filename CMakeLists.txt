@@ -131,6 +131,9 @@ ENDIF()
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 OPTION(CHECK_ERRMSG_FORMAT "Check printf format for English error messages" OFF)
 
+OPTION(DISABLE_ALL_PSI "DISABLE all calls to the PSI interface" OFF)
+MARK_AS_ADVANCED(DISABLE_ALL_PSI)
+
 # Use a default manufacturer if no manufacturer was identified.
 SET(MANUFACTURER_DOCSTRING
   "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
@@ -2109,6 +2112,20 @@ OPTION(MYSQL_MAINTAINER_MODE
 INCLUDE(maintainer)
 INCLUDE(msvc_cppcheck)
 DO_MSVC_CPPCHECK()
+
+# Silence some warnings for unused performance schema stuff.
+IF(DISABLE_ALL_PSI AND MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-variable")
+  MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-variable" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+  MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDIF()
 
 # We know that 3.12 generates extra-semi, and that 3.19 does not:
 IF(WITH_PROTOBUF STREQUAL "system" AND "${PROTOBUF_VERSION}" VERSION_LESS 3.19)

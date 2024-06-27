@@ -9689,10 +9689,12 @@ PSI_data_lock_service_v1 pfs_data_lock_service_v1 = {
 PSI_tls_channel_service_v1 pfs_tls_channel_service_v1 = {
     pfs_register_tls_channel_v1, pfs_unregister_tls_channel_v1};
 
+#ifdef HAVE_PSI_METRICS_INTERFACE
 PSI_metric_service_v1 pfs_metric_service_v1 = {
     pfs_register_meters_v1, pfs_unregister_meters_v1,
     pfs_register_change_notification_v1, pfs_unregister_change_notification_v1,
     pfs_send_change_notification_v1};
+#endif
 
 PSI_logs_client_service_v1 pfs_logs_client_service_v1 = {
     pfs_register_logger_client_v1, pfs_unregister_logger_client_v1,
@@ -9909,8 +9911,10 @@ static void *get_tls_channel_interface(int version) {
 
 static void *get_metric_interface(int version) {
   switch (version) {
+#ifdef HAVE_PSI_METRICS_INTERFACE
     case PSI_METRIC_VERSION_1:
       return &pfs_metric_service_v1;
+#endif
     default:
       return nullptr;
   }
