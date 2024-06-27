@@ -34,17 +34,17 @@
 
 ReverseIndexRangeScanIterator::ReverseIndexRangeScanIterator(
     THD *thd, TABLE *table, ha_rows *examined_rows, double expected_rows,
-    int index, MEM_ROOT *return_mem_root, uint mrr_flags,
+    uint index, MEM_ROOT *return_mem_root, uint mrr_flags,
     Bounds_checked_array<QUICK_RANGE *> ranges, bool using_extended_key_parts)
     : TableRowIterator(thd, table),
-      m_index(index),
-      m_expected_rows(expected_rows),
-      m_examined_rows(examined_rows),
-      mem_root(return_mem_root),
-      m_mrr_flags(mrr_flags),
-      ranges(ranges),
-      last_range(nullptr),
-      m_using_extended_key_parts(using_extended_key_parts) {
+      m_index{index},
+      m_expected_rows{expected_rows},
+      m_examined_rows{examined_rows},
+      mem_root{return_mem_root},
+      m_mrr_flags{mrr_flags},
+      ranges{ranges},
+      last_range{nullptr},
+      m_using_extended_key_parts{using_extended_key_parts} {
   /*
     Use default MRR implementation for reverse scans. No table engine
     currently can do an MRR scan with output in reverse index order.
