@@ -3011,10 +3011,11 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
       /*
         Reprepare_observer ensures that the statement is retried
         a maximum number of times, to avoid an endless loop.
+        NOTE: When executing a statement that is a procedure call, this error
+        code may be reported without having an invalidated reprepare observer.
       */
-      assert(stmt_reprepare_observer != nullptr &&
-             stmt_reprepare_observer->is_invalidated());
-      if (!stmt_reprepare_observer->can_retry()) {
+      if (!stmt_reprepare_observer->is_invalidated() ||
+          !stmt_reprepare_observer->can_retry()) {
         /*
           Reprepare_observer sets error status in DA but Sql_condition is not
           added. Please check Reprepare_observer::report_error(). Pushing
