@@ -111,11 +111,11 @@ INSERT INTO t1 VALUES(10, 10);
 
 --let $debug_point = set_commit_parent_100
 --source include/add_debug_point.inc
-INSERT INTO t1 VALUES(11, NULL); # Transaction 1
-DELETE FROM t1 WHERE c2 <= 3;    # Transaction 2
-INSERT INTO t1 VALUES(21, 21);   # Transaction 3
-INSERT INTO t1 VALUES(22, 22);   # Transaction 4
-INSERT INTO t1 VALUES(23, 23);   # Transaction 5
+INSERT INTO t1 VALUES(11, NULL);                  # Transaction 1
+DELETE /*+ INDEX(t1 c2) */ FROM t1 WHERE c2 <= 3; # Transaction 2
+INSERT INTO t1 VALUES(21, 21);                    # Transaction 3
+INSERT INTO t1 VALUES(22, 22);                    # Transaction 4
+INSERT INTO t1 VALUES(23, 23);                    # Transaction 5
 --source include/remove_debug_point.inc
 
 # Start a local Transaction 6 on replica to block the INSERT statement coming
@@ -187,7 +187,7 @@ INSERT INTO t1 VALUES(21, NULL);  # Transaction 1
 
 BEGIN;                            # Transaction 2
 INSERT INTO t1 VALUES(22, 22);
-DELETE FROM t1 WHERE c2 <= 3;
+DELETE /*+ INDEX(t1 c2) */ FROM t1 WHERE c2 <= 3;
 INSERT INTO t1 VALUES(23, 23);
 INSERT INTO t1 VALUES(24, NULL);
 INSERT INTO t1 VALUES(25, 25);

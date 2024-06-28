@@ -60,7 +60,7 @@ INSERT INTO t1 VALUES(10, 10);
 --let $debug_point= d,set_commit_parent_100
 --source include/add_debug_point.inc
 INSERT INTO t1 VALUES(11, NULL);
-DELETE FROM t1 WHERE c2 <= 3;
+DELETE /*+ INDEX(t1 c2) */ FROM t1 WHERE c2 <= 3;
 
 --source include/rpl/connection_replica.inc
 # It blocks above INSERT statement
@@ -103,7 +103,7 @@ INSERT INTO t1 VALUES(21, NULL);
 
 BEGIN;
 INSERT INTO t1 VALUES(22, 22);
-DELETE FROM t1 WHERE c2 <= 3;
+DELETE /*+ INDEX(t1 c2) */ FROM t1 WHERE c2 <= 3;
 INSERT INTO t1 VALUES(23, 23);
 INSERT INTO t1 VALUES(24, 24);
 INSERT INTO t1 VALUES(25, 25);
@@ -167,7 +167,7 @@ INSERT INTO t1 VALUES(30, NULL);
 INSERT INTO t1 VALUES(31, NULL);
 INSERT INTO t1 VALUES(33, NULL);
 
-DELETE FROM t1 WHERE c2 <= 3;
+DELETE /*+ INDEX(t1 c2) */ FROM t1 WHERE c2 <= 3;
 
 --source include/rpl/connection_replica.inc
 # Use it to block the worker applying 'INSERT INTO t1 VALUES(31, NULL)';
@@ -263,7 +263,7 @@ INSERT INTO t1 VALUES(50, 50);
 INSERT INTO t1 VALUES(51, NULL);
 BEGIN;
 INSERT INTO t1 VALUES(52, 52);
-DELETE FROM t1 WHERE c2 <= 3;
+DELETE /*+ INDEX(t1 c2) */ FROM t1 WHERE c2 <= 3;
 INSERT INTO t1 VALUES(53, 53);
 INSERT INTO t1 VALUES(54, 54);
 INSERT INTO t1 VALUES(55, 55);
