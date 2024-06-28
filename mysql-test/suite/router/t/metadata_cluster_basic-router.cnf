@@ -34,4 +34,4 @@ server_ssl_verify=DISABLED
 
 [mysql_rest_service]
 mysql_read_write_route=rw
-wait_for_metadata_schema_access=20
+wait_for_metadata_schema_access=60
