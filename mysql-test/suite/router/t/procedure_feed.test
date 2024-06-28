@@ -6,6 +6,7 @@
 #
 --source include/have_router.inc
 
+--let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 --source ../include/schema/procedures_schema.sql
 

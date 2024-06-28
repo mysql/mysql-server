@@ -1,5 +1,6 @@
 --source include/have_router.inc
 
+--let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 
 CREATE TABLE IF NOT EXISTS test.type_boolean(id INT AUTO_INCREMENT NOT NULL,  name VARCHAR(5), is_active BOOL, PRIMARY KEY (id));
