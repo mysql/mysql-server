@@ -333,3 +333,11 @@ cmd: testSystemRestart
 args: -n SystemDownDuringSR T1 D1 --loops=1
 max-time: 720
 
+cmd: test_event
+args: -n EventConsumer_Graceful T1 --loops=3
+max-time: 480
+
+cmd: test_event
+args: -n MergeEventConsumer_Graceful T1 --loops=3
+max-time: 480
+

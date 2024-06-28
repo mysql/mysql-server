@@ -4792,6 +4792,11 @@ void Suma::doFIRE_TRIG_ORD(Signal *signal, LinearSectionPtr lsptr[3]) {
 
   Uint32 bucket = hashValue % c_no_of_buckets;
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
+  /**
+   * Normally a bucket is either in the active or switchover set, or neither.
+   * Exception is during add/drop NG when an active bucket may be in the
+   * switchover set for notifying subscribers of change.
+   */
   if (m_active_buckets.get(bucket) ||
       (m_switchover_buckets.get(bucket) && (check_switchover(bucket, gci)))) {
     jam();
@@ -6242,9 +6247,10 @@ void Suma::execSUMA_HANDOVER_REQ(Signal *signal) {
       nodegroup.clear(nodeId);
       if (get_responsible_node(i) == nodeId &&
           get_responsible_node(i, nodegroup) == getOwnNodeId()) {
-        // I'm will be running this bucket when nodeId shutdown
+        // I will be running this bucket when nodeId shutdown
         jam();
         tmp.set(i);
+        ndbassert(!m_active_buckets.get(i));
         m_switchover_buckets.set(i);
         c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
         c_buckets[i].m_state |= Bucket::BUCKET_SHUTDOWN_TO;
@@ -6330,6 +6336,7 @@ void Suma::execSUMA_HANDOVER_CONF(Signal *signal) {
               gci, buf, c_no_of_buckets);
     g_eventLogger->info("Suma: handover from node %u gci: %u buckets: %s (%u)",
                         nodeId, gci, buf, c_no_of_buckets);
+    ndbassert(!m_active_buckets.overlaps(tmp));
     m_switchover_buckets.bitOR(tmp);
     ndbrequire(c_startup.m_handover_nodes.get(nodeId));
     c_startup.m_handover_nodes.clear(nodeId);
@@ -6352,6 +6359,7 @@ void Suma::execSUMA_HANDOVER_CONF(Signal *signal) {
               buf, c_no_of_buckets);
     g_eventLogger->info("Suma: handover to node %u gci: %u buckets: %s (%u)",
                         nodeId, gci, buf, c_no_of_buckets);
+    m_active_buckets.bitANDC(tmp);
     m_switchover_buckets.bitOR(tmp);
     c_startup.m_handover_nodes.clear(nodeId);
     DBUG_VOID_RETURN;
@@ -6716,6 +6724,7 @@ void Suma::start_resend(Signal *signal, Uint32 buck) {
   bucket->m_switchover_node = get_responsible_node(buck);
   bucket->m_switchover_gci = max;
 
+  ndbassert(!m_active_buckets.get(buck));
   m_switchover_buckets.set(buck);
 
   signal->theData[0] = SumaContinueB::RESEND_BUCKET;
