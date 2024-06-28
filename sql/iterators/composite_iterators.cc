@@ -907,6 +907,8 @@ class SpillState {
     m_secondary_overflow = false;
     // free up resources from chunk files and hashmap
     reset_hash_map(m_hash_map);
+    // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
+    // doesn't reclaim used space in the kept block (last allocated)
     m_hash_map_mem_root->Clear();
     m_chunk_files.clear();
     m_row_counts.clear();
@@ -1994,7 +1996,9 @@ template <typename Profiler>
 void MaterializeIterator<Profiler>::init_hash_map_for_new_exec() {
   if (m_hash_map == nullptr) return;  // not used yet
   reset_hash_map(m_hash_map.get());
-  m_mem_root->ClearForReuse();
+  // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
+  // doesn't reclaim used space in the kept block (last allocated)
+  m_mem_root->Clear();
   m_rows_in_hash_map = 0;
 }
 
@@ -2337,17 +2341,8 @@ bool MaterializeIterator<Profiler>::store_row_in_hash_map(
 
   const bool too_large_row =
       m_spill_state.read_state() == SpillState::ReadingState::SS_NONE &&
-      info.m_bytes_stored * 2 > thd()->variables.set_operations_buffer_size;
+      info.m_bytes_needed * 2 > thd()->variables.set_operations_buffer_size;
 
-  if (last_row_stored != nullptr && too_large_row) {
-    // We haven't started spill handling, and we can't even fit two rows of this
-    // size in the hash map, immediately fall back on index based tmp table
-    // de-duplication; do not attempt spill handling.
-    m_hash_map_iterator->second = last_row_stored;
-    m_rows_in_hash_map++;
-    *single_row_too_large = true;
-    return true;
-  }
   if (last_row_stored == nullptr) {
     if (too_large_row) {
       // just store it in m_overflow_mem_root so we can immediately fall back
@@ -3199,7 +3194,9 @@ bool SpillState::append_hash_map_to_HF() {
       rows_visited;
 
   reset_hash_map(m_hash_map);
-  m_hash_map_mem_root->ClearForReuse();
+  // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
+  // doesn't reclaim used space in the kept block (last allocated)
+  m_hash_map_mem_root->Clear();
 
   m_chunk_files[m_current_chunk_idx].build_chunk.ContinueRead();
 
@@ -3309,7 +3306,9 @@ bool SpillState::reset_for_spill_handling() {
   // We have HF and IF on chunk files, get ready for reading rest of left
   // operand rows
   reset_hash_map(m_hash_map);
-  m_hash_map_mem_root->ClearForReuse();
+  // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
+  // doesn't reclaim used space in the kept block (last allocated)
+  m_hash_map_mem_root->Clear();
   m_current_chunk_idx = 0;
   m_current_chunk_file_set = 0;
   m_current_row_in_chunk = 0;

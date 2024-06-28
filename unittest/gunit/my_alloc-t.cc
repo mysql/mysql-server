@@ -134,6 +134,75 @@ TEST_P(MyAllocTest, WithMemoryLimit) {
   EXPECT_EQ(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
+TEST_F(MyAllocTest, Bug36739383) {
+#if defined(HAVE_VALGRIND) || defined(HAVE_ASAN)
+  GTEST_SKIP()
+      << "Reason: MEM_ROOT behaves differently under Valgrind and ASAN.";
+#endif
+
+  MEM_ROOT mem_root{PSI_NOT_INSTRUMENTED, /*block_size=*/16384};
+  mem_root.set_max_capacity(262144);
+  std::pair<char *, char *> block = mem_root.Peek();
+  size_t required_value_bytes = 120000;
+  EXPECT_EQ(block.first, block.second);
+  EXPECT_EQ(0, mem_root.allocated_size());
+  mem_root.ForceNewBlock(required_value_bytes);
+  block = mem_root.Peek();
+  EXPECT_GE(static_cast<size_t>(block.second - block.first),
+            required_value_bytes);
+  mem_root.RawCommit(required_value_bytes);
+
+  required_value_bytes = 713091;
+  EXPECT_LT(static_cast<size_t>(block.second - block.first),
+            required_value_bytes);
+  // Expected to fail, we are asking more than remaining capacity.
+  mem_root.ForceNewBlock(required_value_bytes);
+  block = mem_root.Peek();
+  EXPECT_LT(static_cast<size_t>(block.second - block.first),
+            required_value_bytes);
+
+  //
+  // Comparison between ClearForReuse and Clear. As can be seen, we Clear
+  // we reclaim all space, not so with ClearForReuse
+  //
+  mem_root.Clear();
+  required_value_bytes = 150000;  // more than 50% of max_capacity
+  block = mem_root.Peek();
+  EXPECT_EQ(block.first, block.second);
+  EXPECT_EQ(0, mem_root.allocated_size());
+  mem_root.ForceNewBlock(required_value_bytes);
+  block = mem_root.Peek();
+
+  EXPECT_GE(static_cast<size_t>(block.second - block.first),
+            required_value_bytes);
+  mem_root.RawCommit(required_value_bytes);
+
+  // We were expecting this to give us a successful allocation, but no:
+  // ClearForReuse leaves a big hole of 150000 which is "wasted"
+  mem_root.ClearForReuse();
+  // Some space is allocated (but free), but too little for our needs.
+  EXPECT_NE(0, mem_root.allocated_size());
+  required_value_bytes = 160000;
+  block = mem_root.Peek();
+  EXPECT_LT(block.second - block.first, required_value_bytes);
+  // 150000 allocated, no space for extra 160000 within max budget
+  EXPECT_EQ(true, mem_root.ForceNewBlock(required_value_bytes));
+
+  // This reclaims all space:
+  mem_root.Clear();
+  block = mem_root.Peek();
+  EXPECT_EQ(block.first, block.second);
+  EXPECT_EQ(0, mem_root.allocated_size());
+  // 0 < 160000
+  mem_root.ForceNewBlock(required_value_bytes);
+  // yields 160000 in block
+  block = mem_root.Peek();
+
+  EXPECT_GE(static_cast<size_t>(block.second - block.first),
+            required_value_bytes);
+  mem_root.RawCommit(required_value_bytes);
+}
+
 TEST_F(MyAllocTest, CheckErrorReporting) {
   EXPECT_NE(nullptr, m_root.Alloc(1000));
   m_root.set_max_capacity(100);

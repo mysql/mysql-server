@@ -56,7 +56,7 @@ LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
 
   const size_t required_value_bytes =
       LinkedImmutableString::RequiredBytesForEncode(row_size_upper_bound);
-  info->m_bytes_stored = required_value_bytes;
+  info->m_bytes_needed = required_value_bytes;
   std::pair<char *, char *> block = mem_root->Peek();
   if (static_cast<size_t>(block.second - block.first) < required_value_bytes) {
     // No room in this block; ask for a new one and try again.

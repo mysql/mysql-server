@@ -68,7 +68,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t wanted_length,
     } else {
       bytes_left = m_max_capacity - m_allocated_size;
     }
-    if (wanted_length > bytes_left) {
+    if (length > bytes_left) {
       if (m_error_for_capacity_exceeded) {
         my_error(EE_CAPACITY_EXCEEDED, MYF(0),
                  static_cast<ulonglong>(m_max_capacity));

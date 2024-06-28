@@ -618,24 +618,9 @@ info
         "de-duplicate with hash table": {
           "steps": [
             {
-              "spill handling not attempted due to large row, reverting to index": {
-                "steps": [
-                  {
-                    "creating_tmp_table": {
-                      "tmp_table_info": {
-                        "table": "derived",
-                        "columns": 4,
-                        "location": "TempTable",
-                        "key_length": 8,
-                        "row_length": 33,
-                        "unique_constraint": true,
-                        "makes_grouped_rows": false,
-                        "in_plan_at_position": 0,
-                        "cannot_insert_duplicates": true
-                      }
-                    }
-                  }
-                ]
+              "spill to disk initiated": {
+                "chunk sets": 1,
+                "chunk files": 32
               }
             }
           ]
@@ -647,7 +632,7 @@ info
   {
     "steps": [
       {
-        "de-duplicate with index": {
+        "de-duplicate with hash table": {
           "steps": []
         }
       }

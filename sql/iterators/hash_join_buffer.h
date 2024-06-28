@@ -75,7 +75,7 @@ class THD;
 struct StoreLinkedInfo {
   bool m_dont_error{false};  // input
   bool m_full{false};        // output
-  size_t m_bytes_stored{0};  // output
+  size_t m_bytes_needed{0};  // output
 };
 
 namespace hash_join_buffer {
