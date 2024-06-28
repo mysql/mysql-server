@@ -32,7 +32,7 @@
 #include "helper/container/any_of.h"
 #include "helper/container/generic.h"
 #include "mrs/database/helper/query_table_columns.h"
-#include "mrs/database/query_entries_object.h"
+#include "mrs/database/query_entry_object.h"
 
 namespace mrs {
 
@@ -45,9 +45,8 @@ using EntryObjectPtr = Object::EntryObjectPtr;
 Object::Object(const EntryDbObject &db_entry, RouteSchemaPtr schema,
                collector::MysqlCacheManager *cache, const bool is_ssl,
                mrs::interface::AuthorizeManager *auth_manager,
-               mrs::GtidManager *gtid_manager,
-               std::shared_ptr<HandlerFactory> handler_factory,
-               std::shared_ptr<QueryFactory> query_factory)
+               mrs::GtidManager *gtid_manager, HandlerFactory *handler_factory,
+               QueryFactory *query_factory)
     : schema_{schema},
       pe_{db_entry},
       cache_{cache},
@@ -181,6 +180,13 @@ void Object::update_variables() {
   static_assert(static_cast<int>(Op::valueDelete) == kDelete);
 
   access_flags_ = pe_.operation;
+  user_ownership_.user_ownership_enforced = false;
+  if (pe_.object_description &&
+      pe_.object_description->user_ownership_field.has_value()) {
+    user_ownership_.user_ownership_enforced = true;
+    user_ownership_.user_ownership_column =
+        pe_.object_description->user_ownership_field->field->name;
+  }
 }
 
 Object::RouteSchema *Object::get_schema() { return schema_.get(); }
@@ -244,7 +250,7 @@ std::string Object::extract_first_slash(const std::string &value) {
 uint32_t Object::get_access() const { return access_flags_; }
 
 const Object::RowUserOwnership &Object::get_user_row_ownership() const {
-  return pe_.row_security;
+  return user_ownership_;
 }
 
 const Object::VectorOfRowGroupOwnership &Object::get_group_row_ownership()

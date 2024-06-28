@@ -70,7 +70,6 @@ class DbObject {
   bool autodetect_media_type;
   bool deleted;
   PathType type;
-  RowUserOwnership row_security;
   std::vector<RowGroupOwnership> row_group_security;
   std::string options_json;
   std::string options_json_schema;

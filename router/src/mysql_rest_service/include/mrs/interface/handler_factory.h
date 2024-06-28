@@ -31,6 +31,7 @@
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/object_schema.h"
+#include "mrs/interface/query_factory.h"
 #include "mrs/interface/rest_handler.h"
 
 namespace mrs {
@@ -48,7 +49,8 @@ class HandlerFactory {
   virtual std::unique_ptr<Handler> create_function_handler(
       Route *r, AuthManager *auth_manager) = 0;
   virtual std::unique_ptr<Handler> create_file_handler(
-      Route *r, AuthManager *auth_manager) = 0;
+      Route *r, AuthManager *auth_manager,
+      mrs::interface::QueryFactory *query_factory) = 0;
   virtual std::unique_ptr<Handler> create_sp_handler(
       Route *r, AuthManager *auth_manager) = 0;
   virtual std::unique_ptr<Handler> create_object_handler(

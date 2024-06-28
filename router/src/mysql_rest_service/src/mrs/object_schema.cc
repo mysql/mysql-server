@@ -42,7 +42,7 @@ ObjectSchema::ObjectSchema(
     const std::string &host, const bool requires_authentication,
     const UniversalId &service_id, const UniversalId &schema_id,
     const std::string &options, mrs::interface::AuthorizeManager *auth_manager,
-    std::shared_ptr<HandlerFactory> handler_factory)
+    HandlerFactory *handler_factory)
     : manager_{manager},
       service_{service},
       name_{name},

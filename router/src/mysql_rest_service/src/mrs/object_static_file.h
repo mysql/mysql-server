@@ -33,6 +33,7 @@
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
 #include "mrs/interface/object.h"
+#include "mrs/interface/query_factory.h"
 #include "mrs/interface/rest_handler.h"
 #include "mrs/interface/state.h"
 #include "mrs/rest/entry/app_content_file.h"
@@ -46,12 +47,13 @@ class ObjectStaticFile : public mrs::interface::Object {
   using HandlerFactory = mrs::interface::HandlerFactory;
   using AuthManager = mrs::interface::AuthorizeManager;
   using MysqlCacheManager = collector::MysqlCacheManager;
+  using QueryFactory = mrs::interface::QueryFactory;
 
  public:
   ObjectStaticFile(const ContentFile &pe, RouteSchemaPtr schema,
                    MysqlCacheManager *cache, const bool is_ssl,
-                   AuthManager *auth_manager,
-                   std::shared_ptr<HandlerFactory> handler_factory);
+                   AuthManager *auth_manager, HandlerFactory *handler_factory,
+                   QueryFactory *query_factory);
 
   void turn(const State state) override;
   bool update(const void *pe, RouteSchemaPtr schema) override;
@@ -101,7 +103,8 @@ class ObjectStaticFile : public mrs::interface::Object {
   std::string rest_path_raw_;
   std::string version_;
   std::unique_ptr<Handler> handle_file_;
-  std::shared_ptr<HandlerFactory> handler_factory_;
+  HandlerFactory *handler_factory_;
+  QueryFactory *query_factory_;
 };
 
 }  // namespace mrs

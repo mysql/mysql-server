@@ -59,10 +59,7 @@ class ObjectManager : public mrs::interface::ObjectManager {
   ObjectManager(collector::MysqlCacheManager *cache, const bool is_ssl,
                 mrs::interface::AuthorizeManager *auth_manager,
                 mrs::GtidManager *gtid_manager,
-                std::shared_ptr<::mrs::interface::ObjectFactory> factory);
-  ObjectManager(collector::MysqlCacheManager *cache, const bool is_ssl,
-                mrs::interface::AuthorizeManager *auth_manager,
-                mrs::GtidManager *gtid_manager);
+                ::mrs::interface::ObjectFactory *factory);
   ~ObjectManager() override;
 
   void turn(const State state, const std::string &options) override;
@@ -91,7 +88,7 @@ class ObjectManager : public mrs::interface::ObjectManager {
   State state_{stateOff};
   mrs::interface::AuthorizeManager *auth_manager_;
   mrs::GtidManager *gtid_manager_;
-  std::shared_ptr<mrs::interface::ObjectFactory> factory_;
+  mrs::interface::ObjectFactory *factory_;
   std::vector<std::shared_ptr<interface::RestHandler>> custom_paths_;
 };
 

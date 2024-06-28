@@ -48,6 +48,7 @@ class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
   using Route = mrs::interface::Object;
   using VectorOfRoutes = std::vector<Route *>;
   using HandlerFactory = mrs::interface::HandlerFactory;
+  using AuthorizeManager = mrs::interface::AuthorizeManager;
 
  public:
   ObjectSchema(DbObjectManager *manager, collector::MysqlCacheManager *cache,
@@ -57,7 +58,7 @@ class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
                const UniversalId &service_id, const UniversalId &schema_id,
                const std::string &options,
                mrs::interface::AuthorizeManager *auth_manager,
-               std::shared_ptr<HandlerFactory> handler_factory);
+               HandlerFactory *handler_factory);
 
   void turn(const State state) override;
   void route_unregister(Route *r) override;
@@ -87,8 +88,8 @@ class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
   bool requires_authentication_;
   UniversalId service_id_;
   UniversalId schema_id_;
-  mrs::interface::AuthorizeManager *auth_manager_;
-  std::shared_ptr<HandlerFactory> handler_factory_;
+  AuthorizeManager *auth_manager_;
+  HandlerFactory *handler_factory_;
 };
 
 }  // namespace mrs

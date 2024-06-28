@@ -62,6 +62,7 @@ using testing::Return;
 using testing::StrictMock;
 using testing::Test;
 
+const int kFirstColumnId = 123;
 const uint64_t kDefaultInPage = 24;
 const auto kDefaultForamt = EntryDbObject::formatFeed;
 const auto kDefaultOperation = Operation::valueRead;
@@ -108,6 +109,12 @@ class RouteObjectTests : public Test {
     obj.autodetect_media_type = false;
     obj.host = "mysql.com";
     obj.format = kDefaultForamt;
+    obj.object_description = std::make_shared<mrs::database::entry::Object>();
+
+    first_field_ = std::make_shared<mrs::database::entry::ObjectField>();
+    first_field_->id = mrs::UniversalId{kFirstColumnId};
+    first_field_->name = "name";
+    obj.object_description->fields.push_back(first_field_);
 
     return obj;
   }
@@ -126,8 +133,8 @@ class RouteObjectTests : public Test {
 
     sut_ = std::make_shared<mrs::Object>(
         obj, mock_route_schema_, &mock_mysqlcache_, is_https,
-        &mock_auth_manager_, nullptr, mock_handler_factory_,
-        mock_query_factory_);
+        &mock_auth_manager_, nullptr, &mock_handler_factory_,
+        &mock_query_factory_);
     ASSERT_EQ(sut_.get(), register_argument);
   }
 
@@ -135,13 +142,14 @@ class RouteObjectTests : public Test {
     for (auto p : mocks) Mock::VerifyAndClearExpectations(p);
   }
 
-  MakeSharedPtr<StrictMock<MockQueryFactory>> mock_query_factory_;
-  MakeSharedPtr<StrictMock<MockHandlerFactory>> mock_handler_factory_;
+  StrictMock<MockQueryFactory> mock_query_factory_;
+  StrictMock<MockHandlerFactory> mock_handler_factory_;
   StrictMock<MockAuthManager> mock_auth_manager_;
   StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   StrictMock<MockMySQLSession> mock_session;
   MakeSharedPtr<StrictMock<MockRouteSchema>> mock_route_schema_;
   std::shared_ptr<Object> sut_;
+  std::shared_ptr<mrs::database::entry::ObjectField> first_field_;
 
  private:
   uint64_t last_id_{0};
@@ -237,8 +245,9 @@ TEST_F(RouteObjectTests, validate_route_parameters_after_update) {
   pe.on_page = kNewInPage;
   pe.schema_requires_authentication = true;
   pe.requires_authentication = true;
-  pe.row_security.user_ownership_enforced = true;
-  pe.row_security.user_ownership_column = "name";
+  pe.object_description->user_ownership_field.emplace();
+  pe.object_description->user_ownership_field->uid = first_field_->id;
+  pe.object_description->user_ownership_field->field = first_field_;
   pe.row_group_security.push_back(RowGroupOwnership{
       mrs::UniversalId{101}, "group_name", 0, RowGroupOwnership::kHigher});
 
@@ -317,12 +326,12 @@ TEST_F(RouteObjectTests,
   const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_object_handler(sut_.get(), &mock_auth_manager_, _));
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
-  verifyAndClearMocks({mock_handler_factory_.get()});
+  verifyAndClearMocks({&mock_handler_factory_});
   delete_sut();
 }
 
@@ -332,19 +341,19 @@ TEST_F(RouteObjectTests, second_activation_recreates_handler) {
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
 
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_object_handler(sut_.get(), &mock_auth_manager_, _));
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
-  verifyAndClearMocks({mock_handler_factory_.get()});
+  verifyAndClearMocks({&mock_handler_factory_});
 
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_object_handler(sut_.get(), &mock_auth_manager_, _));
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
-  verifyAndClearMocks({mock_handler_factory_.get()});
+  verifyAndClearMocks({&mock_handler_factory_});
 
   delete_sut();
 }

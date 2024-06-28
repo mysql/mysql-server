@@ -55,9 +55,8 @@ class Object : public std::enable_shared_from_this<Object>,
   Object(const EntryDbObject &db_entry, RouteSchemaPtr schema,
          collector::MysqlCacheManager *cache, const bool is_ssl,
          mrs::interface::AuthorizeManager *auth_manager,
-         mrs::GtidManager *gtid_manager,
-         std::shared_ptr<HandlerFactory> handler_factory,
-         std::shared_ptr<QueryFactory> query_factory);
+         mrs::GtidManager *gtid_manager, HandlerFactory *handler_factory,
+         QueryFactory *query_factory);
   ~Object() override;
 
   void turn(const State state) override;
@@ -118,8 +117,9 @@ class Object : public std::enable_shared_from_this<Object>,
   uint32_t access_flags_;
   mrs::interface::AuthorizeManager *auth_manager_;
   mrs::GtidManager *gtid_manager_;
-  std::shared_ptr<HandlerFactory> handler_factory_;
-  std::shared_ptr<QueryFactory> query_factory_;
+  HandlerFactory *handler_factory_;
+  QueryFactory *query_factory_;
+  Object::RowUserOwnership user_ownership_;
 };
 
 }  // namespace mrs

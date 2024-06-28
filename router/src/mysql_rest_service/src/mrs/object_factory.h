@@ -29,12 +29,17 @@
 
 #include "mrs/interface/object_factory.h"
 #include "mrs/interface/query_factory.h"
+#include "mrs/interface/supported_mrs_schema_version.h"
 
 namespace mrs {
 
 class ObjectFactory : public interface::ObjectFactory {
  public:
-  ObjectFactory();
+  using HandlerFactory = mrs::interface::HandlerFactory;
+  using QueryFactory = mrs::interface::QueryFactory;
+
+ public:
+  ObjectFactory(HandlerFactory *handler_factory, QueryFactory *query_factory);
 
   std::shared_ptr<Object> create_router_object(
       const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
@@ -55,8 +60,9 @@ class ObjectFactory : public interface::ObjectFactory {
       const std::string &options,
       interface::AuthorizeManager *auth_manager) override;
 
-  std::shared_ptr<mrs::interface::HandlerFactory> handler_factory_;
-  std::shared_ptr<mrs::interface::QueryFactory> query_factory_;
+ private:
+  HandlerFactory *handler_factory_;
+  QueryFactory *query_factory_;
 };
 
 }  // namespace mrs

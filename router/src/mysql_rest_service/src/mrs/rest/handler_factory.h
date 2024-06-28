@@ -35,7 +35,8 @@ namespace rest {
 class HandlerFactory : public mrs::interface::HandlerFactory {
  public:
   std::unique_ptr<Handler> create_file_handler(
-      Route *r, AuthManager *auth_manager) override;
+      Route *r, AuthManager *auth_manager,
+      mrs::interface::QueryFactory *query_factory) override;
   std::unique_ptr<Handler> create_function_handler(
       Route *r, AuthManager *auth_manager) override;
   std::unique_ptr<Handler> create_sp_handler(

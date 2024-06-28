@@ -81,7 +81,7 @@ class RestHandlerFileTests : public Test {
     EXPECT_CALL(mock_route_, get_rest_url()).WillRepeatedly(ReturnRef(path));
     EXPECT_CALL(mock_request_, get_input_headers())
         .WillRepeatedly(ReturnRef(mock_input_headers));
-    EXPECT_CALL(*mock_query_factory_, create_query_content_file())
+    EXPECT_CALL(mock_query_factory_, create_query_content_file())
         .WillRepeatedly(Return(mock_query_file_.copy_base()));
     EXPECT_CALL(mock_http_component_, add_route(path, _))
         .WillOnce(Invoke(
@@ -92,7 +92,7 @@ class RestHandlerFileTests : public Test {
               return request_handler_.get();
             }));
     sut_ = std::make_shared<HandlerFile>(&mock_route_, &mock_auth_manager_,
-                                         mock_query_factory_);
+                                         &mock_query_factory_);
   }
 
   void delete_sut() {
@@ -102,7 +102,7 @@ class RestHandlerFileTests : public Test {
 
   std::unique_ptr<http::base::RequestHandler> request_handler_;
   StrictMock<MockMysqlCacheManager> mock_cache_manager_;
-  MakeSharedPtr<StrictMock<MockQueryFactory>> mock_query_factory_;
+  StrictMock<MockQueryFactory> mock_query_factory_;
   MakeSharedPtr<StrictMock<MockQueryEntryContentFile>> mock_query_file_;
   StrictMock<MockHttpServerComponent> mock_http_component_;
   SetHttpComponent raii_setter_{&mock_http_component_};

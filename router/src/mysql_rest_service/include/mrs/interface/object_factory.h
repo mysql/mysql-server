@@ -40,6 +40,7 @@ namespace interface {
 
 class ObjectFactory {
  public:
+  using QueryFactory = mrs::interface::QueryFactory;
   using Object = mrs::interface::Object;
   using ObjectSchema = mrs::interface::ObjectSchema;
   using ContentFile = mrs::rest::entry::AppContentFile;
@@ -56,6 +57,7 @@ class ObjectFactory {
       const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
       MysqlCacheManager *cache, const bool is_ssl, AuthManager *auth_manager,
       GtidManager *gtid_manager) = 0;
+
   virtual std::shared_ptr<Object> create_router_static_object(
       const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,
       MysqlCacheManager *cache, const bool is_ssl,

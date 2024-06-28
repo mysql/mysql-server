@@ -37,7 +37,7 @@
 namespace mrs {
 namespace database {
 
-class QueryEntryObject : private QueryLog {
+class QueryEntryObject : protected QueryLog {
  public:
   using Object = entry::Object;
   using UniversalId = entry::UniversalId;
@@ -46,15 +46,28 @@ class QueryEntryObject : private QueryLog {
   virtual void query_entries(MySQLSession *session,
                              const std::string &schema_name,
                              const std::string &object_name,
-                             const UniversalId &db_object_id);
+                             const UniversalId &db_object_id) = 0;
 
   std::shared_ptr<Object> object;
+};
 
- private:
+namespace v2 {
+class QueryEntryObject : public mrs::database::QueryEntryObject {
+ public:
+  void query_entries(MySQLSession *session, const std::string &schema_name,
+                     const std::string &object_name,
+                     const UniversalId &db_object_id) override;
+
+ protected:
+  virtual UniversalId query_object(MySQLSession *session,
+                                   const UniversalId &db_object_id,
+                                   Object *object);
+  virtual void set_query_object_reference(const entry::UniversalId &object_id);
+
   void on_row(const ResultRow &r) override;
 
-  void on_reference_row(const ResultRow &r);
-  void on_field_row(const ResultRow &r);
+  virtual void on_reference_row(const ResultRow &r);
+  virtual void on_field_row(const ResultRow &r);
 
   bool m_loading_references;
 
@@ -62,6 +75,27 @@ class QueryEntryObject : private QueryLog {
   std::map<entry::UniversalId, std::shared_ptr<entry::Object>> m_objects;
   int m_alias_count = 0;
 };
+
+}  // namespace v2
+
+namespace v3 {
+
+class QueryEntryObject : public v2::QueryEntryObject {
+ public:
+  void query_entries(mysqlrouter::MySQLSession *session,
+                     const std::string &schema_name,
+                     const std::string &object_name,
+                     const UniversalId &db_object_id) override;
+
+ private:
+  void on_reference_row(const ResultRow &r) override;
+  UniversalId query_object(MySQLSession *session,
+                           const UniversalId &db_object_id,
+                           Object *object) override;
+  void set_query_object_reference(const entry::UniversalId &object_id) override;
+};
+
+}  // namespace v3
 
 entry::ColumnType column_datatype_to_type(const std::string &datatype);
 

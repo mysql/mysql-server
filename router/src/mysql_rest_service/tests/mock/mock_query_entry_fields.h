@@ -1,5 +1,4 @@
-/*
-  Copyright (c) 2024, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,26 +21,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_MONITOR_SCHEMA_MONITOR_FACTORY_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_MONITOR_SCHEMA_MONITOR_FACTORY_H_
+#ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_QUERY_ENTRY_FIELDS_H_
+#define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_QUERY_ENTRY_FIELDS_H_
 
-#include "mrs/interface/query_factory.h"
-#include "mrs/interface/query_monitor_factory.h"
-#include "mrs/interface/supported_mrs_schema_version.h"
+#include <gmock/gmock.h>
 
-namespace mrs {
-namespace database {
+#include "mrs/database/query_entry_fields.h"
+#include "mrs/interface/universal_id.h"
 
-std::unique_ptr<mrs::interface::QueryMonitorFactory>
-create_schema_monitor_factory(
-    mrs::interface::SupportedMrsMetadataVersion scheme_version);
+class MockQueryEntryFields : public mrs::database::QueryEntryFields {
+ public:
+  MOCK_METHOD(bool, query_parameters,
+              (mysqlrouter::MySQLSession * session,
+               mrs::UniversalId db_object_id),
+              (override));
+  MOCK_METHOD(ResultSets &, get_result, (), (override));
+};
 
-std::unique_ptr<mrs::interface::QueryFactory> create_query_factory(
-    mrs::interface::SupportedMrsMetadataVersion scheme_version);
-
-using SchemaMonitorFactoryMethod = decltype(&create_schema_monitor_factory);
-
-}  // namespace database
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_MONITOR_SCHEMA_MONITOR_FACTORY_H_
+#endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_QUERY_ENTRY_FIELDS_H_

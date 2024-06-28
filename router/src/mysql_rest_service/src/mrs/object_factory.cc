@@ -34,10 +34,9 @@
 
 namespace mrs {
 
-ObjectFactory::ObjectFactory() {
-  handler_factory_ = std::make_shared<mrs::rest::HandlerFactory>();
-  query_factory_ = std::make_shared<mrs::database::QueryFactory>();
-}
+ObjectFactory::ObjectFactory(HandlerFactory *handler_factory,
+                             QueryFactory *query_factory)
+    : handler_factory_{handler_factory}, query_factory_{query_factory} {}
 
 std::shared_ptr<ObjectFactory::Object> ObjectFactory::create_router_object(
     const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
@@ -53,8 +52,9 @@ ObjectFactory::create_router_static_object(
     const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,
     collector::MysqlCacheManager *cache, const bool is_ssl,
     mrs::interface::AuthorizeManager *auth_manager) {
-  return std::make_shared<mrs::ObjectStaticFile>(
-      pe, schema, cache, is_ssl, auth_manager, handler_factory_);
+  return std::make_shared<mrs::ObjectStaticFile>(pe, schema, cache, is_ssl,
+                                                 auth_manager, handler_factory_,
+                                                 query_factory_);
 }
 
 std::shared_ptr<ObjectFactory::ObjectSchema>

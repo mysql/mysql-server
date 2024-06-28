@@ -70,15 +70,11 @@ namespace rest {
 
 HandlerFile::HandlerFile(Route *route,
                          mrs::interface::AuthorizeManager *auth_manager,
-                         std::shared_ptr<QueryFactory> factory)
+                         QueryFactory *factory)
     : Handler(route->get_rest_url(), route->get_rest_path(),
               route->get_options(), auth_manager),
       route_{route},
-      factory_{factory} {
-  if (!factory_) {
-    factory_ = std::make_shared<mrs::database::QueryFactory>();
-  }
-}
+      factory_{factory} {}
 
 UniversalId HandlerFile::get_service_id() const {
   return route_->get_service_id();

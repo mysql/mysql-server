@@ -30,29 +30,40 @@
 namespace mrs {
 namespace database {
 
+using QueryEntryObjectBase = mrs::database::QueryEntryObject;
+
+namespace v2 {
+
 class QueryFactory : public mrs::interface::QueryFactory {
  public:
   std::shared_ptr<QueryAuditLogEntries> create_query_audit_log() override;
   std::shared_ptr<QueryEntriesAuthPrivileges> create_query_auth_privileges()
-      override;
-  std::shared_ptr<QueryEntriesContentFile> create_query_content_files()
       override;
   std::shared_ptr<QueryEntryContentFile> create_query_content_file() override;
   std::shared_ptr<QueryRestSPMedia> create_query_sp_media() override;
   std::shared_ptr<QueryEntryGroupRowSecurity> create_query_group_row_security()
       override;
   std::shared_ptr<QueryEntryAuthUser> create_query_auth_user() override;
-  std::shared_ptr<QueryEntryObject> create_query_object() override;
+  std::shared_ptr<QueryEntryObjectBase> create_query_object() override;
 
   std::shared_ptr<QueryUserGroups> create_query_user_groups() override;
   std::shared_ptr<QueryRestTable> create_query_table() override;
   std::shared_ptr<QueryRestTableSingleRow> create_query_table_single_row(
       bool encode_bigints_as_string) override;
   std::shared_ptr<QueryRestSP> create_query_sp() override;
-  std::shared_ptr<database::QueryTableColumns> create_query_table_columns()
-      override;
+  std::shared_ptr<database::QueryEntryFields> create_query_fields() override;
 };
 
+}  // namespace v2
+
+namespace v3 {
+
+class QueryFactory : public v2::QueryFactory {
+ public:
+  std::shared_ptr<QueryEntryObjectBase> create_query_object() override;
+};
+
+}  // namespace v3
 }  // namespace database
 }  // namespace mrs
 

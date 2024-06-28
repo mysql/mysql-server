@@ -33,8 +33,6 @@ class MockQueryFactory : public mrs::interface::QueryFactory {
               create_query_audit_log, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntriesAuthPrivileges>,
               create_query_auth_privileges, (), (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntriesContentFile>,
-              create_query_content_files, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestSPMedia>,
               create_query_sp_media, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryGroupRowSecurity>,
@@ -52,12 +50,10 @@ class MockQueryFactory : public mrs::interface::QueryFactory {
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestTableSingleRow>,
               create_query_table_single_row, (bool encode_bigints_as_string),
               (override));
-  // MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestObjectInsert>,
-  //             create_query_object_insert, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestSP>, create_query_sp, (),
               (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryTableColumns>,
-              create_query_table_columns, (), (override));
+  MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryFields>,
+              create_query_fields, (), (override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_QUERY_FACTORY_H_

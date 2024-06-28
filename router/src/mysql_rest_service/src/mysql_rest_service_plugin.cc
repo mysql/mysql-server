@@ -44,10 +44,13 @@
 
 #include "collector/mysql_cache_manager.h"
 #include "helper/plugin_monitor.h"
+#include "mrs/database/query_factory_proxy.h"
 #include "mrs/database/schema_monitor.h"
 #include "mrs/gtid_manager.h"
+#include "mrs/object_factory.h"
 #include "mrs/object_manager.h"
 #include "mrs/observability/entities_manager.h"
+#include "mrs/rest/handler_factory.h"
 #include "mrs/router_observation_entities.h"
 #include "mysql_rest_service_plugin_config.h"
 
@@ -134,17 +137,29 @@ struct MrdsModule {
 
   const ::mrs::Configuration &configuration;
   const std::string jwt_secret;
+  mrs::database::QueryFactoryProxy query_factory{
+      std::make_shared<mrs::database::v2::QueryFactory>()};
   collector::MysqlCacheManager mysql_connection_cache{configuration};
   mrs::GtidManager gtid_manager;
   mrs::authentication::AuthorizeManager authentication{
       &mysql_connection_cache, configuration.jwt_secret_};
-  mrs::ObjectManager mrds_object_manager{&mysql_connection_cache,
-                                         configuration.is_https_,
-                                         &authentication, &gtid_manager};
+  mrs::rest::HandlerFactory handler_factory;
+  mrs::ObjectFactory object_factory{&handler_factory, &query_factory};
+  mrs::ObjectManager mrds_object_manager{
+      &mysql_connection_cache, configuration.is_https_, &authentication,
+      &gtid_manager, &object_factory};
   mrs::observability::EntitiesManager entities_manager;
+
+  /**
+   * Class responsible for monitoring changes in MRS schema
+   *
+   * This class fetches the changes in MRS and distributes them to
+   * different "manager" classes.
+   */
   mrs::database::SchemaMonitor mrds_monitor{
       configuration,   &mysql_connection_cache, &mrds_object_manager,
-      &authentication, &entities_manager,       &gtid_manager};
+      &authentication, &entities_manager,       &gtid_manager,
+      &query_factory};
 };
 
 static std::string get_router_name(const mysql_harness::Config *config) {

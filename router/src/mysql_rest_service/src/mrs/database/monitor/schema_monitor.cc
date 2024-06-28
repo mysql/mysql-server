@@ -29,7 +29,7 @@
 #include "mrs/database/helper/content_file_from_options.h"
 #include "mrs/database/query_statistics.h"
 #include "mrs/database/query_version.h"
-#include "mrs/interface/schema_monitor_factory.h"
+#include "mrs/interface/query_monitor_factory.h"
 #include "mrs/observability/entity.h"
 #include "mrs/router_observation_entities.h"
 
@@ -74,18 +74,20 @@ mrs::interface::SupportedMrsMetadataVersion query_supported_mrs_version(
 
 class AccessDatabase {
  public:
-  using SchemaMonitorFactory = mrs::interface::SchemaMonitorFactory;
+  using QueryMonitorFactory = mrs::interface::QueryMonitorFactory;
 
  public:
-  AccessDatabase(SchemaMonitorFactory *factory)
-      : state{factory->create_turn_state_fetcher()},
-        object{factory->create_route_fetcher()},
-        authentication{factory->create_authentication_fetcher()},
-        content_file{factory->create_content_file_fetcher()},
-        factory_{factory} {}
+  AccessDatabase(mrs::interface::QueryFactory *query_factory,
+                 QueryMonitorFactory *query_monitor_factory)
+      : state{query_monitor_factory->create_turn_state_fetcher()},
+        object{query_monitor_factory->create_route_fetcher(query_factory)},
+        authentication{query_monitor_factory->create_authentication_fetcher()},
+        content_file{query_monitor_factory->create_content_file_fetcher()},
+        query_monitor_factory_{query_monitor_factory},
+        query_factory_{query_factory} {}
 
   std::unique_ptr<database::QueryState> state;
-  std::unique_ptr<database::QueryEntryDbObject> object;
+  std::unique_ptr<database::QueryEntriesDbObject> object;
   std::unique_ptr<database::QueryEntriesAuthApp> authentication;
   std::unique_ptr<database::QueryEntriesContentFile> content_file;
 
@@ -99,11 +101,12 @@ class AccessDatabase {
 
   void update_access_factory_if_needed() {
     if (!fetcher_updated_) {
-      state = factory_->create_turn_state_monitor(state.get());
-      object = factory_->create_route_monitor(content_file->get_last_update());
-      authentication = factory_->create_authentication_monitor(
+      state = query_monitor_factory_->create_turn_state_monitor(state.get());
+      object = query_monitor_factory_->create_route_monitor(
+          query_factory_, content_file->get_last_update());
+      authentication = query_monitor_factory_->create_authentication_monitor(
           content_file->get_last_update());
-      content_file = factory_->create_content_file_monitor(
+      content_file = query_monitor_factory_->create_content_file_monitor(
           content_file->get_last_update());
       fetcher_updated_ = true;
     }
@@ -111,7 +114,8 @@ class AccessDatabase {
 
  private:
   bool fetcher_updated_{false};
-  SchemaMonitorFactory *factory_;
+  QueryMonitorFactory *query_monitor_factory_;
+  mrs::interface::QueryFactory *query_factory_;
 };
 
 }  // namespace
@@ -121,14 +125,15 @@ SchemaMonitor::SchemaMonitor(
     collector::MysqlCacheManager *cache, mrs::ObjectManager *dbobject_manager,
     authentication::AuthorizeManager *auth_manager,
     mrs::observability::EntitiesManager *entities_manager,
-    mrs::GtidManager *gtid_manager, SchemaMonitorFactoryMethod method)
+    mrs::GtidManager *gtid_manager,
+    mrs::database::QueryFactoryProxy *query_factory)
     : configuration_{configuration},
       cache_{cache},
       dbobject_manager_{dbobject_manager},
       auth_manager_{auth_manager},
       entities_manager_{entities_manager},
       gtid_manager_{gtid_manager},
-      schema_monitor_factory_method_{method} {}
+      proxy_query_factory_{query_factory} {}
 
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
@@ -160,11 +165,13 @@ void SchemaMonitor::run() {
           cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
       auto supported_schema_version =
           query_supported_mrs_version(session_check_version.get());
-
-      auto factory{schema_monitor_factory_method_(supported_schema_version)};
+      auto factory{create_schema_monitor_factory(supported_schema_version)};
       mrs::database::FileFromOptions options_files;
 
-      AccessDatabase fetcher(factory.get());
+      proxy_query_factory_->change_subject(
+          create_query_factory(supported_schema_version));
+
+      AccessDatabase fetcher(proxy_query_factory_, factory.get());
 
       log_system("Monitoring MySQL REST metadata (version: %s)",
                  to_string(supported_schema_version).c_str());

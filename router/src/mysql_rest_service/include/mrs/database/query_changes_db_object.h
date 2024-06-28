@@ -33,9 +33,14 @@
 namespace mrs {
 namespace database {
 
-class QueryChangesDbObject : public QueryEntryDbObject {
+class QueryChangesDbObject : public QueryEntriesDbObject {
  public:
-  QueryChangesDbObject(const uint64_t last_audit_id);
+  using QueryFactory = mrs::interface::QueryFactory;
+
+ public:
+  QueryChangesDbObject(SupportedMrsMetadataVersion v,
+                       QueryFactory *query_factory,
+                       const uint64_t last_audit_id);
 
   /**
    * Fetch from database the list of all defined object/path entries

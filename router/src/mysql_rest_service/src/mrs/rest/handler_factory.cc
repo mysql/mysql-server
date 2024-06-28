@@ -35,9 +35,10 @@ namespace rest {
 
 using HandlerPtr = std::unique_ptr<HandlerFactory::Handler>;
 
-HandlerPtr HandlerFactory::create_file_handler(Route *r,
-                                               AuthManager *auth_manager) {
-  return HandlerPtr{new HandlerFile(r, auth_manager)};
+HandlerPtr HandlerFactory::create_file_handler(
+    Route *r, AuthManager *auth_manager,
+    mrs::interface::QueryFactory *query_factor) {
+  return HandlerPtr{new HandlerFile(r, auth_manager, query_factor)};
 }
 
 HandlerPtr HandlerFactory::create_function_handler(Route *r,

@@ -27,17 +27,22 @@
 
 #include "mrs/database/entry/db_object.h"
 #include "mrs/database/helper/query.h"
+#include "mrs/interface/query_factory.h"
+#include "mrs/interface/supported_mrs_schema_version.h"
 
 namespace mrs {
 namespace database {
 
-class QueryEntryDbObject : protected Query {
+class QueryEntriesDbObject : protected Query {
  public:
   using DbObject = entry::DbObject;
   using VectorOfPathEntries = std::vector<DbObject>;
+  using SupportedMrsMetadataVersion =
+      mrs::interface::SupportedMrsMetadataVersion;
 
  public:
-  QueryEntryDbObject();
+  QueryEntriesDbObject(SupportedMrsMetadataVersion v,
+                       mrs::interface::QueryFactory *query_factory);
 
   virtual uint64_t get_last_update();
   /**
@@ -53,7 +58,10 @@ class QueryEntryDbObject : protected Query {
   void on_row(const ResultRow &r) override;
   static std::string skip_starting_slash(const std::string &value);
 
+  SupportedMrsMetadataVersion db_version_;
   uint64_t audit_log_id_{0};
+  mrs::interface::QueryFactory *query_factory_;
+  std::vector<std::optional<std::string>> db_object_user_ownership_v2_;
 };
 
 }  // namespace database

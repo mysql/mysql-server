@@ -146,6 +146,12 @@ class JoinedTable : public Table {
 
 class Object;
 
+class OwnerUserField {
+ public:
+  UniversalId uid;
+  std::shared_ptr<ObjectField> field;
+};
+
 class ObjectField {
  public:
   ObjectField() = default;
@@ -153,6 +159,7 @@ class ObjectField {
 
   ObjectField &operator=(const ObjectField &) = default;
 
+  entry::UniversalId id;
   std::string name;
   int position = 0;
   bool enabled = true;  // include in the returned JSON object
@@ -191,6 +198,7 @@ class Object {
   // if more than 1 table, they're all to be joined together
   std::vector<std::shared_ptr<Table>> base_tables;
   std::vector<std::shared_ptr<ObjectField>> fields;
+  std::optional<OwnerUserField> user_ownership_field;
 
   // used to determine if object can be updated
   bool unnests_to_value = false;
@@ -198,6 +206,14 @@ class Object {
   inline std::shared_ptr<ObjectField> get_field(std::string_view name) const {
     for (const auto &f : fields) {
       if (f->name == name) return f;
+    }
+    return {};
+  }
+
+  inline std::shared_ptr<ObjectField> get_field(
+      const entry::UniversalId &id) const {
+    for (const auto &f : fields) {
+      if (f->id == id) return f;
     }
     return {};
   }

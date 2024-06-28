@@ -22,26 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_MONITOR_SCHEMA_MONITOR_FACTORY_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_MONITOR_SCHEMA_MONITOR_FACTORY_H_
-
-#include "mrs/interface/query_factory.h"
-#include "mrs/interface/query_monitor_factory.h"
-#include "mrs/interface/supported_mrs_schema_version.h"
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SUPPORTED_MRS_SCHEMA_VERSION_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SUPPORTED_MRS_SCHEMA_VERSION_H_
 
 namespace mrs {
-namespace database {
+namespace interface {
 
-std::unique_ptr<mrs::interface::QueryMonitorFactory>
-create_schema_monitor_factory(
-    mrs::interface::SupportedMrsMetadataVersion scheme_version);
+enum SupportedMrsMetadataVersion {
+  kSupportedMrsMetadataVersion_2,
+  kSupportedMrsMetadataVersion_3
+};
 
-std::unique_ptr<mrs::interface::QueryFactory> create_query_factory(
-    mrs::interface::SupportedMrsMetadataVersion scheme_version);
-
-using SchemaMonitorFactoryMethod = decltype(&create_schema_monitor_factory);
-
-}  // namespace database
+}  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_MONITOR_SCHEMA_MONITOR_FACTORY_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SUPPORTED_MRS_SCHEMA_VERSION_H_

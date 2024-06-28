@@ -58,10 +58,9 @@ class RouteManagerTests : public Test {
  public:
   void SetUp() override {
     const bool k_is_ssl = true;
-    mock_route_factory_ = std::make_shared<MockRouteFactory>();
     sut_.reset(new mrs::ObjectManager(&mock_mysqlcache_, k_is_ssl,
                                       &mock_auth_manager_, nullptr,
-                                      mock_route_factory_));
+                                      &mock_route_factory_));
   }
 
   struct EntryId {
@@ -88,7 +87,7 @@ class RouteManagerTests : public Test {
   template <typename Obj>
   void expect_create_schema(MockRouteSchema &return_mock, const Obj &obj,
                             bool track_destruction = false) {
-    EXPECT_CALL(*mock_route_factory_,
+    EXPECT_CALL(mock_route_factory_,
                 create_router_schema(_, _, _, _, _, _, _, obj.service_id,
                                      get_schema_id(obj), _, _))
         .WillOnce(Return(ByMove(std::shared_ptr<ObjectSchema>(
@@ -100,7 +99,7 @@ class RouteManagerTests : public Test {
 
   void expect_create(MockRoute &return_mock, const DbObject &obj,
                      bool track_destruction = false) {
-    EXPECT_CALL(*mock_route_factory_,
+    EXPECT_CALL(mock_route_factory_,
                 create_router_object(ById(obj.id), _, _, _, _, _))
         .WillOnce(Return(ByMove(std::shared_ptr<Object>(
             &return_mock, [track_destruction](Object *r) {
@@ -111,7 +110,7 @@ class RouteManagerTests : public Test {
 
   void expect_create(MockRoute &return_mock, const ContentFile &obj,
                      bool track_destruction = false) {
-    EXPECT_CALL(*mock_route_factory_,
+    EXPECT_CALL(mock_route_factory_,
                 create_router_static_object(ById(obj.id), _, _, _, _))
         .WillOnce(Return(ByMove(std::shared_ptr<Object>(
             &return_mock, [track_destruction](Object *r) {
@@ -168,9 +167,9 @@ class RouteManagerTests : public Test {
     return result;
   }
 
-  std::shared_ptr<MockRouteFactory> mock_route_factory_;
-  MockAuthManager mock_auth_manager_;
-  MockMysqlCacheManager mock_mysqlcache_;
+  StrictMock<MockRouteFactory> mock_route_factory_;
+  StrictMock<MockAuthManager> mock_auth_manager_;
+  StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   std::unique_ptr<mrs::ObjectManager> sut_;
 };
 

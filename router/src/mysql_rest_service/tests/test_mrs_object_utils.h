@@ -37,7 +37,7 @@
 #include <vector>
 #include "helper/json/text_to.h"
 #include "mrs/database/entry/object.h"
-#include "mrs/database/query_entries_object.h"
+#include "mrs/database/query_entry_object.h"
 #include "mrs/interface/rest_error.h"
 #include "mysqlrouter/mysql_session.h"
 

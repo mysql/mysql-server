@@ -34,6 +34,7 @@
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_handler_factory.h"
 #include "mock/mock_mysqlcachemanager.h"
+#include "mock/mock_query_factory.h"
 #include "mock/mock_rest_handler.h"
 #include "mock/mock_route_schema.h"
 #include "mock/mock_session.h"
@@ -87,7 +88,7 @@ class RouteStaticFileTests : public Test {
 
     sut_ = std::make_shared<ObjectStaticFile>(
         obj, mock_route_schema_, &mock_mysqlcache_, is_https,
-        &mock_auth_manager_, mock_handler_factory_);
+        &mock_auth_manager_, &mock_handler_factory_, &mock_query_factory_);
     ASSERT_EQ(sut_.get(), register_argument);
   }
 
@@ -97,7 +98,8 @@ class RouteStaticFileTests : public Test {
     for (auto p : mocks) Mock::VerifyAndClearExpectations(p);
   }
 
-  MakeSharedPtr<StrictMock<MockHandlerFactory>> mock_handler_factory_;
+  StrictMock<MockQueryFactory> mock_query_factory_;
+  StrictMock<MockHandlerFactory> mock_handler_factory_;
   StrictMock<MockAuthManager> mock_auth_manager_;
   StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   StrictMock<MockMySQLSession> mock_session;
@@ -200,7 +202,7 @@ TEST_F(RouteStaticFileTests,
   //  EXPECT_CALL(create_object_metadata_handler(sut_.get(),
   //  &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
-  verifyAndClearMocks({mock_handler_factory_.get()});
+  verifyAndClearMocks({&mock_handler_factory_});
   delete_sut();
 }
 
@@ -216,7 +218,7 @@ TEST_F(RouteStaticFileTests, second_activation_recreates_handler) {
   //              create_object_metadata_handler(sut_.get(),
   //              &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
-  verifyAndClearMocks({mock_handler_factory_.get()});
+  verifyAndClearMocks({&mock_handler_factory_});
 
   //  EXPECT_CALL(*mock_handler_factory_,
   //              create_object_handler(sut_.get(), &mock_auth_manager_));
@@ -224,7 +226,7 @@ TEST_F(RouteStaticFileTests, second_activation_recreates_handler) {
   //              create_object_metadata_handler(sut_.get(),
   //              &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
-  verifyAndClearMocks({mock_handler_factory_.get()});
+  verifyAndClearMocks({&mock_handler_factory_});
 
   delete_sut();
 }

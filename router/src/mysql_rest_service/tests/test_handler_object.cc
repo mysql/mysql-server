@@ -132,6 +132,8 @@ class HandleObjectTests : public Test {
           .WillRepeatedly(ReturnRef(object_));
       EXPECT_CALL(parent_.mock_route, get_schema_name())
           .WillRepeatedly(ReturnRef(schema_));
+      EXPECT_CALL(parent_.mock_route, get_object())
+          .WillRepeatedly(Return(cached_object_));
     }
 
     HandleObjectTests &parent_;

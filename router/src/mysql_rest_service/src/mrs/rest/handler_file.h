@@ -40,7 +40,7 @@ class HandlerFile : public mrs::rest::Handler {
 
  public:
   HandlerFile(Route *route, mrs::interface::AuthorizeManager *auth_manager,
-              std::shared_ptr<QueryFactory> factory = {});
+              QueryFactory *factory);
 
   UniversalId get_service_id() const override;
   UniversalId get_db_object_id() const override;
@@ -60,7 +60,7 @@ class HandlerFile : public mrs::rest::Handler {
 
  private:
   Route *route_;
-  std::shared_ptr<QueryFactory> factory_;
+  QueryFactory *factory_;
 };
 
 }  // namespace rest

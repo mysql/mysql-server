@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,24 +22,27 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SCHEMA_MONITOR_FACTORY_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SCHEMA_MONITOR_FACTORY_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_QUERY_MONITOR_FACTORY_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_QUERY_MONITOR_FACTORY_H_
+
+#include <memory>
 
 #include "mrs/database/query_entries_auth_app.h"
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
 #include "mrs/database/query_state.h"
+#include "mrs/interface/query_factory.h"
 
 namespace mrs {
 namespace interface {
 
-class SchemaMonitorFactory {
+class QueryMonitorFactory {
  public:
-  virtual ~SchemaMonitorFactory() = default;
+  virtual ~QueryMonitorFactory() = default;
 
   virtual std::unique_ptr<database::QueryState> create_turn_state_fetcher() = 0;
-  virtual std::unique_ptr<database::QueryEntryDbObject>
-  create_route_fetcher() = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbObject> create_route_fetcher(
+      QueryFactory *query_factory) = 0;
   virtual std::unique_ptr<database::QueryEntriesAuthApp>
   create_authentication_fetcher() = 0;
   virtual std::unique_ptr<database::QueryEntriesContentFile>
@@ -47,20 +50,15 @@ class SchemaMonitorFactory {
 
   virtual std::unique_ptr<database::QueryState> create_turn_state_monitor(
       database::QueryState *state) = 0;
-  virtual std::unique_ptr<database::QueryEntryDbObject> create_route_monitor(
-      const uint64_t last_audit_log_id) = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbObject> create_route_monitor(
+      QueryFactory *query_factory, const uint64_t last_audit_log_id) = 0;
   virtual std::unique_ptr<database::QueryEntriesAuthApp>
   create_authentication_monitor(const uint64_t last_audit_log_id) = 0;
   virtual std::unique_ptr<database::QueryEntriesContentFile>
   create_content_file_monitor(const uint64_t last_audit_log_id) = 0;
 };
 
-enum SupportedMrsMetadataVersion {
-  kSupportedMrsMetadataVersion_2,
-  kSupportedMrsMetadataVersion_3
-};
-
 }  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SCHEMA_MONITOR_FACTORY_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_QUERY_MONITOR_FACTORY_H_

@@ -40,7 +40,7 @@ class QueryEntryGroupRowSecurity;
 class QueryEntryContentFile;
 class QueryEntryAuthUser;
 class QueryEntryObject;
-class QueryEntryDbObject;
+class QueryEntriesDbObject;
 class QueryChangesContentFile;
 class QueryUserGroups;
 class QueryRestTable;
@@ -48,6 +48,7 @@ class QueryRestTableSingleRow;
 class QueryRestObjectInsert;
 class QueryRestSP;
 class QueryTableColumns;
+class QueryEntryFields;
 
 }  // namespace database
 
@@ -60,8 +61,6 @@ class QueryFactory {
   create_query_audit_log() = 0;
   virtual std::shared_ptr<database::QueryEntriesAuthPrivileges>
   create_query_auth_privileges() = 0;
-  virtual std::shared_ptr<database::QueryEntriesContentFile>
-  create_query_content_files() = 0;
 
   virtual std::shared_ptr<database::QueryEntryContentFile>
   create_query_content_file() = 0;
@@ -81,8 +80,7 @@ class QueryFactory {
   // virtual std::shared_ptr<database::QueryRestObjectInsert>
   // create_query_object_insert() = 0;
   virtual std::shared_ptr<database::QueryRestSP> create_query_sp() = 0;
-  virtual std::shared_ptr<database::QueryTableColumns>
-  create_query_table_columns() = 0;
+  virtual std::shared_ptr<database::QueryEntryFields> create_query_fields() = 0;
 };
 
 }  // namespace interface

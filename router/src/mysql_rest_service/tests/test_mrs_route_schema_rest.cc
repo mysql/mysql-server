@@ -66,13 +66,13 @@ class RouteSchemaRestTests : public Test {
     sut_ = std::make_shared<ObjectSchema>(
         &mock_route_manager_, &mock_mysqlcache_, service_name, schema_name,
         is_ssl, host, require_auth, service_id, schema_id, "",
-        &mock_auth_manager_, mock_handler_factory_);
+        &mock_auth_manager_, &mock_handler_factory_);
   }
 
   StrictMock<MockRouteManager> mock_route_manager_;
   StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   StrictMock<MockAuthManager> mock_auth_manager_;
-  MakeSharedPtr<StrictMock<MockHandlerFactory>> mock_handler_factory_;
+  StrictMock<MockHandlerFactory> mock_handler_factory_;
 
   std::shared_ptr<ObjectSchema> sut_;
 
@@ -181,7 +181,7 @@ TEST_F(RouteSchemaRestTests, turn_on) {
   const mrs::UniversalId k_schema_id{2};
   make_sut(k_service_id, k_schema_id, "/ser", "/sch");
 
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_schema_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
 
@@ -203,7 +203,7 @@ TEST_F(RouteSchemaRestTests, turn_off_releases_the_object) {
 
   bool released = false;
 
-  EXPECT_CALL(*mock_handler_factory_,
+  EXPECT_CALL(mock_handler_factory_,
               create_schema_metadata_handler(sut_.get(), &mock_auth_manager_))
       .WillOnce(Return(
           ByMove(std::make_unique<TrackDestructionRestHandler>(released))));

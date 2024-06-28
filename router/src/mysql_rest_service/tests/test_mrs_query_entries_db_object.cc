@@ -25,12 +25,18 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "helper/make_shared_ptr.h"
+
 #include "mrs/database/entry/db_object.h"
 #include "mrs/database/query_entries_db_object.h"
 
+#include "mock/mock_query_entry_fields.h"
+#include "mock/mock_query_entry_group_row_security.h"
+#include "mock/mock_query_entry_object.h"
+#include "mock/mock_query_factory.h"
 #include "mock/mock_session.h"
 
-using mrs::database::QueryEntryDbObject;
+using mrs::database::QueryEntriesDbObject;
 using testing::_;
 using testing::InSequence;
 using testing::Invoke;
@@ -48,6 +54,13 @@ class QueryEntriesDbObjectTests : public Test {
   }
 
   void expectFetch(const char *audit_id_numeric) {
+    EXPECT_CALL(mock_query_factory, create_query_group_row_security())
+        .WillRepeatedly(Return(mock_query_group_sec.copy_base()));
+    EXPECT_CALL(mock_query_factory, create_query_fields())
+        .WillRepeatedly(Return(mock_query_entry_fields.copy_base()));
+    EXPECT_CALL(mock_query_factory, create_query_object())
+        .WillRepeatedly(Return(mock_query_entry_object.copy_base()));
+
     InSequence seq;
     EXPECT_CALL(mock_session, execute(StrEq("START TRANSACTION")))
         .RetiresOnSaturation();
@@ -68,8 +81,17 @@ class QueryEntriesDbObjectTests : public Test {
     EXPECT_CALL(mock_session, execute(StrEq("COMMIT"))).RetiresOnSaturation();
   }
 
+  helper::MakeSharedPtr<StrictMock<MockQueryEntryObject>>
+      mock_query_entry_object;
+  helper::MakeSharedPtr<StrictMock<MockQueryEntryFields>>
+      mock_query_entry_fields;
+  helper::MakeSharedPtr<StrictMock<MockQueryEntryGroupRowSecurity>>
+      mock_query_group_sec;
+  helper::MakeSharedPtr<StrictMock<MockQueryEntryFields>> mock_query_fields;
+  StrictMock<MockQueryFactory> mock_query_factory;
   StrictMock<MockMySQLSession> mock_session;
-  QueryEntryDbObject sut_;
+  QueryEntriesDbObject sut_{mrs::interface::kSupportedMrsMetadataVersion_2,
+                            &mock_query_factory};
 };
 
 TEST_F(QueryEntriesDbObjectTests, returns_audit_id_one_without_entires) {

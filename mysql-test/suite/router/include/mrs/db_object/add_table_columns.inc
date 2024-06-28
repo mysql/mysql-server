@@ -52,5 +52,23 @@ eval INSERT INTO mysql_rest_service_metadata.object_field
                  "$.srid", SRS_ID) as js
                  FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object" $mrs_add_db_object_table_filter) as z;
 
+if ($mrs_schema_version == 3)
+{
+  if ($mrs_add_db_object_user_ownership_column)
+  {
+     if (`SELECT 1<>count(id)
+             FROM mysql_rest_service_metadata.object_field
+             WHERE object_id=$mrs_sql_id_variable_ob and name=$mrs_add_db_object_user_ownership_column;`)
+    {
+       die Not existing column name, set in $mrs_add_db_object_user_ownership_column;
+    }
+    eval UPDATE mysql_rest_service_metadata.object 
+        SET row_ownership_field_id=
+            (SELECT id
+             FROM mysql_rest_service_metadata.object_field
+             WHERE object_id=$mrs_sql_id_variable_ob and name=$mrs_add_db_object_user_ownership_column)
+        WHERE id=$mrs_sql_id_variable_ob;
+  }
+}
 --enable_query_log
 --enable_result_log

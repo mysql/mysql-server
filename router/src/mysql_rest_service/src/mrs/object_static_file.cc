@@ -38,12 +38,13 @@ ObjectStaticFile::ObjectStaticFile(
     const ContentFile &pe, RouteSchemaPtr schema,
     collector::MysqlCacheManager *cache, const bool is_ssl,
     mrs::interface::AuthorizeManager *auth_manager,
-    std::shared_ptr<HandlerFactory> handler_factory)
+    HandlerFactory *handler_factory, QueryFactory *query_factory)
     : cse_{pe},
       cache_{cache},
       is_ssl_{is_ssl},
       auth_{auth_manager},
-      handler_factory_{handler_factory} {
+      handler_factory_{handler_factory},
+      query_factory_{query_factory} {
   log_debug("src.cse_.default_handling_directory_index=%s",
             pe.default_handling_directory_index ? "true" : "false");
   update(&pe, schema);
@@ -57,7 +58,8 @@ void ObjectStaticFile::turn(const State state) {
     return;
   }
 
-  auto handle_file = std::make_unique<rest::HandlerFile>(this, auth_);
+  auto handle_file =
+      std::make_unique<rest::HandlerFile>(this, auth_, query_factory_);
 
   handle_file_ = std::move(handle_file);
 }

@@ -95,23 +95,16 @@ PluginOptions parse_json_options(const std::string &options) {
 }
 }  // namespace
 
-ObjectManager::ObjectManager(
-    collector::MysqlCacheManager *cache, const bool is_ssl,
-    mrs::interface::AuthorizeManager *auth_manager,
-    mrs::GtidManager *gtid_manager,
-    std::shared_ptr<::mrs::interface::ObjectFactory> factory)
+ObjectManager::ObjectManager(collector::MysqlCacheManager *cache,
+                             const bool is_ssl,
+                             mrs::interface::AuthorizeManager *auth_manager,
+                             mrs::GtidManager *gtid_manager,
+                             ::mrs::interface::ObjectFactory *factory)
     : cache_{cache},
       is_ssl_{is_ssl},
       auth_manager_{auth_manager},
       gtid_manager_{gtid_manager},
       factory_{factory} {}
-
-ObjectManager::ObjectManager(collector::MysqlCacheManager *cache,
-                             const bool is_ssl,
-                             mrs::interface::AuthorizeManager *auth_manager,
-                             mrs::GtidManager *gtid_manager)
-    : ObjectManager(cache, is_ssl, auth_manager, gtid_manager,
-                    std::make_shared<mrs::ObjectFactory>()) {}
 
 ObjectManager::~ObjectManager() {
   std::vector<EntryKey> route_ids;

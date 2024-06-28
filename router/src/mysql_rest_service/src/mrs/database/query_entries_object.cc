@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/database/query_entries_object.h"
+#include "mrs/database/query_entry_object.h"
 
 #include <algorithm>
 #include <string>
@@ -76,7 +76,20 @@ const char *to_str(const char *value, bool *) {
 namespace mrs {
 namespace database {
 
+using RestError = mrs::interface::RestError;
+
 namespace {
+
+void from_optional_user_ownership_field_id(
+    std::optional<entry::OwnerUserField> *out, const char *value) {
+  if (!value) {
+    out->reset();
+    return;
+  }
+
+  out->emplace();
+  entry::UniversalId::from_raw(&(*out)->uid, value);
+}
 
 using KindType = entry::KindType;
 using ModeType = entry::ModeType;
@@ -95,14 +108,90 @@ void convert_kind(KindType *out, const char *value) {
   }
 }
 
+class ColumnMappingConverter {
+ public:
+  explicit ColumnMappingConverter(std::shared_ptr<entry::JoinedTable> ref_table)
+      : ref_table_(ref_table) {}
+
+  void operator()(entry::JoinedTable::ColumnMapping *out,
+                  const char *value) const {
+    if (nullptr == value) {
+      *out = {};
+      return;
+    }
+
+    rapidjson::Document doc = helper::json::text_to_document(value);
+    if (!doc.IsArray()) {
+      throw RestError("Column 'metadata', must be an array");
+    }
+
+    out->clear();
+    for (const auto &col : doc.GetArray()) {
+      if (!col.IsObject())
+        throw RestError("Column 'metadata', element must be an object.");
+      if (!col.HasMember("base") || !col["base"].IsString())
+        throw RestError(
+            "Column 'metadata', element must contain 'base' field with "
+            "string value.");
+      if (!col.HasMember("ref") || !col["ref"].IsString())
+        throw RestError(
+            "Column 'metadata', element must contain 'ref' field with string "
+            "value.");
+
+      auto lplaceholder = std::make_shared<entry::Column>();
+      lplaceholder->name = col["base"].GetString();
+      auto rplaceholder = std::make_shared<entry::Column>();
+      rplaceholder->name = col["ref"].GetString();
+      rplaceholder->table = ref_table_;
+      out->emplace_back(lplaceholder, rplaceholder);
+    }
+  }
+
+ private:
+  std::shared_ptr<entry::JoinedTable> ref_table_;
+};
+
 }  // namespace
 
-using RestError = mrs::interface::RestError;
+namespace v2 {
+
+QueryEntryObject::UniversalId QueryEntryObject::query_object(
+    MySQLSession *session, const UniversalId &db_object_id, Object *obj) {
+  entry::UniversalId object_id;
+
+  mysqlrouter::sqlstring q{
+      "SELECT object.id, object.kind,"
+      " CAST(db_object.crud_operations AS UNSIGNED)"
+      "  FROM mysql_rest_service_metadata.object"
+      "  JOIN mysql_rest_service_metadata.db_object"
+      "    ON object.db_object_id = db_object.id"
+      "  WHERE object.db_object_id=?"};
+  q << db_object_id;
+
+  auto res = query_one(session, q.str());
+
+  if (nullptr == res.get()) return {};
+
+  auto base_table = obj->base_tables.back();
+  entry::UniversalId::from_raw(&object_id, (*res)[0]);
+  base_table->crud_operations = std::stoi((*res)[2]);
+
+  convert_kind(&obj->kind, (*res)[1]);
+
+  return object_id;
+}
 
 void QueryEntryObject::query_entries(MySQLSession *session,
                                      const std::string &schema_name,
                                      const std::string &object_name,
                                      const UniversalId &db_object_id) {
+  // Cleanup
+  m_alias_count = 0;
+  m_tables.clear();
+  m_objects.clear();
+  object.reset();
+
+  // Build the query and resulting objects.
   auto base_table = std::make_shared<entry::BaseTable>();
   base_table->schema = schema_name;
   base_table->table = object_name;
@@ -113,45 +202,13 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   m_objects[entry::UniversalId{}] = object;
 
   entry::UniversalId object_id;
-  {
-    mysqlrouter::sqlstring q{
-        "SELECT object.id, object.kind,"
-        " CAST(db_object.crud_operations AS UNSIGNED)"
-        "  FROM mysql_rest_service_metadata.object"
-        "  JOIN mysql_rest_service_metadata.db_object"
-        "    ON object.db_object_id = db_object.id"
-        "  WHERE object.db_object_id=?"};
-    q << db_object_id;
-
-    auto res = query_one(session, q.str());
-
-    if (nullptr == res.get()) return;
-
-    entry::UniversalId::from_raw(&object_id, (*res)[0]);
-    base_table->crud_operations = std::stoi((*res)[2]);
-
-    convert_kind(&object->kind, (*res)[1]);
-  }
 
   m_tables[entry::UniversalId{}] = base_table;
 
+  object_id = query_object(session, db_object_id, object.get());
+
   m_loading_references = true;
-  query_ =
-      "SELECT"
-      " object_reference.id,"
-      " object_reference.reference_mapping->>'$.referenced_schema',"
-      " object_reference.reference_mapping->>'$.referenced_table',"
-      " object_reference.reference_mapping->'$.to_many',"
-      " object_reference.reference_mapping->'$.column_mapping',"
-      // TODO reduce_to_value_of_field_id will be removed
-      " object_reference.unnest OR "
-      "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
-      " CAST(object_reference.crud_operations AS UNSIGNED)"
-      " FROM mysql_rest_service_metadata.object_field"
-      " JOIN mysql_rest_service_metadata.object_reference"
-      "  ON object_field.represents_reference_id = object_reference.id"
-      " WHERE object_field.object_id = ?";
-  query_ << object_id;
+  set_query_object_reference(object_id);
 
   execute(session);
 
@@ -233,6 +290,26 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   // - are there more than 1 row-owner-id or generated columns defined
 }
 
+void QueryEntryObject::set_query_object_reference(
+    const entry::UniversalId &object_id) {
+  query_ =
+      "SELECT"
+      " object_reference.id,"
+      " object_reference.reference_mapping->>'$.referenced_schema',"
+      " object_reference.reference_mapping->>'$.referenced_table',"
+      " object_reference.reference_mapping->'$.to_many',"
+      " object_reference.reference_mapping->'$.column_mapping',"
+      // TODO reduce_to_value_of_field_id will be removed
+      " object_reference.unnest OR "
+      "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
+      " CAST(object_reference.crud_operations AS UNSIGNED)"
+      " FROM mysql_rest_service_metadata.object_field"
+      " JOIN mysql_rest_service_metadata.object_reference"
+      "  ON object_field.represents_reference_id = object_reference.id"
+      " WHERE object_field.object_id = ?";
+  query_ << object_id;
+}
+
 void QueryEntryObject::on_row(const ResultRow &r) {
   if (m_loading_references)
     on_reference_row(r);
@@ -241,50 +318,6 @@ void QueryEntryObject::on_row(const ResultRow &r) {
 }
 
 void QueryEntryObject::on_reference_row(const ResultRow &r) {
-  class ColumnMappingConverter {
-   public:
-    explicit ColumnMappingConverter(
-        std::shared_ptr<entry::JoinedTable> ref_table)
-        : ref_table_(ref_table) {}
-
-    void operator()(entry::JoinedTable::ColumnMapping *out,
-                    const char *value) const {
-      if (nullptr == value) {
-        *out = {};
-        return;
-      }
-
-      rapidjson::Document doc = helper::json::text_to_document(value);
-      if (!doc.IsArray()) {
-        throw RestError("Column 'metadata', must be an array");
-      }
-
-      out->clear();
-      for (const auto &col : doc.GetArray()) {
-        if (!col.IsObject())
-          throw RestError("Column 'metadata', element must be an object.");
-        if (!col.HasMember("base") || !col["base"].IsString())
-          throw RestError(
-              "Column 'metadata', element must contain 'base' field with "
-              "string value.");
-        if (!col.HasMember("ref") || !col["ref"].IsString())
-          throw RestError(
-              "Column 'metadata', element must contain 'ref' field with string "
-              "value.");
-
-        auto lplaceholder = std::make_shared<entry::Column>();
-        lplaceholder->name = col["base"].GetString();
-        auto rplaceholder = std::make_shared<entry::Column>();
-        rplaceholder->name = col["ref"].GetString();
-        rplaceholder->table = ref_table_;
-        out->emplace_back(lplaceholder, rplaceholder);
-      }
-    }
-
-   private:
-    std::shared_ptr<entry::JoinedTable> ref_table_;
-  };
-
   auto reference = std::make_shared<entry::JoinedTable>();
 
   entry::UniversalId reference_id;
@@ -298,12 +331,6 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
                                  ColumnMappingConverter{reference});
   row.unserialize(&reference->unnest);
   row.unserialize(&reference->crud_operations);
-
-  // if (reference->unnest && reference->to_many)
-  //   throw std::runtime_error("Invalid object definition for reference to " +
-  //                            reference->schema + "." + reference->table + "
-  //                            (" + reference_id.to_string() +
-  //                            "): cannot unnest a 1:n reference");
 
   reference->table_alias = "t" + std::to_string(++m_alias_count);
   m_tables[reference_id] = reference;
@@ -364,6 +391,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
   if (represents_reference_id) {
     auto ofield = std::make_shared<entry::ReferenceField>();
+    ofield->id = field_id;
 
     log_debug("Reference");
     CONVERT(&ofield->name);
@@ -434,6 +462,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     else
       dfield = std::make_shared<entry::DataField>();
 
+    dfield->id = field_id;
     CONVERT(&dfield->name);
     row.unserialize(&dfield->position);
     CONVERT(&dfield->enabled);
@@ -478,6 +507,103 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     parent_object->fields.push_back(dfield);
   }
 }
+
+}  // namespace v2
+
+namespace v3 {
+
+void QueryEntryObject::query_entries(MySQLSession *session,
+                                     const std::string &schema_name,
+                                     const std::string &object_name,
+                                     const UniversalId &db_object_id) {
+  v2::QueryEntryObject::query_entries(session, schema_name, object_name,
+                                      db_object_id);
+
+  for (auto &[_, v] : m_objects) {
+    if (!v->user_ownership_field.has_value()) continue;
+
+    v->user_ownership_field->field = v->get_field(v->user_ownership_field->uid);
+  }
+}
+
+QueryEntryObject::UniversalId QueryEntryObject::query_object(
+    MySQLSession *session, const UniversalId &db_object_id, Object *obj) {
+  entry::UniversalId object_id;
+
+  mysqlrouter::sqlstring q{
+      "SELECT object.id, object.kind,"
+      " CAST(db_object.crud_operations AS UNSIGNED),"
+      " row_ownership_field_id"
+      "  FROM mysql_rest_service_metadata.object"
+      "  JOIN mysql_rest_service_metadata.db_object"
+      "    ON object.db_object_id = db_object.id"
+      "  WHERE object.db_object_id=?"};
+  q << db_object_id;
+
+  auto res = query_one(session, q.str());
+
+  if (nullptr == res.get()) return {};
+
+  auto base_table = obj->base_tables.back();
+
+  helper::MySQLRow row(*res, nullptr, res->size());
+  row.unserialize_with_converter(&object_id, entry::UniversalId::from_raw);
+  row.unserialize_with_converter(&obj->kind, convert_kind);
+  row.unserialize(&base_table->crud_operations);
+  row.unserialize_with_converter(&obj->user_ownership_field,
+                                 from_optional_user_ownership_field_id);
+
+  return object_id;
+}
+
+void QueryEntryObject::set_query_object_reference(
+    const entry::UniversalId &object_id) {
+  query_ =
+      "SELECT"
+      " object_reference.id,"
+      " object_reference.reference_mapping->>'$.referenced_schema',"
+      " object_reference.reference_mapping->>'$.referenced_table',"
+      " object_reference.reference_mapping->'$.to_many',"
+      " object_reference.reference_mapping->'$.column_mapping',"
+      // TODO reduce_to_value_of_field_id will be removed
+      " object_reference.unnest OR "
+      "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
+      " CAST(object_reference.crud_operations AS UNSIGNED),"
+      " object_reference.row_ownership_field_id"
+      " FROM mysql_rest_service_metadata.object_field"
+      " JOIN mysql_rest_service_metadata.object_reference"
+      "  ON object_field.represents_reference_id = object_reference.id"
+      " WHERE object_field.object_id = ?";
+  query_ << object_id;
+}
+
+void QueryEntryObject::on_reference_row(const ResultRow &r) {
+  auto reference = std::make_shared<entry::JoinedTable>();
+  auto object = std::make_shared<Object>();
+
+  entry::UniversalId reference_id;
+
+  helper::MySQLRow row(r, metadata_, no_od_metadata_);
+  row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
+  row.unserialize(&reference->schema);
+  row.unserialize(&reference->table);
+  row.unserialize(&reference->to_many);
+  row.unserialize_with_converter(&reference->column_mapping,
+                                 ColumnMappingConverter{reference});
+  row.unserialize(&reference->unnest);
+  row.unserialize(&reference->crud_operations);
+  row.unserialize_with_converter(&object->user_ownership_field,
+                                 from_optional_user_ownership_field_id);
+
+  reference->table_alias = "t" + std::to_string(++m_alias_count);
+  m_tables[reference_id] = reference;
+
+  object->name = reference->table_key();
+  object->base_tables.push_back(reference);
+  m_objects[reference_id] = object;
+}
+
+}  // namespace v3
 
 static std::map<std::string, entry::ColumnType> k_datatype_map{
     {"TINYINT", entry::ColumnType::INTEGER},

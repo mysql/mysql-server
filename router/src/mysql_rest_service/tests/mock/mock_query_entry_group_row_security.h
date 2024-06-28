@@ -32,7 +32,8 @@ class MockQueryEntryGroupRowSecurity
     : public mrs::database::QueryEntryGroupRowSecurity {
  public:
   MOCK_METHOD(bool, query_group_row_security,
-              (MySQLSession * session, mrs::UniversalId db_object_id),
+              (mysqlrouter::MySQLSession * session,
+               mrs::UniversalId db_object_id),
               (override));
   MOCK_METHOD(RowGroupsSecurity &, get_result, (), (override));
 };

@@ -22,19 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/interface/schema_monitor_factory.h"
+#include "mrs/interface/query_monitor_factory.h"
 
 #include "mrs/database/query_changes_auth_app.h"
 #include "mrs/database/query_changes_content_file.h"
 #include "mrs/database/query_changes_db_object.h"
 #include "mrs/database/query_changes_state.h"
+#include "mrs/database/query_factory.h"
+#include "mrs/interface/supported_mrs_schema_version.h"
 
 namespace mrs {
 namespace database {
 
 namespace v2 {
 
-class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
+class SchemaMonitorFactory : public mrs::interface::QueryMonitorFactory {
  public:
   ~SchemaMonitorFactory() override = default;
 
@@ -42,9 +44,10 @@ class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
     return std::make_unique<QueryState>();
   }
 
-  std::unique_ptr<database::QueryEntryDbObject> create_route_fetcher()
-      override {
-    return std::make_unique<QueryEntryDbObject>();
+  std::unique_ptr<database::QueryEntriesDbObject> create_route_fetcher(
+      interface::QueryFactory *query_factory) override {
+    return std::make_unique<QueryEntriesDbObject>(
+        mrs::interface::kSupportedMrsMetadataVersion_2, query_factory);
   }
 
   std::unique_ptr<database::QueryEntriesAuthApp> create_authentication_fetcher()
@@ -62,9 +65,12 @@ class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
     return std::make_unique<QueryChangesState>(state);
   }
 
-  std::unique_ptr<database::QueryEntryDbObject> create_route_monitor(
+  std::unique_ptr<database::QueryEntriesDbObject> create_route_monitor(
+      interface::QueryFactory *query_factory,
       const uint64_t last_audit_log_id) override {
-    return std::make_unique<QueryChangesDbObject>(last_audit_log_id);
+    return std::make_unique<QueryChangesDbObject>(
+        mrs::interface::kSupportedMrsMetadataVersion_2, query_factory,
+        last_audit_log_id);
   }
 
   std::unique_ptr<database::QueryEntriesAuthApp> create_authentication_monitor(
@@ -83,37 +89,13 @@ class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
 
 namespace v3 {
 
-class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
+class SchemaMonitorFactory : public v2::SchemaMonitorFactory {
  public:
   ~SchemaMonitorFactory() override = default;
-
-  std::unique_ptr<database::QueryState> create_turn_state_fetcher() override {
-    return std::make_unique<QueryState>();
-  }
-
-  std::unique_ptr<database::QueryEntryDbObject> create_route_fetcher()
-      override {
-    return std::make_unique<QueryEntryDbObject>();
-  }
 
   std::unique_ptr<database::QueryEntriesAuthApp> create_authentication_fetcher()
       override {
     return std::make_unique<v3::QueryEntriesAuthApp>();
-  }
-
-  std::unique_ptr<database::QueryEntriesContentFile>
-  create_content_file_fetcher() override {
-    return std::make_unique<QueryEntriesContentFile>();
-  }
-
-  std::unique_ptr<database::QueryState> create_turn_state_monitor(
-      database::QueryState *state) override {
-    return std::make_unique<QueryChangesState>(state);
-  }
-
-  std::unique_ptr<database::QueryEntryDbObject> create_route_monitor(
-      const uint64_t last_audit_log_id) override {
-    return std::make_unique<QueryChangesDbObject>(last_audit_log_id);
   }
 
   std::unique_ptr<database::QueryEntriesAuthApp> create_authentication_monitor(
@@ -122,15 +104,24 @@ class SchemaMonitorFactory : public mrs::interface::SchemaMonitorFactory {
         last_audit_log_id);
   }
 
-  std::unique_ptr<database::QueryEntriesContentFile>
-  create_content_file_monitor(const uint64_t last_audit_log_id) override {
-    return std::make_unique<QueryChangesContentFile>(last_audit_log_id);
+  std::unique_ptr<database::QueryEntriesDbObject> create_route_fetcher(
+      interface::QueryFactory *query_factory) override {
+    return std::make_unique<QueryEntriesDbObject>(
+        mrs::interface::kSupportedMrsMetadataVersion_3, query_factory);
+  }
+
+  std::unique_ptr<database::QueryEntriesDbObject> create_route_monitor(
+      interface::QueryFactory *query_factory,
+      const uint64_t last_audit_log_id) override {
+    return std::make_unique<QueryChangesDbObject>(
+        mrs::interface::kSupportedMrsMetadataVersion_3, query_factory,
+        last_audit_log_id);
   }
 };
 
 }  // namespace v3
 
-std::unique_ptr<mrs::interface::SchemaMonitorFactory>
+std::unique_ptr<mrs::interface::QueryMonitorFactory>
 create_schema_monitor_factory(
     mrs::interface::SupportedMrsMetadataVersion scheme_version) {
   switch (scheme_version) {
@@ -138,6 +129,19 @@ create_schema_monitor_factory(
       return std::make_unique<mrs::database::v2::SchemaMonitorFactory>();
     case mrs::interface::kSupportedMrsMetadataVersion_3:
       return std::make_unique<mrs::database::v3::SchemaMonitorFactory>();
+    default:
+      assert(false && "Unsupported MRS schema version.");
+  }
+  return {};
+}
+
+std::unique_ptr<mrs::interface::QueryFactory> create_query_factory(
+    mrs::interface::SupportedMrsMetadataVersion scheme_version) {
+  switch (scheme_version) {
+    case mrs::interface::kSupportedMrsMetadataVersion_2:
+      return std::make_unique<mrs::database::v2::QueryFactory>();
+    case mrs::interface::kSupportedMrsMetadataVersion_3:
+      return std::make_unique<mrs::database::v3::QueryFactory>();
     default:
       assert(false && "Unsupported MRS schema version.");
   }

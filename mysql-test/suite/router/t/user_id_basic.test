@@ -30,8 +30,7 @@ ENGINE = InnoDB;
 
 --let $mrs_add_db_object=user
 --let $mrs_add_db_object_path=/user
---let $mrs_add_db_object_custom_fields=,row_user_ownership_enforced,row_user_ownership_column
---let $mrs_add_db_object_custom_values=,true,"id"
+--let $mrs_add_db_object_user_ownership_column="id"
 --let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
 --source ../include/mrs/db_object/add.inc
 
