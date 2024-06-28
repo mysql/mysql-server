@@ -9820,17 +9820,17 @@ bool Fil_system::lookup_for_recovery(space_id_t space_id) {
       because get_scanned_filename_by_space_id has not found it. But it
       could not be a known space_id now, it would mean something went
       quite wrong. */
-      ut_a(!recv_sys->missing_ids.contains(space_id));
+      ut_a(recv_sys->missing_ids.count(space_id) == 0);
 
       /* Every time a space_id is marked deleted, the path
       is also removed from m_dirs. */
-      ut_a(!recv_sys->deleted.contains(space_id));
+      ut_a(recv_sys->deleted.count(space_id) == 0);
     } else {
       /* Should belong to exactly one of `deleted` or `missing_ids`, as whenever
       adding to deleted we remove from missing_ids, and
       we add to missing_ids only if it's not in deleted. */
-      if (recv_sys->deleted.contains(space_id)) {
-        ut_a(!recv_sys->missing_ids.contains(space_id));
+      if (recv_sys->deleted.count(space_id) != 0) {
+        ut_a(recv_sys->missing_ids.count(space_id) == 0);
       } else {
         recv_sys->missing_ids.insert(space_id);
       }
@@ -9960,7 +9960,7 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
   never reach here with deleted space. We are running in context of threads of
   DD validation. No one is modifying this data in parallel
   so it is safe to read it without mutex protection. */
-  ut_a(!recv_sys->deleted.contains(space_id));
+  ut_a(recv_sys->deleted.count(space_id) == 0);
 
   /* A file with this space_id was found during scanning.
   Validate its location and check if it was moved from where
@@ -10119,7 +10119,7 @@ bool Fil_system::check_missing_tablespaces() {
     an id into it, we remove it from recv_sys->missing_ids, and we insert into
     recv_sys->missing_ids only if it's not in recv_sys->deleted.
     No space id should be present in both containers. */
-    ut_a(!recv_sys->deleted.contains(space_id));
+    ut_a(recv_sys->deleted.count(space_id) == 0);
 
     const auto result = get_scanned_filename_by_space_id(space_id).second;
 
