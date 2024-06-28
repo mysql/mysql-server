@@ -1579,6 +1579,7 @@ class Fil_system {
   void moved(dd::Object_id object_id, space_id_t space_id,
              const char *space_name, const std::string &old_path,
              const std::string &new_path, bool before_90000) {
+    std::lock_guard guard(m_moved_mutex);
     m_moved.push_back(
         {object_id, space_id, space_name, old_path, new_path, before_90000});
   }
@@ -1767,6 +1768,9 @@ class Fil_system {
   /** List of tablespaces that have been relocated. We need to
   update the DD when it is safe to do so. */
   dd_fil::Tablespaces m_moved;
+
+  /** Mutex protecting the list of relocated tablespaces */
+  std::mutex m_moved_mutex;
 
   /** Tablespace directories scanned at startup */
   Tablespace_dirs m_dirs;
@@ -9811,32 +9815,37 @@ bool fil_op_replay_rename_for_ddl(const page_id_t &page_id,
 @param[in]      space_id                Tablespace ID to lookup
 @return true if the space ID is known. */
 bool Fil_system::lookup_for_recovery(space_id_t space_id) {
-  ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
-
   /* Single threaded code, no need to acquire mutex. */
-  const auto result = get_scanned_filename_by_space_id(space_id);
+  const bool is_known =
+      get_scanned_filename_by_space_id(space_id).second != nullptr;
 
   if (recv_recovery_is_on()) {
-    const auto &end = recv_sys->deleted.end();
-    const auto &it = recv_sys->deleted.find(space_id);
+    /* Simple consistency checks */
+    if (is_known) {
+      /* It could only be in missing_ids if it was added here earlier,
+      because get_scanned_filename_by_space_id has not found it. But it
+      could not be a known space_id now, it would mean something went
+      quite wrong. */
+      ut_a(!recv_sys->missing_ids.contains(space_id));
 
-    if (result.second == nullptr) {
-      /* If it wasn't deleted after finding it on disk then
-      we tag it as missing. */
-
-      if (it == end) {
+      /* Every time a space_id is marked deleted, the path
+      is also removed from m_dirs. */
+      ut_a(!recv_sys->deleted.contains(space_id));
+    } else {
+      /* Should belong to exactly one of `deleted` or `missing_ids`, as whenever
+      adding to deleted we remove from missing_ids, and
+      we add to missing_ids only if it's not in deleted. */
+      if (recv_sys->deleted.contains(space_id)) {
+        ut_a(!recv_sys->missing_ids.contains(space_id));
+      } else {
         recv_sys->missing_ids.insert(space_id);
       }
-
-      return false;
     }
-
-    /* Check that it wasn't deleted. */
-
-    return (it == end);
+  } else {
+    ut_a(Log_DDL::is_in_recovery());
   }
 
-  return (result.second != nullptr);
+  return is_known;
 }
 
 /** Lookup the tablespace ID.
@@ -9904,6 +9913,7 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
                                      std::string old_path,
                                      bool data_dir_flag_missing,
                                      std::string *new_path) {
+  ut_a(!recv_recovery_is_on());
   ut_ad((fsp_is_ibd_tablespace(space_id) &&
          Fil_path::has_suffix(IBD, old_path)) ||
         fsp_is_undo_tablespace(space_id));
@@ -9927,9 +9937,6 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
     undo::spaces->s_unlock();
   }
 
-  /* Single threaded code, no need to acquire mutex. */
-  const auto &end = recv_sys->deleted.end();
-  const auto &it = recv_sys->deleted.find(space_id);
   const auto result = fil_system->get_scanned_filename_by_space_id(space_id);
 
   if (result.second == nullptr) {
@@ -9950,19 +9957,16 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
       return Fil_state::MATCHES;
     }
 
-    /* If it wasn't deleted during redo apply, we tag it as missing. */
-
-    if (it == end && recv_recovery_is_on()) {
-      recv_sys->missing_ids.insert(space_id);
-    }
-
     return Fil_state::MISSING;
   }
 
-  /* Check if it was deleted according to the redo log. */
-  if (it != end) {
-    return Fil_state::DELETED;
-  }
+  /* While we redo the MLOG_FILE_DELETE in the redo log recovery, we are adding
+  the space to the deleted list and we remove it from the tablespace_scanning
+  mapping. A space once deleted, can't be created with the same ID. So we should
+  never reach here with deleted space. We are running in context of threads of
+  DD validation. No one is modifying this data in parallel
+  so it is safe to read it without mutex protection. */
+  ut_a(!recv_sys->deleted.contains(space_id));
 
   /* A file with this space_id was found during scanning.
   Validate its location and check if it was moved from where
@@ -10111,20 +10115,21 @@ or MLOG_FILE_RENAME record. These could not be recovered.
         ignore redo log records during the apply phase */
 bool Fil_system::check_missing_tablespaces() {
   bool missing = false;
-  const auto end = recv_sys->deleted.end();
 
   /* Called in single threaded mode, no need to acquire the mutex. */
 
   recv_sys->dblwr->check_missing_tablespaces();
 
   for (auto space_id : recv_sys->missing_ids) {
-    if (recv_sys->deleted.find(space_id) != end) {
-      continue;
-    }
+    /* space_id can't belong to recv_sys->deleted, because whenever we insert
+    an id into it, we remove it from recv_sys->missing_ids, and we insert into
+    recv_sys->missing_ids only if it's not in recv_sys->deleted.
+    No space id should be present in both containers. */
+    ut_a(!recv_sys->deleted.contains(space_id));
 
-    const auto result = get_scanned_filename_by_space_id(space_id);
+    const auto result = get_scanned_filename_by_space_id(space_id).second;
 
-    if (result.second == nullptr) {
+    if (result == nullptr) {
       if (fsp_is_undo_tablespace(space_id)) {
         /* This could happen if an undo truncate is in progress because
         undo tablespace construction is not redo logged.  The DD is updated
@@ -10137,7 +10142,7 @@ bool Fil_system::check_missing_tablespaces() {
       missing = true;
 
     } else {
-      ut_a(!result.second->empty());
+      ut_a(!result->empty());
     }
   }
 
