@@ -39,5 +39,6 @@ eval DROP USER $u2@'%';
 DROP USER 'admin'@'%';
 --force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
 
+--let $cleanup_arg_mrs_skip_service_disable=1
 --source ../include/mrs/cleanup.inc
 --source ../include/innodb_cluster/cleanup.inc

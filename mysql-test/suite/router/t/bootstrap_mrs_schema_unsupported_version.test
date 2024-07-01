@@ -28,5 +28,6 @@ DROP USER 'admin'@'%';
 --force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
 
 --source ../include/mrs/bootstrap/drop_bootstraped_users.inc
+--let $cleanup_arg_mrs_skip_service_disable=1
 --source ../include/mrs/cleanup.inc
 --source ../include/innodb_cluster/cleanup.inc

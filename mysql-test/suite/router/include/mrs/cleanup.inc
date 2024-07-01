@@ -4,15 +4,13 @@ if (!$KEEP_ROUTER_FILES)
 if ($extra_mrs_router_id)
 {
    --let $_expected_result=0
-   # The query does two things, checks if GR is installed. If yes, then it checks if we use MultiMaster mode.
-   # In case of MM, we are stopping MRS, because it will lead to mixing DDL and DML at cleanup.
-   if (`select count(*) > 0 and MAX(VARIABLE_VALUE)="OFF" from performance_schema.global_variables where VARIABLE_NAME="group_replication_single_primary_mode";`)
+   # Disable the MRS service and wait for the MRS to notice it
+   if (!$cleanup_arg_mrs_skip_service_disable)
    {
-     if (!$cleanup_arg_mrs_existing_service)
-     {
-       --die The varialbe 'cleanup_arg_mrs_existing_service' is needed in multi-master GR mode, for proper MRS shutdown.
-     }
-
+    if (!$cleanup_arg_mrs_existing_service)
+    {
+      --let $cleanup_arg_mrs_existing_service=/index.html
+    }
      --let $mrs_modify_enabled=false
      --source config/modify_enable.inc
 
@@ -88,3 +86,4 @@ if ($router_test_schema)
 }
 
 --let $cleanup_arg_mrs_existing_service=
+--let $$cleanup_arg_mrs_skip_service_disable=

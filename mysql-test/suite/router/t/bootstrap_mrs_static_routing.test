@@ -43,4 +43,5 @@ if ($KEEP_ROUTER_FILES == 1)
   --echo DROP USER 'admin'@'%';
 }
 
+--let $cleanup_arg_mrs_skip_service_disable=1
 --source ../include/mrs/cleanup.inc

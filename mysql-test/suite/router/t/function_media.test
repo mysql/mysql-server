@@ -336,4 +336,5 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 --remove_file $mtr_file
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,RESULT
 --source ../include/mrs/cleanup.inc

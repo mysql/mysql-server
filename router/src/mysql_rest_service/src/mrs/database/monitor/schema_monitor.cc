@@ -155,10 +155,16 @@ void SchemaMonitor::stop() {
   if (monitor_thread_.joinable()) monitor_thread_.join();
 }
 
+class ServiceDisabled : public std::runtime_error {
+ public:
+  explicit ServiceDisabled() : std::runtime_error("service disabled") {}
+};
+
 void SchemaMonitor::run() {
   log_system("Starting MySQL REST Metadata monitor");
 
   bool force_clear{true};
+  mrs::State state{stateOff};
   do {
     try {
       auto session_check_version =
@@ -184,6 +190,14 @@ void SchemaMonitor::run() {
                            : std::move(session_check_version);
 
         fetcher.query(session.get());
+
+        auto current_state = fetcher.state->get_state();
+        if (current_state != state) {
+          state = current_state;
+          if (current_state == stateOff) {
+            throw ServiceDisabled();
+          }
+        }
 
         if (fetcher.state->was_changed()) {
           auto global_json_config = fetcher.state->get_json_data();
@@ -282,6 +296,8 @@ void SchemaMonitor::run() {
           exc.code() == 1146 /*table does not exist*/) {
         force_clear = true;
       }
+    } catch (const ServiceDisabled &) {
+      force_clear = true;
     } catch (const std::exception &exc) {
       // TODO(lkotula): For now we ignore those errors (Shouldn't be in
       // review)

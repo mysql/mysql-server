@@ -141,4 +141,5 @@ let $MRS_CLIENT_OBJECT=$MRS_CLIENT_ARGS --json-schema $SCHEMA_DIR/object_without
 
 
 # Cleanup
+--let $cleanup_arg_mrs_existing_service=/svc/basic/t_disabled
 --source ../include/mrs/cleanup.inc
