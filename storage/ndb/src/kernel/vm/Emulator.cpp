@@ -722,6 +722,7 @@ EmulatorData::EmulatorData() {
   theShutdownMutex = 0;
   m_socket_server = 0;
   m_mem_manager = 0;
+  m_st_jam_buffer = 0;
 }
 
 void EmulatorData::create() {
@@ -735,6 +736,7 @@ void EmulatorData::create() {
   EmulatedJamBuffer *jamBuffer = nullptr;
 #endif
   NDB_THREAD_TLS_JAM = jamBuffer;
+  m_st_jam_buffer = jamBuffer;
 
   theConfiguration = new Configuration();
   theWatchDog = new WatchDog();
@@ -769,4 +771,5 @@ void EmulatorData::destroy() {
   NdbMutex_Destroy(theShutdownMutex);
   if (m_mem_manager) delete m_mem_manager;
   m_mem_manager = 0;
+  m_st_jam_buffer = 0;
 }
