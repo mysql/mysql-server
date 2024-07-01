@@ -1517,12 +1517,12 @@ bool Item_sum_bit::resolve_type(THD *thd) {
       max_length = max(max_length, args[i]->max_length);
     if (max_length > (CONVERT_IF_BIGGER_TO_BLOB - 1)) {
       /*
-        Implementation of Item_sum_bit_field expects that "result_field" is
+        Implementation of Item_aggr_bit_field expects that "result_field" is
         Field_varstring, not Field_blob, so that the buffer's content is easily
         modifiable.
         The above check guarantees that the tmp table code will choose a
         Field_varstring over a Field_blob, and an assertion is present in the
-        constructor of Item_sum_bit_field to verify the Field.
+        constructor of Item_aggr_bit_field to verify the Field.
       */
       my_error(ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE, MYF(0), func_name());
       return true;
@@ -1530,7 +1530,7 @@ bool Item_sum_bit::resolve_type(THD *thd) {
     m_digit_cnt_card = max_length * 8;
     /*
       One extra byte needed to store a per-group boolean flag
-      if Item_sum_bit_field is used.
+      if Item_aggr_bit_field is used.
     */
     max_length++;
     set_data_type(MYSQL_TYPE_VARCHAR);
@@ -2539,7 +2539,7 @@ static void remove_sample(double *m, double *s, double *s2, ulonglong *count,
 
   Note:
   variance_fp_recurrence_next and variance_fp_recurrence_result are used by
-  Item_sum_variance and Item_variance_field classes, which are unrelated,
+  Item_sum_variance and Item_aggr_variance_field classes, which are unrelated,
   and each need to calculate variance. The difference between the two
   classes is that the first is used for a mundane SELECT and when used with
   windowing functions, while the latter is used in a GROUPing SELECT.
@@ -3275,11 +3275,10 @@ longlong Item_sum_bit::val_int() {
     }
   }
 
-  if (hybrid_type == INT_RESULT) return (longlong)bits;
+  if (hybrid_type == INT_RESULT) return static_cast<longlong>(bits);
 
-  String *res;
-  if (!(res = val_str(&str_value))) return 0;
-
+  String *res = val_str(&str_value);
+  if (res == nullptr) return 0;
   int ovf_error;
   const char *from = res->ptr();
   const size_t len = res->length();
@@ -3700,87 +3699,76 @@ void Item_sum_hybrid::min_max_update_decimal_field() {
   result_field->store_decimal(nr);
 }
 
-Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item) {
+Item_aggr_avg_field::Item_aggr_avg_field(Item_sum_avg *item) {
   assert(!item->m_is_window_function);
   item_name = item->item_name;
-  decimals = item->decimals;
-  max_length = item->max_length;
-  unsigned_flag = item->unsigned_flag;
-  field = item->get_result_field();
+  set_data_type_from_item(item);
+  m_result_type = type_to_result(data_type());
+  assert(m_result_type == REAL_RESULT || m_result_type == DECIMAL_RESULT);
+  m_field = item->get_result_field();
   set_nullable(true);
-  hybrid_type = res_type;
-  set_data_type(hybrid_type == DECIMAL_RESULT ? MYSQL_TYPE_NEWDECIMAL
-                                              : MYSQL_TYPE_DOUBLE);
-  prec_increment = item->prec_increment;
-  if (hybrid_type == DECIMAL_RESULT) {
-    f_scale = item->f_scale;
-    f_precision = item->f_precision;
-    dec_bin_size = item->dec_bin_size;
+  m_prec_increment = item->prec_increment;
+  if (m_result_type == DECIMAL_RESULT) {
+    m_scale = item->f_scale;
+    m_precision = item->f_precision;
+    m_dec_bin_size = item->dec_bin_size;
   }
+  fixed = true;
 }
 
-double Item_avg_field::val_real() {
-  // fix_fields() never calls for this Item
-  longlong count;
-  uchar *res;
+double Item_aggr_avg_field::val_real() {
+  if (m_result_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
+  const double nr = float8get(m_field->field_ptr());
+  uchar *res = m_field->field_ptr() + sizeof(double);
+  const longlong count = sint8korr(res);
 
-  const double nr = float8get(field->field_ptr());
-  res = (field->field_ptr() + sizeof(double));
-  count = sint8korr(res);
-
-  if ((null_value = !count)) return 0.0;
-  return nr / (double)count;
+  if ((null_value = !count)) return error_real();
+  return nr / static_cast<double>(count);
 }
 
-my_decimal *Item_avg_field::val_decimal(my_decimal *dec_buf) {
-  // fix_fields() never calls for this Item
-  if (hybrid_type == REAL_RESULT) return val_decimal_from_real(dec_buf);
-  const longlong count = sint8korr(field->field_ptr() + dec_bin_size);
-  if ((null_value = !count)) return nullptr;
+my_decimal *Item_aggr_avg_field::val_decimal(my_decimal *dec_buf) {
+  if (m_result_type == REAL_RESULT) return val_decimal_from_real(dec_buf);
+  const longlong count = sint8korr(m_field->field_ptr() + m_dec_bin_size);
+  if ((null_value = (count == 0))) return nullptr;
 
   my_decimal dec_count, dec_field;
-  binary2my_decimal(E_DEC_FATAL_ERROR, field->field_ptr(), &dec_field,
-                    f_precision, f_scale);
+  binary2my_decimal(E_DEC_FATAL_ERROR, m_field->field_ptr(), &dec_field,
+                    m_precision, m_scale);
   int2my_decimal(E_DEC_FATAL_ERROR, count, false, &dec_count);
   my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_field, &dec_count,
-                 prec_increment);
+                 m_prec_increment);
   return dec_buf;
 }
 
-String *Item_avg_field::val_str(String *str) {
-  // fix_fields() never calls for this Item
-  if (hybrid_type == DECIMAL_RESULT) return val_string_from_decimal(str);
+String *Item_aggr_avg_field::val_str(String *str) {
+  if (m_result_type == DECIMAL_RESULT) return val_string_from_decimal(str);
   return val_string_from_real(str);
 }
 
-Item_sum_bit_field::Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
-                                       ulonglong neutral_element) {
+Item_aggr_bit_field::Item_aggr_bit_field(Item_sum_bit *item,
+                                         ulonglong neutral_element) {
   assert(!item->m_is_window_function);
-  reset_bits = neutral_element;
   item_name = item->item_name;
-  decimals = item->decimals;
-  max_length = item->max_length;
+  set_data_type_from_item(item);
+  m_result_type = type_to_result(data_type());
+  assert(m_result_type == INT_RESULT || m_result_type == STRING_RESULT);
   unsigned_flag = item->unsigned_flag;
-  field = item->get_result_field();
+  m_field = item->get_result_field();
+  m_reset_bits = neutral_element;
   set_nullable(false);
-  hybrid_type = res_type;
-  assert(hybrid_type == INT_RESULT || hybrid_type == STRING_RESULT);
-  if (hybrid_type == INT_RESULT)
-    set_data_type(MYSQL_TYPE_LONGLONG);
-  else if (hybrid_type == STRING_RESULT)
-    set_data_type(MYSQL_TYPE_VARCHAR);
   // Implementation requires a non-Blob for string results.
-  assert(hybrid_type != STRING_RESULT || field->type() == MYSQL_TYPE_VARCHAR);
+  assert(m_result_type != STRING_RESULT ||
+         m_field->type() == MYSQL_TYPE_VARCHAR);
+  fixed = true;
 }
 
-longlong Item_sum_bit_field::val_int() {
-  if (hybrid_type == INT_RESULT)
-    return uint8korr(field->field_ptr());
+longlong Item_aggr_bit_field::val_int() {
+  if (m_result_type == INT_RESULT)
+    return uint8korr(m_field->field_ptr());
   else {
-    String *res;
-    if (!(res = val_str(&str_value))) return 0;
+    String *res = val_str(&str_value);
+    if (res == nullptr) return error_int();
 
     int ovf_error;
     const char *from = res->ptr();
@@ -3790,13 +3778,13 @@ longlong Item_sum_bit_field::val_int() {
   }
 }
 
-double Item_sum_bit_field::val_real() {
-  if (hybrid_type == INT_RESULT) {
-    const ulonglong result = uint8korr(field->field_ptr());
+double Item_aggr_bit_field::val_real() {
+  if (m_result_type == INT_RESULT) {
+    const ulonglong result = uint8korr(m_field->field_ptr());
     return result;
   } else {
-    String *res;
-    if (!(res = val_str(&str_value))) return 0.0;
+    String *res = val_str(&str_value);
+    if (res == nullptr) return error_real();
 
     int ovf_error;
     const char *from = res->ptr();
@@ -3807,99 +3795,100 @@ double Item_sum_bit_field::val_real() {
   }
 }
 
-my_decimal *Item_sum_bit_field::val_decimal(my_decimal *dec_buf) {
-  if (hybrid_type == INT_RESULT)
+my_decimal *Item_aggr_bit_field::val_decimal(my_decimal *dec_buf) {
+  if (m_result_type == INT_RESULT)
     return val_decimal_from_int(dec_buf);
   else
     return val_decimal_from_string(dec_buf);
 }
 
 /// @see Item_sum_bit::val_str()
-String *Item_sum_bit_field::val_str(String *str) {
-  if (hybrid_type == INT_RESULT)
+String *Item_aggr_bit_field::val_str(String *str) {
+  if (m_result_type == INT_RESULT) {
     return val_string_from_int(str);
-  else {
-    String *res_str = field->val_str(str);
+  } else {
+    String *res_str = m_field->val_str(str);
+    if (res_str == nullptr) return error_str();
     const bool non_nulls = res_str->ptr()[res_str->length() - 1];
     if (!non_nulls) {
       DBUG_EXECUTE_IF("simulate_sum_out_of_memory", { return nullptr; });
       if (res_str->alloc(max_length - 1)) return nullptr;
-      std::memset(res_str->ptr(), static_cast<int>(reset_bits), max_length - 1);
+      std::memset(res_str->ptr(), static_cast<int>(m_reset_bits),
+                  max_length - 1);
       res_str->length(max_length - 1);
       res_str->set_charset(&my_charset_bin);
-    } else
+    } else {
       res_str->length(res_str->length() - 1);
+    }
     return res_str;
   }
 }
 
-bool Item_sum_bit_field::get_date(MYSQL_TIME *ltime,
-                                  my_time_flags_t fuzzydate) {
-  if (hybrid_type == INT_RESULT)
+bool Item_aggr_bit_field::get_date(MYSQL_TIME *ltime,
+                                   my_time_flags_t fuzzydate) {
+  if (m_result_type == INT_RESULT)
     return get_date_from_decimal(ltime, fuzzydate);
   else
     return get_date_from_string(ltime, fuzzydate);
 }
-bool Item_sum_bit_field::get_time(MYSQL_TIME *ltime) {
-  if (hybrid_type == INT_RESULT)
+bool Item_aggr_bit_field::get_time(MYSQL_TIME *ltime) {
+  if (m_result_type == INT_RESULT)
     return get_time_from_numeric(ltime);
   else
     return get_time_from_string(ltime);
 }
 
-Item_std_field::Item_std_field(Item_sum_std *item)
-    : Item_variance_field(item) {}
+Item_aggr_std_field::Item_aggr_std_field(Item_sum_std *item)
+    : Item_aggr_variance_field(item) {}
 
-double Item_std_field::val_real() {
-  double nr;
-  // fix_fields() never calls for this Item
-  nr = Item_variance_field::val_real();
+double Item_aggr_std_field::val_real() {
+  double nr = Item_aggr_variance_field::val_real();
   assert(nr >= 0.0);
   return sqrt(nr);
 }
 
-my_decimal *Item_std_field::val_decimal(my_decimal *dec_buf) {
+my_decimal *Item_aggr_std_field::val_decimal(my_decimal *dec_buf) {
   /*
     We can't call val_decimal_from_real() for DECIMAL_RESULT as
-    Item_variance_field::val_real() would cause an infinite loop
+    Item_aggr_variance_field::val_real() would cause an infinite loop
   */
-  my_decimal tmp_dec, *dec;
+  assert(m_result_type == REAL_RESULT);
+  if (m_result_type == REAL_RESULT) return val_decimal_from_real(dec_buf);
+  my_decimal tmp_dec;
+  my_decimal *dec = Item_aggr_variance_field::val_decimal(dec_buf);
+  if (dec == nullptr) return error_decimal(dec_buf);
   double nr;
-  if (hybrid_type == REAL_RESULT) return val_decimal_from_real(dec_buf);
-
-  dec = Item_variance_field::val_decimal(dec_buf);
-  if (!dec) return nullptr;
   my_decimal2double(E_DEC_FATAL_ERROR, dec, &nr);
   assert(nr >= 0.0);
   nr = sqrt(nr);
   double2my_decimal(E_DEC_FATAL_ERROR, nr, &tmp_dec);
   my_decimal_round(E_DEC_FATAL_ERROR, &tmp_dec, decimals, false, dec_buf);
+
   return dec_buf;
 }
 
-Item_variance_field::Item_variance_field(Item_sum_variance *item) {
+Item_aggr_variance_field::Item_aggr_variance_field(Item_sum_variance *item) {
   assert(!item->m_is_window_function);
   item_name = item->item_name;
-  decimals = item->decimals;
-  max_length = item->max_length;
-  unsigned_flag = item->unsigned_flag;
-  field = item->get_result_field();
+  set_data_type_from_item(item);
+  m_result_type = type_to_result(data_type());
+  assert(m_result_type == REAL_RESULT);
   set_nullable(true);
-  sample = item->sample;
-  hybrid_type = item->hybrid_type;
-  assert(hybrid_type == REAL_RESULT);
-  set_data_type(MYSQL_TYPE_DOUBLE);
+  m_field = item->get_result_field();
+  m_sample = item->sample;
+  fixed = true;
 }
 
-double Item_variance_field::val_real() {
+double Item_aggr_variance_field::val_real() {
   // fix_fields() never calls for this Item
-  if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
+  if (m_result_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  const double recurrence_s = float8get(field->field_ptr() + sizeof(double));
-  const ulonglong count = uint8korr(field->field_ptr() + sizeof(double) * 2);
+  const double recurrence_s = float8get(m_field->field_ptr() + sizeof(double));
+  const ulonglong count = uint8korr(m_field->field_ptr() + sizeof(double) * 2);
 
-  if ((null_value = (count <= sample))) return 0.0;
-  return variance_fp_recurrence_result(recurrence_s, 0.0, count, sample, false);
+  if ((null_value = (count <= m_sample))) return 0.0;
+  return variance_fp_recurrence_result(recurrence_s, 0.0, count, m_sample,
+                                       false);
 }
 
 /****************************************************************************
@@ -4694,7 +4683,7 @@ void Item_func_group_concat::make_unique() {
 
 double Item_func_group_concat::val_real() {
   String *res = val_str(&str_value);
-  if (res == nullptr) return 0.0;
+  if (res == nullptr) return error_real();
   return double_from_string_with_check(collation.collation, res->ptr(),
                                        res->ptr() + res->length());
 }

@@ -1,4 +1,3 @@
-drop table if exists t1,t2;
 set @sav_dpi= @@div_precision_increment;
 set div_precision_increment= 5;
 show variables like 'div_precision_increment';
@@ -2337,3 +2336,28 @@ SELECT MIN(x) FROM t WHERE x = 1;
 MIN(x)
 01
 DROP TABLE t;
+#
+# Bug#35102083: void Query_expression::set_prepared():
+#               Assertion `!is_prepared()' failed.
+#
+CREATE TABLE t1(pk INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE dbl DOUBLE;
+DECLARE deci DECIMAL(10, 2);
+DECLARE intv INTEGER;
+DECLARE str VARBINARY(16);
+SELECT DISTINCT VAR_POP(1) FROM t1 GROUP BY pk INTO dbl;
+SELECT DISTINCT STDDEV_POP(1) FROM t1 GROUP BY pk INTO dbl;
+SELECT DISTINCT STDDEV_SAMP(1) FROM t1 GROUP BY pk INTO dbl;
+SELECT DISTINCT AVG(3.14159) FROM t1 GROUP BY pk INTO deci;
+SELECT DISTINCT AVG(3.14159E0) FROM t1 GROUP BY pk INTO dbl;
+SELECT DISTINCT BIT_OR(x'0000') FROM t1 GROUP BY pk INTO str;
+SELECT DISTINCT BIT_OR(9) FROM t1 GROUP BY pk INTO intv;
+END
+//
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;

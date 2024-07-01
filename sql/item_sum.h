@@ -1122,28 +1122,35 @@ class Item_sum_avg;
 class Item_sum_bit;
 
 /**
-  This is used in connection which a parent Item_sum:
-  - which can produce different result types (is "hybrid")
-  - which stores function's value into a temporary table's column (one
-  row per group).
+  This is used in connection with a parent aggregate Item:
+  - which stores function's value into a temporary table's column (one row
+    per group).
+  - except when the output is a local variable in a stored procedure, in which
+    case the variable is used as the target.
   - which stores in the column some internal piece of information which should
-  not be returned to the user, so special implementations are needed.
+    not be returned to the user, so special implementations are needed.
+  The classes that inherit from Item_aggregate_field are created during
+  optimization and resolved upon construction, thus the fix_fields() function
+  is not needed and thus not implemented. The resolve_type() needs a default
+  implementation since it is a virtual function.
 */
-class Item_sum_hybrid_field : public Item_result_field {
+class Item_aggregate_field : public Item_result_field {
  protected:
   /// The tmp table's column containing the value of the set function.
-  Field *field;
+  Field *m_field{nullptr};
   /// Stores the Item's result type.
-  Item_result hybrid_type;
+  Item_result m_result_type{INVALID_RESULT};
 
  public:
-  enum Item_result result_type() const override { return hybrid_type; }
+  enum Item_result result_type() const override { return m_result_type; }
+  // resolve_type is not used for these classes, but is needed bc it is virtual
+  bool resolve_type(THD *) override { return false; }
   bool mark_field_in_map(uchar *arg) override {
     /*
       Filesort (find_all_keys) over a temporary table collects the columns it
       needs.
     */
-    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), m_field);
   }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -1151,18 +1158,14 @@ class Item_sum_hybrid_field : public Item_result_field {
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
-  void cleanup() override {
-    field = nullptr;
-    Item_result_field::cleanup();
-  }
 };
 
 /**
-  Common abstract class for:
-    Item_avg_field
-    Item_variance_field
+  Common abstract class for aggregate field classes that return numeric values:
+    Item_aggr_avg_field
+    Item_aggr_variance_field
 */
-class Item_sum_num_field : public Item_sum_hybrid_field {
+class Item_aggr_numeric_field : public Item_aggregate_field {
  public:
   longlong val_int() override {
     /* can't be fix_fields()ed */
@@ -1177,34 +1180,35 @@ class Item_sum_num_field : public Item_sum_hybrid_field {
   bool is_null() override { return update_null_value() || null_value; }
 };
 
-class Item_avg_field : public Item_sum_num_field {
+class Item_aggr_avg_field : public Item_aggr_numeric_field {
  public:
-  uint f_precision, f_scale, dec_bin_size;
-  uint prec_increment;
-  Item_avg_field(Item_result res_type, Item_sum_avg *item);
+  Item_aggr_avg_field(Item_sum_avg *item);
   enum Type type() const override { return AGGR_FIELD_ITEM; }
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
-  bool resolve_type(THD *) override { return false; }
+
+ private:
+  uint m_precision;
+  uint m_scale;
+  uint m_dec_bin_size;
+  uint m_prec_increment;
 };
 
-/// This is used in connection with an Item_sum_bit, @see Item_sum_hybrid_field
-class Item_sum_bit_field : public Item_sum_hybrid_field {
- protected:
-  ulonglong reset_bits;
-
+/// This is used in connection with an Item_sum_bit, @see Item_aggregate_field
+class Item_aggr_bit_field : public Item_aggregate_field {
  public:
-  Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
-                     ulonglong reset_bits);
+  Item_aggr_bit_field(Item_sum_bit *item, ulonglong reset_bits);
   longlong val_int() override;
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
-  bool resolve_type(THD *) override { return false; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   enum Type type() const override { return AGGR_FIELD_ITEM; }
+
+ private:
+  ulonglong m_reset_bits;
 };
 
 /// Common abstraction for Item_sum_json_array and Item_sum_json_object
@@ -1335,9 +1339,7 @@ class Item_sum_avg final : public Item_sum_sum {
   String *val_str(String *str) override;
   void reset_field() override;
   void update_field() override;
-  Item *result_item(Field *) override {
-    return new Item_avg_field(hybrid_type, this);
-  }
+  Item *result_item(Field *) override { return new Item_aggr_avg_field(this); }
   const char *func_name() const override { return "avg"; }
   Item *copy_or_same(THD *thd) override;
   Field *create_tmp_field(bool group, TABLE *table) override;
@@ -1350,25 +1352,24 @@ class Item_sum_avg final : public Item_sum_sum {
 
 class Item_sum_variance;
 
-class Item_variance_field : public Item_sum_num_field {
- protected:
-  uint sample;
-
+class Item_aggr_variance_field : public Item_aggr_numeric_field {
  public:
-  Item_variance_field(Item_sum_variance *item);
+  Item_aggr_variance_field(Item_sum_variance *item);
   enum Type type() const override { return AGGR_FIELD_ITEM; }
   double val_real() override;
   String *val_str(String *str) override { return val_string_from_real(str); }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
     return val_decimal_from_real(dec_buf);
   }
-  bool resolve_type(THD *) override { return false; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
+
+ private:
+  uint m_sample;
 };
 
 /*
@@ -1465,7 +1466,9 @@ class Item_sum_variance : public Item_sum_num {
   my_decimal *val_decimal(my_decimal *) override;
   void reset_field() override;
   void update_field() override;
-  Item *result_item(Field *) override { return new Item_variance_field(this); }
+  Item *result_item(Field *) override {
+    return new Item_aggr_variance_field(this);
+  }
   void no_rows_in_result() override {}
   const char *func_name() const override {
     return sample ? "var_samp" : "variance";
@@ -1483,9 +1486,9 @@ class Item_sum_variance : public Item_sum_num {
 
 class Item_sum_std;
 
-class Item_std_field final : public Item_variance_field {
+class Item_aggr_std_field final : public Item_aggr_variance_field {
  public:
-  Item_std_field(Item_sum_std *item);
+  Item_aggr_std_field(Item_sum_std *item);
   enum Type type() const override { return AGGR_FIELD_ITEM; }
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -1510,7 +1513,7 @@ class Item_sum_std : public Item_sum_variance {
   Item_sum_std(THD *thd, Item_sum_std *item) : Item_sum_variance(thd, item) {}
   enum Sumfunctype sum_func() const override { return STD_FUNC; }
   double val_real() override;
-  Item *result_item(Field *) override { return new Item_std_field(this); }
+  Item *result_item(Field *) override { return new Item_aggr_std_field(this); }
   const char *func_name() const override {
     return sample ? "stddev_samp" : "std";
   }
@@ -1821,7 +1824,7 @@ class Item_sum_bit : public Item_sum {
   }
 
   Item *result_item(Field *) override {
-    return new Item_sum_bit_field(hybrid_type, this, reset_bits);
+    return new Item_aggr_bit_field(this, reset_bits);
   }
 
   enum Sumfunctype sum_func() const override { return SUM_BIT_FUNC; }
