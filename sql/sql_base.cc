@@ -6748,6 +6748,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // The previous execution context should have been destroyed.
   assert(lex->secondary_engine_execution_context() == nullptr);
 
+  // Property of having external tables is always set in this function:
+  lex->reset_has_external_tables();
+
   // Save value of forced secondary engine, as it is not sufficiently persistent
   thd->set_secondary_engine_forced(thd->variables.use_secondary_engine ==
                                    SECONDARY_ENGINE_FORCED);
@@ -6890,6 +6893,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     }
     assert(tl->table->s->is_secondary_engine());
     tl->table->file->ha_set_primary_handler(primary_table->file);
+    if (tl->is_external()) {
+      lex->set_has_external_tables();
+    }
   }
 
   // Prepare the secondary engine for executing the statement.
@@ -6932,7 +6938,7 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
 
   if (thd->secondary_engine_optimization() ==
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
-      has_external_table(thd->lex)) {
+      thd->lex->has_external_tables()) {
     /* Avoid materializing parts of result in primary engine
      * during the PRIMARY_TENTATIVELY optimization phase
      * if there are external tables since this can

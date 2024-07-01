@@ -660,19 +660,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
-bool has_external_table(const LEX *lex) {
-  if (lex->m_sql_cmd == nullptr) {
-    return false;
-  }
-  for (Table_ref *ref = lex->query_tables; ref != nullptr;
-       ref = ref->next_global) {
-    if (ref->is_external()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
