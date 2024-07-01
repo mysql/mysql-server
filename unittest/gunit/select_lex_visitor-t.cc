@@ -105,7 +105,7 @@ class Stack_allocated_item : public Item_class {
 class Mock_item_int : public Stack_allocated_item<Item_int> {
  public:
   Mock_item_int() : Stack_allocated_item<Item_int>(42) {}
-  MOCK_METHOD3(walk, bool(Item_processor, enum_walk, uchar *));
+  MOCK_METHOD(bool, walk, (Item_processor, enum_walk, uchar *), (override));
 };
 
 TEST_F(SelectLexVisitorTest, SelectLex) {

@@ -41,105 +41,116 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
         .WillByDefault(Invoke(::delete_node_address));
   }
 
-  MOCK_METHOD3(new_node_address_uuid,
-               node_address *(unsigned int n, char const *names[],
-                              blob uuids[]));
-  MOCK_METHOD2(delete_node_address, void(unsigned int n, node_address *na));
-  MOCK_METHOD3(xcom_client_add_node, bool(connection_descriptor *fd,
-                                          node_list *nl, uint32_t group_id));
-  MOCK_METHOD2(xcom_client_remove_node, bool(node_list *nl, uint32_t group_id));
-  MOCK_METHOD3(xcom_client_remove_node, bool(connection_descriptor *fd,
-                                             node_list *nl, uint32_t group_id));
-  MOCK_METHOD2(xcom_client_get_event_horizon,
-               bool(uint32_t group_id, xcom_event_horizon &event_horizon));
-  MOCK_METHOD2(xcom_client_set_event_horizon,
-               bool(uint32_t group_id, xcom_event_horizon event_horizon));
-  MOCK_METHOD2(xcom_client_set_max_leaders,
-               bool(uint32_t group_id, node_no max_leaders));
-  MOCK_METHOD4(xcom_client_set_leaders,
-               bool(uint32_t group_id, u_int n, char const *names[],
-                    node_no max_nr_leaders));
-  MOCK_METHOD2(xcom_client_get_leaders,
-               bool(uint32_t gid, leader_info_data &leaders));
-  MOCK_METHOD4(xcom_client_get_synode_app_data,
-               bool(connection_descriptor *con, uint32_t group_id_hash,
-                    synode_no_array &synodes, synode_app_data_array &reply));
-  MOCK_METHOD1(xcom_client_set_cache_size, bool(uint64_t size));
-  MOCK_METHOD2(xcom_client_boot, bool(node_list *nl, uint32_t group_id));
-  MOCK_METHOD2(xcom_client_open_connection,
-               connection_descriptor *(std::string, xcom_port port));
-  MOCK_METHOD1(xcom_client_close_connection, bool(connection_descriptor *fd));
-  MOCK_METHOD2(xcom_client_send_data,
-               bool(unsigned long long size, char *data));
-  MOCK_METHOD1(xcom_init, void(xcom_port listen_port));
-  MOCK_METHOD0(xcom_exit, void());
-  MOCK_METHOD0(xcom_set_cleanup, void());
-  MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
-  MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
-  MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char *mode));
-  MOCK_METHOD1(xcom_set_ssl_fips_mode, int(int mode));
-  MOCK_METHOD0(xcom_init_ssl, bool());
-  MOCK_METHOD0(xcom_destroy_ssl, void());
-  MOCK_METHOD0(xcom_use_ssl, bool());
-  MOCK_METHOD2(xcom_set_ssl_parameters,
-               void(ssl_parameters ssl, tls_parameters tls));
-  MOCK_METHOD1(find_site_def, site_def const *(synode_no synode));
-  MOCK_METHOD0(xcom_wait_ready, enum_gcs_error());
-  MOCK_METHOD0(xcom_is_ready, bool());
-  MOCK_METHOD1(xcom_set_ready, void(bool value));
-  MOCK_METHOD0(xcom_signal_ready, void());
-  MOCK_METHOD1(xcom_wait_for_xcom_comms_status_change, void(int &status));
-  MOCK_METHOD0(xcom_has_comms_status_changed, bool());
-  MOCK_METHOD1(xcom_set_comms_status, void(int status));
-  MOCK_METHOD1(xcom_signal_comms_status_changed, void(int status));
-  MOCK_METHOD0(xcom_wait_exit, enum_gcs_error());
-  MOCK_METHOD0(xcom_is_exit, bool());
-  MOCK_METHOD1(xcom_set_exit, void(bool));
-  MOCK_METHOD0(xcom_signal_exit, void());
-  MOCK_METHOD3(xcom_client_force_config, int(connection_descriptor *fd,
-                                             node_list *nl, uint32_t group_id));
-  MOCK_METHOD2(xcom_client_force_config,
-               bool(node_list *nl, uint32_t group_id));
+  MOCK_METHOD(node_address *, new_node_address_uuid,
+              (unsigned int n, char const *names[], blob uuids[]), (override));
+  MOCK_METHOD(void, delete_node_address, (unsigned int n, node_address *na),
+              (override));
+  MOCK_METHOD(bool, xcom_client_add_node,
+              (connection_descriptor * fd, node_list *nl, uint32_t group_id),
+              (override));
+  MOCK_METHOD(bool, xcom_client_remove_node,
+              (node_list * nl, uint32_t group_id), (override));
+  MOCK_METHOD(bool, xcom_client_remove_node,
+              (connection_descriptor * fd, node_list *nl, uint32_t group_id),
+              (override));
+  MOCK_METHOD(bool, xcom_client_get_event_horizon,
+              (uint32_t group_id, xcom_event_horizon &event_horizon),
+              (override));
+  MOCK_METHOD(bool, xcom_client_set_event_horizon,
+              (uint32_t group_id, xcom_event_horizon event_horizon),
+              (override));
+  MOCK_METHOD(bool, xcom_client_set_max_leaders,
+              (uint32_t group_id, node_no max_leaders), (override));
+  MOCK_METHOD(bool, xcom_client_set_leaders,
+              (uint32_t group_id, u_int n, char const *names[],
+               node_no max_nr_leaders),
+              (override));
+  MOCK_METHOD(bool, xcom_client_get_leaders,
+              (uint32_t gid, leader_info_data &leaders), (override));
+  MOCK_METHOD(bool, xcom_client_get_synode_app_data,
+              (connection_descriptor * con, uint32_t group_id_hash,
+               synode_no_array &synodes, synode_app_data_array &reply),
+              (override));
+  MOCK_METHOD(bool, xcom_client_set_cache_size, (uint64_t size), (override));
+  MOCK_METHOD(bool, xcom_client_boot, (node_list * nl, uint32_t group_id),
+              (override));
+  MOCK_METHOD(connection_descriptor *, xcom_client_open_connection,
+              (std::string, xcom_port port), (override));
+  MOCK_METHOD(bool, xcom_client_close_connection, (connection_descriptor * fd),
+              (override));
+  MOCK_METHOD(bool, xcom_client_send_data,
+              (unsigned long long size, char *data), (override));
+  MOCK_METHOD(void, xcom_init, (xcom_port listen_port), (override));
+  MOCK_METHOD(void, xcom_exit, (), (override));
+  MOCK_METHOD(void, xcom_set_cleanup, (), (override));
+  MOCK_METHOD(int, xcom_get_ssl_mode, (const char *mode), (override));
+  MOCK_METHOD(int, xcom_set_ssl_mode, (int mode), (override));
+  MOCK_METHOD(int, xcom_get_ssl_fips_mode, (const char *mode), (override));
+  MOCK_METHOD(int, xcom_set_ssl_fips_mode, (int mode), (override));
+  MOCK_METHOD(bool, xcom_init_ssl, ());
+  MOCK_METHOD(void, xcom_destroy_ssl, (), (override));
+  MOCK_METHOD(bool, xcom_use_ssl, (), (override));
+  MOCK_METHOD(void, xcom_set_ssl_parameters,
+              (ssl_parameters ssl, tls_parameters tls), (override));
+  MOCK_METHOD(site_def const *, find_site_def, (synode_no synode), (override));
+  MOCK_METHOD(enum_gcs_error, xcom_wait_ready, (), (override));
+  MOCK_METHOD(bool, xcom_is_ready, (), (override));
+  MOCK_METHOD(void, xcom_set_ready, (bool value), (override));
+  MOCK_METHOD(void, xcom_signal_ready, (), (override));
+  MOCK_METHOD(void, xcom_wait_for_xcom_comms_status_change, (int &status),
+              (override));
+  MOCK_METHOD(bool, xcom_has_comms_status_changed, (), (override));
+  MOCK_METHOD(void, xcom_set_comms_status, (int status), (override));
+  MOCK_METHOD(void, xcom_signal_comms_status_changed, (int status), (override));
+  MOCK_METHOD(enum_gcs_error, xcom_wait_exit, (), (override));
+  MOCK_METHOD(bool, xcom_is_exit, (), (override));
+  MOCK_METHOD(void, xcom_set_exit, vd(bool), (override));
+  MOCK_METHOD(void, xcom_signal_exit, (), (override));
+  MOCK_METHOD(int, xcom_client_force_config,
+              (connection_descriptor * fd, node_list *nl, uint32_t group_id),
+              (override));
+  MOCK_METHOD(bool, xcom_client_force_config,
+              (node_list * nl, uint32_t group_id), (override));
 
-  MOCK_METHOD0(get_should_exit, bool());
-  MOCK_METHOD1(set_should_exit, void(bool should_exit));
+  MOCK_METHOD(bool, get_should_exit, (), (override));
+  MOCK_METHOD(void, set_should_exit, (bool should_exit), (override));
 
-  MOCK_METHOD2(xcom_input_connect,
-               bool(std::string const &address, xcom_port port));
-  MOCK_METHOD0(xcom_input_disconnect, void());
-  MOCK_METHOD1(xcom_input_try_push, bool(app_data_ptr data));
+  MOCK_METHOD(bool, xcom_input_connect,
+              (std::string const &address, xcom_port port), (override));
+  MOCK_METHOD(void, xcom_input_disconnect, (), (override));
+  MOCK_METHOD(bool, xcom_input_try_push, (app_data_ptr data), (override));
   /* Mocking fails compilation on Windows. It attempts to copy the std::future
    * which is non-copyable. */
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
       app_data_ptr) override {
     return std::future<std::unique_ptr<Gcs_xcom_input_queue::Reply>>();
   }
-  MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
+  MOCK_METHOD(xcom_input_request_ptr, xcom_input_try_pop, (), (override));
 };
 
 class mock_gcs_xcom_view_change_control_interface
     : public Gcs_xcom_view_change_control_interface {
  public:
-  MOCK_METHOD0(start_view_exchange, void());
-  MOCK_METHOD0(end_view_exchange, void());
-  MOCK_METHOD0(wait_for_view_change_end, void());
-  MOCK_METHOD0(is_view_changing, bool());
-  MOCK_METHOD0(start_leave, bool());
-  MOCK_METHOD0(end_leave, void());
-  MOCK_METHOD0(is_leaving, bool());
-  MOCK_METHOD0(start_join, bool());
-  MOCK_METHOD0(end_join, void());
-  MOCK_METHOD0(is_joining, bool());
+  MOCK_METHOD(void, start_view_exchange, (), (override));
+  MOCK_METHOD(void, end_view_exchange, (), (override));
+  MOCK_METHOD(void, wait_for_view_change_end, (), (override));
+  MOCK_METHOD(bool, is_view_changing, (), (override));
+  MOCK_METHOD(bool, start_leave, (), (override));
+  MOCK_METHOD(void, end_leave, (), (override));
+  MOCK_METHOD(bool, is_leaving, (), (override));
+  MOCK_METHOD(bool, start_join, (), (override));
+  MOCK_METHOD(void, end_join, (), (override));
+  MOCK_METHOD(bool, is_joining, (), (override));
 
-  MOCK_METHOD1(set_current_view, void(Gcs_view *));
-  MOCK_METHOD0(get_current_view, Gcs_view *());
-  MOCK_METHOD0(belongs_to_group, bool());
-  MOCK_METHOD1(set_belongs_to_group, void(bool));
-  MOCK_METHOD1(set_unsafe_current_view, void(Gcs_view *));
-  MOCK_METHOD0(get_unsafe_current_view, Gcs_view *());
+  MOCK_METHOD(void, set_current_view, (Gcs_view *), (override));
+  MOCK_METHOD(Gcs_view *, get_current_view, (), (override));
+  MOCK_METHOD(bool, belongs_to_group, (), (override));
+  MOCK_METHOD(void, set_belongs_to_group, (bool), (override));
+  MOCK_METHOD(void, set_unsafe_current_view, (Gcs_view *), (override));
+  MOCK_METHOD(Gcs_view *, get_unsafe_current_view, (), (override));
 
-  MOCK_METHOD0(finalize, void());
-  MOCK_METHOD0(is_finalized, bool());
+  MOCK_METHOD(void, finalize, (), (override));
+  MOCK_METHOD(bool, is_finalized, (), (override));
 };
 
 class XcomGroupManagementTest : public GcsBaseTest {

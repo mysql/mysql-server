@@ -62,8 +62,8 @@ class MockProtocol : public BaseProtocol {
 
   /* Mocking copy_packet triggers compilation error in VS so let's just stub it,
      it is good enough for our needs here. */
-  /* MOCK_METHOD8(copy_packets, int(int, int, bool,
-     RoutingProtocolBuffer&, int* , bool&, size_t*, bool)); */
+  /* MOCK_METHOD(int, copy_packets, (int, int, bool,
+     RoutingProtocolBuffer&, int* , bool&, size_t*, bool),  (override)); */
   stdx::expected<size_t, std::error_code> copy_packets(int, int, bool,
                                                        std::vector<uint8_t> &,
                                                        int *, bool &, bool) {

@@ -52,7 +52,8 @@ using ::testing::SetErrnoAndReturn;
 class MockWrite {
  public:
   virtual ~MockWrite() = default;
-  MOCK_METHOD4(mockwrite, ssize_t(int, const void *, size_t, off_t));
+  MOCK_METHOD(ssize_t, mockwrite, (int, const void *, size_t, off_t),
+              (override));
 };
 
 MockWrite *mockfs = nullptr;

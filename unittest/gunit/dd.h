@@ -73,14 +73,15 @@ using ::testing::StrictMock;
 class Mock_dd_HANDLER : public Base_mock_HANDLER {
  public:
   // Mock method used indirectly by find_record
-  MOCK_METHOD4(index_read_map, int(::uchar *, const ::uchar *, key_part_map,
-                                   enum ha_rkey_function));
+  MOCK_METHOD(int, index_read_map,
+              (::uchar *, const ::uchar *, key_part_map, enum ha_rkey_function),
+              (override));
 
   // Handler method used for inserts
-  MOCK_METHOD1(write_row, int(::uchar *));
+  MOCK_METHOD(int, write_row, (::uchar *), (override));
 
   // Handler method used for updates
-  MOCK_METHOD2(update_row, int(const ::uchar *, ::uchar *));
+  MOCK_METHOD(int, update_row, (const ::uchar *, ::uchar *), (override));
 
   Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
       : Base_mock_HANDLER(hton, share) {}
@@ -104,9 +105,9 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
     Mock the store and val_int methods.
     Note: Sun Studio needs a little help in resolving longlong.
   */
-  MOCK_METHOD2(store, type_conversion_status(::longlong, bool));
-  MOCK_CONST_METHOD0(val_int, ::longlong(void));
-  MOCK_METHOD0(val_uint, ::ulonglong(void));
+  MOCK_METHOD(type_conversion_status, store, (::longlong, bool), (override));
+  MOCK_METHOD(::longlong, val_int, (void), (const, override));
+  MOCK_METHOD(::ulonglong, val_uint, (void), (override));
 
   /*
     Add fake methods to set and get expected contents.
@@ -140,9 +141,9 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   /*
     Mock the store and var_str methods.
   */
-  MOCK_METHOD3(store, type_conversion_status(const char *, size_t length,
-                                             const CHARSET_INFO *));
-  MOCK_CONST_METHOD2(val_str, String *(String *, String *));
+  MOCK_METHOD(type_conversion_status, store,
+              (const char *, size_t length, const CHARSET_INFO *), (override));
+  MOCK_METHOD(String *, val_str, (String *, String *), (override));
 
   /*
     Add fake methods to set and get expected contents.

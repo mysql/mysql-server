@@ -60,9 +60,9 @@ class Sql_session : public iface::Sql_session {
               (const char *, std::size_t, iface::Resultset *), (override));
   MOCK_METHOD(ngs::Error_code, execute_sql,
               (const char *, std::size_t, iface::Resultset *), (override));
-  MOCK_METHOD3(fetch_cursor,
-               ngs::Error_code(const std::uint32_t, const std::uint32_t,
-                               iface::Resultset *));
+  MOCK_METHOD(ngs::Error_code, fetch_cursor,
+              (const std::uint32_t, const std::uint32_t, iface::Resultset *),
+              (override));
   MOCK_METHOD(ngs::Error_code, prepare_prep_stmt,
               (const char *, std::size_t, iface::Resultset *), (override));
   MOCK_METHOD(ngs::Error_code, deallocate_prep_stmt,

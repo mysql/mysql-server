@@ -34,15 +34,15 @@ void clean_sock_probe(sock_probe *s) { free(s); }
 
 class mock_gcs_sock_probe_interface : public Gcs_sock_probe_interface {
  public:
-  MOCK_METHOD1(init_sock_probe, int(sock_probe *s));
-  MOCK_METHOD1(number_of_interfaces, int(sock_probe *s));
-  MOCK_METHOD3(get_sockaddr_address,
-               void(sock_probe *s, int count, struct sockaddr **out));
-  MOCK_METHOD3(get_sockaddr_netmask,
-               void(sock_probe *s, int count, struct sockaddr **out));
-  MOCK_METHOD2(get_if_name, char *(sock_probe *s, int count));
-  MOCK_METHOD2(is_if_running, bool_t(sock_probe *s, int count));
-  MOCK_METHOD1(close_sock_probe, void(sock_probe *s));
+  MOCK_METHOD(int, init_sock_probe, (sock_probe * s), (override));
+  MOCK_METHOD(int, number_of_interfaces, (sock_probe * s), (override));
+  MOCK_METHOD(void, get_sockaddr_address,
+              (sock_probe * s, int count, struct sockaddr **out), (override));
+  MOCK_METHOD(void, get_sockaddr_netmask,
+              (sock_probe * s, int count, struct sockaddr **out), (override));
+  MOCK_METHOD(char *, get_if_name, (sock_probe * s, int count), (override));
+  MOCK_METHOD(bool_t, is_if_running, (sock_probe * s, int count), (override));
+  MOCK_METHOD(void, close_sock_probe, (sock_probe * s), (override));
 
   void mock_gcs_sock_probe_interface_default() {
     ON_CALL(*this, close_sock_probe(_)).WillByDefault(Invoke(clean_sock_probe));

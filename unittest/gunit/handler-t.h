@@ -64,9 +64,9 @@ class Mock_SAMPLING_HANDLER : public Base_mock_HANDLER {
     Declare the members we actually want to test. These are the members that
     should be called by the "default" sampling implementation.
   */
-  MOCK_METHOD1(rnd_init, int(bool scan));
-  MOCK_METHOD1(rnd_next, int(::uchar *buf));
-  MOCK_METHOD0(rnd_end, int());
+  MOCK_METHOD(int, rnd_init, (bool scan), (override));
+  MOCK_METHOD(int, rnd_next, (::uchar * buf), (override));
+  MOCK_METHOD(int, rnd_end, (), (override));
 
   Mock_SAMPLING_HANDLER(handlerton *ht_arg, TABLE *table_arg,
                         TABLE_SHARE *share)

@@ -30,12 +30,14 @@ namespace gcs_logging_unittest {
 
 class Mock_gcs_log_sink : public Sink_interface {
  public:
-  MOCK_METHOD1(log_event, void(const std::string &message));
-  MOCK_METHOD2(log_event, void(const char *message, size_t message_size));
-  MOCK_METHOD0(initialize, enum_gcs_error());
-  MOCK_METHOD0(finalize, enum_gcs_error());
+  MOCK_METHOD(void, log_event, (const std::string &message), (override));
+  MOCK_METHOD(void, log_event, (const char *message, size_t message_size),
+              (override));
+  MOCK_METHOD(enum_gcs_error, initialize, (), (override));
+  MOCK_METHOD(enum_gcs_error, finalize, (), (override));
   /* purecov: begin deadcode */
-  MOCK_CONST_METHOD0(get_information, const std::string());
+  MOCK_METHOD(const std::string, get_information, std::string(),
+              (const, override));
   /* purecov: end */
 };
 
@@ -178,12 +180,14 @@ class Wrapper_file_sink : public Sink_interface {
 
   ~Wrapper_file_sink() { delete m_sink; }
 
-  MOCK_METHOD1(log_event, void(const std::string &message));
-  MOCK_METHOD2(log_event, void(const char *message, size_t message_size));
-  MOCK_METHOD0(initialize, enum_gcs_error());
-  MOCK_METHOD0(finalize, enum_gcs_error());
-  MOCK_METHOD1(get_file_name, enum_gcs_error(char *file_name_buffer));
-  MOCK_CONST_METHOD0(get_information, const std::string());
+  MOCK_METHOD(void, log_event, (const std::string &message), (override));
+  MOCK_METHOD(void, log_event, (const char *message, size_t message_size),
+              (override));
+  MOCK_METHOD(enum_gcs_error, initialize, (), (override));
+  MOCK_METHOD(enum_gcs_error, finalize, (), (override));
+  MOCK_METHOD(enum_gcs_error, get_file_name, (char *file_name_buffer),
+              (override));
+  MOCK_METHOD(const std::string, get_information, (), (const, override));
 
  private:
   Gcs_file_sink *m_sink;

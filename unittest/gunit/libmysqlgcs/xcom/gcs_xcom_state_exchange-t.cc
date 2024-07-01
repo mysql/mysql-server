@@ -39,53 +39,58 @@ namespace gcs_xcom_state_exchange_unittest {
 
 class mock_gcs_control_interface : public Gcs_control_interface {
  public:
-  MOCK_METHOD0(join, enum_gcs_error());
-  MOCK_METHOD0(leave, enum_gcs_error());
-  MOCK_METHOD0(belongs_to_group, bool());
-  MOCK_METHOD0(get_current_view, Gcs_view *());
-  MOCK_CONST_METHOD0(get_local_member_identifier,
-                     const Gcs_member_identifier());
-  MOCK_METHOD0(get_minimum_write_concurrency, uint32_t());
-  MOCK_METHOD0(get_maximum_write_concurrency, uint32_t());
-  MOCK_METHOD1(get_write_concurrency,
-               enum_gcs_error(uint32_t &write_concurrency));
-  MOCK_METHOD1(set_write_concurrency,
-               enum_gcs_error(uint32_t write_concurrency));
-  MOCK_METHOD1(set_xcom_cache_size, enum_gcs_error(uint64_t));
-  MOCK_METHOD1(add_event_listener,
-               int(const Gcs_control_event_listener &event_listener));
-  MOCK_METHOD1(remove_event_listener, void(int event_listener_handle));
+  MOCK_METHOD(enum_gcs_error, join, (), (override));
+  MOCK_METHOD(enum_gcs_error, leave, (), (override));
+  MOCK_METHOD(bool, belongs_to_group, (), (override));
+  MOCK_METHOD(Gcs_view *, get_current_view, (), (override));
+  MOCK_METHOD(const Gcs_member_identifier, get_local_member_identifier, (),
+              (const, override));
+  MOCK_METHOD(uint32_t, get_minimum_write_concurrency, (), (override));
+  MOCK_METHOD(uint32_t, get_maximum_write_concurrency, (), (override));
+  MOCK_METHOD(enum_gcs_error, get_write_concurrency,
+              (uint32_t &write_concurrency), (override));
+  MOCK_METHOD(enum_gcs_error set_write_concurrency,
+              (uint32_t write_concurrency), (override));
+  MOCK_METHOD(enum_gcs_error, set_xcom_cache_size, (uint64_t), (override));
+  MOCK_METHOD(int, add_event_listener,
+              (const Gcs_control_event_listener &event_listener), (override));
+  MOCK_METHOD(void, remove_event_listener, (int event_listener_handle),
+              (override));
 };
 
 class mock_gcs_xcom_communication_interface
     : public Gcs_xcom_communication_interface {
  public:
-  MOCK_METHOD1(send_message,
-               enum_gcs_error(const Gcs_message &message_to_send));
-  MOCK_METHOD1(add_event_listener,
-               int(const Gcs_communication_event_listener &event_listener));
-  MOCK_METHOD1(remove_event_listener, void(int event_listener_handle));
-  MOCK_METHOD3(do_send_message,
-               enum_gcs_error(const Gcs_message &message_to_send,
-                              unsigned long long *message_length,
-                              Cargo_type type));
+  MOCK_METHOD(enum_gcs_error, send_message,
+              (const Gcs_message &message_to_send), (override));
+  MOCK_METHOD(int, add_event_listener,
+              (const Gcs_communication_event_listener &event_listener),
+              (override));
+  MOCK_METHOD(void, remove_event_listener, (int event_listener_handle),
+              (override));
+  MOCK_METHOD(enum_gcs_error, do_send_message,
+              (const Gcs_message &message_to_send,
+               unsigned long long *message_length, Cargo_type type),
+              (override));
   /* Mocking fails compilation on Windows. It attempts to copy the
    * std::unique_ptr which is non-copyable. */
   void buffer_incoming_packet(Gcs_packet &&packet,
                               std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
     buffer_incoming_packet_mock(packet, xcom_nodes);
   }
-  MOCK_METHOD2(buffer_incoming_packet_mock,
-               void(Gcs_packet &packet,
-                    std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes));
-  MOCK_METHOD0(deliver_buffered_packets, void());
-  MOCK_METHOD0(cleanup_buffered_packets, void());
-  MOCK_METHOD0(number_buffered_packets, size_t());
-  MOCK_METHOD2(update_members_information, void(const Gcs_member_identifier &me,
-                                                const Gcs_xcom_nodes &members));
-  MOCK_METHOD1(
-      recover_packets,
-      bool(std::unordered_set<Gcs_xcom_synode> const &required_synods));
+  MOCK_METHOD(void, buffer_incoming_packet_mock,
+              (Gcs_packet & packet,
+               std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes),
+              (override));
+  MOCK_METHOD(void, deliver_buffered_packets, (), (override));
+  MOCK_METHOD(void, cleanup_buffered_packets, (), (override));
+  MOCK_METHOD(size_t, number_buffered_packets, (), (override));
+  MOCK_METHOD(void, update_members_information,
+              (const Gcs_member_identifier &me, const Gcs_xcom_nodes &members),
+              (override));
+  MOCK_METHOD(bool, recover_packets,
+              (std::unordered_set<Gcs_xcom_synode> const &required_synods),
+              (override));
   /*
    Mocking fails compilation on Windows. It attempts to copy the
    std::unique_ptr which is non-copyable.
@@ -94,9 +99,10 @@ class mock_gcs_xcom_communication_interface
       Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
     return convert_packet_to_message_mock(packet, xcom_nodes);
   }
-  MOCK_METHOD2(convert_packet_to_message_mock,
-               Gcs_message *(Gcs_packet &packet,
-                             std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes));
+  MOCK_METHOD(Gcs_message *, convert_packet_to_message_mock,
+              (Gcs_packet & packet,
+               std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes),
+              (override));
   /*
    Mocking fails compilation on Windows. It attempts to copy the
    std::unique_ptr which is non-copyable.
@@ -105,10 +111,12 @@ class mock_gcs_xcom_communication_interface
                                 std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
     process_user_data_packet_mock(packet, xcom_nodes);
   }
-  MOCK_METHOD2(process_user_data_packet_mock,
-               void(Gcs_packet &packet,
-                    std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes));
-  MOCK_CONST_METHOD0(get_protocol_version, Gcs_protocol_version());
+  MOCK_METHOD(void, process_user_data_packet_mock,
+              (Gcs_packet & packet,
+               std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes),
+              (override));
+  MOCK_METHOD(Gcs_protocol_version, get_protocol_version, (),
+              (const, override));
   /*
    Mocking fails compilation on Windows. It attempts to copy the std::future
    which is non-copyable.
@@ -120,20 +128,21 @@ class mock_gcs_xcom_communication_interface
     });
     return std::make_pair(true, std::move(future));
   }
-  MOCK_METHOD1(set_protocol_version_mock,
-               void(Gcs_protocol_version new_version));
-  MOCK_METHOD2(update_in_transit,
-               void(Gcs_message const &message, Cargo_type cargo));
-  MOCK_CONST_METHOD0(is_protocol_change_ongoing, bool());
-  MOCK_METHOD1(set_groups_maximum_supported_protocol_version,
-               void(Gcs_protocol_version version));
-  MOCK_CONST_METHOD0(get_maximum_supported_protocol_version,
-                     Gcs_protocol_version());
-  MOCK_METHOD1(set_communication_protocol,
-               void(enum_transport_protocol protocol));
-  MOCK_METHOD1(add_communication_provider,
-               void(std::shared_ptr<Network_provider> provider));
-  MOCK_METHOD0(get_incoming_connections_protocol, enum_transport_protocol());
+  MOCK_METHOD(void, set_protocol_version_mock,
+              (Gcs_protocol_version new_version), (override));
+  MOCK_METHOD(void, update_in_transit,
+              (Gcs_message const &message, Cargo_type cargo), (override));
+  MOCK_METHOD(bool, is_protocol_change_ongoing, (), (const, override));
+  MOCK_METHOD(void, set_groups_maximum_supported_protocol_version,
+              (Gcs_protocol_version version), (override));
+  MOCK_METHOD(Gcs_protocol_version, get_maximum_supported_protocol_version, (),
+              (const, override));
+  MOCK_METHOD(void, set_communication_protocol,
+              (enum_transport_protocol protocol), (override));
+  MOCK_METHOD(void, add_communication_provider,
+              (std::shared_ptr<Network_provider> provider), (override));
+  MOCK_METHOD(enum_transport_protocol, get_incoming_connections_protocol, (),
+              (override));
 
   virtual Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
 

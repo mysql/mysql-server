@@ -48,13 +48,13 @@ class Type_handler {
 class Mock_type_handler : public Type_handler {
  public:
   // Workaround for GMOCK undefined behaviour with ResultHolder
-  MOCK_METHOD1(put_void, bool(const ::google::protobuf::int64 &));
-  MOCK_METHOD1(put_void, bool(const ::google::protobuf::uint64 &));
-  MOCK_METHOD1(put_void, bool(const double &));
-  MOCK_METHOD1(put_void, bool(const float &));
-  MOCK_METHOD1(put_void, bool(const bool &));
-  MOCK_METHOD1(put_void, bool(const std::string &));
-  MOCK_METHOD0(put_void, bool());
+  MOCK_METHOD(bool, put_void, (const ::google::protobuf::int64 &), (override));
+  MOCK_METHOD(bool, put_void, (const ::google::protobuf::uint64 &), (override));
+  MOCK_METHOD(bool, put_void, (const double &), (override));
+  MOCK_METHOD(bool, put_void, (const float &), (override));
+  MOCK_METHOD(bool, put_void, (const bool &), (override));
+  MOCK_METHOD(bool, put_void, (const std::string &), (override));
+  MOCK_METHOD(bool, put_void, (), (override));
 
   void put(const ::google::protobuf::int64 &arg) override { put_void(arg); }
 

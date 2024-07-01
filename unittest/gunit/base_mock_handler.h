@@ -40,23 +40,28 @@ class Base_mock_HANDLER : public handler {
  public:
   // Declare all the pure-virtuals.
   // Note: Sun Studio needs a little help in resolving uchar.
-  MOCK_METHOD0(close, int());
-  MOCK_METHOD4(create, int(const char *name, TABLE *form, HA_CREATE_INFO *,
-                           dd::Table *table_def));
-  MOCK_METHOD1(info, int(unsigned ha_status_bitmap));
-  MOCK_METHOD4(open, int(const char *name, int mode, uint test_if_locked,
-                         const dd::Table *table_def));
-  MOCK_METHOD1(position, void(const ::uchar *record));
-  MOCK_METHOD1(rnd_init, int(bool scan));
-  MOCK_METHOD1(rnd_next, int(::uchar *buf));
-  MOCK_METHOD2(rnd_pos, int(::uchar *buf, ::uchar *pos));
-  MOCK_METHOD3(store_lock,
-               THR_LOCK_DATA **(THD *, THR_LOCK_DATA **, thr_lock_type));
+  MOCK_METHOD(int, close, (), (override));
+  MOCK_METHOD(int, create,
+              (const char *name, TABLE *form, HA_CREATE_INFO *,
+               dd::Table *table_def),
+              (override));
+  MOCK_METHOD(int, info, (unsigned ha_status_bitmap), (override));
+  MOCK_METHOD(int, open,
+              (const char *name, int mode, uint test_if_locked,
+               const dd::Table *table_def),
+              (override));
+  MOCK_METHOD(void, position, (const ::uchar *record), (override));
+  MOCK_METHOD(int, rnd_init, (bool scan), (override));
+  MOCK_METHOD(int, rnd_next, (::uchar * buf), (override));
+  MOCK_METHOD(int, rnd_pos, (::uchar * buf, ::uchar *pos), (override));
+  MOCK_METHOD(THR_LOCK_DATA **, store_lock,
+              (THD *, THR_LOCK_DATA **, thr_lock_type), (override));
 
-  MOCK_CONST_METHOD3(index_flags, ulong(::uint idx, ::uint part, bool));
-  MOCK_CONST_METHOD0(table_flags, Table_flags());
-  MOCK_CONST_METHOD0(table_type, const char *());
-  MOCK_METHOD2(print_error, void(int error, myf errflag));
+  MOCK_METHOD(ulong, index_flags, (::uint idx, ::uint part, bool),
+              (const, override));
+  MOCK_METHOD(Table_flags, table_flags, (), (const, override));
+  MOCK_METHOD(const char *, table_type, (), (const, override));
+  MOCK_METHOD(void, print_error, (int error, myf errflag), (override));
 
   Base_mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : handler(ht_arg, share_arg) {}

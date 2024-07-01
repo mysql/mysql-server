@@ -47,9 +47,9 @@ using hypergraph::PrintSet;
 
 class MockReceiver {
  public:
-  MOCK_METHOD1(HasSeen, bool(NodeMap));
-  MOCK_METHOD1(FoundSingleNode, bool(int));
-  MOCK_METHOD3(FoundSubgraphPair, bool(NodeMap, NodeMap, int));
+  MOCK_METHOD(bool, HasSeen, (NodeMap));
+  MOCK_METHOD(bool, FoundSingleNode, (int));
+  MOCK_METHOD(bool, FoundSubgraphPair, (NodeMap, NodeMap, int));
 };
 
 TEST(DPhypTest, ExampleHypergraph) {

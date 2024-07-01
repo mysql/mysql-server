@@ -38,7 +38,7 @@ namespace gcs_xcom_input_queue_unittest {
 class MockGcsMpscQueue : public Gcs_mpsc_queue<xcom_input_request,
                                                xcom_input_request_ptr_deleter> {
  public:
-  MOCK_METHOD1(push, bool(xcom_input_request *payload));
+  MOCK_METHOD(bool, push, (xcom_input_request * payload), (override));
 
   MockGcsMpscQueue() { ON_CALL(*this, push(_)).WillByDefault(Return(false)); }
   ~MockGcsMpscQueue() = default;

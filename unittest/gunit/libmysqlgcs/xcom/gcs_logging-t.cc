@@ -33,9 +33,10 @@ class Mock_Logger : public Logger_interface {
   }
 
   ~Mock_Logger() = default;
-  MOCK_METHOD0(initialize, enum_gcs_error());
-  MOCK_METHOD0(finalize, enum_gcs_error());
-  MOCK_METHOD2(log_event, void(const gcs_log_level_t, const std::string &));
+  MOCK_METHOD(enum_gcs_error, initialize, (), (override));
+  MOCK_METHOD(enum_gcs_error, finalize, (), (override));
+  MOCK_METHOD(void, log_event, (const gcs_log_level_t, const std::string &),
+              (override));
 };
 
 class LoggingInfrastructureTest : public GcsBaseTestNoLogging {

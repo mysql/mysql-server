@@ -50,7 +50,7 @@ using ::testing::SetErrnoAndReturn;
 class MockRead {
  public:
   virtual ~MockRead() = default;
-  MOCK_METHOD3(mockread, ssize_t(int, void *, size_t));
+  MOCK_METHOD(ssize_t, mockread, (int, void *, size_t), (override));
 };
 
 MockRead *mockfs = nullptr;

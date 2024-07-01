@@ -116,7 +116,8 @@ class Mock_field_long : public Field_long {
     This is the only member function we need to override.
     Note: Sun Studio needs a little help in resolving longlong.
   */
-  MOCK_METHOD2(store, type_conversion_status(::longlong nr, bool unsigned_val));
+  MOCK_METHOD(type_conversion_status, store, (::longlong nr, bool unsigned_val),
+              (override));
 };
 
 /**

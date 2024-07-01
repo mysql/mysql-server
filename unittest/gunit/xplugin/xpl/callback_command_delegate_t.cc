@@ -63,8 +63,9 @@ using namespace ::testing;  // NOLINT(build/namespaces)
 
 class Mock_callback_commands {
  public:
-  MOCK_METHOD0(start_row, Callback_command_delegate::Row_data *());
-  MOCK_METHOD1(end_row, bool(Callback_command_delegate::Row_data *));
+  MOCK_METHOD(Callback_command_delegate::Row_data *, start_row, (), (override));
+  MOCK_METHOD(bool, end_row, (Callback_command_delegate::Row_data *),
+              (override));
 };
 
 MATCHER_P(Eq_mysql_time, n, "") {

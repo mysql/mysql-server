@@ -43,8 +43,9 @@ class Sha256_password_cache : public iface::SHA256_password_cache {
   Sha256_password_cache();
   virtual ~Sha256_password_cache() override;
 
-  MOCK_METHOD3(upsert, bool(const std::string &, const std::string &,
-                            const std::string &));
+  MOCK_METHOD(bool, upsert,
+              (const std::string &, const std::string &, const std::string &),
+              (override));
   MOCK_METHOD(bool, remove, (const std::string &, const std::string &),
               (override));
   using Entry = std::pair<bool, std::string>;

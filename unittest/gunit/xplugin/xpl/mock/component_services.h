@@ -54,12 +54,13 @@ class Service_registry {
   Service_registry();
   ~Service_registry();
 
-  MOCK_METHOD2(acquire, mysql_service_status_t(const char *service_name,
-                                               my_h_service *out_service));
-  MOCK_METHOD3(acquire_related,
-               mysql_service_status_t(const char *service_name,
-                                      my_h_service service,
-                                      my_h_service *out_service));
+  MOCK_METHOD(mysql_service_status_t, acquire,
+              (const char *service_name, my_h_service *out_service),
+              (override));
+  MOCK_METHOD(mysql_service_status_t, acquire_related,
+              (const char *service_name, my_h_service service,
+               my_h_service *out_service),
+              (override));
   MOCK_METHOD(mysql_service_status_t, release, (my_h_service service));
 
   SERVICE_TYPE_NO_CONST(registry) * get() { return &m_registry; }
