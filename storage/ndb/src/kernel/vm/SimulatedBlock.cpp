@@ -4950,14 +4950,22 @@ Uint32 SimulatedBlock::get_recv_thread_idx(TrpId trp_id) {
 
 #ifndef NDBD_MULTITHREADED
 /**
- * Add a stub for this function since we have some code in ErrorReporter.cpp
- * that needs this function, it's only really needed for ndbmtd, so need an
- * empty function in ndbd.
+ * Function for ndbd only. ndbmtd version of this function
+ * is implemented in ErrorReporter.cpp
  */
 void ErrorReporter::prepare_to_crash(bool first_phase,
                                      bool error_insert_crash) {
   (void)first_phase;
   (void)error_insert_crash;
+
+  static bool crash_handling_started = false;
+  if (!first_phase) {
+    if (crash_handling_started) {
+      /* Someone else handling the crash, exit now */
+      my_thread_exit(nullptr);
+    }
+    crash_handling_started = true;
+  }
 }
 #endif
 

@@ -134,6 +134,9 @@ struct EmulatorData {
   class SocketServer *m_socket_server;
   class Ndbd_mem_manager *m_mem_manager;
 
+  // Single threaded only
+  EmulatedJamBuffer *m_st_jam_buffer;
+
   /**
    * Constructor
    *
