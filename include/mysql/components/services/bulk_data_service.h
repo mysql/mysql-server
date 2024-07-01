@@ -206,6 +206,14 @@ struct Column_mysql {
   /** Column data in integer format. Used only for specific datatype. */
   uint64_t m_int_data;
 
+  void init() {
+    m_type = 0;
+    m_data_len = 0;
+    m_is_null = false;
+    m_data_ptr = nullptr;
+    m_int_data = 0;
+  }
+
   std::string to_string() const;
 };
 
@@ -284,6 +292,12 @@ class Row_bunch {
       }
     }
     return true;
+  }
+
+  void reset() {
+    for (auto &col : m_columns) {
+      col.init();
+    }
   }
 
   /** Get current row offset to access columns.

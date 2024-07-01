@@ -789,7 +789,7 @@ class Blob_inserter {
  public:
   /** Constructor.
   @param[in]  btree_load  the B-tree into which blobs are inserted. */
-  Blob_inserter(Btree_load &btree_load) : m_btree_load(btree_load) {}
+  Blob_inserter(Btree_load &btree_load);
 
   ~Blob_inserter();
 
@@ -881,8 +881,8 @@ class Blob_inserter {
   /** Cache of Page_extent objects. */
   ut::Object_cache<Page_extent> m_page_extent_cache;
 
-  /** Cache the free context objects. */
-  std::vector<Blob_handle *> m_free_blob_ctxs;
+  /** Only one blob handle per sub-tree */
+  ut::unique_ptr<Blob_handle> m_blob_handle;
 };
 
 } /* namespace bulk */
