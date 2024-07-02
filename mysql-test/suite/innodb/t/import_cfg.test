@@ -233,13 +233,29 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --copy_file $MYSQLD_DATADIR/$DB/t1.ibd.descend $MYSQLD_DATADIR/$DB/t1.ibd
 --copy_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v3 $MYSQLD_DATADIR/$DB/t1.cfg
 
+--disable_query_log
+call mtr.add_suppression("\\[InnoDB\\] Records in wrong order on space [0-9]*");
+call mtr.add_suppression("\\[InnoDB\\] Apparent corruption in space [0-9]*");
+call mtr.add_suppression("\\[InnoDB\\] In page [0-9]* of index `b` of table");
+--enable_query_log
+
 --echo # Attempt to import the table.  Since the DESC flag is not available in the
 --echo # CFG file, we assume it is ascending, which matches the exported table.
 --echo # So the import succeeds, but the sort order of the keys in the imported
 --echo # file is descending and all new keys will be ascending.
 ALTER TABLE t1 IMPORT TABLESPACE;
 
---echo # Show that column b is sorted inconsistently.
+--echo # Show that the index is corrupt
+SHOW WARNINGS;
+CHECK TABLE t1 EXTENDED;
+
+--echo # Fix the corruption
+OPTIMIZE TABLE t1;
+
+--echo # Show that the index is no longer corrupt
+CHECK TABLE t1 EXTENDED;
+
+--echo # Show that column b is sorted consistently.
 --sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
