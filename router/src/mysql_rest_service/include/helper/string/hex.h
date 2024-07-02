@@ -26,6 +26,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_HEX_H_
 
 #include <cassert>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
