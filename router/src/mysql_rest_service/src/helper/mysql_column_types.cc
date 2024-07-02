@@ -197,6 +197,7 @@ JsonType from_mysql_column_type(const MYSQL_FIELD *field) {
       return helper::JsonType::kNumeric;
 
     case MYSQL_TYPE_TYPED_ARRAY:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_INVALID:
     case MYSQL_TYPE_NULL:
       return helper::JsonType::kNull;
