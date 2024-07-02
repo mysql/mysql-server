@@ -116,9 +116,6 @@ static bool populate_table(THD *thd, LEX *lex) {
 
   DBUG_EXECUTE_IF("ast", { unit->DebugPrintQueryPlan(thd, "ast"); });
 
-  // Calculate the current statement cost.
-  accumulate_statement_cost(lex);
-
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;
 

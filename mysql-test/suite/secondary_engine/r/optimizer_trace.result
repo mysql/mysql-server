@@ -27,3 +27,52 @@ trace
   }
 ]
 DROP TABLE t;
+#
+# Bug#36790906: MySQL Last_query_cost status incorrect calculated
+#               with subqueries
+#
+CREATE TABLE t(x INT) SECONDARY_ENGINE = MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET optimizer_trace = 'enabled=on';
+EXPLAIN FORMAT=TREE
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold=100000) */ * FROM t
+WHERE x = (SELECT SUM(x) FROM t);
+EXPLAIN
+-> Filter: (t.x = (select #2))
+    -> Table scan on t
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: sum(t.x)
+            -> Table scan on t
+
+SET optimizer_trace = 'enabled=off';
+SELECT JSON_PRETTY(
+JSON_REPLACE(
+TRACE->'$**.current_query_cost',
+'$[0].query_cost', 'FILTERED COST',
+'$[0].query_blocks[0].query_block_cost', 'FILTERED COST',
+'$[0].query_blocks[1].query_block_cost', 'FILTERED COST'
+         )
+) AS trace
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+[
+  {
+    "query_cost": "FILTERED COST",
+    "query_blocks": [
+      {
+        "select#": 2,
+        "cacheable": true,
+        "query_block_cost": "FILTERED COST"
+      },
+      {
+        "select#": 1,
+        "query_block_cost": "FILTERED COST"
+      }
+    ]
+  }
+]
+DROP TABLE t;

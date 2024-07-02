@@ -1048,14 +1048,6 @@ bool validate_use_secondary_engine(const LEX *lex);
 bool optimize_secondary_engine(THD *thd);
 
 /**
-  Calculates the cost of executing a statement, including all its
-  subqueries and stores it in thd->m_current_query_cost.
-
-  @param lex the statement
-*/
-void accumulate_statement_cost(const LEX *lex);
-
-/**
   Returns secondary_engine handler for the statement.
   If none exist, nullptr is returned.
 

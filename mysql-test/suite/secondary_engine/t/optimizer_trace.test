@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 --disable_query_log
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log
@@ -18,6 +20,40 @@ SET optimizer_trace = 'enabled=off';
 SELECT JSON_PRETTY(JSON_REMOVE(TRACE->'$**.secondary_engine_not_used',
                                '$[0].cost')) AS trace
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#36790906: MySQL Last_query_cost status incorrect calculated
+--echo #               with subqueries
+--echo #
+
+# Verify that the optimizer trace contains information about how the
+# Last_query_cost was calculated when a query is not offloaded.
+
+CREATE TABLE t(x INT) SECONDARY_ENGINE = MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+ANALYZE TABLE t;
+
+SET optimizer_trace = 'enabled=on';
+
+--replace_regex $elide_metrics
+EXPLAIN FORMAT=TREE
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold=100000) */ * FROM t
+WHERE x = (SELECT SUM(x) FROM t);
+
+SET optimizer_trace = 'enabled=off';
+
+SELECT JSON_PRETTY(
+         JSON_REPLACE(
+           TRACE->'$**.current_query_cost',
+           '$[0].query_cost', 'FILTERED COST',
+           '$[0].query_blocks[0].query_block_cost', 'FILTERED COST',
+           '$[0].query_blocks[1].query_block_cost', 'FILTERED COST'
+         )
+       ) AS trace
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
 DROP TABLE t;
 
 --disable_query_log

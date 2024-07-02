@@ -42,6 +42,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include "field_types.h"
@@ -137,7 +138,6 @@ static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
                                 table_map const_tables,
                                 const KEY_PART_INFO *key_part, uchar *key_buff,
                                 uint maybe_null);
-static bool retry_with_secondary_engine(THD *thd);
 
 using Global_tables_iterator =
     IntrusiveListIterator<Table_ref, &Table_ref::next_global>;
@@ -837,31 +837,55 @@ err:
   return thd->is_error();
 }
 
+namespace {
+
+/**
+  Calculates the cost of executing a statement, including all its
+  subqueries and stores it in thd->m_current_query_cost.
+
+  @param lex the statement
+*/
 void accumulate_statement_cost(const LEX *lex) {
   Opt_trace_context *trace = &lex->thd->opt_trace;
-  const Opt_trace_disable_I_S disable_trace(trace, true);
+  Opt_trace_object trace_parent{trace};
+  Opt_trace_object trace_cost{trace, "current_query_cost"};
+  Opt_trace_array trace_query_blocks{trace, "query_blocks"};
 
   double total_cost = 0.0;
   for (const Query_block *query_block = lex->all_query_blocks_list;
        query_block != nullptr;
        query_block = query_block->next_select_in_list()) {
+    Opt_trace_object trace_query_block{trace};
+    trace_query_block.add_select_number(query_block->select_number);
+
     if (query_block->join == nullptr) continue;
 
     // Get the cost of this query block.
     double query_block_cost = query_block->join->best_read;
+    trace_query_block.add("query_block_cost", query_block_cost);
 
     // If it is a non-cacheable subquery, estimate how many times it
     // needs to be executed, and adjust the cost accordingly.
     const Item_subselect *item = query_block->master_query_expression()->item;
-    if (item != nullptr && !query_block->is_cacheable())
-      query_block_cost *= calculate_subquery_executions(item, trace);
+    if (item != nullptr) {
+      trace_query_block.add("cacheable", query_block->is_cacheable());
+      if (!query_block->is_cacheable()) {
+        const double executions = calculate_subquery_executions(item, trace);
+        trace_query_block.add("executions", executions);
+        query_block_cost *= executions;
+        trace_query_block.add("total_query_block_cost", query_block_cost);
+      }
+    }
 
     total_cost += query_block_cost;
   }
+
+  trace_query_blocks.end();
+  trace_cost.add("query_cost", total_cost);
+
   lex->thd->m_current_query_cost = total_cost;
 }
 
-namespace {
 /**
    Gets the secondary storage engine pre prepare hook function, if any. If no
    hook is found, this function returns false. If hook function is found, it
@@ -886,22 +910,22 @@ bool SecondaryEngineCallPrePrepareHook(THD *thd,
   }
   return false;
 }
-}  // namespace
 
 /**
-  Checks if a query should be retried using a secondary storage engine.
+  Checks if the current query is a candidate for being retried in the secondary
+  engine.
 
-  @param thd      the current session
+  @param thd The current session.
 
-  @retval true   if the statement should be retried in a secondary engine
-  @retval false  if the statement should not be retried
+  @return The name of the secondary engine in which the current query can be
+  retried, or an empty value if it should not be retried.
 */
-static bool retry_with_secondary_engine(THD *thd) {
+std::optional<LEX_CSTRING> retry_with_secondary_engine(THD *thd) {
   // Only retry if the current statement is being tentatively
   // optimized for the primary engine.
   if (thd->secondary_engine_optimization() !=
       Secondary_engine_optimization::PRIMARY_TENTATIVELY)
-    return false;
+    return {};
 
   Sql_cmd *const sql_cmd = thd->lex->m_sql_cmd;
   assert(!sql_cmd->using_secondary_storage_engine());
@@ -913,32 +937,45 @@ static bool retry_with_secondary_engine(THD *thd) {
 
   if (secondary_engine == nullptr) {
     sql_cmd->disable_secondary_storage_engine();
-    return false;
+    return {};
   }
 
   // Don't retry if it's already determined that the statement should not be
   // executed by a secondary engine.
   if (sql_cmd->secondary_storage_engine_disabled()) {
-    return false;
+    return {};
   }
 
   // Don't retry if there is a property of the environment that prevents use of
   // secondary engines.
   if (!thd->is_secondary_storage_engine_eligible()) {
-    return false;
+    return {};
   }
 
-  // If the query cannot be executed in the PRIMARY engine, always attempt to
-  // execute it in the secondary engine whenever possible.
-  if (thd->lex->can_execute_only_in_secondary_engine()) {
-    return true;
-  }
-
-  return SecondaryEngineCallPrePrepareHook(thd, *secondary_engine);
+  return *secondary_engine;
 }
 
+}  // namespace
+
 bool optimize_secondary_engine(THD *thd) {
-  if (retry_with_secondary_engine(thd)) {
+  const std::optional<LEX_CSTRING> retry_engine =
+      retry_with_secondary_engine(thd);
+
+  // Calculate the current statement cost. If the statement can be retried in a
+  // secondary engine, it is used as input to the decision on whether or not to
+  // retry the query in a secondary engine. It may be useful to know exactly how
+  // the cost was found when debugging why a statement was not offloaded to the
+  // secondary engine, so add this information to the optimizer trace if the
+  // query may be offloaded. Otherwise, don't write this to the trace.
+  {
+    const Opt_trace_disable_I_S disable_trace{&thd->opt_trace,
+                                              !retry_engine.has_value()};
+    accumulate_statement_cost(thd->lex);
+  }
+
+  if (retry_engine.has_value() &&
+      (thd->lex->can_execute_only_in_secondary_engine() ||
+       SecondaryEngineCallPrePrepareHook(thd, *retry_engine))) {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
     DBUG_EXECUTE_IF("emulate_user_query_kill", {
       thd->get_stmt_da()->set_error_status(thd, ER_QUERY_INTERRUPTED);
@@ -1023,9 +1060,6 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
     return true;
 
   DBUG_EXECUTE_IF("ast", { unit->DebugPrintQueryPlan(thd, "ast"); });
-
-  // Calculate the current statement cost.
-  accumulate_statement_cost(lex);
 
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;
