@@ -145,6 +145,17 @@ TARGET_INCLUDE_DIRECTORIES(routertest_http_matcher
   ${PROJECT_SOURCE_DIR}/src/http/include/
   )
 
+add_googletest_file(test_http_request_router.cc
+  MODULE http
+  EXTRA_SOURCES
+    ${CMAKE_SOURCE_DIR}/unittest/gunit/benchmark.cc
+  LIB_DEPENDS
+    router_utils        # uri
+    http_server_lib     # request-router
+    test-helpers        # init_test_logger
+    ext::icu
+  )
+
 IF(LIBFUZZER_COMPILE_FLAGS)
   ## http_auth_backend
   MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_auth_backend

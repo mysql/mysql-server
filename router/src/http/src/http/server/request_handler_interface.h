@@ -28,10 +28,12 @@
 
 #include "http/base/request.h"
 
+#include "mysqlrouter/http_server_lib_export.h"
+
 namespace http {
 namespace server {
 
-class RequestHandlerInterface {
+class HTTP_SERVER_LIB_EXPORT RequestHandlerInterface {
  public:
   virtual ~RequestHandlerInterface() = default;
 

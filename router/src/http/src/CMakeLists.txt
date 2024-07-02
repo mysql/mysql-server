@@ -142,6 +142,7 @@ ROUTER_ADD_SHARED_LIBRARY(http_server_lib
   io_component
   http_common
   http_auth_realm_lib
+  ext::icu
   )
 
 TARGET_INCLUDE_DIRECTORIES(http_server_lib

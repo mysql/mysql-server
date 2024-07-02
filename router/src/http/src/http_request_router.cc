@@ -25,10 +25,18 @@
 
 #include "http_request_router.h"
 
-#include <regex>
+#include <unicode/regex.h>
+#include <unicode/unistr.h>
+#include <unicode/utypes.h>
+
+#include <algorithm>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/component/http_auth_realm_component.h"
 #include "mysqlrouter/component/http_server_auth.h"
 
@@ -38,6 +46,35 @@ IMPORT_LOG_FUNCTIONS()
 
 using BaseRequestHandlerPtr = HttpRequestRouter::BaseRequestHandlerPtr;
 
+stdx::expected<void, UErrorCode> HttpRequestRouter::RouteMatcher::compile() {
+  UErrorCode out_status = U_ZERO_ERROR;
+
+  std::unique_ptr<icu::RegexPattern> pattern(
+      icu::RegexPattern::compile(url_pattern_.c_str(), 0, out_status));
+  if (out_status != U_ZERO_ERROR) return stdx::unexpected(out_status);
+
+  regex_pattern_ = std::move(pattern);
+
+  return {};
+}
+
+stdx::expected<void, UErrorCode> HttpRequestRouter::RouteMatcher::matches(
+    std::string_view input) const {
+  return matches(icu::UnicodeString(input.data(), input.size()));
+}
+
+stdx::expected<void, UErrorCode> HttpRequestRouter::RouteMatcher::matches(
+    const icu::UnicodeString &input) const {
+  UErrorCode out_status = U_ZERO_ERROR;
+
+  std::unique_ptr<icu::RegexMatcher> regex_matcher(
+      regex_pattern_->matcher(input, out_status));
+
+  const auto find_res = regex_matcher->find(out_status);
+  if (find_res == 0) return stdx::unexpected(out_status);
+
+  return {};
+}
 /**
  * Request router
  *
@@ -48,19 +85,26 @@ using BaseRequestHandlerPtr = HttpRequestRouter::BaseRequestHandlerPtr;
 void HttpRequestRouter::append(const std::string &url_regex_str,
                                std::unique_ptr<http::base::RequestHandler> cb) {
   log_debug("adding route for regex: %s", url_regex_str.c_str());
-  std::unique_lock lock(route_mtx_);
 
-  request_handlers_.emplace_back(RouterData{
-      url_regex_str, std::regex{url_regex_str, std::regex_constants::extended},
-      std::move(cb)});
+  RouteMatcher matcher(url_regex_str, std::move(cb));
+
+  auto compile_res = matcher.compile();
+  if (!compile_res) {
+    throw std::runtime_error("compile of " + url_regex_str +
+                             "failed with status " +
+                             std::to_string(compile_res.error()));
+  }
+
+  std::unique_lock lock(route_mtx_);
+  request_handlers_.push_back(std::move(matcher));
 }
 
 void HttpRequestRouter::remove(const void *handler_id) {
   std::unique_lock lock(route_mtx_);
 
   for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
-    if (it->handler.get() == handler_id) {
-      log_debug("removing route for regex: %s", it->url_regex_str.c_str());
+    if (it->handler().get() == handler_id) {
+      log_debug("removing route for regex: %s", it->url_pattern().c_str());
       it = request_handlers_.erase(it);
     } else {
       ++it;
@@ -73,7 +117,7 @@ void HttpRequestRouter::remove(const std::string &url_regex_str) {
   std::unique_lock lock(route_mtx_);
 
   for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
-    if (it->url_regex_str == url_regex_str) {
+    if (it->url_pattern() == url_regex_str) {
       it = request_handlers_.erase(it);
     } else {
       it++;
@@ -150,12 +194,18 @@ void HttpRequestRouter::route(http::base::Request &req) {
 }
 
 BaseRequestHandlerPtr HttpRequestRouter::find_route_handler(
-    const std::string &path) {
+    std::string_view path) {
+  // as .matches() is called in a loop on the same string,
+  // convert it to UnicodeString upfront.
+  //
+  // That saves doing the same conversion for each path under a lock.
+  icu::UnicodeString uni_path(path.data(), path.size());
+
   std::shared_lock lock(route_mtx_);
 
   for (auto &request_handler : request_handlers_) {
-    if (std::regex_search(path, request_handler.url_regex)) {
-      return request_handler.handler;
+    if (request_handler.matches(uni_path)) {
+      return request_handler.handler();
     }
   }
 
