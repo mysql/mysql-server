@@ -1,0 +1,52 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+# Bug#36784284 - Secondary fails when executing a CREATE TABLE SELECT from
+#                an async channel
+
+############################################################
+#  1. Setup Group Replication on server 1 and 2.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/rpl/gr_wait_for_number_of_members.inc
+
+############################################################
+#  2. Setup a asynchronous replication connection from server 3
+#     into group (server 1)
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=SERVER_3_PORT, SOURCE_AUTO_POSITION=1, REQUIRE_TABLE_PRIMARY_KEY_CHECK=OFF, REQUIRE_ROW_FORMAT=1  FOR CHANNEL "";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/rpl/start_replica.inc
+
+############################################################
+#  3. Execute CREATE TABLE ... SELECT statements on server 3.
+[connection server3]
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(80),PRIMARY KEY (c1));
+CREATE TABLE t2 (PRIMARY KEY (c1)) AS SELECT * FROM t1;
+INSERT INTO t1 VALUES (1, 'aaaa');
+CREATE TABLE t3 (PRIMARY KEY (c1)) AS SELECT * FROM t1;
+
+############################################################
+#  4. Wait until transactions executed on server 3 are
+#     applied on group.
+include/rpl/sync_to_replica.inc
+[connection server3]
+include/rpl/sync_to_replica.inc
+
+############################################################
+#  5. Cleanup
+[connection server3]
+DROP TABLE t1, t2, t3;
+include/rpl/sync_to_replica.inc
+[connection server3]
+include/rpl/sync_to_replica.inc
+[connection server1]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
+include/group_replication_end.inc
