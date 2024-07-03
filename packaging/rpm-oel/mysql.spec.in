@@ -182,18 +182,20 @@ BuildRequires:  cmake3 >= 3.14.6
 %{?el7:BuildRequires:  devtoolset-11-binutils}
 %{?el7:BuildRequires:  devtoolset-11-dwz}
 %endif
-%{?el8:BuildRequires:  gcc-toolset-13-annobin-annocheck}
-%{?el8:BuildRequires:  gcc-toolset-13-annobin-plugin-gcc}
-%{?el8:BuildRequires:  gcc-toolset-13-binutils}
-%{?el8:BuildRequires:  gcc-toolset-13-dwz}
-%{?el8:BuildRequires:  gcc-toolset-13-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-13-gcc}
-%{?el9:BuildRequires:  gcc-toolset-13-annobin-annocheck}
-%{?el9:BuildRequires:  gcc-toolset-13-annobin-plugin-gcc}
-%{?el9:BuildRequires:  gcc-toolset-13-binutils}
-%{?el9:BuildRequires:  gcc-toolset-13-dwz}
-%{?el9:BuildRequires:  gcc-toolset-13-gcc-c++}
-%{?el9:BuildRequires:  gcc-toolset-13-gcc}
+%if 0%{?rhel} > 7
+BuildRequires:  gcc-toolset-12-annobin-annocheck
+BuildRequires:  gcc-toolset-12-annobin-plugin-gcc
+BuildRequires:  gcc-toolset-12-binutils
+BuildRequires:  gcc-toolset-12-dwz
+BuildRequires:  gcc-toolset-12-gcc-c++
+BuildRequires:  gcc-toolset-12-gcc
+BuildRequires:  gcc-toolset-13-annobin-annocheck
+BuildRequires:  gcc-toolset-13-annobin-plugin-gcc
+BuildRequires:  gcc-toolset-13-binutils
+BuildRequires:  gcc-toolset-13-dwz
+BuildRequires:  gcc-toolset-13-gcc-c++
+BuildRequires:  gcc-toolset-13-gcc
+%endif
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  perl
