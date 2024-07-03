@@ -198,6 +198,18 @@ typedef struct Trans_param {
 
   /*
     Flag to identify a 'CREATE TABLE ... AS SELECT'.
+
+    'CREATE TABLE ... AS SELECT' is binlogged as
+
+      'CREATE TABLE ... START TRANSACTION'
+      'TABLE MAP'
+      'ROW EVENT'
+      'ROW EVENT'
+      ...
+      'XID / COMMIT'
+
+    At replica, flag is used to identify the 'CREATE TABLE ... START
+    TRANSACTION' block of 'CREATE TABLE ... AS SELECT' event.
   */
   bool is_create_table_as_query_block;
 
