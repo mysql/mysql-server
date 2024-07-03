@@ -60,7 +60,7 @@ extern PSI_file_key key_file_misc;
 */
 
 bool my_rm_dir_w_symlink(const char *directory_path, bool send_error,
-                         bool send_intermediate_errors,
+                         bool send_intermediate_errors [[maybe_unused]],
                          bool &directory_deletion_failed) {
   char tmp_path[FN_REFLEN], *pos;
   char *path = tmp_path;
