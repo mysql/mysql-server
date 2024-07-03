@@ -178,27 +178,13 @@ ROUTER_ADD_SHARED_LIBRARY(http_client
   http/client/error_code.cc
   http/client/request.cc
 
-  OUTPUT_NAME "http_client"
+  OUTPUT_NAME "mysqlrouter_http_client"
 
   SKIP_INSTALL
 
   LINK_LIBRARIES
   ${LIBRT}
   http_common
-  )
-
-TARGET_INCLUDE_DIRECTORIES(http_client PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
-
-## the rpath for the bundled openssl
-SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(http_client)
-
-SET_TARGET_PROPERTIES(http_client PROPERTIES
-  OUTPUT_NAME "mysqlrouter_http_client"
-  SOVERSION 1
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
   )
 
 INSTALL(TARGETS http_client

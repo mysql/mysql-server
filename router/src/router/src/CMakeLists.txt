@@ -45,6 +45,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_utils
 ROUTER_ADD_SHARED_LIBRARY(router_mysql
   common/log_filter.cc
   common/mysql_session.cc
+  common/server_compatibility.cc
   common/utils_sqlstring.cc
 
   OUTPUT_NAME "mysqlrouter_mysql"
@@ -83,14 +84,6 @@ ROUTER_ADD_SHARED_LIBRARY(router_lib
   certificate_handler.cc
   config_files.cc
   sys_user_operations.cc
-  utils.cc
-  uri.cc
-  keyring_info.cc
-  default_paths.cc
-  common/log_filter.cc
-  common/mysql_session.cc
-  common/server_compatibility.cc
-  common/utils_sqlstring.cc
 
   NO_EXPORT_HEADER  # custom names
   OUTPUT_NAME "${router_lib_output_name}"
