@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -436,7 +436,7 @@ class kdf_argument {
       *error_generated = TRUE;
       return FALSE;
     }
-    kdf_option = kdf_option_value->ptr();
+    kdf_option = string(kdf_option_value->ptr(), kdf_option_value->length());
     return TRUE;
   }
 
