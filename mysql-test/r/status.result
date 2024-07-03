@@ -514,6 +514,22 @@ SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	9.664743
 DROP TABLE t1, t2;
+#
+# Bug#36790906: MySQL Last_query_cost status incorrect
+#               calculated with subqueries
+#
+CREATE TABLE t (x INT, y INT, z INT);
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @var SELECT 1 FROM t;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT (SELECT RAND() FROM t) FROM t WHERE x = 1 AND y = 2 AND z = 3;
+include/assert.inc [Last_query_cost should be at least around twice the table scan cost.]
+DROP TABLE t;
 SET @@global.log_output = @old_log_output;
 SET @@global.general_log = @old_general_log;
 TRUNCATE TABLE mysql.general_log;

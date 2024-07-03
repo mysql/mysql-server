@@ -870,7 +870,8 @@ void accumulate_statement_cost(const LEX *lex) {
     if (item != nullptr) {
       trace_query_block.add("cacheable", query_block->is_cacheable());
       if (!query_block->is_cacheable()) {
-        const double executions = calculate_subquery_executions(item, trace);
+        const double executions =
+            std::max(1.0, calculate_subquery_executions(item, trace));
         trace_query_block.add("executions", executions);
         query_block_cost *= executions;
         trace_query_block.add("total_query_block_cost", query_block_cost);

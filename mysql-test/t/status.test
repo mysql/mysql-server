@@ -592,6 +592,40 @@ SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#36790906: MySQL Last_query_cost status incorrect
+--echo #               calculated with subqueries
+--echo #
+
+CREATE TABLE t (x INT, y INT, z INT);
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t VALUES (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t;
+
+# First find the cost of scanning "t" once.
+EXPLAIN FORMAT=JSON INTO @var SELECT 1 FROM t;
+let $scan_cost = query_get_value(SHOW STATUS LIKE 'Last_query_cost', Value, 1);
+
+# Then try with a query which scans table "t" and additionally scans
+# "t" in a subquery executed for every row in the outer query. The
+# Last_query_cost status variable used to have a value equal to the
+# cost of a single table scan, because the subquery was estimated to
+# be invoked zero times thanks to the conditions in the WHERE clause.
+# We want Last_query_cost to include the cost of executing each
+# subquery at least once, even though it is possible, or even likely,
+# that a subquery is executed zero times.
+EXPLAIN FORMAT=JSON INTO @var
+SELECT (SELECT RAND() FROM t) FROM t WHERE x = 1 AND y = 2 AND z = 3;
+let $query_cost = query_get_value(SHOW STATUS LIKE 'Last_query_cost', Value, 1);
+
+let $assert_text =
+  Last_query_cost should be at least around twice the table scan cost.;
+--let $assert_cond = $query_cost > $scan_cost * 1.9
+--source include/assert.inc
+
+DROP TABLE t;
+
 # Restore default
 SET @@global.log_output = @old_log_output;
 SET @@global.general_log = @old_general_log;
