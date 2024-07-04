@@ -287,6 +287,20 @@ bool my_thread_init() {
   return false;
 }
 
+bool my_thread_is_inited() {
+#ifndef NDEBUG
+  return mysys_thread_var() != nullptr;
+#else
+  /*
+    Return true here because for non-debug binaries my_thread_end() should not
+    be called on native threads because my_thread_init() is a no-op for these
+    and my_thread_end() just deregisters the thread from P_S.
+    And since there's no registration in P_S at my_thread_init() we should not
+    be calling my_thread_end() for these threads.
+  */
+  return true;
+#endif
+}
 /**
   Deallocate memory used by the thread for book-keeping
 
