@@ -430,7 +430,7 @@ class kdf_argument {
       *error_generated = true;
       return false;
     }
-    kdf_option = kdf_option_value->ptr();
+    kdf_option = to_string(*kdf_option_value);
     return true;
   }
 
