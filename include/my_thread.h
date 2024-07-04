@@ -178,5 +178,6 @@ extern void my_thread_global_end();
 // Need to be extern "C" for the time being, due to memcached.
 extern "C" bool my_thread_init();
 extern "C" void my_thread_end();
+extern bool my_thread_is_inited();
 
 #endif /* MY_THREAD_INCLUDED */

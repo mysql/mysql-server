@@ -528,6 +528,8 @@ class Table_access_impl {
   size_t m_max_count;
   bool m_write;
   bool m_in_tx;
+  /** true if the mysys thread state needs cleanup */
+  bool m_clear_mysys;
 
   THD *m_parent_thd;
   THD *m_child_thd;
@@ -584,7 +586,11 @@ void TA_key_impl::key_copy(uchar *record, uint key_length) {
 }
 
 Table_access_impl::Table_access_impl(THD *thd, size_t count)
-    : m_current_count(0), m_max_count(count), m_write(false), m_in_tx(false) {
+    : m_current_count(0),
+      m_max_count(count),
+      m_write(false),
+      m_in_tx(false),
+      m_clear_mysys{false} {
   m_parent_thd = thd;
 
   m_child_thd = new THD(true);
@@ -597,6 +603,7 @@ Table_access_impl::Table_access_impl(THD *thd, size_t count)
     m_child_thd->security_context()->assign_user(
         STRING_WITH_LEN("table_access"));
     m_child_thd->security_context()->skip_grants("", "");
+    this->m_clear_mysys = !my_thread_is_inited();
     my_thread_init();
   }
 
@@ -635,7 +642,6 @@ Table_access_impl::~Table_access_impl() {
   }
 
   m_child_thd->release_resources();
-  m_child_thd->restore_globals();
 
   if (m_parent_thd) m_parent_thd->store_globals();
 
@@ -646,7 +652,7 @@ Table_access_impl::~Table_access_impl() {
   delete[] m_table_array;
   delete[] m_table_state_array;
 
-  if (!m_parent_thd) my_thread_end();
+  if (m_clear_mysys && !m_parent_thd) my_thread_end();
 
   // FIXME : kill flag ?
   // FIXME : nested THD status variables ?
