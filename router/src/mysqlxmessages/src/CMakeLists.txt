@@ -121,7 +121,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysqlxclient
   OpenSSL::SSL
   OpenSSL::Crypto
   PRIVATE
-  mysqlclient
+  router_mysql
   )
 
 TARGET_INCLUDE_DIRECTORIES(router_mysqlxclient
