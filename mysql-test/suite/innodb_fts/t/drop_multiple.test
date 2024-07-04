@@ -1,0 +1,18 @@
+--echo #
+--echo # Test for having lingering FTS index in data dictionary
+--echo # after dropping multiple FTS indexes.
+--echo #
+
+CREATE TABLE fts_test (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT,
+	FULLTEXT idx_title (title),
+	FULLTEXT idx_body (body)
+	) ENGINE=InnoDB;
+
+ALTER TABLE fts_test DROP INDEX idx_title, DROP INDEX idx_body;
+
+--source include/restart_mysqld.inc
+
+DROP TABLE fts_test;

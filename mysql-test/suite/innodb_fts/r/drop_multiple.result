@@ -1,0 +1,14 @@
+#
+# Test for having lingering FTS index in data dictionary
+# after dropping multiple FTS indexes.
+#
+CREATE TABLE fts_test (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT idx_title (title),
+FULLTEXT idx_body (body)
+) ENGINE=InnoDB;
+ALTER TABLE fts_test DROP INDEX idx_title, DROP INDEX idx_body;
+# restart
+DROP TABLE fts_test;

@@ -7224,7 +7224,9 @@ after a successful commit_try_norebuild() call.
       if (index->type & DICT_FTS) {
         assert(index->type == DICT_FTS || index->is_corrupted());
         assert(index->table->fts);
-        ctx->fts_drop_aux_vec = new aux_name_vec_t;
+        if (ctx->fts_drop_aux_vec == nullptr) {
+          ctx->fts_drop_aux_vec = new aux_name_vec_t;
+        }
         fts_drop_index(index->table, index, trx, ctx->fts_drop_aux_vec);
       }
 
