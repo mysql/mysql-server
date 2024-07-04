@@ -219,7 +219,7 @@ class HashJoinRowBuffer {
 /// External interface to the corresponding member in HashJoinRowBuffer
 LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
     MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root,
-    pack_rows::TableCollection tables, LinkedImmutableString next_ptr,
+    const pack_rows::TableCollection &tables, LinkedImmutableString next_ptr,
     size_t row_size_upper_bound, bool *full);
 
 #endif  // SQL_ITERATORS_HASH_JOIN_BUFFER_H_

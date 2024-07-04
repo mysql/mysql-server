@@ -46,8 +46,9 @@
 using pack_rows::TableCollection;
 
 LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
-    MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root, TableCollection tables,
-    LinkedImmutableString next_ptr, size_t row_size_upper_bound, bool *full) {
+    MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root,
+    const TableCollection &tables, LinkedImmutableString next_ptr,
+    size_t row_size_upper_bound, bool *full) {
   if (tables.has_blob_column()) {
     // The row size upper bound can have changed.
     row_size_upper_bound = ComputeRowSizeUpperBound(tables);
