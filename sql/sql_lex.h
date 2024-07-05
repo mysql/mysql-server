@@ -4008,12 +4008,16 @@ struct LEX : public Query_tables_list {
   /// True if statement references UDF functions
   bool m_has_udf{false};
   bool ignore;
+  /// True if query has at least one external table
+  bool m_has_external_tables{false};
 
  public:
   bool is_ignore() const { return ignore; }
   void set_ignore(bool ignore_param) { ignore = ignore_param; }
   void set_has_udf() { m_has_udf = true; }
   bool has_udf() const { return m_has_udf; }
+  void set_has_external_tables() { m_has_external_tables = true; }
+  bool has_external_tables() const { return m_has_external_tables; }
   st_parsing_options parsing_options;
   Alter_info *alter_info;
   /* Prepared statements SQL syntax:*/

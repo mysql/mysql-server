@@ -6620,6 +6620,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // The previous execution context should have been destroyed.
   assert(lex->secondary_engine_execution_context() == nullptr);
 
+  // Property of having external tables is always set in this function:
+  assert(!lex->has_external_tables());
+
   // If use of secondary engines has been disabled for the statement,
   // there is nothing to do.
   if (sql_cmd == nullptr || sql_cmd->secondary_storage_engine_disabled())
@@ -6700,6 +6703,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     }
     assert(tl->table->s->is_secondary_engine());
     tl->table->file->ha_set_primary_handler(primary_table->file);
+    if (tl->is_external()) {
+      lex->set_has_external_tables();
+    }
   }
 
   // Prepare the secondary engine for executing the statement.

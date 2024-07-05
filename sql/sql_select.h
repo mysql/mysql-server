@@ -1060,14 +1060,6 @@ void accumulate_statement_cost(const LEX *lex);
 const handlerton *get_secondary_engine_handlerton(const LEX *lex);
 
 /**
-  Checks if any of the tables referenced belong to an external engine.
-  If an external table is found, return true, false otherwise.
-
-  @param query_tables the referenced tables.
-*/
-bool has_external_table(Table_ref *query_tables);
-
-/**
   Sets the reason of failure for the statement to the external engine.
 
   @param lex the statement

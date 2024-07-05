@@ -660,15 +660,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
-bool has_external_table(Table_ref *query_tables) {
-  for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
-    if (ref->is_external()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
@@ -741,7 +732,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
   }
 
   if (lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) {
-    if (has_external_table(lex->query_tables)) {
+    if (lex->has_external_tables()) {
       my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
                "Query could not be offloaded to the secondary engine");
       external_table_not_offloaded = true;
@@ -751,7 +742,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
                   Secondary_engine_optimization::PRIMARY_ONLY &&
               lex->thd->variables.use_secondary_engine !=
                   SECONDARY_ENGINE_FORCED) &&
-             has_external_table(lex->query_tables)) {
+             lex->has_external_tables()) {
     // throw the propagated error from the external engine in case there is an
     // external table
     external_engine_fail_reason(lex);
@@ -848,7 +839,7 @@ err:
         assert(thd->get_stmt_da() != nullptr);
         // here we check if there is any table in an external engine to set the
         // error there as well.
-        if (has_external_table(lex->query_tables)) {
+        if (lex->has_external_tables()) {
           set_external_engine_fail_reason(lex,
                                           thd->get_stmt_da()->message_text());
         }
@@ -943,7 +934,7 @@ static bool retry_with_secondary_engine(THD *thd) {
   // is higher than the specified cost threshold.
   // We allow any query to be executed in the secondary_engine when it involves
   // external tables.
-  if (!has_external_table(thd->lex->query_tables) &&
+  if (!thd->lex->has_external_tables() &&
       (thd->m_current_query_cost <=
        thd->variables.secondary_engine_cost_threshold)) {
     Opt_trace_context *const trace = &thd->opt_trace;

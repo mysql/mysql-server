@@ -496,6 +496,7 @@ void LEX::reset() {
 
   grant_if_exists = false;
   ignore_unknown_user = false;
+  m_has_external_tables = false;
   reset_rewrite_required();
 }
 
