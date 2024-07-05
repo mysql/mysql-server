@@ -139,11 +139,15 @@ HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
   }
 
   ret = LinkedImmutableString::EncodeHeader(next_ptr, &dptr);
+
+  const char *const start_of_row [[maybe_unused]] = dptr;
   dptr = pointer_cast<char *>(
       StoreFromTableBuffersRaw(m_tables, pointer_cast<uchar *>(dptr)));
+  assert(dptr <= start_of_row + row_size_upper_bound);
 
+  const size_t actual_length = dptr - start_of_value;
+  assert(actual_length <= required_value_bytes);
   if (!committed) {
-    const size_t actual_length = dptr - pointer_cast<char *>(start_of_value);
     m_mem_root.RawCommit(actual_length);
   }
   return ret;

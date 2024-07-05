@@ -32,13 +32,13 @@
 #include "sql/table.h"
 
 class ha_heap : public handler {
-  HP_INFO *file;
-  HP_SHARE *internal_share;
+  HP_INFO *file{nullptr};
+  HP_SHARE *internal_share{nullptr};
   /* number of records changed since last statistics update */
-  uint records_changed;
-  uint key_stat_version;
+  uint records_changed{0};
+  uint key_stat_version{0};
   /// True if only one ha_heap is to exist for the table.
-  bool single_instance;
+  bool single_instance{false};
 
  public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
