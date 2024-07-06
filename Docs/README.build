@@ -48,7 +48,7 @@ or
 cmake --build . --config RelWithDebInfo
 
 You can pass options to msbuild, see
-https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild-command-line-reference?view=vs-2019
+https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-command-line-reference?view=vs-2019
 
 To speed up compilation, building multiple projects in parallel:
 cmake --build . --config Debug -- -m
