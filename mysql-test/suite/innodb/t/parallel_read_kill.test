@@ -1,5 +1,6 @@
 --source include/have_debug.inc
---source include/big_test.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 
 --echo #
 --echo # Bug#31016076 SELECT COUNT(*) ON LARGE TABLE HANG FOREVER EVEN AFTER CTRL+C
@@ -19,13 +20,38 @@ DELIMITER ;|
 CREATE TABLE t1(
     f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     f2 INT NOT NULL,
-    f3 INT NOT NULL,
-		KEY(f2, f3))
+    f3 INT NOT NULL)
 ENGINE=INNODB;
 
-BEGIN;
---echo # Create uncommitted rows
-CALL populate_t1(1, 150000);
+let $counter = 1;
+let $max_counter=9;
+while($counter < $max_counter){
+  connect (c$counter, localhost, root,,);
+  inc $counter;
+}
+
+--disable_query_log
+--echo # Create 150000 uncommitted rows
+let $counter = 1;
+let $base=1;
+# Each of 8 connections creates 18750 records
+let $size = 18750;
+while($counter < $max_counter) {
+  connection c$counter;
+	BEGIN;
+  send_eval CALL populate_t1($base, $size);
+	connection default;
+	let $base = `SELECT $base + $size`;
+  inc $counter;
+}
+
+let $counter = 1;
+while($counter < $max_counter) {
+  connection c$counter;
+  reap;
+  inc $counter;
+}
+--enable_query_log
 
 connect (con1,localhost,root,,);
 connection con1;
@@ -59,11 +85,23 @@ connection con1;
 --error ER_QUERY_INTERRUPTED
 --reap
 
-connection default;
-COMMIT;
+
+--disable_query_log
+let $counter = 1;
+while($counter < $max_counter){
+	connection c$counter;
+	COMMIT;
+  disconnect c$counter;
+  inc $counter;
+}
+--enable_query_log
 
 --echo # Cleanup
+connection default;
 SET DEBUG_SYNC="RESET";
 DROP PROCEDURE populate_t1;
 DROP TABLE t1;
 disconnect con1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
