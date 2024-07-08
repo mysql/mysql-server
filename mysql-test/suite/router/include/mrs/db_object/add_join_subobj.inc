@@ -73,8 +73,11 @@ while($_columns1)
   eval SET @_fields=JSON_ARRAY_APPEND(@_fields, "$", JSON_OBJECT("base","$_column1_element","ref","$_column2_element"));
 }
 
-
-eval  INSERT INTO mysql_rest_service_metadata.object_reference(
+--let $_mrs_do_default_object_ref=1
+if ($mrs_schema_version == 2)
+{
+  --let $_mrs_do_default_object_ref=0
+  eval  INSERT INTO mysql_rest_service_metadata.object_reference(
                id, reference_mapping, unnest, crud_operations)
       VALUES($mrs_sql_id_variable_object_ref, JSON_OBJECT(
            "referenced_schema","$mrs_add_db_object_join_schema",
@@ -82,6 +85,18 @@ eval  INSERT INTO mysql_rest_service_metadata.object_reference(
            "to_many", False,
            "column_mapping",cast(@_fields as JSON)), false,
              "$mrs_add_db_object_op");
+}
+
+if ($_mrs_do_default_object_ref)
+{
+  eval  INSERT INTO mysql_rest_service_metadata.object_reference(
+               id, reference_mapping, unnest)
+      VALUES($mrs_sql_id_variable_object_ref, JSON_OBJECT(
+           "referenced_schema","$mrs_add_db_object_join_schema",
+           "referenced_table", "$mrs_add_db_object_join_table",
+           "to_many", False,
+           "column_mapping",cast(@_fields as JSON)), false);
+}
 
 --echo # Registred OBJECT_REF at $mrs_add_db_object_join_schema.$mrs_add_db_object_join_table
 

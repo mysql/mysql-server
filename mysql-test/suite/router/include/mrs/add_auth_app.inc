@@ -58,7 +58,7 @@ if ($mrs_schema_version == 3)
     $mrs_add_auth_client_id,
     $mrs_add_auth_client_secret
     );
-  eval INSERT INTO mysql_rest_service_metadata.service_has_auth_app()
+  eval INSERT INTO mysql_rest_service_metadata.service_has_auth_app(service_id, auth_app_id)
     VALUES((SELECT id FROM mysql_rest_service_metadata.service WHERE url_context_root like "$mrs_add_auth_service"),
          $mrs_sql_id_variable);
 }

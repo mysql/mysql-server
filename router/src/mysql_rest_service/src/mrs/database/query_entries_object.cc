@@ -302,7 +302,6 @@ void QueryEntryObject::set_query_object_reference(
       // TODO reduce_to_value_of_field_id will be removed
       " object_reference.unnest OR "
       "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
-      " CAST(object_reference.crud_operations AS UNSIGNED)"
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
       "  ON object_field.represents_reference_id = object_reference.id"
@@ -568,7 +567,6 @@ void QueryEntryObject::set_query_object_reference(
       // TODO reduce_to_value_of_field_id will be removed
       " object_reference.unnest OR "
       "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
-      " CAST(object_reference.crud_operations AS UNSIGNED),"
       " object_reference.row_ownership_field_id"
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
@@ -591,7 +589,10 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
   row.unserialize_with_converter(&reference->column_mapping,
                                  ColumnMappingConverter{reference});
   row.unserialize(&reference->unnest);
-  row.unserialize(&reference->crud_operations);
+
+  auto base_table = m_tables[entry::UniversalId{}];
+  reference->crud_operations = base_table->crud_operations;
+
   row.unserialize_with_converter(&object->user_ownership_field,
                                  from_optional_user_ownership_field_id);
 
