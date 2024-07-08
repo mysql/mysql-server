@@ -27,8 +27,8 @@
 #define ROUTER_SRC_HTTP_SRC_HTTP_REQUEST_ROUTER_H_
 
 #include <memory>
-#include <mutex>
 #include <regex>
+#include <shared_mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -44,7 +44,6 @@ class HttpRequestRouter : public http::server::RequestHandlerInterface {
   using RequestHandler = http::base::RequestHandler;
   using BaseRequestHandlerPtr = std::shared_ptr<http::base::RequestHandler>;
 
- public:
   void append(const std::string &url_regex_str,
               std::unique_ptr<RequestHandler> cb);
   void remove(const void *handler_id);
@@ -72,7 +71,7 @@ class HttpRequestRouter : public http::server::RequestHandlerInterface {
   BaseRequestHandlerPtr default_route_;
   std::string require_realm_;
 
-  std::mutex route_mtx_;
+  mutable std::shared_mutex route_mtx_;
 };
 
 #endif  // ROUTER_SRC_HTTP_SRC_HTTP_REQUEST_ROUTER_H_
