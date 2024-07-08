@@ -85,6 +85,9 @@ void telemetry_log_cb(const char *logger_name [[maybe_unused]],
 
   std::string attributes;
   for (size_t i = 0; i < attr_count; ++i) {
+    // skip logging non-deterministic attributes
+    if (0 == strcmp("thread", attr_array[i].name)) continue;
+
     if (!attributes.empty()) attributes += "; ";
     attributes += "'";
     attributes += attr_array[i].name;
@@ -128,11 +131,12 @@ void telemetry_log_cb(const char *logger_name [[maybe_unused]],
       logger_name, message, severity, print_log_level(severity),
       attributes.c_str());
 
-  // test that error log with notelemetry flag does not cause infinite recursion
-  // error log -> telemetry log emitted -> telemetry callback -> error log ->
+  // test that error log with no_telemetry flag does not cause infinite
+  // recursion error log -> telemetry log emitted -> telemetry callback -> error
+  // log ->
   // ...
   LogEvent()
-      .notelemetry()
+      .no_telemetry()
       .type(LOG_TYPE_ERROR)
       .prio(WARNING_LEVEL)
       .errcode(ER_LOG_PRINTF_MSG)

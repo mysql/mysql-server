@@ -1333,6 +1333,10 @@ static void configure_logger_class(PFS_logger_class *entry) {
                     e->m_name + e->m_name_length, '\\', '?', '%')) {
       if (e->m_name_length >= match_length) {
         entry->m_level = e->m_level;
+        if (g_telemetry_log == nullptr)
+          entry->m_effective_level = TLOG_NONE;
+        else
+          entry->m_effective_level = e->m_level;
         match_length = std::max(e->m_name_length, match_length);
       }
     }

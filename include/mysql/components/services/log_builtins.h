@@ -1512,7 +1512,7 @@ class LogEvent {
 
     @retval      the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &notelemetry() {
+  LogEvent &no_telemetry() {
     log_line_set_flag(this->ll, LOG_LINE_EMIT_TELEMETRY, 0);
     return *this;
   }

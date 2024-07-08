@@ -100,7 +100,7 @@ SHOW STATUS LIKE 'Performance_schema_logger_lost';
 SHOW GLOBAL VARIABLES LIKE "performance_schema_max_logger_classes";
 
 --echo # Restart server, test '--performance_schema_logger' parameter to change the default log level
---let $restart_parameters="restart: --performance_schema_logger='logger/test_logs_componentA/%=level:ERROR' --performance_schema_logger='logger/test_logs_componentA/test2=level:debug'"
+--let $restart_parameters="restart: --performance_schema_logger='logger/test_logs_componentA/%=level:ERROR' --performance_schema_logger='logger/test_logs_componentA/test2=level:debug' --performance_schema_logger='logger/error/error_log=level:none'"
 --let $do_not_echo_parameters = 1;
 --source include/restart_mysqld.inc
 --let $do_not_echo_parameters =;
@@ -122,6 +122,9 @@ SELECT name, level FROM performance_schema.setup_loggers;
 #--echo # Benchmark 10k loops (x3 logger calls) with logger enabled (no telemetry callback registered)
 #UPDATE performance_schema.setup_loggers SET level="debug";
 #SELECT test_log_wrappers(10000, "logger enabled, backend unregistered");
+
+# error should not be logged, error_log level=none
+SELECT test_error_log();
 
 --echo ###########
 --echo # CLEANUP #

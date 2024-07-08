@@ -104,7 +104,10 @@ SELECT name, level FROM performance_schema.setup_loggers;
 name	level
 logger/test_logs_componentA/test1	error
 logger/test_logs_componentA/test2	debug
-logger/error/error_log	info
+logger/error/error_log	none
+SELECT test_error_log();
+test_error_log()
+0
 ###########
 # CLEANUP #
 ###########
@@ -142,7 +145,7 @@ Correct handling of duplicated loggers.
 Correct handling of invalid loggers (name+category too long).
 telemetry_log_cb(logger/test_logs_componentA/test1): Log message 'Test message' (level=1/error, attributes: 'name#01'='a'; 'name#02'='a'; 'name#03'='a'; 'name#04'='a'; 'name#05'='a'; 'name#06'='a'; 'name#07'='a'; 'name#08'='a'; 'name#09'='a'; 'name#10'='a'; 'name#11'='a'; 'name#12'='a'; 'name#13'='a'; 'name#14'='a'; 'name#15'='a'; 'name#16'='a'; 'name#17'='a'; 'name#18'='a'; 'name#19'='a'; 'name#20'='a'; 'name#21'='a'; 'name#22'='a'; 'name#23'='a'; 'name#24'='a'; 'name#25'='a'; 'name#26'='a'; 'name#27'='a'; 'name#28'='a'; 'name#29'='a'; 'name#30'='a'; 'name#31'='a'; 'name#32'='a'; 'name#33'='a'; 'name#34'='a'; 'name#35'='a'; 'name#36'='a'; 'name#37'='a'; 'name#38'='a'; 'name#39'='a'; 'name#40'='a'; 'name#41'='a'; 'name#42'='a'; 'name#43'='a'; 'name#44'='a'; 'name#45'='a'; 'name#46'='a'; 'name#47'='a'; 'name#48'='a'; 'name#49'='a'; 'name#50'='a'; 'name#51'='a'; 'name#52'='a'; 'name#53'='a'; 'name#54'='a'; 'name#55'='a'; 'name#56'='a'; 'name#57'='a'; 'name#58'='a'; 'name#59'='a'; 'name#60'='a'; 'name#61'='a'; 'name#62'='a'; 'name#63'='a'; 'name#64'='a')
 Correct handling unregister of non-current log exporter.
-telemetry_log_cb(logger/error/error_log): Log message 'Test message #15' (level=2/warn, attributes: 'err_code'=11071; 'err_symbol'='ER_LOG_PRINTF_MSG'; 'SQL_state'='HY000'; 'thread'=9; 'source_file'='server_logs_component.cc'; 'source_line'=12345; 'function'='test_error_log'; 'component'='component: test_server_telemetry_logs'; 'subsystem'='Server')
+telemetry_log_cb(logger/error/error_log): Log message 'Test message #15' (level=2/warn, attributes: 'err_code'=11071; 'err_symbol'='ER_LOG_PRINTF_MSG'; 'SQL_state'='HY000'; 'source_file'='server_logs_component.cc'; 'source_line'=12345; 'function'='test_error_log'; 'component'='component: test_server_telemetry_logs'; 'subsystem'='Server')
 test_server_telemetry_logs_export_component_deinit:
  - Telemetry logs callbacks unregistered.
  - System variables unregistered.

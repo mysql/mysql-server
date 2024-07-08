@@ -736,6 +736,8 @@ int add_pfs_logger_to_array(const char *name, const char *value) {
     e->m_level = OTELLogLevel::TLOG_INFO;
   } else if (!my_strcasecmp(&my_charset_latin1, property_value, "debug")) {
     e->m_level = OTELLogLevel::TLOG_DEBUG;
+  } else if (!my_strcasecmp(&my_charset_latin1, property_value, "none")) {
+    e->m_level = OTELLogLevel::TLOG_NONE;
   } else {
     my_free(e);
     return 1;
