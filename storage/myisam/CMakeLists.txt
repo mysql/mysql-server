@@ -23,6 +23,7 @@
 
 SET(MYISAM_SOURCES
   # Originally part of mysys.
+  array.cc
   my_lock.cc
   my_redel.cc
   queues.cc

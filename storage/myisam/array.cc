@@ -27,7 +27,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/array.cc
+  @file storage/myisam/array.cc
   Handling of arrays that can grow dynamically.
 */
 
@@ -43,6 +43,7 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
+#include "storage/myisam/array.h"
 
 /*
   Initiate dynamic array
@@ -56,7 +57,7 @@
       alloc_increment	Increment for adding new elements
 
   DESCRIPTION
-    init_dynamic_array() initiates array and allocate space for
+    my_init_dynamic_array() initiates array and allocate space for
     init_alloc eilements.
     Array is usable even if space allocation failed, hence, the
     function never returns true.

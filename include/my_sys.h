@@ -307,14 +307,6 @@ enum flush_type {
   FLUSH_FORCE_WRITE
 };
 
-struct DYNAMIC_ARRAY {
-  uchar *buffer{nullptr};
-  uint elements{0}, max_element{0};
-  uint alloc_increment{0};
-  uint size_of_element{0};
-  PSI_memory_key m_psi_key{PSI_NOT_INSTRUMENTED};
-};
-
 struct MY_TMPDIR {
   char **list{nullptr};
   uint cur{0}, max{0};
@@ -794,20 +786,6 @@ const size_t MY_MAX_TEMP_FILENAME_LEN = 19;
 #endif
 File create_temp_file(char *to, const char *dir, const char *pfx, int mode,
                       UnlinkOrKeepFile unlink_or_keep, myf MyFlags);
-
-// Use Prealloced_array or std::vector or something similar in C++
-extern bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key key,
-                                  uint element_size, void *init_buffer,
-                                  uint init_alloc, uint alloc_increment);
-/* init_dynamic_array() function is deprecated */
-
-#define dynamic_element(array, array_index, type) \
-  ((type)((array)->buffer) + (array_index))
-
-/* Some functions are still in use in C++, because HASH uses DYNAMIC_ARRAY */
-extern bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
-extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
-extern void delete_dynamic(DYNAMIC_ARRAY *array);
 
 extern bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
                                 size_t init_alloc);

@@ -41,6 +41,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_thread.h"
+#include "storage/myisam/array.h"
 #include "thr_lock.h"
 
 struct HA_KEYSEG;

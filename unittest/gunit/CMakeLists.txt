@@ -120,7 +120,6 @@ SET(TESTS
   decimal
   dns_srv_data
   dphyp
-  dynarray
   filesort_buffer
   filesort_compare
   filesort_mergechunk
@@ -131,6 +130,7 @@ SET(TESTS
   like_range
   m_string
   mdl
+  mem_root_array
   mem_root_deque
   mutex_lock
   my_alloc
