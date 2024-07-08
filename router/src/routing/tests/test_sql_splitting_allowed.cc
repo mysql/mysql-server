@@ -417,6 +417,8 @@ INSTANTIATE_TEST_SUITE_P(Fail, SharingAllowedTest,
 int main(int argc, char *argv[]) {
   TlsLibraryContext lib_ctx;
 
+  SqlLexer::init_library();
+
   ::testing::InitGoogleTest(&argc, argv);
 
   return RUN_ALL_TESTS();

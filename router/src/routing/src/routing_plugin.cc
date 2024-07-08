@@ -25,12 +25,10 @@
 
 #include "mysqlrouter/routing_plugin_export.h"
 
-#include <atomic>
 #include <mutex>
 #include <stdexcept>
 #include <vector>
 
-#include "dim.h"
 #include "hostname_validator.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
@@ -40,18 +38,14 @@
 #include "mysql/harness/tls_server_context.h"
 #include "mysql/harness/utility/string.h"  // join, string_format
 #include "mysql_routing.h"
-#include "mysqlrouter/connection_pool.h"
-#include "mysqlrouter/connection_pool_component.h"
-#include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/ssl_mode.h"
 #include "mysqlrouter/supported_routing_options.h"
 #include "plugin_config.h"
 #include "scope_guard.h"
+#include "sql_lexer.h"  // init_library()
 
-using mysql_harness::AppInfo;
-using mysql_harness::ConfigSection;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 IMPORT_LOG_FUNCTIONS()
@@ -150,6 +144,8 @@ std::list<IoComponent::Workguard> io_context_work_guards;
 
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
+
+  SqlLexer::init_library();
 
   try {
     if (info->config != nullptr) {

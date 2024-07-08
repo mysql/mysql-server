@@ -25,11 +25,16 @@
 
 #include "router/src/routing/src/sql_lexer.h"
 
+#include <mutex>  // call_once
 #include <string_view>
 
 #include "router/src/routing/src/sql_parser_state.h"
 
+static std::once_flag lexer_init;
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+  std::call_once(lexer_init, []() { SqlLexer::init_library(); });
+
   SqlParserState sql_parser_state;
 
   sql_parser_state.statement(

@@ -803,8 +803,8 @@ class Name_string {
     /*
      * charset of system-variables
      */
-    static const CHARSET_INFO *system_charset_info =
-        &my_charset_utf8mb3_general_ci;
+    // 33 = my_charset_utf8mb3_general_ci
+    static const CHARSET_INFO *system_charset_info = get_charset(33, 0);
 
     return 0 == my_strcasecmp(system_charset_info, name_, rhs);
   }

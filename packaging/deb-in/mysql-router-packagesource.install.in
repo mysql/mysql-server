@@ -58,6 +58,7 @@ usr/lib/mysqlrouter/private/libmysqlrouter_http_server.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_io_component.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_metadata_cache.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysql.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_mysqlclient.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing.so.1

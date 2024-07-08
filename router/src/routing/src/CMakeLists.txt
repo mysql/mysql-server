@@ -25,6 +25,7 @@ INCLUDE(GenerateExportHeader)
 
 ADD_LIBRARY(sql_lexer STATIC
   sql_lexer.cc
+  sql_lexer_thd.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
   )
 TARGET_INCLUDE_DIRECTORIES(sql_lexer

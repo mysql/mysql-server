@@ -22,17 +22,17 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#include "mysql/harness/stdx/expected.h"
-#include "sql_parser_state.h"
 #include "start_transaction_parser.h"
 
 #include <gtest/gtest.h>
+
 #include <optional>
 #include <variant>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql/harness/tls_context.h"
-#include "sql_parser.h"
+#include "sql_parser_state.h"
 
 static stdx::expected<std::variant<std::monostate, StartTransaction>,
                       std::string>
@@ -102,6 +102,11 @@ class StartTransactionTest
 TEST_P(StartTransactionTest, works) {
   SqlParserState sql_parser_state;
 
+  // check the charset's are properly initialized
+  ASSERT_NE(sql_parser_state.thd()->charset(), nullptr);
+  // 8 is laitn1
+  ASSERT_EQ(sql_parser_state.thd()->charset()->number, 8);
+
   sql_parser_state.statement(GetParam().stmt);
 
   ASSERT_EQ(start_transaction(sql_parser_state.lexer()),
@@ -149,6 +154,8 @@ INSTANTIATE_TEST_SUITE_P(Ddl, StartTransactionTest,
 
 int main(int argc, char *argv[]) {
   TlsLibraryContext lib_ctx;
+
+  SqlLexer::init_library();
 
   ::testing::InitGoogleTest(&argc, argv);
 

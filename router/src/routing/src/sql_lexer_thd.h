@@ -53,17 +53,17 @@ class THD {
     return strmake_root(mem_root, str, size);
   }
 
- public:
   struct System_variables {
+    System_variables();
+
     sql_mode_t sql_mode{};
-    const CHARSET_INFO *character_set_client{&my_charset_latin1};
-    const CHARSET_INFO *default_collation_for_utf8mb4{
-        &my_charset_utf8mb4_0900_ai_ci};
+    const CHARSET_INFO *character_set_client{};
+    const CHARSET_INFO *default_collation_for_utf8mb4{};
   };
 
   System_variables variables;
 
-  Parser_state *m_parser_state;
+  Parser_state *m_parser_state{};
 };
 
 #endif

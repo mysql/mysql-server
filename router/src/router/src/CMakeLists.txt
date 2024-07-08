@@ -53,7 +53,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysql
   PUBLIC
   harness_stdx
   harness-library  # log_debug
-  mysqlclient
+  router_mysqlclient
   )
 IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
   TARGET_LINK_OPTIONS(router_mysql PRIVATE -Wno-error=stringop-overflow)
@@ -133,6 +133,10 @@ TARGET_LINK_LIBRARIES(router_frontend_lib
   router_lib
   routing_frontend_lib
   harness-library)
+IF(WIN32)
+  # for the password_vault.cc
+  TARGET_LINK_LIBRARIES(router_frontend_lib Crypt32)
+ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(router_frontend_lib
   PUBLIC

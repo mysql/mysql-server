@@ -155,9 +155,11 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
   assert(begin_ptr);
   assert(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
 
+  static const auto *utf8mb4_bin = get_charset(46, 0);
+
   size_t body_utf8_length =
       (m_buf_length / thd->variables.character_set_client->mbminlen) *
-      my_charset_utf8mb4_bin.mbmaxlen;
+      utf8mb4_bin->mbmaxlen;
 
   m_body_utf8 = (char *)thd->alloc(body_utf8_length + 1);
   m_body_utf8_ptr = m_body_utf8;
@@ -235,9 +237,11 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
 
   LEX_STRING utf_txt{nullptr, 0};
 
-  if (!my_charset_same(txt_cs, &my_charset_utf8mb4_general_ci)) {
-    thd->convert_string(&utf_txt, &my_charset_utf8mb4_general_ci, txt->str,
-                        txt->length, txt_cs);
+  static const auto *utf8mb4_general_ci = get_charset(45, 0);
+
+  if (!my_charset_same(txt_cs, utf8mb4_general_ci)) {
+    thd->convert_string(&utf_txt, utf8mb4_general_ci, txt->str, txt->length,
+                        txt_cs);
   } else {
     utf_txt.str = txt->str;
     utf_txt.length = txt->length;
@@ -747,7 +751,11 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
               get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
           if (underscore_cs) {
             lip->warn_on_deprecated_charset(underscore_cs, charset_name);
-            if (underscore_cs == &my_charset_utf8mb4_0900_ai_ci) {
+
+            // 255 is my_charset_utf8mb4_0900_ai_ci.number
+            static const auto *utf8mb4_0900_ai_ci = get_charset(255, 0);
+
+            if (underscore_cs == utf8mb4_0900_ai_ci) {
               /*
                 If underscore_cs is utf8mb4, and the collation of underscore_cs
                 is the default collation of utf8mb4, then update underscore_cs
@@ -1259,14 +1267,24 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
   }
 }
 
+#ifdef MYSQLCLIENT_IS_STATIC
+// ^^ that define doesn't exist.
+//
+// the code is kept here as reference in case someone is using the SqlLexer with
+// a static libmysqlclient
 std::once_flag lexer_init;
+#endif
+
+void SqlLexer::init_library() {
+  my_init();
+
+  get_collation_number("latin1");  // init the charset subsystem
+}
 
 SqlLexer::SqlLexer(THD *session) : session_{session} {
-  std::call_once(lexer_init, []() {
-    my_init();
-
-    get_collation_number("latin1");  // init the charset subsystem
-  });
+#ifdef MYSQLCLIENT_IS_STATIC
+  std::call_once(lexer_init, []() { init_library(); });
+#endif
 }
 
 SqlLexer::iterator::iterator(THD *session) : session_(session) {

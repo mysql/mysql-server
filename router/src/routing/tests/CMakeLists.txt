@@ -121,6 +121,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     fuzz_show_warnings.cc
     ../src/show_warnings_parser.cc
     ../src/sql_lexer.cc
+    ../src/sql_lexer_thd.cc
     ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
     COMPONENT Router
     DEPENDENCIES GenServerSource
@@ -133,6 +134,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   MYSQL_ADD_EXECUTABLE(routertest_fuzz_routing_sql_lexer
     fuzz_sql_lexer.cc
     ../src/sql_lexer.cc
+    ../src/sql_lexer_thd.cc
     ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
     COMPONENT Router
     DEPENDENCIES GenServerSource

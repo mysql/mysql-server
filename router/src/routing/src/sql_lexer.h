@@ -38,6 +38,13 @@ class SqlLexer {
 
   SqlLexer(THD *session);
 
+  /**
+   * init the library that's used by the lexer.
+   *
+   * NOT thread-safe, MUST be called before threads are spawned.
+   */
+  static void init_library();
+
   class iterator {
    public:
     struct Token {

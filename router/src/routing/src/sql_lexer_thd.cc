@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,27 +23,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router/src/routing/src/show_warnings_parser.h"
+#include "sql_lexer_thd.h"
 
-#include <mutex>  // call_once
-#include <string_view>
+// initialize all charsets via "get_charset()" to ensure the charset subsystem
+// is properly initialized.
+//
+// &my_charset_latin1 could be used too, but leads to garbage-pointers on
+// windows if linked against a shared library.
 
-#include "router/src/routing/src/sql_parser_state.h"
-
-static std::once_flag lexer_init;
-
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-  std::call_once(lexer_init, []() { SqlLexer::init_library(); });
-
-  SqlParserState sql_parser_state;
-
-  sql_parser_state.statement(
-      std::string_view(reinterpret_cast<const char *>(Data), Size));
-
-  auto lexer = sql_parser_state.lexer();
-
-  // it shouldn't crash, but otherwise the return-value doesn't matter.
-  (void)ShowWarningsParser(lexer.begin(), lexer.end()).parse();
-
-  return 0;
-}
+THD::System_variables::System_variables()
+    : character_set_client(get_charset(8, 0)),            // latin1
+      default_collation_for_utf8mb4(get_charset(255, 0))  // utf8mb4_0900_ai_ci
+{}
