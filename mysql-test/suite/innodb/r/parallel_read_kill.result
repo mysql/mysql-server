@@ -12,12 +12,9 @@ END|
 CREATE TABLE t1(
 f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 INT NOT NULL,
-f3 INT NOT NULL,
-KEY(f2, f3))
+f3 INT NOT NULL)
 ENGINE=INNODB;
-BEGIN;
-# Create uncommitted rows
-CALL populate_t1(1, 150000);
+# Create 150000 uncommitted rows
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SET SESSION innodb_parallel_read_threads=2;
 # Count committed rows
@@ -35,7 +32,6 @@ COUNT(*)
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 ERROR 70100: Query execution was interrupted
-COMMIT;
 # Cleanup
 SET DEBUG_SYNC="RESET";
 DROP PROCEDURE populate_t1;
