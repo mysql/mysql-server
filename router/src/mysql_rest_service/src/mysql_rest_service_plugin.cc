@@ -256,6 +256,7 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   log_debug("deinit");
   if (g_mrs_configuration) g_mrs_configuration->service_monitor_->abort();
   g_mrds_module.reset();
+  g_mrs_configuration.reset();
 }
 
 static std::array<const char *, 4> required = {
