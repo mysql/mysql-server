@@ -2807,3 +2807,10 @@ CREATE TABLE t1 (
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36812010 crash in Item_func_soundex::val_str
+--echo #
+
+--error ER_CANNOT_CONVERT_STRING
+DO '' SOUNDS LIKE LEAD(DATABASE(), 1, x'cafe') OVER();
