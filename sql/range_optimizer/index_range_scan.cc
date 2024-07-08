@@ -60,18 +60,18 @@ IndexRangeScanIterator::IndexRangeScanIterator(
     MEM_ROOT *return_mem_root, uint mrr_flags, uint mrr_buf_size,
     Bounds_checked_array<QUICK_RANGE *> ranges_arg)
     : RowIDCapableRowIterator(thd, table_arg),
-      ranges(ranges_arg),
-      free_file(false),
-      cur_range(nullptr),
-      last_range(nullptr),
-      mrr_flags(mrr_flags),
-      mrr_buf_size(mrr_buf_size),
-      mrr_buf_desc(nullptr),
-      need_rows_in_rowid_order(need_rows_in_rowid_order),
-      reuse_handler(reuse_handler),
-      mem_root(return_mem_root),
-      m_expected_rows(expected_rows),
-      m_examined_rows(examined_rows) {
+      ranges{ranges_arg},
+      free_file{false},
+      cur_range{nullptr},
+      last_range{nullptr},
+      mrr_flags{mrr_flags},
+      mrr_buf_size{mrr_buf_size},
+      mrr_buf_desc{nullptr},
+      need_rows_in_rowid_order{need_rows_in_rowid_order},
+      reuse_handler{reuse_handler},
+      mem_root{return_mem_root},
+      m_expected_rows{expected_rows},
+      m_examined_rows{examined_rows} {
   DBUG_TRACE;
 
   in_ror_merged_scan = false;
@@ -233,11 +233,19 @@ bool IndexRangeScanIterator::Init() {
     // outside of the record. So don't request a buffer in this case, even
     // though the current read_set gives the impression that using a
     // record buffer would be fine.
-    const bool skip_record_buffer =
-        need_rows_in_rowid_order &&
-        Overlaps(table()->file->ha_table_flags(),
-                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
-        has_blob_primary_key(table());
+    bool skip_record_buffer = need_rows_in_rowid_order &&
+                              Overlaps(table()->file->ha_table_flags(),
+                                       HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
+                              has_blob_primary_key(table());
+    // Skip the record buffer for covering multi-valued index range scans.
+    // The current implementation of Field_typed_array::key_cmp() needs the
+    // value of the generated column for the indexed expression, and this
+    // column is not available in the multi-valued index, so the storage
+    // engine cannot safely evaluate the end range condition when filling the
+    // record buffer when it's a covering scan.
+    skip_record_buffer |=
+        Overlaps(table()->key_info[index].flags, HA_MULTI_VALUED_KEY) &&
+        table()->key_read;
     if (!skip_record_buffer) {
       if (set_record_buffer(table(), m_expected_rows)) {
         return true; /* purecov: inspected */

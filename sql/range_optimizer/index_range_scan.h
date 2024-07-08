@@ -99,7 +99,7 @@ class IndexRangeScanIterator : public RowIDCapableRowIterator {
  private:
   MEM_ROOT *mem_root;
   bool inited = false;
-  const bool m_expected_rows;
+  const double m_expected_rows;
   ha_rows *m_examined_rows;
 
   int cmp_next(QUICK_RANGE *range);
