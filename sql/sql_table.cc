@@ -1476,20 +1476,40 @@ bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, Table_ref *tables) {
   return false;
 }
 
-void Foreign_key_parents_invalidator::add(const char *db_name,
-                                          const char *table_name,
-                                          handlerton *hton) {
+void Foreign_key_parents_invalidator::add(
+    const char *db_name, const char *table_name, handlerton *hton,
+    enum_invalidation_type invalidation_type) {
   m_parent_map.insert(typename Parent_map::value_type(
-      typename Parent_map::key_type(db_name, table_name), hton));
+      typename Parent_map::key_type(db_name, table_name),
+      typename Parent_map::mapped_type(hton, invalidation_type)));
+}
+
+void Foreign_key_parents_invalidator::mark_for_reopen_if_added(
+    const char *db_name, const char *table_name) {
+  auto parent_it =
+      m_parent_map.find(typename Parent_map::key_type(db_name, table_name));
+  if (parent_it != m_parent_map.end()) {
+    parent_it->second.second =
+        enum_invalidation_type::INVALIDATE_AND_MARK_FOR_REOPEN;
+  }
 }
 
 void Foreign_key_parents_invalidator::invalidate(THD *thd) {
   for (auto parent_it : m_parent_map) {
-    // Invalidate Table and Table Definition Caches too.
-    mysql_ha_flush_table(thd, parent_it.first.first.c_str(),
-                         parent_it.first.second.c_str());
-    close_all_tables_for_name(thd, parent_it.first.first.c_str(),
-                              parent_it.first.second.c_str(), false);
+    if (parent_it.second.second ==
+        enum_invalidation_type::INVALIDATE_AND_CLOSE_TABLE) {
+      // Invalidate Table and Table Definition Caches too.
+      mysql_ha_flush_table(thd, parent_it.first.first.c_str(),
+                           parent_it.first.second.c_str());
+      close_all_tables_for_name(thd, parent_it.first.first.c_str(),
+                                parent_it.first.second.c_str(), false);
+    } else {
+      assert(parent_it.second.second ==
+             enum_invalidation_type::INVALIDATE_AND_MARK_FOR_REOPEN);
+      tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN,
+                       parent_it.first.first.c_str(),
+                       parent_it.first.second.c_str(), false);
+    }
 
     /*
       TODO: Should revisit the way we do invalidation to avoid
