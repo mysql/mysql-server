@@ -58,6 +58,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysql
   )
 
 ROUTER_ADD_SHARED_LIBRARY(router_cluster
+  cluster_aware_session.cc  
   cluster_metadata.cc
   cluster_metadata_instance_attributes.cc
   cluster_metadata_dynamic_state.cc

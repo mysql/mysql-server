@@ -23,7 +23,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "cluster_metadata.h"
+#include "mysqlrouter/cluster_metadata.h"
 
 #include <cstring>
 #include <stdexcept>
@@ -47,6 +47,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata_instance_attributes.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // strtoui_checked
 #include "mysqlrouter/utils_sqlstring.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
@@ -61,6 +62,7 @@ using namespace std::string_literals;
 using mysql_harness::EventStateTracker;
 using mysql_harness::get_from_map;
 using mysql_harness::logging::LogLevel;
+using mysqlrouter::MySQLSession;
 
 static constexpr const std::string_view kClusterSet{"clusterset"};
 static constexpr const std::string_view kCreateClusterUrl{
