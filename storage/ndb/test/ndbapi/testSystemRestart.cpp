@@ -2006,17 +2006,18 @@ int runBug27434(NDBT_Context *ctx, NDBT_Step *step) {
 int runBug29167(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   NdbRestarter restarter;
-  const Uint32 nodeCount = restarter.getNumDbNodes();
+  const Uint32 nodeGroupCount = restarter.getNumNodeGroups();
 
-  if (nodeCount < 4) return NDBT_SKIPPED;
+  if (nodeGroupCount < 2) {
+    g_info << "Bug29167 - Needs atleast 2 node group to test" << endl;
+    return NDBT_SKIPPED;
+  }
 
   struct ndb_logevent event;
   int master = restarter.getMasterNodeId();
   do {
     int node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
-    int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
-
-    ndbout_c("node1: %u node2: %u", node1, node2);
+    int node1_ng = restarter.getNodeGroup(node1);
 
     int val2[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
     restarter.dumpStateAllNodes(val2, 2);
@@ -2028,16 +2029,21 @@ int runBug29167(NDBT_Context *ctx, NDBT_Step *step) {
         ndb_mgm_create_logevent_handle(restarter.handle, filter);
 
     while (ndb_logevent_get_next(handle, &event, 0) >= 0 &&
-           event.type != NDB_LE_GlobalCheckpointCompleted)
-      ;
+           event.type != NDB_LE_GlobalCheckpointCompleted) {
+      ndbout_c("waiting GCP to complete");
+    }
 
     ndb_mgm_destroy_logevent_handle(&handle);
 
     CHECK(restarter.insertErrorInAllNodes(932) == 0);
 
-    CHECK(restarter.insertErrorInNode(node1, 7183) == 0);
-    CHECK(restarter.insertErrorInNode(node2, 7183) == 0);
-
+    for (int i = 0; i < restarter.getNumDbNodes(); i++) {
+      int node_id = restarter.getDbNodeId(i);
+      if (restarter.getNodeGroup(node_id) == node1_ng) {
+        ndbout_c("Insert error 7183 in node : %i", node_id);
+        CHECK(restarter.insertErrorInNode(node_id, 7183) == 0);
+      }
+    }
     const unsigned int timeout = 300;
     CHECK(restarter.waitClusterNoStart(timeout) == 0);
     restarter.startAll();
@@ -2046,6 +2052,7 @@ int runBug29167(NDBT_Context *ctx, NDBT_Step *step) {
 
   return result;
 }
+
 int runOneNodeWithCleanFilesystem(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   NdbRestarter restarter;
