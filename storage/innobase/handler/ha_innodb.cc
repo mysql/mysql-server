@@ -3552,34 +3552,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       break;
     }
 
-    THD *thd = current_thd;
-    auto &dc = *thd->dd_client();
-    bool data_directory_property_in_dd_missing = true;
-
-    if (Fil_path::has_suffix(IBD, dd_path) &&
-        !fsp_is_shared_tablespace(fsp_flags)) {
-      const auto components = dict_name::parse_tablespace_path(dd_path);
-      if (components.has_value()) {
-        const auto table_info = components.value();
-        dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
-        const dd::Table *dd_table = nullptr;
-
-        if (dc.acquire<dd::Table>(table_info.schema_name.c_str(),
-                                  table_info.table_name.c_str(), &dd_table)) {
-          ++m_n_errors;
-          break;
-        }
-
-        /* dd_table may not exist for some system tables */
-        if (dd_table) {
-          if (dd_table->se_private_data().exists(
-                  dd_table_key_strings[DD_TABLE_DATA_DIRECTORY])) {
-            data_directory_property_in_dd_missing = false;
-          }
-        }
-      }
-    }
-
     /* If the trunc log file is still around, this undo tablespace needs to be
     rebuilt now. */
     if (fsp_is_undo_tablespace(space_id)) {
@@ -3621,7 +3593,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Fil_state state = Fil_state::MATCHES;
 
     state = fil_tablespace_path_equals(space_id, space_name, fsp_flags, dd_path,
-                                       data_directory_property_in_dd_missing,
                                        &new_path);
 
     if (state == Fil_state::MATCHES) {
@@ -3634,20 +3605,25 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     bool file_name_changed = false;
     bool file_path_changed = (state == Fil_state::MOVED);
 
-    if (state == Fil_state::MATCHES || state == Fil_state::MOVED) {
+    if (state == Fil_state::MATCHES || state == Fil_state::MOVED ||
+        state == Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
       /* We need to update space name and table name for partitioned tables
       if letter case is different. */
       if (fil_update_partition_name(space_id, fsp_flags, true, space_str,
                                     new_path)) {
         file_name_changed = true;
-        state = Fil_state::MOVED;
+        if (state != Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+          state = Fil_state::MOVED;
+        }
       }
 
       /* Update DD if tablespace name is corrected. */
       if (space_str.compare(space_name) != 0) {
         old_space.assign(space_name);
         space_name = space_str.c_str();
-        state = Fil_state::MOVED;
+        if (state != Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+          state = Fil_state::MOVED;
+        }
       }
     }
 
@@ -3716,21 +3692,18 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         }
         break;
 
-      case Fil_state::MOVED_PREV:
+      case Fil_state::MOVED_PREV_OR_HAS_DATADIR:
         fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
                             new_path, true);
         ++m_n_moved;
 
-        if (m_n_moved == MOVED_FILES_PRINT_THRESHOLD) {
-          ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
+        if (!old_space.empty()) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CORRECTED, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), old_space.c_str(),
+                   space_name);
         }
 
-        if (m_n_moved < MOVED_FILES_PRINT_THRESHOLD) {
-          ib::info(ER_IB_MSG_FIL_STATE_MOVED_PREV, prefix.c_str(),
-                   static_cast<unsigned long long>(dd_tablespace->id()),
-                   static_cast<unsigned int>(space_id), space_name,
-                   new_path.c_str());
-        }
         break;
 
       case Fil_state::RENAMED:

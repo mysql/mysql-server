@@ -22,6 +22,15 @@
 #Table t6a: Covers scenario create partitioned table with data directory specification and alter table force but moving ibd files from external dir to default dir
 #Table t6b: Covers scenario create partitioned table with data directory specification and alter table force algo=inplace but moving ibd files from external dir to default dir
 #Table t6c: Covers scenario create partitioned table with data directory specification and alter table force algo=copy but moving ibd files from external dir to default dir
+#Table t7a: Covers scenario create non-partitioned table with data directory specification and move from external dir 1 to external dir 2 and alter table force
+#Table t7b: Covers scenario create non-partitioned table with data directory specification and move from external dir 1 to external dir 2 and alter table force algo=inplace
+#Table t7c: Covers scenario create non-partitioned table with data directory specification and move from external dir 1 to external dir 2 and alter table force algo=copy
+#Table t8a: Covers scenario create partitioned table with data directory clause and both partitions in different directories, move to default dir and alter table force
+#Table t8b: Covers scenario create partitioned table with data directory clause and both partitions in different directories, move to default dir and alter table force algo=inplace
+#Table t8c: Covers scenario create partitioned table with data directory clause and both partitions in different directories, move to default dir and alter table force algo=copy
+#Table t9a: Covers scenario create partitioned table without data directory clause but moving each partition to different external directories and alter table force
+#Table t9b: Covers scenario create partitioned table without data directory clause but moving each partition to different external directories and alter table force algo=inplace
+#Table t9c: Covers scenario create partitioned table without data directory clause but moving each partition to different external directories and alter table force algo=copy
 
 --echo # Set different paths for --datadir
 LET $MYSQLD_DATADIR = `select @@datadir`;
@@ -200,7 +209,7 @@ ALTER TABLE dbtest.t3c FORCE, ALGORITHM=COPY;
 
 --echo # Clean Up
 
---echo # Drop tables and database
+--echo # Drop tables
 DROP TABLE dbtest.t1a;
 DROP TABLE dbtest.t1b;
 DROP TABLE dbtest.t1c;
@@ -219,6 +228,193 @@ DROP TABLE dbtest.t5c;
 DROP TABLE dbtest.t6a;
 DROP TABLE dbtest.t6b;
 DROP TABLE dbtest.t6c;
+
+--echo # Clean up for other tests
+--remove_files_wildcard $INNODB_DIRECTORIES/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Additional test for tables with data directory clause
+
+--echo # Move non-partitioned table with data dir clause at EXTERNAL_DIR1 to EXTERNAL_DIR2
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t7a` (`c1` INT) $data_directory_clause;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t7b` (`c1` INT) $data_directory_clause;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t7c` (`c1` INT) $data_directory_clause;
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Check that the ibd files for t7a, t7b, t7c exist in EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Move files from EXTERNAL_DIR to EXTERNAL_DIR2
+--copy_files_wildcard $EXTERNAL_DIR/dbtest/ $EXTERNAL_DIR2/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR/dbtest/ *
+
+--echo # Check that the ibd files now exist in EXTERNAL_DIR2
+--list_files $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Restart the server
+--let $innodb_dirs=$EXTERNAL_DIR;$EXTERNAL_DIR2
+let restart_parameters = restart: --innodb-directories=$innodb_dirs;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/start_mysqld.inc
+
+--echo # Alter table
+ALTER TABLE dbtest.t7a FORCE;
+ALTER TABLE dbtest.t7b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t7c FORCE, ALGORITHM=COPY;
+
+--echo # Check that the ibd files for t7a, t7b, t7c still exist in EXTERNAL_DIR2
+--list_files $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Check that the ibd files for t7a, t7b, t7c do not exist in EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Clean up
+
+--echo # Drop tables
+DROP TABLE dbtest.t7a;
+DROP TABLE dbtest.t7b;
+DROP TABLE dbtest.t7c;
+
+--echo # Clean up for other tests
+--remove_files_wildcard $EXTERNAL_DIR/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR2/dbtest/ *
+
+
+--echo # Additional tests for partitioned tables
+
+--echo # 1. Creating partitioned table with data directory clause and both partitions in different directories
+--echo # Partition tables with data directory clause
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t8a` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) $data_directory_clause, PARTITION p1 VALUES LESS THAN (20) $data_directory_clause2);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t8b` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) $data_directory_clause, PARTITION p1 VALUES LESS THAN (20) $data_directory_clause2);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t8c` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) $data_directory_clause, PARTITION p1 VALUES LESS THAN (20) $data_directory_clause2);
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Check that for partition p0 for t8a, t8b, t8c exist in EXTERNAL_DIR and partition p1 for for t8a, t8b, t8c exist in EXTERNAL_DIR2
+
+--echo # Listing EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Listing EXTERNAL_DIR2
+--list_files $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Restart the server
+--let $innodb_dirs=$EXTERNAL_DIR;$EXTERNAL_DIR2
+let restart_parameters = restart: --innodb-directories=$innodb_dirs;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/start_mysqld.inc
+
+--echo # Alter table
+ALTER TABLE dbtest.t8a FORCE;
+ALTER TABLE dbtest.t8b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t8c FORCE, ALGORITHM=COPY;
+
+--echo # Check that for partition p0 for t8a, t8b, t8c still exist in EXTERNAL_DIR and partition p1 for for t8a, t8b, t8c still exist in EXTERNAL_DIR2
+
+--echo # Listing EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Listing EXTERNAL_DIR2
+--list_files $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Now lets move all partitioned tables p0 of t8a, t8b, t8c from EXTERNAL_DIR and partitioned tables p1 of t8a, t8b, t8c from EXTERNAL_DIR2 to default directory
+--copy_files_wildcard $EXTERNAL_DIR/dbtest/ $MYSQLD_DATADIR/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR/dbtest/ *
+--copy_files_wildcard $EXTERNAL_DIR2/dbtest/ $MYSQLD_DATADIR/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Restart the server
+--let $innodb_dirs=$EXTERNAL_DIR;$EXTERNAL_DIR2
+let restart_parameters = restart: --innodb-directories=$innodb_dirs;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/start_mysqld.inc
+
+--echo # Alter table
+ALTER TABLE dbtest.t8a FORCE;
+ALTER TABLE dbtest.t8b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t8c FORCE, ALGORITHM=COPY;
+
+--echo # Check that all the partitioned tables for t8a, t8b, t8c now exist in default directory
+--list_files $MYSQLD_DATADIR/dbtest *
+
+--echo # Check that EXTERNAL_DIR and EXTERNAL_DIR2 are empty
+--echo # Listing EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Listing EXTERNAL_DIR2
+--list_files $EXTERNAL_DIR2/dbtest/ *
+
+--echo # Drop tables
+DROP TABLE dbtest.t8a;
+DROP TABLE dbtest.t8b;
+DROP TABLE dbtest.t8c;
+
+--echo # Clean up for other tests
+--remove_files_wildcard $EXTERNAL_DIR/dbtest/ *
+--remove_files_wildcard $EXTERNAL_DIR2/dbtest/ *
+
+--echo # 2. Creating partitioned table without data directory clause but moving each partition to different external directories
+--echo # Partition tables
+CREATE TABLE `t9a` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+CREATE TABLE `t9b` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+CREATE TABLE `t9c` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Check that the ibd files for all p0 and p1 partitions of t9a, t9b, t9c  table exist in the working (dbtest) folder
+--list_files $MYSQLD_DATADIR/dbtest *
+
+--echo # Now move only p1 partitioned tables of t9a, t9b, t9c to EXTERNAL_DIR
+--copy_files_wildcard $MYSQLD_DATADIR/dbtest/ $EXTERNAL_DIR/dbtest/ t9a#p#p1.ibd
+--remove_files_wildcard $MYSQLD_DATADIR/dbtest/ t9a#p#p1.ibd
+--copy_files_wildcard $MYSQLD_DATADIR/dbtest/ $EXTERNAL_DIR/dbtest/ t9b#p#p1.ibd
+--remove_files_wildcard $MYSQLD_DATADIR/dbtest/ t9b#p#p1.ibd
+--copy_files_wildcard $MYSQLD_DATADIR/dbtest/ $EXTERNAL_DIR/dbtest/ t9c#p#p1.ibd
+--remove_files_wildcard $MYSQLD_DATADIR/dbtest/ t9c#p#p1.ibd
+
+--echo # Check that the ibd files for all p0 of t9a, t9b, t9c  table exist in the working (dbtest) folder
+--list_files $MYSQLD_DATADIR/dbtest *
+
+--echo # Check that the ibd files for all p1 of t9a, t9b, t9c  table exist in EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+--echo # Restart the server
+--let $innodb_dirs=$EXTERNAL_DIR
+let restart_parameters = restart: --innodb-directories=$innodb_dirs;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/start_mysqld.inc
+
+--echo # Alter table
+ALTER TABLE dbtest.t9a FORCE;
+ALTER TABLE dbtest.t9b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t9c FORCE, ALGORITHM=COPY;
+
+
+--echo # Check that the ibd files for all p0 of t9a, t9b, t9c  table still exist in the working (dbtest) folder
+--list_files $MYSQLD_DATADIR/dbtest *
+
+--echo # Check that the ibd files for all p1 of t9a, t9b, t9c  table still exist in EXTERNAL_DIR
+--list_files $EXTERNAL_DIR/dbtest/ *
+
+
+--echo # Drop tables and database
+DROP TABLE dbtest.t9a;
+DROP TABLE dbtest.t9b;
+DROP TABLE dbtest.t9c;
 DROP DATABASE dbtest;
 
 --let restart_parameters="restart: "
