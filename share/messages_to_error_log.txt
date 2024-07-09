@@ -12743,8 +12743,8 @@ ER_LOG_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE
 ER_DD_UPDATE_DATADIR_FLAG_FAIL
   eng "Failed to update data directory flag for dd table with tablespace id '%llu' when ibd file for '%s' is moved to new location '%s' during server shutdown"
 
-ER_IB_MSG_FIL_STATE_MOVED_PREV
-  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory, but DD misses info about DATA DIRECTORY"
+ER_IB_MSG_FIL_STATE_MOVED_PREV_OR_HAS_DATADIR
+  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory. It is either moved or is created with 'DATA DIRECTORY'"
 
 ER_LOAD_BULK_JSON_ERROR
   eng "Bulk CSV parser reports JSON error: %s at %zu"
