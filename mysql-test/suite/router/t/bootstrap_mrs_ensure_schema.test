@@ -1,0 +1,154 @@
+--source include/have_router_bootstrap.inc
+
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+--echo ################################################################################
+--echo # I. Bootstrap the MRS with no --mrs param expecting only creating of the schema
+--echo # II. Bootstrap the MRS with --mrs-ensure-metadata-schema param
+--echo #     while the shema LOCK is not available. Expect a proper error.
+--echo # III. Bootstrap the MRS with --mrs-ensure-metadata-schema param, expect
+--echo #      the schema to be created successfully
+--echo # IV. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+--echo #     compatible schema (3.0.0) already exists. It should not fail and give
+--echo #     a proper message.
+--echo # V. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+--echo #    compatible schema (2.2.0) already exists. It should not fail and give
+--echo #    a proper message.
+--echo # VI. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+--echo #     incompatible schema (1.1.0) already exists. It should fail and give
+--echo # VII. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+--echo #      incompatible schema (4.0.0) already exists. It should fail and give
+--echo #      a proper error message.
+--echo # VIII. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+--echo #       incompatible schema (0.0.0) already exists despite the md lock
+--echo #       being available. It should fail and give a proper error message
+--echo #       recommending using Shell to fix it.
+--echo # IX. Bootstrap the MRS with --mrs and --mrs-ensure-metadata-schema params
+--echo #     The schema already exists so we expect some warning but the bootstrap
+--echo #     should be ok.
+--echo ################################################################################
+
+--echo ################################################################################
+--echo I.
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema;
+
+--echo Check that the schema was created
+SELECT * FROM mysql_rest_service_metadata.schema_version;
+
+--echo Check that the schema lock is released after the bootstrap, take the lock
+SELECT GET_LOCK('MRS_METADATA_LOCK', 1);
+
+--echo ################################################################################
+--echo II.
+DROP DATABASE mysql_rest_service_metadata;
+
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   --mrs-ensure-metadata-schema 2>&1;
+
+--echo ################################################################################
+--echo III.
+SELECT RELEASE_LOCK('MRS_METADATA_LOCK');
+
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   --mrs-ensure-metadata-schema 2>&1;
+
+--echo ################################################################################
+--echo IV.
+SELECT RELEASE_LOCK('MRS_METADATA_LOCK');
+
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema;
+
+--echo ################################################################################
+--echo V.
+
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 2, 2, 0;
+
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema;
+
+--echo ################################################################################
+--echo VI.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 1, 0, 0;
+
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema;
+
+--echo ################################################################################
+--echo VII.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 4, 0, 0;
+
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema;
+
+--echo ################################################################################
+--echo VIII.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 0, 0, 0;
+
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema;
+
+--echo ################################################################################
+--echo IX.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 3, 0, 0;
+replace_regex
+   / Bootstrapping MySQL Router.* instance at '.*'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
+   /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/
+   /.*mysqlrouter.* -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/
+   /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
+   /- Adjusting permissions of generated files\n//
+   ;
+
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   --mrs --mrs-ensure-metadata-schema --mrs-global-secret something_important ;
+
+--replace_regex /=.*\/bootstrap_folder\/.*/=TEMP_DIR_FILE_OR_FOLDER//mysql_user=mysql_router_mrs1_.*/mysql_user=mysql_router_mrs1_RANDOM/ /user=mysql_router1_.*/user=mysql_router1_RANDOM/ /plugin_folder=.*/plugin_folder=ROUTER_PLUGIN_DIRECTORY/ /destinations=.*/destinations=ADDR:PORT/
+--cat_file $MYSQL_TMP_DIR/bootstrap_folder/mysqlrouter.conf
+
+################################################################################
+--echo # Cleanup
+--disable_query_log
+--disable_result_log
+--let $u1=`SELECT user from mysql.user WHERE user like "mysql_router_mrs1_%";`
+eval DROP USER $u1@'%';
+--enable_query_log
+--enable_result_log
+--force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
+
+--let $cleanup_arg_mrs_skip_service_disable=1
+--source ../include/mrs/cleanup.inc
+
+DROP USER 'admin'@'%';

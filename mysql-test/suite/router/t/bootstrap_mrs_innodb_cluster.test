@@ -1,23 +1,23 @@
 --source include/have_router_bootstrap.inc
 
 --source ../include/innodb_cluster/initialize_schema.inc
---source ../include/mrs/initialize_schema.inc
 --source ../include/innodb_cluster/fill_ar_single_node.inc
+--source ../include/mrs/initialize_schema.inc
 
 CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
 GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
 
-replace_regex 
+replace_regex
    / Bootstrapping MySQL Router.* instance at '.*'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
    /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/
    /.*mysqlrouter.* -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/
    /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
-   /- Adjusting permissions of generated files\n// 
+   /- Adjusting permissions of generated files\n//
    ;
 
-exec $MYSQLROUTER_BOOTSTRAP 
+exec $MYSQLROUTER_BOOTSTRAP
    --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
    -B admin:admin_pass@127.0.0.1:$port
    --directory $MYSQL_TMP_DIR/bootstrap_folder/

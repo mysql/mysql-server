@@ -51,6 +51,7 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/ranges.h"   // enumerate
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
@@ -1256,7 +1257,6 @@ class TestMetadataSchemaVersion : public mysqlrouter::MetadataSchemaVersion {
 
   bool new_executable;
 };
-
 
 static std::string to_string(const TestMetadataSchemaVersion &version) {
   const mysqlrouter::MetadataSchemaVersion &v = version;
@@ -4119,6 +4119,58 @@ TEST_P(CrossExeRouterBootstrapTest, BootstrapRemoveServerAddressesOption) {
   EXPECT_THAT(
       get_file_output(bs_dir + "/mysqlrouter.conf"),
       ::testing::Not(::testing::HasSubstr("bootstrap_server_addresses")));
+}
+
+class ClusterSetBootstrapMRSTest : public RouterBootstrapTest {
+ protected:
+  ProcessWrapper &launch_router_for_bootstrap(
+      std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
+      const bool disable_rest = true, const bool add_report_host = true) {
+    if (disable_rest) params.push_back("--disable-rest");
+    if (add_report_host) params.push_back("--report-host=dont.query.dns");
+    params.push_back("--conf-set-option=DEFAULT.plugin_folder=" +
+                     ProcessManager::get_plugin_dir().str());
+    return ProcessManager::launch_router_bootstrap(
+        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/std::chrono::seconds(-1),
+        RouterComponentBootstrapTest::kBootstrapOutputResponder);
+  }
+};
+
+/**
+ * @test
+ *       Checks that the Router correctly fails over to the writable node when
+ * Secondary node of the ReplicaSet is used is used  for
+ * `--mrs-ensure-metadata-schema`.
+ */
+TEST_F(ClusterSetBootstrapMRSTest,
+       EnsureSchemaFailoverReplicaSetSecondaryNode) {
+  const std::string tracefile =
+      get_data_dir().join("bootstrap_ar_mrs.js").str();
+  std::vector<uint16_t> classic_ports, http_ports;
+
+  for (size_t i = 0; i < 3; ++i) {
+    classic_ports.push_back(port_pool_.get_next_available());
+    http_ports.push_back(port_pool_.get_next_available());
+    launch_mysql_server_mock(tracefile, classic_ports.back(), EXIT_SUCCESS,
+                             false, http_ports.back());
+  }
+
+  for (const auto [id, http_port] : stdx::views::enumerate(http_ports)) {
+    set_mock_metadata(
+        http_port,
+        "00000000-0000-0000-0000-0000000000g" + std::to_string(id + 1),
+        classic_ports_to_gr_nodes(classic_ports), id,
+        classic_ports_to_cluster_nodes(classic_ports));
+  }
+
+  // use the Seconday node of the ReplicaSet in URI to force the failover
+  auto &router_bs = launch_router_for_bootstrap(
+      {"--bootstrap=root:"s + kRootPassword + "@localhost:"s +
+           std::to_string(classic_ports[2]),
+       "--logger.level=debug", "--mrs-ensure-metadata-schema"});
+
+  check_exit_code(router_bs, EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {

@@ -29,6 +29,7 @@
 #include <iostream>
 #include <map>
 
+#include "bootstrap_mrs_schema_creator.h"
 #include "bootstrap_mysql_account.h"
 #include "config_builder.h"
 #include "dim.h"
@@ -280,6 +281,19 @@ void BootstrapConfigurator::run() {
 
   // TODO add check for target here
 
+  if (bootstrap_mrs_ensure_schema_) {
+    bootstrapper_.assign_target_uri();
+    bootstrapper_.connect();
+    ensure_mrs_schema(bootstrapper_.session());
+    bootstrapper_.disconnect();
+    if (!bootstrap_mrs_) {
+      // --mrs-ensure-metadata-schema parameter was used but without --mrs
+      // That means we do not do real bootstrap, we only want to create
+      // MRS metadata shcema if needed and leave.
+      return;
+    }
+  }
+
   const auto config_overwrites = arg_handler_.get_config_overwrites();
   check_config_overwrites(config_overwrites);
 
@@ -298,6 +312,19 @@ void BootstrapConfigurator::run() {
   if (bootstrap_mrs_) {
     configure_mrs(bootstrapper_.session(), config_path);
   }
+}
+
+void BootstrapConfigurator::ensure_mrs_schema(
+    mysqlrouter::MySQLSession *session) {
+  std::cout << Vt100::foreground(Vt100::Color::Yellow)
+            << "# Ensuring `MRS` metadata schema exists..."
+            << Vt100::render(Vt100::Render::ForegroundDefault) << std::endl
+            << std::endl;
+
+  BootstrapMrsSchemaCreator(session, bootstrapper_.get_target_uri(),
+                            bootstrapper_.get_bootstrap_socket(),
+                            bootstrapper_.get_connect_timeout())
+      .run();
 }
 
 void BootstrapConfigurator::configure_mrs(mysqlrouter::MySQLSession *session,
@@ -402,6 +429,13 @@ void BootstrapConfigurator::prepare_command_options(
       "common to all MRS Router instances.",
       CmdOptionValueReq::required, "global-secret",
       [this](const std::string &secret) { mrs_secret_ = secret; });
+  arg_handler_.add_option(
+      OptionNames({"--mrs-ensure-metadata-schema"}),
+      "If there is no MRS metadata schema on the server create one. If there "
+      "is one with matching version do nothing. If there is one with different "
+      "version, error out.",
+      CmdOptionValueReq::none, "",
+      [this](const std::string &) { bootstrap_mrs_ensure_schema_ = true; });
 
   arg_handler_.add_option(
       OptionNames({"-V", "--version"}), "Display version information and exit.",
@@ -499,7 +533,7 @@ void BootstrapConfigurator::show_usage() noexcept {
         "--user"}},
       {"mrs",
        {"--mrs", "--mrs-mysql-metadata-account", "--mrs-mysql-data-account",
-        "--mrs-global-secret"}}};
+        "--mrs-global-secret", "--mrs-ensure-metadata-schema"}}};
 
   for (const auto &section : usage_sections) {
     for (auto line : arg_handler_.usage_lines_if(
@@ -659,7 +693,7 @@ void BootstrapConfigurator::check_mrs_metadata(
 
     auto version = q.query_version(session);
 
-    if (!version.is_compatible({{3}, {2, 2}})) {
+    if (!version.is_compatible(mrs::database::kCompatibleMrsMetadataVersions)) {
       std::stringstream ss;
       ss << "Unsupported MRS metadata version (" << version.str() << ")";
       throw std::runtime_error(ss.str());
@@ -667,7 +701,9 @@ void BootstrapConfigurator::check_mrs_metadata(
   } catch (const mysqlrouter::MySQLSession::Error &e) {
     if (e.code() == ER_BAD_DB_ERROR) {
       std::cout << "MySQL REST Service metadata was not found at the target "
-                   "MySQL server. Please deploy it before bootstrapping MRS.\n";
+                   "MySQL server. Please deploy it before bootstrapping MRS. "
+                   "You can use '--mrs-ensure-metadata-schema' parameter to "
+                   "create the metadata schema.\n";
       throw std::runtime_error("MRS metadata not found");
     } else {
       std::cout << "MRS metadata query returned error: " << e.code() << " "

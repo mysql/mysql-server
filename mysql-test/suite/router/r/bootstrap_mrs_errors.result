@@ -1,0 +1,55 @@
+Create an user for bootstrap
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+################################################################################
+# I. Bootstrap the MRS with --mrs-ensure-metadata-schema parameter with a value.
+#    It does not expect a value so the faliure is expected.
+# II. Bootstrap the MRS without the metadata schema. It should fail
+#     suggesting use of --mrs-ensure-metadata-schema param.
+# III. Bootstrap the MRS with --mrs-ensure-metadata-schema when the schema exists
+#      but there is not even a version table.
+#      Check that the Router suggest use of MySQLShell to repair the corrupted metadata
+################################################################################
+################################################################################
+I.
+Error: option '--mrs-ensure-metadata-schema' does not expect a value, but got a value
+################################################################################
+II.
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
+
+- Storing account in keyring
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the Standalone MySQL Server at 'localhost'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+$ mysqlrouter -c .../mysqlrouter.conf
+
+This Router instance can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+MySQL REST Service metadata was not found at the target MySQL server. Please deploy it before bootstrapping MRS. You can use '--mrs-ensure-metadata-schema' parameter to create the metadata schema.
+Error: MRS metadata not found
+################################################################################
+III.
+CREATE DATABASE mysql_rest_service_metadata;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+MRS metadata query returned error: 1146 Error executing MySQL query "SELECT `major`,`minor`,`patch` FROM mysql_rest_service_metadata.schema_version;": Table 'mysql_rest_service_metadata.schema_version' doesn't exist (1146). The MRS metadata schema appears to be invalid. Use MySQLShell to fix it.
+Error: Invalid MRS metadata
+################################################################################
+# Cleanup
+DROP DATABASE mysql_rest_service_metadata;
+DROP USER 'admin'@'%';

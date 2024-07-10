@@ -1,6 +1,7 @@
 # MySQL InnoDB Cluster schema created.
-# MySQL Rest Service schema created.
 # InnDBCluster `AR Single node setup` - created 
+Bootstrap the MRS with no --mrs param expecting only creating of the schema
+# MySQL Rest Service schema created.
 CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
 GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
@@ -157,6 +158,7 @@ DROP ROLE mysql_rest_service_schema_admin;
 DROP ROLE mysql_rest_service_meta_provider;
 DROP ROLE mysql_rest_service_data_provider;
 DROP ROLE mysql_rest_service_dev;
+DROP USER IF EXISTS 'bs_user';
 DROP SCHEMA mysql_innodb_cluster_metadata;
 DROP USER IF EXISTS 'mysqlrouter'@'%';
 Warnings:

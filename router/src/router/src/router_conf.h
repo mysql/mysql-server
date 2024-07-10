@@ -77,7 +77,12 @@ class MySQLRouterConf {
   }
 
  public:
+  void assign_target_uri();
+  mysqlrouter::URI get_target_uri() const { return target_uri_; }
+  std::string get_bootstrap_socket() const;
+  int get_connect_timeout() const;
   void connect();
+  void disconnect() { mysql_.release(); }
 
   mysqlrouter::MySQLSession *session() const { return mysql_.get(); }
 
@@ -146,9 +151,7 @@ class MySQLRouterConf {
    */
   void assert_bootstrap_mode(const std::string &option_name) const;
 
-  int get_connect_timeout() const;
   int get_read_timeout() const;
-  std::string get_bootstrap_socket() const;
 };
 
 class silent_exception : public std::exception {

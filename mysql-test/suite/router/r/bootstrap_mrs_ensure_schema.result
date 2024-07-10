@@ -1,0 +1,233 @@
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+################################################################################
+# I. Bootstrap the MRS with no --mrs param expecting only creating of the schema
+# II. Bootstrap the MRS with --mrs-ensure-metadata-schema param
+#     while the shema LOCK is not available. Expect a proper error.
+# III. Bootstrap the MRS with --mrs-ensure-metadata-schema param, expect
+#      the schema to be created successfully
+# IV. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+#     compatible schema (3.0.0) already exists. It should not fail and give
+#     a proper message.
+# V. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+#    compatible schema (2.2.0) already exists. It should not fail and give
+#    a proper message.
+# VI. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+#     incompatible schema (1.1.0) already exists. It should fail and give
+# VII. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+#      incompatible schema (4.0.0) already exists. It should fail and give
+#      a proper error message.
+# VIII. Bootstrap the MRS with --mrs-ensure-metadata-schema param, while the
+#       incompatible schema (0.0.0) already exists despite the md lock
+#       being available. It should fail and give a proper error message
+#       recommending using Shell to fix it.
+# IX. Bootstrap the MRS with --mrs and --mrs-ensure-metadata-schema params
+#     The schema already exists so we expect some warning but the bootstrap
+#     should be ok.
+################################################################################
+################################################################################
+I.
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Creating MRS metadata (version '3.0.0')...
+Successfully created MRS metadata.
+Check that the schema was created
+SELECT * FROM mysql_rest_service_metadata.schema_version;
+major	minor	patch
+3	0	0
+Check that the schema lock is released after the bootstrap, take the lock
+SELECT GET_LOCK('MRS_METADATA_LOCK', 1);
+GET_LOCK('MRS_METADATA_LOCK', 1)
+1
+################################################################################
+II.
+DROP DATABASE mysql_rest_service_metadata;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Error acquiring MRS_METADATA_LOCK: The lock is taken. Make sure there is no other proccess creating or upgrading the MRS metadata..
+Error: The lock is taken. Make sure there is no other proccess creating or upgrading the MRS metadata.
+################################################################################
+III.
+SELECT RELEASE_LOCK('MRS_METADATA_LOCK');
+RELEASE_LOCK('MRS_METADATA_LOCK')
+1
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Creating MRS metadata (version '3.0.0')...
+Successfully created MRS metadata.
+################################################################################
+IV.
+SELECT RELEASE_LOCK('MRS_METADATA_LOCK');
+RELEASE_LOCK('MRS_METADATA_LOCK')
+NULL
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Requested to create MRS metadata schema, schema with compatible version '3.0.0' already exists.
+The compatible versions are: 3.0.0, 2.2.0
+################################################################################
+V.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 2, 2, 0;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Requested to create MRS metadata schema, schema with compatible version '2.2.0' already exists.
+The compatible versions are: 3.0.0, 2.2.0
+################################################################################
+VI.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 1, 0, 0;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Requested to create MRS metadata schema, schema with incompatible version '1.0.0' already exists.
+The compatible versions are: 3.0.0, 2.2.0
+################################################################################
+VII.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 4, 0, 0;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Requested to create MRS metadata schema, schema with incompatible version '4.0.0' already exists.
+The compatible versions are: 3.0.0, 2.2.0
+################################################################################
+VIII.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 0, 0, 0;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+MRS metadata version is: 0.0.0 but the MRS_METADATA_LOCK is available. The MRS metadata schema appears to be invalid. Use MySQLShell to fix it.
+################################################################################
+IX.
+DROP VIEW mysql_rest_service_metadata.schema_version;
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW mysql_rest_service_metadata.schema_version (major, minor, patch) AS SELECT 3, 0, 0;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Requested to create MRS metadata schema, schema with compatible version '3.0.0' already exists.
+The compatible versions are: 3.0.0, 2.2.0
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
+
+- Storing account in keyring
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the Standalone MySQL Server at 'localhost'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+$ mysqlrouter -c .../mysqlrouter.conf
+
+This Router instance can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+[33m# Configuring `MRS` plugin...[39m
+
+- Registering metadata
+- Creating account(s) (only those that are needed, if any)
+- Storing account in keyring
+- Adjusting configuration file .../mysqlrouter.conf
+
+Once the MySQL Router is started, the MySQL REST Service can be reached at
+    https://localhost:8443/<service-name>
+# File automatically generated during MySQL Router bootstrap
+[DEFAULT]
+logging_folder=TEMP_DIR_FILE_OR_FOLDER
+runtime_folder=TEMP_DIR_FILE_OR_FOLDER
+data_folder=TEMP_DIR_FILE_OR_FOLDER
+keyring_path=TEMP_DIR_FILE_OR_FOLDER
+master_key_path=TEMP_DIR_FILE_OR_FOLDER
+dynamic_state=TEMP_DIR_FILE_OR_FOLDER
+client_ssl_cert=TEMP_DIR_FILE_OR_FOLDER
+client_ssl_key=TEMP_DIR_FILE_OR_FOLDER
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+server_ssl_verify=DISABLED
+unknown_config_option=error
+max_idle_server_connections=64
+router_require_enforce=1
+plugin_folder=ROUTER_PLUGIN_DIRECTORY
+
+[logger]
+level=info
+
+[routing:bootstrap_rw]
+bind_address=0.0.0.0
+bind_port=6446
+destinations=ADDR:PORT
+routing_strategy=first-available
+protocol=classic
+router_require_enforce=0
+
+[routing:bootstrap_ro]
+bind_address=0.0.0.0
+bind_port=6447
+destinations=ADDR:PORT
+routing_strategy=round-robin
+protocol=classic
+router_require_enforce=0
+
+[routing:bootstrap_x_rw]
+bind_address=0.0.0.0
+bind_port=6448
+destinations=ADDR:PORT
+routing_strategy=first-available
+protocol=x
+router_require_enforce=0
+
+[routing:bootstrap_x_ro]
+bind_address=0.0.0.0
+bind_port=6449
+destinations=ADDR:PORT
+routing_strategy=round-robin
+protocol=x
+router_require_enforce=0
+
+[http_server]
+port=8443
+ssl=1
+ssl_cert=TEMP_DIR_FILE_OR_FOLDER
+ssl_key=TEMP_DIR_FILE_OR_FOLDER
+
+[http_auth_realm:default_auth_realm]
+backend=default_auth_backend
+method=basic
+name=default_realm
+
+[rest_router]
+require_realm=default_auth_realm
+
+[rest_api]
+
+[http_auth_backend:default_auth_backend]
+backend=file
+filename=TEMP_DIR_FILE_OR_FOLDER
+
+[rest_routing]
+require_realm=default_auth_realm
+
+[mysql_rest_service]
+mysql_read_only_route=bootstrap_ro
+mysql_read_write_route=bootstrap_rw
+mysql_user=mysql_router_mrs1_RANDOM
+mysql_user_data_access=
+router_id=1
+
+# Cleanup
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+DROP USER IF EXISTS 'bs_user';
+Warnings:
+Note	3162	Authorization ID 'bs_user'@'%' does not exist.
+DROP USER 'admin'@'%';

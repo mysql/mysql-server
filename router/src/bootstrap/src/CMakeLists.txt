@@ -23,6 +23,7 @@
 MYSQL_ADD_EXECUTABLE(mysqlrouter_bootstrap
   bootstrap_configurator.cc
   bootstrap_mysql_account.cc
+  bootstrap_mrs_schema_creator.cc
   main.cc
   COMPONENT Router
   LINK_LIBRARIES
@@ -32,6 +33,8 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_bootstrap
   mysql_rest_service_if
   mysql_rest_service_db
   ${CMAKE_DL_LIBS}
+  DEPENDENCIES
+  RouterMrsMetadataSchema
   )
 TARGET_INCLUDE_DIRECTORIES(mysqlrouter_bootstrap
   PUBLIC
@@ -39,6 +42,7 @@ TARGET_INCLUDE_DIRECTORIES(mysqlrouter_bootstrap
   ${CMAKE_CURRENT_SOURCE_DIR}/../../http/include
   ${CMAKE_CURRENT_SOURCE_DIR}/../../metadata_cache/include
   ${CMAKE_CURRENT_SOURCE_DIR}/../../router/src
+  ${CMAKE_CURRENT_BINARY_DIR}/../../mysql_rest_service/scripts
   )
 
 ADD_INSTALL_RPATH(mysqlrouter_bootstrap "${ROUTER_INSTALL_RPATH}")

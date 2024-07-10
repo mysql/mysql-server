@@ -1,0 +1,57 @@
+--source include/have_router_bootstrap.inc
+
+--echo Create an user for bootstrap
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+--echo ################################################################################
+--echo # I. Bootstrap the MRS with --mrs-ensure-metadata-schema parameter with a value.
+--echo #    It does not expect a value so the faliure is expected.
+--echo # II. Bootstrap the MRS without the metadata schema. It should fail
+--echo #     suggesting use of --mrs-ensure-metadata-schema param.
+--echo # III. Bootstrap the MRS with --mrs-ensure-metadata-schema when the schema exists
+--echo #      but there is not even a version table.
+--echo #      Check that the Router suggest use of MySQLShell to repair the corrupted metadata
+--echo ################################################################################
+
+--echo ################################################################################
+--echo I.
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT
+   --mrs-ensure-metadata-schema=1 2>&1;
+
+--echo ################################################################################
+--echo II.
+replace_regex
+   / Bootstrapping MySQL Router.* instance at '.*'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
+   /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/
+   /.*mysqlrouter.* -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/
+   /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
+   /- Adjusting permissions of generated files\n//
+   ;
+
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT --mrs 2>&1;
+
+--echo ################################################################################
+--echo III.
+CREATE DATABASE mysql_rest_service_metadata;
+
+--error 1,2,256
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   --mrs-ensure-metadata-schema
+   -B admin:admin_pass@127.0.0.1:$MASTER_MYPORT --mrs 2>&1;
+
+--echo ################################################################################
+--echo # Cleanup
+DROP DATABASE mysql_rest_service_metadata;
+--force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
+DROP USER 'admin'@'%';

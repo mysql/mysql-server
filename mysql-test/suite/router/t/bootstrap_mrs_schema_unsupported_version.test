@@ -1,12 +1,13 @@
 --source include/have_router_bootstrap.inc
 
 --source ../include/innodb_cluster/initialize_schema.inc
---source ../include/mrs/initialize_schema.inc
 --source ../include/innodb_cluster/fill_ar_single_node.inc
+--source ../include/mrs/initialize_schema.inc
 
 CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
 GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
+
 
 --let $mrs_schema_version=1,0,12
 --source ../include/test/bootstrap_mrs_schema_version.inc

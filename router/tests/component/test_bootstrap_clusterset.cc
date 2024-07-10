@@ -1171,6 +1171,68 @@ TEST_F(RouterClusterSetBootstrapTest, ConfigExposedInMetadata) {
                public_configuration_defaults_in_md.c_str());
 }
 
+class ClusterSetBootstrapMRSTest : public RouterClusterSetBootstrapTest {
+ protected:
+  ProcessWrapper &launch_router_for_bootstrap(
+      std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
+      const bool disable_rest = true, const bool add_report_host = true) {
+    if (disable_rest) params.push_back("--disable-rest");
+    if (add_report_host) params.push_back("--report-host=dont.query.dns");
+    params.push_back("--conf-set-option=DEFAULT.plugin_folder=" +
+                     ProcessManager::get_plugin_dir().str());
+    return ProcessManager::launch_router_bootstrap(
+        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/std::chrono::seconds(-1),
+        RouterComponentBootstrapTest::kBootstrapOutputResponder);
+  }
+};
+
+/**
+ * @test
+ *       Checks that the Router correctly fails over to the writable node when
+ * Secondary node of the Primary cluster is used is used  for
+ * `--mrs-ensure-metadata-schema`.
+ */
+TEST_F(ClusterSetBootstrapMRSTest,
+       EnsureSchemaFailoverPrimaryClusterSecondaryNode) {
+  ClusterSetOptions cs_options;
+  cs_options.tracefile = "bootstrap_clusterset_mrs.js";
+  create_clusterset(cs_options);
+
+  std::vector<std::string> bootstrap_params{
+      "--bootstrap=127.0.0.1:" +
+          std::to_string(cs_options.topology.clusters[0].nodes[1].classic_port),
+      "--mrs-ensure-metadata-schema"};
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
+
+  EXPECT_NO_THROW(router.wait_for_exit());
+  check_exit_code(router, EXIT_SUCCESS);
+}
+
+/**
+ * @test
+ *       Checks that the Router correctly fails over to the writable node when
+ * Primary node of the Secondary cluster is used is used  for
+ * `--mrs-ensure-metadata-schema`.
+ */
+TEST_F(ClusterSetBootstrapMRSTest,
+       EnsureSchemaFailoverSecondaryClusterPrimaryNode) {
+  ClusterSetOptions cs_options;
+  cs_options.tracefile = "bootstrap_clusterset_mrs.js";
+  create_clusterset(cs_options);
+
+  std::vector<std::string> bootstrap_params{
+      "--bootstrap=127.0.0.1:" +
+          std::to_string(cs_options.topology.clusters[1].nodes[0].classic_port),
+      "--mrs-ensure-metadata-schema"};
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
+
+  EXPECT_NO_THROW(router.wait_for_exit());
+  check_exit_code(router, EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());

@@ -1,0 +1,61 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+# MySQL InnoDB Cluster schema created.
+# MySQL Router metadata user created.
+# * insert three R/W nodes into MySQL InnoDB Cluster.
+include/rpl/sync.inc
+Create an user for bootstrap
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+I. Bootstrap the MRS with --mrs-ensure-metadata-schema parameter and no --mrs
+The expectation is that only schema gets created.
+Use the Primary node port, the Router should create the schema successfully.
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Creating MRS metadata (version '3.0.0')...
+Successfully created MRS metadata.
+Check that the schema was created
+SELECT * FROM mysql_rest_service_metadata.schema_version;
+major	minor	patch
+3	0	0
+II. Bootstrap the MRS with --mrs-ensure-metadata-schema parameter and no --mrs
+The expectation is that only schema gets created.
+Use the Secondary node port, the Router should failover to the primary and
+create the schema successfully.
+DROP DATABASE mysql_rest_service_metadata;
+[33m# Ensuring `MRS` metadata schema exists...[39m
+
+Creating MRS metadata (version '3.0.0')...
+Creating MRS metadata (version '3.0.0')...
+Successfully created MRS metadata.
+Check that the schema was created
+SELECT * FROM mysql_rest_service_metadata.schema_version;
+major	minor	patch
+3	0	0
+Cleanup
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+DROP USER IF EXISTS 'bs_user';
+Warnings:
+Note	3162	Authorization ID 'bs_user'@'%' does not exist.
+DROP SCHEMA mysql_innodb_cluster_metadata;
+DROP USER IF EXISTS 'mysqlrouter'@'%';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'admin';
+DROP USER 'admin';
+include/rpl/sync.inc
+include/group_replication_end.inc

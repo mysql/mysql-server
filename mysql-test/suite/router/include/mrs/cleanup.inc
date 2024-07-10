@@ -47,6 +47,7 @@ DROP ROLE mysql_rest_service_schema_admin;
 DROP ROLE mysql_rest_service_meta_provider;
 DROP ROLE mysql_rest_service_data_provider;
 DROP ROLE mysql_rest_service_dev;
+DROP USER IF EXISTS 'bs_user';
 
 if ($router_config_to_remove1)
 {

@@ -19,7 +19,13 @@ if ($ROUTER_MRS_SCHEMA)
 
 if ($mrs_schema_version == 3)
 {
-  --source ../schema/mrs_metadata_schema.sql
+  --echo Bootstrap the MRS with no --mrs param expecting only creating of the schema
+  CREATE USER 'bs_user'@'%' IDENTIFIED BY 'bs_pass';
+  GRANT ALL PRIVILEGES ON *.* TO 'bs_user'@'%' WITH GRANT OPTION;
+  FLUSH PRIVILEGES;
+  exec $MYSQLROUTER_BOOTSTRAP
+    -B bs_user:bs_pass@127.0.0.1:$MASTER_MYPORT
+    --mrs-ensure-metadata-schema;  
   --let $_mrs_schema_version_supported=1
 }
 

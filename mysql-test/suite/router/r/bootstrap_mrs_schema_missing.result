@@ -1,0 +1,32 @@
+Create an user for bootstrap
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+Bootstrap the MRS without --mrs-ensure-metadata-schema parameter.
+There schema is missing so we expect an error
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
+
+- Storing account in keyring
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the Standalone MySQL Server at 'localhost'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+$ mysqlrouter -c .../mysqlrouter.conf
+
+This Router instance can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+MySQL REST Service metadata was not found at the target MySQL server. Please deploy it before bootstrapping MRS. You can use '--mrs-ensure-metadata-schema' parameter to create the metadata schema.
+DROP USER 'admin'@'%';
