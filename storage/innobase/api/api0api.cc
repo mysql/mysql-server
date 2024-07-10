@@ -1642,10 +1642,8 @@ ib_err_t ib_cursor_read_row(
       bool page_format = dict_table_is_comp(tuple->index->table);
       rec = pcur->get_rec();
 
-      if (!rec_get_deleted_flag(rec, page_format)) {
-        if (prebuilt->innodb_api && prebuilt->innodb_api_rec != nullptr) {
-          rec = prebuilt->innodb_api_rec;
-        }
+      if (prebuilt->innodb_api && prebuilt->innodb_api_rec != nullptr) {
+        rec = prebuilt->innodb_api_rec;
       }
 
       if (!rec_get_deleted_flag(rec, page_format)) {
