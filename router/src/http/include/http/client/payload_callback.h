@@ -37,6 +37,7 @@ class HTTP_CLIENT_EXPORT PayloadCallback {
  public:
   virtual ~PayloadCallback();
 
+  virtual void on_connection_ready() = 0;
   virtual void on_input_payload(const char *data, size_t size) = 0;
   virtual void on_input_begin(int status_code,
                               const std::string &status_text) = 0;

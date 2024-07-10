@@ -23,6 +23,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <functional>
+#include <iostream>
+#include <system_error>  // error_code
 #include <utility>
 
 #include "http/base/uri.h"
@@ -38,9 +41,28 @@
 namespace http {
 namespace client {
 
-using Socket =
-    net::ip::tcp::socket;  // TraceStream<ConsoleOut, net::ip::tcp::socket>;
-using TlsSocket = net::tls::TlsStream<net::ip::tcp::socket>;
+const std::string k_http = "http";
+const std::string k_https = "https";
+
+class ConsoleRawOut {
+ public:
+  static std::ostream *get_out() { return &std::cout; }
+  static const char *get_name() { return "RAW"; }
+};
+
+class ConsoleSocketOut {
+ public:
+  static std::ostream *get_out() { return &std::cout; }
+  static const char *get_name() { return "SOCK"; }
+};
+
+using Socket =  // Choose one of following.
+    net::ip::tcp::socket;
+//    TraceStream<ConsoleRawOut, net::ip::tcp::socket>;
+using TlsSocket =  // Choose one of following.
+    net::tls::TlsStream<net::ip::tcp::socket>;
+// TraceStream<ConsoleRawOut, net::tls::TlsStream<TraceStream<
+//                                ConsoleSocketOut, net::ip::tcp::socket>>>;
 using ConnectionTls = http::client::Connection<TlsSocket>;
 using ConnectionRaw = http::client::Connection<Socket>;
 
@@ -51,16 +73,14 @@ struct ConfigSchema {
   uint16_t port;
 };
 
-// Placeholder for other definition of Socket, which uses TraceStream.
-//
-// struct ConsoleOut {
-//  static std::ostream *get_out() { return &std::cout; }
-//  static const char *get_name() { return "HttpClient"; }
-//};
+using TlsHandshakeCallback =
+    std::function<void(const std::error_code &ec, const size_t no_of_bytes)>;
+using TlsHandshakeExecute = std::function<void(TlsHandshakeCallback)>;
 
 struct Connection {
   net::ip::tcp::socket *socket;
   std::unique_ptr<http::base::ConnectionInterface> connection;
+  TlsHandshakeExecute tls_handshake_execute;
 };
 
 static void headers_add_if_not_present(http::base::Headers *h, const char *key,
@@ -78,8 +98,6 @@ V value_or(V value_users, V value_default) {
 }
 
 static Client::Endpoint get_endpoint_from(const http::base::Uri &url) {
-  static const std::string k_http = "http";
-  static const std::string k_https = "https";
   static const std::map<std::string, impl::ConfigSchema> k_protocol_ports{
       {k_http, {false, 80}}, {k_https, {true, 8080}}};
   Client::Endpoint result;
@@ -135,26 +153,28 @@ static const std::string &get_method_as_string(
 // To workaround the mentioned limitations, here we use it
 // as templated type.
 template <typename ConnectionStatusCallback>
-impl::Connection create_connection_object(net::io_context &io_context,
-                                          bool is_tls,
-                                          TlsClientContext *tls_context,
-                                          ConnectionStatusCallback *ccs,
-                                          PayloadCallback *obj) {
+impl::Connection create_connection_object(
+    net::io_context &io_context, bool is_tls, TlsClientContext *tls_context,
+    ConnectionStatusCallback *ccs, PayloadCallback *obj, bool use_http2) {
   impl::Connection result;
 
   if (is_tls) {
     auto conn = std::make_unique<ConnectionTls>(
         TlsSocket{tls_context, net::ip::tcp::socket{io_context}}, nullptr, ccs,
-        obj);
+        obj, use_http2);
 
+    result.tls_handshake_execute = [con = conn.get()](
+                                       TlsHandshakeCallback callback) {
+      con->get_socket().async_handshake(net::tls::kClient, std::move(callback));
+    };
     result.socket = http::base::impl::get_socket(&conn->get_socket());
     result.connection = std::move(conn);
 
     return result;
   }
 
-  auto conn =
-      std::make_unique<ConnectionRaw>(Socket{io_context}, nullptr, ccs, obj);
+  auto conn = std::make_unique<ConnectionRaw>(Socket{io_context}, nullptr, ccs,
+                                              obj, use_http2);
   result.socket = http::base::impl::get_socket(&conn->get_socket());
   result.connection = std::move(conn);
 
@@ -173,6 +193,7 @@ class Client::CallbacksPrivateImpl
   explicit CallbacksPrivateImpl(Client *client) : parent_{client} {}
 
  public:  // PayloadCallback
+  void on_connection_ready() override;
   void on_input_payload(const char *data, size_t size) override;
   void on_input_begin(int status_code, const std::string &status_text) override;
   void on_input_end() override;
@@ -193,14 +214,17 @@ class Client::CallbacksPrivateImpl
   Client *parent_;
 };
 
-Client::Client(io_context &io_context, TlsClientContext &&tls_context)
+Client::Client(io_context &io_context, TlsClientContext &&tls_context,
+               bool use_http2)
     : io_context_{io_context},
       tls_context_{std::move(tls_context)},
-      callbacks_{std::make_unique<CallbacksPrivateImpl>(this)} {}
+      callbacks_{std::make_unique<CallbacksPrivateImpl>(this)},
+      use_http2_{use_http2} {}
 
-Client::Client(io_context &io_context)
+Client::Client(io_context &io_context, const bool use_http2)
     : io_context_{io_context},
-      callbacks_{std::make_unique<CallbacksPrivateImpl>(this)} {}
+      callbacks_{std::make_unique<CallbacksPrivateImpl>(this)},
+      use_http2_{use_http2} {}
 
 Client::~Client() = default;
 
@@ -225,6 +249,17 @@ void Client::async_send_request(http::client::Request *request) {
     impl::headers_add_if_not_present(
         &headers, "User-Agent", "router-http-client/" MYSQL_ROUTER_VERSION);
     impl::headers_add_if_not_present(&headers, "Accept", "*/*");
+
+    if (use_http2_) {
+      // Pseudo headers must be at start of Header block.
+      const std::string_view k_scheme_key_name{":scheme"};
+      auto scheme_value = impl::value_or(url.get_scheme(), k_http);
+      if (!headers.find(k_scheme_key_name)) {
+        headers.insert(headers.begin(), k_scheme_key_name,
+                       std::move(scheme_value));
+      }
+    }
+
     fill_request_by_callback_ = request;
 
     if (!is_connected_ || endpoint != connected_endpoint_) {
@@ -238,7 +273,7 @@ void Client::async_send_request(http::client::Request *request) {
 
       auto connection_objects = impl::create_connection_object(
           io_context_, endpoint.is_tls, &tls_context_, callbacks_.get(),
-          callbacks_.get());
+          callbacks_.get(), use_http2_);
 
       auto connect = [&resolve_result,
                       &socket = connection_objects.socket]() -> bool {
@@ -257,21 +292,48 @@ void Client::async_send_request(http::client::Request *request) {
       if (endpoint.is_tls) statistics_.connected_tls++;
       connected_endpoint_ = endpoint;
       connection_ = std::move(connection_objects.connection);
+      is_connected_ = true;
+
+      if (endpoint.is_tls) {
+        connection_objects.tls_handshake_execute(
+            [this](const std::error_code &ec,
+                   [[maybe_unused]] const size_t no_of_bytes) {
+              if (!ec) {
+                start_http_flow();
+              } else {
+                is_connected_ = false;
+                error_code_ = ec;
+                fill_request_by_callback_->holder_->status_text =
+                    error_code_.message();
+                fill_request_by_callback_->holder_->status = -1;
+              }
+            });
+        return;
+      }
     } else {
       statistics_.reused++;
     }
-    is_connected_ = true;
 
-    const auto &method = impl::get_method_as_string(request->get_method());
-
-    connection_->send(nullptr, 0, method, url.join_path(),
-                      request->get_output_headers(),
-                      request->get_output_buffer());
+    start_http_flow();
   } catch (const std::error_code &e) {
     is_connected_ = false;
     error_code_ = e;
     request->holder_->status_text = error_code_.message();
     request->holder_->status = -1;
+  }
+}
+
+void Client::start_http_flow() {
+  if (!use_http2_) {
+    auto request = fill_request_by_callback_;
+    const auto &url = request->get_uri();
+    const auto &method = impl::get_method_as_string(request->get_method());
+    connection_->send(nullptr, 0, method, url.join_path(),
+                      request->get_output_headers(),
+                      request->get_output_buffer());
+  } else {
+    // Wait for "HTTP2 setting" exchange before sending the http request.
+    connection_->start();
   }
 }
 
@@ -316,13 +378,22 @@ void Client::CallbacksPrivateImpl::on_input_end() {
 }
 
 void Client::CallbacksPrivateImpl::on_output_end_payload() {
-  parent_->connection_->start();
+  if (!parent_->use_http2_) parent_->connection_->start();
 }
 
 void Client::CallbacksPrivateImpl::on_input_header(std::string &&key,
                                                    std::string &&value) {
   parent_->fill_request_by_callback_->holder_->headers_input.add(
       std::move(key), std::move(value));
+}
+
+void Client::CallbacksPrivateImpl::on_connection_ready() {
+  auto request = parent_->fill_request_by_callback_;
+  const auto &url = request->get_uri();
+  const auto &method = impl::get_method_as_string(request->get_method());
+  parent_->connection_->send(nullptr, 0, method, url.join_path(),
+                             request->get_output_headers(),
+                             request->get_output_buffer());
 }
 
 void Client::CallbacksPrivateImpl::on_input_payload(const char *data,
@@ -341,7 +412,7 @@ void Client::CallbacksPrivateImpl::on_connection_io_error(
     [[maybe_unused]] ConnectionTls::Parent *connection,
     const std::error_code &ec) {
   parent_->error_code_ = ec;
-  // Fill the backward compatible error retrival.
+  // Fill the backward compatible error retrieval.
   if (parent_->fill_request_by_callback_) {
     auto *holder = parent_->fill_request_by_callback_->holder_.get();
     holder->status_text = ec.message();

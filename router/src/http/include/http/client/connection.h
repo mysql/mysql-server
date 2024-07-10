@@ -49,12 +49,45 @@ class HTTP_CLIENT_EXPORT Connection : public http::base::Connection<IOLayer> {
  public:
   Connection(IOLayer s, base::method::Bitset *allowed_method,
              ConnectionStatusCallbacks *connection_handler,
-             PayloadCallback *payload_callback)
+             PayloadCallback *payload_callback, bool use_http2)
       : Parent::Connection(std::move(s), allowed_method, connection_handler,
-                           CNO_CONNECTION_KIND::CNO_CLIENT),
-        payload_{payload_callback} {}
+                           CNO_CONNECTION_KIND::CNO_CLIENT,
+                           use_http2 ? CNO_HTTP2 : CNO_HTTP1),
+        payload_{payload_callback},
+        /* Please note that http11 client doesn't
+           need those settings. */
+        initial_settings_received_{use_http2 ? false : true} {}
+
+  void start() override {
+    Parent::do_net_recv();
+    bool has_data = false;
+    if (!initial_settings_received_) {
+      std::unique_lock<std::mutex> lock(Parent::output_buffer_mutex_);
+
+      for (const auto &buffer : Parent::output_buffers_) {
+        if (buffer.size() > 0) {
+          has_data = true;
+          break;
+        }
+      }
+
+      if (!Parent::output_pending_ && has_data) {
+        Parent::output_pending_ = true;
+      }
+    }
+
+    if (has_data) Parent::do_net_send();
+  }
 
  public:  // override CnoInterface
+  int on_settings() override {
+    if (!initial_settings_received_) {
+      initial_settings_received_ = true;
+      payload_->on_connection_ready();
+    }
+    return 0;
+  }
+
   int on_cno_message_body([[maybe_unused]] const uint32_t session_id,
                           const char *data, const size_t size) override {
     payload_->on_input_payload(data, size);
@@ -65,6 +98,7 @@ class HTTP_CLIENT_EXPORT Connection : public http::base::Connection<IOLayer> {
                           [[maybe_unused]] const cno_tail_t *tail) override {
     Parent::suspend();
     payload_->on_input_end();
+    response_received_ = true;
 
     return 0;
   }
@@ -73,11 +107,15 @@ class HTTP_CLIENT_EXPORT Connection : public http::base::Connection<IOLayer> {
             const std::string &method, const std::string &path,
             const Headers &headers, const IOBuffer &data) override {
     Parent::resume();
+    response_received_ = false;
     return Parent::send(stream_id_ptr, status_code, method, path, headers,
                         data);
   }
 
   int on_cno_stream_end([[maybe_unused]] const uint32_t id) override {
+    if (!response_received_) {
+      return 1;
+    }
     return 0;
   }
 
@@ -102,6 +140,8 @@ class HTTP_CLIENT_EXPORT Connection : public http::base::Connection<IOLayer> {
 
  public:
   PayloadCallback *payload_;
+  bool initial_settings_received_;
+  bool response_received_{false};
 };
 
 }  // namespace client

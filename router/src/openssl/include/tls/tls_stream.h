@@ -41,6 +41,8 @@
 namespace net {
 namespace tls {
 
+enum HandshakeType { kClient, kServer };
+
 template <typename LowerLayer>
 class TlsStream : private TlsBase<LowerLayer> {
  public:
@@ -71,7 +73,7 @@ class TlsStream : private TlsBase<LowerLayer> {
   auto connect(const endpoint_type &endpoint) {
     // The call might initialize SSL handshake.
     // Current implementation is sufficient.
-    lower_layer().connect(endpoint);
+    return lower_layer().connect(endpoint);
   }
 
   template <class CompletionToken>
@@ -79,6 +81,20 @@ class TlsStream : private TlsBase<LowerLayer> {
     // The call might initialize SSL handshake.
     // Current implementation is sufficient.
     lower_layer().async_connect(endpoint, std::forward<CompletionToken>(token));
+  }
+
+  template <class CompletionToken>
+  auto async_handshake(HandshakeType type, CompletionToken &&token) {
+    if (type == kServer) {
+      assert(false && "Server handshake is not supported.");
+      return;
+    }
+
+    SslIoCompletionToken<SslHandshakeClientOperation, net::mutable_buffer,
+                         CompletionToken, Parent>
+        io_token(*this, {}, token);
+
+    io_token.do_it();
   }
 
   template <class MutableBufferSequence, class CompletionToken>

@@ -53,6 +53,8 @@ class HTTP_COMMON_EXPORT Headers {
   using CIterator = Map::const_iterator;
 
   virtual void add(const std::string_view &key, std::string &&value);
+  virtual void insert(Iterator it, const std::string_view &key,
+                      std::string &&value);
 
   virtual const std::string *find(const std::string_view &) const;
   virtual const char *find_cstr(const char *) const;
