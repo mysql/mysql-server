@@ -58,6 +58,10 @@ class TlsStream : private TlsBase<LowerLayer> {
   auto get_executor() { return lower_layer().get_executor(); }
   auto cancel() { return lower_layer().cancel(); }
 
+  auto shutdown(typename LowerLayer::shutdown_type sd) {
+    return lower_layer().shutdown(sd);
+  }
+
   typename Parent::LowerLayerType &lower_layer() {
     return Parent::lower_layer_;
   }

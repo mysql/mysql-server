@@ -54,6 +54,7 @@ class HTTP_COMMON_EXPORT ConnectionInterface {
   virtual uint16_t get_peer_port() const = 0;
 
   virtual void start() = 0;
+  virtual void shutdown(bool send) = 0;
 };
 
 }  // namespace base
