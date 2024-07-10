@@ -304,6 +304,9 @@ ADD_SUBDIRECTORY(fido_client)
 # authentication mysql_native_password client plug-in
 ADD_SUBDIRECTORY(authentication_native_password)
 
+# authentication openid connect client plug-in
+ADD_SUBDIRECTORY(authentication_openid_connect_client)
+
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
   COMPONENT Development

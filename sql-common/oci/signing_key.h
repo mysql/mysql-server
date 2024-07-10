@@ -31,8 +31,8 @@
 
 #include <string>
 
-#include "sql-common/oci/ssl.h"
-#include "sql-common/oci/ssl_ptr.h"
+#include "include/base64_encode.h"
+#include "include/encode_ptr.h"
 
 namespace oci {
 class Signing_Key {

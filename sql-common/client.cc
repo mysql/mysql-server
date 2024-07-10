@@ -5512,6 +5512,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info) {
       info->socket = (int)vio_fd(vio);
       return;
     case VIO_TYPE_SSL: {
+      info->is_tls_established = true;
       struct sockaddr addr;
       socklen_t addrlen = sizeof(addr);
       if (getsockname(vio_fd(vio), &addr, &addrlen)) return;

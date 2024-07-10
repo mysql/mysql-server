@@ -130,6 +130,7 @@ struct MYSQL_PLUGIN_VIO_INFO {
     MYSQL_VIO_MEMORY
   } protocol;
   int socket;
+  bool is_tls_established;
 };
 enum net_async_status {
   NET_ASYNC_COMPLETE = 0,

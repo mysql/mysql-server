@@ -98,6 +98,7 @@ IF (DEB_PRODUCT STREQUAL "commercial")
 "
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_kerberos.so
+usr/lib/mysql/plugin/authentication_openid_connect.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/authentication_pam.so

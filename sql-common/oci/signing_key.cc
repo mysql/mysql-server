@@ -30,8 +30,8 @@
 #include <openssl/crypto.h>
 #include <iostream>
 #include <memory>
+#include "include/base64_encode.h"
 #include "scope_guard.h"
-#include "sql-common/oci/ssl.h"
 
 namespace oci {
 // custom unique_ptr deleter since OPENSSL_free is a macro

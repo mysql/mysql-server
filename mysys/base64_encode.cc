@@ -26,11 +26,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA  */
 
-#include "ssl.h"
+#include "base64_encode.h"
 #include <openssl/err.h>
 #include <regex>
 #include <sstream>
-#include "ssl_ptr.h"
+#include "encode_ptr.h"
 
 #include <cassert>
 #include <fstream>

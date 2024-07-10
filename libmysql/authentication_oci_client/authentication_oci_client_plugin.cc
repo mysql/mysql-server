@@ -41,8 +41,8 @@
 #include <iostream>
 #include <ostream>
 
+#include "include/base64_encode.h"
 #include "sql-common/oci/signing_key.h"
-#include "sql-common/oci/ssl.h"
 #include "sql-common/oci/utilities.h"
 
 static char *s_oci_config_location = nullptr;
