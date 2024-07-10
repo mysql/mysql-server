@@ -46,8 +46,6 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-extern CHARSET_INFO my_charset_utf16le_bin;
-
 #ifndef _WIN32
 #include <syslog.h>
 #endif
@@ -128,9 +126,9 @@ int my_syslog(const CHARSET_INFO *cs [[maybe_unused]], enum loglevel level,
   }
 
   if (hEventLog) {
-    nbytes =
-        my_convert((char *)buff, sizeof(buff) - sizeof(buff[0]),
-                   &my_charset_utf16le_bin, msg, msg_len, cs, &dummy_errors);
+    nbytes = my_convert((char *)buff, sizeof(buff) - sizeof(buff[0]),
+                        get_charset_by_name("utf16le_bin", MYF(0)), msg,
+                        msg_len, cs, &dummy_errors);
 
     // terminate it with NULL
     buff[nbytes / sizeof(wchar_t)] = L'\0';

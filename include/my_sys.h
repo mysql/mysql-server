@@ -871,7 +871,7 @@ extern uint get_collation_number(const char *name);
 extern const char *get_collation_name(uint charset_number);
 
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
-extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *get_charset_by_name(const char *collation_name, myf flags);
 extern CHARSET_INFO *my_collation_get_by_name(const char *collation_name,
                                               myf flags, MY_CHARSET_ERRMSG *);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,

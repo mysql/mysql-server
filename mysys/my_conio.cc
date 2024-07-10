@@ -33,8 +33,6 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysys_priv.h"
 
-extern CHARSET_INFO my_charset_utf16le_bin;
-
 /* Windows console handling */
 
 /*
@@ -119,9 +117,10 @@ char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf,
 
   /* Convert Unicode to session character set */
   if (nchars != 0)
-    mblen = my_convert(mbbuf, mbbufsize - 1, cs, (const char *)u16buf,
-                       nchars * sizeof(wchar_t), &my_charset_utf16le_bin,
-                       &dummy_errors);
+    mblen =
+        my_convert(mbbuf, mbbufsize - 1, cs, (const char *)u16buf,
+                   nchars * sizeof(wchar_t),
+                   get_charset_by_name("utf16le_bin", MYF(0)), &dummy_errors);
 
   assert(mblen < mbbufsize); /* Safety */
   mbbuf[mblen] = 0;
@@ -142,7 +141,7 @@ char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf,
 */
 static size_t my_mbstou16s(const CHARSET_INFO *cs, const uchar *from,
                            size_t from_length, wchar_t *to, size_t to_chars) {
-  const CHARSET_INFO *to_cs = &my_charset_utf16le_bin;
+  const CHARSET_INFO *to_cs = get_charset_by_name("utf16le_bin", MYF(0));
   const uchar *from_end = from + from_length;
   wchar_t *to_orig = to, *to_end = to + to_chars;
   my_charset_conv_mb_wc mb_wc = cs->cset->mb_wc;
@@ -268,8 +267,8 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc,
     const size_t alloced_len = arg_len * cs->mbmaxlen + 1;
     av[i] = (char *)my_once_alloc(alloced_len, MYF(0));
     len = my_convert(av[i], alloced_len, cs, (const char *)wargs[i],
-                     arg_len * sizeof(wchar_t), &my_charset_utf16le_bin,
-                     &dummy_errors);
+                     arg_len * sizeof(wchar_t),
+                     get_charset_by_name("utf16le_bin", MYF(0)), &dummy_errors);
     assert(len < alloced_len);
     av[i][len] = '\0';
   }

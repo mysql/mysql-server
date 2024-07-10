@@ -157,8 +157,6 @@
     }                                                                     \
   }
 
-extern CHARSET_INFO my_charset_utf16le_bin;
-
 // List of error codes specified with 'error' command.
 Expected_errors *expected_errors = new Expected_errors();
 
@@ -3279,13 +3277,15 @@ static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
     wchar_t wmode[10];
     uint dummy_errors;
     size_t len;
-    len = my_convert((char *)wcmd, sizeof(wcmd) - sizeof(wcmd[0]),
-                     &my_charset_utf16le_bin, ds_cmd->str,
-                     std::strlen(ds_cmd->str), charset_info, &dummy_errors);
+    const CHARSET_INFO *utf16le_bin =
+        get_charset_by_name("utf16le_bin", MYF(0));
+    len = my_convert((char *)wcmd, sizeof(wcmd) - sizeof(wcmd[0]), utf16le_bin,
+                     ds_cmd->str, std::strlen(ds_cmd->str), charset_info,
+                     &dummy_errors);
     wcmd[len / sizeof(wchar_t)] = 0;
-    len = my_convert((char *)wmode, sizeof(wmode) - sizeof(wmode[0]),
-                     &my_charset_utf16le_bin, mode, std::strlen(mode),
-                     charset_info, &dummy_errors);
+    len =
+        my_convert((char *)wmode, sizeof(wmode) - sizeof(wmode[0]), utf16le_bin,
+                   mode, std::strlen(mode), charset_info, &dummy_errors);
     wmode[len / sizeof(wchar_t)] = 0;
     return _wpopen(wcmd, wmode);
   }

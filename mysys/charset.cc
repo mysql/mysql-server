@@ -74,8 +74,6 @@
     - Setting server default character set
 */
 
-extern CHARSET_INFO my_charset_cp932_japanese_ci;
-
 namespace {
 
 class Mysys_charset_loader : public MY_CHARSET_LOADER {
@@ -274,9 +272,9 @@ CHARSET_INFO *my_collation_get_by_name(const char *collation_name, myf flags,
   return cs;
 }
 
-CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags) {
+CHARSET_INFO *get_charset_by_name(const char *collation_name, myf flags) {
   MY_CHARSET_ERRMSG dummy;
-  return my_collation_get_by_name(cs_name, flags, &dummy);
+  return my_collation_get_by_name(collation_name, flags, &dummy);
 }
 
 /**
@@ -364,9 +362,9 @@ bool resolve_charset(const char *cs_name, const CHARSET_INFO *default_cs,
   and false is returned. If there is no such collation, "default_cl" is
   assigned to the "cl" and true is returned.
 
-  @param[out] cl        Variable to store collation.
   @param[in] cl_name    Collation name.
   @param[in] default_cl Default collation.
+  @param[out] cl        Variable to store collation.
 
   @return false if collation was resolved successfully; true if there is no
   collation with given name.
@@ -487,20 +485,22 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info, char *to,
 }
 
 #ifdef _WIN32
+extern CHARSET_INFO my_charset_cp932_japanese_ci;
+
 static CHARSET_INFO *fs_cset_cache = nullptr;
 
 CHARSET_INFO *fs_character_set() {
-  if (!fs_cset_cache) {
+  if (fs_cset_cache == nullptr) {
     char buf[10] = "cp";
     GetLocaleInfo(LOCALE_SYSTEM_DEFAULT, LOCALE_IDEFAULTANSICODEPAGE, buf + 2,
                   sizeof(buf) - 3);
     /*
-      We cannot call get_charset_by_name here
-      because fs_character_set() is executed before
-      LOCK_THD_charset mutex initialization, which
-      is used inside get_charset_by_name.
-      As we're now interested in cp932 only,
-      let's just detect it using strcmp().
+      We cannot call get_charset_by_name here,
+      we will end up in a deadlock (in std::call_once) because of recursion:
+        init-avaliable-charsets ->
+        get_charsets_dir ->
+        convert_dirname ->
+        fs_character_set
     */
     fs_cset_cache =
         !strcmp(buf, "cp932") ? &my_charset_cp932_japanese_ci : &my_charset_bin;

@@ -109,8 +109,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 using std::max;
 using std::min;
 
-extern CHARSET_INFO my_charset_utf16le_bin;
-
 const char *VER = "14.14";
 
 /* Don't try to make a nice table if the data is too big */
@@ -5824,8 +5822,8 @@ static void get_current_os_user() {
 
   if (GetUserNameW(wbuf, &wbuf_len)) {
     len = my_convert(buf, sizeof(buf) - 1, charset_info, (char *)wbuf,
-                     wbuf_len * sizeof(WCHAR), &my_charset_utf16le_bin,
-                     &dummy_errors);
+                     wbuf_len * sizeof(WCHAR),
+                     get_charset_by_name("utf16le_bin", MYF(0)), &dummy_errors);
     buf[len] = 0;
     user = buf;
   } else {
