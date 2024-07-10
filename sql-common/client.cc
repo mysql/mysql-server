@@ -44,6 +44,7 @@
   server.
 */
 
+#include <openssl/opensslv.h>
 #include <stdarg.h>
 #include <sys/types.h>
 
@@ -201,11 +202,6 @@ static PSI_memory_info all_client_memory[] = {
     {&key_memory_MYSQL_ssl_session_data, "MYSQL_SSL_session", 0, 0,
      "Saved SSL sessions"}};
 
-/* SSL_SESSION_is_resumable is openssl 1.1.1+ */
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-#define SSL_SESSION_is_resumable(x) true
-#endif
-
 void init_client_psi_keys(void) {
   const char *category = "client";
   int count;
@@ -215,6 +211,11 @@ void init_client_psi_keys(void) {
 }
 
 #endif /* HAVE_PSI_INTERFACE */
+
+/* SSL_SESSION_is_resumable is openssl 1.1.1+ */
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+#define SSL_SESSION_is_resumable(x) true
+#endif
 
 uint mysql_port = 0;
 char *mysql_unix_port = nullptr;
