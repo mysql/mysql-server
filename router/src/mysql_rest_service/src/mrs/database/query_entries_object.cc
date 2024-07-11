@@ -302,6 +302,7 @@ void QueryEntryObject::set_query_object_reference(
       // TODO reduce_to_value_of_field_id will be removed
       " object_reference.unnest OR "
       "   object_reference.reduce_to_value_of_field_id IS NOT NULL,"
+      " CAST(object_reference.crud_operations AS UNSIGNED)"
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
       "  ON object_field.represents_reference_id = object_reference.id"
