@@ -212,12 +212,12 @@ EXPLAIN
 explain format=tree
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 EXPLAIN
--> Index range scan on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+-> Index range scan (Multi-Range Read) on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
 
 explain format=tree
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9;
 EXPLAIN
--> Index range scan on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+-> Index range scan (Multi-Range Read) on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
 
 explain format=tree
 select * from t2 where c IS NULL order by a;
@@ -1232,6 +1232,6 @@ explain format=tree
 select * from t
 where auth_login_type='5' AND auth_login_id = '81774133' AND msg_id IN (4866,4869);
 EXPLAIN
--> Index range scan on t using msg_id over (msg_id = 4866 AND auth_login_type = '5' AND auth_login_id = '81774133') OR (msg_id = 4869 AND auth_login_type = '5' AND auth_login_id = '81774133'), with pushed condition: ((t.auth_login_id = '81774133') and (t.auth_login_type = '5') and (t.msg_id in (4866,4869)))  (cost=1.91 rows=2)
+-> Index range scan (Multi-Range Read) on t using msg_id over (msg_id = 4866 AND auth_login_type = '5' AND auth_login_id = '81774133') OR (msg_id = 4869 AND auth_login_type = '5' AND auth_login_id = '81774133'), with pushed condition: ((t.auth_login_id = '81774133') and (t.auth_login_type = '5') and (t.msg_id in (4866,4869)))  (cost=1.91 rows=2)
 
 drop table t;

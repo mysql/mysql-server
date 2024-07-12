@@ -3600,13 +3600,13 @@ EXPLAIN
 explain format=tree
 select * from t1 where a > 2;
 EXPLAIN
--> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
+-> Index range scan (Multi-Range Read) on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
 -> Sort: t1.b  (cost=2.61 rows=3)
-    -> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
+    -> Index range scan (Multi-Range Read) on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0;
@@ -3661,7 +3661,7 @@ FROM t1 WHERE t1.col_int_unique <> 8
 ORDER BY field1;
 EXPLAIN
 -> Sort: t1.col_varchar_256  (cost=5.21 rows=6)
-    -> Index range scan on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (cost=5.21 rows=6)
+    -> Index range scan (Multi-Range Read) on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (cost=5.21 rows=6)
 
 DROP TABLE t1;
 #

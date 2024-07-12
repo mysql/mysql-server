@@ -581,7 +581,7 @@ EXPLAIN
 -> Nested loop left join
     -> Nested loop inner join
         -> Nested loop inner join
-            -> Index range scan on table3 using PRIMARY over (0 <= pk <= 1), activating pushed join of 5 tables, with pushed condition: ((table3.pk between 0 and 1) and (table3.col_int is not null))
+            -> Index range scan (Multi-Range Read) on table3 using PRIMARY over (0 <= pk <= 1), activating pushed join of 5 tables, with pushed condition: ((table3.pk between 0 and 1) and (table3.col_int is not null))
             -> Index lookup on table2 using ix1 (col_int=table3.col_int), child of table3 in pushed join, with pushed condition: ((table2.pk between 4 and 5) and (table2.col_int_key is not null))
         -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join
     -> Nested loop left join
@@ -1377,7 +1377,7 @@ EXPLAIN
         -> Filter: ((table2.pk = 9) or (table2s.col_int = 1))
             -> Nested loop left join
                 -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique)
-                -> Index range scan on table2s using PRIMARY over (col_int = 6) OR (col_int = 7), with pushed condition: (table2s.col_int in (6,6,7))
+                -> Index range scan (Multi-Range Read) on table2s using PRIMARY over (col_int = 6) OR (col_int = 7), with pushed condition: (table2s.col_int in (6,6,7))
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
@@ -2065,7 +2065,7 @@ EXPLAIN
         -> Inner hash join (table2.pk = table1.col_int_key)
             -> Table scan on table2, activating pushed join of 3 tables
             -> Hash
-                -> Index range scan on table1 using PRIMARY over (4 <= pk <= 6), with pushed condition: ((table1.col_int_unique = table1.col_int_key) and (table1.pk between 4 and 6))
+                -> Index range scan (Multi-Range Read) on table1 using PRIMARY over (4 <= pk <= 6), with pushed condition: ((table1.col_int_unique = table1.col_int_key) and (table1.pk between 4 and 6))
         -> Index lookup on table3 using ix3 (col_int=table1.col_int_key, col_int_key=table1.col_int_key), child of table2 in pushed join
     -> Index lookup on table1s using ix1 (col_char_16=table3.col_char_16), child of table3 in pushed join
 
@@ -2238,7 +2238,7 @@ JOIN q AS table3 ON table2.col_int = table3.col_int AND table1.col_int_unique = 
 EXPLAIN
 -> Nested loop inner join
     -> Inner hash join (table2.col_int_unique = table1.col_int_unique)
-        -> Index range scan on table2 using ix3 over (NULL < col_int), activating pushed join of 2 tables, with pushed condition: (table2.col_int is not null)
+        -> Index range scan (Multi-Range Read) on table2 using ix3 over (NULL < col_int), activating pushed join of 2 tables, with pushed condition: (table2.col_int is not null)
         -> Hash
             -> Table scan on table1, with pushed condition: (table1.col_int_unique is not null)
     -> Single-row index lookup on table3 using ix1 (col_int=table2.col_int, col_int_unique=table1.col_int_unique), child of table2 in pushed join
@@ -2937,13 +2937,13 @@ EXPLAIN
 -> Nested loop semijoin
     -> Nested loop inner join
         -> Inner hash join (no condition)
-            -> Index range scan on table2 using ix1 over (NULL < col_int_unique < 2) OR (2 < col_int_unique), activating pushed join of 2 tables, with pushed condition: ((table2.col_int_unique <> 2) and (table2.col_int_unique is not null))
+            -> Index range scan (Multi-Range Read) on table2 using ix1 over (NULL < col_int_unique < 2) OR (2 < col_int_unique), activating pushed join of 2 tables, with pushed condition: ((table2.col_int_unique <> 2) and (table2.col_int_unique is not null))
             -> Hash
                 -> Table scan on <subquery2>
                     -> Materialize with deduplication
                         -> Filter: (table2s.col_varchar_10 is not null)
                             -> Nested loop inner join
-                                -> Index range scan on table2s using col_int_key over (NULL < col_int_key), activating pushed join of 2 tables, with pushed condition: (table2s.col_int_key is not null)
+                                -> Index range scan (Multi-Range Read) on table2s using col_int_key over (NULL < col_int_key), activating pushed join of 2 tables, with pushed condition: (table2s.col_int_key is not null)
                                 -> Index lookup on table1s using col_int_key (col_int_key=table2s.col_int_key), child of table2s in pushed join
         -> Filter: (table1.col_varchar_256 = `<subquery2>`.field3)
             -> Single-row index lookup on table1 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join, with pushed condition: (table1.col_int_key = table2.col_int_key)
@@ -3716,7 +3716,7 @@ EXPLAIN
                         -> Inner hash join (table1s.col_int_unique = table2s.col_int)
                             -> Table scan on table1s
                             -> Hash
-                                -> Index range scan on table2s using PRIMARY over (2 <= col_int <= 10), with pushed condition: (table2s.col_int between 2 and 10)
+                                -> Index range scan (Multi-Range Read) on table2s using PRIMARY over (2 <= col_int <= 10), with pushed condition: (table2s.col_int between 2 and 10)
 
 Warnings:
 Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
@@ -3749,7 +3749,7 @@ EXPLAIN
     -> Inner hash join (table1.pk = table2.col_int_unique)
         -> Table scan on table1, activating pushed join of 2 tables
         -> Hash
-            -> Index range scan on table2 using ix2 over (NULL < col_int_key < 5) OR (5 < col_int_key), with pushed condition: (table2.col_int_key <> 5)
+            -> Index range scan (Multi-Range Read) on table2 using ix2 over (NULL < col_int_key < 5) OR (5 < col_int_key), with pushed condition: (table2.col_int_key <> 5)
     -> Nested loop inner join
         -> Filter: (table1.col_int_unique = table1.col_int_key)
             -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join
@@ -5004,7 +5004,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
         -> Nested loop inner join
-            -> Index range scan on table1 using ix1 over (9 < col_int_unique), activating pushed join of 4 tables, with pushed condition: ((table1.col_int_unique > 9) and (table1.pk is not null))
+            -> Index range scan (Multi-Range Read) on table1 using ix1 over (9 < col_int_unique), activating pushed join of 4 tables, with pushed condition: ((table1.col_int_unique > 9) and (table1.pk is not null))
             -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join
         -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table4 in pushed join
     -> Index lookup on table3 using col_int_key (col_int_key=table4.col_int_key), child of table2 in pushed join, with pushed condition: (table3.col_int = table2.pk)
@@ -5144,7 +5144,7 @@ EXPLAIN
             -> Hash
                 -> Nested loop inner join
                     -> Remove duplicates from input sorted on col_int_key
-                        -> Index range scan on u using col_int_key over (NULL < col_int_key), with pushed condition: ((u.col_int_key is not null) and (u.col_int_key is not null))
+                        -> Index range scan (Multi-Range Read) on u using col_int_key over (NULL < col_int_key), with pushed condition: ((u.col_int_key is not null) and (u.col_int_key is not null))
                     -> Index lookup on table2 using ix1 (col_int=u.col_int_key)
 
 Warnings:
@@ -5196,7 +5196,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
         -> Nested loop semijoin with duplicate removal on col_int_key
-            -> Index range scan on table2s using col_int_key over (NULL < col_int_key <= 3), activating pushed join of 3 tables, with pushed condition: ((table2s.col_int_key <= 3) and (table2s.col_int_key is not null))
+            -> Index range scan (Multi-Range Read) on table2s using col_int_key over (NULL < col_int_key <= 3), activating pushed join of 3 tables, with pushed condition: ((table2s.col_int_key <= 3) and (table2s.col_int_key is not null))
             -> Index lookup on table1s using ix3 (col_int=table2s.col_int), child of table2s in pushed join
         -> Single-row index lookup on table2 using ix1 (col_int_unique=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table2.col_int_key is not null)
     -> Index lookup on table1 using ix1 (col_int=table2.col_int_key)
