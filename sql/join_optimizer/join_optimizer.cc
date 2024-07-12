@@ -693,6 +693,9 @@ class CostingReceiver {
                        FunctionalDependencySet new_fd_set,
                        OrderingSet new_obsolete_orderings,
                        bool rewrite_semi_to_inner, bool *wrote_trace);
+  bool AllowHashJoin(NodeMap left, NodeMap right, const AccessPath &left_path,
+                     const AccessPath &right_path,
+                     const JoinPredicate &edge) const;
   void ApplyPredicatesForBaseTable(int node_idx,
                                    OverflowBitset applied_predicates,
                                    OverflowBitset subsumed_predicates,
@@ -4300,19 +4303,20 @@ string CostingReceiver::PrintSubgraphHeader(const JoinPredicate *edge,
   return ret;
 }
 
-void CostingReceiver::ProposeHashJoin(
-    NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
-    const JoinPredicate *edge, FunctionalDependencySet new_fd_set,
-    OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
-    bool *wrote_trace) {
-  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
+bool CostingReceiver::AllowHashJoin(NodeMap left, NodeMap right,
+                                    const AccessPath &left_path,
+                                    const AccessPath &right_path,
+                                    const JoinPredicate &edge) const {
+  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) {
+    return false;
+  }
 
-  if (Overlaps(left_path->parameter_tables, right) ||
-      Overlaps(right_path->parameter_tables, left | RAND_TABLE_BIT)) {
+  if (Overlaps(left_path.parameter_tables, right) ||
+      Overlaps(right_path.parameter_tables, left | RAND_TABLE_BIT)) {
     // Parameterizations must be resolved by nested loop.
     // We can still have parameters from outside the join, though
     // (even in the hash table; but it must be cleared for each Init() then).
-    return;
+    return false;
   }
 
   if (Overlaps(left | right, m_fulltext_tables)) {
@@ -4328,13 +4332,13 @@ void CostingReceiver::ProposeHashJoin(
     // lenient and allow hash joins if all the full-text search functions on the
     // accessed tables have been fully pushed down to the table/index scan and
     // don't need to be evaluated again outside of the join.
-    return;
+    return false;
   }
 
   if (Overlaps(right, forced_leftmost_table)) {
     // A recursive reference cannot be put in a hash table, so don't propose any
     // hash join with this order.
-    return;
+    return false;
   }
 
   // A semijoin by definition should have a semijoin condition to work with and
@@ -4369,31 +4373,44 @@ void CostingReceiver::ProposeHashJoin(
   // TODO(Chaithra): It is possible that the various join nests are looked at
   // carefully when relational expressions are created and forcing only NLJ's
   // for such cases.
-  if (edge->expr->type == RelationalExpression::LEFT_JOIN &&
-      edge->expr->right->type == RelationalExpression::SEMIJOIN) {
+  if (edge.expr->type == RelationalExpression::LEFT_JOIN &&
+      edge.expr->right->type == RelationalExpression::SEMIJOIN) {
     // Check if there is a condition connecting the left side of the outer
     // join and inner side of the semijoin. This is a deviation from the
     // definition of a semijoin which makes it not possible to execute such
     // a plan with hash joins.
-    RelationalExpression *semijoin = edge->expr->right;
+    RelationalExpression *semijoin = edge.expr->right;
     const table_map disallowed_tables =
         semijoin->tables_in_subtree & ~GetVisibleTables(semijoin);
     if (disallowed_tables != 0) {
-      for (Item *cond : edge->expr->equijoin_conditions) {
+      for (Item *cond : edge.expr->equijoin_conditions) {
         if (Overlaps(disallowed_tables, cond->used_tables()) &&
-            Overlaps(edge->expr->left->tables_in_subtree,
-                     cond->used_tables())) {
-          return;
+            Overlaps(edge.expr->left->tables_in_subtree, cond->used_tables())) {
+          return false;
         }
       }
-      for (Item *cond : edge->expr->join_conditions) {
+      for (Item *cond : edge.expr->join_conditions) {
         if (Overlaps(disallowed_tables, cond->used_tables()) &&
-            Overlaps(edge->expr->left->tables_in_subtree,
-                     cond->used_tables())) {
-          return;
+            Overlaps(edge.expr->left->tables_in_subtree, cond->used_tables())) {
+          return false;
         }
       }
     }
+  }
+
+  return true;
+}
+
+void CostingReceiver::ProposeHashJoin(
+    NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
+    const JoinPredicate *edge, FunctionalDependencySet new_fd_set,
+    OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
+    bool *wrote_trace) {
+  assert(BitsetsAreCommitted(left_path));
+  assert(BitsetsAreCommitted(right_path));
+
+  if (!AllowHashJoin(left, right, *left_path, *right_path, *edge)) {
+    return;
   }
 
   if (edge->expr->type == RelationalExpression::LEFT_JOIN &&
@@ -4401,9 +4418,6 @@ void CostingReceiver::ProposeHashJoin(
     MoveDegenerateJoinConditionToFilter(m_thd, m_query_block, &edge,
                                         &right_path);
   }
-
-  assert(BitsetsAreCommitted(left_path));
-  assert(BitsetsAreCommitted(right_path));
 
   AccessPath join_path;
   join_path.type = AccessPath::HASH_JOIN;
@@ -4923,6 +4937,16 @@ bool CostingReceiver::AllowNestedLoopJoin(NodeMap left, NodeMap right,
                                           const AccessPath &left_path,
                                           const AccessPath &right_path,
                                           const JoinPredicate &edge) const {
+  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN)) {
+    return false;
+  }
+
+  if (Overlaps(left_path.parameter_tables, right)) {
+    // The outer table cannot pick up values from the inner,
+    // only the other way around.
+    return false;
+  }
+
 #ifndef NDEBUG
   // Manual preference overrides everything else.
   if (left_path.forced_by_dbug || right_path.forced_by_dbug) {
@@ -4946,40 +4970,19 @@ bool CostingReceiver::AllowNestedLoopJoin(NodeMap left, NodeMap right,
     return true;
   }
 
-  // If one of the tables in the join is full-text searched, hash join is not
-  // supported currently. See comments in ProposeHashJoin(). Nested loop join
-  // has to be permitted.
-  if (Overlaps(left | right, m_fulltext_tables)) {
-    return true;
+  // Otherwise, we don't allow nested loop join unless the corresponding hash
+  // join is not allowed. In that case, we have no other choice than to allow
+  // nested loop join, otherwise we might not find a plan for the query.
+  pair build{right, &right_path};
+  pair probe{left, &left_path};
+  if (edge.expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+    // Change the order of operands for STRAIGHT JOIN, because
+    // ProposeNestedLoopJoin() uses "left" for the first table of STRAIGHT JOIN,
+    // whereas ProposeHashJoin() uses "right" for the first table.
+    swap(build, probe);
   }
-
-  // If "left" contains a recursive reference, and the join order is forced with
-  // STRAIGHT_JOIN, the corresponding hash join must use "left" as build table.
-  // But recursive references cannot be hashed, so no valid hash join plan is
-  // found. Respect the STRAIGHT_JOIN hint and allow the nested loop join.
-  if (Overlaps(left, forced_leftmost_table) &&
-      edge.expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
-    return true;
-  }
-
-  // If right_path is not allowed in the build table of a hash join (typically a
-  // table function which either has outer references or is non-deterministic),
-  // we won't be able to do the corresponding hash join. Alternatively, if the
-  // join order is forced with STRAIGHT_JOIN, it is left_path that will be used
-  // as build table for the hash join and has to be checked.
-  if (Overlaps(right_path.parameter_tables, RAND_TABLE_BIT) ||
-      (Overlaps(left_path.parameter_tables, RAND_TABLE_BIT) &&
-       edge.expr->type == RelationalExpression::STRAIGHT_INNER_JOIN)) {
-    return true;
-  }
-
-  // If hash joins are not supported by the executor, we have to allow nested
-  // loop joins. Only expected to happen in unit tests.
-  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) {
-    return true;
-  }
-
-  return false;
+  return !AllowHashJoin(probe.first, build.first, *probe.second, *build.second,
+                        edge);
 }
 
 void CostingReceiver::ProposeNestedLoopJoin(
@@ -4987,15 +4990,6 @@ void CostingReceiver::ProposeNestedLoopJoin(
     const JoinPredicate *edge, bool rewrite_semi_to_inner,
     FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings,
     bool *wrote_trace) {
-  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))
-    return;
-
-  if (Overlaps(left_path->parameter_tables, right)) {
-    // The outer table cannot pick up values from the inner,
-    // only the other way around.
-    return;
-  }
-
   assert(BitsetsAreCommitted(left_path));
   assert(BitsetsAreCommitted(right_path));
 

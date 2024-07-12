@@ -1503,4 +1503,32 @@ SELECT
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug#36715239: Assertion `found_a_plan || is_secondary_engine' failed.
+--echo #
+CREATE TABLE t(a INT, b INT, c INT);
+INSERT INTO t VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6);
+ANALYZE TABLE t;
+
+let $query =
+WITH s AS (
+    SELECT b FROM t AS t2
+    WHERE EXISTS (SELECT * FROM t AS t3 WHERE t2.b = t3.c OR t3.c = 0)
+)
+SELECT t1.a, s.b FROM t AS t1 LEFT JOIN s ON t1.a = s.b;
+
+# Check that a plan can be found for this query. It used to fail with
+# no plan found.
+# The plan is affected by bug#36844820, and may give wrong results if
+# the input data is changed (for example, wrong results are returned
+# after UPDATE t SET c = 100). The plan is expected to change when that
+# bug is fixed.
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+--sorted_result
+--eval $query
+
+DROP TABLE t;
+
 --source include/disable_hypergraph.inc
