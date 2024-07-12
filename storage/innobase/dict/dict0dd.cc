@@ -1186,41 +1186,68 @@ dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
     ut_o(return DB_ERROR);
   }
 
+  ut_ad(dd_table != nullptr);
   std::string dd_table_name{dd_table->table().name()};
   Fil_path fpath{path};
-  bool set_true = !MySQL_datadir_path.is_dir_same_as(fpath);
-  /* Set the DATA DIRECTORY FLAG to true for dd table if ibd file is moved to
-  directory other than default data dir. Remove the flag if moved from external
-  to default data dir. We explicitly set this to false because dd_table->flags
-  are supposed to be false if the ibd file is located in default dir */
-  if (set_true) {
-    dd_table->se_private_data().set(
-        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], set_true);
-  } else {
-    dd_table->se_private_data().remove(
-        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
-  }
 
   std::string part_name = (!table_info.subpartition.empty())
                               ? table_info.subpartition
                               : table_info.partition;
   to_lower(part_name);
-  for (dd::Partition *part_obj : *dd_table->leaf_partitions()) {
-    std::string part_obj_name{part_obj->name()};
-    to_lower(part_obj_name);
-    if (part_obj_name == part_name) {
-      dd::Properties &part_options = part_obj->options();
-      if (set_true) {
-        part_obj->se_private_data().set(
-            dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
-        /* Update data_file_name for dd::partition as we do not set data
-        directory for whole partitioned table. We acquire dd::partition later
-        and read from it*/
-        part_options.set(data_file_name_key, table_info.directory.c_str());
-      } else {
-        part_obj->se_private_data().remove(
+
+  /* This function may be hit by those tables which are marked as
+  Fil_state::MOVED_PREV_OR_HAS_DATADIR which includes tables that are moved
+  before 8.0.38/8.4.1/9.0.0 and tables that are created using data directory
+  clause. We want to set the flag for tables moved before 8.0.38/8.4.1/9.0.0
+  only and ignore those tables which are created using data directory clause
+  as the dd_table data dir flag is already set for them. Additionally, we
+  explicitly remove the flag if moved from external to default data dir. We
+  do this because dd_table data dir flag should not exist if the ibd file is
+  located in default dir */
+  if (part_name.empty()) {
+    /* The table is non-partitioned table */
+    bool dd_flag = dd_table->se_private_data().exists(
+        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
+    bool set_true = !(MySQL_datadir_path.is_same_as(fpath) ||
+                      MySQL_datadir_path.is_ancestor(fpath)) &&
+                    !dd_flag;
+    bool set_false = MySQL_datadir_path.is_same_as(fpath) ||
+                     MySQL_datadir_path.is_ancestor(fpath);
+    if (set_true) {
+      dd_table->se_private_data().set(
+          dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], set_true);
+    }
+    if (set_false) {
+      dd_table->se_private_data().remove(
+          dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
+    }
+  } else {
+    /* The table is partitioned table */
+    for (dd::Partition *part_obj : *dd_table->leaf_partitions()) {
+      std::string part_obj_name{part_obj->name()};
+      to_lower(part_obj_name);
+      if (part_obj_name == part_name) {
+        dd::Properties &part_options = part_obj->options();
+        bool dd_flag = part_obj->se_private_data().exists(
             dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
-        part_options.remove(data_file_name_key);
+        bool set_true = !(MySQL_datadir_path.is_same_as(fpath) ||
+                          MySQL_datadir_path.is_ancestor(fpath)) &&
+                        !dd_flag;
+        bool set_false = MySQL_datadir_path.is_same_as(fpath) ||
+                         MySQL_datadir_path.is_ancestor(fpath);
+        if (set_true) {
+          part_obj->se_private_data().set(
+              dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], set_true);
+          /* Update data_file_name for dd::partition as we do not set data
+          directory for whole partitioned table. We acquire dd::partition later
+          and read from it*/
+          part_options.set(data_file_name_key, table_info.directory.c_str());
+        }
+        if (set_false) {
+          part_obj->se_private_data().remove(
+              dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
+          part_options.remove(data_file_name_key);
+        }
       }
     }
   }
