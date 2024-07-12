@@ -140,9 +140,9 @@ enum class Fil_state {
   /** Space ID matches but the paths don't match. */
   MOVED,
 
-  /** Space ID and paths match but dd_table data dir flag is false despite the
-  file being outside default data dir */
-  MOVED_PREV,
+  /** Space ID and paths match but dd_table data dir flag doesn't
+  exist or tablespace is created outside default data dir */
+  MOVED_PREV_OR_HAS_DATADIR,
 
   /** Tablespace and/or filename was renamed. The DDL log will handle
   this case. */
@@ -2173,17 +2173,18 @@ bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
                                std::string &dd_path);
 
 /** Add tablespace to the set of tablespaces to be updated in DD.
-@param[in]      dd_object_id    Server DD tablespace ID
-@param[in]      space_id        Innodb tablespace ID
-@param[in]      space_name      New tablespace name
-@param[in]      old_path        Old Path in the data dictionary
-@param[in]      new_path        New path to be update in dictionary
-@param[in]      before_90000    The move has happened before 90000 and did
-                                not update DD_TABLE_DATA_DIRECTORY flag.*/
+@param[in]    dd_object_id                   Server DD tablespace ID
+@param[in]    space_id                       InnoDB tablespace ID
+@param[in]    space_name                     Tablespace name
+@param[in]    old_path                       Old Path in the data dictionary
+@param[in]    new_path                       New path to be update in dictionary
+@param[in]    moved_prev_or_has_datadir      The move has happened before
+                                             8.0.38/8.4.1/9.0.0 or table is
+                                             created with data dir clause.*/
 void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
                          const char *space_name, const std::string &old_path,
-                         const std::string &new_path, bool before_90000);
-
+                         const std::string &new_path,
+                         bool moved_prev_or_has_datadir);
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
@@ -2191,13 +2192,13 @@ considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
 @param[in]  space_name              tablespace name
 @param[in]  fsp_flags               tablespace flags
 @param[in]  old_path                the path found in dd:Tablespace_files
-@param[in]  data_dir_flag_missing   true dd::Table exists, but
-                                    DD_TABLE_DATA_DIRECTORY flag is not set
 @param[out] new_path                the scanned path for this space_id
 @return status of the match. */
-[[nodiscard]] Fil_state fil_tablespace_path_equals(
-    space_id_t space_id, const char *space_name, ulint fsp_flags,
-    std::string old_path, bool data_dir_flag_missing, std::string *new_path);
+[[nodiscard]] Fil_state fil_tablespace_path_equals(space_id_t space_id,
+                                                   const char *space_name,
+                                                   ulint fsp_flags,
+                                                   std::string old_path,
+                                                   std::string *new_path);
 
 /** This function should be called after recovery has completed.
 Check for tablespace files for which we did not see any MLOG_FILE_DELETE
