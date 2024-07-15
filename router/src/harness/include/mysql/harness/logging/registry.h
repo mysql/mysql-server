@@ -34,7 +34,7 @@
 
 #include <atomic>
 #include <map>
-#include <mutex>
+#include <shared_mutex>
 #include <stdexcept>
 #include <string>
 
@@ -190,10 +190,10 @@ class HARNESS_EXPORT Registry {
    * old logger file to dst.
    * @param dst destination filename for old log
    */
-  void flush_all_loggers(const std::string dst = "");
+  void flush_all_loggers(const std::string &dst = "");
 
  private:
-  mutable std::mutex mtx_;
+  mutable std::shared_mutex mtx_;
   std::map<std::string, Logger> loggers_;  // key = log domain
   std::map<std::string, std::shared_ptr<Handler>>
       handlers_;  // key = handler id
