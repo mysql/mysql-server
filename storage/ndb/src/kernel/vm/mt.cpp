@@ -3310,7 +3310,31 @@ bool thr_send_threads::handle_send_trp(
       !check_done_trp(trp_id))  // ACTIVE-P -> PENDING
   {
     insert_trp(trp_id, send_instance);
-
+    if (!is_send_thread(thr_no))
+    {
+      /**
+       * There are two reasons for coming here. One case is that the
+       * send didn't manage to send everything and a new send is
+       * required later on. Since we are not the send thread we need
+       * to wakeup the send thread to take responsibility for this
+       * action.
+       *
+       * The second reason is similar and requires the same action to
+       * wake the send thread up to take responsibility. In this case
+       * some other thread have added a send request while we were
+       * processing the current request. Thus someone has to take
+       * responsibility that the send is performed. When we started
+       * the send we set m_data_available to 1, if check_done_trp
+       * returns false it means that someone incremented
+       * m_data_available in a call to insert_trp. This thread
+       * would not wake any send thread up since there is already
+       * activity happening to send.
+       *
+       * In both cases the solution is to ensure that the responsible
+       * send thread is awake to ensure that the send is done in time.
+       */
+      wakeup(&(send_instance->m_waiter_struct));
+    }
     if (unlikely(more && bytes_sent == 0))  // Trp is overloaded
     {
       set_overload_delay(trp_id, now, 200);  // Delay send-retry by 200 us
