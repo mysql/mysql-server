@@ -137,7 +137,7 @@ Select_full_range_join	0
 Select_range	0
 Select_range_check	0
 Select_scan	0
-EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x < 0 OR id > 100;
+EXPLAIN FORMAT=TREE SELECT /*+ INDEX_MERGE(t) */ 1 FROM t WHERE x < 0 OR id > 100;
 EXPLAIN
 -> Sort-deduplicate by row ID
 -> Covering index range scan on t using x over (x < 0)
@@ -145,7 +145,7 @@ EXPLAIN
 -> Index range scan on t using PRIMARY over (100 < id)
 
 FLUSH STATUS;
-SELECT 1 FROM t WHERE x < 0 OR id > 100;
+SELECT /*+ INDEX_MERGE(t) */ 1 FROM t WHERE x < 0 OR id > 100;
 1
 SHOW STATUS LIKE 'select%';
 Variable_name	Value
@@ -170,7 +170,8 @@ Select_full_range_join	0
 Select_range	0
 Select_range_check	0
 Select_scan	1
-EXPLAIN FORMAT=TREE SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t1.x < 1;
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_INDEX(t1) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
+WHERE t1.y = t2.y AND t1.x < 1;
 EXPLAIN
 -> Inner hash join (t1.y = t2.y)  (rows=2)
     -> Table scan on t2  (rows=10)
@@ -178,7 +179,8 @@ EXPLAIN
         -> Index range scan on t1 using x over (x < 1)  (rows=2)
 
 FLUSH STATUS;
-SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t1.x < 1;
+SELECT /*+ JOIN_INDEX(t1) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
+WHERE t1.y = t2.y AND t1.x < 1;
 SHOW STATUS LIKE 'select%';
 Variable_name	Value
 Select_full_join	1
@@ -186,7 +188,8 @@ Select_full_range_join	0
 Select_range	1
 Select_range_check	0
 Select_scan	0
-EXPLAIN FORMAT=TREE SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t2.x < 1;
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_INDEX(t2) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
+WHERE t1.y = t2.y AND t2.x < 1;
 EXPLAIN
 -> Inner hash join (t1.y = t2.y)  (rows=2)
     -> Index range scan on t2 using x over (x < 1)  (rows=2)
@@ -194,7 +197,8 @@ EXPLAIN
         -> Table scan on t1  (rows=10)
 
 FLUSH STATUS;
-SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t2.x < 1;
+SELECT /*+ JOIN_INDEX(t2) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
+WHERE t1.y = t2.y AND t2.x < 1;
 SHOW STATUS LIKE 'select%';
 Variable_name	Value
 Select_full_join	0
@@ -357,4 +361,42 @@ Select_full_range_join	0
 Select_range	0
 Select_range_check	0
 Select_scan	3
+DROP TABLE t;
+#
+# Bug#36775485: Hypergraph optimizer does not set SUM_ROWS_EXAMINED in
+#               ps.events_statements_summary_by_digest for index range
+#               scans, and some index lookup
+#
+CREATE TABLE t(x INT, KEY (x));
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT /*+ NO_INDEX(t) */ * FROM t WHERE x > 10;
+x
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+SUM_ROWS_EXAMINED	SUM_ROWS_SENT
+10	0
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE x < 3;
+x
+1
+2
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+SUM_ROWS_EXAMINED	SUM_ROWS_SENT
+2	2
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE x = 3;
+x
+3
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+SUM_ROWS_EXAMINED	SUM_ROWS_SENT
+1	1
 DROP TABLE t;

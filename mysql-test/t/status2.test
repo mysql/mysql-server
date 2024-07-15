@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Too much of this test depends on plan choices. 
-
 --echo #
 --echo # Bug#24289 Status Variable "Questions" gets wrong values with Stored Routines
 --echo #
@@ -134,7 +132,7 @@ SHOW STATUS LIKE 'select%';
 # Uses a Row ID Ordered Union, which is counted as a "select_range"
 # scan. Even though there are multiple range scans on t as children of
 # the ROR Union, it should be counted only once.
-let $query = SELECT 1 FROM t WHERE x < 0 OR id > 100;
+let $query = SELECT /*+ INDEX_MERGE(t) */ 1 FROM t WHERE x < 0 OR id > 100;
 # Hypergraph doesn't have a redundant filter on top.
 --let $normalize = $elide_metrics /^-> Filter.*\n// / +->/->/
 --replace_regex $normalize
@@ -158,7 +156,8 @@ SHOW STATUS LIKE 'select%';
 # Range scans on the left side of a join are counted as "select_range", and
 # table scans on the right side as "select_full_join".
 let $query =
-SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t1.x < 1;
+SELECT /*+ JOIN_INDEX(t1) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
+WHERE t1.y = t2.y AND t1.x < 1;
 --let $normalize = $elide_costs /t2\.y = t1\.y/t1.y = t2.y/ /, with index condition:.*?\)//
 --replace_regex $normalize
 --eval EXPLAIN FORMAT=TREE $query
@@ -172,7 +171,8 @@ SHOW STATUS LIKE 'select%';
 # "select_full_range_join", and table scans on the left side as
 # "select_scan".
 let $query =
-SELECT * FROM t AS t1 STRAIGHT_JOIN t AS t2 WHERE t1.y = t2.y AND t2.x < 1;
+SELECT /*+ JOIN_INDEX(t2) */ * FROM t AS t1 STRAIGHT_JOIN t AS t2
+WHERE t1.y = t2.y AND t2.x < 1;
 --replace_regex $normalize
 --eval EXPLAIN FORMAT=TREE $query
 FLUSH STATUS;
@@ -308,5 +308,44 @@ FLUSH STATUS;
 --eval $query
 --enable_result_log
 SHOW STATUS LIKE 'select%';
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#36775485: Hypergraph optimizer does not set SUM_ROWS_EXAMINED in
+--echo #               ps.events_statements_summary_by_digest for index range
+--echo #               scans, and some index lookup
+--echo #
+
+CREATE TABLE t(x INT, KEY (x));
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t;
+
+--disable_ps_protocol
+
+# Table scan. Expect all ten rows to be examined.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT /*+ NO_INDEX(t) */ * FROM t WHERE x > 10;
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+
+# Range scan. Expect two rows examined.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE x < 3;
+--skip_if_hypergraph  # Not counted yet.
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+
+# Index lookup. Expect one row examined.
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE x = 3;
+--skip_if_hypergraph  # Not counted yet.
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
+
+--enable_ps_protocol
 
 DROP TABLE t;

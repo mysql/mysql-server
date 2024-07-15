@@ -10,13 +10,21 @@ INSERT INTO t1 SELECT f1,f2+1,f3+2 FROM t1;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1 WHERE f1 = 0 OR f2 = 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	f1,f2,f2_2	f1,f2_2	5,5	NULL	11	100.00	Using union(f1,f2_2); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` = 0) or (`test`.`t1`.`f2` = 2))
+SET explain_json_format_version = 2;
+CREATE PROCEDURE extract_range_scans(plan TEXT)
+SELECT description FROM
+JSON_TABLE(plan, '$**.operation' COLUMNS (o FOR ORDINALITY,
+description TEXT PATH '$')) AS jt
+WHERE description NOT LIKE 'Filter:%'
+ORDER BY o;
+EXPLAIN FORMAT=JSON INTO @plan SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 OR f2 = 2;
+CALL extract_range_scans(@plan);
+description
+Deduplicate rows sorted by row ID
+Index range scan on t1 using f1 over (f1 = 0)
+Index range scan on t1 using f2_2 over (f2 = 2)
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT * FROM t1 WHERE f1 = 0 OR f2 = 2;
+SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 OR f2 = 2;
 f1	f2	f3
 0	1	2
 1	2	3
@@ -32,13 +40,14 @@ FROM performance_schema.events_statements_summary_by_digest
 WHERE schema_name = 'test' AND NOT DIGEST_TEXT LIKE '%TRUNCATE%';
 SUM_ROWS_EXAMINED	SUM_ROWS_SENT
 12	9
-EXPLAIN SELECT * FROM t1 WHERE f1 > 1 OR f2 < 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	f1,f2,f2_2	f1,f2	5,5	NULL	9	100.00	Using sort_union(f1,f2); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` > 1) or (`test`.`t1`.`f2` < 0))
+EXPLAIN FORMAT=JSON INTO @plan SELECT /*+ INDEX_MERGE(t1 f1, f2_2) */ * FROM t1 WHERE f1 > 1 OR f2 < 0;
+CALL extract_range_scans(@plan);
+description
+Sort-deduplicate by row ID
+Index range scan on t1 using f1 over (1 < f1)
+Index range scan on t1 using f2_2 over (NULL < f2 < 0)
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT * FROM t1 WHERE f1 > 1 OR f2 < 0;
+SELECT /*+ INDEX_MERGE(t1 f1, f2_2) */ * FROM t1 WHERE f1 > 1 OR f2 < 0;
 f1	f2	f3
 2	3	4
 2	4	6
@@ -53,13 +62,14 @@ FROM performance_schema.events_statements_summary_by_digest
 WHERE schema_name = 'test' AND NOT DIGEST_TEXT LIKE '%TRUNCATE%';
 SUM_ROWS_EXAMINED	SUM_ROWS_SENT
 8	8
-EXPLAIN SELECT * FROM t1 WHERE f1 = 1 AND f2 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	f1,f2,f2_2	f2_2,f1	5,5	NULL	2	85.71	Using intersect(f2_2,f1); Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f1` = 1))
+EXPLAIN FORMAT=JSON INTO @plan SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 AND f2 = 2;
+CALL extract_range_scans(@plan);
+description
+Intersect rows sorted by row ID
+Index range scan on t1 using f2_2 over (f2 = 2)
+Index range scan on t1 using f1 over (f1 = 0)
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT * FROM t1 WHERE f1 = 0 AND f2 = 2;
+SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 AND f2 = 2;
 f1	f2	f3
 0	2	4
 0	2	4
@@ -69,4 +79,6 @@ FROM performance_schema.events_statements_summary_by_digest
 WHERE schema_name = 'test' AND NOT DIGEST_TEXT LIKE '%TRUNCATE%';
 SUM_ROWS_EXAMINED	SUM_ROWS_SENT
 9	3
+SET explain_json_format_version = DEFAULT;
+DROP PROCEDURE extract_range_scans;
 DROP TABLE t1;
