@@ -737,7 +737,7 @@ dberr_t fts_drop_index(dict_table_t *table, dict_index_t *index, trx_t *trx,
 
       return (err);
     } else {
-      if (!(index->type & DICT_CORRUPT)) {
+      if (!(index->type & DICT_CORRUPT) && !dict_table_is_discarded(table)) {
         err = fts_empty_common_tables(trx, table);
         ut_ad(err == DB_SUCCESS);
       }
