@@ -306,16 +306,23 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
 
     virtual ~LoggingStrategy() = default;
 
+    virtual bool log_will_be_ignored() const = 0;
+
     virtual void log(const std::string &msg) = 0;
   };
 
   struct ROUTER_MYSQL_EXPORT LoggingStrategyNone : public LoggingStrategy {
-    virtual void log(const std::string & /*msg*/) override {}
+    // nothing will be logged.
+    bool log_will_be_ignored() const override { return true; }
+
+    void log(const std::string & /*msg*/) override {}
   };
 
   struct ROUTER_MYSQL_EXPORT LoggingStrategyDebugLogger
       : public LoggingStrategy {
-    virtual void log(const std::string &msg) override;
+    bool log_will_be_ignored() const override;
+
+    void log(const std::string &msg) override;
   };
 
   MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy =
