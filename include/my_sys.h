@@ -563,6 +563,10 @@ struct USED_MEM {
 
 /* Prototypes for mysys and my_func functions */
 
+extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
+                                      char *to, size_t to_length,
+                                      const char *from, size_t length);
+
 extern int my_copy(const char *from, const char *to, myf MyFlags);
 extern int my_delete(const char *name, myf MyFlags);
 extern int my_getwd(char *buf, size_t size, myf MyFlags);
@@ -885,18 +889,11 @@ extern bool resolve_collation(const char *cl_name,
                               const CHARSET_INFO **cl);
 extern char *get_charsets_dir(char *buf);
 
-extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
-                                      char *to, size_t to_length,
-                                      const char *from, size_t length);
 extern void charset_uninit();
 #ifdef _WIN32
 /* File system character set */
 extern CHARSET_INFO *fs_character_set(void);
-#endif
-extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
-                                      size_t to_length, const char *from,
-                                      size_t length, char quote);
-#ifdef _WIN32
+
 extern bool have_tcpip; /* Is set if tcpip is used */
 
 /* implemented in my_windac.c */

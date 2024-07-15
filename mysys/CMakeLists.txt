@@ -32,6 +32,7 @@ SET(MYSYS_SOURCES
   dbug.cc
   decimal.cc
   errors.cc
+  escape_string.cc
   lf_alloc-pin.cc
   lf_dynarray.cc
   lf_hash.cc
