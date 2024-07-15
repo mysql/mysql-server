@@ -87,7 +87,7 @@ TARGET_COMPILE_DEFINITIONS(${T}
 # error: __builtin_memcpy reading 106 bytes from a region of size 16
 # for socket_name = make_string(MAX_SOCKET_NAME_LEN - 1); in test_plugin.cc
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 11)
-  MY_TARGET_LINK_OPTIONS(${T} "-Wno-stringop-overread")
+  TARGET_LINK_OPTIONS(${T} PRIVATE -Wno-stringop-overread)
 ENDIF()
 
 ADD_ROUTER_TEST_FILE(

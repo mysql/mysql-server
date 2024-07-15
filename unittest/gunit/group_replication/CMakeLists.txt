@@ -58,13 +58,13 @@ ENDFOREACH()
 
 IF(WIN32)
   # LNK4286: symbol 'unknown_sqlstate' is imported from mysqlclient.lib
-  MY_TARGET_LINK_OPTIONS(
-    group_replication_gcs_mysql_network_provider-t "/ignore:4286"
+  TARGET_LINK_OPTIONS(
+    group_replication_gcs_mysql_network_provider-t PRIVATE /ignore:4286
     )
   # With clang we get 4217 rather than 4286
   IF(WIN32_CLANG)
-    MY_TARGET_LINK_OPTIONS(
-      group_replication_gcs_mysql_network_provider-t "/ignore:4217"
+    TARGET_LINK_OPTIONS(
+      group_replication_gcs_mysql_network_provider-t PRIVATE /ignore:4217
       )
   ENDIF()
 ENDIF()

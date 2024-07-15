@@ -138,6 +138,6 @@ MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc
   LINK_LIBRARIES myisam_library)
 
 IF (WIN32)
-  MY_TARGET_LINK_OPTIONS(myisamchk  "setargv.obj")
-  MY_TARGET_LINK_OPTIONS(myisampack "setargv.obj")
+  TARGET_LINK_OPTIONS(myisamchk PRIVATE setargv.obj)
+  TARGET_LINK_OPTIONS(myisampack PRIVATE setargv.obj)
 ENDIF()

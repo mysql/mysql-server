@@ -1206,12 +1206,12 @@ IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
   # and several other boost files.
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
-    MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
+    TARGET_LINK_OPTIONS(mysqld PRIVATE ${HAS_WARN_FLAG})
   ENDIF()
   # The linker claims that unmasked_server_id is uninitialized.
   MY_CHECK_CXX_COMPILER_WARNING("error=uninitialized" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
-    MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
+    TARGET_LINK_OPTIONS(mysqld PRIVATE ${HAS_WARN_FLAG})
   ENDIF()
 ENDIF()
 

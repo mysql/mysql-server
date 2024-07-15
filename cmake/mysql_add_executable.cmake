@@ -177,7 +177,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     ENDIF()
   ENDIF()
   IF(ARG_LINK_OPTIONS)
-    MY_TARGET_LINK_OPTIONS(${target} ${ARG_LINK_OPTIONS})
+    TARGET_LINK_OPTIONS(${target} PRIVATE ${ARG_LINK_OPTIONS})
   ENDIF()
 
   IF(ARG_EXCLUDE_FROM_PGO)
@@ -221,9 +221,9 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
       "${ASAN_LIB_DIR}/clang_rt.asan-x86_64.lib"
       "${ASAN_LIB_DIR}/clang_rt.asan_cxx-x86_64.lib"
       )
-    MY_TARGET_LINK_OPTIONS(${target}
+    TARGET_LINK_OPTIONS(${target} PRIVATE
       "/wholearchive:\"${ASAN_LIB_DIR}/clang_rt.asan-x86_64.lib\"")
-    MY_TARGET_LINK_OPTIONS(${target}
+    TARGET_LINK_OPTIONS(${target} PRIVATE
       "/wholearchive:\"${ASAN_LIB_DIR}/clang_rt.asan_cxx-x86_64.lib\"")
   ENDIF()
 
@@ -236,12 +236,12 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   ENDIF()
 
   IF(COMPRESS_DEBUG_SECTIONS)
-    MY_TARGET_LINK_OPTIONS(${target}
-      "LINKER:--compress-debug-sections=zlib")
+    TARGET_LINK_OPTIONS(${target} PRIVATE
+      LINKER:--compress-debug-sections=zlib)
   ENDIF()
 
   IF(HAVE_BUILD_ID_SUPPORT)
-    MY_TARGET_LINK_OPTIONS(${target} "LINKER:--build-id=sha1")
+    TARGET_LINK_OPTIONS(${target} PRIVATE LINKER:--build-id=sha1)
   ENDIF()
 
   # tell CPack where to install

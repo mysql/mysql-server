@@ -51,13 +51,13 @@ IF(LINUX OR SOLARIS)
   SET(PLUGIN_VERSION_FILE
     ${CMAKE_CURRENT_SOURCE_DIR}/authentication_oci_client.ver)
   IF(SOLARIS)
-    MY_TARGET_LINK_OPTIONS(authentication_oci_client
-      "LINKER:-z,gnu-version-script-compat")
+    TARGET_LINK_OPTIONS(authentication_oci_client PRIVATE
+      LINKER:-z,gnu-version-script-compat)
   ENDIF()
   # hide all symbols in mysys, to avoid ODR violations.
   # There is *one* visible symbol: _mysql_client_plugin_declaration_
-  MY_TARGET_LINK_OPTIONS(authentication_oci_client
-    "LINKER:--version-script=${PLUGIN_VERSION_FILE}"
+  TARGET_LINK_OPTIONS(authentication_oci_client PRIVATE
+    LINKER:--version-script=${PLUGIN_VERSION_FILE}
     )
   SET_TARGET_PROPERTIES(authentication_oci_client
     PROPERTIES LINK_DEPENDS ${PLUGIN_VERSION_FILE})

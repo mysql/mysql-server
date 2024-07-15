@@ -56,7 +56,7 @@ TARGET_LINK_LIBRARIES(
 # It can be observed with gcc+gold and gcc+lld.
 #
 IF(MY_COMPILER_IS_GNU)
-  MY_TARGET_LINK_OPTIONS(xprotocol_plugin "-Wl,--no-as-needed -lpthread")
+  TARGET_LINK_OPTIONS(xprotocol_plugin PRIVATE -Wl,--no-as-needed -lpthread)
 ENDIF()
 
 ADD_CUSTOM_COMMAND(

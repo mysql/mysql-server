@@ -119,7 +119,7 @@ FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
     # Suppress linker warnings arising from linking to mysqlgcs and mysys
     # LNK4217: symbol 'symbol' defined in 'f1.obj' is imported by 'f2.obj'...
     # LNK4286: symbol 'symbol' defined in 'f1.obj' is imported by 'f2.obj'
-    MY_TARGET_LINK_OPTIONS(${test}-t "/ignore:4217 /ignore:4286")
+    TARGET_LINK_OPTIONS(${test}-t PRIVATE /ignore:4217 /ignore:4286)
   ENDIF()
 ENDFOREACH()
 

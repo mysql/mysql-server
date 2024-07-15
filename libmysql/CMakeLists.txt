@@ -369,7 +369,7 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
 
 # Downgrade warning for strncat in my_crypt_genhash.
 IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND MY_COMPILER_IS_GNU)
-  MY_TARGET_LINK_OPTIONS(libmysql "-Wno-error=stringop-truncation")
+  TARGET_LINK_OPTIONS(libmysql PRIVATE -Wno-error=stringop-truncation)
 ENDIF()
 
 IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
@@ -379,13 +379,13 @@ ENDIF()
 
 IF(UNIX)
   IF(LINK_FLAG_Z_DEFS)
-    MY_TARGET_LINK_OPTIONS(libmysql "LINKER:${LINK_FLAG_Z_DEFS}")
+    TARGET_LINK_OPTIONS(libmysql PRIVATE LINKER:${LINK_FLAG_Z_DEFS})
   ENDIF()
 
   IF(LINUX)
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-    MY_TARGET_LINK_OPTIONS(libmysql
-      "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
+    TARGET_LINK_OPTIONS(libmysql PRIVATE
+      LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
   ENDIF()
 
   # clean direct output needs to be set several targets have the same name

@@ -88,8 +88,8 @@ ENDIF()
 # note: at offset 16 into destination object 'find_' of size 8
 #
 IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND MY_COMPILER_IS_GNU)
-  MY_TARGET_LINK_OPTIONS(router_mysqlxmessages
-    "-Wno-error=stringop-overflow")
+  TARGET_LINK_OPTIONS(router_mysqlxmessages PRIVATE
+    -Wno-error=stringop-overflow)
 ENDIF()
 
 ## rebuild mysqlxclient as router_mysqlxclient

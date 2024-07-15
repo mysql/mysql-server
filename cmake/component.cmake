@@ -78,8 +78,7 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
 
   TARGET_COMPILE_DEFINITIONS(${target} PUBLIC MYSQL_COMPONENT)
   IF(COMPRESS_DEBUG_SECTIONS)
-    MY_TARGET_LINK_OPTIONS(${target}
-      "LINKER:--compress-debug-sections=zlib")
+    TARGET_LINK_OPTIONS(${target} PRIVATE LINKER:--compress-debug-sections=zlib)
   ENDIF()
 
   IF(ARG_LINK_LIBRARIES)
