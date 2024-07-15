@@ -111,7 +111,7 @@ void QueryEntryFields::on_row(const ResultRow &row) {
 
 void QueryEntryFields::on_row_input_name(const ResultRow &row) {
   auto &item = result_.input_parameters;
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
 
   mysql_row.unserialize_with_converter(&item.id, entry::UniversalId::from_raw);
   mysql_row.unserialize(&item.name);
@@ -119,7 +119,7 @@ void QueryEntryFields::on_row_input_name(const ResultRow &row) {
 
 void QueryEntryFields::on_row_output_name(const ResultRow &row) {
   auto &item = result_.results.emplace_back();
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
 
   mysql_row.unserialize_with_converter(&item.id, entry::UniversalId::from_raw);
   mysql_row.unserialize(&item.name);
@@ -206,7 +206,7 @@ void QueryEntryFields::on_row_params(const ResultRow &row) {
     std::string &result_;
   };
 
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
 
   auto &entry = output_result_->fields.emplace_back();
   bool param_in{false}, param_out{false};

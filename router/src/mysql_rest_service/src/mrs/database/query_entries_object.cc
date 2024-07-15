@@ -322,7 +322,7 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
 
   entry::UniversalId reference_id;
 
-  helper::MySQLRow row(r, metadata_, no_od_metadata_);
+  helper::MySQLRow row(r, metadata_, num_of_metadata_);
   row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
   row.unserialize(&reference->schema);
   row.unserialize(&reference->table);
@@ -362,7 +362,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     }
   };
 
-  helper::MySQLRow row(r, metadata_, no_od_metadata_);
+  helper::MySQLRow row(r, metadata_, num_of_metadata_);
 
   entry::UniversalId field_id;
   entry::UniversalId parent_reference_id;
@@ -397,7 +397,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     CONVERT(&ofield->name);
     row.unserialize(&ofield->position);
     CONVERT(&ofield->enabled);
-    row.skip(9);
+    row.skip(10);
     row.unserialize(&ofield->allow_filtering);
     row.unserialize(&ofield->allow_sorting);
     row.unserialize(&ofield->no_check);
@@ -496,7 +496,9 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     }
     CONVERT_WITH_DEFAULT(&column->srid, static_cast<uint32_t>(0));
     row.unserialize(&dfield->allow_filtering);
+    row.unserialize(&dfield->allow_sorting);
     row.unserialize(&dfield->no_check);
+    row.unserialize(&dfield->no_update);
 
     dfield->source = column;
     column->table = table;
@@ -582,7 +584,7 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
 
   entry::UniversalId reference_id;
 
-  helper::MySQLRow row(r, metadata_, no_od_metadata_);
+  helper::MySQLRow row(r, metadata_, num_of_metadata_);
   row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
   row.unserialize(&reference->schema);
   row.unserialize(&reference->table);

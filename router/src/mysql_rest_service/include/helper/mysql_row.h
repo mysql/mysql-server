@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_MYSQL_ROW_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_MYSQL_ROW_H_
 
+#include <cassert>
 #include <cstdlib>
 #include <map>
 #include <optional>
@@ -45,10 +46,27 @@ class MySQLRow {
   MySQLRow(const ResultRow &row, MYSQL_FIELD *fields, unsigned number)
       : row_{row}, fields_{fields}, no_of_fields_{number} {}
 
+  ~MySQLRow() {
+    // At the end of execution "field_index_" contains array index to next
+    // field to read. Thus it may be interpreted as number of consumed fields.
+    //
+    // If the assert fails it means that Query fetched more fields that
+    // the user-code unserialized (missing `unserialize` calls).
+    //
+    // If the user code had finished fetching data, and there are still
+    // unserialized fields/data, then the user code should call
+    // `skip` to mark that those fields will be not unserialized.
+    assert(field_index_ == no_of_fields_ &&
+           "Number of consumed fields should be equal to number or provided "
+           "fields.");
+  }
+
   void skip(uint32_t to_skip = 1) { field_index_ += to_skip; }
 
   template <typename FieldType>
   void unserialize(FieldType *out_field) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     convert(field_index_ - 1, out_field, in_value);
@@ -56,6 +74,8 @@ class MySQLRow {
 
   template <typename FieldType>
   void unserialize(FieldType *out_field, FieldType value_default) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     if (in_value)
@@ -67,6 +87,8 @@ class MySQLRow {
   template <typename FieldType, typename Converter>
   void unserialize_with_converter(FieldType *out_field,
                                   const Converter &converter) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     converter(out_field, in_value);
@@ -75,6 +97,8 @@ class MySQLRow {
   template <typename FieldType, typename Converter>
   void unserialize_with_converter(std::optional<FieldType> *out_field,
                                   const Converter &converter) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     out_field->reset();
@@ -85,6 +109,8 @@ class MySQLRow {
   template <typename FieldType, typename Converter>
   void unserialize_with_converter(helper::Optional<FieldType> *out_field,
                                   const Converter &converter) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     out_field->reset();
@@ -98,6 +124,8 @@ class MySQLRow {
 
   template <typename FieldType>
   void unserialize(std::optional<FieldType> *out_field) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     out_field->reset();
@@ -111,6 +139,8 @@ class MySQLRow {
 
   template <typename FieldType>
   void unserialize(helper::Optional<FieldType> *out_field) {
+    assert((no_of_fields_ == 0 || field_index_ < no_of_fields_) &&
+           "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
     out_field->reset();

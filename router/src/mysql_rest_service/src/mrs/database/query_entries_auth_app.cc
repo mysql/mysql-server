@@ -73,7 +73,7 @@ void QueryEntriesAuthApp::query_entries(MySQLSession *session) {
 void QueryEntriesAuthApp::on_row(const ResultRow &row) {
   entries_.emplace_back();
 
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
   AuthApp &entry = entries_.back();
 
   mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
@@ -99,9 +99,12 @@ void QueryEntriesAuthApp::on_row(const ResultRow &row) {
   mysql_row.unserialize(&entry.options);
   mysql_row.unserialize(&entry.redirect);
   mysql_row.unserialize(&entry.redirection_default_page);
-  mysql_row.skip();
+  // Field used for audit_log matching
+  mysql_row.skip(/*a.id as auth_app_id*/);
   mysql_row.unserialize_with_converter(&entry.vendor_id,
                                        entry::UniversalId::from_raw);
+  // Field used for audti_log matching
+  mysql_row.skip(/*h.id as url_host_id*/);
 
   entry.deleted = false;
 }

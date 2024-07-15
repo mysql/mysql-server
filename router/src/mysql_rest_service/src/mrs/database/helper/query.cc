@@ -114,7 +114,7 @@ void Query::on_row([[maybe_unused]] const ResultRow &r) {}
 
 void Query::on_metadata(unsigned number, MYSQL_FIELD *fields) {
   metadata_ = fields;
-  no_od_metadata_ = number;
+  num_of_metadata_ = number;
 }
 
 }  // namespace database

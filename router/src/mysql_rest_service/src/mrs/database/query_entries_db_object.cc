@@ -156,7 +156,7 @@ void QueryEntriesDbObject::on_row(const ResultRow &row) {
       {"ITEM", DbObject::formatItem},
       {"MEDIA", DbObject::formatMedia}};
 
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
   DbObject &entry = entries.back();
 
   auto path_type_converter =

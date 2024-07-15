@@ -70,7 +70,7 @@ void QueryEntriesContentFile::query_entries(MySQLSession *session) {
 void QueryEntriesContentFile::on_row(const ResultRow &row) {
   entries.emplace_back();
 
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
   auto &entry = entries.back();
 
   mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
@@ -90,6 +90,8 @@ void QueryEntriesContentFile::on_row(const ResultRow &row) {
                                        entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.options_json_schema);
   mysql_row.unserialize(&entry.options_json_service);
+  // Skip column, that is used for audit_log filtering
+  mysql_row.skip(/*h.id as url_host_id*/);
 
   entry.deleted = false;
 }

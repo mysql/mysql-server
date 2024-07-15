@@ -49,6 +49,8 @@ eval INSERT INTO mysql_rest_service_metadata.object_field
                  "$.auto_inc", EXTRA like "%auto_increment%", 
                  "$.not_null", is_NULLABLE <> "YES", 
                  "$.is_primary", COLUMN_KEY like "%PRI%",
+                 "$.id_generation", IF(EXTRA = "auto_increment", "auto_inc", IF(COLUMN_KEY = "PRI" AND DATA_TYPE = "binary" AND CHARACTER_MAXIMUM_LENGTH = 16,
+                    "rev_uuid", NULL)),
                  "$.srid", SRS_ID) as js
                  FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object" $mrs_add_db_object_table_filter) as z;
 

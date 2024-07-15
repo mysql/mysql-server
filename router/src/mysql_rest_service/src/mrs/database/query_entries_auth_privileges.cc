@@ -74,7 +74,7 @@ void QueryEntriesAuthPrivileges::query_user(
 }
 
 void QueryEntriesAuthPrivileges::on_row(const ResultRow &r) {
-  helper::MySQLRow row{r, metadata_, no_od_metadata_};
+  helper::MySQLRow row{r, metadata_, num_of_metadata_};
   entry::AuthPrivilege entry;
 
   row.unserialize_with_converter(&entry.service_id,

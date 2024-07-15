@@ -82,7 +82,7 @@ void QueryAuditLogEntries::on_row_count(const ResultRow &row) {
 void QueryAuditLogEntries::on_row_entries(const ResultRow &row) {
   entries.emplace_back();
 
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
   auto &entry = entries.back();
 
   mysql_row.unserialize(&entry.id);

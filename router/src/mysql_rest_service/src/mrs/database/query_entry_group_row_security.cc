@@ -49,7 +49,7 @@ QueryEntryGroupRowSecurity::get_result() {
 void QueryEntryGroupRowSecurity::on_row(const ResultRow &row) {
   if (row.size() < 1) return;
 
-  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
   auto converter = [](MatchLevel *out_ml, const char *db_value) {
     *out_ml = static_cast<MatchLevel>(atoi(db_value));
   };

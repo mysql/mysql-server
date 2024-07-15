@@ -57,7 +57,7 @@ class Query {
   mysqlrouter::sqlstring query_;
   std::optional<std::string> sqlstate_;
   MYSQL_FIELD *metadata_{nullptr};
-  unsigned no_od_metadata_{0};
+  unsigned num_of_metadata_{0};
 };
 
 class QueryLog : public Query {
