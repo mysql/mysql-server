@@ -333,7 +333,6 @@ WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
 # Range scan. Expect two rows examined.
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE x < 3;
---skip_if_hypergraph  # Not counted yet.
 SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
@@ -341,7 +340,6 @@ WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';
 # Index lookup. Expect one row examined.
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE x = 3;
---skip_if_hypergraph  # Not counted yet.
 SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE QUERY_SAMPLE_TEXT LIKE 'SELECT %';

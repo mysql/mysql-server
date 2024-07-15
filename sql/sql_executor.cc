@@ -4761,8 +4761,7 @@ bool MaterializeIsDoingDeduplication(TABLE *table) {
   @param path     Access path (A range scan)
   @param count_examined_rows See AccessPath::count_examined_rows.
 */
-static void set_count_examined_rows(AccessPath *path,
-                                    const bool count_examined_rows) {
+void set_count_examined_rows(AccessPath *path, bool count_examined_rows) {
   path->count_examined_rows = count_examined_rows;
   switch (path->type) {
     case AccessPath::INDEX_MERGE:

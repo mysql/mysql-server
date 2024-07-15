@@ -3154,7 +3154,6 @@ bool CostingReceiver::ProposeTableScan(
     path.type = AccessPath::TABLE_SCAN;
     path.table_scan().table = table;
   }
-  path.count_examined_rows = true;
   path.ordering_state = 0;
 
   const double num_output_rows = table->file->stats.records;
@@ -3295,7 +3294,6 @@ bool CostingReceiver::ProposeIndexScan(
   path.index_scan().idx = key_idx;
   path.index_scan().use_order = ordering_idx != 0;
   path.index_scan().reverse = reverse;
-  path.count_examined_rows = true;
   path.ordering_state = m_orderings->SetOrder(ordering_idx);
 
   double num_output_rows = table->file->stats.records;
@@ -3342,7 +3340,6 @@ bool CostingReceiver::ProposeDistanceIndexScan(
       0 /*flag*/, HA_READ_NEAREST_NEIGHBOR);
   path.index_distance_scan().range = range;
 
-  path.count_examined_rows = true;
   path.ordering_state = m_orderings->SetOrder(ordering_idx);
 
   double num_output_rows = table->file->stats.records;
@@ -3704,6 +3701,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
   double materialize_cost = 0.0;
 
   const NodeMap my_map = TableBitmap(node_idx);
+  set_count_examined_rows(path, true);
   path->set_num_output_rows(path->num_output_rows_before_filter);
   path->set_cost(path->cost_before_filter());
   MutableOverflowBitset filter_predicates{m_thd->mem_root,
@@ -5917,7 +5915,6 @@ AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
         std::move(applied_sargable_join_predicates);
   }
   sort_path.delayed_predicates = child->delayed_predicates;
-  sort_path.count_examined_rows = false;
   sort_path.sort().child = child;
   sort_path.sort().filesort = nullptr;
   sort_path.sort().tables_to_get_rowid_for = 0;
@@ -6967,7 +6964,6 @@ AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
   assert(output_rows != kUnknownRowCount);
   AccessPath sort_path;
   sort_path.type = AccessPath::SORT;
-  sort_path.count_examined_rows = false;
   sort_path.sort().child = root_path;
   sort_path.sort().filesort = nullptr;
   sort_path.sort().remove_duplicates = true;
@@ -7234,7 +7230,6 @@ AccessPathArray ApplyOrderBy(THD *thd, const CostingReceiver &receiver,
 
       AccessPath *sort_path = new (thd->mem_root) AccessPath;
       sort_path->type = AccessPath::SORT;
-      sort_path->count_examined_rows = false;
       sort_path->immediate_update_delete_table =
           root_path->immediate_update_delete_table;
       sort_path->sort().child = root_path;
@@ -8090,7 +8085,6 @@ bool ApplyAggregation(
 
       AccessPath *sort_path = new (thd->mem_root) AccessPath;
       sort_path->type = AccessPath::SORT;
-      sort_path->count_examined_rows = false;
       sort_path->sort().child = root_path;
       sort_path->sort().filesort = nullptr;
       sort_path->sort().remove_duplicates = false;

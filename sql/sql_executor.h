@@ -603,4 +603,6 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
                          qep_tab_map *unhandled_duplicates,
                          table_map *conditions_depend_on_outer_tables);
 
+void set_count_examined_rows(AccessPath *path, bool count_examined_rows);
+
 #endif /* SQL_EXECUTOR_INCLUDED */

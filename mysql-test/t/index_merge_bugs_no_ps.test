@@ -36,8 +36,6 @@ let $query = SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 OR f2 = 2;
 CALL extract_range_scans(@plan);
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 --eval $query
-# Hypergraph does not count examined rows.
---skip_if_hypergraph
 --eval $show_row_count
 
 let $query =
@@ -46,8 +44,6 @@ let $query =
 CALL extract_range_scans(@plan);
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 --eval $query
-# Hypergraph does not count examined rows.
---skip_if_hypergraph
 --eval $show_row_count
 
 let $query = SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 AND f2 = 2;
@@ -55,8 +51,6 @@ let $query = SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE f1 = 0 AND f2 = 2;
 CALL extract_range_scans(@plan);
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 --eval $query
-# Hypergraph does not count examined rows.
---skip_if_hypergraph
 --eval $show_row_count
 
 SET explain_json_format_version = DEFAULT;
