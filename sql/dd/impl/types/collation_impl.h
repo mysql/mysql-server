@@ -130,9 +130,9 @@ class Collation_impl : public Entity_object_impl, public Collation {
 
  private:
   // Fields
-  bool m_is_compiled;
-  uint m_sort_length;
-  enum_pad_attribute m_pad_attribute;
+  bool m_is_compiled{false};
+  uint m_sort_length{0};
+  enum_pad_attribute m_pad_attribute{PA_UNDEFINED};
 
   // References to other objects
   Object_id m_charset_id;

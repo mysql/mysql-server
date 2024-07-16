@@ -554,7 +554,7 @@ class SEL_ARG {
 
   enum leaf_color { BLACK, RED } color;
 
-  bool is_ascending;  ///< true - ASC order, false - DESC
+  bool is_ascending{true};  ///< true - ASC order, false - DESC
 
   SEL_ARG() = default;
   SEL_ARG(SEL_ARG &);
