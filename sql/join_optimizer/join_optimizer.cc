@@ -4970,6 +4970,17 @@ bool CostingReceiver::AllowNestedLoopJoin(NodeMap left, NodeMap right,
     return true;
   }
 
+  // If the left path has a LIMIT 1 on top (typically added by
+  // DeduplicateForSemijoin() when a semijoin is rewritten to an inner join), a
+  // nested loop join is a safe choice even when there are no indexes. It would
+  // read left_path and right_path once, just like the corresponding hash join,
+  // but it would not need to build a hash table, so it should be cheaper than
+  // the hash join. Allow it.
+  if (left_path.type == AccessPath::LIMIT_OFFSET &&
+      left_path.limit_offset().limit <= 1) {
+    return true;
+  }
+
   // Otherwise, we don't allow nested loop join unless the corresponding hash
   // join is not allowed. In that case, we have no other choice than to allow
   // nested loop join, otherwise we might not find a plan for the query.
@@ -4995,10 +5006,6 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
   // FULL OUTER JOIN is not possible with nested-loop join.
   assert(edge->expr->type != RelationalExpression::FULL_OUTER_JOIN);
-
-  if (!AllowNestedLoopJoin(left, right, *left_path, *right_path, *edge)) {
-    return;
-  }
 
   AccessPath join_path;
   join_path.type = AccessPath::NESTED_LOOP_JOIN;
@@ -5045,6 +5052,11 @@ void CostingReceiver::ProposeNestedLoopJoin(
         static_cast<JoinType>(edge->expr->type);
   }
   join_path.nested_loop_join().join_predicate = edge;
+
+  if (!AllowNestedLoopJoin(left, right, *join_path.nested_loop_join().outer,
+                           *join_path.nested_loop_join().inner, *edge)) {
+    return;
+  }
 
   // Nested loop joins read the outer table exactly once, and the inner table
   // potentially many times, so we can only perform immediate update or delete

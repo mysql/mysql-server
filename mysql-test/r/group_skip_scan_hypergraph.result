@@ -1531,12 +1531,11 @@ group by a1,a2,b;
 EXPLAIN
 -> Table scan on <temporary>  (rows=16)
     -> Aggregate using temporary table  (rows=16)
-        -> Inner hash join (no condition)  (rows=128)
+        -> Nested loop inner join  (rows=128)
             -> Limit: 1 row(s)  (rows=1)
                 -> Filter: (t2.c > 'b1')  (rows=54.7)
                     -> Covering index scan on t2 using idx_t2_1  (rows=164)
-            -> Hash
-                -> Covering index scan on t1 using idx_t1_1  (rows=128)
+            -> Covering index scan on t1 using idx_t1_1  (rows=128)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
