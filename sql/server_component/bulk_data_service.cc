@@ -456,7 +456,7 @@ static int format_double_column(
     return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
   }
 
-  if (field_double->truncate(&nr, FLT_MAX) != Field_real::TR_OK) {
+  if (field_double->truncate(&nr, DBL_MAX) != Field_real::TR_OK) {
     error_details.column_type = "double";
     log_conversion_error(text_col, "Invalid value for type: ");
     return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
