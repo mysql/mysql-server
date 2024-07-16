@@ -205,6 +205,26 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     ADD_TEST(${ARG_ADD_TEST}
       ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${target})
     SET(ARG_SKIP_INSTALL TRUE)
+
+    # Set sanitizer environment, except for ASAN on WIN32_CLANG
+    SET(ADD_TEST_ENV 1)
+    # See router/cmake/testing.cmake
+    IF(ARG_COMPONENT AND ARG_COMPONENT MATCHES "Router")
+      SET(ADD_TEST_ENV 0)
+    ENDIF()
+    IF(UNIX AND WITH_SOME_SANITIZER AND ADD_TEST_ENV)
+      SET(TEST_ENV "")
+      STRING_APPEND(TEST_ENV
+        "ASAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/mysql-test/asan.supp")
+      STRING_APPEND(TEST_ENV ";")
+      STRING_APPEND(TEST_ENV
+        "LSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/mysql-test/lsan.supp")
+      STRING_APPEND(TEST_ENV ",exitcode=42")
+      STRING_APPEND(TEST_ENV ";")
+      STRING_APPEND(TEST_ENV
+        "UBSAN_OPTIONS=print_stacktrace=1,halt_on_error=1")
+      SET_TESTS_PROPERTIES(${ARG_ADD_TEST} PROPERTIES ENVIRONMENT "${TEST_ENV}")
+    ENDIF()
   ENDIF()
 
   IF(COMPRESS_DEBUG_SECTIONS)
