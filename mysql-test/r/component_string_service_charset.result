@@ -106,4 +106,6 @@ Get char with index 1 passed.
 Get char with index > strlen passed.
 Get byte with index strlen failed.
 Destroy string object.
+Test invalid chaset: should fail but not leak
+Convert from buffer failed.
 End of init
