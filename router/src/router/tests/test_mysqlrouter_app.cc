@@ -498,12 +498,9 @@ TEST_F(AppTest, SetCommandLineUserBeforeInitializingLogger) {
       "--user=" + std::string(user)};
 
   // set empty Registry (is_ready() return false)
-  std::unique_ptr<mysql_harness::logging::Registry> registry(
-      new mysql_harness::logging::Registry());
   mysql_harness::DIM::instance().set_LoggingRegistry(
-      [&registry]() { return registry.release(); },
+      new mysql_harness::logging::Registry(),
       std::default_delete<mysql_harness::logging::Registry>());
-  mysql_harness::DIM::instance().reset_LoggingRegistry();
 
   struct passwd user_info;
   user_info.pw_gid = 12;
@@ -572,12 +569,9 @@ TEST_F(AppTest, SetConfigUserBeforeInitializingLogger) {
       "--extra-config=" + config_dir.join("mysqlrouter_extra.conf").str()};
 
   // set empty Registry (is_ready() return false)
-  std::unique_ptr<mysql_harness::logging::Registry> registry(
-      new mysql_harness::logging::Registry());
   mysql_harness::DIM::instance().set_LoggingRegistry(
-      [&registry]() { return registry.release(); },
+      new mysql_harness::logging::Registry(),
       std::default_delete<mysql_harness::logging::Registry>());
-  mysql_harness::DIM::instance().reset_LoggingRegistry();
 
   struct passwd user_info;
   user_info.pw_gid = 12;

@@ -75,16 +75,14 @@ MATCHER_P(FileContentNotEqual, master_key, "") {
 class MasterKeyReaderWriterTest : public RouterComponentBootstrapTest {
  protected:
   void SetUp() override {
+    static mysql_harness::RandomGenerator rg;
+
     RouterComponentTest::SetUp();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
-    dim.set_RandomGenerator(
-        []() {
-          static mysql_harness::RandomGenerator rg;
-          return &rg;
-        },
-        [](mysql_harness::RandomGeneratorInterface *) {});
+    dim.set_RandomGenerator(&rg,
+                            [](mysql_harness::RandomGeneratorInterface *) {});
   }
 
   void write_to_file(const Path &file_path, const std::string &text) {

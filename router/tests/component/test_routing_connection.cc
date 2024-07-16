@@ -253,16 +253,14 @@ class ConfigGenerator {
 class RouterRoutingConnectionCommonTest : public RouterComponentTest {
  public:
   void SetUp() override {
+    static mysql_harness::RandomGenerator static_rg;
+
     RouterComponentTest::SetUp();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
-    dim.set_RandomGenerator(
-        []() {
-          static mysql_harness::RandomGenerator rg;
-          return &rg;
-        },
-        [](mysql_harness::RandomGeneratorInterface *) {});
+    dim.set_static_RandomGenerator(&static_rg);
+
 #if 1
     {
       ProcessWrapper::OutputResponder responder{

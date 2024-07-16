@@ -461,9 +461,8 @@ static void switch_to_loggers_in_config(
   // nothing threw - we're good. Now let's replace the new registry with the
   // old one
   DIM::instance().set_LoggingRegistry(
-      [&registry]() { return registry.release(); },
+      registry.release(),
       std::default_delete<mysql_harness::logging::Registry>());
-  DIM::instance().reset_LoggingRegistry();
 
   // set timestamp precision
   auto precision =
