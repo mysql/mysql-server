@@ -1833,9 +1833,9 @@ WHERE EXISTS (SELECT * FROM t AS t3 WHERE t2.b = t3.c OR t3.c = 0)
 )
 SELECT t1.a, s.b FROM t AS t1 LEFT JOIN s ON t1.a = s.b;
 EXPLAIN
--> Nested loop left join  (rows=4)
+-> Left hash join (t1.a = t2.b), extra conditions: ((t1.a = t2.b) or (t3.c = 0))  (rows=4)
     -> Table scan on t1  (rows=4)
-    -> Filter: ((t1.a = t2.b) and ((t1.a = t2.b) or (t3.c = 0)))  (rows=0.4)
+    -> Hash
         -> Inner hash join (no condition)  (rows=4)
             -> Limit: 1 row(s)  (rows=1)
                 -> Table scan on t3  (rows=4)

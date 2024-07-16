@@ -1518,7 +1518,8 @@ WITH s AS (
 SELECT t1.a, s.b FROM t AS t1 LEFT JOIN s ON t1.a = s.b;
 
 # Check that a plan can be found for this query. It used to fail with
-# no plan found.
+# no plan found. We expect the left outer join to be performed as a hash
+# join, as there are no indexes it could use in a nested loop join.
 # The plan is affected by bug#36844820, and may give wrong results if
 # the input data is changed (for example, wrong results are returned
 # after UPDATE t SET c = 100). The plan is expected to change when that

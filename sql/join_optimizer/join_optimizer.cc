@@ -4373,7 +4373,9 @@ bool CostingReceiver::AllowHashJoin(NodeMap left, NodeMap right,
   // TODO(Chaithra): It is possible that the various join nests are looked at
   // carefully when relational expressions are created and forcing only NLJ's
   // for such cases.
-  if (edge.expr->type == RelationalExpression::LEFT_JOIN &&
+  if (m_thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::SECONDARY &&
+      edge.expr->type == RelationalExpression::LEFT_JOIN &&
       edge.expr->right->type == RelationalExpression::SEMIJOIN) {
     // Check if there is a condition connecting the left side of the outer
     // join and inner side of the semijoin. This is a deviation from the
