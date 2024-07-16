@@ -238,6 +238,10 @@ bool Registry::is_handled(LogLevel level) const {
 
 static std::string g_main_app_log_domain;
 
+Logger Registry::get_logger_or_default(const std::string &name) const {
+  return get_logger_or_default(name, g_main_app_log_domain);
+}
+
 void attach_handler_to_all_loggers(Registry &registry,
                                    std::string handler_name) {
   for (const std::string &logger_name : registry.get_logger_names()) {

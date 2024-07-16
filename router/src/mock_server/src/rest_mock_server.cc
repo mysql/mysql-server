@@ -41,16 +41,15 @@
 
 // Harness interface include files
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
+#include "mysql/harness/utility/string.h"  // string_format
 
 #include "http/base/request.h"
 #include "mysqlrouter/component/http_server_component.h"
 #include "mysqlrouter/mock_server_component.h"
 #include "scope_guard.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 #ifdef _WIN32
 // workaround error C2039: 'GetObjectA': is not a member of ...
@@ -109,8 +108,11 @@ class RestApiV1MockServerGlobals : public http::base::RequestHandler {
     last_modified_ =
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-    log_debug("%s %s", http_method_to_string(req.get_method()),
-              req.get_uri().get_path().c_str());
+    logger_.debug([&req]() {
+      return mysql_harness::utility::string_format(
+          "%s %s", http_method_to_string(req.get_method()),
+          req.get_uri().get_path().c_str());
+    });
 
     if (!((HttpMethod::Get | HttpMethod::Put) & req.get_method())) {
       req.get_output_headers().add("Allow", "GET, PUT");
@@ -141,19 +143,27 @@ class RestApiV1MockServerGlobals : public http::base::RequestHandler {
  private:
   time_t last_modified_;
 
+  mysql_harness::logging::DomainLogger logger_;
+
   void handle_global_put_all(http::base::Request &req) {
     auto content_type = req.get_input_headers().find("Content-Type");
     // PUT
     //
     // required content-type: application/json
     if (nullptr == content_type || *content_type != "application/json") {
-      log_debug("HTTP[%d]", HttpStatusCode::UnsupportedMediaType);
+      logger_.debug([]() {
+        return mysql_harness::utility::string_format(
+            "HTTP[%d]", HttpStatusCode::UnsupportedMediaType);
+      });
       req.send_reply(HttpStatusCode::UnsupportedMediaType);
       return;
     }
     auto str_data = req.get_input_body();
 
-    log_debug("HTTP> %s", str_data.c_str());
+    logger_.debug([&]() {
+      return mysql_harness::utility::string_format("HTTP> %s",
+                                                   str_data.c_str());
+    });
 
     JsonDocument body_doc;
     body_doc.Parse(str_data.c_str());
@@ -168,14 +178,20 @@ class RestApiV1MockServerGlobals : public http::base::RequestHandler {
 
       //      out_buf.add(parse_error.data(), parse_error.size());
 
-      log_debug("HTTP[%d]", HttpStatusCode::UnprocessableEntity);
+      logger_.debug([&]() {
+        return mysql_harness::utility::string_format(
+            "HTTP[%d]", HttpStatusCode::UnprocessableEntity);
+      });
       req.send_reply(HttpStatusCode::UnprocessableEntity,
                      "Unprocessable Entity", parse_error);
       return;
     }
 
     if (!body_doc.IsObject()) {
-      log_debug("HTTP[%d]", HttpStatusCode::UnprocessableEntity);
+      logger_.debug([&]() {
+        return mysql_harness::utility::string_format(
+            "HTTP[%d]", HttpStatusCode::UnprocessableEntity);
+      });
       req.send_reply(HttpStatusCode::UnprocessableEntity);
       return;
     }
@@ -196,7 +212,10 @@ class RestApiV1MockServerGlobals : public http::base::RequestHandler {
         MockServerComponent::get_instance().get_global_scope();
     shared_globals->reset(all_globals);
 
-    log_debug("HTTP[%d]", HttpStatusCode::NoContent);
+    logger_.debug([&]() {
+      return mysql_harness::utility::string_format("HTTP[%d]",
+                                                   HttpStatusCode::NoContent);
+    });
     req.send_reply(HttpStatusCode::NoContent);
   }
 
@@ -233,7 +252,10 @@ class RestApiV1MockServerGlobals : public http::base::RequestHandler {
         json_doc.Accept(json_writer);
       }  // free json_doc and json_writer early
 
-      log_debug("HTTP[%d]< %s", HttpStatusCode::Ok, json_buf.GetString());
+      logger_.debug([&]() {
+        return mysql_harness::utility::string_format(
+            "HTTP[%d]< %s", HttpStatusCode::Ok, json_buf.GetString());
+      });
     }  // free json_buf early
 
     auto &out_hdrs = req.get_output_headers();

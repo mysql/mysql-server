@@ -58,6 +58,9 @@ class HARNESS_EXPORT Logger {
   void detach_handler(std::string name, bool handler_must_exist = true);
   void handle(const Record &record);
 
+  void lazy_handle(LogLevel record_level,
+                   std::function<Record()> record_creator) const;
+
   /**
    * check if the log-level will be handled.
    *
@@ -86,6 +89,54 @@ class HARNESS_EXPORT Logger {
   std::set<std::string> handlers_;
   const Registry *registry_;  // owner backreference (we don't own Registry,
                               // Registry owns us)
+};
+
+class HARNESS_EXPORT DomainLogger {
+ public:
+  DomainLogger() = default;
+
+  DomainLogger(std::string domain) : domain_(std::move(domain)) {}
+
+  void debug(std::invocable auto producer) const {
+    log(LogLevel::kDebug, std::move(producer));
+  }
+  void debug(const std::string &msg) const { log(LogLevel::kDebug, msg); }
+
+  void info(std::invocable auto producer) const {
+    log(LogLevel::kInfo, std::move(producer));
+  }
+  void info(const std::string &msg) const { log(LogLevel::kInfo, msg); }
+
+  void warning(std::invocable auto producer) const {
+    log(LogLevel::kWarning, std::move(producer));
+  }
+  void warning(const std::string &msg) const { log(LogLevel::kWarning, msg); }
+
+  void system(std::invocable auto producer) const {
+    log(LogLevel::kSystem, std::move(producer));
+  }
+  void system(const std::string &msg) const { log(LogLevel::kSystem, msg); }
+
+  void note(std::invocable auto producer) const {
+    log(LogLevel::kNote, std::move(producer));
+  }
+  void note(const std::string &msg) const { log(LogLevel::kNote, msg); }
+
+  void error(std::invocable auto producer) const {
+    log(LogLevel::kError, std::move(producer));
+  }
+  void error(const std::string &msg) const { log(LogLevel::kError, msg); }
+
+  void log(LogLevel log_level, std::function<std::string()> producer) const;
+
+  void log(LogLevel log_level, std::string msg) const;
+
+ private:
+  bool init_logger() const;
+
+  mutable std::optional<mysql_harness::logging::Logger> logger_;
+
+  std::string domain_{MYSQL_ROUTER_LOG_DOMAIN};
 };
 
 }  // namespace logging

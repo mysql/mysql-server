@@ -44,14 +44,13 @@
 #include "duktape.h"
 #include "duktape_statement_reader.h"
 #include "harness_assert.h"
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "statement_reader.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
 
@@ -132,7 +131,7 @@ DuktapeStatementReaderFactory::operator()() {
     return std::make_unique<DuktapeStatementReader>(filename_, module_prefixes_,
                                                     session_, global_scope_);
   } catch (const std::exception &ex) {
-    log_warning("%s", ex.what());
+    mysql_harness::logging::DomainLogger().warning(ex.what());
     return std::make_unique<FailedStatementReader>(ex.what());
   }
 }
@@ -292,7 +291,9 @@ class DukHeap {
           std::shared_ptr<MockServerGlobalScope> shared_globals)
       : heap_{duk_create_heap(nullptr, nullptr, nullptr, nullptr,
                               [](void *, const char *msg) {
-                                log_error("%s", msg);
+                                mysql_harness::logging::DomainLogger().error(
+                                    msg);
+
                                 abort();
                               })},
         shared_{std::move(shared_globals)} {

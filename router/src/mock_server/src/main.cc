@@ -39,13 +39,12 @@
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/process_state_component.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/stdx/filesystem.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
-
-IMPORT_LOG_FUNCTIONS()
 
 constexpr unsigned kHelpScreenWidth = 72;
 constexpr unsigned kHelpScreenIndent = 8;
@@ -247,7 +246,7 @@ class MysqlServerMockFrontend {
                                err.what());
     }
 
-    log_debug("Starting");
+    logger_.debug("Starting");
 
 #if !defined(_WIN32)
     //
@@ -415,6 +414,8 @@ class MysqlServerMockFrontend {
   mysql_harness::Path origin_dir_;
 
   mysql_harness::SignalHandler signal_handler_;
+
+  mysql_harness::logging::DomainLogger logger_;
 };
 
 int main(int argc, char *argv[]) {

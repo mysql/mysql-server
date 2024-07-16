@@ -69,6 +69,10 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
     logging_registry_.set(instance, deleter);
   }
 
+  bool has_LoggingRegistry() const {
+    return static_cast<bool>(logging_registry_);
+  }
+
   mysql_harness::logging::Registry &get_LoggingRegistry() const {
     return logging_registry_.get();
   }

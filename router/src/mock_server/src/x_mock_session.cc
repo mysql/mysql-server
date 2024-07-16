@@ -23,17 +23,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "x_mock_session.h"
-#include "mysql/harness/net_ts/buffer.h"
-#include "mysqlrouter/classic_protocol_codec_base.h"
-#include "mysqlrouter/classic_protocol_codec_error.h"
-#include "mysqlrouter/classic_protocol_wire.h"
-#include "router/src/mock_server/src/statement_reader.h"
 
 #include <exception>
 #include <memory>
 #include <system_error>
 #include <thread>
 #include <tuple>
+#include "mysql/harness/utility/string.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
@@ -44,14 +40,18 @@
 #include "my_config.h"
 
 #include "harness_assert.h"
-#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol_codec_base.h"
+#include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
+#include "mysqlrouter/classic_protocol_wire.h"
 #include "mysqlx_error.h"
 #include "mysqlxclient/xprotocol.h"
+#include "statement_reader.h"
 
-IMPORT_LOG_FUNCTIONS()
+using namespace std::string_literals;
 
 namespace server_mock {
 
@@ -304,24 +304,23 @@ void MySQLServerMockSessionX::handshake() {
   if (!decode_frame_res) {
     auto ec = decode_frame_res.error();
     if (ec == classic_protocol::codec_errc::not_enough_input) {
-      protocol_.async_receive(
-          [&](std::error_code ec, size_t /* transferred */) {
-            if (ec) {
-              if (ec != std::errc::operation_canceled) {
-                log_warning("receive handshake-frame failed: %s",
-                            ec.message().c_str());
-              }
+      protocol_.async_receive([&](std::error_code ec,
+                                  size_t /* transferred */) {
+        if (ec) {
+          if (ec != std::errc::operation_canceled) {
+            logger_.warning("receive handshake-frame failed: " + ec.message());
+          }
 
-              disconnect();
-              return;
-            }
+          disconnect();
+          return;
+        }
 
-            // call handshake again to process the message.
-            handshake();
-          });
+        // call handshake again to process the message.
+        handshake();
+      });
       return;
     } else {
-      log_warning("decoding handshake-frame failed: %s", ec.message().c_str());
+      logger_.warning("decoding handshake-frame failed: " + ec.message());
 
       protocol_.encode_error({ER_X_BAD_MESSAGE, "Bad Message", "HY000"});
 
@@ -334,7 +333,7 @@ void MySQLServerMockSessionX::handshake() {
   auto decode_res = protocol_.decode_single_message(payload);
   if (!decode_res) {
     auto ec = decode_res.error();
-    log_warning("decoding handshake-message failed: %s", ec.message().c_str());
+    logger_.warning("decoding handshake-message failed: " + ec.message());
 
     protocol_.encode_error({ER_X_BAD_MESSAGE, "Bad Message", "HY000"});
 
@@ -365,33 +364,32 @@ void MySQLServerMockSessionX::handshake() {
           Mysqlx::Ok ok_msg;
           protocol_.encode_message(Mysqlx::ServerMessages::OK, ok_msg);
 
-          protocol_.async_send(
-              [&](std::error_code ec, size_t /* transferred */) {
-                if (ec) {
-                  disconnect();
-                  return;
+          protocol_.async_send([&](std::error_code ec,
+                                   size_t /* transferred */) {
+            if (ec) {
+              disconnect();
+              return;
+            }
+
+            protocol_.init_tls();
+
+            protocol_.async_tls_accept([&](std::error_code ec) {
+              if (ec) {
+                if (ec != std::errc::operation_canceled) {
+                  logger_.warning("async_tls_accept failed: " + ec.message());
                 }
 
-                protocol_.init_tls();
+                disconnect();
+                return;
+              }
 
-                protocol_.async_tls_accept([&](std::error_code ec) {
-                  if (ec) {
-                    if (ec != std::errc::operation_canceled) {
-                      log_warning("async_tls_accept failed: %s",
-                                  ec.message().c_str());
-                    }
+              auto *ssl = protocol_.ssl();
+              json_reader_->set_session_ssl_info(ssl);
 
-                    disconnect();
-                    return;
-                  }
-
-                  auto *ssl = protocol_.ssl();
-                  json_reader_->set_session_ssl_info(ssl);
-
-                  // read the next message via SSL
-                  handshake();
-                });
-              });
+              // read the next message via SSL
+              handshake();
+            });
+          });
 
           return;
         } else {
@@ -468,12 +466,11 @@ void MySQLServerMockSessionX::handshake() {
           // EOF is expected, don't log it.
           if (ec != net::stream_errc::eof &&
               ec != std::errc::operation_canceled) {
-            log_warning("receive connection-close failed: %s",
-                        ec.message().c_str());
+            logger_.warning("receive connection-close failed: " + ec.message());
           }
         } else {
           // something _was_ sent? log it.
-          log_debug("data after QUIT: %zu", transferred);
+          logger_.debug("data after QUIT: " + std::to_string(transferred));
         }
         disconnect();
       });
@@ -491,7 +488,7 @@ void MySQLServerMockSessionX::send_response_then_disconnect() {
                            std::error_code ec, size_t transferred) {
     if (ec) {
       if (ec != std::errc::operation_canceled) {
-        log_warning("sending response failed: %s", ec.message().c_str());
+        logger_.warning("sending response failed: " + ec.message());
       }
       disconnect();
       return;
@@ -512,7 +509,7 @@ void MySQLServerMockSessionX::send_response_then_first_idle() {
                            std::error_code ec, size_t transferred) {
     if (ec) {
       if (ec != std::errc::operation_canceled) {
-        log_warning("sending response failed: %s", ec.message().c_str());
+        logger_.warning("sending response failed: " + ec.message());
       }
 
       disconnect();
@@ -538,7 +535,7 @@ void MySQLServerMockSessionX::send_response_then_idle() {
                            std::error_code ec, size_t transferred) {
     if (ec) {
       if (ec != std::errc::operation_canceled) {
-        log_warning("sending response failed: %s", ec.message().c_str());
+        logger_.warning("sending response failed: " + ec.message());
       }
 
       disconnect();
@@ -561,7 +558,7 @@ void MySQLServerMockSessionX::send_notice_then_notices() {
                            std::error_code ec, size_t transferred) {
     if (ec) {
       if (ec != std::errc::operation_canceled) {
-        log_warning("sending notice failed: %s", ec.message().c_str());
+        logger_.warning("sending notice failed: " + ec.message());
       }
       return;
     };
@@ -588,8 +585,7 @@ void MySQLServerMockSessionX::notices() {
   notice_timer_.async_wait([&](std::error_code ec) {
     if (ec) {
       if (ec != std::errc::operation_canceled) {
-        log_warning("waiting for notice timer failed: %s",
-                    ec.message().c_str());
+        logger_.warning("waiting for notice timer failed: " + ec.message());
       }
 
       return;
@@ -613,7 +609,7 @@ void MySQLServerMockSessionX::idle() {
     protocol_.async_receive([&](std::error_code ec, size_t /* transferred */) {
       if (ec) {
         if (ec != std::errc::operation_canceled) {
-          log_warning("receiving frame failed: %s", ec.message().c_str());
+          logger_.warning("receiving frame failed: " + ec.message());
         }
 
         disconnect();
@@ -630,7 +626,7 @@ void MySQLServerMockSessionX::idle() {
   if (!decode_res) {
     auto ec = decode_res.error();
 
-    log_warning("decoding message failed: %s", ec.message().c_str());
+    logger_.warning("decoding message failed: " + ec.message());
 
     disconnect();
     return;
@@ -652,31 +648,33 @@ void MySQLServerMockSessionX::idle() {
         json_reader_->handle_statement(statement_received, &protocol_);
 
         // handle_statement will set the exec-timer.
-        protocol_.exec_timer().async_wait(
-            [this, started,
-             statement = statement_received](std::error_code ec) {
-              // wait until exec-time passed.
-              if (ec) {
-                if (ec != std::errc::operation_canceled) {
-                  log_warning("waiting for exec-timer failed: %s",
-                              ec.message().c_str());
-                }
-                disconnect();
-                return;
-              }
+        protocol_.exec_timer().async_wait([this, started,
+                                           statement = statement_received](
+                                              std::error_code ec) {
+          // wait until exec-time passed.
+          if (ec) {
+            if (ec != std::errc::operation_canceled) {
+              logger_.warning("waiting for exec-timer failed: " + ec.message());
+            }
+            disconnect();
+            return;
+          }
 
-              const auto now = std::chrono::steady_clock::now();
-              log_info("(%s)> %s", duration_to_us_string(now - started).c_str(),
-                       statement.c_str());
+          logger_.info([started, statement]() {
+            const auto now = std::chrono::steady_clock::now();
 
-              send_response_then_idle();
-            });
+            return mysql_harness::utility::string_format(
+                "(%s)> %s", duration_to_us_string(now - started).c_str(),
+                statement.c_str());
+          });
+
+          send_response_then_idle();
+        });
 
       } catch (const std::exception &e) {
         // handling statement failed. Return the error to the client
         protocol_.encode_error(
-            {1064, std::string("executing statement failed: ") + e.what(),
-             "HY000"});
+            {1064, "executing statement failed: "s + e.what(), "HY000"});
 
         send_response_then_idle();
       }
@@ -689,11 +687,10 @@ void MySQLServerMockSessionX::idle() {
         if (ec) {
           // EOF is expected, don't log it.
           if (ec != net::stream_errc::eof) {
-            log_warning("receive connection-close failed: %s",
-                        ec.message().c_str());
+            logger_.warning("receive connection-close failed: " + ec.message());
           }
         } else {
-          log_debug("data after QUIT: %zu", transferred);
+          logger_.debug("data after QUIT: " + std::to_string(transferred));
         }
         disconnect();
       });
@@ -701,8 +698,8 @@ void MySQLServerMockSessionX::idle() {
     }
 
     default:
-      log_error("received unsupported message from the x-client: %d",
-                static_cast<int>(msg_id));
+      logger_.error("received unsupported message from the x-client: " +
+                    std::to_string(static_cast<int>(msg_id)));
 
       protocol_.encode_error(
           {1064, "Unsupported command: " + std::to_string(msg_id), "HY000"});

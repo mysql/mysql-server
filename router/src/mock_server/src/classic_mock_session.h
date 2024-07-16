@@ -35,6 +35,7 @@
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/tls_context.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
@@ -131,6 +132,8 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   bool with_tls_{false};
 
   std::optional<StatementReaderBase::handshake_data> expected_handshake_;
+
+  mysql_harness::logging::DomainLogger logger_;
 };
 
 }  // namespace server_mock

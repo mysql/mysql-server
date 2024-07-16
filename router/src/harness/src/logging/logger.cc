@@ -24,6 +24,7 @@
 */
 
 #include "mysql/harness/logging/logger.h"
+#include "dim.h"
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/registry.h"
 
@@ -72,6 +73,68 @@ void Logger::handle(const Record &record) {
     }
     if (record.level <= handler->get_level()) handler->handle(record);
   }
+}
+
+void Logger::lazy_handle(LogLevel record_level,
+                         std::function<Record()> record_creator) const {
+  if (record_level > level_) return;
+
+  // build the record once.
+  std::optional<Record> record;
+
+  for (const std::string &handler_id : handlers_) {
+    std::shared_ptr<Handler> handler;
+    try {
+      handler = registry_->get_handler(handler_id);
+    } catch (const std::logic_error &) {
+      // It may happen that another thread has removed this handler since
+      // we got a copy of our Logger object, and we now have a dangling
+      // reference. In such case, simply skip it.
+      continue;
+    }
+    if (record_level <= handler->get_level()) {
+      if (!record) record = record_creator();
+
+      handler->handle(*record);
+    }
+  }
+}
+
+bool DomainLogger::init_logger() const {
+  if (logger_) return true;
+
+  // if there is no DIM, don't log anything.
+  auto &dim = mysql_harness::DIM::instance();
+  if (!dim.has_LoggingRegistry()) return false;
+
+  mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
+
+  logger_ = registry.get_logger_or_default(domain_);
+
+  return true;
+}
+
+void DomainLogger::log(LogLevel log_level,
+                       std::function<std::string()> producer) const {
+  // init logger if needed.
+  if (!init_logger()) return;
+
+  logger_->lazy_handle(log_level, [&]() -> Record {
+    const auto now = std::chrono::system_clock::now();
+    // Build the record for the handler.
+    return {log_level, stdx::this_process::get_id(), now, domain_, producer()};
+  });
+}
+
+void DomainLogger::log(LogLevel log_level, std::string msg) const {
+  // init logger if needed.
+  if (!init_logger()) return;
+
+  logger_->lazy_handle(log_level, [&]() -> Record {
+    const auto now = std::chrono::system_clock::now();
+    // Build the record for the handler.
+    return {log_level, stdx::this_process::get_id(), now, domain_, msg};
+  });
 }
 
 }  // namespace logging

@@ -30,6 +30,7 @@
 #include <mutex>
 #include <set>
 
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql_server_mock.h"
 #include "router/src/mock_server/src/mock_session.h"
@@ -135,6 +136,8 @@ class MySQLServerMockSessionX : public MySQLServerMockSession {
   clock_type::time_point start_time_{};
 
   net::steady_timer notice_timer_{protocol_.io_context()};
+
+  mysql_harness::logging::DomainLogger logger_;
 };
 
 }  // namespace server_mock

@@ -103,6 +103,18 @@ class HARNESS_EXPORT Registry {
                                const std::string &default_name) const;
 
   /**
+   * Return logger for particular module.
+   *
+   * if it doesn't exist, get the default logger.
+   *
+   * @param name Logger id (log domain it services)
+   *
+   * @throws std::logic_error if neither logger is registered for given module
+   * name
+   */
+  Logger get_logger_or_default(const std::string &name) const;
+
+  /**
    * Update logger for particular module
    *
    * This function provides a thread-safe way of updating the Logger object in
