@@ -1,0 +1,2464 @@
+# WL#8244 Hints for subquery execution
+SET EXPLAIN_FORMAT=tree;
+CREATE TABLE t1 (a INTEGER NOT NULL, b INT, PRIMARY KEY (a));
+CREATE TABLE t2 (a INTEGER NOT NULL, KEY (a));
+CREATE TABLE t3 (a INTEGER NOT NULL, b INT, KEY (a));
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30),  (4,40);
+INSERT INTO t2 VALUES (2), (3), (4), (5);
+INSERT INTO t3 VALUES (10,3), (20,4), (30,5);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+This query will normally use Table Pull-out
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Check that we can disable SEMIJOIN transformation
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Same with hint in outer query
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Query with two sub-queries
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT a FROM t1 tx)
+AND t3.b IN (SELECT a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.75)
+    -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+        -> Table scan on t3  (rows=3)
+        -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+No SEMIJOIN transformation for first subquery
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1 tx)
+AND t3.b IN (SELECT a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+        -> Table scan on t3  (rows=3)
+        -> Select #2 (subquery in condition; run only once)
+            -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on tx  (rows=4)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(`subq1`) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+        -> Table scan on t3  (rows=3)
+        -> Select #2 (subquery in condition; run only once)
+            -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on tx  (rows=4)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+No SEMIJOIN transformation for latter subquery
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT a FROM t1 tx)
+AND t3.b IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+        -> Table scan on t3  (rows=3)
+        -> Select #3 (subquery in condition; run only once)
+            -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on ty  (rows=4)
+    -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@`subq2`) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+        -> Table scan on t3  (rows=3)
+        -> Select #3 (subquery in condition; run only once)
+            -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on ty  (rows=4)
+    -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+
+No SEMIJOIN transformation for any subquery
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ NO_SEMIJOIN() */ a FROM t1 ty);
+EXPLAIN
+-> Filter: (<in_optimizer>(t3.a,t3.a in (select #2)) and <in_optimizer>(t3.b,t3.b in (select #3)))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on tx  (rows=4)
+    -> Select #3 (subquery in condition; run only once)
+        -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on ty  (rows=4)
+
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Filter: (<in_optimizer>(t3.a,t3.a in (select #2)) and <in_optimizer>(t3.b,t3.b in (select #3)))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on tx  (rows=4)
+    -> Select #3 (subquery in condition; run only once)
+        -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on ty  (rows=4)
+
+Query with nested sub-queries
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t3.a = tx.a)  (rows=1.5)
+    -> Table scan on t3  (rows=3)
+    -> Hash
+        -> Nested loop inner join  (rows=4)
+            -> Table scan on tx  (rows=4)
+            -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
+
+No SEMIJOIN transformation for outer subquery
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=2)
+                        -> Nested loop semijoin (FirstMatch)  (rows=2)
+                            -> Table scan on tx  (rows=4)
+                            -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
+
+No SEMIJOIN transformation for inner-most subquery
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Table scan on t3  (rows=3)
+    -> Filter: <in_optimizer>(tx.b,tx.b in (select #3))  (rows=1)
+        -> Single-row index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+        -> Select #3 (subquery in condition; run only once)
+            -> Filter: ((tx.b = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = tx.b)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on ty  (rows=4)
+
+No SEMIJOIN transformation at all
+EXPLAIN
+SELECT /*+  NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Filter: <in_optimizer>(tx.b,tx.b in (select #3))  (rows=4)
+                            -> Table scan on tx  (rows=4)
+                            -> Select #3 (subquery in condition; run only once)
+                                -> Filter: ((tx.b = `<materialized_subquery>`.a))  (rows=1)
+                                    -> Limit: 1 row(s)  (rows=1)
+                                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = tx.b)
+                                            -> Materialize with deduplication  (rows=4)
+                                                -> Table scan on ty  (rows=4)
+
+This query does not support SEMIJOIN.  SEMIJOIN hint is ignored
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.`min(a)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (min(a) = t2.a)
+                    -> Materialize with deduplication  (rows=2)
+                        -> Group aggregate: min(t1.a)  (rows=2)
+                            -> Sort: t1.a  (rows=4)
+                                -> Table scan on t1  (rows=4)
+
+This query will get LooseScan by default
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's turn off LooseScan, FirstMatch is then SELECTed
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's also turn off FirstMatch, MatLookup is then used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's also turn off Materialization, DuplicateWeedout should then be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+If we turn off all strategies, DuplicateWeedout should still be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
+DUPSWEEDOUT) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Turn off non-used strategies, nothing should change.  Still Loosescan
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Test same query with SEMIJOIN hint
+Forcing LooseScan, should not change anything
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Force FirstMatch
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Force Materialization
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Force DuplicateWeedout
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+If LooseScan is among candidates, it will be used
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION,
+DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Drop LooseScan from list of strategies, FirstMatch will be used
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Drop FirstMatch, MatLookup is next
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+For this query LooseScan and Materialization is not applicable
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Turn off all applicable strategies. DuplicateWeedout should be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Similar with SEMIJOIN hint
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Test multiple subqueries.
+Default for this query is Loosecan for first and FirstMatch for latter
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Forcing the default strategy should not change anything
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Forcing a strategy for one, may change the other due to cost changes
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Forcing same strategy for both
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Loosescan for both is not possible,  ends up with DuplicateWeedout
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Swap strategies compared to default
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Different subsets of strategies for different subqueries
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
+SEMIJOIN(@subq2 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Vice versa
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT)
+SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Another combination
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, FIRSTMATCH)
+SEMIJOIN(@subq2 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Turn off default
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN)
+NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Also turn off 2nd choice. Gives DuplicateWeedout over both
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
+NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Also turn off DuplicateWeedout.  Materialization is only one left.
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT)
+NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Force materialization with SEMIJOIN hints instead
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
+SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+This query gives DuplicateWeedout over both since combining
+DuplicateWeedout with another strategy does not seem possible.
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
+SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+More alternatives for 2nd subquery gives Materialization for first
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
+SEMIJOIN(@subq2 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+A query with nested subqueries which by default will use FirstMatch
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Let's turn off FirstMatch, Materialization is then selected
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Let's also turn off Materialization,  DuplicateWeedout is then used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Also turn off DuplicateWeedout. LooseScan not usable; so still DuplicateWeedout
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+If we turn off all strategies, DuplicateWeedout should still be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
+DUPSWEEDOUT) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Test same query with SEMIJOIN hint
+Force FirstMatch, should not change anything
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Force LooseScan, will use DuplicateWeedout
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Force Materialization
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Force DuplicateWeedout
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+If FirstMatch is among candidates, it will be used
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, LOOSESCAN,
+DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Drop FirstMatch. Materialization will be used
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Drop Materialization, DuplicateWeedout next
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Strategy hints on inner-most query is ignored since sj-nests are merged
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Ditto
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Nested loop inner join  (rows=3)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Turn off semijoin for outer subquery. FirstMatch is used for inner
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+Do not use FirstMatch for inner
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+Do not use FirstMatch nor Materialization for inner
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1)
+NO_SEMIJOIN(@subq2 FIRSTMATCH, MATERIALIZATION) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+LooseScan is last resort
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1)
+NO_SEMIJOIN(@subq2 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+Allow all stragies except default
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1)
+SEMIJOIN(@subq2 MATERIALIZATION, DUPSWEEDOUT, LOOSESCAN) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+Force a particular strategy
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+Turn off semijoin for inner-most subquery.  FirstMatch is used for outer
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                -> Table scan on t3  (rows=3)
+                -> Select #3 (subquery in condition; run only once)
+                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                -> Materialize with deduplication  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Do not use FirstMatch for outer
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                -> Table scan on t3  (rows=3)
+                -> Select #3 (subquery in condition; run only once)
+                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                -> Materialize with deduplication  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Do not use FirstMatch nor Materialization for outer
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION)
+NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                -> Table scan on t3  (rows=3)
+                -> Select #3 (subquery in condition; run only once)
+                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                -> Materialize with deduplication  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+LooseScan can not be used since index scan would not be "covering"
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT)
+NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                -> Table scan on t3  (rows=3)
+                -> Select #3 (subquery in condition; run only once)
+                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                -> Materialize with deduplication  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Allow all stragies except default
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT, LOOSESCAN)
+NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                -> Table scan on t3  (rows=3)
+                -> Select #3 (subquery in condition; run only once)
+                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                -> Materialize with deduplication  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Force a particular strategy
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.73)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                -> Table scan on t3  (rows=3)
+                -> Select #3 (subquery in condition; run only once)
+                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                -> Materialize with deduplication  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+
+Turn off semijoin for both subqueries
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) NO_SEMIJOIN(@subq2) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=3)
+                        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+                            -> Table scan on t3  (rows=3)
+                            -> Select #3 (subquery in condition; run only once)
+                                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                                    -> Limit: 1 row(s)  (rows=1)
+                                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                                            -> Materialize with deduplication  (rows=4)
+                                                -> Table scan on t2  (rows=4)
+
+Test hints with prepared statements
+PREPARE stmt1 FROM "EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
+           NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+  AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2)";
+EXECUTE stmt1;
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+EXECUTE stmt1;
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+DEALLOCATE PREPARE stmt1;
+Another Prepared Statement test
+PREPARE stmt1 FROM "EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+               WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2))";
+EXECUTE stmt1;
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+EXECUTE stmt1;
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=1.5)
+                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+                            -> Table scan on t3  (rows=3)
+                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+
+DEALLOCATE PREPARE stmt1;
+SET optimizer_switch = default;
+Tests with non-default optimizer_switch settings
+SET optimizer_switch = 'semijoin=off';
+No table pull-out for this query
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+This should not change anything
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Force semijoin
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Setting strategy should still force semijoin
+Strategy is ignored since table pull-out is done
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq FIRSTMATCH) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Query with two sub-queries
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT a FROM t1 tx)
+AND t3.b IN (SELECT a FROM t1 ty);
+EXPLAIN
+-> Filter: (<in_optimizer>(t3.a,t3.a in (select #2)) and <in_optimizer>(t3.b,t3.b in (select #3)))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on tx  (rows=4)
+    -> Select #3 (subquery in condition; run only once)
+        -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on ty  (rows=4)
+
+SEMIJOIN transformation for first subquery
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+        -> Table scan on t3  (rows=3)
+        -> Select #3 (subquery in condition; run only once)
+            -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on ty  (rows=4)
+    -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+
+SEMIJOIN transformation for latter subquery
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+        -> Table scan on t3  (rows=3)
+        -> Select #2 (subquery in condition; run only once)
+            -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on tx  (rows=4)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+SEMIJOIN transformation for both subqueries
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1) SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.75)
+    -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+        -> Table scan on t3  (rows=3)
+        -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+Query with nested sub-queries
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Filter: <in_optimizer>(tx.b,tx.b in (select #3))  (rows=4)
+                            -> Table scan on tx  (rows=4)
+                            -> Select #3 (subquery in condition; run only once)
+                                -> Filter: ((tx.b = `<materialized_subquery>`.a))  (rows=1)
+                                    -> Limit: 1 row(s)  (rows=1)
+                                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = tx.b)
+                                            -> Materialize with deduplication  (rows=4)
+                                                -> Table scan on ty  (rows=4)
+
+SEMIJOIN transformation for outer subquery
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
+    -> Table scan on t3  (rows=3)
+    -> Filter: <in_optimizer>(tx.b,tx.b in (select #3))  (rows=1)
+        -> Single-row index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+        -> Select #3 (subquery in condition; run only once)
+            -> Filter: ((tx.b = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = tx.b)
+                        -> Materialize with deduplication  (rows=4)
+                            -> Table scan on ty  (rows=4)
+
+SEMIJOIN transformation for inner-most subquery
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=2)
+                        -> Nested loop semijoin (FirstMatch)  (rows=2)
+                            -> Table scan on tx  (rows=4)
+                            -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
+
+SEMIJOIN transformation for both
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1) SEMIJOIN(@subq2) */ * FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t3.a = tx.a)  (rows=1.5)
+    -> Table scan on t3  (rows=3)
+    -> Hash
+        -> Nested loop inner join  (rows=4)
+            -> Table scan on tx  (rows=4)
+            -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
+
+Test strategies when some are disabled by optimizer_switch
+SET optimizer_switch='semijoin=on';
+SET optimizer_switch='loosescan=off';
+This query will get LooseScan by default. FirstMatch now.
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's turn off LooseScan also by hint, FirstMatch should still be SELECTed
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's also turn off FirstMatch, MatLookup should then be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's also turn off Materialization, DuplicateWeedout should then be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Let's force LooseScan back on
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Forcing another strategy
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+If LooseScan is among candidates, it is used even if originally disabled
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION,
+DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Disable another strategy
+SET optimizer_switch='firstmatch=off';
+Turn on FirstMatch, but not LooseScan on with hint
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Drop all remaining strategies with hint, should use DuplicateWeedout
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+For this query LooseScan and Materialization is not applicable
+Should use DuplicateWeedout since FirstMatch is disabled
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Turn off all applicable strategies. DuplicateWeedout should still be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Reverse which strategies are allowed with hint
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Default for this query is Loosecan for first and FirstMatch for latter
+Since both strategies are disabled, will now use DuplicateWeedout
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Allowing LooseScan and FirstMatch and optimizer_switch is ignored
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
+SEMIJOIN(@subq2 LOOSESCAN, FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Forcing a disabled strategy for one
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Forcing same strategy for both
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Swap strategies compared to default
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Different subsets of strategies for different subqueries
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
+SEMIJOIN(@subq2 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Turn off DuplicateWeedout for both.  Materialization is left
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT)
+NO_SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Forcing materialization should have same effect
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
+SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Turn off DuplicateWeedout for first.  Materialization is used for both
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Turn off DuplicateWeedout for second.  Same effect.
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Enable all strategies except DuplicateWeedout
+SET optimizer_switch='firstmatch=on,loosescan=on,materialization=on,duplicateweedout=off';
+If we turn off all other strategies, DuplicateWeedout will be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+LooseScan and Materialization is not applicable, FirstMatch is used
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Turn off all applicable strategies. DuplicateWeedout should be used
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Similar with SEMIJOIN hint
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Disable all strategies
+SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=off';
+DuplicateWeedout is then used
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Turning off extra strategies should not change anything
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+Turning on some strategies should give one of those
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
+FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2.31)
+    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+        -> Sort: t3.a  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+
+For this query that cannot use LooseScan or Materialization,
+turning those on will still give DupliateWeedout
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Turning on FirstMatch should give FirstMatch
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
+WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=0.577)
+    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
+        -> Sort: t3.a, t3.b  (rows=3)
+            -> Table scan on t3  (rows=3)
+    -> Filter: (t1.b = t3.a)  (rows=0.333)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+SET optimizer_switch = default;
+Test that setting optimizer_switch after prepare will change strategy
+PREPARE stmt1 FROM "EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
+           NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+  AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2)";
+EXECUTE stmt1;
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+SET optimizer_switch = 'duplicateweedout=off';
+Will now use materialization
+EXECUTE stmt1;
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (cost=9.59..9.59 rows=0.866)
+    -> Nested loop inner join (LooseScan)  (cost=4.51..6.26 rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (cost=2.53..2.82 rows=1.73)
+            -> Sort: t3.a  (cost=2.13..2.13 rows=3)
+                -> Table scan on t3  (cost=0.313..0.94 rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (cost=1.98..1.98 rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
+
+SET optimizer_switch = 'duplicateweedout=on';
+Turn DuplicateWeedout back on
+EXECUTE stmt1;
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (cost=9.59..9.59 rows=0.866)
+    -> Nested loop inner join (LooseScan)  (cost=4.51..6.26 rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (cost=2.53..2.82 rows=1.73)
+            -> Sort: t3.a  (cost=2.13..2.13 rows=3)
+                -> Table scan on t3  (cost=0.313..0.94 rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (cost=1.98..1.98 rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
+
+DEALLOCATE PREPARE stmt1;
+SET optimizer_switch = default;
+Specifying two SEMIJOIN/NO_SEMIJOIN for same query block gives warning
+First has effect, second is ignored
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ NO_SEMIJOIN() SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN( ) is ignored as conflicting/duplicated
+Try opposite order
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ SEMIJOIN() NO_SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Warnings:
+Warning	3126	Hint NO_SEMIJOIN( ) is ignored as conflicting/duplicated
+Specify at different levels, hint inside block has effect
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Warnings:
+Warning	3126	Hint NO_SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Specify at different levels, opposite order
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) NO_SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Duplicate hints also gives warning, but hint has effect
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) NO_SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint NO_SEMIJOIN(@`subq` ) is ignored as conflicting/duplicated
+Multiple subqueries with conflicting hints
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN() */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=2)
+    -> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+        -> Table scan on t1  (rows=4)
+        -> Select #2 (subquery in condition; run only once)
+            -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                        -> Materialize with deduplication  (rows=3)
+                            -> Table scan on t3  (rows=3)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
+Warning	3126	Hint SEMIJOIN(@`subq2`  FIRSTMATCH) is ignored as conflicting/duplicated
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN(LOOSESCAN) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
+Warning	3126	Hint SEMIJOIN(@`subq2`  FIRSTMATCH) is ignored as conflicting/duplicated
+Conflicting hints in same hint comment
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN(@`subq1`  FIRSTMATCH) is ignored as conflicting/duplicated
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) NO_SEMIJOIN(@subq1 LOOSESCAN) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Warnings:
+Warning	3126	Hint NO_SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
+EXPLAIN
+SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) NO_SEMIJOIN(@subq1 FIRSTMATCH) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Warnings:
+Warning	3126	Hint NO_SEMIJOIN(@`subq1`  FIRSTMATCH) is ignored as conflicting/duplicated
+Non-supported strategies should give warnings
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 INTOEXISTS) NO_SEMIJOIN(@subq2 INTOEXISTS) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.866)
+    -> Nested loop inner join (LooseScan)  (rows=1.73)
+        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+            -> Sort: t3.a  (rows=3)
+                -> Table scan on t3  (rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+
+Warnings:
+Warning	1064	Optimizer hint syntax error near 'INTOEXISTS) NO_SEMIJOIN(@subq2 INTOEXISTS) */ *
+FROM t1
+WHERE t1.a IN (SELECT /*' at line 2
+SUBQUERY tests
+SUBQUERY should disable SEMIJOIN and use specified subquery strategy
+EXPLAIN
+SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ SUBQUERY(INTOEXISTS) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Query with two subqueries
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq1 INTOEXISTS) SUBQUERY(@subq2 MATERIALIZATION) */ *
+FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Filter: (<in_optimizer>(t3.a,<exists>(select #2)) and <in_optimizer>(t3.b,<exists>(select #3)))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t3.a) = tx.a)  (rows=1)
+            -> Table scan on tx  (rows=4)
+    -> Select #3 (subquery in condition; dependent)
+        -> Filter: (<cache>(t3.b) = ty.a)  (rows=1)
+            -> Table scan on ty  (rows=4)
+
+Query with nested sub-queries
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq1 INTOEXISTS) SUBQUERY(@subq2 MATERIALIZATION) */ *
+FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: ((<cache>(t3.a) = tx.a) and <in_optimizer>(tx.b,<exists>(select #3)))  (rows=1)
+            -> Table scan on tx  (rows=4)
+            -> Select #3 (subquery in condition; dependent)
+                -> Filter: (<cache>(tx.b) = ty.a)  (rows=1)
+                    -> Table scan on ty  (rows=4)
+
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION) SUBQUERY(@subq2 INTOEXISTS) */ *
+FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
+WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
+EXPLAIN
+-> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (rows=3)
+    -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: ((<cache>(t3.a) = tx.a) and <in_optimizer>(tx.b,<exists>(select #3)))  (rows=1)
+            -> Table scan on tx  (rows=4)
+            -> Select #3 (subquery in condition; dependent)
+                -> Filter: (<cache>(tx.b) = ty.a)  (rows=1)
+                    -> Table scan on ty  (rows=4)
+
+This query does not support SEMIJOIN.  Materialization is default
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.`min(a)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (min(a) = t2.a)
+                    -> Materialize with deduplication  (rows=2)
+                        -> Group aggregate: min(t1.a)  (rows=2)
+                            -> Sort: t1.a  (rows=4)
+                                -> Table scan on t1  (rows=4)
+
+Use In-to-exists instead
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = <ref_null_helper>(min(t1.a)))  (rows=2)
+            -> Group aggregate: min(t1.a)  (rows=2)
+                -> Sort: t1.a  (rows=4)
+                    -> Table scan on t1  (rows=4)
+
+For this query In-to-exists is default
+EXPLAIN
+SELECT a, a IN (SELECT a FROM t1) FROM t2;
+EXPLAIN
+-> Table scan on t2  (rows=4)
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+        -> Table scan on t1  (rows=4)
+
+Force Subquery Materialization
+EXPLAIN
+SELECT a, a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1) FROM t2;
+EXPLAIN
+-> Table scan on t2  (rows=4)
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+        -> Table scan on t1  (rows=4)
+
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ a,
+a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1) FROM t2;
+EXPLAIN
+-> Table scan on t2  (rows=4)
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+        -> Table scan on t1  (rows=4)
+
+This query does not support Subquery Materialization due to type mismatch
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ concat(sum(b),"") FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = <ref_null_helper>(concat(sum(t1.b),'')))  (rows=2)
+            -> Group aggregate: sum(t1.b)  (rows=2)
+                -> Sort: t1.a  (rows=4)
+                    -> Table scan on t1  (rows=4)
+
+Trying to force Subquery Materialization will not change anything
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ concat(sum(b),"") FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = <ref_null_helper>(concat(sum(t1.b),'')))  (rows=2)
+            -> Group aggregate: sum(t1.b)  (rows=2)
+                -> Sort: t1.a  (rows=4)
+                    -> Table scan on t1  (rows=4)
+
+Test hints with prepared statements
+PREPARE stmt1 FROM "EXPLAIN
+SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION)
+           SUBQUERY(@subq2 INTOEXISTS) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
+  AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2)";
+EXECUTE stmt1;
+EXPLAIN
+-> Filter: (<in_optimizer>(t1.a,<exists>(select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t1.a) = t3.a)  (rows=1)
+            -> Table scan on t3  (rows=3)
+    -> Select #3 (subquery in condition; dependent)
+        -> Filter: (<cache>(t1.b) = t2.a)  (rows=1)
+            -> Table scan on t2  (rows=4)
+
+EXECUTE stmt1;
+EXPLAIN
+-> Filter: (<in_optimizer>(t1.a,<exists>(select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
+    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t1.a) = t3.a)  (rows=1)
+            -> Table scan on t3  (rows=3)
+    -> Select #3 (subquery in condition; dependent)
+        -> Filter: (<cache>(t1.b) = t2.a)  (rows=1)
+            -> Table scan on t2  (rows=4)
+
+DEALLOCATE PREPARE stmt1;
+Test optimizer_switch settings with SUBQUERY hint
+SET optimizer_switch='materialization=off';
+This query will now use In-to-exist
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = <ref_null_helper>(min(t1.a)))  (rows=2)
+            -> Group aggregate: min(t1.a)  (rows=2)
+                -> Sort: t1.a  (rows=4)
+                    -> Table scan on t1  (rows=4)
+
+Force it to use Materialization
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = <ref_null_helper>(min(t1.a)))  (rows=2)
+            -> Group aggregate: min(t1.a)  (rows=2)
+                -> Sort: t1.a  (rows=4)
+                    -> Table scan on t1  (rows=4)
+
+SET optimizer_switch='materialization=on,subquery_materialization_cost_based=off';
+This query will now use materialization
+EXPLAIN
+SELECT a, a IN (SELECT a FROM t1) FROM t2;
+EXPLAIN
+-> Table scan on t2  (rows=4)
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+        -> Table scan on t1  (rows=4)
+
+Force In-to-exists
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ a,
+a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1) FROM t2;
+EXPLAIN
+-> Table scan on t2  (rows=4)
+-> Select #2 (subquery in projection; dependent)
+    -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+        -> Table scan on t1  (rows=4)
+
+Specifying both strategies should give a warning
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION, INTOEXISTS)
+SUBQUERY(@subq2 MATERIALIZATION, INTOEXISTS) */ *
+FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.75)
+    -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+        -> Table scan on t3  (rows=3)
+        -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Warning	1064	Optimizer hint syntax error near ', INTOEXISTS)
+SUBQUERY(@subq2 MATERIALIZATION, INTOEXISTS) */ *
+FROM t3
+WHERE t3' at line 2
+Non-supported strategies should give warnings
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq1 FIRSTMATCH) SUBQUERY(@subq2 LOOSESCAN) */ *
+FROM t3
+WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
+AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=0.75)
+    -> Nested loop semijoin (FirstMatch)  (rows=1.5)
+        -> Table scan on t3  (rows=3)
+        -> Single-row covering index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+    -> Single-row covering index lookup on ty using PRIMARY (a = t3.b)  (rows=1)
+
+Warnings:
+Warning	1064	Optimizer hint syntax error near 'FIRSTMATCH) SUBQUERY(@subq2 LOOSESCAN) */ *
+FROM t3
+WHERE t3.a IN (SELECT /*+ QB' at line 2
+SET optimizer_switch= default;
+Specifying two SUBQUERY for same query block gives warning
+First has effect, second is ignored
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) SUBQUERY(INTOEXISTS) */ a
+FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(  INTOEXISTS) is ignored as conflicting/duplicated
+Try opposite order
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ SUBQUERY(INTOEXISTS) SUBQUERY(MATERIALIZATION) */ a
+FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(  MATERIALIZATION) is ignored as conflicting/duplicated
+Specify at different levels, hint inside block has effect
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(INTOEXISTS) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(@`subq`  MATERIALIZATION) is ignored as conflicting/duplicated
+Specify at different levels, opposite order
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(MATERIALIZATION) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(@`subq`  INTOEXISTS) is ignored as conflicting/duplicated
+Specifying combinations of SUBQUERY and SEMIJOIN/NO_SEMIJOIN
+for same query block gives warning
+First has effect, second is ignored
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ SUBQUERY(INTOEXISTS) SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN( ) is ignored as conflicting/duplicated
+Try opposite order
+EXPLAIN
+SELECT * FROM t2
+WHERE t2.a IN (SELECT /*+ NO_SEMIJOIN() SUBQUERY(MATERIALIZATION) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(  MATERIALIZATION) is ignored as conflicting/duplicated
+Specify at different levels, hint inside block has effect
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input grouped on t1.a  (rows=2)
+        -> Sort: t1.a  (rows=4)
+            -> Table scan on t1  (rows=4)
+    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(@`subq`  MATERIALIZATION) is ignored as conflicting/duplicated
+EXPLAIN
+SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) NO_SEMIJOIN() */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SUBQUERY(@`subq`  INTOEXISTS) is ignored as conflicting/duplicated
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq FIRSTMATCH) */ * FROM t2
+WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(@subq INTOEXISTS) */ a FROM t1);
+EXPLAIN
+-> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+    -> Table scan on t2  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
+            -> Table scan on t1  (rows=4)
+
+Warnings:
+Warning	3126	Hint SEMIJOIN(@`subq`  FIRSTMATCH) is ignored as conflicting/duplicated
+drop table t1, t2, t3;
