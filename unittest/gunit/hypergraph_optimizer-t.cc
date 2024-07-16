@@ -7519,6 +7519,7 @@ RelationalExpression *CloneRelationalExpr(THD *thd,
       new (thd->mem_root) RelationalExpression(thd);
   new_expr->type = expr->type;
   new_expr->tables_in_subtree = expr->tables_in_subtree;
+  new_expr->companion_set = expr->companion_set;
   if (new_expr->type == RelationalExpression::TABLE) {
     new_expr->table = expr->table;
   } else {
@@ -7574,6 +7575,7 @@ vector<RelationalExpression *> GenerateAllCompleteBinaryTrees(
         expr->right = CloneRelationalExpr(thd, right[j]);
         expr->tables_in_subtree =
             expr->left->tables_in_subtree | expr->right->tables_in_subtree;
+        expr->companion_set = new (thd->mem_root) CompanionSet();
         ret.push_back(expr);
       }
     }

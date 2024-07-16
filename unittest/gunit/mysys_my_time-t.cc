@@ -471,7 +471,8 @@ TEST(MysysMyTime, TimeZoneDisplacementToSeconds) {
   // Various invalid hours.
   EXPECT_TRUE(CheckTimeZoneDisplacement("+15"));
   EXPECT_TRUE(CheckTimeZoneDisplacement("-15"));
-  EXPECT_TRUE(CheckTimeZoneDisplacement(("+" + std::to_string(int_max + 1))))
+  EXPECT_TRUE(CheckTimeZoneDisplacement(
+      ("+" + std::to_string(static_cast<unsigned>(int_max) + 1))))
       << "Int wrap-around in hours not caught.";
 
   // Various invalid minutes.
@@ -480,7 +481,8 @@ TEST(MysysMyTime, TimeZoneDisplacementToSeconds) {
   EXPECT_TRUE(CheckTimeZoneDisplacement("+0:60"));
   EXPECT_TRUE(CheckTimeZoneDisplacement("+00:60"));
   EXPECT_TRUE(CheckTimeZoneDisplacement("+00:61"));
-  EXPECT_TRUE(CheckTimeZoneDisplacement(("+0:" + std::to_string(int_max + 1))))
+  EXPECT_TRUE(CheckTimeZoneDisplacement(
+      ("+0:" + std::to_string(static_cast<unsigned>(int_max) + 1))))
       << "Int wrap-around in minutes not caught.";
 
   EXPECT_TRUE(CheckTimeZoneDisplacement("-00:00"));
