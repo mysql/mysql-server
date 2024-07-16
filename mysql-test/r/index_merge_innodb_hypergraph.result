@@ -1311,7 +1311,7 @@ EXPLAIN
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
 -> Filter: (t1.swt2b = 1)  (...)
-    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
+    -> Index range scan (Multi-Range Read) on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
