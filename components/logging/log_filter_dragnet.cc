@@ -81,7 +81,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_system_variable.h>
-#include <mysql/plugin.h>
 
 #include "../sql/set_var.h"
 
