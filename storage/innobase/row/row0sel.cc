@@ -2727,6 +2727,8 @@ void row_sel_field_store_in_mysql_format_func(
   ulint len;
   ulint clust_field_no = 0;
   bool clust_templ_for_sec = (sec_field_no != ULINT_UNDEFINED);
+  const dict_index_t *index_used =
+      (clust_templ_for_sec) ? prebuilt_index : rec_index;
 
   ut_ad(templ);
   ut_ad(prebuilt->default_rec);
@@ -2736,8 +2738,7 @@ void row_sel_field_store_in_mysql_format_func(
   ut_ad(clust_templ_for_sec || field_no == templ->clust_rec_field_no ||
         field_no == templ->rec_field_no || field_no == templ->icp_rec_field_no);
 
-  ut_ad(rec_offs_validate(
-      rec, clust_templ_for_sec == true ? prebuilt_index : rec_index, offsets));
+  ut_ad(rec_offs_validate(rec, index_used, offsets));
 
   /* If sec_field_no is present then extract the data from record
   using secondary field no. */
@@ -2746,7 +2747,7 @@ void row_sel_field_store_in_mysql_format_func(
     field_no = sec_field_no;
   }
 
-  if (rec_offs_nth_extern(rec_index, offsets, field_no)) {
+  if (rec_offs_nth_extern(index_used, offsets, field_no)) {
     /* Copy an externally stored field to a temporary heap */
 
     ut_a(!prebuilt->trx->has_search_latch);
@@ -2803,8 +2804,8 @@ void row_sel_field_store_in_mysql_format_func(
 
     if (lob_undo != nullptr) {
       ulint local_len;
-      const byte *field_data = rec_get_nth_field_instant(rec, offsets, field_no,
-                                                         rec_index, &local_len);
+      const byte *field_data = rec_get_nth_field_instant(
+          rec, offsets, field_no, index_used, &local_len);
       const byte *field_ref =
           field_data + local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
@@ -2825,7 +2826,7 @@ void row_sel_field_store_in_mysql_format_func(
   } else {
     /* Field is stored in the row. */
 
-    data = rec_get_nth_field_instant(rec, offsets, field_no, rec_index, &len);
+    data = rec_get_nth_field_instant(rec, offsets, field_no, index_used, &len);
 
     if (len == UNIV_SQL_NULL) {
       /* MySQL assumes that the field for an SQL
