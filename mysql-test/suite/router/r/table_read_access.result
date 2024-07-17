@@ -1,4 +1,3 @@
-Bootstrap the MRS with no --mrs param expecting only creating of the schema
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 # DB `basic_schema` - created
@@ -281,4 +280,3 @@ DROP ROLE mysql_rest_service_schema_admin;
 DROP ROLE mysql_rest_service_meta_provider;
 DROP ROLE mysql_rest_service_data_provider;
 DROP ROLE mysql_rest_service_dev;
-DROP USER IF EXISTS 'bs_user';

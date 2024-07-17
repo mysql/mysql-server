@@ -19,7 +19,7 @@ if ($ROUTER_MRS_SCHEMA)
 
 if ($mrs_schema_version == 3)
 {
-  --echo Bootstrap the MRS with no --mrs param expecting only creating of the schema
+  # Bootstrap the MRS with no --mrs param expecting only creating of the schema
   CREATE USER 'bs_user'@'%' IDENTIFIED BY 'bs_pass';
   GRANT ALL PRIVILEGES ON *.* TO 'bs_user'@'%' WITH GRANT OPTION;
   FLUSH PRIVILEGES;

@@ -50,9 +50,6 @@ DROP ROLE mysql_rest_service_schema_admin;
 DROP ROLE mysql_rest_service_meta_provider;
 DROP ROLE mysql_rest_service_data_provider;
 DROP ROLE mysql_rest_service_dev;
-DROP USER IF EXISTS 'bs_user';
-Warnings:
-Note	3162	Authorization ID 'bs_user'@'%' does not exist.
 DROP SCHEMA mysql_innodb_cluster_metadata;
 DROP USER IF EXISTS 'mysqlrouter'@'%';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'admin';
