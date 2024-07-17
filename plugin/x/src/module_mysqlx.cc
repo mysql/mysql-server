@@ -193,7 +193,7 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
       m_server->delayed_start_tasks();
     }
 
-    guard_of_server_start.commit();
+    guard_of_server_start.release();
   } catch (const std::exception &e) {
     log_error(ER_XPLUGIN_STARTUP_FAILED, e.what());
     return 1;

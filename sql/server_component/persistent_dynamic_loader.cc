@@ -441,8 +441,8 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       return true;
     }
 
-    guard.commit();
-    guard_close_tables.commit();
+    guard.release();
+    guard_close_tables.release();
     trans_commit_stmt(thd);
     return false;
   } catch (...) {
@@ -551,7 +551,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       return result;
     }
 
-    guard_close_tables.commit();
+    guard_close_tables.release();
     trans_commit_stmt(thd);
     return false;
   } catch (...) {

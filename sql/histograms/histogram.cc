@@ -1226,7 +1226,7 @@ static bool fill_value_maps(
   if (res != HA_ERR_END_OF_FILE) return true; /* purecov: deadcode */
 
   // Close the handler
-  handler_guard.commit();
+  handler_guard.release();
   if (table->file->ha_sample_end(scan_ctx)) {
     assert(false); /* purecov: deadcode */
     return true;
@@ -1407,7 +1407,7 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
 
     bool ret = trans_commit_stmt(thd) || trans_commit(thd);
     close_thread_tables(thd);
-    tables_guard.commit();
+    tables_guard.release();
 
     return ret;
   }
@@ -1480,7 +1480,7 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
 
   bool ret = trans_commit_stmt(thd) || trans_commit(thd);
   close_thread_tables(thd);
-  tables_guard.commit();
+  tables_guard.release();
   return ret;
 }
 

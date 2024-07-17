@@ -610,7 +610,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
                                config.static_basedir, config.require_realm));
       }
 
-      initialization_finished.commit();
+      initialization_finished.release();
     }
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());

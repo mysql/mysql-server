@@ -182,12 +182,12 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd) {
 
   // Use old style prepare unless xa_detach_on_prepare==true
   if (!is_xa_tran_detached_on_prepare(thd)) {
-    rollback_xa_tran.commit();
+    rollback_xa_tran.release();
     return thd->is_error();
   }
   // If xa_detach_on_prepare==true, detach the transaction and clean-up session
   if (::detach_xa_transaction(thd)) return true;
-  rollback_xa_tran.commit();
+  rollback_xa_tran.release();
   ::reset_xa_connection(thd);
 
   return false;

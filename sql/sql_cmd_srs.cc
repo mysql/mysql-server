@@ -212,7 +212,7 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
 
     if (dd_client->update(srs)) return true;  // Error has already been flagged.
 
-    rollback_guard.commit();
+    rollback_guard.release();
     if (commit(thd)) return true; /* purecov: inspected */
     my_ok(thd);
     return false;
@@ -228,7 +228,7 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
 
   if (thd->dd_client()->store(new_srs.get())) return true;
 
-  rollback_guard.commit();
+  rollback_guard.release();
   if (commit(thd)) return true; /* purecov: inspected */
   my_ok(thd);
   return false;
@@ -274,7 +274,7 @@ bool Sql_cmd_drop_srs::execute(THD *thd) {
   }
 
   if (dd_client->drop(srs)) return true; /* purecov: inspected */
-  rollback_guard.commit();
+  rollback_guard.release();
   if (commit(thd)) return true; /* purecov: inspected */
   my_ok(thd);
   return false;

@@ -11651,7 +11651,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
              ("commit succeeded for alter table %s secondary_%s", full_tab_name,
               (is_load ? "load" : "unload")));
   // Transaction committed successfully, no rollback will be necessary.
-  rollback_guard.commit();
+  rollback_guard.release();
 
   if (cleanup()) return true;
 

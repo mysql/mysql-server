@@ -931,7 +931,7 @@ bool MaterializeIterator<Profiler>::Init() {
     }
   } else {
     // We didn't open the index, so we don't need to close it.
-    end_unique_index.commit();
+    end_unique_index.release();
   }
   ha_rows stored_rows = 0;
 
@@ -953,7 +953,7 @@ bool MaterializeIterator<Profiler>::Init() {
     }
   }
 
-  end_unique_index.rollback();
+  end_unique_index.reset();
   table()->materialized = true;
 
   if (!m_rematerialize) {
@@ -1787,7 +1787,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
       */
       if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
         if (move_table_to_disk(error, /*insert_operation=*/false)) {
-          end_unique_index.commit();
+          end_unique_index.release();
           return true;
         }
         /*
@@ -1888,7 +1888,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
       }
 
       if (move_table_to_disk(error, /*insert_operation=*/true)) {
-        end_unique_index.commit();
+        end_unique_index.release();
         return true;
       }
     } else {
@@ -1898,7 +1898,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
   }
 
   table()->file->ha_index_end();
-  end_unique_index.commit();
+  end_unique_index.release();
 
   table()->materialized = true;
 

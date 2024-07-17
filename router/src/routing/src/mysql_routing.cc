@@ -849,7 +849,7 @@ stdx::expected<void, std::string> MySQLRouting::run_acceptor(
   is_running_ = false;
   get_context().shared_quarantine().stop();
 
-  stop_acceptors_guard.commit();
+  stop_acceptors_guard.release();
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors();
 

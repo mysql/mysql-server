@@ -141,7 +141,7 @@ test_component_sensitive_system_variables_service_init() {
     return 1;
   }
 
-  cleanup.commit();
+  cleanup.release();
   return 0;
 }
 
