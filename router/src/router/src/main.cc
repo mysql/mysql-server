@@ -101,31 +101,18 @@ IMPORT_LOG_FUNCTIONS()
  * objects they need their own way.
  */
 static void init_DIM() {
-  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+  static mysql_harness::RandomGenerator static_rg;
 
   // RandomGenerator
-  dim.set_RandomGenerator(
-      []() {
-        static mysql_harness::RandomGenerator rg;
-        return &rg;
-      },
-      [](mysql_harness::RandomGeneratorInterface *) {}
-      // don't delete our static!
-  );
+  mysql_harness::DIM::instance().set_static_RandomGenerator(&static_rg);
 }
 
 static void preconfig_log_init(bool use_os_logger_initially) noexcept {
+  static mysql_harness::logging::Registry static_registry;
+
   // setup registry object in DIM
-  {
-    mysql_harness::DIM &dim = mysql_harness::DIM::instance();
-    dim.set_LoggingRegistry(
-        []() {
-          static mysql_harness::logging::Registry registry;
-          return &registry;
-        },
-        [](mysql_harness::logging::Registry *) {}  // don't delete our static!
-    );
-  }
+
+  mysql_harness::DIM::instance().set_static_LoggingRegistry(&static_registry);
 
   // initialize logger to log to stderr or OS logger. After reading
   // configuration inside of MySQLRouter::start(), it will be re-initialized

@@ -113,14 +113,9 @@ static bool file_exists(const std::string &file) {
 TempDirectory tmp_dir;
 
 TEST(KeyringManager, init_tests) {
-  mysql_harness::DIM::instance().set_RandomGenerator(
-      []() {
-        static mysql_harness::FakeRandomGenerator rg;
-        return &rg;
-      },
-      [](mysql_harness::RandomGeneratorInterface *) {}
-      // don't delete our static!
-  );
+  static mysql_harness::FakeRandomGenerator static_rg;
+
+  mysql_harness::DIM::instance().set_static_RandomGenerator(&static_rg);
 }
 
 TEST(KeyringManager, init_with_key) {

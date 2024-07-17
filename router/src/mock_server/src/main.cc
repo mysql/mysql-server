@@ -26,6 +26,7 @@
 #include <array>
 #include <csignal>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -73,16 +74,10 @@ struct MysqlServerMockConfig {
 };
 
 static void init_DIM() {
-  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+  static mysql_harness::logging::Registry static_registry;
 
   // logging facility
-  dim.set_LoggingRegistry(
-      []() {
-        static mysql_harness::logging::Registry registry;
-        return &registry;
-      },
-      [](mysql_harness::logging::Registry *) {}  // don't delete our static!
-  );
+  mysql_harness::DIM::instance().set_static_LoggingRegistry(&static_registry);
 }
 
 class MysqlServerMockFrontend {
@@ -122,10 +117,11 @@ class MysqlServerMockFrontend {
 
   void run() {
     init_DIM();
-    std::unique_ptr<mysql_harness::LoaderConfig> loader_config(
-        new mysql_harness::LoaderConfig(mysql_harness::Config::allow_keys));
+    auto loader_config = std::make_unique<mysql_harness::LoaderConfig>(
+        mysql_harness::Config::allow_keys);
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+
     mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
     const auto log_level = config_.verbose
@@ -239,14 +235,13 @@ class MysqlServerMockFrontend {
       mock_x_server_config.set("ssl_crlpath", config_.ssl_crlpath);
     }
 
-    mysql_harness::DIM::instance().set_Config(
-        [&]() { return loader_config.release(); },
-        std::default_delete<mysql_harness::LoaderConfig>());
+    dim.set_Config(loader_config.release(),
+                   std::default_delete<mysql_harness::LoaderConfig>());
 
     std::unique_ptr<mysql_harness::Loader> loader_;
     try {
       loader_ = std::make_unique<mysql_harness::Loader>("server-mock",
-                                                        *loader_config);
+                                                        dim.get_Config());
     } catch (const std::runtime_error &err) {
       throw std::runtime_error(std::string("init-loader failed: ") +
                                err.what());

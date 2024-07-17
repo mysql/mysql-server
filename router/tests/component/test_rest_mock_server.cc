@@ -1230,16 +1230,13 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 static void init_DIM() {
+  static mysql_harness::logging::Registry static_registry;
+
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
 
   // logging facility
-  dim.set_LoggingRegistry(
-      []() {
-        static mysql_harness::logging::Registry registry;
-        return &registry;
-      },
-      [](mysql_harness::logging::Registry *) {}  // don't delete our static!
-  );
+  dim.set_static_LoggingRegistry(&static_registry);
+
   mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
   mysql_harness::logging::create_module_loggers(

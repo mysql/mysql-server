@@ -1960,16 +1960,14 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 class MetadataCacheLoggingTest : public RouterLoggingTest {
  protected:
   void SetUp() override {
+    static mysql_harness::RandomGenerator rg;
+
     RouterLoggingTest::SetUp();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator
-    dim.set_RandomGenerator(
-        []() {
-          static mysql_harness::RandomGenerator rg;
-          return &rg;
-        },
-        [](mysql_harness::RandomGeneratorInterface *) {});
+    dim.set_RandomGenerator(&rg,
+                            [](mysql_harness::RandomGeneratorInterface *) {});
 
     cluster_nodes_ports = {port_pool_.get_next_available(),
                            port_pool_.get_next_available(),

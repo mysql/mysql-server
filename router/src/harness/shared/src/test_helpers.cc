@@ -55,14 +55,9 @@
 }
 
 void register_test_logger() {
-  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
-  dim.set_LoggingRegistry(
-      []() {
-        static mysql_harness::logging::Registry registry;
-        return &registry;
-      },
-      [](mysql_harness::logging::Registry *) {}  // don't delete our static!
-  );
+  static mysql_harness::logging::Registry static_registry;
+
+  mysql_harness::DIM::instance().set_static_LoggingRegistry(&static_registry);
 }
 
 void init_test_logger(
@@ -72,17 +67,19 @@ void init_test_logger(
   register_test_logger();
 
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+
   mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
-  std::unique_ptr<mysql_harness::LoaderConfig> config(
-      new mysql_harness::LoaderConfig(mysql_harness::Config::allow_keys));
-  config->add(mysql_harness::logging::kConfigSectionLogger);
-  config->get(mysql_harness::logging::kConfigSectionLogger, "")
-      .add(mysql_harness::logging::options::kLevel, "debug");
+  if (!dim.has_Config()) {
+    auto config = std::make_unique<mysql_harness::LoaderConfig>(
+        mysql_harness::Config::allow_keys);
+    config->add(mysql_harness::logging::kConfigSectionLogger);
+    config->get(mysql_harness::logging::kConfigSectionLogger, "")
+        .add(mysql_harness::logging::options::kLevel, "debug");
 
-  mysql_harness::DIM::instance().set_Config(
-      [&]() { return config.release(); },
-      std::default_delete<mysql_harness::LoaderConfig>());
+    dim.set_Config(config.release(),
+                   std::default_delete<mysql_harness::LoaderConfig>());
+  }
 
   std::list<std::string> log_domains(additional_log_domains.begin(),
                                      additional_log_domains.end());

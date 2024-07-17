@@ -39,14 +39,9 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 
 void RouterComponentTest::SetUp() {
-  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
-  // RandomGenerator
-  dim.set_RandomGenerator(
-      []() {
-        static mysql_harness::RandomGenerator rg;
-        return &rg;
-      },
-      [](mysql_harness::RandomGeneratorInterface *) {});
+  static mysql_harness::RandomGenerator static_rg;
+
+  mysql_harness::DIM::instance().set_static_RandomGenerator(&static_rg);
 }
 
 void RouterComponentTest::TearDown() {

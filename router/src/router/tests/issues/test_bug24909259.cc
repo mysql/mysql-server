@@ -84,14 +84,9 @@ static void create_keyfile_withkey(const std::string &path,
 }
 
 TEST(Bug24909259, init_tests) {
-  mysql_harness::DIM::instance().set_RandomGenerator(
-      []() {
-        static mysql_harness::FakeRandomGenerator rg;
-        return &rg;
-      },
-      [](mysql_harness::RandomGeneratorInterface *) {}
-      // don't delete our static!
-  );
+  static mysql_harness::FakeRandomGenerator static_rg;
+
+  mysql_harness::DIM::instance().set_static_RandomGenerator(&static_rg);
 }
 
 // bug#24909259
