@@ -282,23 +282,6 @@ class Latches {
   It is only used by lock_rec_fetch_page() as a workaround. */
   friend class Unsafe_global_latch_manipulator;
 
-  /** For some reason clang 6.0.0 and 7.0.0 (but not 8.0.0) fail at linking
-  stage if we completely omit the destructor declaration, or use
-
-  ~Latches() = default;
-
-  This might be somehow connected to one of these:
-     https://bugs.llvm.org/show_bug.cgi?id=28280
-     https://github.com/android/ndk/issues/143
-     https://reviews.llvm.org/D45898
-  So, this declaration is just to make clang 6.0.0 and 7.0.0 happy.
-  */
-#if defined(__clang__) && (__clang_major__ < 8)
-  ~Latches() {}  // NOLINT(modernize-use-equals-default)
-#else
-  ~Latches() = default;
-#endif
-
 #ifdef UNIV_DEBUG
   /**
   Tests if lock_sys latch is exclusively owned by the current thread.
