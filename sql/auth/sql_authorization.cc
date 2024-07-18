@@ -4419,6 +4419,9 @@ Access_bitmask get_table_grant(THD *thd, Table_ref *table) {
   Security_context *sctx = thd->security_context();
   const char *db = table->db ? table->db : thd->db().str;
   GRANT_TABLE *grant_table;
+
+  if (!initialized) return ALL_ACCESS;
+
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
 
   if (!acl_cache_lock.lock(false)) return (NO_ACCESS);
@@ -4458,6 +4461,9 @@ Access_bitmask get_column_grant(THD *thd, GRANT_INFO *grant,
   GRANT_COLUMN *grant_column;
   Access_bitmask priv;
   Security_context *sctx = thd->security_context();
+
+  if (!initialized) return ALL_ACCESS;
+
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
 
   if (!acl_cache_lock.lock(false)) return (NO_ACCESS);
