@@ -865,7 +865,7 @@ bool btr_search_guess_on_hash(const dtuple_t *tuple, ulint mode,
     }
   } else {
     /* If we had a latch, then the guard is not needed. */
-    latch_guard.commit();
+    latch_guard.release();
   }
 
   ut_ad(rw_lock_get_writer(btr_get_search_latch(index)) != RW_LOCK_X);
@@ -902,7 +902,7 @@ bool btr_search_guess_on_hash(const dtuple_t *tuple, ulint mode,
     remove it. Up to this point we have the AHI is S-latched and since we found
     an AHI entry that leads to this block, the entry can't be removed and thus
     the block must be still in the buffer pool. */
-    latch_guard.rollback();
+    latch_guard.reset();
 
     buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
   }
@@ -1573,7 +1573,7 @@ static void btr_search_build_page_hash_index(dict_index_t *index,
     ha_insert_for_hash(table, hashes[i], block, recs[i]);
   }
 
-  x_latch_guard.rollback();
+  x_latch_guard.reset();
 
   MONITOR_ATOMIC_INC(MONITOR_ADAPTIVE_HASH_PAGE_ADDED);
 }

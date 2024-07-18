@@ -24,39 +24,91 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef SCOPE_GUARD_H
 #define SCOPE_GUARD_H
 
+/**
+  @brief A Lambda to be called at scope exit.
+
+  Used as std::scope_exit of sorts.
+  Useful if you can't use unique_ptr to install a
+  specific deleter but still want to do automatic
+  cleanup at scope exit.
+
+  @note Always use @ref create_scope_guard() instead of this template directly!
+
+  Typical use is:
+  @code
+     ...
+     foo_init();
+     auto cleanup_foo = create_scope_guard([&] {
+        foo_deinit();
+     }
+     ...
+     if (some_error)
+       return; // cleanup_foo calls foo_deinit()
+     ...
+     // foo_deinit is not going to be called past this point
+     cleanup_foo.release();
+     return; // return with foo initialized.
+     ...
+   @endcode
+*/
 template <typename TLambda>
 class Scope_guard {
  public:
-  Scope_guard(const TLambda &rollback_lambda)
-      : m_committed(false), m_rollback_lambda(rollback_lambda) {}
+  Scope_guard(const TLambda &cleanup_lambda)
+      : m_is_released(false), m_cleanup_lambda(cleanup_lambda) {}
   Scope_guard(const Scope_guard<TLambda> &) = delete;
   Scope_guard(Scope_guard<TLambda> &&moved)
-      : m_committed(moved.m_committed),
-        m_rollback_lambda(moved.m_rollback_lambda) {
-    /* Set moved guard to "invalid" state, the one in which the rollback lambda
+      : m_is_released(moved.m_is_released),
+        m_cleanup_lambda(moved.m_cleanup_lambda) {
+    /* Set moved guard to "invalid" state, the one in which the cleanup lambda
       will not be executed. */
-    moved.m_committed = true;
+    moved.m_is_released = true;
   }
   ~Scope_guard() {
-    if (!m_committed) {
-      m_rollback_lambda();
+    if (!m_is_released) {
+      m_cleanup_lambda();
     }
   }
 
-  inline void commit() { m_committed = true; }
+  /**
+    @brief Releases the scope guard
 
-  inline void rollback() {
-    if (!m_committed) {
-      m_rollback_lambda();
-      m_committed = true;
+    Makes sure that when scope guard goes out of scope the
+    cleanup lambda is not going to be called.
+  */
+  inline void release() { m_is_released = true; }
+
+  /**
+    @brief Calls the cleanup lambda and releases the scope guard
+
+    Useful if you want to explicitly provoke the cleanup earlier
+    than when going out of scope.
+  */
+  inline void reset() {
+    if (!m_is_released) {
+      m_cleanup_lambda();
+      m_is_released = true;
     }
   }
 
  private:
-  bool m_committed;
-  const TLambda m_rollback_lambda;
+  /** If true the cleanup is not going to be called */
+  bool m_is_released;
+  /** The cleanup to be called */
+  const TLambda m_cleanup_lambda;
 };
 
+/**
+  @brief Create a scope guard object
+
+  Always use this instead of the @ref Scope_guard template itself!
+  @sa @ref Scope_guard
+
+  @tparam TLambda The type of the lambda. Inferred, never specify it.
+  @param rollback_lambda The lambda to execute.
+  @return Scope_guard<TLambda> An specialization of the @ref Scope_guard
+  template.
+*/
 template <typename TLambda>
 Scope_guard<TLambda> create_scope_guard(const TLambda rollback_lambda) {
   return Scope_guard<TLambda>(rollback_lambda);

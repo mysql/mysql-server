@@ -153,6 +153,6 @@ fido_dev_info_t *assertion::discover_fido2_devices(size_t num_devices) {
     return nullptr;
   }
 
-  cleanup_guard.commit();
+  cleanup_guard.release();
   return dev_infos;
 }

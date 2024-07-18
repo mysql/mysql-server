@@ -1228,7 +1228,7 @@ static bool fill_value_maps(const Mem_root_array<HistogramSetting> &settings,
   if (res != HA_ERR_END_OF_FILE) return true; /* purecov: deadcode */
 
   // Close the handler
-  handler_guard.commit();
+  handler_guard.release();
   if (table->file->ha_sample_end(scan_ctx)) {
     assert(false); /* purecov: deadcode */
     return true;
@@ -1399,7 +1399,7 @@ static bool update_histogram_using_data(THD *thd, Table_ref *table,
   // Store it to persistent storage.
   if (histogram == nullptr || histogram->store_histogram(thd)) return true;
   results.emplace(column_name, Message::HISTOGRAM_CREATED);
-  error_guard.commit();
+  error_guard.release();
   return false;
 }
 
@@ -1518,7 +1518,7 @@ bool update_share_histograms(THD *thd, Table_ref *table) {
   if (!error) {
     // If the insertion succeeded ownership responsibility was passed on, so we
     // can disable the scope guard that would free the Table_histograms object.
-    table_histograms_guard.commit();
+    table_histograms_guard.release();
   }
   return error;
 }
@@ -1863,7 +1863,7 @@ bool auto_update_table_histograms_from_background_thread(
   Table_ref table(db_name.c_str(), table_name.c_str(), thr_lock_type::TL_UNLOCK,
                   enum_mdl_type::MDL_SHARED_READ);
   if (open_and_lock_tables(thd, &table, MYSQL_OPEN_HAS_MDL_LOCK)) return true;
-  error_handler_guard.commit();
+  error_handler_guard.release();
   thd->pop_internal_handler();
 
   if (!supports_histogram_updates(thd, &table)) return false;
@@ -1887,7 +1887,7 @@ bool auto_update_table_histograms_from_background_thread(
                      false);
     return true;
   }
-  rollback_guard.commit();
+  rollback_guard.release();
 
   // The update succeeded and has been committed. Mark cached TABLE objects for
   // re-opening to ensure that they release their (stale) snapshot of the

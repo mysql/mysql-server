@@ -111,7 +111,7 @@ long long test_thd_store_service_function(UDF_INIT *, UDF_ARGS *,
     return 0;
   }
 
-  cleanup.commit();
+  cleanup.release();
 
   return 1;
 }
@@ -179,7 +179,7 @@ static mysql_service_status_t init() {
   if (mysql_thd_store_service->set(o_thd, g_slot, test_mysql_thd_data))
     return true;
 
-  cleanup_guard.commit();
+  cleanup_guard.release();
 
   return false;
 }

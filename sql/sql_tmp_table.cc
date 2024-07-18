@@ -1661,7 +1661,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
   DEBUG_SYNC(thd, "tmp_table_created");
 
-  free_tmp_table_guard.commit();
+  free_tmp_table_guard.release();
 
   return table;
 }

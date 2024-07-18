@@ -687,7 +687,7 @@ FILE *my_win_fopen(const char *filename, const char *mode) {
                      flags) < 0)
     return nullptr;
 
-  sg.commit();  // Do not close the stream we are about to return
+  sg.release();  // Do not close the stream we are about to return
   return stream;
 }
 
@@ -787,8 +787,8 @@ FILE *my_win_freopen(const char *path, const char *mode, FILE *stream) {
   if (_dup2(handle_fd, fd) < 0) return nullptr;
 
   // Leave the handle and fd open, but close handle_fd
-  chg.commit();
-  cfdg.commit();
+  chg.release();
+  cfdg.release();
 
   return stream;
 }

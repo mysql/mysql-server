@@ -2979,7 +2979,7 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   root_load.finish();
 
   mtr.commit();
-  guard.commit();
+  guard.release();
   root_load.commit();
   return err;
 }

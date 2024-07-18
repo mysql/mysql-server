@@ -428,7 +428,7 @@ static bool fetch(const char *function_name, char *key_id, char **a_key,
 
   if (a_key_len != nullptr) *a_key_len = fetched_key_len;
 
-  cleanup_guard.commit();
+  cleanup_guard.release();
 
   return false;
 }

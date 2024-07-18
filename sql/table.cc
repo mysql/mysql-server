@@ -2707,7 +2707,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
 
   // Revert thd changes and clean up.
   cleanup();
-  cleanup_guard.commit();
+  cleanup_guard.release();
 
   (*val_generator)->item_list = val_generator_arena.item_list();
   (*val_generator)->backup_stmt_unsafe_flags(new_lex.get_stmt_unsafe_flags());

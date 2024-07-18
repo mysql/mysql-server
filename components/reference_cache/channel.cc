@@ -146,7 +146,7 @@ bool channel_imp::factory_deinit() {
   delete channel_by_name_hash;
   delete channels;
   channels = nullptr;
-  release_guard.rollback();
+  release_guard.reset();
   mysql_rwlock_destroy(&LOCK_channels);
   return false;
 }
@@ -352,7 +352,7 @@ bool channel_imp::service_notification(const char **services,
     }
   }
 
-  release_guard.rollback();
+  release_guard.reset();
   /*
     At this point, a service load/unload operation is in progress.
     Further,
