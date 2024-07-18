@@ -12,13 +12,12 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 #
 # Holds metadata information for the MySQL REST Service.
 # -----------------------------------------------------
-DROP SCHEMA IF EXISTS `mysql_rest_service_metadata` ;
-CREATE SCHEMA `mysql_rest_service_metadata` DEFAULT CHARACTER SET utf8 COLLATE utf8_bin ;
-USE `mysql_rest_service_metadata` ;
+DROP SCHEMA IF EXISTS `mysql_rest_service_metadata`;
+CREATE SCHEMA `mysql_rest_service_metadata` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+USE `mysql_rest_service_metadata`;
 
 # Set schema_version to 0.0.0 to indicate an ongoing creation/upgrade of the schema
 CREATE SQL SECURITY INVOKER VIEW `mysql_rest_service_metadata`.`schema_version` (major, minor, patch) AS SELECT 0, 0, 0;
-
 
 
 # -----------------------------------------------------
@@ -43,6 +42,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`service` (
   `url_context_root` VARCHAR(255) NOT NULL DEFAULT '/mrs' COMMENT 'Specifies context root of the MRS as represented in the request URLs, default being /mrs. URL Example: https://www.example.com/mrs',
   `url_protocol` SET('HTTP', 'HTTPS') NOT NULL DEFAULT 'HTTP,HTTPS',
   `enabled` TINYINT NOT NULL DEFAULT 1,
+  `in_development` JSON NULL COMMENT 'If not NULL, this column indicates that the REST service is currently \"in development\" and holds the name(s) of the developer(s) who is(/are) allowed to work with the service in the \"$.developers\" string array. REST services with this column not being NULL may use the same url_host+url_context_root context path as existing services. Routers only serve REST services with this column being NULL, unless they are bootstrapped with --mrs-development <user> which sets `router`.`option`->>\"$.developer\". When bootstrapped with the --mrs-development <user> option the Router also serves REST services marked \"in development\" with this column\'s \"$.developers\" including the same name as the <user> specified during bootstrap, while these REST services marked \"in development\" take priority over services with the same url_host+url_context_root context path and this column being NULL.',
   `comments` VARCHAR(512) NULL,
   `options` JSON NULL,
   `auth_path` VARCHAR(255) NOT NULL DEFAULT '/authentication' COMMENT 'The path used for authentication. The following sub-paths will be made available for <service_path>/<auth_path>:  /login /status /logout /completed',
@@ -568,7 +568,7 @@ ENGINE = InnoDB;
 # Table `mysql_rest_service_metadata`.`router`
 # -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'The ID of the router instance and is a unique identifier of the server instance.',
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'The ID of the router instance that uniquely identifies the router on this MySQL REST Service setup.',
   `router_name` VARCHAR(255) NOT NULL COMMENT 'A user specified name for an instance of the router. Should default to address:port, where port is the RW port for classic protocol. Set via --name during router bootstrap.',
   `address` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL COMMENT 'Network address of the host the Router is running on. Set via --report--host during bootstrap.',
   `product_name` VARCHAR(128) NOT NULL COMMENT 'The product name of the routing component, e.g. \'MySQL Router\'',
@@ -758,6 +758,37 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`service_has_auth_app` 
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`content_set_has_obj_def`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_set_has_obj_def` (
+  `content_set_id` BINARY(16) NOT NULL,
+  `db_object_id` BINARY(16) NOT NULL,
+  `method_type` ENUM("Script", "BeforeCreate", "BeforeRead", "BeforeUpdate", "BeforeDelete", "AfterCreate", "AfterRead", "AfterUpdate", "AfterDelete") NOT NULL,
+  `priority` INT NOT NULL DEFAULT 0,
+  `language` VARCHAR(45) NOT NULL,
+  `class_name` VARCHAR(255) NOT NULL,
+  `method_name` VARCHAR(255) NOT NULL,
+  `comments` VARCHAR(512) NULL,
+  `options` JSON NULL,
+  INDEX `fk_content_set_has_obj_dev_db_object1_idx` (`db_object_id` ASC) VISIBLE,
+  INDEX `fk_content_set_has_obj_dev_content_set1_idx` (`content_set_id` ASC) VISIBLE,
+  INDEX `content_set_has_obj_dev_priority` (`priority` ASC) VISIBLE,
+  PRIMARY KEY (`content_set_id`, `db_object_id`, `method_type`, `priority`),
+  INDEX `content_set_has_obj_dev_method_type` (`method_type` ASC) VISIBLE,
+  CONSTRAINT `fk_content_set_has_db_object_content_set1`
+    FOREIGN KEY (`content_set_id`)
+    REFERENCES `mysql_rest_service_metadata`.`content_set` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_content_set_has_db_object_db_object1`
+    FOREIGN KEY (`db_object_id`)
+    REFERENCES `mysql_rest_service_metadata`.`db_object` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
 USE `mysql_rest_service_metadata` ;
 
 # -----------------------------------------------------
@@ -940,23 +971,58 @@ END$$
 USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`service_BEFORE_INSERT` BEFORE INSERT ON `service` FOR EACH ROW
 BEGIN
-    SET @host_name := (SELECT h.name FROM `mysql_rest_service_metadata`.url_host h WHERE h.id = NEW.url_host_id);
-    SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@host_name, NEW.url_context_root)));
+    # Check if the full service request_path (including the optional developer setting) already exists
+    IF NEW.enabled = TRUE THEN
+        SET @host_name := (SELECT h.name FROM `mysql_rest_service_metadata`.url_host h WHERE h.id = NEW.url_host_id);
+        SET @request_path := CONCAT(COALESCE(NEW.in_development->>'$.developers', ''), @host_name, NEW.url_context_root);
+        SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(@request_path));
 
-    IF @validPath = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+        IF @validPath = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+        END IF;
+
+        # Check if the same developer is already registered in the in_development->>'$.developers' of a service with the very same host_ctx
+        SET @validDeveloperList := (SELECT MAX(COALESCE(
+                JSON_OVERLAPS(s.in_development->>'$.developers', NEW.in_development->>'$.developers'), FALSE)) AS overlap
+            FROM `mysql_rest_service_metadata`.`service` AS s JOIN
+                `mysql_rest_service_metadata`.`url_host` AS h ON s.url_host_id = h.id JOIN
+                `mysql_rest_service_metadata`.`url_host` AS h2 ON h2.id = NEW.url_host_id
+            WHERE CONCAT(h.name, s.url_context_root) = CONCAT(h2.name, NEW.url_context_root) AND s.enabled = TRUE
+            GROUP BY CONCAT(h.name, s.url_context_root));
+
+        IF COALESCE(@validDeveloperList, FALSE) = TRUE THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This developer is already registered for a REST service with the same host/url_context_root path.";
+        END IF;
     END IF;
 END$$
 
 USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`service_BEFORE_UPDATE` BEFORE UPDATE ON `service` FOR EACH ROW
 BEGIN
-    IF (NEW.url_context_root <> OLD.url_context_root) THEN
+    # Check if the full service request_path (including the optional developer setting) already exists,
+    # but only when the service is enabled and either of those values was actually changed
+    IF NEW.enabled = TRUE AND (COALESCE(NEW.in_development, '') <> COALESCE(OLD.in_development, '')
+        OR NEW.url_host_id <> OLD.url_host_id OR NEW.url_context_root <> OLD.url_context_root) THEN
+
         SET @host_name := (SELECT h.name FROM `mysql_rest_service_metadata`.url_host h WHERE h.id = NEW.url_host_id);
-        SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@host_name, NEW.url_context_root)));
+        SET @request_path := CONCAT(COALESCE(NEW.in_development->>'$.developers', ''), @host_name, NEW.url_context_root);
+        SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(@request_path));
 
         IF @validPath = 0 THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+        END IF;
+
+        # Check if the same developer is already registered in the in_development->>'$.developers' of a service with the very same host_ctx
+        SET @validDeveloperList := (SELECT MAX(COALESCE(
+                JSON_OVERLAPS(s.in_development->>'$.developers', NEW.in_development->>'$.developers'), FALSE)) AS overlap
+            FROM `mysql_rest_service_metadata`.`service` AS s JOIN
+                `mysql_rest_service_metadata`.`url_host` AS h ON s.url_host_id = h.id JOIN
+                `mysql_rest_service_metadata`.`url_host` AS h2 ON h2.id = NEW.url_host_id
+            WHERE CONCAT(h.name, s.url_context_root) = CONCAT(h2.name, NEW.url_context_root) AND s.enabled = TRUE
+            GROUP BY CONCAT(h.name, s.url_context_root));
+
+        IF COALESCE(@validDeveloperList, FALSE) = TRUE THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This developer is already registered for a REST service with the same host/url_context_root path.";
         END IF;
     END IF;
 END$$
@@ -976,7 +1042,7 @@ END$$
 USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_schema_BEFORE_INSERT` BEFORE INSERT ON `db_schema` FOR EACH ROW
 BEGIN
-    SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+    SET @service_path := (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root) AS path
         FROM `mysql_rest_service_metadata`.service se
             LEFT JOIN `mysql_rest_service_metadata`.url_host h
                 ON se.url_host_id = h.id
@@ -992,7 +1058,7 @@ USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_schema_BEFORE_UPDATE` BEFORE UPDATE ON `db_schema` FOR EACH ROW
 BEGIN
     IF (NEW.request_path <> OLD.request_path OR NEW.service_id <> OLD.service_id) THEN
-        SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+        SET @service_path := (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root) AS path
             FROM `mysql_rest_service_metadata`.service se
                 LEFT JOIN `mysql_rest_service_metadata`.url_host h
                     ON se.url_host_id = h.id
@@ -1015,7 +1081,7 @@ END$$
 USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_object_BEFORE_INSERT` BEFORE INSERT ON `db_object` FOR EACH ROW
 BEGIN
-    SET @schema_path := (SELECT CONCAT(h.name, se.url_context_root, sc.request_path) AS path
+    SET @schema_path := (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root, sc.request_path) AS path
         FROM `mysql_rest_service_metadata`.db_schema sc
             LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
                 ON se.id = sc.service_id
@@ -1033,7 +1099,7 @@ USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_object_BEFORE_UPDATE` BEFORE UPDATE ON `db_object` FOR EACH ROW
 BEGIN
     IF (NEW.request_path <> OLD.request_path OR NEW.db_schema_id <> OLD.db_schema_id) THEN
-        SET @schema_path := (SELECT CONCAT(h.name, se.url_context_root, sc.request_path) AS path
+        SET @schema_path := (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root, sc.request_path) AS path
             FROM `mysql_rest_service_metadata`.db_schema sc
                 LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
                     ON se.id = sc.service_id
@@ -1125,7 +1191,7 @@ END$$
 USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_BEFORE_INSERT` BEFORE INSERT ON `content_set` FOR EACH ROW
 BEGIN
-    SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+    SET @service_path := (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root) AS path
         FROM `mysql_rest_service_metadata`.service se
             LEFT JOIN `mysql_rest_service_metadata`.url_host h
                 ON se.url_host_id = h.id
@@ -1141,7 +1207,7 @@ USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_BEFORE_UPDATE` BEFORE UPDATE ON `content_set` FOR EACH ROW
 BEGIN
     IF (NEW.request_path <> OLD.request_path OR NEW.service_id <> OLD.service_id) THEN
-        SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+        SET @service_path := (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root) AS path
             FROM `mysql_rest_service_metadata`.service se
                 LEFT JOIN `mysql_rest_service_metadata`.url_host h
                     ON se.url_host_id = h.id
@@ -1158,6 +1224,8 @@ USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_BEFORE_DELETE` BEFORE DELETE ON `content_set` FOR EACH ROW
 BEGIN
     DELETE FROM `mysql_rest_service_metadata`.`content_file`
+    WHERE `content_set_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`content_set_has_obj_def`
     WHERE `content_set_id` = OLD.`id`;
 END$$
 
@@ -1267,6 +1335,13 @@ BEGIN
     END IF;
 END$$
 
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_has_obj_def_BEFORE_DELETE` BEFORE DELETE ON `content_set_has_obj_def` FOR EACH ROW
+BEGIN
+    DELETE FROM `mysql_rest_service_metadata`.`db_object` dbo
+    WHERE OLD.method_type = "Script" AND dbo.id = OLD.db_object_id;
+END$$
+
 
 DELIMITER ;$$
 
@@ -1353,24 +1428,26 @@ CREATE FUNCTION `mysql_rest_service_metadata`.`valid_request_path`(path VARCHAR(
 RETURNS TINYINT(1) NOT DETERMINISTIC READS SQL DATA
 BEGIN
     SET @valid := (SELECT COUNT(*) = 0 AS valid FROM
-        (SELECT CONCAT(h.name,
+        (SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name,
             se.url_context_root) as full_request_path
         FROM `mysql_rest_service_metadata`.service se
             LEFT JOIN `mysql_rest_service_metadata`.url_host h
                 ON se.url_host_id = h.id
-        WHERE CONCAT(h.name, se.url_context_root) = path
+        WHERE CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root) = path
+            AND se.enabled = TRUE
         UNION
-        SELECT CONCAT(h.name, se.url_context_root,
+        SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root,
             sc.request_path) as full_request_path
         FROM `mysql_rest_service_metadata`.db_schema sc
             LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
                 ON se.id = sc.service_id
             LEFT JOIN `mysql_rest_service_metadata`.url_host h
                 ON se.url_host_id = h.id
-        WHERE CONCAT(h.name, se.url_context_root,
+        WHERE CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root,
                 sc.request_path) = path
+            AND se.enabled = TRUE
         UNION
-        SELECT CONCAT(h.name, se.url_context_root,
+        SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root,
             sc.request_path, o.request_path) as full_request_path
         FROM `mysql_rest_service_metadata`.db_object o
             LEFT OUTER JOIN `mysql_rest_service_metadata`.db_schema sc
@@ -1379,20 +1456,22 @@ BEGIN
                 ON se.id = sc.service_id
             LEFT JOIN `mysql_rest_service_metadata`.url_host h
                 ON se.url_host_id = h.id
-        WHERE CONCAT(h.name, se.url_context_root,
+        WHERE CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root,
                 sc.request_path, o.request_path) = path
+            AND se.enabled = TRUE
         UNION
-        SELECT CONCAT(h.name, se.url_context_root,
+        SELECT CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root,
             co.request_path) as full_request_path
         FROM `mysql_rest_service_metadata`.content_set co
             LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
                 ON se.id = co.service_id
             LEFT JOIN `mysql_rest_service_metadata`.url_host h
                 ON se.url_host_id = h.id
-        WHERE CONCAT(h.name, se.url_context_root,
-                co.request_path) = path) AS p);
+        WHERE CONCAT(COALESCE(se.in_development->>'$.developers', ''), h.name, se.url_context_root,
+                co.request_path) = path
+            AND se.enabled = TRUE) AS p);
 
-     RETURN @valid;
+    RETURN @valid;
 END$$
 
 DELIMITER ;$$
@@ -1402,6 +1481,25 @@ ALTER TABLE `mysql_rest_service_metadata`.`object_field`
   ADD CONSTRAINT param_mode_not_false CHECK (
     (db_column->"$.in" IS NULL AND db_column->"$.out" IS NULL) OR
     (db_column->"$.in" + db_column->"$.out" >= 1));
+
+# Ensure the service.in_development->>$.developers is a list that only holds unique strings
+ALTER TABLE `mysql_rest_service_metadata`.`service` ADD CONSTRAINT CHECK(
+    JSON_SCHEMA_VALID('{
+    "id": "https://dev.mysql.com/mrs/service/in_development",
+    "type": "object",
+    "properties": {
+        "developers": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        }
+    },
+    "required": [ "developers" ]
+    }', s.in_development)
+);
 
 # -----------------------------------------------------
 # Create audit_log triggers
@@ -1511,6 +1609,7 @@ BEGIN
             "url_context_root", NEW.url_context_root,
             "url_protocol", NEW.url_protocol,
             "enabled", NEW.enabled,
+            "in_development", NEW.in_development,
             "comments", NEW.comments,
             "options", NEW.options,
             "auth_path", NEW.auth_path,
@@ -1540,6 +1639,7 @@ BEGIN
             "url_context_root", OLD.url_context_root,
             "url_protocol", OLD.url_protocol,
             "enabled", OLD.enabled,
+            "in_development", OLD.in_development,
             "comments", OLD.comments,
             "options", OLD.options,
             "auth_path", OLD.auth_path,
@@ -1555,6 +1655,7 @@ BEGIN
             "url_context_root", NEW.url_context_root,
             "url_protocol", NEW.url_protocol,
             "enabled", NEW.enabled,
+            "in_development", NEW.in_development,
             "comments", NEW.comments,
             "options", NEW.options,
             "auth_path", NEW.auth_path,
@@ -1584,6 +1685,7 @@ BEGIN
             "url_context_root", OLD.url_context_root,
             "url_protocol", OLD.url_protocol,
             "enabled", OLD.enabled,
+            "in_development", OLD.in_development,
             "comments", OLD.comments,
             "options", OLD.options,
             "auth_path", OLD.auth_path,
@@ -3432,6 +3534,90 @@ BEGIN
     );
 END$$
 
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_set_has_obj_def_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `content_set_has_obj_def` FOR EACH ROW
+BEGIN
+    INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+        table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+    VALUES (
+        "content_set_has_obj_def",
+        "INSERT",
+        NULL,
+        JSON_OBJECT(
+            "content_set_id", NEW.content_set_id,
+            "db_object_id", NEW.db_object_id,
+            "method_type", NEW.method_type,
+            "priority", NEW.priority,
+            "language", NEW.language,
+            "class_name", NEW.class_name,
+            "method_name", NEW.method_name,
+            "comments", NEW.comments,
+            "options", NEW.options),
+        NULL,
+        NEW.content_set_id,
+        CURRENT_USER(),
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_set_has_obj_def_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `content_set_has_obj_def` FOR EACH ROW
+BEGIN
+    INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+        table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+    VALUES (
+        "content_set_has_obj_def",
+        "UPDATE",
+        JSON_OBJECT(
+            "content_set_id", OLD.content_set_id,
+            "db_object_id", OLD.db_object_id,
+            "method_type", OLD.method_type,
+            "priority", OLD.priority,
+            "language", OLD.language,
+            "class_name", OLD.class_name,
+            "method_name", OLD.method_name,
+            "comments", OLD.comments,
+            "options", OLD.options),
+        JSON_OBJECT(
+            "content_set_id", NEW.content_set_id,
+            "db_object_id", NEW.db_object_id,
+            "method_type", NEW.method_type,
+            "priority", NEW.priority,
+            "language", NEW.language,
+            "class_name", NEW.class_name,
+            "method_name", NEW.method_name,
+            "comments", NEW.comments,
+            "options", NEW.options),
+        OLD.content_set_id,
+        NEW.content_set_id,
+        CURRENT_USER(),
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_set_has_obj_def_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `content_set_has_obj_def` FOR EACH ROW
+BEGIN
+    INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+        table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+    VALUES (
+        "content_set_has_obj_def",
+        "DELETE",
+        JSON_OBJECT(
+            "content_set_id", OLD.content_set_id,
+            "db_object_id", OLD.db_object_id,
+            "method_type", OLD.method_type,
+            "priority", OLD.priority,
+            "language", OLD.language,
+            "class_name", OLD.class_name,
+            "method_name", OLD.method_name,
+            "comments", OLD.comments,
+            "options", OLD.options),
+        NULL,
+        OLD.content_set_id,
+        NULL,
+        CURRENT_USER(),
+        CURRENT_TIMESTAMP
+    );
+END$$
+
 DELIMITER ;$$
 
 # -----------------------------------------------------
@@ -3568,6 +3754,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE
     ON `mysql_rest_service_metadata`.`content_file`
     TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_dev';
 GRANT SELECT ON `mysql_rest_service_metadata`.`content_file`
+    TO 'mysql_rest_service_meta_provider';
+
+
+# `mysql_rest_service_metadata`.`content_set_has_obj_def`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`content_set_has_obj_def`
+    TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_dev';
+GRANT SELECT ON `mysql_rest_service_metadata`.`content_set_has_obj_def`
     TO 'mysql_rest_service_meta_provider';
 
 # -----------------------------------------------------
