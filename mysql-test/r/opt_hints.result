@@ -2445,7 +2445,7 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop semijoin  (rows=2)
+    -> Nested loop semijoin (FirstMatch)  (rows=2)
         -> Filter: (t3.a is not null)  (rows=2)
             -> Table scan on t3  (rows=2)
         -> Covering index lookup on dt using <auto_key0> (a=t3.a)  (rows=2)
@@ -2467,7 +2467,7 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop semijoin  (rows=2)
+    -> Nested loop semijoin (FirstMatch)  (rows=2)
         -> Filter: (t3.a > 1)  (rows=2)
             -> Table scan on t3  (rows=2)
         -> Filter: (t1.a = t3.a)  (rows=1)
@@ -2489,7 +2489,7 @@ where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
 EXPLAIN
 -> Update t3 (immediate)
-    -> Nested loop semijoin  (rows=2)
+    -> Nested loop semijoin (FirstMatch)  (rows=2)
         -> Filter: (t3.a is not null)  (rows=2)
             -> Table scan on t3  (rows=2)
         -> Index lookup on dt using <auto_key0> (a=t3.a)  (rows=2)

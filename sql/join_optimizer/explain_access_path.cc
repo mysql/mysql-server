@@ -306,7 +306,7 @@ string HashJoinTypeToString(RelationalExpression::Type join_type,
     case RelationalExpression::SEMIJOIN:
       if (explain_json_value)
         *explain_json_value = JoinTypeToString(JoinType::SEMI);
-      return "Hash semijoin";
+      return "Hash semijoin (FirstMatch)";
     default:
       assert(false);
       return "<error>";
@@ -1427,6 +1427,32 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |=
           AddMemberToObject<Json_string>(obj, "join_algorithm", "nested_loop");
       description = "Nested loop " + join_type;
+      if (path->nested_loop_join().join_type == JoinType::SEMI) {
+        description = description + " (FirstMatch)";
+        error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                "firstmatch");
+      }
+      const JoinPredicate *predicate = path->nested_loop_join().join_predicate;
+      if (predicate != nullptr &&
+          predicate->expr->type == RelationalExpression::SEMIJOIN &&
+          path->nested_loop_join().join_type == JoinType::INNER) {
+        if (path->nested_loop_join().outer->type ==
+            AccessPath::REMOVE_DUPLICATES) {
+          description.append(" (LooseScan)");
+          error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                  "loosescan");
+        } else {
+          description.append(" (FirstMatch)");
+          error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                  "firstmatch");
+        }
+      }
+      if (path->nested_loop_join().outer->type ==
+          AccessPath::REMOVE_DUPLICATES_ON_INDEX) {
+        description.append(" (LooseScan)");
+        error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                "loosescan");
+      }
       children->push_back({path->nested_loop_join().outer});
       children->push_back({path->nested_loop_join().inner});
       break;
@@ -1434,8 +1460,12 @@ static unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
       // No json fields since this path is not supported in hypergraph
       description =
-          string("Nested loop semijoin with duplicate removal on ") +
+          string(
+              "Nested loop semijoin (FirstMatch) with duplicate removal "
+              "(LooseScan) on ") +
           path->nested_loop_semijoin_with_duplicate_removal().key->name;
+      error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                              "firstmatch_with_loosescan");
       children->push_back(
           {path->nested_loop_semijoin_with_duplicate_removal().outer});
       children->push_back(
@@ -1461,17 +1491,46 @@ static unique_ptr<Json_object> SetObjectMembers(
 
       string json_join_type;
       description = HashJoinTypeToString(type, &json_join_type);
+      if (predicate->expr->type == RelationalExpression::SEMIJOIN) {
+        error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                "firstmatch");
+      }
+      if (path->hash_join().rewrite_semi_to_inner) {
+        if (path->hash_join().outer->type == AccessPath::REMOVE_DUPLICATES) {
+          description.append(" (LooseScan)");
+          error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                  "loosescan");
+        } else {
+          description.append(" (FirstMatch)");
+          error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                  "firstmatch");
+        }
+      }
+      if ((type != RelationalExpression::SEMIJOIN) &&
+          path->hash_join().inner->type ==
+              AccessPath::REMOVE_DUPLICATES_ON_INDEX) {
+        description.append(" (LooseScan)");
+        error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                "loosescan");
+      }
 
       unique_ptr<Json_array> hash_condition(new (std::nothrow) Json_array());
       if (hash_condition == nullptr) return nullptr;
-
       vector<HashJoinCondition> equijoin_conditions;
       equijoin_conditions.reserve(predicate->expr->equijoin_conditions.size());
       for (Item_eq_base *cond : predicate->expr->equijoin_conditions) {
         equijoin_conditions.emplace_back(cond, thd->mem_root);
       }
       if (equijoin_conditions.empty()) {
-        description.append(" (no condition)");
+        if ((type != RelationalExpression::SEMIJOIN) &&
+            path->hash_join().inner->type == AccessPath::LIMIT_OFFSET &&
+            path->hash_join().inner->limit_offset().limit == 1) {
+          description.append(" (FirstMatch)");
+          error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
+                                                  "firstmatch");
+        } else {
+          description.append(" (no condition)");
+        }
       } else {
         bool first = true;
         for (const HashJoinCondition &hj_cond : equijoin_conditions) {
@@ -1794,7 +1853,8 @@ static unique_ptr<Json_object> SetObjectMembers(
       }
       description += " rows using temporary table (weedout)";
       error |= obj->add_alias("tables", std::move(tables));
-      error |= AddMemberToObject<Json_string>(obj, "access_type", "weedout");
+      error |=
+          AddMemberToObject<Json_string>(obj, "semijoin_strategy", "weedout");
       children->push_back({path->weedout().child});
       break;
     }

@@ -862,7 +862,7 @@ explain select * from t1
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
--> Inner hash join (t1.a = t2.a)  (rows=0.283)
+-> Inner hash join (LooseScan) (t1.a = t2.a)  (rows=0.283)
     -> Remove duplicates from input grouped on t2.a  (rows=1.41)
         -> Sort: t2.a  (rows=2004)
             -> Inner hash join (no condition), extra conditions: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=2004)
@@ -2424,7 +2424,7 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 );
 EXPLAIN
 -> Update t1 (buffered)  (rows=0.01)
-    -> Hash semijoin (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (rows=0.01)
+    -> Hash semijoin (FirstMatch) (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (rows=0.01)
         -> Table scan on t1  (rows=2)
         -> Hash
             -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (rows=0.192)

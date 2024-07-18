@@ -841,3 +841,95 @@ EXPLAIN FORMAT=TREE SELECT LAST_VALUE((SELECT x1.a FROM t1))
 OVER (PARTITION BY b) FROM t1 x1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36773414: Explain format=tree does not display
+--echo #               information about semijoin strategy used
+--echo #
+
+CREATE TABLE t(a INTEGER,b INTEGER);
+INSERT INTO t VALUES(1,2),(2,3);
+ANALYZE TABLE t;
+SET explain_json_format_version = 2;
+# FirstMatch strategy - Semijoin converted to inner join by
+# limiting one row from the table on the inner side.
+let $query = SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+# FirstMatch strategy - Hash Semijoin
+eval EXPLAIN $query;
+let $query = SELECT * FROM t WHERE b IN (SELECT a FROM t);
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+# FirstMatch strategy - Nested Loop Semijoin
+let $query = SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1
+                                         JOIN t AS t2 ON t1.a=t2.b);
+eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+ALTER TABLE t ADD KEY(a,b);
+ALTER TABLE t ADD KEY(b);
+set optimizer_switch="firstmatch=off,duplicateweedout=off,materialization=off";
+# LooseScan strategy
+let $query = SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
+eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS loosescan,
+JSON_SEARCH(@var, 'one', '%LooseScan%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_loosescan;
+# LooseScan strategy - With multiple tables in the inner side
+# (LooseScan with FirstMatch).
+let $query = SELECT b FROM t WHERE a  IN (SELECT t1.b
+                                          FROM t AS t1 JOIN t AS t2 ON t1.b);
+eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match_with_loosescan,
+JSON_SEARCH(@var, 'one', '%LooseScan%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_loosescan;
+# DuplicateWeedout strategy
+set optimizer_switch="loosescan=off,duplicateweedout=on";
+let $query = SELECT b FROM t WHERE a IN (SELECT t1.b
+                                         FROM t AS t1 JOIN t AS t2 ON t1.b);
+eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS weedout,
+JSON_SEARCH(@var, 'one', '%weedout%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_weedout;
+# Materialization strategy
+set optimizer_switch="materialization=on,duplicateweedout=off";
+let $query = SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
+                                           WHERE t1.b <> 30);
+eval EXPLAIN $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval EXPLAIN FORMAT=JSON INTO @var $query;
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.deduplication') AS materialization,
+JSON_SEARCH(@var, 'one', '%Materialize with deduplication%', NULL,
+            '$**.operation') IS NOT NULL AS operation_contains_materialzation;
+DROP TABLE t;

@@ -1532,7 +1532,7 @@ group by a1,a2,b;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
-        -> Inner hash join (no condition)  (rows=128)
+        -> Inner hash join (FirstMatch)  (rows=128)
             -> Covering index scan on t1 using idx_t1_1  (rows=128)
             -> Hash
                 -> Limit: 1 row(s)  (rows=1)

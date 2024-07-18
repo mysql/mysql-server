@@ -642,13 +642,13 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.
 WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
 EXPLAIN
 -> Nested loop left join  (cost=0.91 rows=1)
-    -> Nested loop semijoin  (cost=0.685 rows=1)
+    -> Nested loop semijoin (FirstMatch)  (cost=0.685 rows=1)
         -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0.5)
             -> Index range scan on t1 using PRIMARY over (80 < pk)  (cost=0.46 rows=1)
         -> Nested loop inner join  (cost=0.775 rows=2)
             -> Table scan on t5  (cost=0.45 rows=1)
             -> Covering index scan on t4 using PRIMARY  (cost=1.3 rows=2)
-    -> Nested loop semijoin  (cost=0.8 rows=1)
+    -> Nested loop semijoin (FirstMatch)  (cost=0.8 rows=1)
         -> Single-row index lookup on t3 using PRIMARY (pk=t1.pk)  (cost=0.45 rows=1)
         -> Filter: (t2.f2 = t1.f2)  (cost=0.7 rows=1)
             -> Table scan on t2  (cost=0.7 rows=1)
@@ -814,7 +814,7 @@ EXPLAIN
                     -> Table scan on <temporary>  (rows=2)
                         -> Temporary table with deduplication  (rows=2)
                             -> Table scan on t1  (rows=2)
-            -> Nested loop semijoin  (rows=4)
+            -> Nested loop semijoin (FirstMatch)  (rows=4)
                 -> Filter: (d0.pk = 1)  (rows=2)
                     -> Table scan on t1  (rows=2)
                 -> Table scan on t1  (rows=2)
@@ -1223,7 +1223,7 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t1) */ *
 FROM
 t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
 EXPLAIN
--> Inner hash join (no condition)  (cost=0.7 rows=1)
+-> Inner hash join (FirstMatch)  (cost=0.7 rows=1)
     -> Table scan on t1  (cost=0.35 rows=1)
     -> Hash
         -> Limit: 1 row(s)  (cost=0.35 rows=1)
@@ -1826,7 +1826,7 @@ c2
 explain format=tree SELECT a.c2 FROM  t1 AS a WHERE
 EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
 EXPLAIN
--> Hash semijoin (b.c2 = a.c2)  (cost=0.825 rows=2)
+-> Hash semijoin (FirstMatch) (b.c2 = a.c2)  (cost=0.825 rows=2)
     -> Table scan on a  (cost=0.45 rows=2)
     -> Hash
         -> Table scan on b  (cost=0.175 rows=2)

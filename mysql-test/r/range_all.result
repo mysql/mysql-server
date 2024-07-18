@@ -4488,7 +4488,7 @@ SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 < NULL);
 1
 explain format=tree SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3);
 EXPLAIN
--> Nested loop semijoin  (rows=4)
+-> Nested loop semijoin (FirstMatch)  (rows=4)
     -> Filter: ((t.f2 between 2 and 3) and (t.f2 is not null))  (rows=4)
         -> Table scan on t  (rows=4)
     -> Covering index lookup on t using f1 (f1=t.f2)  (rows=1)
@@ -4507,7 +4507,7 @@ explain format=tree SELECT 1
 FROM t
 WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3) AS t2);
 EXPLAIN
--> Nested loop semijoin  (rows=4)
+-> Nested loop semijoin (FirstMatch)  (rows=4)
     -> Filter: ((t.f2 between 2 and 3) and (t.f2 is not null))  (rows=4)
         -> Table scan on t  (rows=4)
     -> Covering index lookup on t using f1 (f1=t.f2)  (rows=1)

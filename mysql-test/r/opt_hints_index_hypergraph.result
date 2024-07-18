@@ -183,7 +183,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 EXPLAIN SELECT a FROM v1;
 EXPLAIN
 -> Sort: a  (rows=256)
-    -> Hash semijoin (t1.b = t1.a)  (rows=256)
+    -> Hash semijoin (FirstMatch) (t1.b = t1.a)  (rows=256)
         -> Covering index scan on t1 using i_ab  (rows=256)
         -> Hash
             -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
@@ -191,7 +191,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX(ta i_a) */ ta.a FROM v1, t1 ta WHERE ta.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
-    -> Hash semijoin (t1.b = t1.a)  (rows=256)
+    -> Hash semijoin (FirstMatch) (t1.b = t1.a)  (rows=256)
         -> Covering index scan on t1 using i_ab  (rows=256)
         -> Hash
             -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
@@ -205,7 +205,7 @@ v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 EXPLAIN SELECT a FROM v2;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=40960)
-    -> Hash semijoin (t1.b = t1.a)  (rows=256)
+    -> Hash semijoin (FirstMatch) (t1.b = t1.a)  (rows=256)
         -> Covering index scan on t1 using i_ab  (rows=256)
         -> Hash
             -> Covering index range scan on t1 using i_a over (3 < a)  (rows=160)
@@ -216,7 +216,7 @@ EXPLAIN SELECT /*+ INDEX(tb i_a) */ tb.a FROM v2, t1 tb WHERE tb.a > 3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=6.55e+6)
     -> Inner hash join (no condition)  (rows=40960)
-        -> Nested loop semijoin  (rows=256)
+        -> Nested loop semijoin (FirstMatch)  (rows=256)
             -> Covering index scan on t1 using i_ab  (rows=256)
             -> Filter: (t1.a > 3)  (rows=20)
                 -> Covering index lookup on t1 using i_a (a=t1.b)  (rows=32)

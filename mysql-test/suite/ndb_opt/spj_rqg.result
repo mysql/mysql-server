@@ -323,7 +323,7 @@ FROM o AS table1s
 LEFT JOIN x AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
 ) and table1.pk between 3 and 3;
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Nested loop inner join
         -> Nested loop inner join
             -> Table scan on table1, activating pushed join of 5 tables, with pushed condition: ((table1.pk = 3) and (table1.col_int_unique is not null))
@@ -373,7 +373,7 @@ table1s.col_int_unique = table3s.col_int_unique
 and table1.pk < 3;
 EXPLAIN
 -> Left hash join (no condition), extra conditions: (table1.col_int not in (1,9))
-    -> Inner hash join (no condition)
+    -> Inner hash join (FirstMatch)
         -> Table scan on table1, with pushed condition: (table1.pk < 3)
         -> Hash
             -> Limit: 1 row(s)
@@ -623,7 +623,7 @@ FROM d AS table1s
 JOIN m AS table2s ON table1s.pk = table2s.col_int_key
 );
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Nested loop inner join
         -> Nested loop inner join
             -> Table scan on table1, activating pushed join of 4 tables
@@ -1573,7 +1573,7 @@ FROM l AS table1s USE INDEX FOR JOIN(PRIMARY)
 JOIN h AS table2s ON table1s.col_int = table2s.col_int
 );
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Nested loop inner join
         -> Nested loop inner join
             -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int is not null)
@@ -1631,7 +1631,7 @@ FROM y AS table1s
 JOIN y AS table2s ON table1s.col_int_key = table2s.col_int_key
 );
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Table scan on table1, activating pushed join of 3 tables
     -> Nested loop inner join
         -> Index lookup on table1s using PRIMARY (col_int=table1.col_int), child of table1 in pushed join, with pushed condition: (table1s.col_int_key is not null)
@@ -1670,7 +1670,7 @@ SELECT table1s.col_int_key AS field3 FROM u AS table1s
 and table1.pk in (1,2);
 EXPLAIN
 -> Nested loop inner join
-    -> Nested loop semijoin
+    -> Nested loop semijoin (FirstMatch)
         -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.pk in (1,2)) and (table1.col_int_key is not null))
         -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
@@ -1720,7 +1720,7 @@ SELECT table1s.col_int_key AS field3 FROM u AS table1s
 and table1.pk in (4,5);
 EXPLAIN
 -> Nested loop inner join
-    -> Nested loop semijoin
+    -> Nested loop semijoin (FirstMatch)
         -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.pk in (4,5)) and (table1.col_int_key is not null))
         -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
@@ -1767,7 +1767,7 @@ JOIN r AS table2 ON table1.col_int_unique = table2.col_int_key
 WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM w AS table1s);
 EXPLAIN
 -> Nested loop inner join
-    -> Nested loop semijoin
+    -> Nested loop semijoin (FirstMatch)
         -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_unique is not null)
         -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
     -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
@@ -2295,7 +2295,7 @@ JOIN r AS table2 ON table1.col_int = table2.col_int AND table1.col_int_unique = 
 WHERE table1.col_int_key IN (SELECT table1s.col_int_key AS field6 FROM z AS table1s);
 EXPLAIN
 -> Nested loop inner join
-    -> Nested loop semijoin
+    -> Nested loop semijoin (FirstMatch)
         -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.col_int_key is not null) and (table1.col_int_unique is not null))
         -> Index lookup on table1s using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
     -> Index lookup on table2 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table1 in pushed join
@@ -2319,7 +2319,7 @@ ON table1s.pk = table2s.col_int_unique
 WHERE table1.col_int_unique = 4 IS UNKNOWN)
 AND table2.col_varchar_10_key = table1.col_varchar_256;
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Nested loop inner join
         -> Filter: ((table1.col_int_unique = 4) is null)
             -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.col_varchar_256 is not null)
@@ -2934,7 +2934,7 @@ table1s.col_int_unique = table2s.col_int_unique
 )
 AND table1.col_int_unique <> 2;
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Nested loop inner join
         -> Inner hash join (no condition)
             -> Index range scan (Multi-Range Read) on table2 using ix1 over (NULL < col_int_unique < 2) OR (2 < col_int_unique), activating pushed join of 2 tables, with pushed condition: ((table2.col_int_unique <> 2) and (table2.col_int_unique is not null))
@@ -3044,7 +3044,7 @@ HAVING field1 <= 3
 ORDER BY field1 LIMIT 1;
 EXPLAIN
 -> Limit: 1 row(s)
-    -> Nested loop semijoin
+    -> Nested loop semijoin (FirstMatch)
         -> Nested loop inner join
             -> Index scan on table2 using PRIMARY, activating pushed join of 2 tables, with pushed condition: ((table2.col_varchar_10 = 'vp') and (table2.col_int_key is not null) and (field1 <= 3))
             -> Single-row index lookup on table1 using PRIMARY (pk=table2.col_int_key), child of table2 in pushed join, with pushed condition: (table1.col_int = 5)
@@ -3370,7 +3370,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
             -> Nested loop inner join
-                -> Hash semijoin (no condition)
+                -> Hash semijoin (FirstMatch) (no condition)
                     -> Index lookup on table1s using col_int_key (col_int_key=5), with pushed condition: ('xyz' = table1.col_varchar_10)
                     -> Hash
                         -> Limit: 1 row(s)
@@ -3820,7 +3820,7 @@ JOIN z AS table2s ON table1s.col_int = table2s.col_int_key
 ) ORDER BY field3;
 EXPLAIN
 -> Nested loop inner join
-    -> Nested loop semijoin
+    -> Nested loop semijoin (FirstMatch)
         -> Sort: table1.col_varchar_10_unique
             -> Table scan on table1
         -> Nested loop inner join
@@ -3904,7 +3904,7 @@ WHERE table3s.pk = table3.col_int_key);
 EXPLAIN
 -> Table scan on <temporary>
     -> Temporary table with deduplication
-        -> Nested loop semijoin
+        -> Nested loop semijoin (FirstMatch)
             -> Nested loop inner join
                 -> Nested loop inner join
                     -> Nested loop inner join
@@ -3999,7 +3999,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
         -> Table scan on table2, activating pushed join of 4 tables
-        -> Nested loop semijoin with duplicate removal on PRIMARY
+        -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on PRIMARY
             -> Index lookup on table1s using PRIMARY (col_int=table2.pk), child of table2 in pushed join, with pushed condition: (table1s.col_int_unique is not null)
             -> Single-row index lookup on table2s using ix1 (col_int_unique=table1s.col_int_unique), child of table1s in pushed join
     -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
@@ -4034,7 +4034,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
         -> Table scan on table2, activating pushed join of 2 tables
-        -> Nested loop semijoin with duplicate removal on PRIMARY
+        -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on PRIMARY
             -> Index lookup on table1s using PRIMARY (col_int=table2.pk)
             -> Filter: ((table1s.col_int_unique + 0) = table2s.col_int_unique)
                 -> Single-row index lookup on table2s using ix1 (col_int_unique=(table1s.col_int_unique + 0))
@@ -4451,7 +4451,7 @@ RIGHT JOIN w AS table3s ON table2s.pk = table3s.col_int_key
 ON table1s.col_varchar_256_unique = table3s.col_char_16_key
 );
 EXPLAIN
--> Nested loop semijoin
+-> Nested loop semijoin (FirstMatch)
     -> Table scan on table1, with pushed condition: (table1.col_int_unique is not null)
     -> Nested loop left join
         -> Nested loop left join
@@ -5142,7 +5142,7 @@ EXPLAIN
         -> Inner hash join (no condition)
             -> Table scan on table1
             -> Hash
-                -> Nested loop inner join
+                -> Nested loop inner join (LooseScan)
                     -> Remove duplicates from input sorted on col_int_key
                         -> Index range scan (Multi-Range Read) on u using col_int_key over (NULL < col_int_key), with pushed condition: ((u.col_int_key is not null) and (u.col_int_key is not null))
                     -> Index lookup on table2 using ix1 (col_int=u.col_int_key)
@@ -5195,7 +5195,7 @@ AND table2.col_int_unique <= 3);
 EXPLAIN
 -> Nested loop inner join
     -> Nested loop inner join
-        -> Nested loop semijoin with duplicate removal on col_int_key
+        -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on col_int_key
             -> Index range scan (Multi-Range Read) on table2s using col_int_key over (NULL < col_int_key <= 3), activating pushed join of 3 tables, with pushed condition: ((table2s.col_int_key <= 3) and (table2s.col_int_key is not null))
             -> Index lookup on table1s using ix3 (col_int=table2s.col_int), child of table2s in pushed join
         -> Single-row index lookup on table2 using ix1 (col_int_unique=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table2.col_int_key is not null)

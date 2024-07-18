@@ -214,7 +214,7 @@ EXPLAIN
 -> Left hash join (t1.f1 = t2.f1)  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Hash
-        -> Hash semijoin (t2.f1 = (t3.f1 + 1))  (rows=0.1)
+        -> Hash semijoin (FirstMatch) (t2.f1 = (t3.f1 + 1))  (rows=0.1)
             -> Table scan on t2  (rows=1)
             -> Hash
                 -> Table scan on t3  (rows=1)
@@ -350,7 +350,7 @@ GROUP BY f1;
 EXPLAIN
 -> Group (no aggregates)  (rows=0.1)
     -> Sort: t1.f1  (rows=0.1)
-        -> Nested loop inner join  (rows=0.1)
+        -> Nested loop inner join (FirstMatch)  (rows=0.1)
             -> Limit: 1 row(s)  (rows=0.1)
                 -> Filter: (((t3.f1 = t2.f2) and (t2.f2 = t4.f1)) or (t3.f2 >= t3.f1))  (rows=0.1)
                     -> Left hash join (no condition)  (rows=0.1)
@@ -391,7 +391,7 @@ EXPLAIN
 -> Inner hash join (t2.x = t4.x)  (rows=3.16)
     -> Table scan on t4  (rows=10)
     -> Hash
-        -> Hash semijoin (t2.x = t1.pk)  (rows=3.16)
+        -> Hash semijoin (FirstMatch) (t2.x = t1.pk)  (rows=3.16)
             -> Table scan on t2  (rows=10)
             -> Hash
                 -> Inner hash join (t1.x = t3.x)  (rows=10)
@@ -424,7 +424,7 @@ EXPLAIN
 -> Inner hash join (no condition)  (rows=10e-6)
     -> Table scan on t6  (rows=1)
     -> Hash
-        -> Nested loop inner join  (rows=10e-6)
+        -> Nested loop inner join (FirstMatch)  (rows=10e-6)
             -> Limit: 1 row(s)  (rows=100e-6)
                 -> Filter: (t2.f2 = t4.f2)  (rows=100e-6)
                     -> Left hash join (no condition)  (rows=0.001)
@@ -767,7 +767,7 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM  t1 x1
 WHERE 3 IN (SELECT x2.b FROM t1 x2 LEFT JOIN t1 x3 ON x2.c=x3.a AND x2.d=x3.b);
 EXPLAIN
--> Nested loop inner join  (rows=100) (actual rows=100 loops=1)
+-> Nested loop inner join (FirstMatch)  (rows=100) (actual rows=100 loops=1)
     -> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
         -> Nested loop left join  (rows=4) (actual rows=1 loops=1)
             -> Filter: (x2.b = 3)  (rows=2) (actual rows=1 loops=1)
@@ -864,7 +864,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE x1.c IN
 (SELECT c FROM t1 x2 WHERE  b<"150" AND c<70);
 EXPLAIN
--> Hash semijoin (x1.c = x2.c)  (rows=35)
+-> Hash semijoin (FirstMatch) (x1.c = x2.c)  (rows=35)
     -> Table scan on x1  (rows=100)
     -> Hash
         -> Filter: ((x2.c < 70) and (x2.b < '150'))  (rows=35)
@@ -1088,7 +1088,7 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE EXISTS
 (SELECT 1 FROM t1 x2, t1 x3, t1 x4
 WHERE x2.b=x3.d AND x2.c=x3.e AND x3.d=x4.b AND x2.e=x4.e);
 EXPLAIN
--> Nested loop inner join  (rows=0.1)
+-> Nested loop inner join (FirstMatch)  (rows=0.1)
     -> Limit: 1 row(s)  (rows=0.1)
         -> Inner hash join (x2.b = x3.d), (x2.c = x3.e)  (rows=0.1)
             -> Table scan on x3  (rows=1)
@@ -1328,7 +1328,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE t1.a IN (SELECT t2.l FROM t2);
 EXPLAIN
--> Nested loop inner join  (rows=10) (actual rows=10 loops=1)
+-> Nested loop inner join (LooseScan)  (rows=10) (actual rows=10 loops=1)
     -> Remove duplicates from input grouped on t2.l  (rows=10) (actual rows=10 loops=1)
         -> Sort: t2.l  (rows=20) (actual rows=20 loops=1)
             -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
@@ -1337,7 +1337,7 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
 EXPLAIN
--> Hash semijoin (t1.a = t2.l), extra conditions: (t1.b <> t2.k)  (rows=14.3) (actual rows=10 loops=1)
+-> Hash semijoin (FirstMatch) (t1.a = t2.l), extra conditions: (t1.b <> t2.k)  (rows=14.3) (actual rows=10 loops=1)
     -> Table scan on t1  (rows=30) (actual rows=30 loops=1)
     -> Hash
         -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
@@ -1348,7 +1348,7 @@ Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t2.l+ABS(t2.l)=t1.a);
 EXPLAIN
--> Nested loop inner join  (rows=10) (actual rows=10 loops=1)
+-> Nested loop inner join (LooseScan)  (rows=10) (actual rows=10 loops=1)
     -> Remove duplicates from input grouped on (t2.l + abs(t2.l))  (rows=4.47) (actual rows=10 loops=1)
         -> Sort: (t2.l + abs(t2.l))  (rows=20) (actual rows=20 loops=1)
             -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
@@ -1360,7 +1360,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t2.k+t2.l=t1.a);
 EXPLAIN
--> Nested loop inner join  (rows=14.8) (actual rows=15 loops=1)
+-> Nested loop inner join (LooseScan)  (rows=14.8) (actual rows=15 loops=1)
     -> Remove duplicates from input grouped on (t2.k + t2.l)  (rows=4.47) (actual rows=15 loops=1)
         -> Sort: (t2.k + t2.l)  (rows=20) (actual rows=20 loops=1)
             -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
@@ -1393,7 +1393,7 @@ Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a IN
 (SELECT t2.l FROM t2 WHERE t2.l<0);
 EXPLAIN
--> Nested loop inner join  (rows=0.02)
+-> Nested loop inner join (LooseScan)  (rows=0.02)
     -> Remove duplicates from input grouped on t2.l  (rows=0.02)
         -> Sort: t2.l  (rows=0.02)
             -> Filter: (t2.l < 0)  (rows=0.02)
@@ -1402,7 +1402,7 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
 EXPLAIN
--> Nested loop inner join  (rows=1)
+-> Nested loop inner join (FirstMatch)  (rows=1)
     -> Limit: 1 row(s)  (rows=1)
         -> Table scan on t2  (rows=20)
     -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
@@ -1424,7 +1424,7 @@ SET SESSION OPTIMIZER_TRACE='enabled=on';
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.a IN (SELECT x2.b FROM t1 x2);
 EXPLAIN
--> Nested loop inner join  (rows=10)
+-> Nested loop inner join (LooseScan)  (rows=10)
     -> Remove duplicates from input grouped on x2.b  (rows=10)
         -> Sort: x2.b  (rows=30)
             -> Table scan on x2  (rows=30)
@@ -1836,7 +1836,7 @@ EXPLAIN
 -> Left hash join (t1.a = t2.b), extra conditions: ((t1.a = t2.b) or (t3.c = 0))  (rows=4)
     -> Table scan on t1  (rows=4)
     -> Hash
-        -> Nested loop inner join  (rows=4)
+        -> Nested loop inner join (FirstMatch)  (rows=4)
             -> Limit: 1 row(s)  (rows=1)
                 -> Table scan on t3  (rows=4)
             -> Table scan on t2  (rows=4)

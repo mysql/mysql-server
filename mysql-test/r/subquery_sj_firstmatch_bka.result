@@ -4254,7 +4254,7 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi joi
 explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
--> Nested loop semijoin  (rows=102)
+-> Nested loop semijoin (FirstMatch)  (rows=102)
     -> Filter: ((t3.a < 20) and (t3.a is not null))  (rows=100)
         -> Table scan on t3  (rows=100)
     -> Nested loop inner join  (rows=1.02)
@@ -5858,12 +5858,12 @@ EXPLAIN
 -> Nested loop left join  (rows=864)
     -> Nested loop left join  (rows=96)
         -> Table scan on ot1  (rows=8)
-        -> Nested loop semijoin  (rows=12)
+        -> Nested loop semijoin (FirstMatch)  (rows=12)
             -> Filter: (ot2.a = ot1.a)  (rows=4)
                 -> Table scan on ot2  (rows=4)
             -> Filter: (it3.a = ot1.a)  (rows=3)
                 -> Table scan on it3  (rows=3)
-    -> Nested loop semijoin  (rows=9)
+    -> Nested loop semijoin (FirstMatch)  (rows=9)
         -> Filter: (ot3.a = ot2.a)  (rows=3)
             -> Table scan on ot3  (rows=3)
         -> Filter: (it3.a = ot2.a)  (rows=3)
@@ -13049,7 +13049,7 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Nested loop semijoin  (rows=7)
+-> Nested loop semijoin (FirstMatch)  (rows=7)
     -> Sort: t4.col_int_key  (rows=6)
         -> Filter: (t4.col_int_key is not null)  (rows=6)
             -> Table scan on t4  (rows=6)
@@ -13386,7 +13386,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Inner hash join (no condition)  (cost=5.4 rows=3)
+-> Inner hash join (FirstMatch)  (cost=5.4 rows=3)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Hash
         -> Limit: 1 row(s)  (cost=4.85 rows=1)

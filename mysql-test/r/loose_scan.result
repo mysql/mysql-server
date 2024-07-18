@@ -192,7 +192,7 @@ EXPLAIN
     -> Hash
         -> Nested loop inner join  (cost=1.15 rows=2)
             -> Table scan on t1  (cost=0.45 rows=2)
-            -> Nested loop semijoin with duplicate removal on b_key  (cost=1 rows=1)
+            -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on b_key  (cost=1 rows=1)
                 -> Index lookup on t3 using b_key (b=t1.a)  (cost=0.3 rows=1)
                 -> Filter: (t4.pk = t3.pk)  (cost=0.3 rows=1)
                     -> Table scan on t4  (cost=0.3 rows=2)

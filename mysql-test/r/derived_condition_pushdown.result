@@ -1200,7 +1200,7 @@ INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 EXPLAIN
 -> Update t2 (immediate)
-    -> Nested loop semijoin  (rows=1)
+    -> Nested loop semijoin (FirstMatch)  (rows=1)
         -> Filter: (t2.f1 is not null)  (rows=1)
             -> Table scan on t2  (rows=1)
         -> Covering index lookup on v using <auto_key0> (f1=t2.f1)  (rows=2)
@@ -1211,7 +1211,7 @@ UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 EXPLAIN
 -> Delete from t2 (immediate)  (rows=1)
-    -> Nested loop semijoin  (rows=1)
+    -> Nested loop semijoin (FirstMatch)  (rows=1)
         -> Filter: (t2.f1 is not null)  (rows=1)
             -> Table scan on t2  (rows=1)
         -> Covering index lookup on v using <auto_key0> (f1=t2.f1)  (rows=2)

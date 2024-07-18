@@ -4257,7 +4257,7 @@ explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
 -> Nested loop inner join  (rows=400)
-    -> Nested loop semijoin with duplicate removal on kp1  (rows=40)
+    -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on kp1  (rows=40)
         -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (rows=40)
             -> Index range scan on t1 using kp1 over (NULL < kp1 < 20)  (rows=40)
         -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (rows=1)

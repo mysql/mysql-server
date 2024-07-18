@@ -365,7 +365,7 @@ AND t1.f1 = t2.f1 OR t2.f2 <= 0;
 EXPLAIN
 -> Filter: (((t1.f2 = t1.f1) and (derived_1_3.`SUM(f2)` is null)) or (t2.f2 <= 0))  (rows=1)
     -> Left hash join (no condition)  (rows=1)
-        -> Hash semijoin (t3.f1 = t1.f1)  (rows=1)
+        -> Hash semijoin (FirstMatch) (t3.f1 = t1.f1)  (rows=1)
             -> Filter: ((t1.f2 = t1.f1) or (t2.f2 <= 0))  (rows=1)
                 -> Inner hash join (t2.f1 = t1.f2)  (rows=1)
                     -> Table scan on t2 in secondary engine MOCK  (rows=1)
@@ -402,7 +402,7 @@ EXPLAIN
         -> Hash
             -> Table scan on t1 in secondary engine MOCK  (rows=1)
     -> Filter: (t2.f2 = t1.f2)  (rows=1)
-        -> Hash semijoin (no condition)  (rows=1)
+        -> Hash semijoin (FirstMatch) (no condition)  (rows=1)
             -> Table scan on t3 in secondary engine MOCK  (rows=1)
             -> Hash
                 -> Limit: 1 row(s)  (rows=1)

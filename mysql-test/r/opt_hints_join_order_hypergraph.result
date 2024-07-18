@@ -496,11 +496,11 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t2) AND
 t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t2);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t1.val = t2.val)  (rows=0.01)
+    -> Hash semijoin (FirstMatch) (t1.val = t2.val)  (rows=0.01)
         -> Inner hash join (no condition)  (rows=0.1)
             -> Table scan on t3  (rows=1)
             -> Hash
-                -> Hash semijoin (t2.val = t2.val)  (rows=0.1)
+                -> Hash semijoin (FirstMatch) (t2.val = t2.val)  (rows=0.1)
                     -> Inner hash join (no condition)  (rows=1)
                         -> Table scan on t1  (rows=1)
                         -> Hash
@@ -514,7 +514,7 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t2,t1) JOIN_ORDER(t3,t4@subq1) JOIN_S
 WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ t4.val FROM t4 JOIN t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on t3  (rows=1)
             -> Hash
@@ -538,12 +538,12 @@ EXPLAIN
         -> Table scan on t3  (rows=1)
         -> Hash
             -> Inner hash join (no condition)  (rows=0.01)
-                -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+                -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
                     -> Table scan on t1  (rows=1)
                     -> Hash
                         -> Table scan on t4  (rows=1)
                 -> Hash
-                    -> Hash semijoin (t2.val = t5.val)  (rows=0.1)
+                    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.1)
                         -> Table scan on t2  (rows=1)
                         -> Hash
                             -> Table scan on t5  (rows=1)
@@ -554,8 +554,8 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t1.val = t4.val)  (rows=0.01)
-        -> Hash semijoin (t2.val = t5.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t2  (rows=1)
                 -> Hash
@@ -574,8 +574,8 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
-        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t1  (rows=1)
                 -> Hash
@@ -594,8 +594,8 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
-        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t1  (rows=1)
                 -> Hash
@@ -613,8 +613,8 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_PREFIX(t1,t2,t3) */ count(*) FROM t1 JOIN t2
 WHERE t1.val IN (SELECT val FROM t4) AND t2.val IN (SELECT val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
-        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t3  (rows=1)
                 -> Hash
@@ -632,8 +632,8 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
-        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t2  (rows=1)
                 -> Hash
@@ -689,8 +689,8 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
-        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t1  (rows=1)
                 -> Hash
@@ -710,8 +710,8 @@ WHERE t1.val IN (SELECT /*+ QB_NAME(subq1) */ val FROM t4)
 AND t2.val IN (SELECT /*+ QB_NAME(subq2) */ val FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.val = t5.val)  (rows=0.01)
-        -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (t2.val = t5.val)  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
             -> Inner hash join (no condition)  (rows=1)
                 -> Table scan on t3  (rows=1)
                 -> Hash
@@ -761,7 +761,7 @@ EXPLAIN
             -> Inner hash join (no condition)  (rows=0.1)
                 -> Table scan on t2  (rows=1)
                 -> Hash
-                    -> Hash semijoin (t1.val = t4.val)  (rows=0.1)
+                    -> Hash semijoin (FirstMatch) (t1.val = t4.val)  (rows=0.1)
                         -> Table scan on t1  (rows=1)
                         -> Hash
                             -> Inner hash join (no condition)  (rows=1)
@@ -784,7 +784,7 @@ WHERE (9) IN (SELECT val FROM t3);
 EXPLAIN
 -> Delete from ta1 (buffered)  (rows=0.1)
     -> Left hash join (ta1.val = t2.val)  (rows=0.1)
-        -> Hash semijoin (no condition)  (rows=0.1)
+        -> Hash semijoin (FirstMatch) (no condition)  (rows=0.1)
             -> Table scan on t2  (rows=1)
             -> Hash
                 -> Filter: (t3.val = 9)  (rows=0.1)
@@ -802,7 +802,7 @@ RIGHT OUTER JOIN t2 ON (ta1.val = t2.val)
 WHERE (9) IN (SELECT val FROM t3);
 EXPLAIN
 -> Delete from ta1 (buffered)  (rows=0.1)
-    -> Hash semijoin (no condition)  (rows=0.1)
+    -> Hash semijoin (FirstMatch) (no condition)  (rows=0.1)
         -> Left hash join (ta1.val = t2.val)  (rows=1)
             -> Table scan on t2  (rows=1)
             -> Hash
@@ -822,7 +822,7 @@ WHERE (9) IN (SELECT val FROM t3);
 EXPLAIN
 -> Delete from ta1 (buffered)  (rows=0.1)
     -> Left hash join (ta1.val = t2.val)  (rows=0.1)
-        -> Hash semijoin (no condition)  (rows=0.1)
+        -> Hash semijoin (FirstMatch) (no condition)  (rows=0.1)
             -> Table scan on t2  (rows=1)
             -> Hash
                 -> Filter: (t3.val = 9)  (rows=0.1)
@@ -884,8 +884,8 @@ test.t5	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_PREFIX(t3) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
-        -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
@@ -902,8 +902,8 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_SUFFIX(t2) */ count(*) FRO
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (no condition)  (rows=42.4)
-        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
-            -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
+        -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=8.49)
+            -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=8.49)
                 -> Inner hash join (no condition)  (rows=60)
                     -> Table scan on t2  (rows=20)
                     -> Hash
@@ -920,11 +920,11 @@ Warning	3515	Hints aren't supported in hypergraph: semijoin/antijoin table prece
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_SUFFIX(t1,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
         -> Inner hash join (no condition)  (rows=300)
             -> Table scan on t1  (rows=3)
             -> Hash
-                -> Hash semijoin (t2.f1 = t5.f1)  (rows=100)
+                -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=100)
                     -> Inner hash join (no condition)  (rows=100)
                         -> Table scan on t2  (rows=20)
                         -> Hash
@@ -937,11 +937,11 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_PREFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
         -> Inner hash join (no condition)  (rows=42.4)
             -> Table scan on t3  (rows=5)
             -> Hash
-                -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
+                -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=8.49)
                     -> Inner hash join (no condition)  (rows=60)
                         -> Table scan on t2  (rows=20)
                         -> Hash
@@ -954,8 +954,8 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_SUFFIX(t2,t3,t4) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
-        -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t3  (rows=5)
                 -> Hash
@@ -974,8 +974,8 @@ Warning	3515	Hints aren't supported in hypergraph: semijoin/antijoin table prece
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_PREFIX(t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
-        -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
@@ -991,8 +991,8 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2) JOIN_SUFFIX(t3) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
-        -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
@@ -1008,8 +1008,8 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_PREFIX(t1,t2) */ count(*) FROM t1 JOIN t2 JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
-        -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t2  (rows=20)
                 -> Hash
@@ -1026,11 +1026,11 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t2,t4) JOIN_SUFFIX(t1,t2) */ count(
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (no condition)  (rows=42.4)
-        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
+        -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=8.49)
             -> Inner hash join (no condition)  (rows=8.49)
                 -> Table scan on t2  (rows=20)
                 -> Hash
-                    -> Hash semijoin (t1.f1 = t4.f1)  (rows=0.424)
+                    -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=0.424)
                         -> Table scan on t1  (rows=3)
                         -> Hash
                             -> Table scan on t4  (rows=2)
@@ -1045,8 +1045,8 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_PREFIX(t1,t4) */ count(
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (no condition)  (rows=42.4)
-        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
-            -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
+        -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=8.49)
+            -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=8.49)
                 -> Inner hash join (no condition)  (rows=60)
                     -> Table scan on t2  (rows=20)
                     -> Hash
@@ -1062,8 +1062,8 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t2,t4) JOIN_SUFFIX(t4,t2) */ count(
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (no condition)  (rows=42.4)
-        -> Hash semijoin (t2.f1 = t5.f1)  (rows=8.49)
-            -> Hash semijoin (t1.f1 = t4.f1)  (rows=8.49)
+        -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=8.49)
+            -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=8.49)
                 -> Inner hash join (no condition)  (rows=60)
                     -> Table scan on t2  (rows=20)
                     -> Hash
@@ -1082,7 +1082,7 @@ EXPLAIN
         -> Inner hash join (no condition)  (rows=8.49)
             -> Table scan on t2  (rows=20)
             -> Hash
-                -> Hash semijoin (t1.f1 = t4.f1)  (rows=0.424)
+                -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=0.424)
                     -> Table scan on t1  (rows=3)
                     -> Hash
                         -> Table scan on t4  (rows=2)
@@ -1105,8 +1105,8 @@ EXPLAIN
 explain format=tree SELECT /*+ JOIN_PREFIX(t3,t1) */ count(*) FROM t1 JOIN t2 STRAIGHT_JOIN t3 WHERE t1.f1 IN (SELECT f1 FROM t4) AND t2.f1 IN (SELECT f1 FROM t5);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (t2.f1 = t5.f1)  (rows=42.4)
-        -> Hash semijoin (t1.f1 = t4.f1)  (rows=42.4)
+    -> Hash semijoin (FirstMatch) (t2.f1 = t5.f1)  (rows=42.4)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t4.f1)  (rows=42.4)
             -> Inner hash join (no condition)  (rows=300)
                 -> Table scan on t3  (rows=5)
                 -> Hash

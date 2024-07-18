@@ -529,7 +529,7 @@ CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop semijoin  (rows=1)
+-> Nested loop semijoin (FirstMatch)  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Filter: (t2.i = t1.i)  (rows=1)
         -> Table scan on t2  (rows=1)
@@ -559,7 +559,7 @@ CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER, j INTEGER);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE t1.i IN ( SELECT i FROM t2 LEFT JOIN t3 USING (i) WHERE t3.j = 1234 OR t3.j IS NULL );
 EXPLAIN
--> Nested loop semijoin  (rows=1)
+-> Nested loop semijoin (FirstMatch)  (rows=1)
     -> Table scan on t1  (rows=1)
     -> Filter: ((t3.j = 1234) or (t3.j is null))  (rows=1)
         -> Nested loop left join  (rows=1)
@@ -682,7 +682,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop inner join  (rows=4)
+-> Nested loop inner join (LooseScan)  (rows=4)
     -> Remove duplicates from input sorted on i1  (rows=4)
         -> Filter: (t2.i is not null)  (rows=4)
             -> Covering index scan on t2 using i1  (rows=4)
@@ -1329,3 +1329,191 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1;
+#
+# Bug#36773414: Explain format=tree does not display
+#               information about semijoin strategy used
+#
+CREATE TABLE t(a INTEGER,b INTEGER);
+INSERT INTO t VALUES(1,2),(2,3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET explain_json_format_version = 2;
+EXPLAIN SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` semi join (`test`.`t`) where (4 = (`test`.`t`.`b` + 1))
+EXPLAIN FORMAT=tree SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+EXPLAIN
+-> Inner hash join (FirstMatch)  (rows=2)
+    -> Table scan on t  (rows=2)
+    -> Hash
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: (4 = (t.b + 1))  (rows=2)
+                -> Table scan on t  (rows=2)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+first_match	operation_contains_firstmatch
+["firstmatch"]	1
+EXPLAIN SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` semi join (`test`.`t`) where (4 = (`test`.`t`.`b` + 1))
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE b IN (SELECT a FROM t);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t.a = t.b)  (rows=2)
+    -> Table scan on t  (rows=2)
+    -> Hash
+        -> Table scan on t  (rows=2)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE b IN (SELECT a FROM t);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+first_match	operation_contains_firstmatch
+["firstmatch"]	1
+EXPLAIN SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1
+JOIN t AS t2 ON t1.a=t2.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t1`.`a` = `test`.`t`.`a`) and (`test`.`t2`.`b` = `test`.`t`.`a`))
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1
+JOIN t AS t2 ON t1.a=t2.b);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=2)
+    -> Table scan on t  (rows=2)
+    -> Nested loop inner join  (rows=1)
+        -> Filter: (t1.a = t.a)  (rows=1)
+            -> Table scan on t1  (rows=2)
+        -> Filter: (t2.b = t.a)  (rows=1)
+            -> Table scan on t2  (rows=2)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1
+JOIN t AS t2 ON t1.a=t2.b);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+first_match	operation_contains_firstmatch
+["firstmatch"]	1
+ALTER TABLE t ADD KEY(a,b);
+ALTER TABLE t ADD KEY(b);
+set optimizer_switch="firstmatch=off,duplicateweedout=off,materialization=off";
+EXPLAIN SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	100.00	Using where; Using index; LooseScan
+1	SIMPLE	t	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where (`test`.`t`.`a` = `test`.`t1`.`b`)
+EXPLAIN FORMAT=tree SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=2)
+    -> Remove duplicates from input sorted on b  (rows=2)
+        -> Filter: (t1.b is not null)  (rows=2)
+            -> Covering index scan on t1 using b  (rows=2)
+    -> Covering index lookup on t using a (a=t1.b)  (rows=1)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS loosescan,
+JSON_SEARCH(@var, 'one', '%LooseScan%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_loosescan;
+loosescan	operation_contains_loosescan
+["loosescan"]	1
+EXPLAIN SELECT b FROM t WHERE a  IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t2	NULL	index	NULL	b	5	NULL	2	100.00	Using index; FirstMatch(t1)
+1	SIMPLE	t	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `test`.`t1`.`b`) and (0 <> `test`.`t1`.`b`))
+EXPLAIN FORMAT=tree SELECT b FROM t WHERE a  IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+EXPLAIN
+-> Nested loop inner join  (rows=2)
+    -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on b  (rows=2)
+        -> Filter: ((0 <> t1.b) and (t1.b is not null))  (rows=1)
+            -> Covering index scan on t1 using b  (rows=2)
+        -> Covering index scan on t2 using b  (rows=2)
+    -> Covering index lookup on t using a (a=t1.b)  (rows=1)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a  IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match_with_loosescan,
+JSON_SEARCH(@var, 'one', '%LooseScan%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_loosescan;
+first_match_with_loosescan	operation_contains_loosescan
+["firstmatch_with_loosescan"]	1
+set optimizer_switch="loosescan=off,duplicateweedout=on";
+EXPLAIN SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index; Start temporary
+1	SIMPLE	t	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
+1	SIMPLE	t2	NULL	index	NULL	b	5	NULL	2	100.00	Using index; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `test`.`t1`.`b`) and (0 <> `test`.`t1`.`b`))
+EXPLAIN FORMAT=tree SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+EXPLAIN
+-> Remove duplicate t rows using temporary table (weedout)  (rows=2)
+    -> Inner hash join (no condition)  (rows=2)
+        -> Covering index scan on t2 using b  (rows=2)
+        -> Hash
+            -> Nested loop inner join  (rows=1)
+                -> Filter: ((0 <> t1.b) and (t1.b is not null))  (rows=1)
+                    -> Covering index scan on t1 using b  (rows=2)
+                -> Covering index lookup on t using a (a=t1.b)  (rows=1)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS weedout,
+JSON_SEARCH(@var, 'one', '%weedout%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_weedout;
+weedout	operation_contains_weedout
+["weedout"]	1
+set optimizer_switch="materialization=on,duplicateweedout=off";
+EXPLAIN SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
+WHERE t1.b <> 30);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	a	a	10	NULL	2	100.00	Using where; Using index
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t.a	1	100.00	NULL
+2	MATERIALIZED	t1	NULL	index	a,b	a	10	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where ((`<subquery2>`.`a` = `test`.`t`.`a`) and (`test`.`t1`.`b` <> 30))
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
+WHERE t1.b <> 30);
+EXPLAIN
+-> Nested loop inner join  (rows=4)
+    -> Filter: (t.a is not null)  (rows=2)
+        -> Covering index scan on t using a  (rows=2)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a=t.a)  (rows=1)
+        -> Materialize with deduplication  (rows=2)
+            -> Filter: (t1.a is not null)  (rows=2)
+                -> Filter: (t1.b <> 30)  (rows=2)
+                    -> Covering index scan on t1 using a  (rows=2)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
+WHERE t1.b <> 30);
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.deduplication') AS materialization,
+JSON_SEARCH(@var, 'one', '%Materialize with deduplication%', NULL,
+'$**.operation') IS NOT NULL AS operation_contains_materialzation;
+materialization	operation_contains_materialzation
+1	1
+DROP TABLE t;

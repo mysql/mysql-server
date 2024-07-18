@@ -338,3 +338,76 @@ EXPLAIN
 
 DROP TABLE t;
 SET @@optimizer_switch = @save_optimizer_switch;
+# Bug#36773414: Explain format=tree does not display
+#               information about semijoin strategy used
+#
+CREATE TABLE t(a INTEGER,b INTEGER);
+INSERT INTO t VALUES(1,2),(2,3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+EXPLAIN
+-> Nested loop inner join (FirstMatch)  (rows=2)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Filter: (4 = (t.b + 1))  (rows=2)
+            -> Table scan on t  (rows=2)
+    -> Table scan on t  (rows=2)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+first_match	operation_contains_firstmatch
+["firstmatch"]	1
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE b IN (SELECT a FROM t);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t.b = t.a)  (rows=0.283)
+    -> Table scan on t  (rows=2)
+    -> Hash
+        -> Table scan on t  (rows=2)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE b IN (SELECT a FROM t);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+first_match	operation_contains_firstmatch
+["firstmatch"]	1
+ALTER TABLE t ADD KEY(a,b);
+ALTER TABLE t ADD KEY(b);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT b FROM t WHERE a IN ( SELECT t1.b FROM t AS t1);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (rows=1.41)
+    -> Table scan on t  (rows=2)
+    -> Covering index lookup on t1 using b (b=t.a)  (rows=1)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN ( SELECT t1.b FROM t AS t1);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
+JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_firstmatch;
+first_match	operation_contains_firstmatch
+["firstmatch"]	1
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
+EXPLAIN
+-> Nested loop inner join (LooseScan)  (rows=1.41)
+    -> Remove duplicates from input grouped on t2.b  (rows=1.41)
+        -> Nested loop inner join  (rows=2)
+            -> Sort: t1.a  (rows=2)
+                -> Table scan on t1  (rows=2)
+            -> Covering index lookup on t2 using b (b=t1.a)  (rows=1)
+    -> Covering index lookup on t using a (a=t2.b)  (rows=1)
+
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
+SELECT
+JSON_EXTRACT(@var, '$**.semijoin_strategy') AS loosescan,
+JSON_SEARCH(@var, 'one', '%LooseScan%', NULL, '$**.operation') IS NOT NULL
+AS operation_contains_loosescan;
+loosescan	operation_contains_loosescan
+["loosescan"]	1
+DROP TABLE t;

@@ -1518,7 +1518,7 @@ group by a1,a2,b;
 EXPLAIN
 -> Table scan on <temporary>  (rows=16)
     -> Aggregate using temporary table  (rows=16)
-        -> Hash semijoin (t1.c = t2.c)  (rows=128)
+        -> Hash semijoin (FirstMatch) (t1.c = t2.c)  (rows=128)
             -> Covering index scan on t1 using idx_t1_1  (rows=128)
             -> Hash
                 -> Covering index scan on t2 using idx_t2_1  (rows=164)
@@ -1531,7 +1531,7 @@ group by a1,a2,b;
 EXPLAIN
 -> Table scan on <temporary>  (rows=16)
     -> Aggregate using temporary table  (rows=16)
-        -> Nested loop inner join  (rows=128)
+        -> Nested loop inner join (FirstMatch)  (rows=128)
             -> Limit: 1 row(s)  (rows=1)
                 -> Filter: (t2.c > 'b1')  (rows=54.7)
                     -> Covering index scan on t2 using idx_t2_1  (rows=164)

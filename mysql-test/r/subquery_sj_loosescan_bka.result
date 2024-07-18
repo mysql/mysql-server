@@ -4260,7 +4260,7 @@ EXPLAIN
 -> Inner hash join (t3.a = t1.kp1)  (rows=400)
     -> Table scan on t3  (rows=100)
     -> Hash
-        -> Nested loop semijoin with duplicate removal on kp1  (rows=40)
+        -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on kp1  (rows=40)
             -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (rows=40)
                 -> Index range scan on t1 using kp1 over (NULL < kp1 < 20)  (rows=40)
             -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (rows=1)
@@ -13432,7 +13432,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Inner hash join (no condition)  (cost=9.35 rows=54)
+-> Inner hash join (FirstMatch)  (cost=9.35 rows=54)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Hash
         -> Limit: 1 row(s)  (cost=3.7 rows=18)

@@ -222,7 +222,7 @@ EXPLAIN
     -> Table scan on t1 in secondary engine MOCK  (rows=3)
     -> Hash
         -> Filter: (t3.a <=> derived_2_3.a)  (rows=0.3)
-            -> Inner hash join (no condition)  (rows=3)
+            -> Inner hash join (FirstMatch) (no condition)  (rows=3)
                 -> Limit: 1 row(s)  (rows=1)
                     -> Left hash join (no condition)  (rows=9)
                         -> Table scan on t3 in secondary engine MOCK  (rows=3)
@@ -255,7 +255,7 @@ AND t1.f1 = t2.f1 OR t2.f2 <= 0;
 EXPLAIN
 -> Filter: (((derived_1_3.`SUM(f2)` is null) and ((t1.f1 = t1.f2) and (t1.f1 = t2.f1))) or (t2.f2 <= 0))  (rows=0.01)
     -> Left hash join (no condition)  (rows=0.01)
-        -> Hash semijoin (t1.f1 = t3.f1), extra conditions: (((t1.f1 = t1.f2) and ((t1.f1 = t3.f1) and (t3.f1 = t2.f1))) or (t2.f2 <= 0))  (rows=0.01)
+        -> Hash semijoin (FirstMatch) (t1.f1 = t3.f1), extra conditions: (((t1.f1 = t1.f2) and ((t1.f1 = t3.f1) and (t3.f1 = t2.f1))) or (t2.f2 <= 0))  (rows=0.01)
             -> Inner hash join (t2.f1 = t1.f2), extra conditions: ((t1.f1 = t1.f2) or (t2.f2 <= 0))  (rows=0.1)
                 -> Table scan on t1 in secondary engine MOCK  (rows=1)
                 -> Hash

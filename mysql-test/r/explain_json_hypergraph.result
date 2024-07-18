@@ -212,7 +212,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN format=TREE SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop inner join  (rows=2.83)
+-> Nested loop inner join (LooseScan)  (rows=2.83)
     -> Remove duplicates from input grouped on t2.i  (rows=2.83)
         -> Covering index scan on t2 using i1  (rows=8)
     -> Single-row covering index lookup on t1 using PRIMARY (i=t2.i)  (rows=1)
@@ -270,11 +270,12 @@ EXPLAIN
     }
   ],
   "join_type": "inner join",
-  "operation": "Nested loop inner join",
+  "operation": "Nested loop inner join (LooseScan)",
   "query_type": "select",
   "access_type": "join",
   "estimated_rows": "elided",
   "join_algorithm": "nested_loop",
+  "semijoin_strategy": "loosescan",
   "estimated_total_cost": "elided",
   "estimated_first_row_cost": "elided"
 }

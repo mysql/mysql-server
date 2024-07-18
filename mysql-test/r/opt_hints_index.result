@@ -181,7 +181,7 @@ EXPLAIN SELECT a FROM v1;
 EXPLAIN
 -> Sort: a
     -> Stream results  (rows=256)
-        -> Inner hash join (t1.b = t1.a)  (rows=256)
+        -> Inner hash join (LooseScan) (t1.b = t1.a)  (rows=256)
             -> Covering index scan on t1 using i_ab  (rows=256)
             -> Hash
                 -> Remove duplicates from input sorted on i_a  (rows=8)
@@ -194,7 +194,7 @@ EXPLAIN
     -> Filter: (ta.a > 3)  (rows=160)
         -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
     -> Hash
-        -> Inner hash join (t1.b = t1.a)  (rows=256)
+        -> Inner hash join (LooseScan) (t1.b = t1.a)  (rows=256)
             -> Covering index scan on t1 using i_ab  (rows=256)
             -> Hash
                 -> Remove duplicates from input sorted on i_a  (rows=8)
@@ -211,7 +211,7 @@ EXPLAIN
     -> Filter: (ta.a > 3)  (rows=160)
         -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
     -> Hash
-        -> Inner hash join (t1.b = t1.a)  (rows=256)
+        -> Inner hash join (LooseScan) (t1.b = t1.a)  (rows=256)
             -> Covering index scan on t1 using i_ab  (rows=256)
             -> Hash
                 -> Remove duplicates from input sorted on i_a  (rows=8)
@@ -228,7 +228,7 @@ EXPLAIN
             -> Filter: (ta.a > 3)  (rows=160)
                 -> Covering index range scan on ta using i_a over (3 < a)  (rows=160)
             -> Hash
-                -> Inner hash join (t1.b = t1.a)  (rows=256)
+                -> Inner hash join (LooseScan) (t1.b = t1.a)  (rows=256)
                     -> Covering index scan on t1 using i_ab  (rows=256)
                     -> Hash
                         -> Remove duplicates from input sorted on i_a  (rows=8)
