@@ -12026,7 +12026,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   LogErr(SYSTEM_LEVEL, ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS,
          progress_msg.str().c_str());
   // Transaction committed successfully, no rollback will be necessary.
-  rollback_guard.commit();
+  rollback_guard.release();
 
   if (cleanup()) return true;
 

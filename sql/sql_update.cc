@@ -795,7 +795,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         if (thd->killed && !error)  // Aborted
           error = 1;                /* purecov: inspected */
         limit = tmp_limit;
-        end_semi_consistent_read.rollback();
+        end_semi_consistent_read.reset();
         if (used_index < MAX_KEY && covering_keys_for_cond.is_set(used_index))
           table->set_keyread(false);
         table->file->ha_index_or_rnd_end();
@@ -1072,7 +1072,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         break;
       }
     }
-    end_semi_consistent_read.rollback();
+    end_semi_consistent_read.reset();
 
     dup_key_found = 0;
     /*

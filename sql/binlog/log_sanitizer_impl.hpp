@@ -102,11 +102,11 @@ bool Log_sanitizer::process_one_log(Type_reader &reader,
       this->m_is_malformed = true;
       this->m_fatal_error = true;
       this->m_failure_message.assign("Could not open relay log file");
-      close_at_end.commit();
+      close_at_end.release();
       return false;
     }
   } else {
-    close_at_end.commit();
+    close_at_end.release();
   }
 
   m_last_file_size = reader.ifile()->length();

@@ -3226,7 +3226,7 @@ bool Prepared_statement::reprepare(THD *thd) {
   */
   thd->get_stmt_da()->reset_condition_info(thd);
 
-  copy_guard.commit();
+  copy_guard.release();
 
   return false;
 }

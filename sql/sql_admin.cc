@@ -1811,7 +1811,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command_inner(
                      false);
     return true;
   }
-  rollback_guard.commit();
+  rollback_guard.release();
 
   // Mark tables for re-opening to ensure that the tables that are currently
   // open release their snapshot of the histograms and subsequent queries use an

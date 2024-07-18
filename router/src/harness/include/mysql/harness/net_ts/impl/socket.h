@@ -572,7 +572,7 @@ socketpair(int family, int sock_type, int protocol) {
   const auto second_res = impl::socket::accept(listener, nullptr, nullptr);
   if (!second_res) return stdx::unexpected(second_res.error());
 
-  first_fd_guard.commit();
+  first_fd_guard.release();
 
   auto second_fd = second_res.value();
 

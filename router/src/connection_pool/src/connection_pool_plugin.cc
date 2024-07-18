@@ -128,7 +128,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
               std::chrono::seconds{config.idle_timeout}));
     }
 
-    init_guard.commit();
+    init_guard.release();
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
 

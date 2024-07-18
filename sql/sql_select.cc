@@ -4968,7 +4968,7 @@ bool JOIN::make_tmp_tables_info() {
     etc).
   */
   assert(!query_block->is_recursive() || !tmp_tables);
-  cleanup_tmp_tables_on_error.commit();
+  cleanup_tmp_tables_on_error.release();
   return false;
 }
 

@@ -55,7 +55,7 @@ mysql_harness::Plugin ROUTER_PROTOBUF_EXPORT harness_plugin_router_protobuf = {
     // conflicts
     0, nullptr,
     nullptr,  // init
-    [](mysql_harness::PluginFuncEnv *) { static_guard.rollback(); },
+    [](mysql_harness::PluginFuncEnv *) { static_guard.reset(); },
     nullptr,  // start
     nullptr,  // stop
     false,    // declare_readiness

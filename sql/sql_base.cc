@@ -692,7 +692,7 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
   }
 
   if (share->m_histograms->insert(table_histograms)) return true;
-  table_histograms_guard.commit();  // Ownership transferred.
+  table_histograms_guard.release();  // Ownership transferred.
   return false;
 }
 
