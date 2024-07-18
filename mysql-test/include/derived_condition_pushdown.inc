@@ -29,7 +29,6 @@ let query = SELECT * FROM (SELECT f1, f2 FROM t1) as dt WHERE f1 > 2;
 # Masking all cost output as it makes the test unstable -
 # most likely because they differ with innodb_page_size
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -39,7 +38,6 @@ eval $query;
 let query = SELECT * FROM (SELECT f1, f2 FROM t1) as dt
             WHERE f1 < 3 and f2 > 11;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -47,7 +45,6 @@ eval $query;
 let query = SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
             WHERE f1 > 2 and f2 < 25 and f3 > 200;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -55,14 +52,12 @@ eval $query;
 let query = SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
             WHERE f1 > 3 and f2 < 50 or f3 > 200;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 let query = SELECT t1.f2 as f2, dt.f1 as f1, dt.f3 as f3 FROM t1,
             (SELECT f1, f2, f3 FROM t1) as dt
             WHERE (dt.f1 = 6) or( t1.f2 = 50 and dt.f3 = 200);
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -72,7 +67,6 @@ let query = SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
             (SELECT f1, f2, f3 FROM t1) as dt, t0
             WHERE f1 > 3 and f2 < 50 and i0 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -80,7 +74,6 @@ eval $query;
 let query = SELECT * FROM (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2
             WHERE f1 > 3 and f2 < 50 and f3 > 200;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -88,14 +81,12 @@ eval $query;
 let query = SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
             WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 300;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 let query = SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
             WHERE (f1 > 2 and f2 < 35) or (f1+f3) > 300 or (f1 < 2);
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -104,7 +95,6 @@ let query = SELECT * FROM (SELECT f1, f2 FROM t1) as dt1,
                           WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 300
                           and (f3 < 400);
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -114,7 +104,6 @@ let query = SELECT * FROM (SELECT * FROM (SELECT f1, f2 FROM t1) as dt1,
                           WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 200
                                and (f3 < 300);
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -122,7 +111,6 @@ eval $query;
 let query = SELECT i, j, k FROM (SELECT f1 as i, f2 as j, f2 as k FROM t1) as dt
             WHERE i > 1 and i+j > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -132,7 +120,6 @@ let query = SELECT i, j, k
                         FROM t1) as dt1 ) as dt2
             WHERE i > 1 and i+j > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -141,7 +128,6 @@ let query = SELECT i, j, l, m, n
                 (SELECT f1 as l, f2 as m, f3 as n FROM t1) as dt2
            WHERE i > 1 and i+j > 40 and m < 20 and m+i > 20;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 let query = SELECT * FROM
@@ -151,7 +137,6 @@ let query = SELECT * FROM
  AS dt1,
  (SELECT f1, f2 FROM t1) AS dt2) AS dt3 WHERE g > 26 and g+f1 > 31;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -162,14 +147,12 @@ let query = SELECT l, m  FROM (SELECT (i+3) as l, (j+4) as m FROM
                                (SELECT (f1+f2) as i, (f3+10) as j FROM t1) as
                                dt1) as dt2 WHERE l > 20 and l+m > 10 ;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 # Test with projection list for derived tables
 let query = SELECT i FROM (SELECT f1 FROM t1) as dt(i) WHERE i > 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -178,7 +161,6 @@ let query = SELECT m FROM (SELECT k+2 as l
                                  FROM t1) as dt1(k)) as dt(m)
             WHERE m > 30;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -187,7 +169,6 @@ eval $query;
 let query = SELECT f1 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
             WHERE f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -195,7 +176,6 @@ eval $query;
 let query = SELECT f1 FROM (SELECT f1, f2, SUM(f3) FROM t1 GROUP BY f1,f2) as dt
             WHERE f1+f2 > 30;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -204,7 +184,6 @@ let query = SELECT f1
            FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP) as dt
            WHERE f1 IS NULL;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -213,7 +192,6 @@ let query = SELECT *
                   FROM t1 GROUP BY f1 WITH ROLLUP) as dt WHERE j+sum > 50 OR
             j IS NULL;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -225,7 +203,6 @@ let query = SELECT *
                   HAVING AVG(f2) > 1) AS dt WHERE j+sum > 50 OR
             j IS NULL;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -233,7 +210,6 @@ eval $query;
 let query = SELECT f1 FROM (SELECT f1, f2 FROM t1 ORDER BY f2) as dt
             WHERE f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -243,16 +219,13 @@ eval $query;
 let query = SELECT f1 FROM (SELECT f1, f2 FROM t1 ORDER BY f2 LIMIT 4) as dt
             WHERE f1 > 0 ;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 #Same as above
 let query = SELECT f1 FROM (SELECT f1, f2 FROM t1 LIMIT 4) as dt WHERE f1 > 0;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 # Inherently a nondeterministic query, so depends on the query plan
---skip_if_hypergraph
 eval $query;
 
 # Test with WINDOW FUNCTIONS.
@@ -267,7 +240,6 @@ set sql_mode="";
 let query = SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
             WHERE f1 > 2;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -277,7 +249,6 @@ let query = SELECT *
             FROM (SELECT f1, SUM(f2) OVER(PARTITION BY f1)
                   FROM t1 GROUP BY f1) as dt WHERE f1 > 2;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -287,7 +258,6 @@ let query = SELECT *
             FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f2)
                   FROM t1 GROUP BY f1) as dt WHERE f2 > 30;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -298,7 +268,6 @@ let query = SELECT *
                   FROM t1 GROUP BY f1) as dt
             WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -308,7 +277,6 @@ let query = SELECT *
                   FROM t1 GROUP BY f1) as dt
             WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -321,7 +289,6 @@ let query = SELECT *
                   FROM t1 GROUP BY f1) as dt
             WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -332,7 +299,6 @@ let query = SELECT *
                   FROM t1 GROUP BY f1) as dt
             WHERE SUM > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -345,7 +311,6 @@ let query = SELECT *
                   FROM t1) as dt
             WHERE f1 > 2 ;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -357,7 +322,6 @@ let query = SELECT *
                   FROM t1) as dt
             WHERE f1 > 2 ;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 set sql_mode=default;
@@ -371,7 +335,6 @@ eval PREPARE p FROM "$query";
 eval EXECUTE p USING @p1;
 eval PREPARE p FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE p USING @p1;
 DROP PREPARE p;
 
@@ -384,7 +347,6 @@ let query = SELECT l, m
 SET @p1 = 1;
 eval PREPARE p FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE p USING @p1;
 eval PREPARE p FROM "$query";
 eval EXECUTE p USING @p1;
@@ -396,7 +358,6 @@ eval EXECUTE p USING @p1;
 let query = SELECT * FROM (SELECT RAND() as a FROM t1) as dt
             WHERE a > 0.5;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # Test with non-deterministic expressions in conditions. These can be
@@ -407,7 +368,6 @@ eval EXPLAIN FORMAT=tree $query;
 let query = SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
             WHERE f1 > 3*RAND() AND f1 < 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # RAND doesn't move, <10 goes to WHERE
@@ -415,7 +375,6 @@ let query = SELECT * FROM
             (SELECT f1, SUM(f2) OVER(PARTITION BY f1) FROM t1) as dt
             WHERE f1 > 3*RAND() AND f1 < 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # RAND and <10 go to WHERE
@@ -423,14 +382,12 @@ let query = SELECT * FROM
             (SELECT f1 FROM t1) as dt
             WHERE f1 > 3*RAND() AND f1<10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # With WHERE condition having a subquery
 let query = SELECT f1 FROM
 (SELECT (SELECT 1 FROM t1 LIMIT 1) as f1 FROM t1) as dt WHERE f1 = 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -448,7 +405,6 @@ DELIMITER ;|
 let query = SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
             WHERE p() = 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP FUNCTION p;
@@ -463,7 +419,6 @@ END|
 DELIMITER ;|
 
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP FUNCTION p;
@@ -480,7 +435,6 @@ END|
 DELIMITER ;|
 
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 CALL p();
 DROP PROCEDURE p;
 
@@ -492,7 +446,6 @@ let query = SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn2)) as dt WHERE f2 > 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -503,7 +456,6 @@ let query = SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn,qn2)) as dt WHERE f1 < 10 and f2 > 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -513,7 +465,6 @@ eval $query;
 let query = SELECT * FROM t1 JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
             WHERE dt.f1 > 31 and t1.f2  > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -522,7 +473,6 @@ eval $query;
 let query = SELECT * FROM t1 LEFT JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
             WHERE dt.f1 is null;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -532,7 +482,6 @@ eval $query;
 let query = SELECT * FROM t1 LEFT JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
             WHERE dt.f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -540,7 +489,6 @@ eval $query;
 let query = SELECT * FROM t1 INNER JOIN (SELECT f1, f2 FROM t1) as dt
             ON dt.f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -552,7 +500,6 @@ eval $query;
 let query = SELECT * FROM t1 INNER JOIN(SELECT t2.f1, t2.f2 FROM t1
             LEFT JOIN t1 AS t2 ON TRUE) AS dt ON dt.f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT = tree $query;
 
 # Test with both merge and derived combination
@@ -561,7 +508,6 @@ let query = SELECT * FROM (SELECT * FROM (SELECT f1, SUM(f2) AS sum
                                           FROM t1 GROUP BY f1) as dt1
                            WHERE f1 > 10) dt2 WHERE sum > 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -569,7 +515,6 @@ let query = SELECT * FROM (SELECT f1, SUM(f2) AS sum
                            FROM (SELECT f1, f2 FROM t1 WHERE f1 > 10) as dt1
                            GROUP BY f1) dt2 WHERE sum > 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -591,6 +536,7 @@ WHERE dt2.f1 > 3;
 let query= SELECT /*+ no_merge(dt,dt1) */ * FROM
 ((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
 --replace_column 10 #
+--replace_regex $elide_costs
 eval EXPLAIN $query;
 --sorted_result
 eval $query;
@@ -604,7 +550,6 @@ set optimizer_switch="derived_merge=off";
 let query = SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -621,7 +566,6 @@ let query = SELECT /*+ DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 (SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN(dt1) */ * FROM
  (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -688,6 +632,7 @@ DROP TABLE t1;
 CREATE TABLE t(f1 INTEGER);
 # Checking if condition pushdown to a derived table does not
 # crash the server when one of derived table is merged.
+--replace_regex $elide_costs
 EXPLAIN SELECT a1, a2
  FROM (SELECT MAX(2) AS a1 FROM t) as dt1,
  (SELECT @a AS a2 FROM t) as dt2
@@ -725,17 +670,14 @@ ANALYZE TABLE t1;
 
 #Check that condition f1=2 is pushed down to "v"
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 #Check that condition f1=2 is pushed down to "v"
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 #Check that condition f1=3 is pushed down to "v"
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 
@@ -757,7 +699,6 @@ let query = SELECT *
 
 SET @rownum_r=0;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 # This should not push the condition down to derived table because of user
 # variable assignments.
 eval EXPLAIN FORMAT=tree $query;
@@ -804,7 +745,6 @@ let query = SELECT *
 # Masking all cost output as it makes the test unstable -
 # most likely because they differ with innodb_page_size
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -816,7 +756,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t2) as dt
             WHERE f1 > 2;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -828,7 +767,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t2) as dt
             WHERE f1 > 2;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -842,7 +780,6 @@ let query = SELECT *
                   SELECT * FROM t2) as dt2
             WHERE (f1+f2) > 22;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -855,7 +792,6 @@ let query = SELECT *
                   SELECT * FROM t2) as dt2
             WHERE (f1+f2) > 22;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -867,7 +803,6 @@ let query = SELECT i, j, k
                   SELECT f1 as l, f2 as m, f3 as n FROM t2) as dt
             WHERE i > 1 and i+j > 40 and k < 500;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -878,7 +813,6 @@ let query = SELECT i, j
                   SELECT f1 as l, f2+f3 as m FROM t2) as dt
             WHERE i > 30 and i+j > 300;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # Same, with INTERSECT
@@ -888,7 +822,6 @@ let query = SELECT i, j
                   SELECT f1 as l, f2+f3 as m FROM t2) as dt
             WHERE i > 30 and i+j > 300;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # Test with projection list for derived tables
@@ -898,7 +831,6 @@ let query = SELECT i
                   SELECT f2 FROM t2) as dt(i)
             WHERE i > 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -909,7 +841,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t1) as dt
             WHERE f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -924,7 +855,6 @@ let query = SELECT *
                   FROM t1 GROUP BY f1) AS dt
             WHERE j+sum > 50 OR j IS NULL;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -935,7 +865,6 @@ let query = SELECT f1
                   SELECT f1, f2 FROM t2 ORDER BY f2) as dt
             WHERE f1 > 3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -949,7 +878,6 @@ let query = SELECT *
                   FROM t2 GROUP BY f1,f2) as dt
             WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -962,7 +890,6 @@ let query = SELECT *
                   FROM t2 GROUP BY f1,f2) as dt
             WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -979,7 +906,6 @@ eval PREPARE p FROM "$query";
 eval EXECUTE p USING @p1;
 eval PREPARE p FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE p USING @p1;
 DROP PREPARE p;
 
@@ -994,7 +920,6 @@ let query = SELECT l,m
 SET @p1=1, @p2=2, @p3=3, @p4=4, @p5=5, @p6=6;
 eval PREPARE p FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE p USING @p1, @p2, @p3, @p4, @p5, @p6;
 eval PREPARE p FROM "$query";
 eval EXECUTE p USING @p1, @p2, @p3, @p4, @p5, @p7;
@@ -1008,7 +933,6 @@ let query = SELECT *
                   SELECT RAND() as a FROM t1) as dt
             WHERE a > 0.5;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # Having non-deterministic expressions in the where condition
@@ -1020,7 +944,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t1) as dt
             WHERE f1 > 3*RAND() AND f1 < 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # Same, with INTERSECT
@@ -1030,7 +953,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t1) as dt
             WHERE f1 > 3*RAND() AND f1 < 10;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # With WHERE condition having a subquery. This cannot be pushed
@@ -1041,7 +963,6 @@ let query = SELECT f1
                   SELECT (SELECT 1 FROM t1 LIMIT 1) as f1 FROM t1) as dt
             WHERE f1 = 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1052,7 +973,6 @@ let query = SELECT f1
                   SELECT f1 FROM t1 LIMIT 1) as dt
             WHERE f1 = 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 let query = SELECT f1
             FROM (SELECT f1 FROM t1
@@ -1060,7 +980,6 @@ let query = SELECT f1
                   (SELECT f1 FROM t1 LIMIT 1)) as dt
             WHERE f1 = 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 # With WHERE condition referencing a stored function: it is pushed down
@@ -1080,7 +999,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t1) as dt
             WHERE p() = 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP FUNCTION p;
@@ -1095,7 +1013,6 @@ END|
 DELIMITER ;|
 
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1121,7 +1038,6 @@ END|
 DELIMITER ;|
 
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 CALL p();
 DROP PROCEDURE p;
 
@@ -1132,7 +1048,6 @@ let query = WITH recursive qn AS
                UNION
                SELECT * FROM qn) SELECT * FROM qn WHERE f1 > 1;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1144,7 +1059,6 @@ let query = SELECT *
                           UNION SELECT f1, f2 FROM t1) as dt USING (f2)
             WHERE dt.f1 > 31 and t1.f2  > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1155,7 +1069,6 @@ let query = SELECT *
                           EXCEPT SELECT f1, f2 FROM t1) as dt USING (f2)
             WHERE dt.f1 > 31 and t1.f2  > 40;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1169,7 +1082,6 @@ let query = SELECT *
                   WHERE f1 > 10) dt2
             WHERE f2 > 30;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1181,7 +1093,6 @@ let query = SELECT *
                   SELECT f1, f2 FROM t1) as dt2
             WHERE f1 > 30;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1192,29 +1103,24 @@ CREATE ALGORITHM=temptable VIEW v AS (SELECT f1,f2,f3 FROM t1
                                       SELECT f1,f2,f3 FROM t1);
 #Check that condition f1=2 is pushed down to "v"
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 #Check that condition f1=2 is pushed down to "v"
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 #With multi-table update
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree UPDATE t2 JOIN v ON t2.f2=v.f2
                     SET t2.f1 = t2.f1 + v.f1
                     WHERE v.f2 > 10;
 UPDATE t2 JOIN v ON t2.f2=v.f2 SET t2.f1 = t2.f1 + v.f1 WHERE v.f2 > 10;
 #Check that condition f1=3 is pushed down to "v"
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 #With multi-table delete 
 --replace_regex $elide_costs
---skip_if_hypergraph  # Different plan.
 EXPLAIN format=tree DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 DELETE t2 FROM t2 JOIN v ON t2.f2=v.f2 WHERE v.f2 > 10;
 
@@ -1289,6 +1195,7 @@ WHERE b.constraint_type = 'FOREIGN KEY';
 CREATE TABLE t1 (f1 INTEGER);
 
 SET @a = 0;
+--replace_regex $elide_costs
 EXPLAIN SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
 SELECT COUNT(*) FROM (SELECT SUM(f1) FROM t1) as dt WHERE @a = 1;
 
@@ -1310,13 +1217,11 @@ SET @b = '2022-05-06 16:49:45';
 eval EXECUTE stmt USING @a, @b;
 eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a, @b;
 SET @a = 2;
 SET @b = '2023-05-06 16:49:45';
 SET timestamp=UNIX_TIMESTAMP('2023-05-06 16:49:45');
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a, @b;
 SET timestamp=default;
 
@@ -1503,7 +1408,6 @@ eval PREPARE stmt FROM "$query";
 eval EXECUTE stmt USING @a1, @a2, @a3, @a4, @a5, @a6, @a7, @a8, @a9;
 eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a1, @a2, @a3, @a4, @a5, @a6, @a7, @a8, @a9;
 
 # Simplified query
@@ -1515,7 +1419,6 @@ eval PREPARE stmt FROM "$query";
 eval EXECUTE stmt USING @a1;
 eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a1;
 
 SET optimizer_switch=default;
@@ -1562,7 +1465,6 @@ let $query = SELECT
              FROM t1, t1 AS t2
              GROUP BY f3;
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN format=tree $query;
 eval $query;
 
@@ -1595,13 +1497,11 @@ SET character_set_connection = default;
 # with "'A' COLLATE latin1_spanish_ci".
 let $query = SELECT * FROM v1 WHERE field1 IN ('C');
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 let $query = SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v1) as dt
             WHERE field1 IN ('A');
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 # view context of "v1" is not used when cloning the condition
@@ -1612,7 +1512,6 @@ let $query = SELECT * FROM v1
              WHERE field1 IN ('C') OR
                    COALESCE('A' COLLATE utf8mb4_spanish_ci IN ('B'), field1);
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP VIEW v1;
@@ -1629,7 +1528,6 @@ SET character_set_connection = default;
 SET optimizer_switch="derived_merge=off";
 let $query = SELECT * FROM v1 WHERE field1 IN ('C');
 --replace_regex $elide_costs
---skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
