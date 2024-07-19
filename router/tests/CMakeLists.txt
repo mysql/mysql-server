@@ -48,9 +48,6 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
-STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
 TARGET_LINK_LIBRARIES(routertest_helpers

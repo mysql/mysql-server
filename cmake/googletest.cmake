@@ -56,6 +56,13 @@ IF(MSVC AND MSVC_CPPCHECK)
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+MY_CHECK_CXX_COMPILER_WARNING("-Wsuggest-override" HAS_SUGGEST_OVERRIDE)
+
+IF(HAS_SUGGEST_OVERRIDE)
+  # Google-test TYPED_TEST does not override the virtual function in derived class.
+  SET_TARGET_PROPERTIES(gmock PROPERTIES INTERFACE_COMPILE_OPTIONS
+    "-Wno-suggest-override")
+ENDIF()
 
 FOREACH(googletest_library
     gmock

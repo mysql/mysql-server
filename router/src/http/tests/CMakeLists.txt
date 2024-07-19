@@ -24,9 +24,6 @@
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
 
-# Google-test TYPED_TEST doesn't override the virtual method in derived class.
-STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 SET(TEST_FILES
   server-key.pem
   server-cert.pem
