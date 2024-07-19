@@ -194,14 +194,14 @@ IF(MSVC)
   SET(VERSION_INFO_RC_EXE_Router ${CMAKE_BINARY_DIR}/router_versioninfo_exe.rc)
   SET(VERSION_INFO_RC_DLL_Router ${CMAKE_BINARY_DIR}/router_versioninfo_dll.rc)
 
-  # ADD_VERSION_INFO: add version info the executables/shared libraries on windows
+  # ADD_VERSION_INFO:
+  #     add version info the executables/shared libraries on windows
   #
-  # @param target       targetname [ignored]
   # @param target_type  type of the target: SHARED|MODULE|EXE
   # @param sources_var  caller's variable name to append the rc-files to
   # @param component    component name
   #
-  FUNCTION(ADD_VERSION_INFO target target_type sources_var component)
+  FUNCTION(ADD_VERSION_INFO target_type sources_var component)
     SET(exe_rc_file ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
     SET(dll_rc_file ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
 
