@@ -2482,11 +2482,12 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         table->force_index ||
         (is_group_by ? table->force_index_group : table->force_index_order);
 
-    // Find an ordering index alternative over the chosen plan iff
-    // prefer_ordering_index switch is on. This switch is overridden only when
-    // force index for order/group is specified.
+    // We try to find an ordering_index alternative over the chosen plan, if:
+    // 1. "prefer_ordering_index" switch is on or
+    // 2. Force index for order/group is specified or
+    // 3. Optimizer has chosen to do table scan currently.
     if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX) ||
-        is_force_index)
+        is_force_index || ref_key == -1)
       test_if_cheaper_ordering(tab, &order, table, usable_keys, ref_key_hint,
                                select_limit, &best_key, &best_key_direction,
                                &select_limit, &best_key_parts,
@@ -9902,13 +9903,23 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   recheck_reason = DONT_RECHECK;
                 }
               }
-              // We do a cost based search for an ordering index here. Do this
-              // only if prefer_ordering_index switch is on or an index is
-              // forced for order by
+
+              // We do a cost based search for an ordering index here, if:
+              // 1. "prefer_ordering_index" switch is on or
+              // 2. An index is forced for order by or
+              // 3. Optimizer has chosen to do table scan.
               if (recheck_reason != DONT_RECHECK &&
-                  (tab->table()->force_index_order ||
-                   thd->optimizer_switch_flag(
-                       OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX))) {
+                  (thd->optimizer_switch_flag(
+                       OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX) ||
+                   tab->table()->force_index_order || tab->type() == JT_ALL)) {
+                DBUG_EXECUTE_IF("prefer_ordering_index_check", {
+                  const char act[] =
+                      "now wait_for "
+                      "signal.prefer_ordering_index_check_continue";
+                  assert(!debug_sync_set_action(current_thd,
+                                                STRING_WITH_LEN(act)));
+                });
+
                 int best_key = -1;
                 ha_rows select_limit =
                     join->query_expression()->select_limit_cnt;
