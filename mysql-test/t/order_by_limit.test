@@ -1,3 +1,5 @@
+--source include/have_debug_sync.inc
+
 --echo #
 --echo # WL#6986 : Make switching of index due to order by limit cost based
 --echo #
@@ -550,3 +552,70 @@ eval $query;
 SHOW SESSION STATUS LIKE '%cost%';
 
 DROP TABLE t1;
+
+
+--echo # Bug#36213938: QEP regression with prefer_ordering_index=off
+--echo #
+
+CREATE TABLE t0 (
+  i0 INTEGER NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (
+ i1 INTEGER NOT NULL,
+ i2 INTEGER NOT NULL,
+ index k1 (i2)) ENGINE=InnoDB;
+INSERT INTO t1
+SELECT a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0,
+       (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 1000
+FROM t0 AS a0, t0 AS a1;
+
+CREATE TABLE t2 (
+  pk INTEGER PRIMARY KEY,
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  INDEX k1 (i1)
+) ENGINE=InnoDB;
+INSERT INTO t2
+SELECT a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0,
+              (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 500,
+              (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 500
+  FROM t0 AS a0, t0 AS a1;
+
+ANALYZE TABLE t0,t1,t2;
+
+--echo # Even when prefer_ordering_index is off, ordering index is picked
+--echo # if possible when optimizer's original plan was to do a table scan.
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT i2 FROM t2 ORDER BY pk LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+--echo # Verify that when prefer ordering index is off and if the current plan
+--echo # is to do a table scan, a recheck of the index usage does happen if
+--echo # limit is specified in the query.
+SET @@GLOBAL.DEBUG= '+d,prefer_ordering_index_check';
+
+--connect (con1, localhost, root,,)
+SET optimizer_switch = "prefer_ordering_index=off";
+--send EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i2=t2.i1 WHERE t1.i1 > 7000 and t1.i2 > 0 ORDER BY t1.i2 LIMIT 1;
+--sleep 1
+
+# Verify that the index usage recheck function is called
+--connection default
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/sql/one_connection" AND PROCESSLIST_INFO LIKE "EXPLAIN SELECT * FROM t1%" AND PROCESSLIST_STATE = "preparing" ;
+--source include/wait_condition.inc
+
+# Continue execution
+SET DEBUG_SYNC= "now SIGNAL signal.prefer_ordering_index_check_continue";
+
+--connection con1
+--reap
+--disconnect con1
+
+# cleanup
+--connection default
+SET @@GLOBAL.DEBUG= '-d,prefer_ordering_index_check';
+SET optimizer_switch = DEFAULT;
+drop table t0, t1, t2;
