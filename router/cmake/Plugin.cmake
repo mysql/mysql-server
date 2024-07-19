@@ -79,7 +79,7 @@ FUNCTION(add_harness_plugin NAME)
   ENDIF()
 
   IF(NOT _option_NO_INSTALL)
-    ADD_VERSION_INFO(${NAME} SHARED _option_SOURCES Router)
+    ADD_VERSION_INFO(SHARED _option_SOURCES Router)
   ENDIF()
 
   # Add the library and ensure that the name is good for the plugin
