@@ -41,6 +41,7 @@
 
 #include "field_types.h"
 #include "mem_root_deque.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -1458,7 +1459,7 @@ class MaterializeIterator final : public TableRowIterator {
   bool process_row_hash(const Operand &operand, TABLE *t, ha_rows *stored_rows);
   bool materialize_hash_map(TABLE *t, ha_rows *stored_rows);
   bool load_HF_row_into_hash_map();
-  void init_hash_map_for_new_exec();
+  bool init_hash_map_for_new_exec();
   friend class SpillState;
 };
 
@@ -1590,7 +1591,7 @@ bool MaterializeIterator<Profiler>::Init() {
   } else {
     table()->file->ha_index_or_rnd_end();  // @todo likely unneeded => remove
     table()->file->ha_delete_all_rows();
-    if (m_use_hash_map) init_hash_map_for_new_exec();
+    if (m_use_hash_map && init_hash_map_for_new_exec()) return true;
   }
 
   if (m_query_expression != nullptr)
@@ -1992,14 +1993,48 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
   return false;
 }
 
+// Reset the mem_root used for the in-memory hash table for set operations.  On
+// the initial call, free all space and reallocate one single block big enough
+// to hold the allocated space from the first usage of the mem_root. This
+// avoids issues with fragmentation being different in different rounds
+// re-reading chunk files, and allows us to avoid de/re-allocating the space on
+// subsequent rounds; ClearForReuse will just trash the single large block, but
+// not free it.
+static bool reset_mem_root(MEM_ROOT *mem_root,
+                           bool initial [[maybe_unused]] = false) {
+#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
+  if (initial) {
+    // reallocate the total space used as one block, should give more
+    // efficient allocation and less fragmentation when we re-read chunk files
+    const size_t heap_size = mem_root->allocated_size();
+    mem_root->Clear();
+    mem_root->set_max_capacity(0);
+    if (mem_root->ForceNewBlock(heap_size)) return true;  // malloc failed
+  } else {
+    // If we allocate with ASAN, my_alloc.cc will allocate from OS every single
+    // requested block, and also not reuse any block since ClearForReuse just
+    // calls Clean. So we cannot assert.
+    assert(mem_root->IsSingleBlock());
+    // should not deallocate the (single) large block:
+    mem_root->ClearForReuse();
+    mem_root->set_max_capacity(0);
+  }
+#else
+  // No point in the above; ClearForReuse just calls Clear, no reuse of blocks
+  // and the assert would fail. See my_alloc.cc use of MEM_ROOT_SINGLE_CHUNKS
+  mem_root->Clear();
+  mem_root->set_max_capacity(0);
+#endif
+  return false;
+}
+
 template <typename Profiler>
-void MaterializeIterator<Profiler>::init_hash_map_for_new_exec() {
-  if (m_hash_map == nullptr) return;  // not used yet
+bool MaterializeIterator<Profiler>::init_hash_map_for_new_exec() {
+  if (m_hash_map == nullptr) return false;  // not used yet
   reset_hash_map(m_hash_map.get());
-  // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
-  // doesn't reclaim used space in the kept block (last allocated)
-  m_mem_root->Clear();
+  if (reset_mem_root(m_mem_root.get())) return true;
   m_rows_in_hash_map = 0;
+  return false;
 }
 
 /**
@@ -3194,9 +3229,7 @@ bool SpillState::append_hash_map_to_HF() {
       rows_visited;
 
   reset_hash_map(m_hash_map);
-  // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
-  // doesn't reclaim used space in the kept block (last allocated)
-  m_hash_map_mem_root->Clear();
+  if (reset_mem_root(m_hash_map_mem_root)) return true;
 
   m_chunk_files[m_current_chunk_idx].build_chunk.ContinueRead();
 
@@ -3306,9 +3339,7 @@ bool SpillState::reset_for_spill_handling() {
   // We have HF and IF on chunk files, get ready for reading rest of left
   // operand rows
   reset_hash_map(m_hash_map);
-  // Use Clear over ClearForReuse: we want all space recycled, ClearForReuse
-  // doesn't reclaim used space in the kept block (last allocated)
-  m_hash_map_mem_root->Clear();
+  if (reset_mem_root(m_hash_map_mem_root, /*initial*/ true)) return true;
   m_current_chunk_idx = 0;
   m_current_chunk_file_set = 0;
   m_current_row_in_chunk = 0;

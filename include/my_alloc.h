@@ -360,6 +360,9 @@ struct MEM_ROOT {
     return false;
   }
 
+  bool IsSingleBlock() const {
+    return m_current_block != nullptr && m_current_block->prev == nullptr;
+  }
   /// @}
 
  private:
