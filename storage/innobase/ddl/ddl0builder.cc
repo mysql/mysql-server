@@ -1751,7 +1751,7 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
 dberr_t Builder::btree_build() noexcept {
   ut_a(!is_skip_file_sort());
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "ddl_btree_build_interrupt");
+  DEBUG_SYNC(m_ctx.thd(), "ddl_btree_build_interrupt");
   if (m_local_stage != nullptr) {
     m_local_stage->begin_phase_insert();
   }
