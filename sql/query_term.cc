@@ -468,11 +468,11 @@ bool Query_term_set_op::prepare_query_term(
   // we perform different computation for UNION, INTERSECT and EXCEPT, cf. SQL
   // 2014, Vol 2, section 7.17 <query expression>, SR 18 and 20.
   // When preparing the leaf query blocks, type unification for set operations
-  // is done by calling Item_aggregate_type::join_types including setting
+  // is done by calling Item_aggregate_type::unify_types() including setting
   // nullability.  This works correctly for UNION, but not if we have INTERSECT
   // and/or EXCEPT in the tree of set operations.
   // The "nullable" information is in general incorrect after the call to
-  // join_types().  But when iterating over the children, we calculate the
+  // unify_types().  But when iterating over the children, we calculate the
   // proper nullability, and when all children have been processed, we assign
   // proper nullability to the types.
   //
@@ -518,12 +518,12 @@ bool Query_term_set_op::prepare_query_term(
           if (top_level && qe->is_recursive()) {
             holder->set_nullable(true);  // Always nullable, per SQL standard.
             /*
-              The UNION code relies on join_types() to change some
+              The UNION code relies on unify_types() to change some
               transitional types like MYSQL_TYPE_DATETIME2 into other types; in
-              case this is the only nonrecursive query block join_types() won't
+              case this is the only nonrecursive query block unify_types() won't
               be called so we need an explicit call:
             */
-            holder->join_types(thd, item_tmp);
+            holder->unify_types(thd, item_tmp);
           }
         }
         if (m_types->push_back(holder)) return true;
@@ -551,7 +551,7 @@ bool Query_term_set_op::prepare_query_term(
         for (; it != m_children[i]->types_iterator().end() &&
                tp != m_types->end();
              ++it, ++tp) {
-          if (down_cast<Item_type_holder *>(*tp)->join_types(thd, *it))
+          if (down_cast<Item_type_holder *>(*tp)->unify_types(thd, *it))
             return true;
         }
       }
@@ -608,7 +608,7 @@ bool Query_term_set_op::prepare_query_term(
   // fields were created with nullability if at least one query block had
   // nullable field during type joining (UNION semantics), so we will
   // only ever set nullable here if result field originally was computed
-  // as nullable in join_types. And removing nullability for a Field isn't
+  // as nullable in unify_types(). And removing nullability for a Field isn't
   // a problem.
   size_t idx = 0;
   for (auto *f : qb->visible_fields()) {

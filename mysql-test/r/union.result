@@ -5725,3 +5725,12 @@ a	varchar(3)	NO
 b	varchar(1)	NO			
 c	varchar(0)	NO			
 DROP TABLE t;
+#
+# Bug#36838373: Failure in Item::convert_charset()
+#
+CREATE TABLE t (c0 TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_romanian_ci);
+CREATE TABLE r (c0 TEXT CHARACTER SET utf16 COLLATE utf16_bin);
+CREATE TABLE e (c0 INTEGER);
+TABLE t EXCEPT TABLE r INTERSECT DISTINCT TABLE e;
+c0
+DROP TABLE t, r, e;

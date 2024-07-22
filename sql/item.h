@@ -3533,7 +3533,6 @@ class Item : public Parse_tree_node {
   void aggregate_float_properties(enum_field_types type, Item **items,
                                   uint nitems);
   void aggregate_decimal_properties(Item **items, uint nitems);
-  uint32 aggregate_char_width(Item **items, uint nitems);
   void aggregate_temporal_properties(enum_field_types type, Item **items,
                                      uint nitems);
   bool aggregate_string_properties(enum_field_types type, const char *name,
@@ -6453,68 +6452,6 @@ class Item_time_with_ref final : public Item_temporal_with_ref {
 };
 
 /**
-  A dummy item that contains a copy/backup of the given Item's metadata;
-  not valid for data. Used only in type aggregation.
- */
-class Item_metadata_copy final : public Item {
- public:
-  explicit Item_metadata_copy(Item *item) {
-    const bool nullable = item->is_nullable();
-    null_value = nullable;
-    set_nullable(nullable);
-    decimals = item->decimals;
-    max_length = item->max_length;
-    item_name = item->item_name;
-    set_data_type(item->data_type());
-    cached_result_type = item->result_type();
-    unsigned_flag = item->unsigned_flag;
-    fixed = item->fixed;
-    collation.set(item->collation);
-  }
-
-  // This is unused - use same code as type holder item.
-  enum Type type() const override { return TYPE_HOLDER_ITEM; }
-  Item_result result_type() const override { return cached_result_type; }
-  table_map used_tables() const override { return 1; }
-
-  String *val_str(String *) override {
-    assert(false);
-    return nullptr;
-  }
-  my_decimal *val_decimal(my_decimal *) override {
-    assert(false);
-    return nullptr;
-  }
-  double val_real() override {
-    assert(false);
-    return 0.0;
-  }
-  longlong val_int() override {
-    assert(false);
-    return 0;
-  }
-  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    assert(false);
-    return true;
-  }
-  bool get_time(MYSQL_TIME *) override {
-    assert(false);
-    return true;
-  }
-  bool val_json(Json_wrapper *) override {
-    assert(false);
-    return true;
-  }
-
- private:
-  /**
-    Stores the result type of the original item, so it can be returned
-    without calling the original item's member function
-  */
-  Item_result cached_result_type;
-};
-
-/**
   This is used for segregating rows in groups (e.g. GROUP BY, windows), to
   detect boundaries of groups.
   It caches a value, which is representative of the group, and can compare it
@@ -7246,7 +7183,7 @@ class Item_aggregate_type : public Item {
   bool get_time(MYSQL_TIME *) override = 0;
 
   Item_result result_type() const override;
-  bool join_types(THD *, Item *);
+  bool unify_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
   Field::geometry_type get_geometry_type() const override {
@@ -7279,6 +7216,12 @@ class Item_type_holder final : public Item_aggregate_type {
   Item_type_holder(THD *thd, Item *item) : super(thd, item) {}
 
   enum Type type() const override { return TYPE_HOLDER_ITEM; }
+
+  /**
+    Class is used in type aggregation only - this is needed to ensure
+    that it is not attempted to be evaluated as a const value.
+  */
+  table_map used_tables() const override { return RAND_TABLE_BIT; }
 
   double val_real() override;
   longlong val_int() override;

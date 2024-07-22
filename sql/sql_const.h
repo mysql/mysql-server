@@ -95,7 +95,9 @@ constexpr const int MAX_DATETIME_WIDTH{19};
   element, such as a random function or a non-deterministic function.
   Expressions containing this bit cannot be evaluated once and then cached,
   they must be evaluated at latest possible point.
-  RAND_TABLE_BIT is also piggy-backed to avoid moving Item_func_reject_if
+  RAND_TABLE_BIT may also be used to signal especially that a certain
+  expression is non-constant and cannot be optimized away.
+  E.g, RAND_TABLE_BIT is piggy-backed to avoid moving Item_func_reject_if
   from its join condition. This usage is similar to its use by
   Item_is_not_null_test.
   MAX_TABLES_FOR_SIZE adds the pseudo bits and is used for sizing purposes only.

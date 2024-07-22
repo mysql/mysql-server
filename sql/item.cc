@@ -120,6 +120,9 @@ static inline bool select_alias_referencable(enum_parsing_context place) {
           place == CTX_HAVING || place == CTX_QUALIFY || place == CTX_ORDER_BY);
 }
 
+static uint32 aggregate_char_width(DTCollation *coll, Item **items,
+                                   uint nitems);
+
 Type_properties::Type_properties(Item &item)
     : m_type(item.data_type()),
       m_unsigned_flag(item.unsigned_flag),
@@ -603,6 +606,10 @@ const char *fieldtype2str(enum enum_field_types type);
   - functions CASE, COALESCE, IF, IFNULL and NULLIF.
   - functions LEAST and GREATEST.
   - LEAD and LAG.
+
+  NOTE: "this" may be part of "items" array, thus it is important that the
+        type properties are not updated until after all items in the array
+        have been processed.
 */
 
 bool Item::aggregate_type(const char *name, Item **items, uint count) {
@@ -7709,20 +7716,23 @@ bool Item::can_be_substituted_for_gc(bool array) const {
 /**
   Calculate the maximum number of characters required by any of the items.
 
+  @param coll    Collation for the unified type of all items
   @param items   arguments to calculate max width for
-  @param nitems   number of arguments
+  @param nitems  number of arguments
 
   @returns max width in number of characters
 */
-uint32 Item::aggregate_char_width(Item **items, uint nitems) {
+static uint32 aggregate_char_width(DTCollation *const coll, Item **items,
+                                   uint nitems) {
   uint32 char_length = 0;
   /*
-    To account for character sets with different number of bytes per character,
-    set char_length equal to max_length if the aggregated character set is
-    binary to prevent truncation of data as some characters require more than
-    one byte.
+    When converting from a non-binary character set to the binary character set,
+    each multi-byte character is kept as-is. Thus, the character width
+    resulting from such non-binary character set is the max. number of bytes
+    per character multiplied by the number of characters.
+    For all other string conversions, the number of characters is preserved.
   */
-  const bool bin_charset = collation.collation == &my_charset_bin;
+  const bool bin_charset = coll->collation == &my_charset_bin;
   for (uint i = 0; i < nitems; i++)
     char_length = max(char_length, bin_charset ? items[i]->max_length
                                                : items[i]->max_char_length());
@@ -7849,20 +7859,24 @@ void Item::aggregate_temporal_properties(enum_field_types type, Item **items,
 */
 bool Item::aggregate_string_properties(enum_field_types type, const char *name,
                                        Item **items, uint nitems) {
-  if (agg_item_charsets_for_string_result(collation, name, items, nitems, 1))
+  // Calculate aggregated collation, but do not update item yet:
+  DTCollation coll;
+  if (agg_item_charsets_for_string_result(coll, name, items, nitems, 1)) {
     return true;
-
+  }
   // Calculate maximum width in number of characters
-  uint32 char_width = aggregate_char_width(items, nitems);
+  uint32 char_width = aggregate_char_width(&coll, items, nitems);
 
+  // Set collation after width is calculated:
+  collation = coll;
   /*
     If the resulting data type is a fixed length character or binary string
     and the result maximum length in characters is longer than the MySQL
     maximum CHAR/BINARY size, convert to a variable-sized type.
   */
-  if (type == MYSQL_TYPE_STRING && char_width > MAX_FIELD_CHARLENGTH)
+  if (type == MYSQL_TYPE_STRING && char_width > MAX_FIELD_CHARLENGTH) {
     type = MYSQL_TYPE_VARCHAR;
-
+  }
   switch (type) {
     case MYSQL_TYPE_STRING:
       set_data_type_char(char_width);
@@ -10436,69 +10450,36 @@ static enum_field_types real_data_type(Item *item) {
 }
 
 /**
-  Find field type which can carry current Item_aggregate_type type and
-  type of given Item.
+  Unify type from given item with the type in the current item.
 
   @param thd     the thread/connection descriptor
   @param item    given item to join its parameters with this item ones
 
-  @retval
-    true   error - types are incompatible
-  @retval
-    false  OK
+  @returns false if success, true if error (types are incompatible)
 */
 
-bool Item_aggregate_type::join_types(THD *thd, Item *item) {
+bool Item_aggregate_type::unify_types(THD *thd, Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info:",
              ("was type %d len %d, dec %d name %s", data_type(), max_length,
               decimals, (item_name.is_set() ? item_name.ptr() : "<NULL>")));
   DBUG_PRINT("info:", ("in type %d len %d, dec %d", real_data_type(item),
                        item->max_length, item->decimals));
-  /*
-    aggregate_type() will modify the data type of this item. Create a copy of
-    this item containing the original data type and other properties to ensure
-    correct conversion from existing item types to aggregated type.
-  */
-  Item *item_copy = new Item_metadata_copy(this);
+  assert(!thd->lex->is_exec_started());
 
-  /*
-    Down the call stack when calling aggregate_string_properties(), we might
-    end up in THD::change_item_tree() if we for instance need to convert the
-    character set on one side of a union:
-
-      SELECT "foo" UNION SELECT CONVERT("foo" USING utf8mb3);
-    might be converted into:
-      SELECT CONVERT("foo" USING utf8mb3) UNION
-      SELECT CONVERT("foo" USING utf8mb3);
-
-    If we are in a prepared statement or a stored routine (any non-conventional
-    query that needs rollback of any item tree modifications), we need to
-    remember what Item we changed ("foo" in this case) and where that Item is
-    located (in the "args" array in this case) so we can roll back the changes
-    done to the Item tree when the execution is done. When we enter the rollback
-    code (THD::rollback_item_tree_changes()), the location of the Item need to
-    be accessible, so that is why the "args" array must be allocated on a
-    MEM_ROOT and not on the stack. Note that THD::change_item_tree() isn't
-    necessary, since the Item array we are modifying isn't a part of the
-    original Item tree.
-  */
-  Item **args = new (thd->mem_root) Item *[2] { item_copy, item };
+  Item *args[2] = {this, item};
   if (aggregate_type("UNION", args, 2)) return true;
-
-  Item_result merge_type = Field::result_merge_type(data_type());
-  if (merge_type == STRING_RESULT) {
-    /*
-      For geometry columns, we must also merge subtypes. If the
-      subtypes are different, use GEOMETRY.
-    */
-    if (data_type() == MYSQL_TYPE_GEOMETRY &&
-        (item->data_type() != MYSQL_TYPE_GEOMETRY ||
-         geometry_type != item->get_geometry_type()))
-      geometry_type = Field::GEOM_GEOMETRY;
+  /*
+    For geometry columns, we must also unify subtypes. If the
+    subtypes are different, use GEOMETRY.
+  */
+  if (data_type() == MYSQL_TYPE_GEOMETRY &&
+      (item->data_type() != MYSQL_TYPE_GEOMETRY ||
+       geometry_type != item->get_geometry_type())) {
+    geometry_type = Field::GEOM_GEOMETRY;
   }
 
-  // Note: when called to join the types of a set operation's select list, the
+  // Note: when called to unify the types of a set operation's select list, the
   // below line is correct only if we have no INTERSECT or EXCEPT in the query
   // tree. We will recompute this value correctly during
   // Query_term::prepare_query_term.
