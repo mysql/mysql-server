@@ -604,8 +604,14 @@ SET optimizer_switch = "prefer_ordering_index=off";
 
 # Verify that the index usage recheck function is called
 --connection default
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/sql/one_connection" AND PROCESSLIST_INFO LIKE "EXPLAIN SELECT * FROM t1%" AND PROCESSLIST_STATE = "preparing" ;
---source include/wait_condition.inc
+--let $using_hypergraph = `SELECT FIND_IN_SET('hypergraph_optimizer=on', @@optimizer_switch)`
+if ($using_hypergraph) {
+  --echo <ignored hypergraph optimizer error:  Depends on the query plan>
+}
+if (!$using_hypergraph) {
+  --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/sql/one_connection" AND PROCESSLIST_INFO LIKE "EXPLAIN SELECT * FROM t1%" AND PROCESSLIST_STATE = "preparing" ;
+  --source include/wait_condition.inc
+}
 
 # Continue execution
 SET DEBUG_SYNC= "now SIGNAL signal.prefer_ordering_index_check_continue";
