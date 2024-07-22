@@ -106,17 +106,20 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Let's also turn off FirstMatch, MatLookup is then used
+--echo Hypergraph will choose FirstMatch as MatLookup is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Let's also turn off Materialization, DuplicateWeedout should then be used
+--echo Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo If we turn off all strategies, DuplicateWeedout should still be used
+--echo Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
@@ -142,11 +145,13 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Force Materialization
+--echo Hypergraph will choose FirstMatch as Materialization is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Force DuplicateWeedout
+--echo Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t2
@@ -171,17 +176,20 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Drop FirstMatch, MatLookup is next
+--echo Hypergraph will choose FirstMatch as MatLookup is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 
 --echo For this query LooseScan and Materialization is not applicable
+--echo Hypergraph will choose LooseScan as it's done differently.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 --echo Turn off all applicable strategies. DuplicateWeedout should be used
+--echo Hypergraph will continue to choose LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
@@ -218,6 +226,7 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Loosescan for both is not possible,  ends up with DuplicateWeedout
+--echo Hypergraph would pick LooseScan as its done differently.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
@@ -230,6 +239,7 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Different subsets of strategies for different subqueries
+--echo Hypergraph would pick FirstMatch for the subq2
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
@@ -258,6 +268,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Also turn off 2nd choice. Gives DuplicateWeedout over both
+--echo Hypergraph will choose FirstMatch as DuplicateWeedout is not supported.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
@@ -265,6 +276,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Also turn off DuplicateWeedout.  Materialization is only one left.
+--echo Hypergraph will choose FirstMatch as Materialization is not supported.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT)
@@ -272,6 +284,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Force materialization with SEMIJOIN hints instead
+--echo Hypergraph will choose FirstMatch as Materialization is not supported.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
@@ -280,6 +293,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo This query gives DuplicateWeedout over both since combining
 --echo DuplicateWeedout with another strategy does not seem possible.
+--echo Hypergraph will choose FirstMatch as Materialization is not supported.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
@@ -287,6 +301,7 @@ SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo More alternatives for 2nd subquery gives Materialization for first
+--echo Hypergraph will choose FirstMatch as Materialization is not supported.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
@@ -295,24 +310,28 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 
 --echo A query with nested subqueries which by default will use FirstMatch
+--echo Hypergraph will choose LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Let's turn off FirstMatch, Materialization is then selected
+--echo Hypergraph will choose LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Let's also turn off Materialization,  DuplicateWeedout is then used
+--echo Hypergraph will choose LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Also turn off DuplicateWeedout. LooseScan not usable; so still DuplicateWeedout
+--echo Hypergraph will choose LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
@@ -320,6 +339,7 @@ FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo If we turn off all strategies, DuplicateWeedout should still be used
+--echo Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
@@ -336,24 +356,28 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Force LooseScan, will use DuplicateWeedout
+--echo Hypergraph will choose LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Force Materialization
+--echo Hypergraph will choose FirstMatch as Materialization is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Force DuplicateWeedout
+--echo Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo If FirstMatch is among candidates, it will be used
+--echo Default for Hyeprgraph here is LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
@@ -371,12 +395,14 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, LOOSESCAN,
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Drop FirstMatch. Materialization will be used
+--echo Hypergraph will use LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Drop Materialization, DuplicateWeedout next
+--echo Hypergraph will use LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
@@ -438,6 +464,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 
 --echo Turn off semijoin for inner-most subquery.  FirstMatch is used for outer
+--echo Hypergraph would prefer LooseScan
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -457,6 +484,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo LooseScan can not be used since index scan would not be "covering"
+--echo Hypergraph can do LooseScan here
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT)
@@ -593,11 +621,13 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Let's also turn off FirstMatch, MatLookup should then be used
+--echo Hypergraph will use FirstMatch as MatLookup is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Let's also turn off Materialization, DuplicateWeedout should then be used
+--echo Hypergraph will use FirstMatch as DupliecateWeedout MatLookup is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
@@ -610,6 +640,7 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Forcing another strategy
+--echo Hypergraph will use the default - FirstMatch
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
@@ -638,6 +669,7 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo Drop all remaining strategies with hint, should use DuplicateWeedout
+--echo Hypergraph will use FirstMatch
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
@@ -645,11 +677,13 @@ WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 
 --echo For this query LooseScan and Materialization is not applicable
 --echo Should use DuplicateWeedout since FirstMatch is disabled
+--echo Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 --echo Turn off all applicable strategies. DuplicateWeedout should still be used
+--echo Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
@@ -662,6 +696,7 @@ WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 
 --echo Default for this query is Loosecan for first and FirstMatch for latter
 --echo Since both strategies are disabled, will now use DuplicateWeedout
+--echo Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT * FROM t1
@@ -700,6 +735,7 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Turn off DuplicateWeedout for both.  Materialization is left
+--echo Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT)
@@ -707,6 +743,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Forcing materialization should have same effect
+--echo Hypergraph will use FirstMatch as Materialization is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
@@ -714,6 +751,7 @@ SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 --echo Turn off DuplicateWeedout for first.  Materialization is used for both
+--echo Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
@@ -730,17 +768,20 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 SET optimizer_switch='firstmatch=on,loosescan=on,materialization=on,duplicateweedout=off';
 
 --echo If we turn off all other strategies, DuplicateWeedout will be used
+--echo Hypergraph will choose FirstMatch
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo LooseScan and Materialization is not applicable, FirstMatch is used
+--echo Hypergraph can do LooseScan here. So it will pick it.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 --echo Turn off all applicable strategies. DuplicateWeedout should be used
+--echo Hypergraph can do LooseScan here. So it will pick it.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
@@ -754,6 +795,7 @@ WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 --echo Disable all strategies
 SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=off';
 --echo DuplicateWeedout is then used
+--echo For Hypergraph it will be FirstMatch
 --replace_regex $elide_costs
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -771,11 +813,13 @@ FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 --echo For this query that cannot use LooseScan or Materialization,
 --echo turning those on will still give DupliateWeedout
+--echo Hypergraph will pick LooseScan.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 --echo Turning on FirstMatch should give FirstMatch
+--echo Hypergraph will continue to pick LooseScan.
 --replace_regex $elide_costs
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
@@ -793,6 +837,7 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 EXECUTE stmt1;
 SET optimizer_switch = 'duplicateweedout=off';
 --echo Will now use materialization
+--echo No effect for Hypergraph
 EXECUTE stmt1;
 SET optimizer_switch = 'duplicateweedout=on';
 --echo Turn DuplicateWeedout back on

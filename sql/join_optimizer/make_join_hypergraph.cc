@@ -364,6 +364,9 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
           thd, query_block, tl->nested_join->m_tables);
       join->type = tl->is_sj_nest() ? RelationalExpression::SEMIJOIN
                                     : RelationalExpression::ANTIJOIN;
+      if (tl->is_sj_nest()) {
+        join->enable_semijoin_strategies(tl);
+      }
     } else {
       join->right = MakeRelationalExpression(thd, query_block, tl);
       if (tl->outer_join) {

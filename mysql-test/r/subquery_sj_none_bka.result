@@ -13208,12 +13208,12 @@ WHERE field1 IN (
 SELECT tv1.var_255_utf8
 FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
 field1
-korrhrspki
-a
 ULWBF
+a
+i
+korrhrspki
 right
 x
-i
 DROP VIEW v1;
 DROP TABLE t1, tv;
 # 17832047 Crash in calculate_materialization_costs

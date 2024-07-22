@@ -228,6 +228,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
 Let's also turn off FirstMatch, MatLookup is then used
+Hypergraph will choose FirstMatch as MatLookup is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -239,6 +240,7 @@ EXPLAIN
             -> Covering index scan on t3 using a  (rows=3)
 
 Let's also turn off Materialization, DuplicateWeedout should then be used
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION) */ *
 FROM t2
@@ -250,6 +252,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
 If we turn off all strategies, DuplicateWeedout should still be used
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
 DUPSWEEDOUT) */ *
@@ -293,6 +296,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
 Force Materialization
+Hypergraph will choose FirstMatch as Materialization is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -304,6 +308,7 @@ EXPLAIN
             -> Covering index scan on t3 using a  (rows=3)
 
 Force DuplicateWeedout
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -352,6 +357,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
 Drop FirstMatch, MatLookup is next
+Hypergraph will choose FirstMatch as MatLookup is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -363,6 +369,7 @@ EXPLAIN
             -> Covering index scan on t3 using a  (rows=3)
 
 For this query LooseScan and Materialization is not applicable
+Hypergraph will choose LooseScan as it's done differently.
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -376,6 +383,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turn off all applicable strategies. DuplicateWeedout should be used
+Hypergraph will continue to choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -462,6 +470,7 @@ EXPLAIN
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Loosescan for both is not possible,  ends up with DuplicateWeedout
+Hypergraph would pick LooseScan as its done differently.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
@@ -490,6 +499,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
 Different subsets of strategies for different subqueries
+Hypergraph would pick FirstMatch for the subq2
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
 SEMIJOIN(@subq2 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t1
@@ -553,6 +563,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t1.a)  (rows=1)
 
 Also turn off 2nd choice. Gives DuplicateWeedout over both
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
 NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN) */ * FROM t1
@@ -568,6 +579,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Also turn off DuplicateWeedout.  Materialization is only one left.
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT)
 NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
@@ -586,6 +598,7 @@ EXPLAIN
             -> Covering index scan on t2 using a  (rows=4)
 
 Force materialization with SEMIJOIN hints instead
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
@@ -605,6 +618,7 @@ EXPLAIN
 
 This query gives DuplicateWeedout over both since combining
 DuplicateWeedout with another strategy does not seem possible.
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
@@ -620,6 +634,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 More alternatives for 2nd subquery gives Materialization for first
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
@@ -636,6 +651,7 @@ EXPLAIN
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 A query with nested subqueries which by default will use FirstMatch
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -649,6 +665,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 Let's turn off FirstMatch, Materialization is then selected
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -664,6 +681,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
 
 Let's also turn off Materialization,  DuplicateWeedout is then used
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -678,6 +696,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 Also turn off DuplicateWeedout. LooseScan not usable; so still DuplicateWeedout
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
 FROM t1
@@ -693,6 +712,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 If we turn off all strategies, DuplicateWeedout should still be used
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
 DUPSWEEDOUT) */ *
@@ -723,6 +743,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 Force LooseScan, will use DuplicateWeedout
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -737,6 +758,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 Force Materialization
+Hypergraph will choose FirstMatch as Materialization is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -752,6 +774,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
 
 Force DuplicateWeedout
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -766,6 +789,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 If FirstMatch is among candidates, it will be used
+Default for Hyeprgraph here is LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -804,6 +828,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
 
 Drop FirstMatch. Materialization will be used
+Hypergraph will use LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -819,6 +844,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = `<subquery2>`.a)  (rows=1)
 
 Drop Materialization, DuplicateWeedout next
+Hypergraph will use LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -976,6 +1002,7 @@ EXPLAIN
                                     -> Covering index scan on t2 using a  (rows=4)
 
 Turn off semijoin for inner-most subquery.  FirstMatch is used for outer
+Hypergraph would prefer LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -1022,6 +1049,7 @@ EXPLAIN
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 LooseScan can not be used since index scan would not be "covering"
+Hypergraph can do LooseScan here
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT)
 NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -1326,6 +1354,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
 Let's also turn off FirstMatch, MatLookup should then be used
+Hypergraph will use FirstMatch as MatLookup is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -1337,6 +1366,7 @@ EXPLAIN
             -> Covering index scan on t3 using a  (rows=3)
 
 Let's also turn off Materialization, DuplicateWeedout should then be used
+Hypergraph will use FirstMatch as DupliecateWeedout MatLookup is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
 FROM t2
@@ -1358,6 +1388,7 @@ EXPLAIN
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
 Forcing another strategy
+Hypergraph will use the default - FirstMatch
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -1409,6 +1440,7 @@ EXPLAIN
     -> Covering index lookup on t3 using a (a = t2.a)  (rows=1)
 
 Drop all remaining strategies with hint, should use DuplicateWeedout
+Hypergraph will use FirstMatch
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
@@ -1420,6 +1452,7 @@ EXPLAIN
 
 For this query LooseScan and Materialization is not applicable
 Should use DuplicateWeedout since FirstMatch is disabled
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1434,6 +1467,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turn off all applicable strategies. DuplicateWeedout should still be used
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1463,6 +1497,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Default for this query is Loosecan for first and FirstMatch for latter
 Since both strategies are disabled, will now use DuplicateWeedout
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
@@ -1550,6 +1585,7 @@ EXPLAIN
             -> Covering index scan on t2 using a  (rows=4)
 
 Turn off DuplicateWeedout for both.  Materialization is left
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT)
 NO_SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
@@ -1568,6 +1604,7 @@ EXPLAIN
             -> Covering index scan on t2 using a  (rows=4)
 
 Forcing materialization should have same effect
+Hypergraph will use FirstMatch as Materialization is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
@@ -1586,6 +1623,7 @@ EXPLAIN
             -> Covering index scan on t2 using a  (rows=4)
 
 Turn off DuplicateWeedout for first.  Materialization is used for both
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
@@ -1622,6 +1660,7 @@ EXPLAIN
 Enable all strategies except DuplicateWeedout
 SET optimizer_switch='firstmatch=on,loosescan=on,materialization=on,duplicateweedout=off';
 If we turn off all other strategies, DuplicateWeedout will be used
+Hypergraph will choose FirstMatch
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION) */ *
 FROM t2
@@ -1633,6 +1672,7 @@ EXPLAIN
         -> Covering index lookup on t2 using a (a = t3.a)  (rows=1)
 
 LooseScan and Materialization is not applicable, FirstMatch is used
+Hypergraph can do LooseScan here. So it will pick it.
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1646,6 +1686,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turn off all applicable strategies. DuplicateWeedout should be used
+Hypergraph can do LooseScan here. So it will pick it.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1678,6 +1719,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Disable all strategies
 SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=off';
 DuplicateWeedout is then used
+For Hypergraph it will be FirstMatch
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
@@ -1709,6 +1751,7 @@ EXPLAIN
 
 For this query that cannot use LooseScan or Materialization,
 turning those on will still give DupliateWeedout
+Hypergraph will pick LooseScan.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1724,6 +1767,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turning on FirstMatch should give FirstMatch
+Hypergraph will continue to pick LooseScan.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1755,6 +1799,7 @@ EXPLAIN
 
 SET optimizer_switch = 'duplicateweedout=off';
 Will now use materialization
+No effect for Hypergraph
 EXECUTE stmt1;
 EXPLAIN
 -> Nested loop inner join  (cost=5.63 rows=12)

@@ -7152,6 +7152,7 @@ WHERE field1 IN (
   FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
 --replace_column 10 6
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP VIEW v1;

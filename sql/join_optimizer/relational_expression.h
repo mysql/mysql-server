@@ -34,6 +34,7 @@
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
+#include "sql/nested_join.h"
 #include "sql/sql_class.h"
 
 struct AccessPath;
@@ -235,6 +236,11 @@ struct RelationalExpression {
   // out of this join; this is in addition to the regular connectivity
   // check. See FindHyperedgeAndJoinConflicts() for more details.
   Mem_root_array<ConflictRule> conflict_rules;
+  uint sj_enabled_strategies{0};
+
+  void enable_semijoin_strategies(const Table_ref *tl) {
+    sj_enabled_strategies = tl->nested_join->sj_enabled_strategies;
+  }
 
   const Mem_root_array<Item *> &pushable_conditions() const {
     return m_pushable_conditions;

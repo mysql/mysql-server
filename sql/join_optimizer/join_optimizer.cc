@@ -4477,7 +4477,13 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // do not allow semi-to-inner rewrites if join order is
       // hinted, as this may reverse hinted order
       !(m_query_block->opt_hints_qb &&
-        m_query_block->opt_hints_qb->has_join_order_hints());
+        m_query_block->opt_hints_qb->has_join_order_hints()) &&
+      // Do not allow the rewrite if firstmatch or loose scan
+      // strategy is disabled.
+      (((edge->expr->sj_enabled_strategies & OPTIMIZER_SWITCH_FIRSTMATCH) &&
+        !edge->semijoin_group_size) ||
+       (edge->expr->sj_enabled_strategies & OPTIMIZER_SWITCH_LOOSE_SCAN &&
+        edge->semijoin_group_size));
 
   // Enforce that recursive references need to be leftmost.
   if (Overlaps(right, forced_leftmost_table)) {
@@ -4665,14 +4671,16 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
  */
 AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
                                    Item **semijoin_group,
-                                   int semijoin_group_size) {
-  AccessPath *dedup_path;
-  if (semijoin_group_size == 0) {
+                                   int semijoin_group_size,
+                                   RelationalExpression *expr) {
+  AccessPath *dedup_path = nullptr;
+  if (semijoin_group_size == 0 &&
+      (expr->sj_enabled_strategies & OPTIMIZER_SWITCH_FIRSTMATCH)) {
     dedup_path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
                                           /*count_all_rows=*/false,
                                           /*reject_multiple_rows=*/false,
                                           /*send_records_override=*/nullptr);
-  } else {
+  } else if (expr->sj_enabled_strategies & OPTIMIZER_SWITCH_LOOSE_SCAN) {
     dedup_path = NewRemoveDuplicatesAccessPath(thd, path, semijoin_group,
                                                semijoin_group_size);
     CopyBasicProperties(*path, dedup_path);
@@ -4682,6 +4690,7 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
     dedup_path->set_cost(dedup_path->cost() +
                          kAggregateOneRowCost * path->num_output_rows());
   }
+  assert(dedup_path != nullptr);
   return dedup_path;
 }
 
@@ -4812,6 +4821,18 @@ void CostingReceiver::ProposeHashJoin(
     return;
   }
 
+  // If semijoin strategy, loose scan is forced, but the current plan
+  // is to not choose loose scan, we dont need to propose any plan now.
+  // However, loose scan is not possible for all cases. So we check here
+  // if loose scan is possible. If not, propose the current plan.
+  bool forced_loose_scan =
+      edge->expr->sj_enabled_strategies & OPTIMIZER_SWITCH_LOOSE_SCAN &&
+      !(edge->expr->sj_enabled_strategies & OPTIMIZER_SWITCH_FIRSTMATCH);
+  if (!rewrite_semi_to_inner &&
+      (forced_loose_scan && edge->semijoin_group_size)) {
+    return;
+  }
+
   if (edge->expr->type == RelationalExpression::LEFT_JOIN &&
       SecondaryEngineHandlerton(m_thd) != nullptr) {
     MoveDegenerateJoinConditionToFilter(m_thd, m_query_block, &edge,
@@ -4853,8 +4874,9 @@ void CostingReceiver::ProposeHashJoin(
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
     CommitBitsetsToHeap(left_path);
-    join_path.hash_join().outer = DeduplicateForSemijoin(
-        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
+    join_path.hash_join().outer =
+        DeduplicateForSemijoin(m_thd, left_path, edge->semijoin_group,
+                               edge->semijoin_group_size, edge->expr);
   }
 
   // TODO(sgunders): Consider removing redundant join conditions.
@@ -5406,6 +5428,18 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // FULL OUTER JOIN is not possible with nested-loop join.
   assert(edge->expr->type != RelationalExpression::FULL_OUTER_JOIN);
 
+  // If semijoin strategy, loose scan is forced, but the current plan
+  // is to not choose loose scan, we dont need to propose any plan now.
+  // However, loose scan is not possible for all cases. So we check here
+  // if loose scan is possible. If not, propose the current plan.
+  bool forced_loose_scan =
+      edge->expr->sj_enabled_strategies & OPTIMIZER_SWITCH_LOOSE_SCAN &&
+      !(edge->expr->sj_enabled_strategies & OPTIMIZER_SWITCH_FIRSTMATCH);
+  if (!rewrite_semi_to_inner &&
+      (forced_loose_scan && edge->semijoin_group_size)) {
+    return;
+  }
+
   AccessPath join_path;
   join_path.type = AccessPath::NESTED_LOOP_JOIN;
   join_path.parameter_tables =
@@ -5442,8 +5476,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
-    join_path.nested_loop_join().outer = DeduplicateForSemijoin(
-        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
+    join_path.nested_loop_join().outer =
+        DeduplicateForSemijoin(m_thd, left_path, edge->semijoin_group,
+                               edge->semijoin_group_size, edge->expr);
   } else if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
     join_path.nested_loop_join().join_type = JoinType::INNER;
   } else {
@@ -8611,6 +8646,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root, query_block);
   bool where_is_always_false = false;
+  query_block->update_semijoin_strategies(thd);
   if (MakeJoinHypergraph(thd, &graph, &where_is_always_false)) {
     return nullptr;
   }

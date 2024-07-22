@@ -575,10 +575,12 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 EXPLAIN
--> Hash semijoin (FirstMatch) (t2.i = t1.i)  (rows=0.52)
-    -> Table scan on t2  (rows=3)
+-> Inner hash join (LooseScan) (t2.i = t1.i)  (rows=0.52)
+    -> Remove duplicates from input grouped on t1.i  (rows=1.73)
+        -> Sort: t1.i  (rows=3)
+            -> Table scan on t1  (rows=3)
     -> Hash
-        -> Table scan on t1  (rows=3)
+        -> Table scan on t2  (rows=3)
 
 SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 i
@@ -613,10 +615,12 @@ EXPLAIN FORMAT=tree
 SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Hash semijoin (FirstMatch) (t2.i = t1.i)  (rows=1536)
-        -> Table scan on t2  (rows=1536)
+    -> Inner hash join (LooseScan) (t2.i = t1.i)  (rows=1536)
+        -> Remove duplicates from input grouped on t1.i  (rows=39.2)
+            -> Sort: t1.i  (rows=1536)
+                -> Table scan on t1  (rows=1536)
         -> Hash
-            -> Table scan on t1  (rows=1536)
+            -> Table scan on t2  (rows=1536)
 
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
@@ -762,13 +766,15 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 EXPLAIN
--> Hash semijoin (FirstMatch) (t1.i = t3.i)  (rows=0)
-    -> Table scan on t1  (rows=6)
+-> Inner hash join (LooseScan) (t1.i = t3.i)  (rows=0)
+    -> Remove duplicates from input grouped on t3.i  (rows=0)
+        -> Sort: t3.i  (rows=0)
+            -> Inner hash join (no condition)  (rows=0)
+                -> Table scan on t3  (rows=0)
+                -> Hash
+                    -> Table scan on t2  (rows=6)
     -> Hash
-        -> Inner hash join (no condition)  (rows=0)
-            -> Table scan on t3  (rows=0)
-            -> Hash
-                -> Table scan on t2  (rows=6)
+        -> Table scan on t1  (rows=6)
 
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i

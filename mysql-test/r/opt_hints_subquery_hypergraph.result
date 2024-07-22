@@ -267,47 +267,46 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Let's also turn off FirstMatch, MatLookup is then used
+Hypergraph will choose FirstMatch as MatLookup is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Let's also turn off Materialization, DuplicateWeedout should then be used
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 If we turn off all strategies, DuplicateWeedout should still be used
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
 DUPSWEEDOUT) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Turn off non-used strategies, nothing should change.  Still Loosescan
 EXPLAIN
@@ -338,33 +337,32 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Force Materialization
+Hypergraph will choose FirstMatch as Materialization is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Force DuplicateWeedout
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 If LooseScan is among candidates, it will be used
 EXPLAIN
@@ -403,24 +401,24 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Drop FirstMatch, MatLookup is next
+Hypergraph will choose FirstMatch as MatLookup is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 For this query LooseScan and Materialization is not applicable
+Hypergraph will choose LooseScan as it's done differently.
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -435,6 +433,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turn off all applicable strategies. DuplicateWeedout should be used
+Hypergraph will continue to choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -498,11 +497,10 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Forcing same strategy for both
@@ -512,26 +510,29 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Loosescan for both is not possible,  ends up with DuplicateWeedout
+Hypergraph would pick LooseScan as its done differently.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Nested loop inner join (LooseScan)  (rows=1.73)
+            -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+                -> Sort: t3.a  (rows=3)
+                    -> Table scan on t3  (rows=3)
+            -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Swap strategies compared to default
 EXPLAIN
@@ -539,15 +540,18 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+            -> Table scan on t1  (rows=4)
+            -> Hash
                 -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Different subsets of strategies for different subqueries
+Hypergraph would pick FirstMatch for the subq2
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN)
 SEMIJOIN(@subq2 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t1
@@ -570,11 +574,10 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Another combination
@@ -584,13 +587,15 @@ SEMIJOIN(@subq2 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+            -> Table scan on t1  (rows=4)
+            -> Hash
                 -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Turn off default
 EXPLAIN
@@ -599,15 +604,18 @@ NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+            -> Table scan on t1  (rows=4)
+            -> Hash
                 -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Also turn off 2nd choice. Gives DuplicateWeedout over both
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH)
 NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN) */ * FROM t1
@@ -615,14 +623,14 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Also turn off DuplicateWeedout.  Materialization is only one left.
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT)
 NO_SEMIJOIN(@subq2 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
@@ -630,14 +638,14 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Force materialization with SEMIJOIN hints instead
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
@@ -645,15 +653,15 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 This query gives DuplicateWeedout over both since combining
 DuplicateWeedout with another strategy does not seem possible.
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
@@ -661,14 +669,14 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 More alternatives for 2nd subquery gives Materialization for first
+Hypergraph will choose FirstMatch as Materialization is not supported.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 LOOSESCAN, FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
@@ -676,14 +684,14 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 A query with nested subqueries which by default will use FirstMatch
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -698,6 +706,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Let's turn off FirstMatch, Materialization is then selected
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -712,6 +721,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Let's also turn off Materialization,  DuplicateWeedout is then used
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -726,6 +736,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Also turn off DuplicateWeedout. LooseScan not usable; so still DuplicateWeedout
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
 FROM t1
@@ -741,6 +752,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 If we turn off all strategies, DuplicateWeedout should still be used
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, MATERIALIZATION,
 DUPSWEEDOUT) */ *
@@ -748,13 +760,12 @@ FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+-> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+    -> Table scan on t1  (rows=4)
+    -> Hash
         -> Nested loop inner join  (rows=3)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+            -> Table scan on t3  (rows=3)
             -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
-    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Test same query with SEMIJOIN hint
 Force FirstMatch, should not change anything
@@ -763,15 +774,15 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+-> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+    -> Table scan on t1  (rows=4)
+    -> Hash
         -> Nested loop inner join  (rows=3)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+            -> Table scan on t3  (rows=3)
             -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
-    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Force LooseScan, will use DuplicateWeedout
+Hypergraph will choose LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -786,46 +797,46 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Force Materialization
+Hypergraph will choose FirstMatch as Materialization is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+-> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+    -> Table scan on t1  (rows=4)
+    -> Hash
         -> Nested loop inner join  (rows=3)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+            -> Table scan on t3  (rows=3)
             -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
-    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Force DuplicateWeedout
+Hypergraph will choose FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+-> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+    -> Table scan on t1  (rows=4)
+    -> Hash
         -> Nested loop inner join  (rows=3)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+            -> Table scan on t3  (rows=3)
             -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
-    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 If FirstMatch is among candidates, it will be used
+Default for Hyeprgraph here is LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
+-> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+    -> Table scan on t1  (rows=4)
+    -> Hash
         -> Nested loop inner join  (rows=3)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+            -> Table scan on t3  (rows=3)
             -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
-    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
@@ -855,6 +866,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Drop FirstMatch. Materialization will be used
+Hypergraph will use LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -869,6 +881,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Drop Materialization, DuplicateWeedout next
+Hypergraph will use LooseScan
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -940,9 +953,12 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 Do not use FirstMatch nor Materialization for inner
 EXPLAIN
@@ -958,9 +974,12 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 LooseScan is last resort
 EXPLAIN
@@ -977,9 +996,12 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 Allow all stragies except default
 EXPLAIN
@@ -996,9 +1018,12 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 Force a particular strategy
 EXPLAIN
@@ -1013,11 +1038,15 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 Turn off semijoin for inner-most subquery.  FirstMatch is used for outer
+Hypergraph would prefer LooseScan
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
@@ -1076,6 +1105,7 @@ EXPLAIN
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 LooseScan can not be used since index scan would not be "covering"
+Hypergraph can do LooseScan here
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT)
 NO_SEMIJOIN(@subq2) */ * FROM t1
@@ -1121,18 +1151,17 @@ SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
-                -> Table scan on t3  (rows=3)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
-                        -> Limit: 1 row(s)  (rows=1)
-                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
-                                -> Materialize with deduplication  (rows=4)
-                                    -> Table scan on t2  (rows=4)
-    -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+-> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+    -> Table scan on t1  (rows=4)
+    -> Hash
+        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+            -> Table scan on t3  (rows=3)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on t2  (rows=4)
 
 Turn off semijoin for both subqueries
 EXPLAIN
@@ -1165,21 +1194,19 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 EXECUTE stmt1;
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXECUTE stmt1;
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 DEALLOCATE PREPARE stmt1;
@@ -1197,9 +1224,12 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 EXECUTE stmt1;
 EXPLAIN
@@ -1210,9 +1240,12 @@ EXPLAIN
             -> Limit: 1 row(s)  (rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
-                        -> Nested loop semijoin (FirstMatch)  (rows=1.5)
-                            -> Table scan on t3  (rows=3)
-                            -> Covering index lookup on t2 using a (a = t3.b)  (rows=1)
+                        -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
+                            -> Remove duplicates from input grouped on t2.a  (rows=2)
+                                -> Sort: t2.a  (rows=4)
+                                    -> Table scan on t2  (rows=4)
+                            -> Hash
+                                -> Table scan on t3  (rows=3)
 
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch = default;
@@ -1262,11 +1295,9 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
-    -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
+-> Nested loop semijoin (FirstMatch)  (rows=2)
+    -> Table scan on t2  (rows=4)
+    -> Single-row covering index lookup on t1 using PRIMARY (a = t2.a)  (rows=1)
 
 Query with two sub-queries
 EXPLAIN
@@ -1411,45 +1442,43 @@ This query will get LooseScan by default. FirstMatch now.
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Let's turn off LooseScan also by hint, FirstMatch should still be SELECTed
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Let's also turn off FirstMatch, MatLookup should then be used
+Hypergraph will use FirstMatch as MatLookup is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Let's also turn off Materialization, DuplicateWeedout should then be used
+Hypergraph will use FirstMatch as DupliecateWeedout MatLookup is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Let's force LooseScan back on
 EXPLAIN
@@ -1463,15 +1492,15 @@ EXPLAIN
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Forcing another strategy
+Hypergraph will use the default - FirstMatch
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 If LooseScan is among candidates, it is used even if originally disabled
 EXPLAIN
@@ -1512,49 +1541,46 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Drop all remaining strategies with hint, should use DuplicateWeedout
+Hypergraph will use FirstMatch
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 For this query LooseScan and Materialization is not applicable
 Should use DuplicateWeedout since FirstMatch is disabled
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Filter: (t1.b = t3.a)  (rows=0.333)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+-> Hash semijoin (FirstMatch) (t1.b = t3.a), (t1.a = t3.b)  (rows=0.577)
+    -> Table scan on t1  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turn off all applicable strategies. DuplicateWeedout should still be used
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Filter: (t1.b = t3.a)  (rows=0.333)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
+-> Hash semijoin (FirstMatch) (t1.b = t3.a), (t1.a = t3.b)  (rows=0.577)
+    -> Table scan on t1  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1574,17 +1600,17 @@ Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Default for this query is Loosecan for first and FirstMatch for latter
 Since both strategies are disabled, will now use DuplicateWeedout
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Allowing LooseScan and FirstMatch and optimizer_switch is ignored
@@ -1609,11 +1635,10 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Forcing same strategy for both
@@ -1623,11 +1648,10 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Swap strategies compared to default
@@ -1636,13 +1660,15 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) SEMIJOIN(@subq2 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+            -> Table scan on t1  (rows=4)
+            -> Hash
                 -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Different subsets of strategies for different subqueries
 EXPLAIN
@@ -1660,6 +1686,7 @@ EXPLAIN
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Turn off DuplicateWeedout for both.  Materialization is left
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT)
 NO_SEMIJOIN(@subq2 DUPSWEEDOUT) */ * FROM t1
@@ -1667,14 +1694,14 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Forcing materialization should have same effect
+Hypergraph will use FirstMatch as Materialization is not supported
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
@@ -1682,25 +1709,24 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Turn off DuplicateWeedout for first.  Materialization is used for both
+Hypergraph will use FirstMatch as DuplicateWeedout is not supported
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Turn off DuplicateWeedout for second.  Same effect.
@@ -1710,28 +1736,28 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Enable all strategies except DuplicateWeedout
 SET optimizer_switch='firstmatch=on,loosescan=on,materialization=on,duplicateweedout=off';
 If we turn off all other strategies, DuplicateWeedout will be used
+Hypergraph will choose FirstMatch
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH, MATERIALIZATION) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 LooseScan and Materialization is not applicable, FirstMatch is used
+Hypergraph can do LooseScan here. So it will pick it.
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1746,6 +1772,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turn off all applicable strategies. DuplicateWeedout should be used
+Hypergraph can do LooseScan here. So it will pick it.
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1776,14 +1803,14 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Disable all strategies
 SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=off';
 DuplicateWeedout is then used
+For Hypergraph it will be FirstMatch
 EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Turning off extra strategies should not change anything
 EXPLAIN
@@ -1791,11 +1818,10 @@ SELECT /*+ NO_SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 Turning on some strategies should give one of those
 EXPLAIN
@@ -1803,14 +1829,14 @@ SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ *
 FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
--> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
+-> Hash semijoin (FirstMatch) (t2.a = t3.a)  (rows=2.31)
+    -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Table scan on t3  (rows=3)
 
 For this query that cannot use LooseScan or Materialization,
 turning those on will still give DupliateWeedout
+Hypergraph will pick LooseScan.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1825,6 +1851,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Turning on FirstMatch should give FirstMatch
+Hypergraph will continue to pick LooseScan.
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
@@ -1848,35 +1875,33 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 EXECUTE stmt1;
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 SET optimizer_switch = 'duplicateweedout=off';
 Will now use materialization
+No effect for Hypergraph
 EXECUTE stmt1;
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (cost=9.59..9.59 rows=0.866)
-    -> Nested loop inner join (LooseScan)  (cost=4.51..6.26 rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (cost=2.53..2.82 rows=1.73)
-            -> Sort: t3.a  (cost=2.13..2.13 rows=3)
-                -> Table scan on t3  (cost=0.313..0.94 rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (cost=1.98..1.98 rows=1)
+-> Nested loop semijoin (FirstMatch)  (cost=11.3..11.3 rows=0.866)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (cost=6.88..7.94 rows=1.73)
+        -> Table scan on t1  (cost=0.359..1.44 rows=4)
+        -> Hash
+            -> Table scan on t3  (cost=0.313..0.94 rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
 
 SET optimizer_switch = 'duplicateweedout=on';
 Turn DuplicateWeedout back on
 EXECUTE stmt1;
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (cost=9.59..9.59 rows=0.866)
-    -> Nested loop inner join (LooseScan)  (cost=4.51..6.26 rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (cost=2.53..2.82 rows=1.73)
-            -> Sort: t3.a  (cost=2.13..2.13 rows=3)
-                -> Table scan on t3  (cost=0.313..0.94 rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (cost=1.98..1.98 rows=1)
+-> Nested loop semijoin (FirstMatch)  (cost=11.3..11.3 rows=0.866)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (cost=6.88..7.94 rows=1.73)
+        -> Table scan on t1  (cost=0.359..1.44 rows=4)
+        -> Hash
+            -> Table scan on t3  (cost=0.313..0.94 rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
 
 DEALLOCATE PREPARE stmt1;
@@ -1974,16 +1999,19 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN() */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=2)
-    -> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
-        -> Table scan on t1  (rows=4)
-        -> Select #2 (subquery in condition; run only once)
-            -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
-                -> Limit: 1 row(s)  (rows=1)
-                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
-                        -> Materialize with deduplication  (rows=3)
-                            -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=2)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
+            -> Table scan on t1  (rows=4)
+            -> Select #2 (subquery in condition; run only once)
+                -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                            -> Materialize with deduplication  (rows=3)
+                                -> Table scan on t3  (rows=3)
 
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
@@ -1993,13 +2021,15 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN(LOOSESCAN) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
 EXPLAIN
--> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
+-> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
+    -> Remove duplicates from input grouped on t2.a  (rows=2)
+        -> Sort: t2.a  (rows=4)
+            -> Table scan on t2  (rows=4)
+    -> Hash
+        -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+            -> Table scan on t1  (rows=4)
+            -> Hash
                 -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
-    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq1`  LOOSESCAN) is ignored as conflicting/duplicated
@@ -2043,11 +2073,10 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
-    -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
+    -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
+        -> Table scan on t1  (rows=4)
+        -> Hash
+            -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 Warnings:
