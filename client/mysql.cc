@@ -251,6 +251,8 @@ static char *opt_register_factor = nullptr;
 static bool opt_tel_plugin = false;
 static const char *opt_tel_plugin_name = "telemetry_client";
 
+static bool opt_system_command = false;
+
 static struct my_option my_empty_options[] = {
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -429,7 +431,8 @@ static COMMANDS commands[] = {
      "Execute an SQL script file. Takes a file name as an argument."},
     {"status", 's', com_status, false,
      "Get status information from the server."},
-    {"system", '!', com_shell, true, "Execute a system shell command."},
+    {"system", '!', com_shell, true,
+     "Execute a system shell command, if enabled"},
     {"tee", 'T', com_tee, true,
      "Set outfile [to_outfile]. Append everything into given outfile."},
     {"use", 'u', com_use, true,
@@ -2086,6 +2089,10 @@ static struct my_option my_long_options[] = {
      "Specifies factor for which registration needs to be done for.",
      &opt_register_factor, &opt_register_factor, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
+    {"system-command", 0,
+     "Enable or disable (by default) the 'system' mysql command.",
+     &opt_system_command, &opt_system_command, nullptr, GET_BOOL, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -4500,6 +4507,13 @@ static int com_shell(String *buffer [[maybe_unused]],
   if (!shell_cmd) {
     put_info("Usage: \\! shell-command", INFO_ERROR);
     return -1;
+  }
+
+  if (!opt_system_command) {
+    return put_info(
+        "'system' command received, but the --system-command option is off. "
+        "Skipping.",
+        INFO_ERROR);
   }
   /*
     The output of the shell command does not

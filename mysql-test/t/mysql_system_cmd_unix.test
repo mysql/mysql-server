@@ -3,9 +3,9 @@
 # Check that the mysql client's system command(\! in short) can execute
 # commands on the command interpreter through which the client is invoked
 # and that it can use the latter's STDIN, STDOUT and STDERR streams.
---exec $MYSQL test -e "system echo From_system_to_STDOUT" 2>&1
---exec $MYSQL test -e "\\! echo From_\\\\!_to_STDOUT" 2>&1
---exec $MYSQL test -e "system echo From_system_to_STDERR >> /dev/stderr" 2>&1
---exec $MYSQL test -e "\\! echo From_\\\\!_to_STDERR >> /dev/stderr" 2>&1
---exec echo "From_STDIN_to_system" |  $MYSQL test -e "system cat" 2>&1
---exec echo "From_STDIN_to_\\!" |  $MYSQL test -e "\\! cat" 2>&1
+--exec $MYSQL --system-command test -e "system echo From_system_to_STDOUT" 2>&1
+--exec $MYSQL --system-command test -e "\\! echo From_\\\\!_to_STDOUT" 2>&1
+--exec $MYSQL --system-command test -e "system echo From_system_to_STDERR >> /dev/stderr" 2>&1
+--exec $MYSQL --system-command test -e "\\! echo From_\\\\!_to_STDERR >> /dev/stderr" 2>&1
+--exec echo "From_STDIN_to_system" |  $MYSQL test --system-command -e "system cat" 2>&1
+--exec echo "From_STDIN_to_\\!" |  $MYSQL test --system-command -e "\\! cat" 2>&1

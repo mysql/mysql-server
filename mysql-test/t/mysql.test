@@ -1,4 +1,5 @@
-#
+
+
 # Testing the MySQL command line client(mysql)
 #
 
@@ -761,7 +762,21 @@ exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug35290350.sql;
 --echo # Cleanup
 remove_file $MYSQLTEST_VARDIR/tmp/bug35290350.sql;
 
+--echo #
+--echo # Bug # 36377685: mysqldump blindly trusting SHOW CREATE TABLE leads to
+--echo #   arbitrary code execution.
+--echo #
 
+--echo # Test "system": Must return an error
+--error 1
+--exec $MYSQL test -e "system ls;" 2>&1
+
+--echo # Test "!": Must return an error
+--error 1
+--exec $MYSQL test -e "\\! ls" 2>&1
+
+--echo # Test "system": Must pass
+--exec $MYSQL test --system-command -e "system echo Hello World;" 2>&1
 
 --echo
 --echo End of tests

@@ -603,5 +603,15 @@ what
 what
 8check if delimiter is restored
 # Cleanup
+#
+# Bug # 36377685: mysqldump blindly trusting SHOW CREATE TABLE leads to
+#   arbitrary code execution.
+#
+# Test "system": Must return an error
+ERROR at line 1: 'system' command received, but the --system-command option is off. Skipping.
+# Test "!": Must return an error
+ERROR at line 1: 'system' command received, but the --system-command option is off. Skipping.
+# Test "system": Must pass
+Hello World
 
 End of tests

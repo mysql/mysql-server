@@ -4,8 +4,8 @@
 --echo # WL#13391: Enable the "system" mysql command line command for windows
 --echo #
 
---exec $MYSQL test -e "system echo haha" 2>&1
---exec $MYSQL test -e "\\! echo hihi" 2>&1
---exec $MYSQL test -e "system rmdir \\"$MYSQL_TMP_DIR\\non_existent_dir\\"" 2>&1
+--exec $MYSQL test --system-command -e "system echo haha" 2>&1
+--exec $MYSQL test --system-command -e "\\! echo hihi" 2>&1
+--exec $MYSQL test --system-command -e "system rmdir \\"$MYSQL_TMP_DIR\\non_existent_dir\\"" 2>&1
 
 --echo # End of 8.0 tests
