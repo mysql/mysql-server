@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+Copyright (c) 2007, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -303,45 +303,6 @@ struct fts_token_t {
 
 /** It's defined in fts/fts0fts.c */
 extern const fts_index_selector_t fts_index_selector[];
-
-/******************************************************************//**
-Compare two fts_trx_row_t instances doc_ids. */
-UNIV_INLINE
-int
-fts_trx_row_doc_id_cmp(
-/*===================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2);			/*!< in: id2 */
-
-/******************************************************************//**
-Compare two fts_ranking_t instances doc_ids. */
-UNIV_INLINE
-int
-fts_ranking_doc_id_cmp(
-/*===================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2);			/*!< in: id2 */
-
-/******************************************************************//**
-Compare two fts_update_t instances doc_ids. */
-UNIV_INLINE
-int
-fts_update_doc_id_cmp(
-/*==================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2);			/*!< in: id2 */
 
 /******************************************************************//**
 Decode and return the integer that was encoded using our VLC scheme.*/

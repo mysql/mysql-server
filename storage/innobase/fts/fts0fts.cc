@@ -2438,7 +2438,8 @@ fts_trx_table_create(
 	ftt->table = table;
 	ftt->fts_trx = fts_trx;
 
-	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
+	ftt->rows = rbt_create(
+                   sizeof(fts_trx_row_t), fts_doc_id_field_cmp<fts_trx_row_t>);
 
 	return(ftt);
 }
@@ -2462,7 +2463,8 @@ fts_trx_table_clone(
 	ftt->table = ftt_src->table;
 	ftt->fts_trx = ftt_src->fts_trx;
 
-	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
+	ftt->rows = rbt_create(
+                   sizeof(fts_trx_row_t), fts_doc_id_field_cmp<fts_trx_row_t>);
 
 	/* Copy the rb tree values to the new savepoint. */
 	rbt_merge_uniq(ftt->rows, ftt_src->rows);
@@ -4072,7 +4074,7 @@ fts_sync_add_deleted_cache(
 
 	ut_a(ib_vector_size(doc_ids) > 0);
 
-	ib_vector_sort(doc_ids, fts_update_doc_id_cmp);
+	ib_vector_sort(doc_ids, fts_doc_id_field_cmp<fts_update_t>);
 
 	info = pars_info_create();
 
