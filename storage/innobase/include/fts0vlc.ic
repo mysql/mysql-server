@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Return length of val if it were encoded using our VLC scheme.
  FIXME: We will need to be able encode 8 bytes value
  @return length of value encoded, in bytes */
-static inline ulint fts_get_encoded_len(ulint val) /* in: value to encode */
+inline ulint fts_get_encoded_len(ulint val) /* in: value to encode */
 {
   if (val <= 127) {
     return (1);
@@ -61,9 +61,8 @@ static inline ulint fts_get_encoded_len(ulint val) /* in: value to encode */
 
 /** Encode an integer using our VLC scheme and return the length in bytes.
  @return length of value encoded, in bytes */
-static inline ulint fts_encode_int(
-    ulint val, /* in: value to encode */
-    byte *buf) /* in: buffer, must have enough space */
+inline ulint fts_encode_int(ulint val, /* in: value to encode */
+                            byte *buf) /* in: buffer, must have enough space */
 {
   ulint len;
 
@@ -111,7 +110,7 @@ static inline ulint fts_encode_int(
 
 /** Decode and return the integer that was encoded using our VLC scheme.
  @return value decoded */
-static inline ulint fts_decode_vlc(
+inline ulint fts_decode_vlc(
     byte **ptr) /* in: ptr to decode from, this ptr is
                 incremented by the number of bytes decoded */
 {
