@@ -106,22 +106,6 @@ void throw_account_exists(MySQLSession *session, const MySQLSession::Error &e,
   throw account_exists(msg);
 }
 
-std::string compute_password_hash(const std::string &password) {
-  uint8_t hash_stage1[SHA1_HASH_SIZE];
-  compute_sha1_hash(hash_stage1, password.c_str(), password.length());
-  uint8_t hash_stage2[SHA1_HASH_SIZE];
-  compute_sha1_hash(hash_stage2, (const char *)hash_stage1, SHA1_HASH_SIZE);
-
-  std::stringstream ss;
-  ss << "*";
-  ss << std::hex << std::setfill('0') << std::uppercase;
-  for (unsigned i = 0; i < SHA1_HASH_SIZE; ++i) {
-    ss << std::setw(2) << (int)hash_stage2[i];
-  }
-
-  return ss.str();
-}
-
 unsigned get_password_retries(const UserOptions &user_options) {
   return user_options.password_retries;
 }
@@ -258,7 +242,7 @@ std::set<std::string> BootstrapMySQLAccount::get_hostnames_of_created_accounts(
  */
 std::string BootstrapMySQLAccount::create_router_accounts(
     const UserOptions &user_options, const std::set<std::string> &hostnames,
-    const std::string &username, std::string &password,
+    const std::string &username, const std::string &password,
     bool password_change_ok) {
   /*
   Ideally, we create a single account for the specific host that the router is
@@ -307,37 +291,16 @@ std::string BootstrapMySQLAccount::create_router_accounts(
 
 std::string BootstrapMySQLAccount::create_accounts_with_compliant_password(
     const UserOptions &user_options, const std::string &username,
-    const std::set<std::string> &hostnames, std::string &password,
+    const std::set<std::string> &hostnames, const std::string &password,
     bool password_change_ok, const bool if_not_exists) {
   mysql_harness::RandomGenerator rg;
 
-  const bool force_password_validation = user_options.force_password_validation;
-  std::string password_candidate;
-  unsigned retries =
+  auto retries =
       get_password_retries(user_options);  // throws std::invalid_argument
-  if (!force_password_validation) {
-    // 1) Try to create an account using mysql_native_password with the hashed
-    // password to avoid validate_password verification (hashing is done inside
-    // create_accounts())
-    password_candidate = password =
-        password.empty() && password_change_ok
-            ? rg.generate_strong_password(kMetadataServerPasswordLength)
-            : password;
-    try {
-      // create_accounts() throws many things, see its description
-      create_accounts(user_options, username, hostnames, password_candidate,
-                      true /*hash password*/, if_not_exists);
-      return password_candidate;
-    } catch (const plugin_not_loaded &) {
-      // fallback to 2)
-    }
-  }
 
-  // 2) If 1) failed because of the missing mysql_native_password plugin,
-  //    or "-force-password-validation" parameter has being used
-  //    try to create an account using the password directly
+  // try to create an account using the password directly
   while (true) {
-    password_candidate =
+    const std::string password_candidate =
         password.empty() && password_change_ok
             ? rg.generate_strong_password(kMetadataServerPasswordLength)
             : password;
@@ -345,14 +308,14 @@ std::string BootstrapMySQLAccount::create_accounts_with_compliant_password(
     try {
       // create_accounts() throws many things, see its description
       create_accounts(user_options, username, hostnames, password_candidate,
-                      false /*hash password*/, if_not_exists);
+                      if_not_exists);
       return password_candidate;
     } catch (const password_too_weak &e) {
       if (--retries == 0          // retries used up
           || !password.empty()    // \_ retrying is pointless b/c the password
           || !password_change_ok  // /  will be the same every time
       ) {
-        // 3) If 2) failed issue an error suggesting the change to
+        // If this failed issue an error suggesting the change to
         // validate_password rules
         std::stringstream err_msg;
         err_msg << "Error creating user account: " << e.what() << std::endl
@@ -384,14 +347,14 @@ std::string BootstrapMySQLAccount::create_accounts_with_compliant_password(
 void BootstrapMySQLAccount::create_accounts(
     const UserOptions &user_options, const std::string &username,
     const std::set<std::string> &hostnames, const std::string &password,
-    bool hash_password /*=false*/, bool if_not_exists /*=false*/) {
+    bool if_not_exists /*=false*/) {
   harness_assert(hostnames.size());
   //  harness_assert(undo_create_account_list_.type ==
   //                 UndoCreateAccountList::kNotSet);
 
   // when this throws, it may trigger failover (depends on what exception it
   // throws)
-  create_users(username, hostnames, password, hash_password, if_not_exists);
+  create_users(username, hostnames, password, if_not_exists);
 
   // Now that we created users, we can no longer fail-over on subsequent
   // errors, because that write operation may automatically get propagated to
@@ -431,7 +394,6 @@ void BootstrapMySQLAccount::create_accounts(
 void BootstrapMySQLAccount::create_users(const std::string &username,
                                          const std::set<std::string> &hostnames,
                                          const std::string &password,
-                                         bool hash_password /*=false*/,
                                          bool if_not_exists /*=false*/) {
   harness_assert(hostnames.size());
 
@@ -439,10 +401,8 @@ void BootstrapMySQLAccount::create_users(const std::string &username,
   std::string accounts_with_auth;
   {
     const std::string auth_part =
-        " IDENTIFIED "s +
-        (hash_password ? "WITH mysql_native_password AS " : "BY ") +
-        mysql_->quote(hash_password ? compute_password_hash(password)
-                                    : password);
+        " IDENTIFIED WITH `caching_sha2_password` BY "s +
+        mysql_->quote(password);
 
     const std::string quoted_username = mysql_->quote(username);
     bool is_first{true};
@@ -476,13 +436,9 @@ void BootstrapMySQLAccount::create_users(const std::string &username,
                                               // current policy requirements
       throw password_too_weak(err_msg);
     }
-    if (e.code() == ER_PLUGIN_IS_NOT_LOADED) {  // auth plugin not loaded
-      throw plugin_not_loaded(err_msg);
-    }
     if (e.code() == ER_CANNOT_USER) {  // user already exists
-      // // this should only happen when running with --account-create always,
-      // // which sets if_not_exists to false
-      // harness_assert(!if_not_exists);
+      // this should only happen when running with --account-create always,
+      // which sets if_not_exists to false harness_assert(!if_not_exists);
 
       throw_account_exists(mysql_, e, username);
     }

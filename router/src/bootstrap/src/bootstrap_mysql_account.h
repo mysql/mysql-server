@@ -51,25 +51,23 @@ class BootstrapMySQLAccount {
   std::string create_router_accounts(const UserOptions &user_options,
                                      const std::set<std::string> &hostnames,
                                      const std::string &username,
-                                     std::string &password,
+                                     const std::string &password,
                                      bool password_change_ok);
 
  private:
   std::string create_accounts_with_compliant_password(
       const UserOptions &user_options, const std::string &username,
-      const std::set<std::string> &hostnames, std::string &password,
+      const std::set<std::string> &hostnames, const std::string &password,
       bool password_change_ok, bool if_not_exists);
 
   void create_accounts(const UserOptions &user_options,
                        const std::string &username,
                        const std::set<std::string> &hostnames,
-                       const std::string &password, bool hash_password = false,
-                       bool if_not_exists = false);
+                       const std::string &password, bool if_not_exists = false);
 
   void create_users(const std::string &username,
                     const std::set<std::string> &hostnames,
-                    const std::string &password, bool hash_password,
-                    bool if_not_exists);
+                    const std::string &password, bool if_not_exists);
 
   void give_grants_to_users(const UserOptions &user_options,
                             const std::string &new_accounts);
