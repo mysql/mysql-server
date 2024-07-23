@@ -4232,21 +4232,23 @@ class Field_typed_array final : public Field_json {
   int key_cmp(const uchar *, const uchar *) const override { return -1; }
   /**
    * @brief This function will behave similarly to MEMBER OF json operation,
-   *        unlike regular key_cmp. The key value will be checked against
-   *        members of the array and the presence of the key will be considered
-   *        as the record matching the given key. This particular definition is
-   *        used in descending ref index scans. Descending index scan uses
-   *        handler::ha_index_prev() function to read from the storage engine
-   *        which does not compare the index key with the search key [unlike
-   *        handler::ha_index_next_same()]. Hence each retrieved record needs
-   *        to be validated to find a stop point. Refer key_cmp_if_same() and
-   *        RefIterator<true>::Read() for more details.
+   *        unlike regular key_cmp. Since scans on multi-valued indexes always
+   *        go in the ascending direction, and always start on the first entry
+   *        that is not less than the key, a record not matching the MEMBER OF
+   *        condition is assumed to be greater than the key, so the function
+   *        always returns 1, indicating greater than, for not found.
+   *        This definition is used in descending ref index scans.
+   *        Descending index scan uses handler::ha_index_prev() function to read
+   *        from the storage engine which does not compare the index key with
+   *        the search key [unlike handler::ha_index_next_same()]. Hence each
+   *        retrieved record needs to be validated to find a stop point. Refer
+   *        key_cmp_if_same() and RefIterator<true>::Read() for more details.
    *
    * @param   key_ptr         Pointer to the key
    * @param   key_length      Key length
    * @return
    *      0   Key found in the record
-   *      -1  Key not found in the record
+   *      1   Key not found in the record
    */
   int key_cmp(const uchar *key_ptr, uint key_length) const override;
   /**

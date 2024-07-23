@@ -13287,7 +13287,7 @@ static bool read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type,
 
 ha_rows ha_ndbcluster::multi_range_read_info_const(
     uint keyno, RANGE_SEQ_IF *seq, void *seq_init_param, uint n_ranges,
-    uint *bufsz, uint *flags, Cost_estimate *cost) {
+    uint *bufsz, uint *flags, bool *force_default_mrr, Cost_estimate *cost) {
   ha_rows rows;
   uint def_flags = *flags;
   uint def_bufsz = *bufsz;
@@ -13295,8 +13295,9 @@ ha_rows ha_ndbcluster::multi_range_read_info_const(
   DBUG_TRACE;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  rows = handler::multi_range_read_info_const(
-      keyno, seq, seq_init_param, n_ranges, &def_bufsz, &def_flags, cost);
+  rows = handler::multi_range_read_info_const(keyno, seq, seq_init_param,
+                                              n_ranges, &def_bufsz, &def_flags,
+                                              force_default_mrr, cost);
   if (unlikely(rows == HA_POS_ERROR)) {
     return rows;
   }
@@ -13304,10 +13305,13 @@ ha_rows ha_ndbcluster::multi_range_read_info_const(
   /*
     If HA_MRR_USE_DEFAULT_IMPL has been passed to us, that is
     an order to use the default MRR implementation.
-    Otherwise, make a choice based on requested *flags, handler
-    capabilities, cost and mrr* flags of @@optimizer_switch.
+    Also, if multi_range_read_info_const() detected that "DS_MRR" cannot
+    be used (E.g. Using a multi-valued index for non-equality ranges), we
+    are mandated to use the default implementation. Else, make a choice
+    based on requested *flags, handler capabilities, cost and mrr* flags
+    of @@optimizer_switch.
   */
-  if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
+  if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || *force_default_mrr ||
       choose_mrr_impl(keyno, n_ranges, rows, bufsz, flags, cost)) {
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags = def_flags;
