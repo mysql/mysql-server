@@ -400,7 +400,8 @@ static COMMANDS commands[] = {
      "Execute an SQL script file. Takes a file name as an argument."},
     {"status", 's', com_status, false,
      "Get status information from the server."},
-    {"system", '!', com_shell, true, "Execute a system shell command."},
+    {"system", '!', com_shell, true,
+     "Execute a system shell command, if enabled"},
     {"tee", 'T', com_tee, true,
      "Set outfile [to_outfile]. Append everything into given outfile."},
     {"use", 'u', com_use, true,
@@ -1645,6 +1646,8 @@ void window_resize(int) {
 }
 #endif
 
+static bool opt_system_command = true;
+
 static struct my_option my_long_options[] = {
     {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -1969,6 +1972,10 @@ static struct my_option my_long_options[] = {
      &opt_oci_config_file, &opt_oci_config_file, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
 #include "authentication_kerberos_clientopt-longopts.h"
+    {"system-command", 0,
+     "Enable (by default) or disable the system mysql command.",
+     &opt_system_command, &opt_system_command, nullptr, GET_BOOL, NO_ARG, 1, 0,
+     0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -4127,6 +4134,13 @@ static int com_shell(String *buffer [[maybe_unused]],
   if (!(shell_cmd = strchr(line, ' '))) {
     put_info("Usage: \\! shell-command", INFO_ERROR);
     return -1;
+  }
+
+  if (!opt_system_command) {
+    return put_info(
+        "'system' command received, but the --system-command option is off. "
+        "Skipping.",
+        INFO_ERROR);
   }
   /*
     The output of the shell command does not
