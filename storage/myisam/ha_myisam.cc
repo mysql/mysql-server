@@ -2024,11 +2024,10 @@ int ha_myisam::multi_range_read_next(char **range_info) {
   return ds_mrr.dsmrr_next(range_info);
 }
 
-ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
-                                               void *seq_init_param,
-                                               uint n_ranges, uint *bufsz,
-                                               uint *flags,
-                                               Cost_estimate *cost) {
+ha_rows ha_myisam::multi_range_read_info_const(
+    uint keyno, RANGE_SEQ_IF *seq, void *seq_init_param, uint n_ranges,
+    uint *bufsz, uint *flags, bool *force_default_mrr [[maybe_unused]],
+    Cost_estimate *cost) {
   /*
     This call is here because there is no location where this->table would
     already be known.

@@ -624,8 +624,10 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
 
   *bufsize = thd->variables.read_rnd_buff_size;
   // Sets is_ror_scan to false for some queries, e.g. multi-ranges
+  bool force_default_mrr = false;
   rows = file->multi_range_read_info_const(keynr, &seq_if, (void *)&seq, 0,
-                                           bufsize, mrr_flags, cost);
+                                           bufsize, mrr_flags,
+                                           &force_default_mrr, cost);
   if (rows != HA_POS_ERROR) {
     param->table->quick_rows[keynr] = rows;
     if (update_tbl_stats) {

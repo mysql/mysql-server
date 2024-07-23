@@ -3433,3 +3433,62 @@ id	doc_id	doc
 6	3	{"val": [1]}
 DROP TABLE t;
 # restart:
+#
+# Bug#33334911 - Multi-valued index performance is too slow
+# (Access too many rows than required)
+#
+CREATE TABLE t1 (
+id INT NOT NULL,
+f1 enum('T1','T2','T3') NOT NULL,
+f2 INT NOT NULL,
+json_value json DEFAULT (json_array()),
+PRIMARY KEY (id),
+KEY idx (f1 ,(CAST(json_extract(json_value,_utf8mb4'$') AS UNSIGNED ARRAY)), f2)
+);
+INSERT INTO t1 VALUES (1, 'T2', 15, '[1, 3, 5, 7]');
+INSERT INTO t1 VALUES (2, 'T2', 25, '[10, 20, 30, 40]');
+INSERT INTO t1 VALUES (3, 'T2', 35, '[15, 25, 35, 45]');
+INSERT INTO t1 VALUES (4, 'T2', 45, '[100, 200, 300, 400]');
+INSERT INTO t1 VALUES (5, 'T2', 55, '[120, 220, 320, 420]');
+INSERT INTO t1 VALUES (6, 'T2', 65, '[140, 240, 340, 440]');
+INSERT INTO t1 VALUES (7, 'T2', 9, '[100, 200, 300, 400]');
+INSERT INTO t1 VALUES (8, 'T2', 9, '[100, 200, 300, 400]');
+INSERT INTO t1 VALUES (9, 'T2', 9, '[100, 200, 300, 400]');
+INSERT INTO t1 VALUES (10, 'T2', 9, '[100, 200, 300, 400]');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM t1
+WHERE f1 IN ('T2') AND JSON_OVERLAPS(json_value->'$', CAST('[100]' AS JSON)) AND f2>=10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx	idx	14	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = 'T2') and json_overlaps(cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array),json'[100]') and (`test`.`t1`.`f2` >= 10))
+FLUSH STATUS;
+SELECT COUNT(*) FROM t1
+WHERE f1 IN ('T2') AND JSON_OVERLAPS(json_value->'$', CAST('[100]' AS JSON)) AND f2>=10;
+COUNT(*)
+1
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	1
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+SET @save_opt=@@optimizer_switch;
+SET @@optimizer_switch="mrr_cost_based=off";
+EXPLAIN SELECT COUNT(*) FROM t1
+WHERE f1 IN ('T2') AND JSON_OVERLAPS(json_value->'$', CAST('[100]' AS JSON)) AND f2>=10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx	idx	14	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = 'T2') and json_overlaps(cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array),json'[100]') and (`test`.`t1`.`f2` >= 10))
+SELECT COUNT(*) FROM t1
+WHERE f1 IN ('T2') AND JSON_OVERLAPS(json_value->'$', CAST('[100]' AS JSON)) AND f2>=10;
+COUNT(*)
+1
+SET @@optimizer_switch=@save_opt;
+DROP TABLE t1;
