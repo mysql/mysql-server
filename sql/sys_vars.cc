@@ -7476,14 +7476,10 @@ static Sys_var_ulonglong Sys_set_operations_buffer_size(
 //   a) set index, cf. explanation in comments for class SpillState
 //   b) chunk index
 //   c) row number
-//   d) optional string: "right_operand"
 // Syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
 //         <row_no:integer 1-based>
 // Example:
 //       SET SESSION debug_set_operations_secondary_overflow_at = '1 5 7';
-//       SET SESSION debug_set_operations_secondary_overflow_at =
-//           '1 5 7 right_operand';
-//
 // If the numbers given are outside range on the high side, they will never
 // trigger any secondary spill.
 static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(

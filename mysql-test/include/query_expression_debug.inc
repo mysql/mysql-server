@@ -173,21 +173,4 @@ SET SESSION tmp_table_size=default;
 SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 
---echo #
---echo # Bug#36075756 ASAN crash on MaterializeIterator<Profiler>::load_HF_row_into_hash_map()
---echo #
---echo # Simulate overflow during SS_READING_RIGHT_HF
-SET SESSION set_operations_buffer_size = 16384;
-SET SESSION debug_set_operations_secondary_overflow_at='0 0 100 right_operand';
-SET SESSION optimizer_trace="enabled=on";
-SELECT * FROM t INTERSECT SELECT * FROM t ORDER BY i LIMIT 1;
-let $show_trace=
-  SELECT JSON_PRETTY(JSON_EXTRACT(trace, '$.steps[*].join_execution.steps[1]."materialize for intersect".steps[0]."de-duplicate with hash table".steps[0]'))
-  FROM information_schema.optimizer_trace;
---echo # Should show overflow injection:
-eval $show_trace;
-SET SESSION set_operations_buffer_size=default;
-SET SESSION optimizer_trace="enabled=default";
-SET SESSION debug_set_operations_secondary_overflow_at=default;
-
 DROP TABLE t;

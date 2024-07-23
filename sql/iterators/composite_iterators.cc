@@ -886,15 +886,12 @@ class SpillState {
   bool spill() { return m_spill_read_state != ReadingState::SS_NONE; }
 
 #ifndef NDEBUG
-  /// If left operand overflow simulation, spill will get set, if right
-  /// operand overflow simulation, \c rop_overflow will get set.
-  bool simulated_secondary_overflow(bool *spill, bool *rop_overflow);
+  bool simulated_secondary_overflow(bool *spill);
 
  private:
   size_t m_simulated_set_idx{std::numeric_limits<size_t>::max()};
   size_t m_simulated_chunk_idx{std::numeric_limits<size_t>::max()};
   size_t m_simulated_row_no{std::numeric_limits<size_t>::max()};
-  bool m_right_hf{false};
 
  public:
 #endif
@@ -1398,7 +1395,6 @@ class MaterializeIterator final : public TableRowIterator {
   // Iff m_use_hash_map, the MEM_ROOT on which all of the hash map keys and
   // values are allocated. The actual hash map is on the regular heap.
   unique_ptr_destroy_only<MEM_ROOT> m_mem_root;
-  MEM_ROOT *m_overflow_mem_root{nullptr};
   size_t m_row_size_upper_bound{0};
 
   // The hash map where the rows are stored.
@@ -2089,18 +2085,19 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
                                                                  bool *found,
                                                                  bool *spill) {
   const size_t max_mem_available = thd()->variables.set_operations_buffer_size;
+
   *spill = false;
 
 #ifndef NDEBUG
-  bool right_op_overflow = false;
   if (m_spill_state.spill()) {
-    if (write &&
-        m_spill_state.simulated_secondary_overflow(spill, &right_op_overflow))
+    if (write &&  // Only inject error for left operand: can only happen there
+        m_spill_state.read_state() ==
+            SpillState::ReadingState::SS_READING_LEFT_IF &&
+        m_spill_state.simulated_secondary_overflow(spill))
       return true;
     if (*spill) return false;
   }
 #endif
-
   if (m_mem_root == nullptr) {
     assert(write);
     m_mem_root = make_unique_destroy_only<MEM_ROOT>(
@@ -2121,7 +2118,6 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
       m_row_size_upper_bound =
           ComputeRowSizeUpperBoundSansBlobs(m_table_collection);
     }
-    m_overflow_mem_root = thd()->mem_root;
   }
 
   ulonglong primary_hash = 0;
@@ -2146,52 +2142,18 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     m_mem_root->ForceNewBlock(required_key_bytes);
     block = m_mem_root->Peek();
   }
-
   size_t bytes_to_commit = 0;
-
-  if (static_cast<size_t>(block.second - block.first) >= required_key_bytes
-#ifndef NDEBUG
-      && !right_op_overflow
-#endif
-  ) {
-    // Normal case, we have enough space
+  if (static_cast<size_t>(block.second - block.first) >= required_key_bytes) {
     char *ptr = block.first;
     secondary_hash_key = ImmutableStringWithLength::Encode(
         pointer_cast<const char *>(&primary_hash), sizeof(primary_hash), &ptr);
     assert(ptr < block.second);
     bytes_to_commit = ptr - block.first;
   } else if (write) {
-    // out of space in dedicated mem_root
-    if (m_spill_state.read_state() ==
-        SpillState::ReadingState::SS_READING_RIGHT_HF) {
-      // When re-reading chunk rows, different row order may cause heap
-      // fragmentation to differ so even though chunk fit in m_mem_root the
-      // first time (as left operand chunk), it may fail to fit when we
-      // re-read.  This should typically only affect the last (few) rows in a
-      // chunk, so use m_overflow_mem_root.
-      char *ptr =
-          static_cast<char *>(m_overflow_mem_root->Alloc(required_key_bytes));
-      if (ptr == nullptr) {
-        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-                 thd()->variables.set_operations_buffer_size);
-        return true;
-      }
-      secondary_hash_key = ImmutableStringWithLength::Encode(
-          pointer_cast<const char *>(&primary_hash), sizeof(primary_hash),
-          &ptr);
-#ifndef NDEBUG
-      if (right_op_overflow) {
-        Opt_trace_context *trace = &thd()->opt_trace;
-        Opt_trace_object trace_wrapper(trace);
-        Opt_trace_object trace_exec(trace,
-                                    "injected overflow: SS_READING_RIGHT_HF");
-      }
-#endif
-    } else {
-      // spill to disk
-      *spill = true;
-      return false;
-    }
+    assert(m_spill_state.read_state() == SpillState::ReadingState::SS_NONE);
+    // spill to disk
+    *spill = true;
+    return false;
   }
 
   *found = false;
@@ -2353,26 +2315,13 @@ bool MaterializeIterator<Profiler>::store_row_in_hash_map(
   // Save the contents of all columns and make the hash map iterator's value
   // field ("->second") point to it.
 
-  // Special case: when we are re-reading a HF chunk set for operand 2..n
-  // (right_operand), we can in some rare cases overflow even though the HF
-  // chunk fit in our dedicated mem_root for the left operand, the reason being
-  // that rows are entered into the hash table in a different order, leading to
-  // another fragmentation of the heap, typically if we have blobs of varying
-  // sizes.  This can happen if statistics of expected number of rows in the
-  // left operand is significantly too low so that chunk files just barely fit
-  // in the dedicated mem_root when we process the left operand. In such a
-  // case, we just fall back on the thread's mem_root, cf. the argument for
-  // overflow_mem_root below. Since the rows fit in the dedicated mem_root when
-  // processing the left operand, this would only happen for a minority of
-  // chunks and then typically only for the last row.
-  assert(m_overflow_mem_root != nullptr);
   const bool is_right_operand = m_spill_state.read_state() ==
                                 SpillState::ReadingState::SS_READING_RIGHT_HF;
   StoreLinkedInfo info{!is_right_operand, false, 0};
   LinkedImmutableString last_row_stored =
-      StoreLinkedImmutableStringFromTableBuffers(
-          m_mem_root.get(), (is_right_operand ? m_overflow_mem_root : nullptr),
-          m_table_collection, m_next_ptr, m_row_size_upper_bound, &info);
+      StoreLinkedImmutableStringFromTableBuffers(m_mem_root.get(), nullptr,
+                                                 m_table_collection, m_next_ptr,
+                                                 m_row_size_upper_bound, &info);
 
   const bool too_large_row =
       m_spill_state.read_state() == SpillState::ReadingState::SS_NONE &&
@@ -2380,11 +2329,11 @@ bool MaterializeIterator<Profiler>::store_row_in_hash_map(
 
   if (last_row_stored == nullptr) {
     if (too_large_row) {
-      // just store it in m_overflow_mem_root so we can immediately fall back
+      // just store it in session's mem_root so we can immediately fall back
       // on index based tmp table de-duplication; do not attempt spill
       // handling.
       last_row_stored = StoreLinkedImmutableStringFromTableBuffers(
-          m_mem_root.get(), m_overflow_mem_root, m_table_collection, m_next_ptr,
+          m_mem_root.get(), thd()->mem_root, m_table_collection, m_next_ptr,
           m_row_size_upper_bound, &info);
       if (last_row_stored == nullptr) {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
@@ -3483,11 +3432,7 @@ bool SpillState::write_completed_HFs(THD *thd, const Operands &operands,
 }
 
 #ifndef NDEBUG
-bool SpillState::simulated_secondary_overflow(bool *spill, bool *rop_overflow) {
-  if (read_state() != SpillState::ReadingState::SS_READING_LEFT_IF &&
-      read_state() != SpillState::ReadingState::SS_READING_RIGHT_HF)
-    return false;
-
+bool SpillState::simulated_secondary_overflow(bool *spill) {
   const char *const common_msg =
       "in debug_set_operations_secondary_overflow_at too high: should be "
       "lower than or equal to:";
@@ -3496,13 +3441,12 @@ bool SpillState::simulated_secondary_overflow(bool *spill, bool *rop_overflow) {
       m_simulated_set_idx == std::numeric_limits<size_t>::max()) {
     // Parse out variables with
     // syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
-    // <row_no:integer 1-based> [ right_operand ]
-    int tokens = 0;
-    char buff[31];
-    tokens = sscanf(m_thd->variables.debug_set_operations_secondary_overflow_at,
-                    "%zu %zu %zu %30s", &m_simulated_set_idx,
-                    &m_simulated_chunk_idx, &m_simulated_row_no, buff);
-    if (tokens < 3 || m_simulated_row_no < 1 ||
+    // <row_no:integer 1-based>
+    int tokens =
+        sscanf(m_thd->variables.debug_set_operations_secondary_overflow_at,
+               "%zu %zu %zu", &m_simulated_set_idx, &m_simulated_chunk_idx,
+               &m_simulated_row_no);
+    if (tokens != 3 || m_simulated_row_no < 1 ||
         m_simulated_chunk_idx >= m_chunk_files.size()) {
       my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Chunk number", common_msg,
                m_chunk_files.size() - 1);
@@ -3514,40 +3458,23 @@ bool SpillState::simulated_secondary_overflow(bool *spill, bool *rop_overflow) {
                m_no_of_chunk_file_sets - 1);
       return true;
     }
-    m_right_hf = tokens == 4;
-    if (m_right_hf && read_state() == ReadingState::SS_READING_LEFT_IF)
-      return false;
   }
 
   if (m_simulated_set_idx <
       std::numeric_limits<size_t>::max()) {  // initialized
     if (m_current_chunk_file_set == m_simulated_set_idx &&
         m_current_chunk_idx == m_simulated_chunk_idx) {
-      const size_t chunk_rows =
-          (!m_right_hf
-               ? m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
-                     .IF_count
-               :
-
-               m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
-                   .HF_count);
-      if ((m_right_hf &&
-           read_state() == SpillState::ReadingState::SS_READING_RIGHT_HF) ||
-          !m_right_hf) {
-        if (m_simulated_row_no > chunk_rows) {
-          my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Row number",
-                   common_msg, chunk_rows);
-          return true;
-        }
+      if (m_simulated_row_no >
+          m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+              .IF_count) {
+        my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Row number", common_msg,
+                 m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                     .IF_count);
+        return true;
       }
 
       if (m_current_row_in_chunk == static_cast<size_t>(m_simulated_row_no)) {
-        if (!m_right_hf) {
-          *spill = true;
-        } else if (read_state() ==
-                   SpillState::ReadingState::SS_READING_RIGHT_HF) {
-          *rop_overflow = true;
-        }
+        *spill = true;
       }
     }
   }
