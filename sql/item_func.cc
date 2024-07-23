@@ -7630,6 +7630,13 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
                                             arg_count, 0);
 }
 
+void Item_func_match::update_used_tables() {
+  Item_func::update_used_tables();
+  against->update_used_tables();
+  used_tables_cache |= against->used_tables();
+  add_accum_properties(against);
+}
+
 bool Item_func_match::fix_index(const THD *thd) {
   TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts = 0, keynr;
