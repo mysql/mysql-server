@@ -50,10 +50,6 @@ TEST_F(AESEncryption_test, CiphertextsizeTest) {
   EXPECT_TRUE(output_size > input_size);
 
   output_size =
-      get_ciphertext_size(input_size, Keyring_aes_opmode::keyring_aes_256_ecb);
-  EXPECT_TRUE(output_size > input_size);
-
-  output_size =
       get_ciphertext_size(input_size, Keyring_aes_opmode::keyring_aes_256_cbc);
   EXPECT_TRUE(output_size > input_size);
 

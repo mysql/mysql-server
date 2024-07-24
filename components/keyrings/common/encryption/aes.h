@@ -35,8 +35,7 @@ namespace keyring_common::aes_encryption {
 
 /** Supported AES cipher/block mode combos */
 enum class Keyring_aes_opmode {
-  keyring_aes_256_ecb = 0,
-  keyring_aes_256_cbc,
+  keyring_aes_256_cbc = 0,
   keyring_aes_256_cfb1,
   keyring_aes_256_cfb8,
   keyring_aes_256_cfb128,

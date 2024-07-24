@@ -115,7 +115,7 @@ DECLARE_BOOL_METHOD(get_size, (size_t input_length, const char *mode,
 /**
   Encrypt given piece of plaintext
 
-  Block mode for operation (e.g. "ecb", "cbc", cfb1",...)
+  Block mode for operation (e.g. "cbc", cfb1",...)
   Block size (e.g. 256)
 
   Length of out buffer should be sufficient to hold ciphertext
@@ -155,7 +155,7 @@ DECLARE_BOOL_METHOD(encrypt,
 /**
   Decrypt given piece ciphertext
 
-  Block mode for operation (e.g. "ecb", "cbc", cfb1",...)
+  Block mode for operation (e.g. "cbc", cfb1",...)
   Block size (e.g. 256)
 
   Length of out buffer should be sufficient to hold ciphertext

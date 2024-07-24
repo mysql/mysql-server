@@ -38,7 +38,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 namespace keyring_common::aes_encryption {
 
 const Known_block_mode_map Aes_operation_context::s_blockmodes = {
-    {std::make_pair("ecb", 256), Keyring_aes_opmode::keyring_aes_256_ecb},
     {std::make_pair("cbc", 256), Keyring_aes_opmode::keyring_aes_256_cbc},
     {std::make_pair("cfb1", 256), Keyring_aes_opmode::keyring_aes_256_cfb1},
     {std::make_pair("cfb8", 256), Keyring_aes_opmode::keyring_aes_256_cfb8},
@@ -64,14 +63,12 @@ Aes_operation_context::Aes_operation_context(std::string data_id,
 
 /* keep in sync with enum Keyring_aes_opmode in keyring_encryption_service.h */
 size_t aes_opmode_key_sizes[] = {
-    256 /* aes-256-ecb */,  256 /* aes-256-cbc */,    256 /* aes-256-cfb1 */,
-    256 /* aes-256-cfb8 */, 256 /* aes-256-cfb128 */, 256 /* aes-256-ofb */
+    256 /* aes-256-cbc */, 256 /* aes-256-cfb1 */, 256 /* aes-256-cfb8 */,
+    256 /* aes-256-cfb128 */, 256 /* aes-256-ofb */
 };
 
 const EVP_CIPHER *aes_evp_type(const Keyring_aes_opmode mode) {
   switch (mode) {
-    case Keyring_aes_opmode::keyring_aes_256_ecb:
-      return EVP_aes_256_ecb();
     case Keyring_aes_opmode::keyring_aes_256_cbc:
       return EVP_aes_256_cbc();
     case Keyring_aes_opmode::keyring_aes_256_cfb1:
