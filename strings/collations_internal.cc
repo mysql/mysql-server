@@ -547,28 +547,6 @@ class Charset_loader : public MY_CHARSET_LOADER {
 template <typename Key>
 using Hash = std::unordered_map<Key, CHARSET_INFO *>;
 
-template <size_t N>
-bool starts_with(std::string name, const char (&prefix)[N]) {
-  size_t len = N - 1;
-  return name.size() >= len && memcmp(name.data(), prefix, len) == 0;
-}
-
-std::string alternative_collation_name(std::string name) {
-  // get_collation_name_alias()
-  // We still need to support aliasing both ways.
-  if (starts_with(name, "utf8mb3_")) {
-    auto buf = name;
-    buf.erase(4, 3);  // remove "mb3" from "utf8mb3_"
-    return buf;
-  }
-  if (starts_with(name, "utf8_")) {
-    auto buf = name;
-    buf.insert(4, "mb3");  // insert "mb3" to get "utf8mb3_xxxx"
-    return buf;
-  }
-  return name;
-}
-
 template <typename Key>
 CHARSET_INFO *find_in_hash(const Hash<Key> &hash, Key key) {
   auto it = hash.find(key);
@@ -577,12 +555,7 @@ CHARSET_INFO *find_in_hash(const Hash<Key> &hash, Key key) {
 
 CHARSET_INFO *find_collation_in_hash(const Hash<std::string> &hash,
                                      const std::string &key) {
-  CHARSET_INFO *cs = find_in_hash(hash, key);
-  if (cs != nullptr) {
-    return cs;
-  }
-  auto alternative = alternative_collation_name(key);
-  return alternative == key ? nullptr : find_in_hash(hash, alternative);
+  return find_in_hash(hash, key);
 }
 
 CHARSET_INFO *find_cs_in_hash(const Hash<std::string> &hash,

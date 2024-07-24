@@ -1584,13 +1584,14 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         /*
            Note: "SELECT _bla AS 'alias'"
            _bla should be considered as a IDENT if charset haven't been found.
-           So we don't want to produce any warning in find_primary.
+           So we don't use MYF(MY_WME) with get_charset_by_csname to avoid
+           producing an error.
         */
 
         if (yylval->lex_str.str[0] == '_') {
           auto charset_name = yylval->lex_str.str + 1;
           const CHARSET_INFO *underscore_cs =
-              mysql::collation::find_primary(charset_name);
+              get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
           if (underscore_cs) {
             lip->warn_on_deprecated_charset(underscore_cs, charset_name);
             if (underscore_cs == &my_charset_utf8mb4_0900_ai_ci) {

@@ -41,6 +41,8 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <string>
+#include <string_view>
 
 #include "my_config.h"
 
@@ -248,6 +250,16 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
   return cs;
 }
 
+namespace {
+
+template <size_t N>
+bool starts_with(std::string_view name, const char (&prefix)[N]) {
+  size_t len = N - 1;
+  return name.size() >= len && memcmp(name.data(), prefix, len) == 0;
+}
+
+}  // namespace
+
 /**
   Find collation by name: extended version of get_charset_by_name()
   to return error messages to the caller.
@@ -262,9 +274,16 @@ CHARSET_INFO *my_collation_get_by_name(const char *collation_name, myf flags,
                                        MY_CHARSET_ERRMSG *errmsg) {
   std::call_once(charsets_initialized, init_available_charsets);
 
+  std::string collation_name_string(collation_name);
+  if (starts_with(collation_name_string, "utf8_")) {
+    // insert "mb3" to get "utf8mb3_xxxx"
+    collation_name_string.insert(4, "mb3");
+    collation_name = collation_name_string.c_str();
+  }
+
   mysql::collation::Name name{collation_name};
   CHARSET_INFO *cs = entry()->find_by_name(name, flags, errmsg);
-  if (!cs && (flags & MY_WME)) {
+  if (cs == nullptr && (flags & MY_WME)) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
     my_stpcpy(get_charsets_dir(index_file), MY_CHARSET_INDEX);
     my_error(EE_UNKNOWN_COLLATION, MYF(0), name().c_str(), index_file);
@@ -301,6 +320,7 @@ CHARSET_INFO *my_charset_get_by_name(const char *cs_name, uint cs_flags,
     if (cs == nullptr && name() == "utf8") {
       // The parser does get_charset_by_csname().
       // Also needed for e.g. SET character_set_client= 'utf8'.
+      // Also needed by the lexer for: "select _utf8 0xD0B0D0B1D0B2;"
       cs = entry()->find_primary(mysql::collation::Name("utf8mb3"), flags,
                                  errmsg);
     }

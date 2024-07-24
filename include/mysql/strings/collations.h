@@ -151,28 +151,6 @@ inline const CHARSET_INFO *find_primary(const char *cs_name) {
   return find_primary(Name{cs_name});
 }
 
-/**
-  Find binary collation by its character set name
-
-  @param cs_name        Character set name
-
-  @returns pointer to a collation object on success, nullptr if not found
-*/
-MYSQL_STRINGS_EXPORT const CHARSET_INFO *find_default_binary(
-    const Name &cs_name);
-
-/**
-  Find binary collation by its character set name
-
-  @param cs_name        '\0'-terminated character set name
-                        (not normalized name is fine)
-
-  @returns pointer to a collation object on success, nullptr if not found
-*/
-inline const CHARSET_INFO *find_default_binary(const char *cs_name) {
-  return find_default_binary(Name{cs_name});
-}
-
 }  // namespace collation
 }  // namespace mysql
 
