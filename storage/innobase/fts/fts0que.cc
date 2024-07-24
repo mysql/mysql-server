@@ -294,6 +294,9 @@ struct fts_word_freq_t {
   double idf;          /*!< Inverse document frequency */
 };
 
+static ib_rbt_compare fts_ranking_doc_id_cmp =
+    fts_doc_id_field_cmp<fts_ranking_t>;
+
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record.
 @return always true */
@@ -382,21 +385,7 @@ fts_query_terms_in_document(
         fts_query_t*    query,          /*!< in: FTS query state */
         doc_id_t        doc_id,         /*!< in: the word to check */
         ulint*          total);         /*!< out: total words in document */
-#endif
 
-/********************************************************************
-Compare two fts_doc_freq_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-static inline int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
-                                      const void *p2) /*!< in: id2 */
-{
-  const fts_doc_freq_t *fq1 = (const fts_doc_freq_t *)p1;
-  const fts_doc_freq_t *fq2 = (const fts_doc_freq_t *)p2;
-
-  return ((int)(fq1->doc_id - fq2->doc_id));
-}
-
-#if 0
 /*******************************************************************//**
 Print the table used for calculating LCS. */
 static
@@ -645,8 +634,8 @@ static fts_word_freq_t *fts_query_add_word_freq(
 
     word_freq.doc_count = 0;
 
-    word_freq.doc_freqs =
-        rbt_create(sizeof(fts_doc_freq_t), fts_freq_doc_id_cmp);
+    word_freq.doc_freqs = rbt_create(sizeof(fts_doc_freq_t),
+                                     fts_doc_id_field_cmp<fts_doc_freq_t>);
 
     parent.last = rbt_add_node(query->word_freqs, &parent, &word_freq);
 
@@ -3707,7 +3696,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   DEBUG_SYNC_C("fts_deleted_doc_ids_append");
 
   /* Sort the vector so that we can do a binary search over the ids. */
-  ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);
+  ib_vector_sort(query.deleted->doc_ids, fts_doc_id_field_cmp<fts_update_t>);
 
   /* Convert the query string to lower case before parsing. We own
   the ut_malloc'ed result and so remember to free it before return. */
