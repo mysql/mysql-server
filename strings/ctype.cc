@@ -64,6 +64,12 @@
 
 */
 
+template <size_t N>
+bool starts_with(std::string name, const char (&prefix)[N]) {
+  size_t len = N - 1;
+  return name.size() >= len && memcmp(name.data(), prefix, len) == 0;
+}
+
 extern CHARSET_INFO my_charset_ucs2_unicode_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
@@ -556,9 +562,19 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
     case _CS_PRIMARY_ID:
       i->cs.primary_number = strtol(attr, (char **)nullptr, 10);
       break;
-    case _CS_COLNAME:
-      i->cs.m_coll_name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
-      break;
+    case _CS_COLNAME: {
+      // Replace "utf8_" with "utf8mb3_" for external character sets.
+      std::string collation_name_string(attr, len);
+      if (starts_with(collation_name_string, "utf8_")) {
+        // insert "mb3" to get "utf8mb3_xxx"
+        collation_name_string.insert(4, "mb3");
+        i->cs.m_coll_name =
+            mstr(i->name, collation_name_string.c_str(),
+                 collation_name_string.length(), MY_CS_NAME_SIZE - 1);
+      } else {
+        i->cs.m_coll_name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
+      }
+    } break;
     case _CS_CSNAME:
       // Replace "utf8" with "utf8mb3" for external character sets.
       if (0 == strncmp(attr, "utf8", len))
@@ -1192,7 +1208,7 @@ int MY_CHARSET_LOADER::add_collation(CHARSET_INFO *cs) {
   } else if (dst->state & MY_CS_COMPILED) {
     // Disallow overwriting compiled character sets
     clear_cs_info(cs);
-    return MY_XML_OK;  // Just ignore it. TODO: really???
+    return MY_XML_OK;  // Just ignore it.
   }
 
   dst->number = cs_number;

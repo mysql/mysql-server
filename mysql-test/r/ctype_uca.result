@@ -8380,15 +8380,15 @@ DROP TABLE t1;
 # Restart the server with a collation with invalid grammar rules.
 # restart:--character-sets-dir=MYSQL_TEST_DIR/std_data/bug16204175/
 # Check whether the new collation is loaded after restart
-SHOW COLLATION LIKE 'utf8_test';
+SHOW COLLATION LIKE 'utf8mb3_test';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_test	utf8mb3	999			8	PAD SPACE
+utf8mb3_test	utf8mb3	999			8	PAD SPACE
 # Create a table with the unknown collation.
 CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8mb3_test);
 ERROR HY000: Unknown collation: 'utf8mb3_test'
 # Below error is caused as a result of this test. The error message
 # contains collation name which is added as a part of the fix.
-call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
+call mtr.add_suppression("Shift expected at '' for COLLATION : utf8mb3_test");
 #
 # Restart server with original character sets dir:
 # restart:--character-sets-dir=MYSQL_CHARSETSDIR
