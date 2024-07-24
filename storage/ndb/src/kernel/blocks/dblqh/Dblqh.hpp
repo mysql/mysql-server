@@ -108,7 +108,7 @@ class FsReadWriteReq;
 #define ZMAX_MM_BUFFER_SIZE 32  // Main memory window during log execution
 
 #define ZMAX_PAGES_WRITTEN 8     // Max pages before writing to disk (=> config)
-#define ZMIN_READ_BUFFER_SIZE 2  // Minimum number of pages to execute log
+#define ZMIN_READ_BUFFER_SIZE 3  // Minimum number of pages to execute log
 #define ZMIN_LOG_PAGES_OPERATION 10  // Minimum no of pages before stopping
 
 #define ZPOS_CHECKSUM 0
