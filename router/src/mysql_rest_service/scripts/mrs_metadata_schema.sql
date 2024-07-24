@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`service` (
   `url_context_root` VARCHAR(255) NOT NULL DEFAULT '/mrs' COMMENT 'Specifies context root of the MRS as represented in the request URLs, default being /mrs. URL Example: https://www.example.com/mrs',
   `url_protocol` SET('HTTP', 'HTTPS') NOT NULL DEFAULT 'HTTP,HTTPS',
   `enabled` TINYINT NOT NULL DEFAULT 1,
+  `published` TINYINT NOT NULL DEFAULT 0,
   `in_development` JSON NULL COMMENT 'If not NULL, this column indicates that the REST service is currently \"in development\" and holds the name(s) of the developer(s) who is(/are) allowed to work with the service in the \"$.developers\" string array. REST services with this column not being NULL may use the same url_host+url_context_root context path as existing services. Routers only serve REST services with this column being NULL, unless they are bootstrapped with --mrs-development <user> which sets `router`.`option`->>\"$.developer\". When bootstrapped with the --mrs-development <user> option the Router also serves REST services marked \"in development\" with this column\'s \"$.developers\" including the same name as the <user> specified during bootstrap, while these REST services marked \"in development\" take priority over services with the same url_host+url_context_root context path and this column being NULL.',
   `comments` VARCHAR(512) NULL,
   `options` JSON NULL,
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_schema` (
   `id` BINARY(16) NOT NULL,
   `service_id` BINARY(16) NOT NULL,
   `name` VARCHAR(255) NOT NULL,
+  `schema_type` ENUM('DATABASE_SCHEMA', 'SCRIPT_MODULE') NOT NULL DEFAULT 'DATABASE_SCHEMA',
   `request_path` VARCHAR(255) NOT NULL,
   `requires_auth` TINYINT NOT NULL DEFAULT 0,
   `enabled` TINYINT NOT NULL DEFAULT 1,
@@ -232,6 +234,7 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_set` (
   `id` BINARY(16) NOT NULL,
   `service_id` BINARY(16) NOT NULL,
+  `content_type` ENUM('STATIC', 'SCRIPTS') NOT NULL DEFAULT 'STATIC',
   `request_path` VARCHAR(255) NOT NULL,
   `requires_auth` TINYINT NOT NULL DEFAULT 0,
   `enabled` TINYINT NOT NULL DEFAULT 0,
@@ -1019,6 +1022,7 @@ BEGIN
                 `mysql_rest_service_metadata`.`url_host` AS h ON s.url_host_id = h.id JOIN
                 `mysql_rest_service_metadata`.`url_host` AS h2 ON h2.id = NEW.url_host_id
             WHERE CONCAT(h.name, s.url_context_root) = CONCAT(h2.name, NEW.url_context_root) AND s.enabled = TRUE
+                AND s.id <> NEW.id
             GROUP BY CONCAT(h.name, s.url_context_root));
 
         IF COALESCE(@validDeveloperList, FALSE) = TRUE THEN
@@ -1518,6 +1522,7 @@ BEGIN
             "id", NEW.id,
             "service_id", NEW.service_id,
             "name", NEW.name,
+            "schema_type", NEW.schema_type,
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
@@ -1543,6 +1548,7 @@ BEGIN
             "id", OLD.id,
             "service_id", OLD.service_id,
             "name", OLD.name,
+            "schema_type", OLD.schema_type,
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
@@ -1554,6 +1560,7 @@ BEGIN
             "id", NEW.id,
             "service_id", NEW.service_id,
             "name", NEW.name,
+            "schema_type", NEW.schema_type,
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
@@ -1579,6 +1586,7 @@ BEGIN
             "id", OLD.id,
             "service_id", OLD.service_id,
             "name", OLD.name,
+            "schema_type", OLD.schema_type,
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
@@ -1609,6 +1617,7 @@ BEGIN
             "url_context_root", NEW.url_context_root,
             "url_protocol", NEW.url_protocol,
             "enabled", NEW.enabled,
+            "published", NEW.published,
             "in_development", NEW.in_development,
             "comments", NEW.comments,
             "options", NEW.options,
@@ -1639,6 +1648,7 @@ BEGIN
             "url_context_root", OLD.url_context_root,
             "url_protocol", OLD.url_protocol,
             "enabled", OLD.enabled,
+            "published", OLD.published,
             "in_development", OLD.in_development,
             "comments", OLD.comments,
             "options", OLD.options,
@@ -1655,6 +1665,7 @@ BEGIN
             "url_context_root", NEW.url_context_root,
             "url_protocol", NEW.url_protocol,
             "enabled", NEW.enabled,
+            "published", NEW.published,
             "in_development", NEW.in_development,
             "comments", NEW.comments,
             "options", NEW.options,
@@ -1685,6 +1696,7 @@ BEGIN
             "url_context_root", OLD.url_context_root,
             "url_protocol", OLD.url_protocol,
             "enabled", OLD.enabled,
+            "published", OLD.published,
             "in_development", OLD.in_development,
             "comments", OLD.comments,
             "options", OLD.options,
@@ -2397,6 +2409,7 @@ BEGIN
         JSON_OBJECT(
             "id", NEW.id,
             "service_id", NEW.service_id,
+            "content_type", NEW.content_type,
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
@@ -2419,6 +2432,7 @@ BEGIN
         JSON_OBJECT(
             "id", OLD.id,
             "service_id", OLD.service_id,
+            "content_type", OLD.content_type,
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
@@ -2427,6 +2441,7 @@ BEGIN
         JSON_OBJECT(
             "id", NEW.id,
             "service_id", NEW.service_id,
+            "content_type", NEW.content_type,
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
@@ -2449,6 +2464,7 @@ BEGIN
         JSON_OBJECT(
             "id", OLD.id,
             "service_id", OLD.service_id,
+            "content_type", OLD.content_type,
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
