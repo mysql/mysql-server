@@ -53,6 +53,7 @@ SET(TESTS
   ut0new
   ut0object_cache
   ut0rnd
+  ut0rbt
 )
 
 ADD_COMPILE_FLAGS(
