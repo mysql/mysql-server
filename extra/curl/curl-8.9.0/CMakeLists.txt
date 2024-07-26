@@ -43,7 +43,7 @@
 # to ON or OFF), the symbol detection will be skipped.  If the
 # variable is NOT DEFINED, the symbol detection will be performed.
 
-cmake_minimum_required(VERSION 3.7...3.16 FATAL_ERROR)
+# cmake_minimum_required(VERSION 3.7...3.16 FATAL_ERROR)
 message(STATUS "Using CMake version ${CMAKE_VERSION}")
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake;${CMAKE_MODULE_PATH}")
@@ -128,7 +128,7 @@ endif()
 
 # For debug libs and exes, add "-d" postfix
 if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-  set(CMAKE_DEBUG_POSTFIX "-d")
+#  set(CMAKE_DEBUG_POSTFIX "-d")
 endif()
 
 set(LIB_STATIC "libcurl_static")
@@ -263,7 +263,7 @@ mark_as_advanced(HTTP_ONLY)
 
 if(HTTP_ONLY)
   set(CURL_DISABLE_DICT ON)
-  set(CURL_DISABLE_FILE ON)
+# set(CURL_DISABLE_FILE ON)   Keep the FILE protocol
   set(CURL_DISABLE_FTP ON)
   set(CURL_DISABLE_GOPHER ON)
   set(CURL_DISABLE_IMAP ON)
@@ -469,7 +469,7 @@ if(use_core_foundation_and_core_services)
 endif()
 
 if(CURL_USE_OPENSSL)
-  find_package(OpenSSL REQUIRED)
+#  find_package(OpenSSL REQUIRED)
   set(SSL_ENABLED ON)
   set(USE_OPENSSL ON)
 
@@ -570,7 +570,8 @@ endif()
 
 set(HAVE_LIBZ OFF)
 set(USE_ZLIB OFF)
-optional_dependency(ZLIB)
+# Use result from cmake/zlib.cmake
+# optional_dependency(ZLIB)
 if(ZLIB_FOUND)
   set(HAVE_LIBZ ON)
   set(USE_ZLIB ON)
@@ -1564,7 +1565,7 @@ if(MSVC)
   endif()
 
   # Use multithreaded compilation on VS 2008+
-  if(MSVC_VERSION GREATER_EQUAL 1500)
+  if(MSVC_VERSION GREATER_EQUAL 1500 AND NOT WIN32_CLANG)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
   endif()
 endif()
