@@ -798,7 +798,7 @@ explain format=tree select * from t1 where b=1 or b is null order by a;
 EXPLAIN
 -> Sort: t1.a  (cost=0.9 rows=4)
     -> Filter: ((t1.b = 1) or (t1.b is null))  (cost=0.9 rows=4)
-        -> Index lookup on t1 using b (b=1 or NULL)  (cost=0.9 rows=4)
+        -> Index lookup on t1 using b (b = 1 or NULL)  (cost=0.9 rows=4)
 
 select * from t1 where b=1 or b is null order by a;
 a	b

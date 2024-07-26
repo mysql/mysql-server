@@ -51,6 +51,6 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
 -> Nested loop inner join  (rows=2560)
     -> Covering index scan on t2 using a  (rows=160)
-    -> Covering index lookup on t1 using a (a=t2.a)  (rows=16)
+    -> Covering index lookup on t1 using a (a = t2.a)  (rows=16)
 
 DROP TABLE t1;

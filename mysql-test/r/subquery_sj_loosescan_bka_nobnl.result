@@ -4260,7 +4260,7 @@ EXPLAIN
     -> Nested loop semijoin (FirstMatch) with duplicate removal (LooseScan) on kp1  (rows=40)
         -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (rows=40)
             -> Index range scan on t1 using kp1 over (NULL < kp1 < 20)  (rows=40)
-        -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (rows=1)
+        -> Single-row covering index lookup on t4 using PRIMARY (pk = t1.c)  (rows=1)
     -> Filter: (t3.a = t1.kp1)  (rows=10)
         -> Table scan on t3  (rows=100)
 
@@ -13095,8 +13095,8 @@ EXPLAIN
                     -> Nested loop left join  (rows=7)
                         -> Covering index scan on t1 using col_int_key  (rows=7)
                         -> Nested loop inner join  (rows=1)
-                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
-                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (rows=1)
+                            -> Single-row index lookup on t2 using PRIMARY (pk = t1.pk)  (rows=1)
+                            -> Index lookup on t3 using col_int_key (col_int_key = t2.col_int)  (rows=1)
                 -> Filter: (t4.col_int_key = t1.col_int_key)  (rows=1)
                     -> Table scan on t4  (rows=6)
 

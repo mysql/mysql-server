@@ -49,7 +49,7 @@ EXPLAIN
         -> Nested loop inner join  (cost=2.05 rows=4)
             -> Filter: (t1.userID is not null)  (cost=0.65 rows=4)
                 -> Table scan on t1  (cost=0.65 rows=4)
-            -> Single-row covering index lookup on t2 using PRIMARY (userID=t1.userID)  (cost=0.275 rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (userID = t1.userID)  (cost=0.275 rows=1)
 
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
@@ -4522,8 +4522,8 @@ EXPLAIN
     -> Nested loop left join  (rows=8000)
         -> Nested loop left join  (rows=8000)
             -> Covering index scan on t1 using b  (rows=8000)
-            -> Single-row covering index lookup on t2 using PRIMARY (b=t1.b)  (rows=1)
-        -> Single-row covering index lookup on t3 using PRIMARY (b=t1.b)  (rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (b = t1.b)  (rows=1)
+        -> Single-row covering index lookup on t3 using PRIMARY (b = t1.b)  (rows=1)
 
 FLUSH STATUS;
 SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
@@ -4814,7 +4814,7 @@ EXPLAIN
                         -> Filter: (t2.x is not null)  (rows=3)
                             -> Table scan on t2  (rows=3)
                     -> Filter: ((t2.y + t3.y) < t1.y)  (rows=1)
-                        -> Single-row index lookup on t3 using PRIMARY (id=t2.x)  (rows=1)
+                        -> Single-row index lookup on t3 using PRIMARY (id = t2.x)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.y' of SELECT #2 was resolved in SELECT #1
@@ -4849,7 +4849,7 @@ EXPLAIN
     -> Nested loop left join  (rows=3)
         -> Index scan on t1 using PRIMARY  (rows=3)
         -> Filter: (t1.a <> 2)  (rows=1)
-            -> Single-row index lookup on t2 using PRIMARY (a=t1.b)  (rows=1)
+            -> Single-row index lookup on t2 using PRIMARY (a = t1.b)  (rows=1)
 
 SELECT t1.a, MAX(t2.b) FROM t1 LEFT JOIN t2 ON t1.b = t2.a AND t1.a <> 2
 GROUP BY t1.a;

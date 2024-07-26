@@ -136,7 +136,7 @@ string RefToString(const Index_lookup &ref, const KEY &key,
   if (ref.keypart_hash != nullptr) {
     assert(!include_nulls);
     ret = key.key_part[0].field->field_name;
-    ret += "=hash(";
+    ret += " = hash(";
     for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
          ++key_part_idx) {
       if (key_part_idx != 0) {
@@ -164,7 +164,7 @@ string RefToString(const Index_lookup &ref, const KEY &key,
       assert(!field->is_hidden_by_system());
       ret += field->field_name;
     }
-    ret += "=";
+    ret += " = ";
     ret += ItemToString(ref.items[key_part_idx]);
 
     // If we have ref_or_null access, find out if this keypart is the one that

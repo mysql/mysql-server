@@ -278,7 +278,7 @@ select param_name from ndb$config_params where param_number = 40000;
 explain format=tree select * from counters;
 EXPLAIN	-> Nested loop left join  (rows=200)
     -> Table scan on c  (rows=200)
-    -> Single-row index lookup on b using PRIMARY (block_number=c.block_number)  (rows=1)
+    -> Single-row index lookup on b using PRIMARY (block_number = c.block_number)  (rows=1)
 
 
 ## The plan for memory_per_fragment
@@ -290,7 +290,7 @@ EXPLAIN	-> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent
             -> Nested loop inner join  (rows=14.3)
                 -> Filter: ((`name`.`type` <= 6) and (`name`.`type` is not null))  (rows=14.3)
                     -> Table scan on name  (rows=43)
-                -> Single-row index lookup on types using PRIMARY (type_id=`name`.`type`)  (rows=1)
+                -> Single-row index lookup on types using PRIMARY (type_id = `name`.`type`)  (rows=1)
     -> Hash
         -> Table scan on parent_name  (rows=43)
 
@@ -354,7 +354,7 @@ EXPLAIN	-> Inner hash join (space.table_id = `name`.id)  (rows=1150)
             -> Nested loop inner join  (rows=4.67)
                 -> Filter: ((`name`.`type` <= 6) and (`name`.`type` is not null))  (rows=4.67)
                     -> Table scan on name  (rows=14)
-                -> Single-row index lookup on types using PRIMARY (type_id=`name`.`type`)  (rows=1)
+                -> Single-row index lookup on types using PRIMARY (type_id = `name`.`type`)  (rows=1)
             -> Hash
                 -> Table scan on parent_name  (rows=14)
 

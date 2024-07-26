@@ -4257,8 +4257,8 @@ EXPLAIN
         -> Table scan on t3  (rows=100)
     -> Nested loop inner join  (rows=1.02)
         -> Filter: (t1.c is not null)  (rows=1.02)
-            -> Index lookup on t1 using kp1 (kp1=t3.a)  (rows=1.02)
-        -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (rows=1)
+            -> Index lookup on t1 using kp1 (kp1 = t3.a)  (rows=1.02)
+        -> Single-row covering index lookup on t4 using PRIMARY (pk = t1.c)  (rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -13045,10 +13045,10 @@ EXPLAIN
             -> Table scan on t4  (rows=6)
     -> Filter: (t3.col_int is null)  (rows=1.17)
         -> Nested loop left join  (rows=1.17)
-            -> Covering index lookup on t1 using col_int_key (col_int_key=t4.col_int_key)  (rows=1.17)
+            -> Covering index lookup on t1 using col_int_key (col_int_key = t4.col_int_key)  (rows=1.17)
             -> Nested loop inner join  (rows=1)
-                -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
-                -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (rows=1)
+                -> Single-row index lookup on t2 using PRIMARY (pk = t1.pk)  (rows=1)
+                -> Index lookup on t3 using col_int_key (col_int_key = t2.col_int)  (rows=1)
 
 SELECT *
 FROM t4

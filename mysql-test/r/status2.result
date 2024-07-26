@@ -126,7 +126,7 @@ SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED
 0	0
 EXPLAIN FORMAT=TREE SELECT x FROM t WHERE x = 1;
 EXPLAIN
--> Covering index lookup on t using x (x=1)  (rows=2)
+-> Covering index lookup on t using x (x = 1)  (rows=2)
 
 FLUSH STATUS;
 SELECT x FROM t WHERE x = 1;
@@ -210,7 +210,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id;
 EXPLAIN
 -> Nested loop inner join  (rows=10)
     -> Table scan on t1  (rows=10)
-    -> Single-row index lookup on t2 using PRIMARY (id=t1.y)  (rows=1)
+    -> Single-row index lookup on t2 using PRIMARY (id = t1.y)  (rows=1)
 
 FLUSH STATUS;
 SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id;

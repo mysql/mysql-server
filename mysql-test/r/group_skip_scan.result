@@ -1519,7 +1519,7 @@ EXPLAIN
 -> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
     -> Nested loop inner join  (rows=20992)
         -> Covering index scan on t1 using idx_t1_1  (rows=128)
-        -> Single-row index lookup on <subquery2> using <auto_distinct_key> (c=t1.c)  (rows=1)
+        -> Single-row index lookup on <subquery2> using <auto_distinct_key> (c = t1.c)  (rows=1)
             -> Materialize with deduplication  (rows=164)
                 -> Filter: (t2.c is not null)  (rows=164)
                     -> Covering index scan on t2 using idx_t2_1  (rows=164)
@@ -2370,7 +2370,7 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 EXPLAIN
 -> Group (no aggregates)  (rows=1)
-    -> Covering index lookup on t1 using PRIMARY (a='BB')  (rows=1)
+    -> Covering index lookup on t1 using PRIMARY (a = 'BB')  (rows=1)
 
 SELECT DISTINCT a FROM t1 WHERE a='BB';
 a
@@ -2609,7 +2609,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; run only once)
         -> Filter: ((t1_outer.a = `<materialized_subquery>`.`max(b)`))  (rows=1)
             -> Limit: 1 row(s)  (rows=1)
-                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (max(b)=t1_outer.a)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (max(b) = t1_outer.a)
                     -> Materialize with deduplication  (rows=11)
                         -> Filter: (t1.a < 2)  (rows=11)
                             -> Covering index skip scan for grouping on t1 using a  (rows=11)
@@ -2630,7 +2630,7 @@ EXPLAIN
 -> Inner hash join (t1_outer2.b = t1_outer1.b)  (rows=10)
     -> Covering index scan on t1_outer2 using a  (rows=20)
     -> Hash
-        -> Covering index lookup on t1_outer1 using a (a=(select #2))  (rows=5)
+        -> Covering index lookup on t1_outer1 using a (a = (select #2))  (rows=5)
 
 EXPLAIN FORMAT=TREE SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
@@ -3234,7 +3234,7 @@ EXPLAIN FORMAT=TREE SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 
 GROUP BY b;
 EXPLAIN
 -> Group aggregate: count(distinct t2.b), sum(distinct t2.b)  (rows=1)
-    -> Covering index lookup on t2 using a (a=5)  (rows=1)
+    -> Covering index lookup on t2 using a (a = 5)  (rows=1)
 
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 GROUP BY b;
@@ -3627,7 +3627,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: ((out1.pk <> 3) and (out1.nk = (select #2)))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: max(out1.k)  (rows=1)
                 -> Covering index scan on t1 using PRIMARY  (rows=3)
@@ -3649,7 +3649,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: max(out1.k)  (rows=1)
                 -> Covering index scan on t1 using PRIMARY  (rows=3)
@@ -3704,7 +3704,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: min((out1.k + t1.k))  (rows=1)
                 -> Covering index scan on t1 using k  (rows=3)
@@ -3724,7 +3724,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate:   (rows=1)
                 -> Covering index scan on t1 using k  (rows=3)
@@ -3744,7 +3744,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: min(out1.k)  (rows=1)
                 -> Covering index scan on t1 using k  (rows=3)
@@ -3764,7 +3764,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: count(t1.k), sum(out1.k)  (rows=1)
                 -> Covering index scan on t1 using k  (rows=3)
@@ -3784,7 +3784,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: count(0), sum(out1.k)  (rows=1)
                 -> Covering index scan on t1 using PRIMARY  (rows=3)
@@ -3804,7 +3804,7 @@ EXPLAIN
     -> Filter: (t2.k is not null)  (rows=3)
         -> Table scan on t2  (rows=3)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using k (k=t2.k)  (rows=1)
+        -> Single-row index lookup on out1 using k (k = t2.k)  (rows=1)
         -> Select #2 (subquery in condition; dependent)
             -> Aggregate: avg(out1.k)  (rows=1)
                 -> Covering index scan on t1 using PRIMARY  (rows=3)

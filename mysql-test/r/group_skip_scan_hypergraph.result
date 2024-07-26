@@ -2510,7 +2510,7 @@ explain format=tree SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP 
 EXPLAIN
 -> Group aggregate: min(t2.c)  (rows=1)
     -> Filter: (t2.c > 1)  (rows=1)
-        -> Covering index lookup on t2 using PRIMARY (a=1, b=2)  (rows=0.577)
+        -> Covering index lookup on t2 using PRIMARY (a = 1, b = 2)  (rows=0.577)
 
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 MIN(c)
@@ -2614,7 +2614,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; run only once)
         -> Filter: ((t1_outer.a = `<materialized_subquery>`.`max(b)`))  (rows=1)
             -> Limit: 1 row(s)  (rows=1)
-                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (max(b)=t1_outer.a)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (max(b) = t1_outer.a)
                     -> Materialize with deduplication  (rows=1.05)
                         -> Filter: (t1.a < 2)  (rows=1.05)
                             -> Covering index skip scan for grouping on t1 using a  (rows=3.16)
@@ -2636,7 +2636,7 @@ EXPLAIN
     -> Table scan on t1_outer2  (rows=20)
     -> Hash
         -> Filter: (t1_outer1.a = (select #2))  (rows=2)
-            -> Covering index lookup on t1_outer1 using a (a=(select #2))  (rows=2)
+            -> Covering index lookup on t1_outer1 using a (a = (select #2))  (rows=2)
             -> Select #2 (subquery in condition; run only once)
                 -> Filter: (t1.a < 2)  (rows=1.05)
                     -> Covering index skip scan for grouping on t1 using a  (rows=3.16)
@@ -2853,7 +2853,7 @@ EXPLAIN
 -> Table scan on <temporary>  (rows=1)
     -> Temporary table  (rows=1)
         -> Group aggregate: max(t1.b)  (rows=1)
-            -> Covering index lookup on t1 using PRIMARY (a=0)  (rows=15)
+            -> Covering index lookup on t1 using PRIMARY (a = 0)  (rows=15)
 
 drop table t1;
 CREATE TABLE t1 (a int, b int, c int, d int,
@@ -3544,7 +3544,7 @@ INSERT INTO t1(c1,c2) VALUES
 EXPLAIN FORMAT=TREE SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 EXPLAIN
 -> Group aggregate: max(t1.c2)  (rows=1)
-    -> Covering index lookup on t1 using c1 (c1=4)  (rows=19)
+    -> Covering index lookup on t1 using c1 (c1 = 4)  (rows=19)
 
 FLUSH STATUS;
 SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
@@ -3680,7 +3680,7 @@ AND out1.pk = (SELECT MAX(k) FROM t1);
 EXPLAIN
 -> Nested loop inner join  (rows=1)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using PRIMARY (pk=(select #2))  (rows=1)
+        -> Single-row index lookup on out1 using PRIMARY (pk = (select #2))  (rows=1)
         -> Select #2 (subquery in condition; run only once)
             -> Aggregate: max(t1.k)  (rows=1)
                 -> Table scan on t1  (rows=3)
@@ -3696,7 +3696,7 @@ AND out1.pk = (SELECT 2*MIN(k) FROM t1);
 EXPLAIN
 -> Nested loop inner join  (rows=1)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using PRIMARY (pk=(select #2))  (rows=1)
+        -> Single-row index lookup on out1 using PRIMARY (pk = (select #2))  (rows=1)
         -> Select #2 (subquery in condition; run only once)
             -> Aggregate: min(t1.k)  (rows=1)
                 -> Table scan on t1  (rows=3)
@@ -3712,7 +3712,7 @@ AND out1.pk = (SELECT SUM(k) - COUNT(k) FROM t1);
 EXPLAIN
 -> Nested loop inner join  (rows=1)
     -> Filter: (out1.pk = (select #2))  (rows=1)
-        -> Single-row index lookup on out1 using PRIMARY (pk=(select #2))  (rows=1)
+        -> Single-row index lookup on out1 using PRIMARY (pk = (select #2))  (rows=1)
         -> Select #2 (subquery in condition; run only once)
             -> Aggregate: count(t1.k), sum(t1.k)  (rows=1)
                 -> Table scan on t1  (rows=3)
@@ -4395,7 +4395,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 EXPLAIN
 -> Group aggregate: min(t1.f2)  (rows=1)
-    -> Covering index lookup on t1 using f1 (f1=1)  (rows=9)
+    -> Covering index lookup on t1 using f1 (f1 = 1)  (rows=9)
 
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 MIN(f2)

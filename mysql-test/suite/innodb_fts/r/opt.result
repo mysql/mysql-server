@@ -1136,7 +1136,7 @@ LIMIT 3;
 EXPLAIN
 -> Limit: 3 row(s)
     -> Filter:
-        -> Full-text covering index search on t1 using ft_idx (title='+database')
+        -> Full-text covering index search on t1 using ft_idx (title = '+database')
 
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1

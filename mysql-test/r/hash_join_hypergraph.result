@@ -1307,7 +1307,7 @@ EXPLAIN
         -> Inner hash join (no condition)  (rows=2.94)
             -> Nested loop semijoin (FirstMatch)  (rows=2.94)
                 -> Table scan on ta3  (rows=6)
-                -> Covering index lookup on t2 using f2 (f2=ta3.f2)  (rows=1.2)
+                -> Covering index lookup on t2 using f2 (f2 = ta3.f2)  (rows=1.2)
             -> Hash
                 -> Table scan on t1  (rows=1)
         -> Hash
@@ -1722,11 +1722,11 @@ EXPLAIN
                                     -> Limit: 100 row(s)  (rows=26.7)
                                         -> Nested loop left join  (rows=26.7)
                                             -> Table scan on sq1_alias2  (rows=20)
-                                            -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (rows=1.33)
+                                            -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key = sq1_alias2.col_varchar_key)  (rows=1.33)
                         -> Inner hash join (no condition)  (rows=26.7)
                             -> Covering index scan on sq2_alias2 using col_date_key  (rows=20)
                             -> Hash
-                                -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key=alias1.col_varchar_key)  (rows=1.33)
+                                -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key = alias1.col_varchar_key)  (rows=1.33)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -2259,7 +2259,7 @@ EXPLAIN
 -> Select #2 (subquery in projection; dependent)
     -> Inner hash join (no condition)  (rows=0.1)
         -> Nested loop left join  (rows=1)
-            -> Single-row covering index lookup on t2 using PRIMARY (pk=9)  (rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (pk = 9)  (rows=1)
             -> Filter: ((t3.pk = 9) and (t2.pk = 9))  (rows=0.1)
                 -> Table scan on t3  (rows=1)
         -> Hash

@@ -603,8 +603,8 @@ EXPLAIN
             -> Nested loop left join  (rows=1)
                 -> Filter: (t1.f1 >= 'o')  (rows=1)
                     -> Covering index range scan on t1 using k1 over ('o' <= f1)  (rows=1)
-                -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
-    -> Single-row index lookup on t1 using PRIMARY (pk=`<subquery2>`.pk)  (rows=1)
+                -> Single-row covering index lookup on t2 using PRIMARY (pk = t1.pk)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (pk = `<subquery2>`.pk)  (rows=1)
 
 DROP TABLE t1, t2;
 DROP VIEW v2;
@@ -649,7 +649,7 @@ EXPLAIN
             -> Table scan on t5  (cost=0.45 rows=1)
             -> Covering index scan on t4 using PRIMARY  (cost=1.3 rows=2)
     -> Nested loop semijoin (FirstMatch)  (cost=0.8 rows=1)
-        -> Single-row index lookup on t3 using PRIMARY (pk=t1.pk)  (cost=0.45 rows=1)
+        -> Single-row index lookup on t3 using PRIMARY (pk = t1.pk)  (cost=0.45 rows=1)
         -> Filter: (t2.f2 = t1.f2)  (cost=0.7 rows=1)
             -> Table scan on t2  (cost=0.7 rows=1)
 
@@ -777,14 +777,14 @@ EXPLAIN
 -> Nested loop inner join  (cost=0.95 rows=5)
     -> Filter: (t1.pk is not null)  (cost=0.35 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (pk=t1.pk)  (cost=2.29..2.29 rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (pk = t1.pk)  (cost=2.29..2.29 rows=1)
         -> Materialize with deduplication  (cost=2.25..2.25 rows=5)
             -> Nested loop left join  (cost=1.1 rows=5)
                 -> Covering index scan on t2 using PRIMARY  (cost=0.35 rows=1)
                 -> Nested loop left join  (cost=2.5 rows=5)
                     -> Filter: (t3.col_int_key <> t2.pk)  (cost=0.75 rows=5)
                         -> Table scan on t3  (cost=0.75 rows=5)
-                    -> Covering index lookup on t4 using ix2 (col_int_key=t3.pk)  (cost=0.27 rows=1)
+                    -> Covering index lookup on t4 using ix2 (col_int_key = t3.pk)  (cost=0.27 rows=1)
 
 SELECT * FROM t1 WHERE pk IN (
 SELECT t2.pk FROM
@@ -916,7 +916,7 @@ EXPLAIN
             -> Covering index scan on t1 using f2_idx  (cost=0.35 rows=1)
             -> Filter: (cast(t2.f1 as double) > cast(table1.f2 as double))  (cost=0.35 rows=1)
                 -> Index range scan on t2 (re-planned for each iteration)  (cost=0.35 rows=1)
-        -> Covering index lookup on t3 using f2_idx (f2=t2.f2)  (cost=0.35 rows=1)
+        -> Covering index lookup on t3 using f2_idx (f2 = t2.f2)  (cost=0.35 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.f2' of SELECT #2 was resolved in SELECT #1
@@ -1126,8 +1126,8 @@ EXPLAIN
                             -> Filter: (table_city.id = `<subquery4>`.city)  (rows=5)
                                 -> Table scan on <subquery4>  (rows=5.25)
                                     -> Materialize with deduplication  (rows=5.25)
-                                        -> Index lookup on table_city_user using city (city=table_city.id)  (rows=5.25)
-                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`)  (rows=1)
+                                        -> Index lookup on table_city_user using city (city = table_city.id)  (rows=5.25)
+                            -> Single-row covering index lookup on table_user using PRIMARY (id = `<subquery4>`.`user`)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table_city.id' of SELECT #4 was resolved in SELECT #1
@@ -1187,8 +1187,8 @@ EXPLAIN
                                         -> Hash
                                             -> Nested loop left join  (rows=2)
                                                 -> Covering index scan on b using idx_b  (rows=2)
-                                                -> Covering index lookup on c_inner using idx_c (c=b.c)  (rows=1)
-                    -> Covering index lookup on d using idx_d (c=`<subquery2>`.c)  (rows=1)
+                                                -> Covering index lookup on c_inner using idx_c (c = b.c)  (rows=1)
+                    -> Covering index lookup on d using idx_d (c = `<subquery2>`.c)  (rows=1)
 
 SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
 FROM d JOIN c
@@ -1387,7 +1387,7 @@ EXPLAIN
                         -> Materialize with deduplication  (rows=1)
                             -> Filter: (t4.col_int is not null)  (rows=1)
                                 -> Table scan on t4  (rows=1)
-    -> Single-row covering index lookup on t2 using pk (pk=t3.pk)  (rows=1)
+    -> Single-row covering index lookup on t2 using pk (pk = t3.pk)  (rows=1)
 
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (
@@ -1426,7 +1426,7 @@ EXPLAIN
                     -> Filter: ((t3.col2 between 2 and 9) and (t3.col1 is not null))  (cost=0.35 rows=1)
                         -> Table scan on t3  (cost=0.35 rows=1)
                     -> Filter: (t2.col2 = t3.col2)  (cost=0.35 rows=1)
-                        -> Single-row index lookup on t2 using ix1 (col1=t3.col1)  (cost=0.35 rows=1)
+                        -> Single-row index lookup on t2 using ix1 (col1 = t3.col1)  (cost=0.35 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
@@ -1461,14 +1461,14 @@ EXPLAIN
         -> Filter: (t1.col_int_key is not null)  (rows=1)
             -> Table scan on t1  (rows=1)
         -> Filter: <in_optimizer>((t3.pk + 6),(t3.pk + 6) in (select #2) is false)  (rows=1)
-            -> Single-row covering index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (rows=1)
+            -> Single-row covering index lookup on t3 using PRIMARY (pk = t1.col_int_key)  (rows=1)
             -> Select #2 (subquery in condition; run only once)
                 -> Filter: (((t3.pk + 6) = `<materialized_subquery>`.field4))  (rows=1)
                     -> Limit: 1 row(s)  (rows=1)
-                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t3.pk + 6))
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4 = (t3.pk + 6))
                             -> Materialize with deduplication  (rows=16)
                                 -> Covering index scan on table1s using col_int_unique  (rows=16)
-    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int_key)  (rows=1.14)
+    -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int_key)  (rows=1.14)
 
 SELECT *
 FROM t1
@@ -2237,7 +2237,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; run only once)
         -> Filter: ((t1.a = `<materialized_subquery>`.`COUNT(*)`))  (rows=1)
             -> Limit: 1 row(s)  (rows=1)
-                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (COUNT(*)=t1.a)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (COUNT(*) = t1.a)
                     -> Materialize with deduplication  (rows=1)
                         -> Aggregate: count(0)  (rows=1)
                             -> Remove duplicate (t2, t3) rows using temporary table (weedout)  (rows=1)
@@ -2247,7 +2247,7 @@ EXPLAIN
                                     -> Nested loop inner join  (rows=1)
                                         -> Nested loop inner join  (rows=1)
                                             -> Table scan on t2_a  (rows=1)
-                                            -> Covering index lookup on t3 using a (a=t2_a.a)  (rows=1)
+                                            -> Covering index lookup on t3 using a (a = t2_a.a)  (rows=1)
                                         -> Table scan on t2_b  (rows=1)
 
 DROP TABLE t1, t2, t3;
@@ -2358,14 +2358,14 @@ EXPLAIN
     -> Select #2 (subquery in condition; run only once)
         -> Filter: ((x0.c = `<materialized_subquery>`.`MAX(x2.c)`))  (rows=1)
             -> Limit: 1 row(s)  (rows=1)
-                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (MAX(x2.c)=x0.c)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (MAX(x2.c) = x0.c)
                     -> Materialize with deduplication  (rows=1)
                         -> Aggregate: max(x2.c)  (rows=1)
                             -> Batched key access inner join
                                 -> Batch input rows
                                     -> Filter: (x1.b is not null)  (rows=100)
                                         -> Table scan on x1  (rows=100)
-                                -> Multi-range index lookup on x2 using a (a=x1.b)  (rows=1)
+                                -> Multi-range index lookup on x2 using a (a = x1.b)  (rows=1)
 
 DROP TABLE num, t1;
 SET @@optimizer_switch=@old_opt_switch;

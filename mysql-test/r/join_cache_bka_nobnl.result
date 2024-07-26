@@ -2682,7 +2682,7 @@ EXPLAIN
             -> Nested loop inner join  (cost=0.7 rows=1)
                 -> Filter: <if>(outer_field_is_not_null, (<cache>(t3.c1) = t1.c2_key), true)  (cost=0.35 rows=1)
                     -> Alternative plans for IN subquery: Index lookup unless c2_key IS NULL  (cost=0.35 rows=1)
-                        -> Index lookup on t1 using col_int_key (c2_key=<cache>(t3.c1))  (cost=0.35 rows=1)
+                        -> Index lookup on t1 using col_int_key (c2_key = <cache>(t3.c1))  (cost=0.35 rows=1)
                         -> Table scan on t1  (cost=0.25 rows=1)
                 -> Filter: (t2.pk < t1.c1)  (cost=0.35 rows=1)
                     -> Index range scan on t2 (re-planned for each iteration)  (cost=0.35 rows=1)
@@ -3194,7 +3194,7 @@ EXPLAIN
     -> Batch input rows
         -> Filter: (t1.a = 1)  (cost=0.35 rows=1)
             -> Table scan on t1  (cost=0.35 rows=1)
-    -> Multi-range index lookup on t4 using idx1 (b='5')  (cost=0.35 rows=1)
+    -> Multi-range index lookup on t4 using idx1 (b = '5')  (cost=0.35 rows=1)
 
 DROP TABLE t1;
 set optimizer_switch = default;

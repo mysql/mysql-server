@@ -83,24 +83,24 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_ab) */ a FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: (t1.c = 3)  (rows=0.05)
-    -> Index lookup on t1 using i_ab (a=1, b=2)  (rows=1)
+    -> Index lookup on t1 using i_ab (a = 1, b = 2)  (rows=1)
 
 EXPLAIN SELECT /*+ INDEX(t1 i_a, i_b) JOIN_INDEX(t1 i_c) */ * FROM t1 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.b = 2) and (t1.a = 1))  (rows=0.05)
-    -> Index lookup on t1 using i_c (c=3)  (rows=1)
+    -> Index lookup on t1 using i_c (c = 3)  (rows=1)
 
 EXPLAIN SELECT /*+ NO_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
-        -> Index lookup on t1 using i_b (b=2)  (rows=32)
+        -> Index lookup on t1 using i_b (b = 2)  (rows=32)
 
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t1 i_ab) */ a, max(b) FROM t1 WHERE b = 2 GROUP BY a;
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
-        -> Index lookup on t1 using i_b (b=2)  (rows=32)
+        -> Index lookup on t1 using i_b (b = 2)  (rows=32)
 
 EXPLAIN SELECT /*+ GROUP_INDEX(t1 i_ab) */ a, max(b) FROM t1 GROUP BY a;
 EXPLAIN
@@ -239,7 +239,7 @@ EXPLAIN SELECT /*+ INDEX(t1 i_a) */ * FROM t1 IGNORE INDEX(i_a)
 WHERE a = 1 AND b = 2 AND c = 3;
 EXPLAIN
 -> Filter: ((t1.c = 3) and (t1.b = 2))  (rows=0.125)
-    -> Index lookup on t1 using i_a (a=1)  (rows=32)
+    -> Index lookup on t1 using i_a (a = 1)  (rows=32)
 
 CREATE VIEW v3 AS SELECT /*+ INDEX_MERGE(t1) */a FROM t1
 WHERE a = 1 AND b = 2 AND c = 3;
@@ -259,7 +259,7 @@ WHERE MATCH (x) AGAINST ('abc')
 ORDER BY MATCH (x) AGAINST ('abc') DESC;
 EXPLAIN
 -> Filter: (match t.x against ('abc'))  (rows=1)
-    -> Full-text covering index search on t using x (x='abc')  (rows=1)
+    -> Full-text covering index search on t using x (x = 'abc')  (rows=1)
 
 EXPLAIN SELECT /*+ ORDER_INDEX(t x) */
 FTS_DOC_ID, MATCH (x) AGAINST ('abc') AS m FROM t
@@ -273,7 +273,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN
 -> Filter: (match t.x against ('abc'))  (rows=1)
-    -> Full-text index search on t using x (x='abc')  (rows=1)
+    -> Full-text index search on t using x (x = 'abc')  (rows=1)
 
 EXPLAIN SELECT /*+ NO_JOIN_INDEX(t x) */ * FROM t WHERE MATCH(x) AGAINST('abc');
 EXPLAIN

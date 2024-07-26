@@ -205,7 +205,7 @@ EXPLAIN
             -> Table scan on t1  (rows=2)
             -> Limit: 1 row(s)  (rows=1)
                 -> Filter: (t2.c <= 3)  (rows=1.67)
-                    -> Index lookup on t2 using a (a=t1.a)  (rows=5)
+                    -> Index lookup on t2 using a (a = t1.a)  (rows=5)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
@@ -488,7 +488,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
                 -> Filter: (t3.a = t2.a)  (rows=1)
                     -> Table scan on t3  (rows=1)
-        -> Covering index lookup on t4d using <auto_key0> (a=t1.a)  (rows=2)
+        -> Covering index lookup on t4d using <auto_key0> (a = t1.a)  (rows=2)
             -> Materialize (invalidate on row from t3)  (rows=1)
                 -> Limit: 1 row(s)  (rows=1)
                     -> Filter: (t4.a = t3.a)  (rows=1)
@@ -600,7 +600,7 @@ EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b >
 EXPLAIN
 -> Nested loop antijoin  (rows=9)
     -> Table scan on t1  (rows=3)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b = t1.a)  (rows=1)
         -> Materialize with deduplication  (rows=3)
             -> Filter: (t1.b is not null)  (rows=3)
                 -> Filter: (t1.b > 2)  (rows=3)
@@ -686,7 +686,7 @@ EXPLAIN
     -> Remove duplicates from input sorted on i1  (rows=4)
         -> Filter: (t2.i is not null)  (rows=4)
             -> Covering index scan on t2 using i1  (rows=4)
-    -> Single-row covering index lookup on t1 using PRIMARY (i=t2.i)  (rows=1)
+    -> Single-row covering index lookup on t1 using PRIMARY (i = t2.i)  (rows=1)
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -709,7 +709,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=1)
     -> Table scan on t2  (rows=1)
     -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=1)
-        -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (rows=1)
+        -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array) = json'"1"')  (rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
@@ -725,7 +725,7 @@ EXPLAIN
             -> Nested loop inner join  (rows=3) (actual rows=1 loops=1)
                 -> Filter: (b.b is not null)  (rows=3) (actual rows=3 loops=1)
                     -> Table scan on b  (rows=3) (actual rows=3 loops=1)
-                -> Single-row index lookup on a using PRIMARY (a=b.b)  (rows=1) (actual rows=0.333 loops=3)
+                -> Single-row index lookup on a using PRIMARY (a = b.b)  (rows=1) (actual rows=0.333 loops=3)
 
 EXPLAIN ANALYZE SELECT * FROM t1 AS a, t1 AS b WHERE a.b=500;
 EXPLAIN
@@ -882,7 +882,7 @@ EXPLAIN
     -> Limit: 1 row(s)  (rows=1)
         -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (rows=1)
             -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (rows=4)
-                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (rows=4)
+                -> Covering index lookup on d using <auto_key0> (a = <cache>(t1.a) or NULL)  (rows=4)
                     -> Materialize  (rows=1)
                         -> Table scan on t1  (rows=1)
                 -> Table scan on d  (rows=2)
@@ -1032,16 +1032,16 @@ EXPLAIN
                 -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
                     -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
                 -> Filter: (d1.a = (10 * d2.a))  (rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a = (10 * d2.a))  (rows=1) (actual rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1 = d2.b)  (rows=2) (never executed)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
         -> Table scan on tx  (rows=1) (actual rows=1 loops=1)
             -> Materialize CTE tx if needed  (rows=1) (actual rows=1 loops=1)
                 -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
                     -> Filter: (j1.b is not null)  (rows=1) (actual rows=1 loops=1)
                         -> Table scan on j1  (rows=1) (actual rows=1 loops=1)
-                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row covering index lookup on j2 using PRIMARY (a = j1.b)  (rows=1) (actual rows=1 loops=1)
 
 EXPLAIN FORMAT=TREE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
@@ -1055,14 +1055,14 @@ EXPLAIN
                 -> Filter: (d2.b is not null)  (rows=1)
                     -> Table scan on d2  (rows=1)
                 -> Filter: (d1.a = -(d2.a))  (rows=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (rows=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a = -(d2.a))  (rows=1)
             -> Filter: (d2.b = tx.i1)  (rows=2)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2)
+                -> Covering index lookup on tx using <auto_key0> (i1 = d2.b)  (rows=2)
                     -> Materialize CTE tx if needed  (rows=1)
                         -> Nested loop inner join  (rows=1)
                             -> Filter: (j1.b is not null)  (rows=1)
                                 -> Table scan on j1  (rows=1)
-                            -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1)
+                            -> Single-row covering index lookup on j2 using PRIMARY (a = j1.b)  (rows=1)
         -> Table scan on tx  (rows=1)
             -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1)
 
@@ -1078,15 +1078,15 @@ EXPLAIN
                 -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
                     -> Filter: (j1.b is not null)  (rows=1) (actual rows=1 loops=1)
                         -> Table scan on j1  (rows=1) (actual rows=1 loops=1)
-                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row covering index lookup on j2 using PRIMARY (a = j1.b)  (rows=1) (actual rows=1 loops=1)
         -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
             -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
                 -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
                     -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
                 -> Filter: (d1.a = -(d2.a))  (rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a = -(d2.a))  (rows=1) (actual rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1 = d2.b)  (rows=2) (never executed)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
 
 EXPLAIN ANALYZE
@@ -1101,14 +1101,14 @@ EXPLAIN
                 -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
                     -> Filter: (j1.b is not null)  (rows=1) (actual rows=1 loops=1)
                         -> Table scan on j1  (rows=1) (actual rows=1 loops=1)
-                    -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row covering index lookup on j2 using PRIMARY (a = j1.b)  (rows=1) (actual rows=1 loops=1)
         -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
             -> Nested loop inner join  (rows=1) (actual rows=1 loops=1)
                 -> Covering index scan on d1 using PRIMARY  (rows=1) (actual rows=1 loops=1)
                 -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
-                    -> Single-row index lookup on d2 using PRIMARY (a=d1.a)  (rows=1) (actual rows=1 loops=1)
+                    -> Single-row index lookup on d2 using PRIMARY (a = d1.a)  (rows=1) (actual rows=1 loops=1)
             -> Filter: (d2.b = tx.i1)  (rows=2) (actual rows=0 loops=1)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (actual rows=0 loops=1)
+                -> Covering index lookup on tx using <auto_key0> (i1 = d2.b)  (rows=2) (actual rows=0 loops=1)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
 
 EXPLAIN ANALYZE
@@ -1123,22 +1123,22 @@ EXPLAIN
                 -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
                     -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
                 -> Filter: (d1.a = (10 * d2.a))  (rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a = (10 * d2.a))  (rows=1) (actual rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1 = d2.b)  (rows=2) (never executed)
                     -> Materialize CTE tx if needed  (rows=1) (never executed)
                         -> Nested loop inner join  (rows=1) (never executed)
                             -> Filter: (j1.b is not null)  (rows=1) (never executed)
                                 -> Table scan on j1  (rows=1) (never executed)
-                            -> Single-row covering index lookup on j2 using PRIMARY (a=j1.b)  (rows=1) (never executed)
+                            -> Single-row covering index lookup on j2 using PRIMARY (a = j1.b)  (rows=1) (never executed)
         -> Nested loop inner join  (rows=2) (actual rows=0 loops=1)
             -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
                 -> Filter: (d2.b is not null)  (rows=1) (actual rows=1 loops=1)
                     -> Table scan on d2  (rows=1) (actual rows=1 loops=1)
                 -> Filter: (d1.a = -(d2.a))  (rows=1) (actual rows=0 loops=1)
-                    -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (rows=1) (actual rows=0 loops=1)
+                    -> Single-row covering index lookup on d1 using PRIMARY (a = -(d2.a))  (rows=1) (actual rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (rows=2) (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1 = d2.b)  (rows=2) (never executed)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1) (never executed)
 
 EXPLAIN ANALYZE
@@ -1168,7 +1168,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
     -> Table scan on y2  (rows=1) (actual rows=1 loops=1)
     -> Filter: (((y1.b + y2.b) = (select #2)) and (y1.a = -(y2.a)))  (rows=1) (actual rows=0 loops=1)
-        -> Single-row index lookup on y1 using PRIMARY (a=-(y2.a))  (rows=1) (actual rows=0 loops=1)
+        -> Single-row index lookup on y1 using PRIMARY (a = -(y2.a))  (rows=1) (actual rows=0 loops=1)
         -> Select #2 (subquery in condition; run only once)
             -> Aggregate: max(x1.m1)  (rows=1) (never executed)
                 -> Table scan on x1  (rows=0) (never executed)
@@ -1232,11 +1232,11 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
--> Covering index lookup on t using x (x=4)  (rows=16)
+-> Covering index lookup on t using x (x = 4)  (rows=16)
 
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
--> Covering index lookup on t using x (x=4)  (rows=16) (actual rows=16 loops=1)
+-> Covering index lookup on t using x (x = 4)  (rows=16) (actual rows=16 loops=1)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
@@ -1423,7 +1423,7 @@ EXPLAIN
     -> Remove duplicates from input sorted on b  (rows=2)
         -> Filter: (t1.b is not null)  (rows=2)
             -> Covering index scan on t1 using b  (rows=2)
-    -> Covering index lookup on t using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
 SELECT
@@ -1448,7 +1448,7 @@ EXPLAIN
         -> Filter: ((0 <> t1.b) and (t1.b is not null))  (rows=1)
             -> Covering index scan on t1 using b  (rows=2)
         -> Covering index scan on t2 using b  (rows=2)
-    -> Covering index lookup on t using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a  IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
@@ -1477,7 +1477,7 @@ EXPLAIN
             -> Nested loop inner join  (rows=1)
                 -> Filter: ((0 <> t1.b) and (t1.b is not null))  (rows=1)
                     -> Covering index scan on t1 using b  (rows=2)
-                -> Covering index lookup on t using a (a=t1.b)  (rows=1)
+                -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
@@ -1502,7 +1502,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=4)
     -> Filter: (t.a is not null)  (rows=2)
         -> Covering index scan on t using a  (rows=2)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a=t.a)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a = t.a)  (rows=1)
         -> Materialize with deduplication  (rows=2)
             -> Filter: (t1.a is not null)  (rows=2)
                 -> Filter: (t1.b <> 30)  (rows=2)

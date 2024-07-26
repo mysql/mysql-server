@@ -89,14 +89,14 @@ Warning	3126	Hint NO_INDEX_MERGE(`t1` ) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1) INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
 -> Filter: ((t1.f4 = 'h') and (t1.f3 = 'b'))  (rows=25.3)
-    -> Index lookup on t1 using f2 (f2=2)  (rows=48)
+    -> Index lookup on t1 using f2 (f2 = 2)  (rows=48)
 
 Warnings:
 Warning	3126	Hint INDEX_MERGE(`t1`  `f2`, `f3`, `f4`) is ignored as conflicting/duplicated
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f2, f4) INDEX_MERGE(t1 f2, f3, f4) */ f2 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
 -> Filter: ((t1.f4 = 'h') and (t1.f3 = 'b'))  (rows=25.3)
-    -> Index lookup on t1 using f2 (f2=2)  (rows=48)
+    -> Index lookup on t1 using f2 (f2 = 2)  (rows=48)
 
 Warnings:
 Warning	3126	Hint INDEX_MERGE(`t1`  `f2`, `f3`, `f4`) is ignored as conflicting/duplicated
@@ -220,7 +220,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f4, f5) */ f3 FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
 -> Filter: ((t1.f4 = 'h') and (t1.f3 = 'b'))  (rows=25.3)
-    -> Index lookup on t1 using f2 (f2=2)  (rows=48)
+    -> Index lookup on t1 using f2 (f2 = 2)  (rows=48)
 
 Warnings:
 Warning	3128	Unresolved name `t1`@`select#1` `f5` for INDEX_MERGE hint
@@ -269,7 +269,7 @@ EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: ((t1.f4 = 'h') and (t1.f3 = 'b'))  (rows=25.3)
-        -> Index lookup on t1 using f2 (f2=2)  (rows=48)
+        -> Index lookup on t1 using f2 (f2 = 2)  (rows=48)
 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
@@ -285,13 +285,13 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f4) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: (t1.f4 = 'h')  (rows=56.9)
-        -> Index lookup on t1 using f2 (f2=2)  (rows=48)
+        -> Index lookup on t1 using f2 (f2 = 2)  (rows=48)
 
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: ((t1.f4 = 'h') and (t1.f3 = 'b'))  (rows=25.3)
-        -> Index lookup on t1 using f2 (f2=2)  (rows=48)
+        -> Index lookup on t1 using f2 (f2 = 2)  (rows=48)
 
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2;
 EXPLAIN

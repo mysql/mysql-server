@@ -82,7 +82,7 @@ EXPLAIN
 # Should use an index lookup.
 EXPLAIN FORMAT=TREE SELECT * FROM t3 WHERE p = 0;
 EXPLAIN
--> Single-row index lookup on t3 using PRIMARY (p=0)
+-> Single-row index lookup on t3 using PRIMARY (p = 0)
 
 # Should choose a hash join and hash the smaller table t2.
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t2 WHERE t3.c = t2.c;
@@ -105,13 +105,13 @@ EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.p = t1.p;
 EXPLAIN
 -> Nested loop inner join
     -> Table scan on t1
-    -> Single-row index lookup on t3 using PRIMARY (p=t1.p)
+    -> Single-row index lookup on t3 using PRIMARY (p = t1.p)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t3, t1 WHERE t3.s = t1.c;
 EXPLAIN
 -> Nested loop inner join
     -> Table scan on t1
-    -> Index lookup on t3 using s (s=t1.c)
+    -> Index lookup on t3 using s (s = t1.c)
 
 # Create a wide table to test effects on table width on plan choices.
 CREATE TABLE t_wide(p INT PRIMARY KEY, s INT,
@@ -152,11 +152,11 @@ test.t	analyze	status	OK
 # Should use an index lookup.
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s0 = 0;
 EXPLAIN
--> Index lookup on t using s0 (s0=0)
+-> Index lookup on t using s0 (s0 = 0)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE s1 = 0;
 EXPLAIN
--> Index lookup on t using s1 (s1=0)
+-> Index lookup on t using s1 (s1 = 0)
 
 # Should use a table scan and filter over a non-covering index lookup
 # with a large number of matching rows.

@@ -183,7 +183,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -193,7 +193,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -203,7 +203,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -213,7 +213,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN SELECT /*+ BKA(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -221,7 +221,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -231,7 +231,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 set optimizer_switch='batched_key_access=off,mrr_cost_based=on';
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -240,7 +240,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -250,7 +250,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -260,7 +260,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -270,7 +270,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -280,7 +280,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -291,7 +291,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 set optimizer_switch='mrr=off';
 EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -300,7 +300,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 # MRR switch should not affect BKA.
 # BKA should be used for table t2.
@@ -312,7 +312,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 set optimizer_switch='mrr=on';
 EXPLAIN SELECT /*+ NO_BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
@@ -321,7 +321,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 EXPLAIN SELECT /*+ NO_BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -329,7 +329,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 EXPLAIN SELECT /*+ NO_BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -337,7 +337,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 EXPLAIN SELECT /*+ QB_NAME(QB1) NO_BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -345,7 +345,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 # UPDATE|DELETE|INSERT|REPLACE hint testing
 set optimizer_switch='batched_key_access=off,mrr_cost_based=off,semijoin=off,materialization=off';
@@ -389,7 +389,7 @@ EXPLAIN
     -> Nested loop inner join  (rows=21)
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
-        -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+        -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 # Turn off ICP. ICP should not be used.
 EXPLAIN INSERT INTO t3(f1, f2, f3)
@@ -401,7 +401,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
         -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-            -> Index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+            -> Index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 # Turn off ICP. ICP should not be used.
 EXPLAIN INSERT /*+ NO_ICP(t2@QB1 f1) */ INTO t3(f1, f2, f3)
@@ -413,7 +413,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
         -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-            -> Index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+            -> Index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 EXPLAIN REPLACE INTO t3(f1, f2, f3)
 (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
@@ -423,7 +423,7 @@ EXPLAIN
     -> Nested loop inner join  (rows=21)
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
-        -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+        -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 # Turn off ICP. ICP should not be used.
 EXPLAIN REPLACE INTO t3(f1, f2, f3)
@@ -435,7 +435,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
         -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-            -> Index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+            -> Index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 # Turn off ICP for nonexistent table. ICP should be used.
 EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
@@ -446,7 +446,7 @@ EXPLAIN
     -> Nested loop inner join  (rows=21)
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
-        -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+        -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 Warnings:
 Warning	3127	Query block name `qb1` is not found for NO_ICP hint
@@ -460,7 +460,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
         -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-            -> Index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+            -> Index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 # Misc tests
 # Should issue warning
@@ -477,7 +477,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (t1.f1 is not null)  (rows=3)
         -> Table scan on t1  (rows=3)
-    -> Index lookup on t2 using f1 (f1=t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
+    -> Index lookup on t2 using f1 (f1 = t1.f1), with index condition: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=7)
 
 Warnings:
 Warning	3127	Query block name `qb1` is not found for BKA hint
@@ -504,7 +504,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (tbl1.f1 is not null)  (rows=3)
         -> Table scan on tbl1  (rows=3)
-    -> Index lookup on tbl2 using f1 (f1=tbl1.f1), with index condition: ((tbl2.f2 between tbl1.f1 and tbl1.f2) and ((tbl2.f2 + 1) >= (tbl1.f1 + 1)))  (rows=7)
+    -> Index lookup on tbl2 using f1 (f1 = tbl1.f1), with index condition: ((tbl2.f2 between tbl1.f1 and tbl1.f2) and ((tbl2.f2 + 1) >= (tbl1.f1 + 1)))  (rows=7)
 
 # Turn on BKA for multiple tables. BKA should be used for tbl2.
 EXPLAIN SELECT /*+ BKA(tbl1, tbl2) */ tbl2.f1, tbl2.f2, tbl2.f3 FROM t1 tbl1,t2 tbl2
@@ -515,7 +515,7 @@ EXPLAIN
         -> Filter: (tbl1.f1 is not null)  (rows=3)
             -> Table scan on tbl1  (rows=3)
     -> Filter: ((tbl2.f2 between tbl1.f1 and tbl1.f2) and ((tbl2.f2 + 1) >= (tbl1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on tbl2 using f1 (f1=tbl1.f1)  (rows=7)
+        -> Multi-range index lookup on tbl2 using f1 (f1 = tbl1.f1)  (rows=7)
 
 # Print warnings for nonexistent names
 EXPLAIN
@@ -528,7 +528,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#1` for BKA hint
@@ -567,7 +567,7 @@ EXPLAIN
         -> Filter: (t1.f1 is not null)  (rows=3)
             -> Table scan on t1  (rows=3)
     -> Filter: ((t2.f2 between t1.f1 and t1.f2) and ((t2.f2 + 1) >= (t1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on t2 using f1 (f1=t1.f1)  (rows=7)
+        -> Multi-range index lookup on t2 using f1 (f1 = t1.f1)  (rows=7)
 
 # Check that original table name is not recognized if alias is used.
 EXPLAIN SELECT * FROM (SELECT /*+ BKA(t2) */ tb2.f1, tb2.f2, tb2.f3 FROM t1 tb1,t2 tb2
@@ -576,7 +576,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=21)
     -> Filter: (tb1.f1 is not null)  (rows=3)
         -> Table scan on tb1  (rows=3)
-    -> Index lookup on tb2 using f1 (f1=tb1.f1), with index condition: ((tb2.f2 between tb1.f1 and tb1.f2) and ((tb2.f2 + 1) >= (tb1.f1 + 1)))  (rows=7)
+    -> Index lookup on tb2 using f1 (f1 = tb1.f1), with index condition: ((tb2.f2 between tb1.f1 and tb1.f2) and ((tb2.f2 + 1) >= (tb1.f1 + 1)))  (rows=7)
 
 Warnings:
 Warning	3128	Unresolved name `t2`@`select#2` for BKA hint
@@ -589,7 +589,7 @@ EXPLAIN
         -> Filter: (tb1.f1 is not null)  (rows=3)
             -> Table scan on tb1  (rows=3)
     -> Filter: ((tb2.f2 between tb1.f1 and tb1.f2) and ((tb2.f2 + 1) >= (tb1.f1 + 1)))  (rows=0.778)
-        -> Multi-range index lookup on tb2 using f1 (f1=tb1.f1)  (rows=7)
+        -> Multi-range index lookup on tb2 using f1 (f1 = tb1.f1)  (rows=7)
 
 # Check that PS and conventional statements give the same result.
 FLUSH STATUS;
@@ -809,7 +809,7 @@ EXPLAIN
                                 -> Table scan on t4  (rows=4)
                                 -> Hash
                                     -> Covering index scan on t3 using a  (rows=3)
-            -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+            -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL() */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -824,7 +824,7 @@ EXPLAIN
                             -> Table scan on t4  (rows=4)
                             -> Hash
                                 -> Covering index scan on t3 using a  (rows=3)
-        -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+        -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
     -> Filter: (t1.b = `<subquery2>`.b)  (rows=1)
         -> Table scan on t1  (rows=4)
 
@@ -841,7 +841,7 @@ EXPLAIN
                             -> Table scan on t4  (rows=4)
                             -> Hash
                                 -> Covering index scan on t3 using a  (rows=3)
-        -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+        -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
     -> Filter: (t1.b = `<subquery2>`.b)  (rows=1)
         -> Table scan on t1  (rows=4)
 
@@ -860,7 +860,7 @@ EXPLAIN
                                 -> Covering index scan on t3 using a  (rows=3)
                                 -> Filter: (t4.b = t3.b)  (rows=1)
                                     -> Table scan on t4  (rows=4)
-            -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+            -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -877,7 +877,7 @@ EXPLAIN
                                 -> Covering index scan on t3 using a  (rows=3)
                                 -> Hash
                                     -> Table scan on t4  (rows=4)
-            -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+            -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t3@subq1,t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -894,7 +894,7 @@ EXPLAIN
                                 -> Covering index scan on t3 using a  (rows=3)
                                 -> Filter: (t4.b = t3.b)  (rows=1)
                                     -> Table scan on t4  (rows=4)
-            -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+            -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1 t3, t4) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -911,7 +911,7 @@ EXPLAIN
                                 -> Covering index scan on t3 using a  (rows=3)
                                 -> Filter: (t4.b = t3.b)  (rows=1)
                                     -> Table scan on t4  (rows=4)
-            -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+            -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -928,7 +928,7 @@ EXPLAIN
                                 -> Covering index scan on t3 using a  (rows=3)
                                 -> Filter: (t4.b = t3.b)  (rows=1)
                                     -> Table scan on t4  (rows=4)
-            -> Covering index lookup on t2 using a (a=`<subquery2>`.b)  (rows=1)
+            -> Covering index lookup on t2 using a (a = `<subquery2>`.b)  (rows=1)
 
 SET optimizer_prune_level = DEFAULT;
 DROP TABLE t1, t2, t3;
@@ -1227,9 +1227,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1237,9 +1237,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1247,9 +1247,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1257,9 +1257,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1267,9 +1267,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1277,9 +1277,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1287,9 +1287,9 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Nested loop left join  (rows=1)
         -> Nested loop left join  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-            -> Index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Index lookup on t4 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+            -> Index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t1.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
 EXPLAIN
@@ -1299,9 +1299,9 @@ EXPLAIN
         -> Batch input rows
             -> Batched key access left join
                 -> Batch input rows
-                    -> Index lookup on t2 using k (a=t1.a)  (rows=1)
-                -> Multi-range index lookup on t3 using k (a=t1.a)  (rows=1)
-        -> Multi-range index lookup on t4 using k (a=t1.a)  (rows=1)
+                    -> Index lookup on t2 using k (a = t1.a)  (rows=1)
+                -> Multi-range index lookup on t3 using k (a = t1.a)  (rows=1)
+        -> Multi-range index lookup on t4 using k (a = t1.a)  (rows=1)
 
 SET optimizer_switch='block_nested_loop=on,batched_key_access=on,mrr_cost_based=off';
 EXPLAIN SELECT * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
@@ -1311,7 +1311,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Hash
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1324,7 +1324,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Hash
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1337,7 +1337,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Hash
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1350,7 +1350,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Filter: (t3.b = t2.b)  (rows=1)
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1363,7 +1363,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Hash
             -> Table scan on t3  (rows=1)
     -> Filter: (t4.b = t3.b)  (rows=1)
@@ -1376,7 +1376,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Filter: (t3.b = t2.b)  (rows=1)
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1389,7 +1389,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Filter: (t3.b = t2.b)  (rows=1)
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1402,7 +1402,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.a is not null)  (rows=1)
                 -> Table scan on t1  (rows=1)
-            -> Index lookup on t2 using k (a=t1.a)  (rows=1)
+            -> Index lookup on t2 using k (a = t1.a)  (rows=1)
         -> Filter: (t3.b = t2.b)  (rows=1)
             -> Table scan on t3  (rows=1)
     -> Hash
@@ -1419,7 +1419,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1431,7 +1431,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ NO_BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1443,7 +1443,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1455,7 +1455,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1468,7 +1468,7 @@ EXPLAIN
                     -> Table scan on t3  (rows=1)
                     -> Hash
                         -> Table scan on t2  (rows=1)
-            -> Multi-range index lookup on t4 using k (a=t3.a)  (rows=1)
+            -> Multi-range index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1480,7 +1480,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1493,7 +1493,7 @@ EXPLAIN
                     -> Table scan on t3  (rows=1)
                     -> Hash
                         -> Table scan on t2  (rows=1)
-            -> Multi-range index lookup on t4 using k (a=t3.a)  (rows=1)
+            -> Multi-range index lookup on t4 using k (a = t3.a)  (rows=1)
 
 SET optimizer_switch='block_nested_loop=off';
 EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
@@ -1506,7 +1506,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1518,7 +1518,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1530,7 +1530,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1542,7 +1542,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1554,7 +1554,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1566,7 +1566,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1578,7 +1578,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
 EXPLAIN
@@ -1590,7 +1590,7 @@ EXPLAIN
                 -> Table scan on t2  (rows=1)
             -> Filter: (t3.b = t1.b)  (rows=1)
                 -> Table scan on t3  (rows=1)
-        -> Index lookup on t4 using k (a=t3.a)  (rows=1)
+        -> Index lookup on t4 using k (a = t3.a)  (rows=1)
 
 DROP TABLE t;
 set optimizer_switch=default;
@@ -2448,7 +2448,7 @@ EXPLAIN
     -> Nested loop semijoin (FirstMatch)  (rows=2)
         -> Filter: (t3.a is not null)  (rows=2)
             -> Table scan on t3  (rows=2)
-        -> Covering index lookup on dt using <auto_key0> (a=t3.a)  (rows=2)
+        -> Covering index lookup on dt using <auto_key0> (a = t3.a)  (rows=2)
             -> Materialize  (rows=1)
                 -> Filter: (t1.a > 1)  (rows=1)
                     -> Table scan on t1  (rows=2)
@@ -2492,7 +2492,7 @@ EXPLAIN
     -> Nested loop semijoin (FirstMatch)  (rows=2)
         -> Filter: (t3.a is not null)  (rows=2)
             -> Table scan on t3  (rows=2)
-        -> Index lookup on dt using <auto_key0> (a=t3.a)  (rows=2)
+        -> Index lookup on dt using <auto_key0> (a = t3.a)  (rows=2)
             -> Materialize  (rows=1)
                 -> Filter: (t3.b > 1)  (rows=1)
                     -> Table scan on t3  (rows=2)

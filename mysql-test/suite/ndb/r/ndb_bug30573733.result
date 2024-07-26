@@ -68,7 +68,7 @@ EXPLAIN
                             -> Table scan on t2  (rows=25)
                             -> Hash
                                 -> Table scan on t1  (rows=25)
-        -> Single-row index lookup on t5 using PRIMARY (pk=t4.col_int), child of t4 in pushed join  (rows=1)
+        -> Single-row index lookup on t5 using PRIMARY (pk = t4.col_int), child of t4 in pushed join  (rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access

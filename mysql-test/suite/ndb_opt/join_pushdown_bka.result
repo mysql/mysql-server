@@ -2073,7 +2073,7 @@ EXPLAIN
                     -> Batched key access inner join
                         -> Batch input rows
                             -> Table scan on t1  (cost=4002 rows=16)
-                        -> Multi-range index lookup on t2 using PRIMARY (a=t1.c)  (cost=0.506 rows=1)
+                        -> Multi-range index lookup on t2 using PRIMARY (a = t1.c)  (cost=0.506 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -6576,11 +6576,11 @@ EXPLAIN
         -> Filter: ((x2.c is null) or (x4.d = x0.d))
             -> Nested loop left join
                 -> Nested loop inner join
-                    -> Index lookup on x1 using PRIMARY (a=x0.d)
+                    -> Index lookup on x1 using PRIMARY (a = x0.d)
                     -> Table scan on x2, activating pushed join of 3 tables
                 -> Nested loop inner join
-                    -> Index lookup on x3 using PRIMARY (a=x2.d), child of x2 in pushed join
-                    -> Index lookup on x4 using PRIMARY (a=x3.d), child of x3 in pushed join
+                    -> Index lookup on x3 using PRIMARY (a = x2.d), child of x2 in pushed join
+                    -> Index lookup on x4 using PRIMARY (a = x3.d), child of x3 in pushed join
 
 Warnings:
 Note	1003	Can't push outer joined table 'x1' as child of 'x0', join-nest containing the table has FILTER conditions
@@ -7305,8 +7305,8 @@ EXPLAIN
                     -> Table scan on <subquery2>
                         -> Materialize with deduplication
                             -> Table scan on t3
-                -> Multi-range index lookup on t1 using c (c=`<subquery2>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a=t1.b)
+                -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7330,8 +7330,8 @@ EXPLAIN
                     -> Table scan on <subquery2>
                         -> Materialize with deduplication
                             -> Table scan on t3
-                -> Multi-range index lookup on t1 using c (c=`<subquery2>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a=t1.b, b=`<subquery2>`.c)
+                -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery2>`.c)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7354,8 +7354,8 @@ EXPLAIN
                     -> Table scan on <subquery3>
                         -> Materialize with deduplication
                             -> Table scan on t3
-                -> Multi-range index lookup on t1 using c (c=`<subquery3>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a=t1.b, b=`<subquery3>`.c)
+                -> Multi-range index lookup on t1 using c (c = `<subquery3>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery3>`.c)
 
 Warnings:
 Note	1003	Can't push table 't1' as child, access type 'Multi-range' not implemented
@@ -7379,10 +7379,10 @@ EXPLAIN
                         -> Table scan on <subquery3>
                             -> Materialize with deduplication
                                 -> Table scan on t3
-                    -> Multi-range index lookup on t1 using c (c=`<subquery3>`.c)
-            -> Multi-range index lookup on t2 using PRIMARY (a=t1.b, b=`<subquery3>`.c)
+                    -> Multi-range index lookup on t1 using c (c = `<subquery3>`.c)
+            -> Multi-range index lookup on t2 using PRIMARY (a = t1.b, b = `<subquery3>`.c)
         -> Filter: (`<subquery4>`.c = `<subquery3>`.c)
-            -> Single-row index lookup on <subquery4> using <auto_distinct_key> (c=t1.c)
+            -> Single-row index lookup on <subquery4> using <auto_distinct_key> (c = t1.c)
                 -> Materialize with deduplication
                     -> Table scan on t4
 
@@ -7412,8 +7412,8 @@ EXPLAIN
                         -> Batched key access inner join
                             -> Batch input rows
                                 -> Table scan on t3s
-                            -> Multi-range index lookup on t4s using PRIMARY (a=t3s.b)
-        -> Multi-range index lookup on t2 using c (c=`<subquery2>`.c)
+                            -> Multi-range index lookup on t4s using PRIMARY (a = t3s.b)
+        -> Multi-range index lookup on t2 using c (c = `<subquery2>`.c)
 
 Warnings:
 Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
@@ -7608,9 +7608,9 @@ EXPLAIN
                             -> Batched key access inner join
                                 -> Batch input rows
                                     -> Table scan on t3s
-                                -> Multi-range index lookup on t4s using PRIMARY (a=t3s.b)
-                -> Multi-range index lookup on t1 using c (c=`<subquery2>`.c)
-        -> Multi-range index lookup on t2 using PRIMARY (a=t1.b)
+                                -> Multi-range index lookup on t4s using PRIMARY (a = t3s.b)
+                -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
+        -> Multi-range index lookup on t2 using PRIMARY (a = t1.b)
 
 Warnings:
 Note	1003	Can't push table 't4s' as child, access type 'Multi-range' not implemented
@@ -7647,15 +7647,15 @@ EXPLAIN
                                 -> Batched key access inner join
                                     -> Batch input rows
                                         -> Table scan on t3s1
-                                    -> Multi-range index lookup on t4s1 using PRIMARY (a=t3s1.b)
-                    -> Multi-range index lookup on t1 using c (c=`<subquery2>`.c)
-            -> Multi-range index lookup on t2 using PRIMARY (a=t1.b)
-        -> Single-row index lookup on <subquery3> using <auto_distinct_key> (c=t1.d)
+                                    -> Multi-range index lookup on t4s1 using PRIMARY (a = t3s1.b)
+                    -> Multi-range index lookup on t1 using c (c = `<subquery2>`.c)
+            -> Multi-range index lookup on t2 using PRIMARY (a = t1.b)
+        -> Single-row index lookup on <subquery3> using <auto_distinct_key> (c = t1.d)
             -> Materialize with deduplication
                 -> Batched key access inner join
                     -> Batch input rows
                         -> Table scan on t3s2
-                    -> Multi-range index lookup on t4s2 using PRIMARY (a=t3s2.b)
+                    -> Multi-range index lookup on t4s2 using PRIMARY (a = t3s2.b)
 
 Warnings:
 Note	1003	Can't push table 't4s1' as child, access type 'Multi-range' not implemented
@@ -8023,19 +8023,19 @@ EXPLAIN
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a=1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a=(t1.b + 0), b=t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a=t1.b, b=t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
     -> Stream results
         -> Batched key access inner join
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a=1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a=(t1.b + 0), b=t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a=t1.b, b=t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8070,18 +8070,18 @@ EXPLAIN
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a=1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a=(t1.b + 0), b=t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a=t1.b, b=t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
         -> Batched key access inner join
             -> Batch input rows
                 -> Batched key access inner join
                     -> Batch input rows
-                        -> Index lookup on t1 using PRIMARY (a=1), with pushed condition: (t1.d = 1)
+                        -> Index lookup on t1 using PRIMARY (a = 1), with pushed condition: (t1.d = 1)
                     -> Filter: (t2.a = (t1.b + 0))
-                        -> Multi-range index lookup on t2 using PRIMARY (a=(t1.b + 0), b=t1.c)
-            -> Multi-range index lookup on t3 using PRIMARY (a=t1.b, b=t1.c)
+                        -> Multi-range index lookup on t2 using PRIMARY (a = (t1.b + 0), b = t1.c)
+            -> Multi-range index lookup on t3 using PRIMARY (a = t1.b, b = t1.c)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8145,12 +8145,12 @@ EXPLAIN
         -> Table scan on t1, activating pushed join of 3 tables
         -> Batched key access inner join
             -> Batch input rows
-                -> Single-row index lookup on t2 using PRIMARY (pk=t1.a), child of t1 in pushed join
-            -> Multi-range index lookup on t3 using PRIMARY (pk=t2.b)
+                -> Single-row index lookup on t2 using PRIMARY (pk = t1.a), child of t1 in pushed join
+            -> Multi-range index lookup on t3 using PRIMARY (pk = t2.b)
     -> Batched key access inner join
         -> Batch input rows
-            -> Single-row index lookup on t4 using PRIMARY (pk=t1.c), child of t1 in pushed join
-        -> Multi-range index lookup on t5 using PRIMARY (pk=t3.d)
+            -> Single-row index lookup on t4 using PRIMARY (pk = t1.c), child of t1 in pushed join
+        -> Multi-range index lookup on t5 using PRIMARY (pk = t3.d)
 
 Warnings:
 Note	1003	Can't push table 't3' as child, access type 'Multi-range' not implemented
@@ -8207,7 +8207,7 @@ EXPLAIN
     -> Batched key access inner join
         -> Batch input rows
             -> Zero rows (Impossible filter)
-        -> Multi-range index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
+        -> Multi-range index lookup on table2 using col_int_key (col_int_key = table1.col_int_key), with pushed condition: (table2.col_int = table1.col_int)
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, access type 'Multi-range' not implemented
@@ -8258,8 +8258,8 @@ EXPLAIN
         -> Batched key access inner join
             -> Batch input rows
                 -> Table scan on t10, with pushed condition: (t10.i is not null)
-            -> Multi-range index lookup on t1000 using i (i=t10.i)
-    -> Multi-range index lookup on t100 using PRIMARY (k=t1000.k)
+            -> Multi-range index lookup on t1000 using i (i = t10.i)
+    -> Multi-range index lookup on t100 using PRIMARY (k = t1000.k)
 
 Warnings:
 Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
@@ -8274,8 +8274,8 @@ EXPLAIN
         -> Batched key access inner join
             -> Batch input rows
                 -> Table scan on t10, with pushed condition: (t10.i is not null)
-            -> Multi-range index lookup on t1000 using i (i=t10.i)
-    -> Multi-range index lookup on t100 using PRIMARY (k=t10.k)
+            -> Multi-range index lookup on t1000 using i (i = t10.i)
+    -> Multi-range index lookup on t100 using PRIMARY (k = t10.k)
 
 Warnings:
 Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
@@ -8307,8 +8307,8 @@ EXPLAIN
         -> Batched key access inner join
             -> Batch input rows
                 -> Table scan on t1, with pushed condition: (t1.k is not null)
-            -> Multi-range index lookup on t2 using ix2 (a=t1.k)
-    -> Multi-range index lookup on t3 using ix1 (k=t1.k)
+            -> Multi-range index lookup on t2 using ix2 (a = t1.k)
+    -> Multi-range index lookup on t3 using ix1 (k = t1.k)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8335,8 +8335,8 @@ EXPLAIN
         -> Batched key access inner join
             -> Batch input rows
                 -> Table scan on t1, with pushed condition: (t1.k is not null)
-            -> Multi-range index lookup on t2 using ix2 (a=t1.k)
-    -> Multi-range index lookup on t3 using ix1 (k=t1.k)
+            -> Multi-range index lookup on t2 using ix2 (a = t1.k)
+    -> Multi-range index lookup on t3 using ix1 (k = t1.k)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8363,8 +8363,8 @@ EXPLAIN
         -> Batched key access left join
             -> Batch input rows
                 -> Table scan on t1, with pushed condition: (t1.k is not null)
-            -> Multi-range index lookup on t2 using ix2 (a=t1.k)
-    -> Multi-range index lookup on t3 using ix1 (k=t1.k)
+            -> Multi-range index lookup on t2 using ix2 (a = t1.k)
+    -> Multi-range index lookup on t3 using ix1 (k = t1.k)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
@@ -8430,7 +8430,7 @@ EXPLAIN
 -> Batched key access inner join
     -> Batch input rows
         -> Table scan on table2, with pushed condition: (table2.col_int_key is not null)  (...)
-    -> Multi-range index lookup on table4 using ix1 (col_int=1, col_int_unique=table2.col_int_key)  (...)
+    -> Multi-range index lookup on table4 using ix1 (col_int = 1, col_int_unique = table2.col_int_key)  (...)
 
 Warnings:
 Note	1003	Can't push table 'table4' as child, access type 'Multi-range' not implemented
@@ -8445,7 +8445,7 @@ EXPLAIN
 -> Nested loop inner join  (...)
     -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  (...)
     -> Filter: (table4.col_int <=> table2.col_int_key)  (...)
-        -> Index lookup on table4 using ix1 (col_int=table2.col_int_key, col_int_unique=table2.col_int_key), child of table2 in pushed join  (...)
+        -> Index lookup on table4 using ix1 (col_int = table2.col_int_key, col_int_unique = table2.col_int_key), child of table2 in pushed join  (...)
 
 SELECT * FROM f AS table2
 STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
@@ -8458,7 +8458,7 @@ EXPLAIN
 -> Nested loop inner join  (...)
     -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.col_int_key is not null)  (...)
     -> Filter: (table4.col_int_unique <=> table2.col_int_key)  (...)
-        -> Index lookup on table4 using ix1 (col_int=table2.col_int_key, col_int_unique=table2.col_int_key), child of table2 in pushed join  (...)
+        -> Index lookup on table4 using ix1 (col_int = table2.col_int_key, col_int_unique = table2.col_int_key), child of table2 in pushed join  (...)
 
 SELECT * FROM f AS table2
 STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
@@ -8471,7 +8471,7 @@ EXPLAIN
 -> Batched key access inner join
     -> Batch input rows
         -> Table scan on table2, with pushed condition: (table2.col_int_key is not null)  (...)
-    -> Multi-range index lookup on table4 using ix1 (col_int=table2.col_int_key, col_int_unique=table2.col_int_key)  (...)
+    -> Multi-range index lookup on table4 using ix1 (col_int = table2.col_int_key, col_int_unique = table2.col_int_key)  (...)
 
 Warnings:
 Note	1003	Can't push table 'table4' as child, access type 'Multi-range' not implemented

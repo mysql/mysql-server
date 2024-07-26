@@ -4108,7 +4108,7 @@ EXPLAIN
                                     -> Hash
                                         -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (rows=20)
                             -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (rows=0.1)
-                                -> Index lookup on cc using idx_cc_col_int_key (col_int_key=subquery1_t2.col_int)  (rows=1)
+                                -> Index lookup on cc using idx_cc_col_int_key (col_int_key = subquery1_t2.col_int)  (rows=1)
 
 DROP VIEW view_cc;
 DROP TABLE cc;

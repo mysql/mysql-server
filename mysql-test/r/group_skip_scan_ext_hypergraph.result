@@ -289,7 +289,7 @@ GROUP BY a, b;
 EXPLAIN
 -> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
-        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+        -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -1415,7 +1415,7 @@ GROUP BY a, b;
 EXPLAIN
 -> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
-        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+        -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -2416,7 +2416,7 @@ GROUP BY a, b;
 EXPLAIN
 -> Group aggregate: max(t.d), min(t.d)  (rows=0.182)
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.182)
-        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+        -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)
@@ -3417,7 +3417,7 @@ GROUP BY a, b;
 EXPLAIN
 -> Group aggregate: max(t.d), min(t.d)  (rows=0.185)
     -> Filter: (((t.d = 1) or (t.d = 9)) and ((t.c = 3) or (t.c = 40)))  (rows=0.185)
-        -> Covering index lookup on t using k1 (a=1)  (rows=209)
+        -> Covering index lookup on t using k1 (a = 1)  (rows=209)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE a = 1 AND (c = 3 OR c = 40) AND (d = 1 OR d = 9)

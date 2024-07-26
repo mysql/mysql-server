@@ -115,7 +115,7 @@ set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 EXPLAIN
 -> Filter: (t.d <= 3)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
@@ -132,7 +132,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 EXPLAIN
 -> Filter: (t.d <= 3)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
@@ -167,7 +167,7 @@ set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 EXPLAIN
 -> Filter: (t.d >= 98)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
@@ -184,7 +184,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 EXPLAIN
 -> Filter: (t.d >= 98)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
@@ -479,7 +479,7 @@ set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
 EXPLAIN
 -> Filter: (t.d < 3)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
@@ -496,7 +496,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
 EXPLAIN
 -> Filter: (t.d < 3)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT a+1, b, c, d FROM t WHERE a = 5 AND d < 3;
@@ -531,7 +531,7 @@ set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
 EXPLAIN
 -> Filter: (t.d < 3)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
@@ -548,7 +548,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
 EXPLAIN
 -> Filter: (t.d < 3)  (rows=63)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
@@ -652,7 +652,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 EXPLAIN
 -> Filter: ((t.c > 10) and (t.d < 3))  (rows=21)
-    -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+    -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
@@ -706,7 +706,7 @@ EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER
 EXPLAIN
 -> Sort: t.d, t.c  (rows=189)
     -> Filter: ((t.c > 10) and (t.d < 3))  (rows=189)
-        -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+        -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c;
@@ -761,7 +761,7 @@ EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER 
 EXPLAIN
 -> Sort: t.d, (t.c * -(1))  (rows=189)
     -> Filter: ((t.c > 1) and (t.d < 3))  (rows=189)
-        -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+        -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
@@ -796,7 +796,7 @@ include/diff_tables.inc [test.hint_skip_scan, test.no_skip_scan]
 set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT e FROM t WHERE a = 5 AND d <= 3;
 EXPLAIN
--> Index lookup on t using PRIMARY (a=5), with index condition: (t.d <= 3)  (rows=189)
+-> Index lookup on t using PRIMARY (a = 5), with index condition: (t.d <= 3)  (rows=189)
 
 FLUSH STATUS;
 SELECT e FROM t WHERE a = 5 AND d <= 3;
@@ -812,7 +812,7 @@ Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT e FROM t WHERE a = 5 AND d <= 3;
 EXPLAIN
--> Index lookup on t using PRIMARY (a=5), with index condition: (t.d <= 3)  (rows=189)
+-> Index lookup on t using PRIMARY (a = 5), with index condition: (t.d <= 3)  (rows=189)
 
 FLUSH STATUS;
 SELECT e FROM t WHERE a = 5 AND d <= 3;
@@ -828,7 +828,7 @@ Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
 EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ e FROM t WHERE a = 5 AND d <= 3;
 EXPLAIN
--> Index lookup on t using PRIMARY (a=5), with index condition: (t.d <= 3)  (rows=189)
+-> Index lookup on t using PRIMARY (a = 5), with index condition: (t.d <= 3)  (rows=189)
 
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ e FROM t WHERE a = 5 AND d <= 3;
@@ -846,7 +846,7 @@ set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 EXPLAIN
 -> Sort: t.d, t.c, t.e  (rows=189)
-    -> Index lookup on t using PRIMARY (a=5), with index condition: ((t.c > 10) and (t.d < 3))  (rows=189)
+    -> Index lookup on t using PRIMARY (a = 5), with index condition: ((t.c > 10) and (t.d < 3))  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
@@ -863,7 +863,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 EXPLAIN
 -> Sort: t.d, t.c, t.e  (rows=189)
-    -> Index lookup on t using PRIMARY (a=5), with index condition: ((t.c > 10) and (t.d < 3))  (rows=189)
+    -> Index lookup on t using PRIMARY (a = 5), with index condition: ((t.c > 10) and (t.d < 3))  (rows=189)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
@@ -880,7 +880,7 @@ include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
 EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 EXPLAIN
 -> Sort: t.d, t.c, t.e  (rows=189)
-    -> Index lookup on t using PRIMARY (a=5), with index condition: ((t.c > 10) and (t.d < 3))  (rows=189)
+    -> Index lookup on t using PRIMARY (a = 5), with index condition: ((t.c > 10) and (t.d < 3))  (rows=189)
 
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
@@ -917,7 +917,7 @@ EXPLAIN FORMAT=TREE SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND 
 EXPLAIN
 -> Aggregate: count(t.a), count(t.b), count(t.c)  (rows=1)
     -> Filter: ((t.c > 10) and (t.d < 3))  (rows=21)
-        -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+        -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT count(a), count(b), count(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
@@ -972,7 +972,7 @@ EXPLAIN FORMAT=TREE SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10
 EXPLAIN
 -> Aggregate: min(t.a), max(t.b), min(t.c)  (rows=1)
     -> Filter: ((t.c > 10) and (t.d < 3))  (rows=21)
-        -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+        -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT min(a), max(b), min(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;
@@ -1027,7 +1027,7 @@ EXPLAIN FORMAT=TREE SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10
 EXPLAIN
 -> Aggregate: sum(t.a), sum(t.b), sum(t.c)  (rows=1)
     -> Filter: ((t.c > 10) and (t.d < 3))  (rows=21)
-        -> Covering index lookup on t using PRIMARY (a=5)  (rows=189)
+        -> Covering index lookup on t using PRIMARY (a = 5)  (rows=189)
 
 FLUSH STATUS;
 SELECT sum(a), sum(b), sum(c)  FROM t WHERE a = 5 AND c > 10 AND d < 3;

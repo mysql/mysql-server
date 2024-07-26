@@ -814,7 +814,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL() */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -827,7 +827,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t1, t2) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -840,7 +840,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -853,7 +853,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -866,7 +866,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t3@subq1,t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -879,7 +879,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1 t3, t4) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -892,7 +892,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
@@ -905,7 +905,7 @@ EXPLAIN
                 -> Table scan on t4  (rows=4)
                 -> Hash
                     -> Table scan on t3  (rows=3)
-    -> Covering index lookup on t2 using a (a=t1.b)  (rows=1)
+    -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
 SET optimizer_prune_level = DEFAULT;
 DROP TABLE t1, t2, t3;

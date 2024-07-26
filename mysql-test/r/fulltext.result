@@ -15,7 +15,7 @@ t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES	NULL
 EXPLAIN FORMAT=tree select * from t1 where MATCH(a,b) AGAINST ("collections");
 EXPLAIN
 -> Filter: (match t1.a,t1.b against ('collections'))  (cost=0.35 rows=1)
-    -> Full-text index search on t1 using a (a='collections')  (cost=0.35 rows=1)
+    -> Full-text index search on t1 using a (a = 'collections')  (cost=0.35 rows=1)
 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b

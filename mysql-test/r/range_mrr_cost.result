@@ -1999,7 +1999,7 @@ EXPLAIN
     -> Filter: (t1.i4 is not null)  (cost=0.55 rows=3)
         -> Covering index scan on t1 using i4_uq  (cost=0.55 rows=3)
     -> Filter: (t2.pk between t1.i4 and t1.i4)  (cost=0.283 rows=1)
-        -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4)  (cost=0.283 rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (pk = t1.i4)  (cost=0.283 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
@@ -2277,7 +2277,7 @@ EXPLAIN
     -> Filter: (t1.col_int is not null)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
     -> Filter: (t2.pk < t1.pk)  (cost=0.267 rows=0.333)
-        -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int)  (cost=0.267 rows=1)
+        -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int)  (cost=0.267 rows=1)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -4420,7 +4420,7 @@ EXPLAIN
 -> Nested loop left join  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Nested loop left join  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
         -> Filter: (t3.f1 < NULL)  (rows=1)
             -> Covering index scan on t3 using f1  (rows=4)
 
@@ -4442,7 +4442,7 @@ EXPLAIN
     -> Nested loop left join  (rows=8)
         -> Covering index scan on t1 using f1  (rows=4)
         -> Nested loop left join  (rows=2)
-            -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+            -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
             -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                 -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
@@ -4454,7 +4454,7 @@ EXPLAIN
 -> Nested loop left join  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Nested loop left join  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
         -> Filter: (t3.f1 < NULL)  (rows=1)
             -> Covering index scan on t3 using f1  (rows=4)
 
@@ -4477,7 +4477,7 @@ EXPLAIN
     -> Nested loop left join  (rows=8)
         -> Covering index scan on t1 using f1  (rows=4)
         -> Nested loop left join  (rows=2)
-            -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+            -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
             -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                 -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
@@ -4497,7 +4497,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
             -> Filter: (t.f1 between 2 and 3)
-                -> Covering index lookup on t using f1 (f1=<cache>(t.f2))  (rows=1)
+                -> Covering index lookup on t using f1 (f1 = <cache>(t.f2))  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4521,7 +4521,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
             -> Filter: (t.f1 between 2 and 3)
-                -> Covering index lookup on t using f1 (f1=<cache>(t.f2))  (rows=1)
+                -> Covering index lookup on t using f1 (f1 = <cache>(t.f2))  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4561,7 +4561,7 @@ EXPLAIN
                 -> Covering index scan on t3 using f1  (rows=4)
                 -> Hash
                     -> Filter: (t2.f1 between 2 and 3)  (rows=1)
-                        -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4575,7 +4575,7 @@ EXPLAIN
                 -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                     -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
                 -> Hash
-                    -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+                    -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4631,7 +4631,7 @@ EXPLAIN
                 -> Covering index scan on t3 using f1  (rows=4)
                 -> Hash
                     -> Filter: (t2.f1 between 2 and 3)  (rows=1)
-                        -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4649,7 +4649,7 @@ EXPLAIN
                 -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                     -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
                 -> Hash
-                    -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+                    -> Covering index lookup on t2 using f1 (f1 = <cache>(t.f2))  (rows=1)
 
 explain format=tree SELECT 1
 FROM t AS t1
@@ -4681,7 +4681,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)  (rows=1)
             -> Filter: (t2.f1 between 2 and 3)  (rows=1)
-                -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+                -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4723,7 +4723,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)  (rows=1)
             -> Filter: (t2.f1 between 2 and 3)  (rows=1)
-                -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+                -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4787,7 +4787,7 @@ EXPLAIN
                 -> Covering index scan on t3 using f1  (rows=4)
                 -> Hash
                     -> Filter: (t2.f1 between 2 and 3)  (rows=1)
-                        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4805,7 +4805,7 @@ EXPLAIN
                 -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                     -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
                 -> Hash
-                    -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+                    -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4880,7 +4880,7 @@ EXPLAIN
                 -> Covering index scan on t3 using f1  (rows=4)
                 -> Hash
                     -> Filter: (t2.f1 between 2 and 3)  (rows=1)
-                        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4901,7 +4901,7 @@ EXPLAIN
                 -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                     -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
                 -> Hash
-                    -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+                    -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1

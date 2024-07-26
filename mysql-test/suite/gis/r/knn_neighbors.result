@@ -90,7 +90,7 @@ EXPLAIN FORMAT=TREE SELECT cafe.id, ST_Distance(location, POINT(0,0)) as d FROM 
 EXPLAIN
 -> Nested loop inner join  (rows=14)
     -> Index distance scan on cafe using location  (rows=14)
-    -> Single-row covering index lookup on cafe2 using PRIMARY (id=cafe.id)  (rows=1)
+    -> Single-row covering index lookup on cafe2 using PRIMARY (id = cafe.id)  (rows=1)
 
 DROP TABLE cafe;
 DROP TABLE cafe2;

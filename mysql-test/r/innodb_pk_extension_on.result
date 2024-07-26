@@ -290,7 +290,7 @@ EXPLAIN FORMAT=tree SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-
 ORDER BY pk_2 DESC LIMIT 5;
 EXPLAIN
 -> Limit: 5 row(s)  (cost=0.45 rows=2)
-    -> Covering index lookup on t1 using k1 (f1=TIMESTAMP'2000-01-03 00:00:00', pk_1=3) (reverse)  (cost=0.45 rows=2)
+    -> Covering index lookup on t1 using k1 (f1 = TIMESTAMP'2000-01-03 00:00:00', pk_1 = 3) (reverse)  (cost=0.45 rows=2)
 
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'

@@ -1009,7 +1009,7 @@ EXPLAIN
     -> Table scan on t2  (rows=5)
     -> Hash
         -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=2)
-            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (rows=2)
+            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array) = json'"1"')  (rows=2)
 
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
@@ -1327,8 +1327,8 @@ EXPLAIN
                             -> Hash
                                 -> Filter: (t2.f2 is not null)  (rows=6)
                                     -> Covering index scan on t2 using f2  (rows=6)
-                        -> Covering index lookup on ta3 using f2 (f2=t2.f2)  (rows=1.2)
-                    -> Single-row covering index lookup on ta4 using PRIMARY (f1=t4.f1)  (rows=1)
+                        -> Covering index lookup on ta3 using f2 (f2 = t2.f2)  (rows=1.2)
+                    -> Single-row covering index lookup on ta4 using PRIMARY (f1 = t4.f1)  (rows=1)
 
 SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
 COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
@@ -1441,10 +1441,10 @@ EXPLAIN
                 -> Hash
                     -> Nested loop inner join  (rows=1)
                         -> Table scan on alias2  (rows=1)
-                        -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)  (rows=2)
+                        -> Index lookup on alias3 using <auto_key0> (col_int_key = alias2.col_int_key, col_varchar_key = alias2.col_varchar_key)  (rows=2)
                             -> Materialize  (rows=1)
                                 -> Table scan on sq1_alias1  (rows=1)
-        -> Covering index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (rows=1.43)
+        -> Covering index lookup on alias1 using idx (col_varchar_key = sq2_alias1.col_varchar)  (rows=1.43)
 
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1731,12 +1731,12 @@ EXPLAIN
                                     -> Filter: (sq2_alias1.col_varchar_key is not null)  (rows=20)
                                         -> Covering index scan on sq2_alias1 using col_varchar_key  (rows=20)
                                     -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)  (rows=2.34)
-                                        -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)  (rows=2.6)
+                                        -> Index lookup on alias1 using <auto_key0> (col_varchar_key = sq2_alias1.col_varchar_key)  (rows=2.6)
                                             -> Materialize  (rows=26.7)
                                                 -> Limit: 100 row(s)  (rows=26.7)
                                                     -> Nested loop left join  (rows=26.7)
                                                         -> Table scan on sq1_alias2  (rows=20)
-                                                        -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (rows=1.33)
+                                                        -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key = sq1_alias2.col_varchar_key)  (rows=1.33)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1852,7 +1852,7 @@ EXPLAIN
         -> Hash
             -> Table scan on subquery1_t1  (rows=1)
     -> Nested loop semijoin (FirstMatch)  (rows=2)
-        -> Covering index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)  (rows=2)
+        -> Covering index lookup on table2 using <auto_key0> (col_varchar = subquery1_t1.col_varchar)  (rows=2)
             -> Materialize  (rows=2)
                 -> Table scan on <temporary>  (rows=2)
                     -> Temporary table with deduplication  (rows=2)
@@ -2182,7 +2182,7 @@ EXPLAIN
         -> Nested loop inner join  (rows=1)
             -> Filter: (t1.col1 <> t2.col1)  (rows=1)
                 -> Covering index scan on t1 using idx  (rows=1)
-            -> Covering index lookup on t1_2 using idx (col1=t1.col1)  (rows=1)
+            -> Covering index lookup on t1_2 using idx (col1 = t1.col1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
@@ -3768,7 +3768,7 @@ EXPLAIN
     -> Batched key access inner join
         -> Batch input rows
             -> Table scan on table1  (rows=1)
-        -> Multi-range index lookup on table2 using idx_N_col_int_key (col_int_key=table3.pk)  (rows=1)
+        -> Multi-range index lookup on table2 using idx_N_col_int_key (col_int_key = table3.pk)  (rows=1)
 
 SELECT * FROM
 t1 AS table3 LEFT JOIN (t1 AS table1, t2 AS table2) ON table2.col_int_key=table3.pk;
@@ -3815,7 +3815,7 @@ EXPLAIN
                         -> Hash
                             -> Covering index scan on t1 using i1  (rows=4)
         -> Filter: (inner_t2.f1 = inner_t1.f1)  (rows=1)
-            -> Multi-range index lookup on inner_t2 using i1 (pk=inner_t1.pk)  (rows=1)
+            -> Multi-range index lookup on inner_t2 using i1 (pk = inner_t1.pk)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'table2.pk' of SELECT #3 was resolved in SELECT #1
@@ -4514,7 +4514,7 @@ EXPLAIN
 -> Nested loop antijoin  (rows=48) (actual rows=0 loops=1)
     -> Filter: (x1.a < 0)  (rows=4) (actual rows=0 loops=1)
         -> Table scan on x1  (rows=12) (actual rows=12 loops=1)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a=x1.a, b=x1.b)  (rows=1) (never executed)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a = x1.a, b = x1.b)  (rows=1) (never executed)
         -> Materialize with deduplication  (rows=12) (never executed)
             -> Filter: ((x2.a is not null) and (x2.b is not null))  (rows=12) (never executed)
                 -> Table scan on x2  (rows=12) (never executed)

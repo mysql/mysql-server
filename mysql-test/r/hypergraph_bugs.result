@@ -636,7 +636,7 @@ EXPLAIN
         -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
         -> Hash
             -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x1 using PRIMARY (a=x2.a, b=x2.b)  (rows=2) (actual rows=2 loops=100)
+    -> Index lookup on x1 using PRIMARY (a = x2.a, b = x2.b)  (rows=2) (actual rows=2 loops=100)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.e=x2.e AND x1.f=x2.f;
 EXPLAIN
@@ -682,7 +682,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=8) (actual rows=8 loops=1)
     -> Filter: (x1.b = 8)  (rows=2) (actual rows=2 loops=1)
         -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x2 using PRIMARY (a=x1.a)  (rows=4) (actual rows=4 loops=2)
+    -> Index lookup on x2 using PRIMARY (a = x1.a)  (rows=4) (actual rows=4 loops=2)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
 AND x1.c=8;
@@ -690,7 +690,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=2) (actual rows=2 loops=1)
     -> Filter: (x1.c = 8)  (rows=1) (actual rows=1 loops=1)
         -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x2 using PRIMARY (a=x1.a, b=x1.b)  (rows=2) (actual rows=2 loops=1)
+    -> Index lookup on x2 using PRIMARY (a = x1.a, b = x1.b)  (rows=2) (actual rows=2 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=7
 AND x1.c=8;
@@ -698,14 +698,14 @@ EXPLAIN
 -> Nested loop inner join  (rows=0.08) (actual rows=0 loops=1)
     -> Filter: ((x1.c = 8) and (x1.b = 7))  (rows=0.02) (actual rows=0 loops=1)
         -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x2 using PRIMARY (a=x1.a)  (rows=4) (never executed)
+    -> Index lookup on x2 using PRIMARY (a = x1.a)  (rows=4) (never executed)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
 AND x1.c=x2.c;
 EXPLAIN
 -> Nested loop inner join  (rows=100) (actual rows=100 loops=1)
     -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
-    -> Single-row index lookup on x2 using PRIMARY (a=x1.a, b=x1.b, c=x1.c)  (rows=1) (actual rows=1 loops=100)
+    -> Single-row index lookup on x2 using PRIMARY (a = x1.a, b = x1.b, c = x1.c)  (rows=1) (actual rows=1 loops=100)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE a=b;
 EXPLAIN
@@ -725,13 +725,13 @@ EXPLAIN
         -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
         -> Hash
             -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x2 using PRIMARY (a=x1.a, b=x3.b)  (rows=0.08) (actual rows=2 loops=100)
+    -> Index lookup on x2 using PRIMARY (a = x1.a, b = x3.b)  (rows=0.08) (actual rows=2 loops=100)
 
 EXPLAIN ANALYZE SELECT * FROM t1 JOIN num10 ON h=n;
 EXPLAIN
 -> Nested loop inner join  (rows=10) (actual rows=10 loops=1)
     -> Table scan on num10  (rows=10) (actual rows=10 loops=1)
-    -> Single-row index lookup on t1 using k2 (h=num10.n)  (rows=1) (actual rows=1 loops=10)
+    -> Single-row index lookup on t1 using k2 (h = num10.n)  (rows=1) (actual rows=1 loops=10)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE
 x1.a=x2.a AND x1.b=x2.b AND x1.b=x3.h;
@@ -739,8 +739,8 @@ EXPLAIN
 -> Nested loop inner join  (rows=4) (actual rows=200 loops=1)
     -> Nested loop inner join  (rows=4) (actual rows=200 loops=1)
         -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
-        -> Index lookup on x2 using PRIMARY (a=x1.a, b=x1.b)  (rows=0.04) (actual rows=2 loops=100)
-    -> Single-row index lookup on x3 using k2 (h=x1.b)  (rows=1) (actual rows=1 loops=200)
+        -> Index lookup on x2 using PRIMARY (a = x1.a, b = x1.b)  (rows=0.04) (actual rows=2 loops=100)
+    -> Single-row index lookup on x3 using k2 (h = x1.b)  (rows=1) (actual rows=1 loops=200)
 
 EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.a=x2.c AND x1.b=x2.b AND x2.b=x3.b;
@@ -772,7 +772,7 @@ EXPLAIN
         -> Nested loop left join  (rows=4) (actual rows=1 loops=1)
             -> Filter: (x2.b = 3)  (rows=2) (actual rows=1 loops=1)
                 -> Table scan on x2  (rows=100) (actual rows=13 loops=1)
-            -> Covering index lookup on x3 using PRIMARY (a=x2.c, b=x2.d)  (rows=2) (actual rows=1 loops=1)
+            -> Covering index lookup on x3 using PRIMARY (a = x2.c, b = x2.d)  (rows=2) (actual rows=1 loops=1)
     -> Covering index scan on x1 using k2  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1 JOIN t1 x2 ON x1.a=x2.v AND x1.b=x2.b;
@@ -804,7 +804,7 @@ EXPLAIN ANALYZE SELECT 1 FROM t2 JOIN t3 USING (x, y);
 EXPLAIN
 -> Nested loop inner join  (rows=4) (actual rows=4 loops=1)
     -> Table scan on t3  (rows=4) (actual rows=4 loops=1)
-    -> Covering index lookup on t2 using x (x=t3.x, y=t3.y)  (rows=1) (actual rows=1 loops=4)
+    -> Covering index lookup on t2 using x (x = t3.x, y = t3.y)  (rows=1) (actual rows=1 loops=4)
 
 DROP TABLE t1, t2, t3, num10;
 #
@@ -997,7 +997,7 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b=(SELECT MIN(b) FROM t1);
 EXPLAIN
 -> Filter: (t1.b = (select #2))  (rows=16) (actual rows=16 loops=1)
-    -> Covering index lookup on t1 using k1 (b=(select #2))  (rows=16) (actual rows=16 loops=1)
+    -> Covering index lookup on t1 using k1 (b = (select #2))  (rows=16) (actual rows=16 loops=1)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: min(t1.b)  (rows=1) (actual rows=1 loops=1)
             -> Covering index scan on t1 using k1  (rows=256) (actual rows=256 loops=1)
@@ -1201,7 +1201,7 @@ EXPLAIN
     -> Nested loop inner join  (rows=72)
         -> Sort: a  (rows=12)
             -> Table scan on x1  (rows=12)
-        -> Covering index lookup on x2 using k1 (a=x1.b)  (rows=6)
+        -> Covering index lookup on x2 using k1 (a = x1.b)  (rows=6)
 
 DROP TABLE t1;
 #
@@ -1332,7 +1332,7 @@ EXPLAIN
     -> Remove duplicates from input grouped on t2.l  (rows=10) (actual rows=10 loops=1)
         -> Sort: t2.l  (rows=20) (actual rows=20 loops=1)
             -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
-    -> Single-row index lookup on t1 using PRIMARY (a=t2.l)  (rows=1) (actual rows=1 loops=10)
+    -> Single-row index lookup on t1 using PRIMARY (a = t2.l)  (rows=1) (actual rows=1 loops=10)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t1.a=t2.l AND t1.b<>t2.k);
@@ -1353,7 +1353,7 @@ EXPLAIN
         -> Sort: (t2.l + abs(t2.l))  (rows=20) (actual rows=20 loops=1)
             -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
     -> Filter: (t1.a = (t2.l + abs(t2.l)))  (rows=0.0333) (actual rows=1 loops=10)
-        -> Single-row index lookup on t1 using PRIMARY (a=(t2.l + abs(t2.l)))  (rows=1) (actual rows=1 loops=10)
+        -> Single-row index lookup on t1 using PRIMARY (a = (t2.l + abs(t2.l)))  (rows=1) (actual rows=1 loops=10)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1365,7 +1365,7 @@ EXPLAIN
         -> Sort: (t2.k + t2.l)  (rows=20) (actual rows=20 loops=1)
             -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
     -> Filter: (t1.a = (t2.k + t2.l))  (rows=0.0333) (actual rows=1 loops=15)
-        -> Single-row index lookup on t1 using PRIMARY (a=(t2.k + t2.l))  (rows=1) (actual rows=1 loops=15)
+        -> Single-row index lookup on t1 using PRIMARY (a = (t2.k + t2.l))  (rows=1) (actual rows=1 loops=15)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1398,14 +1398,14 @@ EXPLAIN
         -> Sort: t2.l  (rows=0.02)
             -> Filter: (t2.l < 0)  (rows=0.02)
                 -> Table scan on t2  (rows=20)
-    -> Single-row index lookup on t1 using PRIMARY (a=t2.l)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = t2.l)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
 EXPLAIN
 -> Nested loop inner join (FirstMatch)  (rows=1)
     -> Limit: 1 row(s)  (rows=1)
         -> Table scan on t2  (rows=20)
-    -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = 5)  (rows=1)
 
 DROP TABLE t1,t2;
 #
@@ -1428,7 +1428,7 @@ EXPLAIN
     -> Remove duplicates from input grouped on x2.b  (rows=10)
         -> Sort: x2.b  (rows=30)
             -> Table scan on x2  (rows=30)
-    -> Single-row index lookup on x1 using PRIMARY (a=x2.b)  (rows=1)
+    -> Single-row index lookup on x1 using PRIMARY (a = x2.b)  (rows=1)
 
 SELECT REGEXP_SUBSTR(
 trace, "distinct values for field 'b' from histogram[^,]*",1,1,'n')
@@ -1475,7 +1475,7 @@ REGEXP_SUBSTR(trace, " - \\{HASH_JOIN[^\n]*keeping",1,1,'n')
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a=5 AND b=5;
 EXPLAIN
 -> Filter: (t1.b = 5)  (rows=0.0099)
-    -> Single-row index lookup on t1 using PRIMARY (a=5)  (rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (a = 5)  (rows=1)
 
 SELECT REGEXP_SUBSTR(trace, " - \\{FILTER[^\n]*keeping",1,1,'n')
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -1618,9 +1618,9 @@ EXPLAIN
 -> Nested loop inner join  (rows=20)
     -> Nested loop inner join  (rows=20)
         -> Table scan on x1  (rows=20)
-        -> Single-row index lookup on x2 using PRIMARY (a=x1.b)  (rows=1)
+        -> Single-row index lookup on x2 using PRIMARY (a = x1.b)  (rows=1)
     -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=1)
-        -> Single-row index lookup on x3 using PRIMARY (a=x2.b)  (rows=1)
+        -> Single-row index lookup on x3 using PRIMARY (a = x2.b)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d;
@@ -1658,7 +1658,7 @@ EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=7.96)
     -> Nested loop inner join  (rows=12)
         -> Table scan on t2  (rows=12)
-        -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+        -> Single-row index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1668,7 +1668,7 @@ EXPLAIN
         -> Temporary table with deduplication  (rows=7.96)
             -> Nested loop inner join  (rows=12)
                 -> Table scan on t2  (rows=12)
-                -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
@@ -1676,7 +1676,7 @@ EXPLAIN
 -> Sort with duplicate removal: t1.x, t1.pk  (rows=9.36)
     -> Nested loop inner join  (rows=12)
         -> Table scan on t2  (rows=12)
-        -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+        -> Single-row index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
@@ -1686,7 +1686,7 @@ EXPLAIN
         -> Temporary table with deduplication  (rows=9.36)
             -> Nested loop inner join  (rows=12)
                 -> Table scan on t2  (rows=12)
-                -> Single-row index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1694,7 +1694,7 @@ EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=3.46)
     -> Nested loop inner join  (rows=12)
         -> Table scan on t2  (rows=12)
-        -> Single-row covering index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+        -> Single-row covering index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1704,7 +1704,7 @@ EXPLAIN
         -> Temporary table with deduplication  (rows=3.46)
             -> Nested loop inner join  (rows=12)
                 -> Table scan on t2  (rows=12)
-                -> Single-row covering index lookup on t1 using PRIMARY (pk=t2.x)  (rows=1)
+                -> Single-row covering index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
 
 DROP TABLE t;
 #

@@ -97,7 +97,7 @@ EXPLAIN
 explain select * from t0 where (key1 < 3 or key2 <4) and key3 = 50;
 EXPLAIN
 -> Filter: ((t0.key1 < 3) or (t0.key2 < 4))  (rows=0.556)
-    -> Index lookup on t0 using i3 (key3=50)  (rows=1)
+    -> Index lookup on t0 using i3 (key3 = 50)  (rows=1)
 
 explain select * from t0 use index (i1,i2) where (key1 < 2 or key2 <3) and key3 = 50;
 EXPLAIN
@@ -141,7 +141,7 @@ EXPLAIN
 
 explain select * from t0 where key2 = 45 or key1 is null;
 EXPLAIN
--> Index lookup on t0 using i2 (key2=45)  (rows=1)
+-> Index lookup on t0 using i2 (key2 = 45)  (rows=1)
 
 #   the last conj. is always false and will be discarded
 explain select * from t0 where key2=10 or key3=3 or key4 <=> null;
@@ -399,12 +399,12 @@ EXPLAIN
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key3 = 5);
 EXPLAIN
 -> Filter: ((t4.key2_1 = 1) or (t4.key3 = 5))  (rows=1.9)
-    -> Index lookup on t4 using i2_1 (key2=1)  (rows=10)
+    -> Index lookup on t4 using i2_1 (key2 = 1)  (rows=10)
 
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key2_2 = 5);
 EXPLAIN
 -> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=1.9)
-    -> Index lookup on t4 using i2_1 (key2=1)  (rows=10)
+    -> Index lookup on t4 using i2_1 (key2 = 1)  (rows=10)
 
 explain select * from t4 where key2_1 = 1 or key2_2 = 5;
 EXPLAIN
@@ -423,7 +423,7 @@ EXPLAIN
         -> Deduplicate rows sorted by row ID  (rows=2)
             -> Index range scan on t0 using i1 over (key1 = 3)  (rows=1)
             -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
-    -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
+    -> Index lookup on t1 using i1 (key1 = t0.key1)  (rows=1)
 
 select * from t0 left join t1 on (t0.key1=t1.key1)
 where t0.key1=3 or t0.key2=4;
@@ -438,7 +438,7 @@ EXPLAIN
         -> Deduplicate rows sorted by row ID  (rows=2)
             -> Index range scan on t0 using i1 over (key1 = 3)  (rows=1)
             -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
-    -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
+    -> Index lookup on t1 using i1 (key1 = t0.key1)  (rows=1)
 
 #  index_merge vs. ref
 explain
@@ -450,7 +450,7 @@ EXPLAIN
         -> Deduplicate rows sorted by row ID  (rows=2)
             -> Index range scan on t0 using i1 over (key1 = 3)  (rows=1)
             -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
-    -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
+    -> Index lookup on t1 using i1 (key1 = t0.key1)  (rows=1)
 
 #  index_merge vs. ref
 explain
@@ -459,8 +459,8 @@ select * from t0,t1 where (t0.key1=t1.key1) and
 EXPLAIN
 -> Nested loop inner join  (rows=0.05)
     -> Filter: (t0.key2 < 4)  (rows=0.05)
-        -> Index lookup on t0 using i1 (key1=2)  (rows=1)
-    -> Index lookup on t1 using i1 (key1=2)  (rows=1)
+        -> Index lookup on t0 using i1 (key1 = 2)  (rows=1)
+    -> Index lookup on t1 using i1 (key1 = 2)  (rows=1)
 
 #  index_merge on second table in join
 explain select * from t0,t1 where t0.key1 = 5 and
@@ -472,7 +472,7 @@ EXPLAIN
             -> Index range scan on t1 using i1 over (key1 = 5)  (rows=1)
             -> Index range scan on t1 using i8 over (key8 = 5)  (rows=1)
     -> Hash
-        -> Index lookup on t0 using i1 (key1=5)  (rows=1)
+        -> Index lookup on t0 using i1 (key1 = 5)  (rows=1)
 
 # Fix for bug#1974
 explain select * from t0,t1 where t0.key1 < 3 and
@@ -1227,7 +1227,7 @@ key1	key2	key3	key4	filler1
 # Check that keys that don't improve selectivity are skipped.
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 EXPLAIN
--> Index lookup on t1 using sta_swt21a (st_a=1, swt1a=1, swt2a=1)  (...)
+-> Index lookup on t1 using sta_swt21a (st_a = 1, swt1a = 1, swt2a = 1)  (...)
 
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
@@ -1320,7 +1320,7 @@ explain select count(a_or_b) from t2 where a_or_b='AAAAAAAA' and a_or_b='AAAAAAA
 EXPLAIN
 -> Aggregate: count(t2.a_or_b)
     -> Filter: ((t2.a_or_b = 'AAAAAAAA') and (t2.a_or_b = 'AAAAAAAA'))
-        -> Index lookup on t2 using a_or_b (a_or_b='AAAAAAAA')
+        -> Index lookup on t2 using a_or_b (a_or_b = 'AAAAAAAA')
 
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 count(a)
@@ -1332,7 +1332,7 @@ insert into t2 values ('ab', 'ab', 'uh', 'oh');
 explain select a from t2 where a='ab';
 EXPLAIN
 -> Filter: (t2.a = 'ab')  (...)
-    -> Index lookup on t2 using a (a='ab')  (...)
+    -> Index lookup on t2 using a (a = 'ab')  (...)
 
 drop table t2;
 #
@@ -1756,7 +1756,7 @@ FROM t1
 WHERE c = 1 AND b = 1 AND d = 1;
 EXPLAIN
 -> Filter: (t1.c = 1)  (rows=2)
-    -> Index lookup on t1 using bd (b=1, d=1)  (rows=2)
+    -> Index lookup on t1 using bd (b = 1, d = 1)  (rows=2)
 
 CREATE TABLE t2 ( a INT )
 SELECT a
@@ -2036,7 +2036,7 @@ pk1	pk2
 explain select * from t1 where badkey=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.badkey = 1)  (rows=10)
-    -> Index lookup on t1 using key1 (key1=10)  (rows=100)
+    -> Index lookup on t1 using key1 (key1 = 10)  (rows=100)
 
 # The expected number of rows can vary depending on page size
 explain select * from t1 where pk1 < 7500 and key1 = 10;
@@ -2072,17 +2072,17 @@ EXPLAIN
 explain select * from t1 where pktail3bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.pktail3bad = 1)  (...)
-    -> Index lookup on t1 using key1 (key1=10)  (...)
+    -> Index lookup on t1 using key1 (key1 = 10)  (...)
 
 explain select * from t1 where pktail4bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.pktail4bad = 1)  (...)
-    -> Index lookup on t1 using key1 (key1=10)  (...)
+    -> Index lookup on t1 using key1 (key1 = 10)  (...)
 
 explain select * from t1 where pktail5bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.pktail5bad = 1)  (...)
-    -> Index lookup on t1 using key1 (key1=10)  (...)
+    -> Index lookup on t1 using key1 (key1 = 10)  (...)
 
 # Test for problem with innodb key values prefetch buffer:
 explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
@@ -2346,7 +2346,7 @@ INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
 EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Covering index lookup on t1 using covering_index (id2=7, id3=0)  (rows=16)
+    -> Covering index lookup on t1 using covering_index (id2 = 7, id3 = 0)  (rows=16)
 
 DROP TABLE t1;
 #

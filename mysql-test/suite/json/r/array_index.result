@@ -2428,7 +2428,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (j);
 EXPLAIN
 -> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.8 rows=3)
-    -> Index lookup on t using j_idx (cast(j as unsigned array)=json'3')  (cost=0.8 rows=3)
+    -> Index lookup on t using j_idx (cast(j as unsigned array) = json'3')  (cost=0.8 rows=3)
 
 SELECT * FROM t WHERE 3 MEMBER OF (j);
 vc	j
@@ -2458,7 +2458,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (vc);
 EXPLAIN
 -> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.8 rows=3)
-    -> Index lookup on t using vc_idx (cast(vc as unsigned array)=json'3')  (cost=0.8 rows=3)
+    -> Index lookup on t using vc_idx (cast(vc as unsigned array) = json'3')  (cost=0.8 rows=3)
 
 SELECT * FROM t WHERE 3 MEMBER OF (vc);
 vc	j
@@ -3312,7 +3312,7 @@ EXPLAIN ANALYZE SELECT id, json_value FROM test WHERE
 4 MEMBER OF (json_value->'$') ORDER BY id DESC;
 EXPLAIN
 -> Filter: json'4' member of (cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array))  (cost=0.8 rows=3) (actual rows=3 loops=1)
-    -> Index lookup on test using multivalued_index (cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array)=json'4') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
+    -> Index lookup on test using multivalued_index (cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array) = json'4') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
 
 SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$')
 ORDER BY id DESC;
@@ -3340,7 +3340,7 @@ EXPLAIN ANALYZE SELECT * FROM test WHERE "10" MEMBER OF (j->'$[*]')
 ORDER BY id DESC;
 EXPLAIN
 -> Filter: json'"10"' member of (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array))  (cost=0.8 rows=3) (actual rows=3 loops=1)
-    -> Index lookup on test using multivalued_index (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array)=json'"10"') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
+    -> Index lookup on test using multivalued_index (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array) = json'"10"') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
 
 SELECT * FROM test WHERE "10" MEMBER OF (j->'$[*]') ORDER BY id DESC;
 id	j
@@ -3351,7 +3351,7 @@ EXPLAIN ANALYZE SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]')
 ORDER BY id DESC;
 EXPLAIN
 -> Filter: json'"3"' member of (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array))  (cost=0.8 rows=3) (actual rows=3 loops=1)
-    -> Index lookup on test using multivalued_index (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array)=json'"3"') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
+    -> Index lookup on test using multivalued_index (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array) = json'"3"') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
 
 SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]') ORDER BY id DESC;
 id	j

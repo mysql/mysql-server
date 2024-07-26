@@ -42,12 +42,12 @@ EXPLAIN
                     -> Remove duplicate (alias2, alias1) rows using temporary table (weedout)  (cost=0.933 rows=0.222)
                         -> Nested loop inner join  (cost=0.933 rows=0.222)
                             -> Nested loop inner join  (cost=0.7 rows=0.333)
-                                -> Covering index lookup on a using k5 (f1=t2.col_varchar_key)  (cost=0.35 rows=1)
+                                -> Covering index lookup on a using k5 (f1 = t2.col_varchar_key)  (cost=0.35 rows=1)
                                 -> Filter: (alias2.col_varchar_key = t2.col_varchar_key)  (cost=0.283 rows=0.333)
-                                    -> Index lookup on alias2 using k1 (col_int_key=t2.col_int_key)  (cost=0.283 rows=1)
+                                    -> Index lookup on alias2 using k1 (col_int_key = t2.col_int_key)  (cost=0.283 rows=1)
                             -> Filter: ((alias1.col_varchar >= 'Z') and <if>(outer_field_is_not_null, ((<cache>(t1.col_varchar_key) = alias1.col_varchar_key) or (alias1.col_varchar_key is null)), true) and <if>(outer_field_is_not_null, ((<cache>(t1.col_varchar_key) = alias1.col_varchar_key) or (alias1.col_varchar_key is null)), true))  (cost=0.7 rows=0.667)
                                 -> Alternative plans for IN subquery: Index lookup unless col_varchar_key IS NULL  (cost=0.7 rows=2)
-                                    -> Index lookup on alias1 using k2 (col_varchar_key=<cache>(t1.col_varchar_key) or NULL)  (cost=0.7 rows=2)
+                                    -> Index lookup on alias1 using k2 (col_varchar_key = <cache>(t1.col_varchar_key) or NULL)  (cost=0.7 rows=2)
                                     -> Table scan on alias1  (cost=0.25 rows=3)
 
 SELECT col_varchar_key FROM t1

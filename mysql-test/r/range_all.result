@@ -1999,7 +1999,7 @@ EXPLAIN
     -> Filter: (t1.i4 is not null)  (cost=0.55 rows=3)
         -> Covering index scan on t1 using i4_uq  (cost=0.55 rows=3)
     -> Filter: (t2.pk between t1.i4 and t1.i4)  (cost=0.283 rows=1)
-        -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4)  (cost=0.283 rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (pk = t1.i4)  (cost=0.283 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
@@ -2276,7 +2276,7 @@ EXPLAIN
 -> Nested loop inner join  (cost=1.55 rows=2)
     -> Filter: (t1.col_int is not null)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)  (cost=0.267 rows=1)
+    -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int), with index condition: (t2.pk < t1.pk)  (cost=0.267 rows=1)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -4419,7 +4419,7 @@ EXPLAIN
 -> Nested loop left join  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Nested loop left join  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
         -> Filter: (t3.f1 < NULL)  (rows=1)
             -> Covering index scan on t3 using f1  (rows=4)
 
@@ -4441,7 +4441,7 @@ EXPLAIN
     -> Nested loop left join  (rows=8)
         -> Covering index scan on t1 using f1  (rows=4)
         -> Nested loop left join  (rows=2)
-            -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+            -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
             -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                 -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
@@ -4453,7 +4453,7 @@ EXPLAIN
 -> Nested loop left join  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Nested loop left join  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
         -> Filter: (t3.f1 < NULL)  (rows=1)
             -> Covering index scan on t3 using f1  (rows=4)
 
@@ -4476,7 +4476,7 @@ EXPLAIN
     -> Nested loop left join  (rows=8)
         -> Covering index scan on t1 using f1  (rows=4)
         -> Nested loop left join  (rows=2)
-            -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+            -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
             -> Filter: (t3.f1 between 2 and 3)  (rows=2)
                 -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
 
@@ -4491,7 +4491,7 @@ EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=4)
     -> Filter: ((t.f2 between 2 and 3) and (t.f2 is not null))  (rows=4)
         -> Table scan on t  (rows=4)
-    -> Covering index lookup on t using f1 (f1=t.f2)  (rows=1)
+    -> Covering index lookup on t using f1 (f1 = t.f2)  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4510,7 +4510,7 @@ EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=4)
     -> Filter: ((t.f2 between 2 and 3) and (t.f2 is not null))  (rows=4)
         -> Table scan on t  (rows=4)
-    -> Covering index lookup on t using f1 (f1=t.f2)  (rows=1)
+    -> Covering index lookup on t using f1 (f1 = t.f2)  (rows=1)
 
 explain format=tree SELECT 1
 FROM t
@@ -4539,7 +4539,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=32)
     -> Filter: (t.f2 is not null)  (rows=4)
         -> Table scan on t  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t.f2)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t.f2)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4555,7 +4555,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=32)
     -> Filter: (t.f2 is not null)  (rows=4)
         -> Table scan on t  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t.f2)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t.f2)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4607,7 +4607,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=32)
     -> Filter: (t.f2 is not null)  (rows=4)
         -> Table scan on t  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t.f2)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t.f2)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4627,7 +4627,7 @@ EXPLAIN
 -> Nested loop inner join  (rows=32)
     -> Filter: (t.f2 is not null)  (rows=4)
         -> Table scan on t  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t.f2)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t.f2)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4643,7 +4643,7 @@ EXPLAIN
 -> Nested loop antijoin  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Filter: (t2.f1 < NULL)  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4664,7 +4664,7 @@ EXPLAIN
 -> Nested loop antijoin  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Filter: (t1.f1 between 2 and 3)  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4678,7 +4678,7 @@ EXPLAIN
 -> Nested loop antijoin  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Filter: (t2.f1 < NULL)  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4704,7 +4704,7 @@ EXPLAIN
 -> Nested loop antijoin  (rows=4)
     -> Covering index scan on t1 using f1  (rows=4)
     -> Filter: (t1.f1 between 2 and 3)  (rows=1)
-        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1 = t1.f1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -4716,7 +4716,7 @@ WHERE t1.f1 = t2.f1);
 EXPLAIN
 -> Nested loop antijoin  (rows=16)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=4)
             -> Filter: (t2.f1 is not null)  (rows=4)
                 -> Inner hash join (no condition)  (rows=4)
@@ -4745,7 +4745,7 @@ WHERE t1.f1 = t3.f1);
 EXPLAIN
 -> Nested loop antijoin  (rows=16)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=4)
             -> Filter: (t3.f1 is not null)  (rows=4)
                 -> Inner hash join (no condition)  (rows=4)
@@ -4774,7 +4774,7 @@ WHERE t1.f1 = t2.f1);
 EXPLAIN
 -> Nested loop antijoin  (rows=32)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4793,7 +4793,7 @@ WHERE t1.f1 = t2.f1);
 EXPLAIN
 -> Nested loop antijoin  (rows=32)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4814,7 +4814,7 @@ WHERE t1.f1 = t4.f1
 EXPLAIN
 -> Nested loop antijoin  (rows=16)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=4)
             -> Filter: (t2.f1 is not null)  (rows=4)
                 -> Inner hash join (no condition)  (rows=4)
@@ -4847,7 +4847,7 @@ WHERE t1.f1 = t4.f1
 EXPLAIN
 -> Nested loop antijoin  (rows=16)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=4)
             -> Filter: (t2.f1 is not null)  (rows=4)
                 -> Inner hash join (no condition)  (rows=4)
@@ -4881,7 +4881,7 @@ WHERE t1.f1 = t4.f1
 EXPLAIN
 -> Nested loop antijoin  (rows=32)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)
@@ -4903,7 +4903,7 @@ WHERE t1.f1 = t4.f1
 EXPLAIN
 -> Nested loop antijoin  (rows=32)
     -> Covering index scan on t1 using f1  (rows=4)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1=t1.f1)  (rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (f1 = t1.f1)  (rows=1)
         -> Materialize with deduplication  (rows=8)
             -> Filter: (t2.f1 is not null)  (rows=8)
                 -> Inner hash join (no condition)  (rows=8)

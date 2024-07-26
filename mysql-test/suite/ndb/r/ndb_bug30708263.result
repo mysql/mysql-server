@@ -19,7 +19,7 @@ EXPLAIN
         -> Table scan on table1  (cost=1000 rows=4)
         -> Hash
             -> Table scan on table2  (cost=250 rows=4)
-    -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique)  (cost=0.0688 rows=1)
+    -> Single-row index lookup on table3 using ix1 (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
@@ -47,7 +47,7 @@ EXPLAIN
         -> Table scan on table1  (cost=1000 rows=4)
         -> Hash
             -> Table scan on table2  (cost=250 rows=4)
-    -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique)  (cost=0.0688 rows=1)
+    -> Single-row index lookup on table3 using ix1 (col_int_unique = table2.col_int_unique)  (cost=0.0688 rows=1)
 
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
