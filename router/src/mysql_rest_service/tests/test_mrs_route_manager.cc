@@ -205,7 +205,7 @@ TYPED_TEST(RouteManagerTests, db_object_two_routes_with_the_same_schema) {
   EXPECT_CALL(route1, turn(mrs::stateOff));
   EXPECT_CALL(route2, turn(mrs::stateOff));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
 }
 
 TYPED_TEST(RouteManagerTests, db_object_two_routes_with_different_schemas) {
@@ -236,7 +236,7 @@ TYPED_TEST(RouteManagerTests, db_object_two_routes_with_different_schemas) {
   EXPECT_CALL(route1, turn(mrs::stateOff));
   EXPECT_CALL(route2, turn(mrs::stateOff));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
 }
 
 TYPED_TEST(RouteManagerTests, db_object_verify_destruction) {
@@ -256,7 +256,7 @@ TYPED_TEST(RouteManagerTests, db_object_verify_destruction) {
   EXPECT_CALL(schema, turn(_));
   EXPECT_CALL(route1, turn(_));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
   this->verifyAndClearMocks({&route1, &schema});
 
   EXPECT_CALL(route1, destroy());
@@ -281,7 +281,7 @@ TYPED_TEST(RouteManagerTests, db_object_by_default_disabled) {
   EXPECT_CALL(schema, turn(mrs::stateOff));
   EXPECT_CALL(route1, turn(mrs::stateOff));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
   this->verifyAndClearMocks({&route1, &schema});
 }
 
@@ -304,7 +304,7 @@ TYPED_TEST(RouteManagerTests, db_object_enabled_before_start) {
   EXPECT_CALL(schema, turn(mrs::stateOn));
   EXPECT_CALL(route1, turn(mrs::stateOn));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
 }
 
 TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
@@ -326,7 +326,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
   EXPECT_CALL(schema, turn(mrs::stateOn));
   EXPECT_CALL(route1, turn(mrs::stateOn));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
 
   this->verifyAndClearMocks({&route1, &schema});
   objs[0].requires_authentication = !objs[0].requires_authentication;
@@ -334,7 +334,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
   EXPECT_CALL(route1,
               update(DbObjectById(mrs::UniversalId{1}), EqSmartPtr(&schema)));
   EXPECT_CALL(route1, turn(mrs::stateOn));
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
 }
 
 TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
@@ -360,7 +360,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
   EXPECT_CALL(schema_old, turn(mrs::stateOn));
   EXPECT_CALL(route1, turn(mrs::stateOn));
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
   this->verifyAndClearMocks({&route1, &schema_old});
 
   objs[0].schema_path = "new_path";
@@ -385,7 +385,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
       .WillRepeatedly(ReturnRef(objs[0].schema_path));
   EXPECT_CALL(schema_old, destroy());
 
-  this->sut_->update(objs);
+  this->sut_->update(objs, {k_service_id});
   this->verifyAndClearMocks({&route1, &schema_old});
 
   this->sut_.reset();

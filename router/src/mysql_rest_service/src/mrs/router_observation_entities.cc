@@ -129,6 +129,12 @@ void initialize_entities(observability::EntitiesManager *manager) {
   reg.register_entity_with_id<kEntityCounterRestAffectedItems>(
       "restAffectedItems");
 
+  reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesHosts>(
+      "changesHosts");
+  reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesServices>(
+      "changesServices");
+  reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesSchemas>(
+      "changesSchemas");
   reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesObjects>(
       "changesObjects");
   reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesFiles>(

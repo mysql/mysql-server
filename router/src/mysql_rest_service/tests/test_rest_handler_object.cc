@@ -26,6 +26,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 
+#include "helper/make_shared_ptr.h"
 #include "helper/set_http_component.h"
 #include "mrs/rest/handler_table.h"
 
@@ -35,6 +36,7 @@
 #include "mock/mock_object.h"
 #include "mock/mock_route_schema.h"
 
+using helper::MakeSharedPtr;
 using helper::SetHttpComponent;
 using mrs::rest::HandlerTable;
 using testing::_;
@@ -55,7 +57,7 @@ class RestHandlerObjectTests : public Test {
  public:
   void make_sut(const std::string &rest_url, const std::string &rest_path) {
     EXPECT_CALL(mock_route_, get_schema())
-        .WillRepeatedly(Return(&mock_route_schema_));
+        .WillRepeatedly(Return(mock_route_schema_.copy_base()));
     EXPECT_CALL(mock_route_, get_options()).WillOnce(ReturnRef(k_empty));
     EXPECT_CALL(mock_route_, get_rest_url()).WillOnce(ReturnRef(rest_url));
     EXPECT_CALL(mock_route_, get_rest_path())
@@ -81,7 +83,7 @@ class RestHandlerObjectTests : public Test {
   StrictMock<MockHttpServerComponent> mock_http_component_;
   SetHttpComponent raii_setter_{&mock_http_component_};
   StrictMock<MockRoute> mock_route_;
-  StrictMock<MockRouteSchema> mock_route_schema_;
+  MakeSharedPtr<StrictMock<MockRouteSchema>> mock_route_schema_;
   StrictMock<MockAuthManager> mock_auth_manager_;
   std::shared_ptr<HandlerTable> sut_;
 };
@@ -99,7 +101,7 @@ TEST_F(RestHandlerObjectTests, forwards_get_schema_id) {
   const auto k_schema_id = mrs::UniversalId{{10, 101}};
 
   make_sut(k_url, k_path);
-  EXPECT_CALL(mock_route_schema_, get_id()).WillOnce(Return(k_schema_id));
+  EXPECT_CALL(*mock_route_schema_, get_id()).WillOnce(Return(k_schema_id));
   ASSERT_EQ(k_schema_id, sut_->get_schema_id());
   delete_sut();
 }

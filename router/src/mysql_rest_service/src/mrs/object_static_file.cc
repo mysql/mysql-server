@@ -65,8 +65,8 @@ void ObjectStaticFile::turn(const State state) {
 }
 
 bool ObjectStaticFile::update(const void *pv, RouteSchemaPtr schema) {
-  auto &pe = *reinterpret_cast<const ContentFile *>(pv);
   bool result = false;
+
   if (schema != schema_) {
     if (schema_) schema_->route_unregister(this);
     if (schema) schema->route_register(this);
@@ -74,11 +74,15 @@ bool ObjectStaticFile::update(const void *pv, RouteSchemaPtr schema) {
     result = true;
   }
 
-  if ((cse_.service_path != pe.service_path) ||
-      (cse_.schema_path != pe.schema_path) || (cse_.file_path != pe.file_path))
-    result = true;
+  if (pv) {
+    auto &pe = *reinterpret_cast<const ContentFile *>(pv);
+    if ((cse_.service_path != pe.service_path) ||
+        (cse_.schema_path != pe.schema_path) ||
+        (cse_.file_path != pe.file_path))
+      result = true;
 
-  cse_ = pe;
+    cse_ = pe;
+  }
 
   update_variables();
 
@@ -160,6 +164,10 @@ bool ObjectStaticFile::requires_authentication() const {
   return cse_.requires_authentication || cse_.schema_requires_authentication;
 }
 
+ObjectStaticFile::EntryKey ObjectStaticFile::get_key() const {
+  return cse_.get_key();
+}
+
 UniversalId ObjectStaticFile::get_id() const { return cse_.id; }
 
 UniversalId ObjectStaticFile::get_service_id() const { return cse_.service_id; }
@@ -180,8 +188,8 @@ ObjectStaticFile::Media ObjectStaticFile::get_media_type() const {
   return {false, {}};
 }
 
-ObjectStaticFile::RouteSchema *ObjectStaticFile::get_schema() {
-  return schema_.get();
+ObjectStaticFile::RouteSchemaPtr ObjectStaticFile::get_schema() {
+  return schema_;
 }
 
 collector::MysqlCacheManager *ObjectStaticFile::get_cache() { return cache_; }
@@ -219,6 +227,14 @@ const std::string *ObjectStaticFile::get_redirection() {
   if (cse_.redirect) return &cse_.redirect.value();
 
   return nullptr;
+}
+
+bool ObjectStaticFile::get_service_active() const {
+  return cse_.active_service;
+}
+
+void ObjectStaticFile::set_service_active(const bool active) {
+  cse_.active_service = active;
 }
 
 }  // namespace mrs

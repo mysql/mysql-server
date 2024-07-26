@@ -217,5 +217,138 @@ std::string QueryEntriesDbObject::skip_starting_slash(
   return value;
 }
 
+QueryEntriesDbObjectLite::QueryEntriesDbObjectLite(
+    SupportedMrsMetadataVersion version, interface::QueryFactory *query_factory)
+    : db_version_{version}, query_factory_{query_factory} {
+  query_ =
+      "SELECT * FROM (SELECT "
+      "  o.id as id, db.id as schema_id, o.requires_auth,"
+      "  o.auth_stored_procedure, o.enabled, o.request_path,"
+      "  COALESCE(o.items_per_page, db.items_per_page) as `on_page`, "
+      "  o.name, db.name as `schema_name`, o.crud_operations + 0, o.format,"
+      "  o.media_type, o.auto_detect_media_type, o.object_type, o.options ! !"
+      " FROM mysql_rest_service_metadata.`db_object` as o"
+      "  JOIN mysql_rest_service_metadata.`db_schema` as db on"
+      "   o.db_schema_id = db.id"
+      ") as parent ";
+
+  if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2)
+    query_ << mysqlrouter::sqlstring{
+        ", o.row_user_ownership_enforced, o.row_user_ownership_column "};
+  else
+    query_ << mysqlrouter::sqlstring{""};
+}
+
+uint64_t QueryEntriesDbObjectLite::get_last_update() { return audit_log_id_; }
+
+void QueryEntriesDbObjectLite::query_entries(MySQLSession *session) {
+  entries.clear();
+  db_object_user_ownership_v2_.clear();
+
+  QueryAuditLogMaxId query_audit_id;
+  MySQLSession::Transaction transaction(session);
+
+  auto audit_log_id = query_audit_id.query_max_id(session);
+  if (!query_.done()) query_ << mysqlrouter::sqlstring{""};
+  execute(session);
+
+  auto qgroup = query_factory_->create_query_group_row_security();
+  auto qfields = query_factory_->create_query_fields();
+  auto qobject = query_factory_->create_query_object();
+  auto it_user_ownership = db_object_user_ownership_v2_.begin();
+
+  for (auto &e : entries) {
+    qgroup->query_group_row_security(session, e.id);
+    e.row_group_security = std::move(qgroup->get_result());
+
+    qfields->query_parameters(session, e.id);
+    auto &r = qfields->get_result();
+    e.fields = std::move(r);
+
+    qobject->query_entries(session, skip_starting_slash(e.schema_name),
+                           skip_starting_slash(e.name), e.id);
+    e.object_description = qobject->object;
+
+    if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2) {
+      if (it_user_ownership->has_value()) {
+        auto &value = it_user_ownership->value();
+        auto field = e.object_description->get_field(value);
+        if (field) {
+          e.object_description->user_ownership_field.emplace();
+          e.object_description->user_ownership_field->field = field;
+          e.object_description->user_ownership_field->uid = field->id;
+        }
+      }
+      ++it_user_ownership;
+    }
+  }
+
+  transaction.commit();
+
+  audit_log_id_ = audit_log_id;
+}
+
+void QueryEntriesDbObjectLite::on_row(const ResultRow &row) {
+  entries.emplace_back();
+  DbObject &entry = entries.back();
+
+  static std::map<std::string, DbObject::ObjectType> path_types{
+      {"TABLE", DbObject::k_objectTypeTable},
+      {"PROCEDURE", DbObject::k_objectTypeProcedure},
+      {"FUNCTION", DbObject::k_objectTypeFunction}};
+
+  static std::map<std::string, DbObject::Format> format_types{
+      {"FEED", DbObject::formatFeed},
+      {"ITEM", DbObject::formatItem},
+      {"MEDIA", DbObject::formatMedia}};
+
+  helper::MySQLRow mysql_row(row, metadata_, num_of_metadata_);
+
+  auto path_type_converter =
+      get_map_converter(&path_types, DbObject::k_objectTypeTable);
+
+  auto format_type_converter =
+      get_map_converter(&format_types, DbObject::formatFeed);
+
+  mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&entry.schema_id,
+                                       entry::UniversalId::from_raw);
+  mysql_row.unserialize(&entry.requires_authentication);
+  mysql_row.unserialize(&entry.auth_stored_procedure);
+  mysql_row.unserialize(&entry.enabled);
+  mysql_row.unserialize(&entry.request_path);
+  mysql_row.unserialize(&entry.items_per_page);
+  mysql_row.unserialize(&entry.name);
+  mysql_row.unserialize(&entry.schema_name);
+  mysql_row.unserialize(&entry.crud_operation);
+  mysql_row.unserialize_with_converter(&entry.format, format_type_converter);
+  mysql_row.unserialize(&entry.media_type);
+  mysql_row.unserialize(&entry.autodetect_media_type);
+  mysql_row.unserialize_with_converter(&entry.type, path_type_converter);
+  mysql_row.unserialize(&entry.options);
+
+  if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2) {
+    bool user_ownership_enforced{false};
+    std::string user_ownership_column;
+
+    mysql_row.unserialize(&user_ownership_enforced);
+    mysql_row.unserialize(&user_ownership_column);
+
+    auto &user_ownership = db_object_user_ownership_v2_.emplace_back();
+    if (user_ownership_enforced) user_ownership = user_ownership_column;
+  }
+
+  entry.deleted = false;
+}
+
+std::string QueryEntriesDbObjectLite::skip_starting_slash(
+    const std::string &value) {
+  if (value.length()) {
+    if (value[0] == '/') return value.substr(1);
+  }
+
+  return value;
+}
+
 }  // namespace database
 }  // namespace mrs

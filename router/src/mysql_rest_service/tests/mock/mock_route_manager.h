@@ -31,12 +31,20 @@
 
 class MockRouteManager : public mrs::interface::ObjectManager {
  public:
+  using UniversalId = mrs::database::entry::UniversalId;
   MOCK_METHOD(void, turn, (const mrs::State state, const std::string &options),
               (override));
-  MOCK_METHOD(void, update, (const std::vector<DbObject> &paths), (override));
-  MOCK_METHOD(void, update, (const std::vector<ContentFile> &contents),
+  MOCK_METHOD(void, update,
+              (const std::vector<DbObject> &paths,
+               const std::set<UniversalId> &),
               (override));
-  MOCK_METHOD(void, update, (const std::vector<AppContentFile> &contents),
+  MOCK_METHOD(void, update,
+              (const std::vector<ContentFile> &contents,
+               const std::set<UniversalId> &),
+              (override));
+  MOCK_METHOD(void, update,
+              (const std::vector<AppContentFile> &contents,
+               const std::set<UniversalId> &),
               (override));
   MOCK_METHOD(void, schema_not_used, (RouteSchema * route), (override));
   MOCK_METHOD(void, clear, (), (override));

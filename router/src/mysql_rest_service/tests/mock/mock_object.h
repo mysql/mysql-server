@@ -50,6 +50,7 @@ class MockRoute : public mrs::interface::Object {
   MOCK_METHOD(uint32_t, get_on_page, (), (override));
   MOCK_METHOD(bool, requires_authentication, (), (override, const));
   MOCK_METHOD(mrs::UniversalId, get_service_id, (), (override, const));
+  MOCK_METHOD(EntryKey, get_key, (), (override, const));
   MOCK_METHOD(mrs::UniversalId, get_id, (), (override, const));
   MOCK_METHOD(bool, has_access, (const Access access), (override, const));
   MOCK_METHOD(Format, get_format, (), (override, const));
@@ -59,10 +60,13 @@ class MockRoute : public mrs::interface::Object {
               (override, const));
   MOCK_METHOD(const VectorOfRowGroupOwnership &, get_group_row_ownership, (),
               (override, const));
-  MOCK_METHOD(mrs::interface::ObjectSchema *, get_schema, (), (override));
+  MOCK_METHOD(RouteSchemaPtr, get_schema, (), (override));
   MOCK_METHOD(collector::MysqlCacheManager *, get_cache, (), (override));
   MOCK_METHOD(const std::string *, get_default_content, (), (override));
   MOCK_METHOD(const std::string *, get_redirection, (), (override));
+
+  MOCK_METHOD(bool, get_service_active, (), (const, override));
+  MOCK_METHOD(void, set_service_active, (const bool active), (override));
 
   MOCK_METHOD(void, destroy, (), ());
 };

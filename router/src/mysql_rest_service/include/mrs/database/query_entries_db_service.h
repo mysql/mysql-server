@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_SCHEMA_ROUTER_ENTRIES_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_SCHEMA_ROUTER_ENTRIES_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_SCHEMA_DB_SERVICE_ENTRIES_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_SCHEMA_DB_SERVICE_ENTRIES_H_
 
-#include "mrs/database/entry/db_object.h"
+#include "mrs/database/entry/db_service.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/interface/query_factory.h"
 #include "mrs/interface/supported_mrs_schema_version.h"
@@ -33,16 +33,15 @@
 namespace mrs {
 namespace database {
 
-class QueryEntriesDbObject : protected Query {
+class QueryEntriesDbService : protected Query {
  public:
-  using DbObject = entry::DbObject;
-  using VectorOfPathEntries = std::vector<DbObject>;
+  using DbService = entry::DbService;
+  using VectorOfEntries = std::vector<DbService>;
   using SupportedMrsMetadataVersion =
       mrs::interface::SupportedMrsMetadataVersion;
 
  public:
-  QueryEntriesDbObject(SupportedMrsMetadataVersion v,
-                       mrs::interface::QueryFactory *query_factory);
+  QueryEntriesDbService(SupportedMrsMetadataVersion v);
 
   virtual uint64_t get_last_update();
   /**
@@ -52,50 +51,16 @@ class QueryEntriesDbObject : protected Query {
    */
   virtual void query_entries(MySQLSession *session);
 
-  VectorOfPathEntries entries;
+  VectorOfEntries entries;
 
  protected:
   void on_row(const ResultRow &r) override;
-  static std::string skip_starting_slash(const std::string &value);
 
   SupportedMrsMetadataVersion db_version_;
   uint64_t audit_log_id_{0};
-  mrs::interface::QueryFactory *query_factory_;
-  std::vector<std::optional<std::string>> db_object_user_ownership_v2_;
-};
-
-class QueryEntriesDbObjectLite : protected Query {
- public:
-  using DbObject = entry::DbObjectLite;
-  using VectorOfPathEntries = std::vector<DbObject>;
-  using SupportedMrsMetadataVersion =
-      mrs::interface::SupportedMrsMetadataVersion;
-
- public:
-  QueryEntriesDbObjectLite(SupportedMrsMetadataVersion v,
-                           mrs::interface::QueryFactory *query_factory);
-
-  virtual uint64_t get_last_update();
-  /**
-   * Fetch from database the list of all defined object/path entries
-   *
-   * Except fetching the list, it also tries to fetch matching `audit_log.id`.
-   */
-  virtual void query_entries(MySQLSession *session);
-
-  VectorOfPathEntries entries;
-
- protected:
-  void on_row(const ResultRow &r) override;
-  static std::string skip_starting_slash(const std::string &value);
-
-  SupportedMrsMetadataVersion db_version_;
-  uint64_t audit_log_id_{0};
-  mrs::interface::QueryFactory *query_factory_;
-  std::vector<std::optional<std::string>> db_object_user_ownership_v2_;
 };
 
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_SCHEMA_ROUTER_ENTRIES_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_SCHEMA_DB_SERVICE_ENTRIES_H_

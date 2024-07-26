@@ -30,6 +30,9 @@
 #include "mrs/database/query_entries_auth_app.h"
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
+#include "mrs/database/query_entries_db_schema.h"
+#include "mrs/database/query_entries_db_service.h"
+#include "mrs/database/query_entries_url_host.h"
 #include "mrs/database/query_state.h"
 #include "mrs/interface/query_factory.h"
 
@@ -42,7 +45,15 @@ class QueryMonitorFactory {
 
   virtual std::unique_ptr<database::QueryState> create_turn_state_fetcher() = 0;
   virtual std::unique_ptr<database::QueryEntriesDbObject> create_route_fetcher(
-      QueryFactory *query_factory) = 0;
+      QueryFactory *query_factory) = 0;  // TODO: remove
+  virtual std::unique_ptr<database::QueryEntriesUrlHost>
+  create_url_host_fetcher() = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbService>
+  create_db_service_fetcher() = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbSchema>
+  create_db_schema_fetcher() = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbObjectLite>
+  create_db_object_fetcher(QueryFactory *query_factory) = 0;
   virtual std::unique_ptr<database::QueryEntriesAuthApp>
   create_authentication_fetcher() = 0;
   virtual std::unique_ptr<database::QueryEntriesContentFile>
@@ -50,8 +61,18 @@ class QueryMonitorFactory {
 
   virtual std::unique_ptr<database::QueryState> create_turn_state_monitor(
       database::QueryState *state) = 0;
+  virtual std::unique_ptr<database::QueryEntriesUrlHost>
+  create_url_host_monitor(const uint64_t last_audit_log_id) = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbService>
+  create_db_service_monitor(const uint64_t last_audit_log_id) = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbSchema>
+  create_db_schema_monitor(const uint64_t last_audit_log_id) = 0;
+  virtual std::unique_ptr<database::QueryEntriesDbObjectLite>
+  create_db_object_monitor(QueryFactory *query_factory,
+                           const uint64_t last_audit_log_id) = 0;
   virtual std::unique_ptr<database::QueryEntriesDbObject> create_route_monitor(
-      QueryFactory *query_factory, const uint64_t last_audit_log_id) = 0;
+      QueryFactory *query_factory,
+      const uint64_t last_audit_log_id) = 0;  // TODO: remove
   virtual std::unique_ptr<database::QueryEntriesAuthApp>
   create_authentication_monitor(const uint64_t last_audit_log_id) = 0;
   virtual std::unique_ptr<database::QueryEntriesContentFile>

@@ -114,7 +114,6 @@ void Object::handlers_for_function() {
 }
 
 bool Object::update(const void *pv, RouteSchemaPtr schema) {
-  auto &pe = *reinterpret_cast<const EntryDbObject *>(pv);
   bool result = false;
   if (schema != schema_) {
     if (schema_) schema_->route_unregister(this);
@@ -123,12 +122,16 @@ bool Object::update(const void *pv, RouteSchemaPtr schema) {
     result = true;
   }
 
-  if ((pe_.service_path != pe.service_path) ||
-      (pe_.schema_path != pe.schema_path) ||
-      (pe_.object_path != pe.object_path))
-    result = true;
+  if (pv) {
+    auto &pe = *reinterpret_cast<const EntryDbObject *>(pv);
 
-  pe_ = pe;
+    if ((pe_.service_path != pe.service_path) ||
+        (pe_.schema_path != pe.schema_path) ||
+        (pe_.object_path != pe.object_path))
+      result = true;
+
+    pe_ = pe;
+  }
   update_variables();
 
   return result;
@@ -189,7 +192,7 @@ void Object::update_variables() {
   }
 }
 
-Object::RouteSchema *Object::get_schema() { return schema_.get(); }
+Object::RouteSchemaPtr Object::get_schema() { return schema_; }
 
 const std::string &Object::get_object_path() { return pe_.object_path; }
 
@@ -211,6 +214,8 @@ const std::string &Object::get_options() {
 bool Object::requires_authentication() const {
   return pe_.requires_authentication || pe_.schema_requires_authentication;
 }
+
+Object::EntryKey Object::get_key() const { return pe_.get_key(); }
 
 UniversalId Object::get_id() const { return pe_.id; }
 
@@ -267,5 +272,11 @@ bool Object::is_active() const {
 const std::string *Object::get_default_content() { return nullptr; }
 
 const std::string *Object::get_redirection() { return {}; }
+
+bool Object::get_service_active() const { return pe_.active_service; }
+
+void Object::set_service_active(const bool active) {
+  pe_.active_service = active;
+}
 
 }  // namespace mrs

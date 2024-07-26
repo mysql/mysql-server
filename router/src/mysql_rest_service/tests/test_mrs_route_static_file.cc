@@ -132,7 +132,7 @@ TEST_F(RouteStaticFileTests, validate_route_generic_parameters) {
   EXPECT_EQ(kServiceId, sut_->get_service_id());
   EXPECT_EQ(pe.id, sut_->get_id());
   EXPECT_EQ(false, sut_->requires_authentication());
-  EXPECT_EQ(mock_route_schema_.get(), sut_->get_schema());
+  EXPECT_EQ(mock_route_schema_.get(), sut_->get_schema().get());
   EXPECT_EQ("", sut_->get_json_description());
   EXPECT_EQ(Object::kMedia, sut_->get_format());
   EXPECT_EQ(Object::kRead, sut_->get_access());
@@ -178,7 +178,7 @@ TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
   EXPECT_EQ(kServiceId, sut_->get_service_id());
   EXPECT_EQ(pe.id, sut_->get_id());
   EXPECT_EQ(true, sut_->requires_authentication());
-  EXPECT_EQ(mock_route_schema_.get(), sut_->get_schema());
+  EXPECT_EQ(mock_route_schema_.get(), sut_->get_schema().get());
 
   EXPECT_EQ("", sut_->get_json_description());
 }

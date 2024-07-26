@@ -348,6 +348,7 @@ void BootstrapConfigurator::configure_mrs(mysqlrouter::MySQLSession *session,
 
     std::cout << "- Registering metadata\n";
     auto mrs_router_id = register_mrs_router_instance(session);
+    store_mrs_developer(session, mrs_router_id, bootstrap_mrs_developer_);
 
     std::cout << "- Creating account(s) "
               << (accounts_if_not_exists
@@ -436,6 +437,18 @@ void BootstrapConfigurator::prepare_command_options(
       "version, error out.",
       CmdOptionValueReq::none, "",
       [this](const std::string &) { bootstrap_mrs_ensure_schema_ = true; });
+  arg_handler_.add_option(
+      OptionNames({"--mrs-developer"}),
+      "Expose the services that are in development by the "
+      "developer provided as a parameter.",
+      CmdOptionValueReq::required, "developer",
+      [this](const std::string &developer_name) {
+        if (developer_name.empty())
+          throw std::runtime_error(
+              "Value for --mrs-developer option cannot be empty");
+
+        bootstrap_mrs_developer_ = developer_name;
+      });
 
   arg_handler_.add_option(
       OptionNames({"-V", "--version"}), "Display version information and exit.",
@@ -533,7 +546,8 @@ void BootstrapConfigurator::show_usage() noexcept {
         "--user"}},
       {"mrs",
        {"--mrs", "--mrs-mysql-metadata-account", "--mrs-mysql-data-account",
-        "--mrs-global-secret", "--mrs-ensure-metadata-schema"}}};
+        "--mrs-global-secret", "--mrs-ensure-metadata-schema",
+        "--mrs-developer"}}};
 
   for (const auto &section : usage_sections) {
     for (auto line : arg_handler_.usage_lines_if(
@@ -878,5 +892,20 @@ void BootstrapConfigurator::store_mrs_account_metadata(
   sql += ")))";
   sql += " WHERE id = " + std::to_string(mrs_router_id);
 
+  session->execute(sql);
+}
+
+void BootstrapConfigurator::store_mrs_developer(
+    mysqlrouter::MySQLSession *session, uint64_t mrs_router_id,
+    const std::string &developer_name) {
+  std::string sql = "UPDATE mysql_rest_service_metadata.router SET options=";
+  if (developer_name.empty()) {
+    sql += "JSON_REMOVE(options, '$.developer')";
+  } else {
+    sql += "JSON_SET(options, '$.developer'," + session->quote(developer_name) +
+           ")";
+  }
+
+  sql += " WHERE id = " + std::to_string(mrs_router_id);
   session->execute(sql);
 }

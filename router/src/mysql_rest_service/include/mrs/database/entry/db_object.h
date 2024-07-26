@@ -78,6 +78,37 @@ class DbObject {
   std::shared_ptr<Object> object_description;
 };
 
+struct DbObjectLite {
+  enum ObjectType {
+    k_objectTypeTable,
+    k_objectTypeProcedure,
+    k_objectTypeFunction
+  };
+  enum Format : uint32_t { formatFeed = 1, formatItem = 2, formatMedia = 3 };
+
+  UniversalId id;
+  UniversalId schema_id;
+  std::string name;
+  std::string schema_name;
+  std::string request_path;
+  bool enabled;
+  ObjectType type;
+  Operation::ValueType crud_operation;
+  Format format;
+  std::optional<uint64_t> items_per_page;
+  std::optional<std::string> media_type;
+  bool autodetect_media_type;
+  bool requires_authentication;
+  std::optional<std::string> auth_stored_procedure;
+  std::optional<std::string> options;
+
+  std::vector<RowGroupOwnership> row_group_security;
+  ResultSets fields;
+  std::shared_ptr<Object> object_description;
+
+  bool deleted{false};
+};
+
 }  // namespace entry
 }  // namespace database
 }  // namespace mrs

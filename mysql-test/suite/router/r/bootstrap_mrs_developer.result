@@ -1,0 +1,66 @@
+# MySQL Rest Service schema created.
+CREATE USER 'admin'@'%' IDENTIFIED BY 'admin_pass';
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+################################################################################
+# I. Bootstrap the MRS with --mrs-developer param with a valid value,
+#    expect it to get written to the metadata.
+# II. Bootstrap the MRS with --mrs-developer param without a value, expect proper
+#     error to get reported.
+# III. Bootstrap the MRS with --mrs-developer param with an empty value, expect
+#      proper error to get reported.
+################################################################################
+################################################################################
+I.
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
+
+- Storing account in keyring
+- Creating configuration .../mysqlrouter.conf
+
+# MySQL Router configured for the Standalone MySQL Server at 'localhost'
+
+After this, MySQL Router can be started with the generated configuration with:
+
+$ mysqlrouter -c .../mysqlrouter.conf
+
+This Router instance can be reached by connecting to:
+
+## MySQL Classic protocol
+
+- Read/Write Connections: localhost:6446
+- Read/Only Connections:  localhost:6447
+- Read/Write Split Connections: localhost:6450
+
+## MySQL X protocol
+
+- Read/Write Connections: localhost:6448
+- Read/Only Connections:  localhost:6449
+
+[33m# Configuring `MRS` plugin...[39m
+
+- Registering metadata
+- Creating account(s) (only those that are needed, if any)
+- Storing account in keyring
+- Adjusting configuration file .../mysqlrouter.conf
+
+Once the MySQL Router is started, the MySQL REST Service can be reached at
+    https://localhost:8443/<service-name>
+Check the metadata that expected developer is in router.options
+select JSON_EXTRACT(options, "$.developer") as developer from mysql_rest_service_metadata.router;
+developer
+"mike"
+################################################################################
+II.
+Error: option '--mrs-developer' expects a value, got nothing
+################################################################################
+III.
+Error: Value for --mrs-developer option cannot be empty
+################################################################################
+# Cleanup
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;
+DROP USER 'admin'@'%';

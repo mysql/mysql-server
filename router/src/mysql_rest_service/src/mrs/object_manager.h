@@ -63,9 +63,12 @@ class ObjectManager : public mrs::interface::ObjectManager {
   ~ObjectManager() override;
 
   void turn(const State state, const std::string &options) override;
-  void update(const std::vector<DbObject> &paths) override;
-  void update(const std::vector<AppContentFile> &contents) override;
-  void update(const std::vector<ContentFile> &contents) override;
+  void update(const std::vector<DbObject> &paths,
+              const std::set<UniversalId> &allowed_services) override;
+  void update(const std::vector<AppContentFile> &contents,
+              const std::set<UniversalId> &) override;
+  void update(const std::vector<ContentFile> &contents,
+              const std::set<UniversalId> &) override;
   void schema_not_used(RouteSchema *route) override;
   void clear() override;
 
@@ -75,6 +78,8 @@ class ObjectManager : public mrs::interface::ObjectManager {
   void handle_existing_route(const DbObject &pe);
   void handle_existing_route(const AppContentFile &pe);
   void handle_delete_route(const EntryKey &pe_id);
+
+  void handle_existing_route(RoutePtr pe);
 
   RouteSchemaPtr handle_schema(const DbObject &pe);
   RouteSchemaPtr handle_schema(const ContentFile &pe);

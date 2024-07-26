@@ -127,6 +127,7 @@ class BootstrapConfigurator {
   std::string mrs_secret_;
 
   bool bootstrap_mrs_ensure_schema_{false};
+  std::string bootstrap_mrs_developer_;
   bool bootstrap_mrs_{false};
   bool is_legacy_{true};
   bool showing_info_{false};
@@ -167,6 +168,9 @@ class BootstrapConfigurator {
   std::string get_configured_router_name() const;
   std::string get_configured_rest_endpoint() const;
 
+  void store_mrs_developer(mysqlrouter::MySQLSession *session,
+                           uint64_t mrs_router_id,
+                           const std::string &developer_name);
   void store_mrs_account_metadata(mysqlrouter::MySQLSession *session,
                                   uint64_t mrs_router_id,
                                   const std::string &key,

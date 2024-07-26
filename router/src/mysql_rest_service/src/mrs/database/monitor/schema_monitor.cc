@@ -72,6 +72,80 @@ mrs::interface::SupportedMrsMetadataVersion query_supported_mrs_version(
   return mrs::interface::kSupportedMrsMetadataVersion_3;
 }
 
+#if 0
+std::string query_developer(mysqlrouter::MySQLSession *session,
+                            std::optional<uint64_t> router_id) {
+  if (!router_id.has_value()) {
+    return "";
+  }
+
+  mysqlrouter::sqlstring q{
+      "select json_unquote(json_extract(options, '$.developer')) from "
+      "mysql_rest_service_metadata.router where id = ?"};
+
+  q << router_id.value();
+  auto res = session->query_one(q.str());
+  if (nullptr == res.get()) return {};
+
+  return (*res)[0] ? (*res)[0] : "";
+}
+#endif
+
+std::set<UniversalId> query_allowed_services(
+    mysqlrouter::MySQLSession *session,
+    const mrs::interface::SupportedMrsMetadataVersion &md_version,
+    std::optional<uint64_t> router_id) {
+  if (!router_id.has_value()) {
+    return {};
+  }
+
+  mysqlrouter::sqlstring q;
+  std::set<UniversalId> result;
+  if (md_version < mrs::interface::SupportedMrsMetadataVersion::
+                       kSupportedMrsMetadataVersion_3) {
+    q = "select s.id from mysql_rest_service_metadata.service s"
+        " where (enabled = 1)";
+  } else {
+    q = "select s.id "
+        " from mysql_rest_service_metadata.service s where (enabled = 1) AND"
+        " ("
+        "  ((published = 1) AND (NOT EXISTS (select s2.id from"
+        "     mysql_rest_service_metadata.service s2"
+        "      where s.url_host_id=s2.url_host_id"
+        "          AND s.url_context_root=s2.url_context_root AND"
+        "          JSON_OVERLAPS((select options->'$.developer' from"
+        "              mysql_rest_service_metadata.router"
+        "              where id = ?), s2.in_development->>'$.developers'))))"
+        " OR"
+        "  ((published = 0) AND (s.id IN (select s2.id from"
+        "     mysql_rest_service_metadata.service s2"
+        "      where s.url_host_id=s2.url_host_id"
+        "          AND s.url_context_root=s2.url_context_root AND"
+        "          JSON_OVERLAPS((select options->'$.developer' from"
+        "          mysql_rest_service_metadata.router"
+        "              where id = ?), s2.in_development->>'$.developers'))))"
+        " )";
+    q << router_id.value() << router_id.value();
+  }
+
+  auto result_processor =
+      [&result](const mysqlrouter::MySQLSession::Row &row) -> bool {
+    assert(row.size() == 1);
+    assert(row[0]);
+
+    entry::UniversalId session_id;
+    entry::UniversalId::from_raw(&session_id, row[0]);
+
+    result.insert(session_id);
+
+    return true;
+  };
+
+  session->query(q, result_processor);
+
+  return result;
+}
+
 class AccessDatabase {
  public:
   using QueryMonitorFactory = mrs::interface::QueryMonitorFactory;
@@ -80,21 +154,37 @@ class AccessDatabase {
   AccessDatabase(mrs::interface::QueryFactory *query_factory,
                  QueryMonitorFactory *query_monitor_factory)
       : state{query_monitor_factory->create_turn_state_fetcher()},
-        object{query_monitor_factory->create_route_fetcher(query_factory)},
+        url_host{query_monitor_factory->create_url_host_fetcher()},
+        db_service{query_monitor_factory->create_db_service_fetcher()},
+        db_schema{query_monitor_factory->create_db_schema_fetcher()},
+        db_object{
+            query_monitor_factory->create_db_object_fetcher(query_factory)},
+        object{query_monitor_factory->create_route_fetcher(
+            query_factory)},  // TODO: remove
         authentication{query_monitor_factory->create_authentication_fetcher()},
         content_file{query_monitor_factory->create_content_file_fetcher()},
         query_monitor_factory_{query_monitor_factory},
         query_factory_{query_factory} {}
 
   std::unique_ptr<database::QueryState> state;
-  std::unique_ptr<database::QueryEntriesDbObject> object;
+  std::unique_ptr<database::QueryEntriesUrlHost> url_host;
+  std::unique_ptr<database::QueryEntriesDbService> db_service;
+  std::unique_ptr<database::QueryEntriesDbSchema> db_schema;
+  std::unique_ptr<database::QueryEntriesDbObjectLite> db_object;
+  std::unique_ptr<database::QueryEntriesDbObject> object;  // TODO: remove
   std::unique_ptr<database::QueryEntriesAuthApp> authentication;
   std::unique_ptr<database::QueryEntriesContentFile> content_file;
 
   void query(mysqlrouter::MySQLSession *session) {
     mysqlrouter::MySQLSession::Transaction transaction(session);
     state->query_state(session);
-    object->query_entries(session);
+    object->query_entries(session);  // TODO: remove
+#if 0
+    url_host->query_entries(session);
+    db_service->query_entries(session);
+    db_schema->query_entries(session);
+    db_object->query_entries(session);
+#endif
     authentication->query_entries(session);
     content_file->query_entries(session);
   }
@@ -103,6 +193,14 @@ class AccessDatabase {
     if (!fetcher_updated_) {
       state = query_monitor_factory_->create_turn_state_monitor(state.get());
       object = query_monitor_factory_->create_route_monitor(
+          query_factory_, content_file->get_last_update());  // TODO: remove
+      url_host = query_monitor_factory_->create_url_host_monitor(
+          content_file->get_last_update());
+      db_service = query_monitor_factory_->create_db_service_monitor(
+          content_file->get_last_update());
+      db_schema = query_monitor_factory_->create_db_schema_monitor(
+          content_file->get_last_update());
+      db_object = query_monitor_factory_->create_db_object_monitor(
           query_factory_, content_file->get_last_update());
       authentication = query_monitor_factory_->create_authentication_monitor(
           content_file->get_last_update());
@@ -171,6 +269,12 @@ void SchemaMonitor::run() {
           cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
       auto supported_schema_version =
           query_supported_mrs_version(session_check_version.get());
+
+#if 0
+      const auto developer = query_developer(session_check_version.get(),
+                                             configuration_.router_id_);
+#endif
+
       auto factory{create_schema_monitor_factory(supported_schema_version)};
       mrs::database::FileFromOptions options_files;
 
@@ -181,6 +285,12 @@ void SchemaMonitor::run() {
 
       log_system("Monitoring MySQL REST metadata (version: %s)",
                  to_string(supported_schema_version).c_str());
+#if 0
+      if (!developer.empty()) {
+        log_system("Configured to expose the services for developer '%s'",
+                   developer.c_str());
+      }
+#endif
 
       do {
         using namespace observability;
@@ -188,6 +298,9 @@ void SchemaMonitor::run() {
                            ? cache_->get_instance(
                                  collector::kMySQLConnectionMetadataRW, true)
                            : std::move(session_check_version);
+
+        const auto allowed_services = query_allowed_services(
+            session.get(), supported_schema_version, configuration_.router_id_);
 
         fetcher.query(session.get());
 
@@ -214,7 +327,8 @@ void SchemaMonitor::run() {
           options_files.analyze_global(state == mrs::stateOn,
                                        global_json_config);
           if (options_files.content_files_.size()) {
-            dbobject_manager_->update(options_files.content_files_);
+            dbobject_manager_->update(options_files.content_files_,
+                                      allowed_services);
             EntityCounter<kEntityCounterUpdatesFiles>::increment(
                 options_files.content_files_.size());
           }
@@ -228,25 +342,52 @@ void SchemaMonitor::run() {
 
         if (!fetcher.object->entries.empty()) {
           options_files.analyze(fetcher.object->entries);
-          dbobject_manager_->update(fetcher.object->entries);
+          dbobject_manager_->update(fetcher.object->entries, allowed_services);
           EntityCounter<kEntityCounterUpdatesObjects>::increment(
               fetcher.object->entries.size());
 
           if (options_files.content_files_.size()) {
-            dbobject_manager_->update(options_files.content_files_);
+            dbobject_manager_->update(options_files.content_files_,
+                                      allowed_services);
             EntityCounter<kEntityCounterUpdatesFiles>::increment(
                 options_files.content_files_.size());
           }
         }
 
+        if (!fetcher.url_host->entries.empty()) {
+          // dbobject_manager_->update(fetcher.url_host->entries);
+          EntityCounter<kEntityCounterUpdatesHosts>::increment(
+              fetcher.url_host->entries.size());
+        }
+
+        if (!fetcher.db_service->entries.empty()) {
+          // dbobject_manager_->update(fetcher.db_service->entries);
+          EntityCounter<kEntityCounterUpdatesServices>::increment(
+              fetcher.db_service->entries.size());
+        }
+
+        if (!fetcher.db_schema->entries.empty()) {
+          // dbobject_manager_->update(fetcher.db_schema->entries);
+          EntityCounter<kEntityCounterUpdatesSchemas>::increment(
+              fetcher.db_schema->entries.size());
+        }
+
+        if (!fetcher.db_object->entries.empty()) {
+          // dbobject_manager_->update(fetcher.db_object->entries);
+          EntityCounter<kEntityCounterUpdatesObjects>::increment(
+              fetcher.db_object->entries.size());
+        }
+
         if (!fetcher.content_file->entries.empty()) {
-          dbobject_manager_->update(fetcher.content_file->entries);
+          dbobject_manager_->update(fetcher.content_file->entries,
+                                    allowed_services);
           EntityCounter<kEntityCounterUpdatesFiles>::increment(
               fetcher.content_file->entries.size());
 
           options_files.analyze(fetcher.content_file->entries);
           if (options_files.content_files_.size()) {
-            dbobject_manager_->update(options_files.content_files_);
+            dbobject_manager_->update(options_files.content_files_,
+                                      allowed_services);
             EntityCounter<kEntityCounterUpdatesFiles>::increment(
                 options_files.content_files_.size());
           }

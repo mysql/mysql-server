@@ -62,13 +62,19 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/query_entries_auth_privileges.cc
   mrs/database/query_changes_content_file.cc
   mrs/database/query_changes_db_object.cc
+  mrs/database/query_changes_db_schema.cc
+  mrs/database/query_changes_db_service.cc
   mrs/database/query_changes_state.cc
+  mrs/database/query_changes_url_host.cc
   mrs/database/query_entries_audit_log.cc
   mrs/database/query_entries_auth_app.cc
   mrs/database/query_entries_auth_role.cc
   mrs/database/query_entries_content_file.cc
   mrs/database/query_entries_db_object.cc
+  mrs/database/query_entries_db_schema.cc
+  mrs/database/query_entries_db_service.cc
   mrs/database/query_entries_object.cc
+  mrs/database/query_entries_url_host.cc
   mrs/database/query_entry_auth_user.cc
   mrs/database/query_entry_content_file.cc
   mrs/database/query_entry_fields.cc

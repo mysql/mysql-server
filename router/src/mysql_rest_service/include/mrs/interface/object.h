@@ -54,6 +54,7 @@ class Object {
   using VectorOfRowGroupOwnership =
       std::vector<database::entry::RowGroupOwnership>;
   using Fields = database::entry::ResultSets;
+  using EntryKey = database::entry::EntryKey;
 
   enum Access { kCreate = 1, kRead = 2, kUpdate = 4, kDelete = 8 };
   enum Format { kFeed = 1, kItem = 2, kMedia = 3 };
@@ -68,6 +69,9 @@ class Object {
 
   virtual void turn(const State state) = 0;
   virtual bool update(const void *pe, RouteSchemaPtr schema) = 0;
+
+  virtual bool get_service_active() const = 0;
+  virtual void set_service_active(const bool active) = 0;
 
   virtual const std::string &get_rest_canonical_url() = 0;
   virtual const std::string &get_rest_url() = 0;
@@ -91,6 +95,7 @@ class Object {
 
   virtual bool requires_authentication() const = 0;
   virtual UniversalId get_service_id() const = 0;
+  virtual EntryKey get_key() const = 0;
   virtual UniversalId get_id() const = 0;
   virtual bool has_access(const Access access) const = 0;
   virtual Format get_format() const = 0;
@@ -100,7 +105,7 @@ class Object {
   virtual const RowUserOwnership &get_user_row_ownership() const = 0;
   virtual const VectorOfRowGroupOwnership &get_group_row_ownership() const = 0;
 
-  virtual RouteSchema *get_schema() = 0;
+  virtual RouteSchemaPtr get_schema() = 0;
   virtual collector::MysqlCacheManager *get_cache() = 0;
 };
 

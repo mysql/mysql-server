@@ -135,22 +135,42 @@ void ObjectManager::turn(const State state, const std::string &options) {
   state_ = state;
 }
 
-void ObjectManager::update(const std::vector<DbObject> &paths) {
+void ObjectManager::update(const std::vector<DbObject> &paths,
+                           const std::set<UniversalId> &allowed_services) {
   if (paths.size()) {
     log_debug("route-rest: Number of updated entries:%i", (int)paths.size());
   }
 
-  for (const auto &p : paths) {
+  for (auto p : paths) {
     log_debug("route-rest: Processing update id=%s", p.id.to_string().c_str());
     if (routes_.count(p.get_key())) {
+      if (p.get_key().type != mrs::database::entry::key_static_sub) {
+        const bool is_service_allowed = allowed_services.contains(p.service_id);
+        if (is_service_allowed != p.active_service) {
+          p.active_service = is_service_allowed;
+        }
+      }
       handle_existing_route(p);
     } else {
       handle_new_route(p);
     }
   }
+
+  for (auto &[_, route] : routes_) {
+    if (route->get_key().type == mrs::database::entry::key_static_sub) continue;
+
+    const bool is_service_allowed =
+        allowed_services.contains(route->get_service_id());
+
+    if (is_service_allowed != route->get_service_active()) {
+      route->set_service_active(is_service_allowed);
+      handle_existing_route(route);
+    }
+  }
 }
 
-void ObjectManager::update(const std::vector<ContentFile> &contents) {
+void ObjectManager::update(const std::vector<ContentFile> &contents,
+                           const std::set<UniversalId> &uids) {
   if (contents.size()) {
     log_debug("route-rest-static: Copy updates:%i",
               static_cast<int>(contents.size()));
@@ -161,22 +181,41 @@ void ObjectManager::update(const std::vector<ContentFile> &contents) {
   for (const auto &c : contents) {
     copy.emplace_back(c);
   }
-  update(copy);
+  update(copy, uids);
 }
 
-void ObjectManager::update(const std::vector<AppContentFile> &contents) {
+void ObjectManager::update(const std::vector<AppContentFile> &contents,
+                           const std::set<UniversalId> &allowed_services) {
   if (contents.size()) {
     log_debug("route-rest-static: Number of updated entries:%i",
               static_cast<int>(contents.size()));
   }
 
-  for (const auto &p : contents) {
+  for (auto p : contents) {
     log_debug("route-rest-static: Processing update id=%s",
               p.id.to_string().c_str());
     if (routes_.count(p.get_key())) {
+      if (p.get_key().type != mrs::database::entry::key_static_sub) {
+        const bool is_service_allowed = allowed_services.contains(p.service_id);
+        if (is_service_allowed != p.active_service) {
+          p.active_service = is_service_allowed;
+        }
+      }
+
       handle_existing_route(p);
     } else {
       handle_new_route(p);
+    }
+  }
+
+  for (auto &[_, route] : routes_) {
+    if (route->get_key().type == mrs::database::entry::key_static_sub) continue;
+    const bool is_service_allowed =
+        allowed_services.contains(route->get_service_id());
+
+    if (is_service_allowed != route->get_service_active()) {
+      route->set_service_active(is_service_allowed);
+      handle_existing_route(route);
     }
   }
 }
@@ -204,6 +243,15 @@ void ObjectManager::handle_existing_route(const AppContentFile &pe) {
   auto &route = routes_[pe.get_key()];
 
   route->update(&pe, schema);
+  route->turn(state_);
+}
+
+void ObjectManager::handle_existing_route(RoutePtr route) {
+  log_debug("Updating route:%s", route->get_id().to_string().c_str());
+
+  auto schema = route->get_schema();
+
+  route->update(nullptr, schema);
   route->turn(state_);
 }
 

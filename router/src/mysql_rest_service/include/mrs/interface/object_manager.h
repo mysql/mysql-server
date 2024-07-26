@@ -47,9 +47,12 @@ class ObjectManager {
   virtual ~ObjectManager() = default;
 
   virtual void turn(const State state, const std::string &options) = 0;
-  virtual void update(const std::vector<DbObject> &paths) = 0;
-  virtual void update(const std::vector<AppContentFile> &contents) = 0;
-  virtual void update(const std::vector<ContentFile> &contents) = 0;
+  virtual void update(const std::vector<DbObject> &paths,
+                      const std::set<UniversalId> &allowed_services) = 0;
+  virtual void update(const std::vector<AppContentFile> &contents,
+                      const std::set<UniversalId> &) = 0;
+  virtual void update(const std::vector<ContentFile> &contents,
+                      const std::set<UniversalId> &) = 0;
   virtual void schema_not_used(RouteSchema *route) = 0;
   virtual void clear() = 0;
 };

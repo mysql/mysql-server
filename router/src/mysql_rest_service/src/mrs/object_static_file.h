@@ -76,18 +76,22 @@ class ObjectStaticFile : public mrs::interface::Object {
 
   bool requires_authentication() const override;
   UniversalId get_service_id() const override;
+  EntryKey get_key() const override;
   UniversalId get_id() const override;
   bool has_access(const Access access) const override;
   uint32_t get_access() const override;
   Format get_format() const override;
 
-  RouteSchema *get_schema() override;
+  RouteSchemaPtr get_schema() override;
   MysqlCacheManager *get_cache() override;
 
   const RowUserOwnership &get_user_row_ownership() const override;
   const VectorOfRowGroupOwnership &get_group_row_ownership() const override;
   const std::string *get_default_content() override;
   const std::string *get_redirection() override;
+
+  bool get_service_active() const override;
+  void set_service_active(const bool active) override;
 
  private:
   void update_variables();

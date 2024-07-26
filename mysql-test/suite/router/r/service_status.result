@@ -1,0 +1,41 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# DB `basic_schema` - created
+*******************************************************
+# Create a 3 instances of "the same" service "svc"
+# one is published, 2 other are not
+# Each exposes one object: t1, t2, t3
+# Also create one published service "svc2" that exposes t1
+*******************************************************
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t1
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t2
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t3
+# Create second, published service
+# Registred SERVICE at path: /svc2
+# Registred DB_SCHEMA at path: /svc2/basic
+# Registred DB_OBJECT at path: /svc2/basic/t1
+*******************************************************
+We start with empty router.options->"$.developer"
+The Router should expose published services 
+*******************************************************
+*******************************************************
+We change the router.options->"$.developer" to "jan"
+*******************************************************
+update mysql_rest_service_metadata.router set options = '{"developer": "jan"}';
+*******************************************************
+We change the router.options->"$.developer" to "lukasz"
+*******************************************************
+update mysql_rest_service_metadata.router set options = '{"developer": "lukasz"}';
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

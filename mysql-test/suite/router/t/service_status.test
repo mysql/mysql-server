@@ -1,0 +1,114 @@
+# Verify mapping functionality between field-names and column-names.
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+--source ../include/mrs/start_object_definition.inc
+
+--echo *******************************************************
+--echo # Create a 3 instances of "the same" service "svc"
+--echo # one is published, 2 other are not
+--echo # Each exposes one object: t1, t2, t3
+--echo # Also create one published service "svc2" that exposes t1
+--echo *******************************************************
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_in_development='{"developers": ["mike","jan"]}'
+--source ../include/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t2
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--let $mrs_add_service_in_development='{"developers": ["lukasz"]}'
+--source ../include/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t3
+--source ../include/mrs/db_object/add.inc
+
+--echo # Create second, published service
+--let $mrs_add_service_path="/svc2"
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs/db_schema/add.inc
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--source ../include/mrs/db_object/add.inc
+
+--source ../include/mrs/end_object_definition.inc
+
+--let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display none
+
+--exec $MRS_CLIENT_ARGS --path /svc2/basic/t1/1 --wait-until-found 60
+
+
+--echo *******************************************************
+--echo We start with empty router.options->"$.developer"
+--echo The Router should expose published services 
+--echo *******************************************************
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2 --response-type RAW --expected-status 404
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t3 --response-type RAW --expected-status 404
+--exec $MRS_CLIENT_ARGS --path /svc2/basic/t1
+
+--echo *******************************************************
+--echo We change the router.options->"$.developer" to "jan"
+--echo *******************************************************
+update mysql_rest_service_metadata.router set options = '{"developer": "jan"}';
+
+# here we artificially make the Router spot the change as it does not monitor the
+# router table changes right now.
+--source ../include/mrs/changes/fetch_object.inc
+--let $mrs_add_db_object_op=READ,CREATE
+--source ../include/mrs/db_object/modify_op.inc
+--source ../include/mrs/changes/wait_object.inc
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1 --response-type RAW --expected-status 404
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2 
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t3 --response-type RAW --expected-status 404
+--exec $MRS_CLIENT_ARGS --path /svc2/basic/t1
+
+
+--echo *******************************************************
+--echo We change the router.options->"$.developer" to "lukasz"
+--echo *******************************************************
+update mysql_rest_service_metadata.router set options = '{"developer": "lukasz"}';
+
+# here we artificially make the Router spot the change as it does not monitor the
+# router table changes right now.
+--source ../include/mrs/changes/fetch_object.inc
+--let $mrs_add_db_object_op=READ,CREATE
+--source ../include/mrs/db_object/modify_op.inc
+--source ../include/mrs/changes/wait_object.inc
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1 --response-type RAW --expected-status 404
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2 --response-type RAW --expected-status 404
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t3 
+--exec $MRS_CLIENT_ARGS --path /svc2/basic/t1
+
+# Cleanup
+--source ../include/mrs/cleanup.inc
