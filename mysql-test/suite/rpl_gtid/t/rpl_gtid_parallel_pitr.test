@@ -98,6 +98,11 @@ START REPLICA SQL_THREAD FOR CHANNEL 'pitr';
 
 --source include/rpl/sync_with_saved.inc
 
+--let $rpl_channel_name= 'pitr'
+--source include/rpl/stop_replica.inc
+--let $rpl_channel_name=
+RESET REPLICA ALL FOR CHANNEL 'pitr';
+
 # Clean up
 --remove_file $server_2_datadir/binlog-pitr.index.bak
 

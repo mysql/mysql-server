@@ -197,7 +197,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF'`
 --let $assert_text = Check the number of channels with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF
---let $assert_cond = $count = 2 # The recovery channel wont appear unless we start GR
+--let $assert_cond = $count = 3
 --source include/assert.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF' AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = ''`
@@ -310,7 +310,7 @@ RESET REPLICA ALL;
 --remove_file $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_table_repo.inc
 
 CALL mtr.add_suppression("Error reading relay log configuration.");
-CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in the applier metadata repository, consider deleting it*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in the applier metadata repository, consider deleting it.");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
 CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository,*");
 CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology*");

@@ -74,6 +74,7 @@
 --source include/big_test.inc
 
 --source include/have_binlog_format_row.inc
+--source include/not_have_privilege_checks_user.inc
 
 --let $rpl_skip_start_slave=1
 --source include/rpl/init_source_replica.inc

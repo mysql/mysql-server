@@ -41,6 +41,8 @@
 # transactions parallelizable on the replica.
 
 --source include/have_binlog_format_row.inc
+--source include/have_replica_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_workers.inc
 --source include/have_debug_sync.inc
 --let $rpl_extra_connections_per_server = 3
 --source include/rpl/init_source_replica.inc

@@ -39,8 +39,9 @@
 
 # Output from mysqlbinlog is replayed on the slave server.
 --source include/not_have_privilege_checks_user.inc
---source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 --source include/rpl/stop_replica.inc

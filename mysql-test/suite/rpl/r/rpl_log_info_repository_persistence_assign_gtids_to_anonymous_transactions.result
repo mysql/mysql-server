@@ -95,7 +95,7 @@ include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_
 
 # 4. Cleanup
 CALL mtr.add_suppression("Error reading relay log configuration.");
-CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in the applier metadata repository, consider deleting it*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in the applier metadata repository, consider deleting it.");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
 CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository,*");
 CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology*");

@@ -16,10 +16,11 @@
 #               CAUSES A TRX TO LOG WITH A DIFFERENT GTID
 #
 --source include/have_binlog_format_row.inc
---source include/rpl/init_source_replica.inc
 # Test should run only on debug build
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
+--source include/not_rpl_gtid_only.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo # Preparing the relaylog

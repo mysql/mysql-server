@@ -33,4 +33,6 @@ START REPLICA SQL_THREAD FOR CHANNEL 'pitr';
 # 5. Wait for expected gtid set on server_2
 
 include/rpl/sync_with_saved.inc
+include/rpl/stop_replica.inc [FOR CHANNEL 'pitr']
+RESET REPLICA ALL FOR CHANNEL 'pitr';
 include/rpl/deinit.inc

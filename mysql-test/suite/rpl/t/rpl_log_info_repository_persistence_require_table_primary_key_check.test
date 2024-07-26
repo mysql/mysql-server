@@ -227,7 +227,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
 --let $assert_text = Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM
---let $assert_cond = $count = 2 # The recovery channel wont appear unless we start GR
+--let $assert_cond = $count = 3
 --source include/assert.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
