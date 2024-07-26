@@ -38,7 +38,7 @@ extern "C" {
 #ifndef LZ4FILE_H
 #define LZ4FILE_H
 
-#include <stdio.h>
+#include <stdio.h>  /* FILE* */
 #include "lz4frame_static.h"
 
 typedef struct LZ4_readFile_s LZ4_readFile_t;
@@ -78,7 +78,7 @@ LZ4FLIB_STATIC_API LZ4F_errorCode_t LZ4F_writeOpen(LZ4_writeFile_t** lz4fWrite, 
  * `buf` write data buffer.
  * `size` write data buffer size.
  */
-LZ4FLIB_STATIC_API size_t LZ4F_write(LZ4_writeFile_t* lz4fWrite, void* buf, size_t size);
+LZ4FLIB_STATIC_API size_t LZ4F_write(LZ4_writeFile_t* lz4fWrite, const void* buf, size_t size);
 
 /*! LZ4F_writeClose() :
  * Close lz4file handle.
