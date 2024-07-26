@@ -222,6 +222,7 @@ if(BUILD_SHARED_LIBS)
   endif()
 endif()
 
+# Here we do: add_library(libcurl ALIAS libcurl_static})
 add_library(${LIB_NAME} ALIAS ${LIB_SELECTED})
 add_library(${PROJECT_NAME}::${LIB_NAME} ALIAS ${LIB_SELECTED})
 
