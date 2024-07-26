@@ -1,6 +1,6 @@
 This repository uses 2 different licenses :
 - all files in the `lib` directory use a BSD 2-Clause license
-- all other files use a GPLv2 license, unless explicitly stated otherwise
+- all other files use a GPL-2.0-or-later license, unless explicitly stated otherwise
 
 Relevant license is reminded at the top of each source file,
 and with presence of COPYING or LICENSE file in associated directories.
