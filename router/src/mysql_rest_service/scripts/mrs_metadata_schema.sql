@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`service` (
   `url_host_id` BINARY(16) NOT NULL,
   `url_context_root` VARCHAR(255) NOT NULL DEFAULT '/mrs' COMMENT 'Specifies context root of the MRS as represented in the request URLs, default being /mrs. URL Example: https://www.example.com/mrs',
   `url_protocol` SET('HTTP', 'HTTPS') NOT NULL DEFAULT 'HTTP,HTTPS',
+  `name` VARCHAR(255) NOT NULL,
   `enabled` TINYINT NOT NULL DEFAULT 1,
   `published` TINYINT NOT NULL DEFAULT 0,
   `in_development` JSON NULL COMMENT 'If not NULL, this column indicates that the REST service is currently \"in development\" and holds the name(s) of the developer(s) who is(/are) allowed to work with the service in the \"$.developers\" string array. REST services with this column not being NULL may use the same url_host+url_context_root context path as existing services. Routers only serve REST services with this column being NULL, unless they are bootstrapped with --mrs-development <user> which sets `router`.`option`->>\"$.developer\". When bootstrapped with the --mrs-development <user> option the Router also serves REST services marked \"in development\" with this column\'s \"$.developers\" including the same name as the <user> specified during bootstrap, while these REST services marked \"in development\" take priority over services with the same url_host+url_context_root context path and this column being NULL.',
@@ -80,6 +81,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_schema` (
   `request_path` VARCHAR(255) NOT NULL,
   `requires_auth` TINYINT NOT NULL DEFAULT 0,
   `enabled` TINYINT NOT NULL DEFAULT 1,
+  `internal` TINYINT NOT NULL DEFAULT 0,
   `items_per_page` INT UNSIGNED NULL DEFAULT 25,
   `comments` VARCHAR(512) NULL,
   `options` JSON NULL,
@@ -103,6 +105,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_object` (
   `name` VARCHAR(255) NOT NULL,
   `request_path` VARCHAR(255) NOT NULL,
   `enabled` TINYINT NOT NULL DEFAULT 1,
+  `internal` TINYINT NOT NULL DEFAULT 0,
   `object_type` ENUM('TABLE', 'VIEW', 'PROCEDURE', 'FUNCTION', 'SCRIPT') NOT NULL,
   `crud_operations` SET('CREATE', 'READ', 'UPDATE', 'DELETE') NOT NULL DEFAULT '' COMMENT 'Calculated by the duality view options of object and object_reference table, always UPDATE for procedures and functions.',
   `format` ENUM('FEED', 'ITEM', 'MEDIA') NOT NULL DEFAULT 'FEED' COMMENT 'The HTTP request method for this handler. \'feed\' executes the source query and returns the result set in JSON representation, \'item\' returns a single row instead, \'media\' turns the result set into a binary representation with accompanying HTTP Content-Type header.',
@@ -238,6 +241,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_set` (
   `request_path` VARCHAR(255) NOT NULL,
   `requires_auth` TINYINT NOT NULL DEFAULT 0,
   `enabled` TINYINT NOT NULL DEFAULT 0,
+  `internal` TINYINT NOT NULL DEFAULT 0,
   `comments` VARCHAR(512) NULL,
   `options` JSON NULL,
   PRIMARY KEY (`id`),
@@ -905,7 +909,7 @@ SELECT f.* FROM (
             ON c.TABLE_SCHEMA = k.TABLE_SCHEMA AND c.TABLE_NAME = k.TABLE_NAME
                 AND c.COLUMN_NAME=k.COLUMN_NAME
     WHERE NOT ISNULL(k.REFERENCED_TABLE_NAME)
-    GROUP BY k.CONSTRAINT_NAME
+    GROUP BY k.CONSTRAINT_NAME, k.table_schema, k.table_name
     UNION
     # Union with the references that point from other tables to the table (1:1 and 1:n)
     SELECT MAX(c.ORDINAL_POSITION) + 1000 AS position,
@@ -997,6 +1001,10 @@ BEGIN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This developer is already registered for a REST service with the same host/url_context_root path.";
         END IF;
     END IF;
+
+    IF NEW.in_development IS NOT NULL THEN
+        SET NEW.published = 0;
+    END IF;
 END$$
 
 USE `mysql_rest_service_metadata`$$
@@ -1028,6 +1036,10 @@ BEGIN
         IF COALESCE(@validDeveloperList, FALSE) = TRUE THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This developer is already registered for a REST service with the same host/url_context_root path.";
         END IF;
+    END IF;
+
+    IF OLD.in_development IS NULL AND NEW.in_development IS NOT NULL AND NEW.published = 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "A REST service that is in development cannot be published. Please reset the development state first.";
     END IF;
 END$$
 
@@ -1413,6 +1425,10 @@ COMMIT;
 ALTER TABLE `mysql_rest_service_metadata`.`config`
     ADD CONSTRAINT Config_OnlyOneRow CHECK (id = 1);
 
+# Ensure there is a default for service.name taken from url_context_root
+ALTER TABLE `mysql_rest_service_metadata`.`service`
+    CHANGE COLUMN name name VARCHAR(255) NOT NULL DEFAULT (REGEXP_REPLACE(url_context_root, '[^0-9a-zA-Z ]', ''));
+
 # Ensure page size is within 16K limit
 ALTER TABLE `mysql_rest_service_metadata`.`db_schema`
     ADD CONSTRAINT db_schema_max_page_size CHECK (items_per_page IS NULL OR items_per_page < 16384);
@@ -1526,6 +1542,7 @@ BEGIN
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
+            "internal", NEW.internal,
             "items_per_page", NEW.items_per_page,
             "comments", NEW.comments,
             "options", NEW.options,
@@ -1552,6 +1569,7 @@ BEGIN
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
+            "internal", OLD.internal,
             "items_per_page", OLD.items_per_page,
             "comments", OLD.comments,
             "options", OLD.options,
@@ -1564,6 +1582,7 @@ BEGIN
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
+            "internal", NEW.internal,
             "items_per_page", NEW.items_per_page,
             "comments", NEW.comments,
             "options", NEW.options,
@@ -1590,6 +1609,7 @@ BEGIN
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
+            "internal", OLD.internal,
             "items_per_page", OLD.items_per_page,
             "comments", OLD.comments,
             "options", OLD.options,
@@ -1616,6 +1636,7 @@ BEGIN
             "url_host_id", NEW.url_host_id,
             "url_context_root", NEW.url_context_root,
             "url_protocol", NEW.url_protocol,
+            "name", NEW.name,
             "enabled", NEW.enabled,
             "published", NEW.published,
             "in_development", NEW.in_development,
@@ -1647,6 +1668,7 @@ BEGIN
             "url_host_id", OLD.url_host_id,
             "url_context_root", OLD.url_context_root,
             "url_protocol", OLD.url_protocol,
+            "name", OLD.name,
             "enabled", OLD.enabled,
             "published", OLD.published,
             "in_development", OLD.in_development,
@@ -1664,6 +1686,7 @@ BEGIN
             "url_host_id", NEW.url_host_id,
             "url_context_root", NEW.url_context_root,
             "url_protocol", NEW.url_protocol,
+            "name", NEW.name,
             "enabled", NEW.enabled,
             "published", NEW.published,
             "in_development", NEW.in_development,
@@ -1695,6 +1718,7 @@ BEGIN
             "url_host_id", OLD.url_host_id,
             "url_context_root", OLD.url_context_root,
             "url_protocol", OLD.url_protocol,
+            "name", OLD.name,
             "enabled", OLD.enabled,
             "published", OLD.published,
             "in_development", OLD.in_development,
@@ -1728,6 +1752,7 @@ BEGIN
             "name", NEW.name,
             "request_path", NEW.request_path,
             "enabled", NEW.enabled,
+            "internal", NEW.internal,
             "object_type", NEW.object_type,
             "crud_operations", NEW.crud_operations,
             "format", NEW.format,
@@ -1760,6 +1785,7 @@ BEGIN
             "name", OLD.name,
             "request_path", OLD.request_path,
             "enabled", OLD.enabled,
+            "internal", OLD.internal,
             "object_type", OLD.object_type,
             "crud_operations", OLD.crud_operations,
             "format", OLD.format,
@@ -1778,6 +1804,7 @@ BEGIN
             "name", NEW.name,
             "request_path", NEW.request_path,
             "enabled", NEW.enabled,
+            "internal", NEW.internal,
             "object_type", NEW.object_type,
             "crud_operations", NEW.crud_operations,
             "format", NEW.format,
@@ -1810,6 +1837,7 @@ BEGIN
             "name", OLD.name,
             "request_path", OLD.request_path,
             "enabled", OLD.enabled,
+            "internal", OLD.internal,
             "object_type", OLD.object_type,
             "crud_operations", OLD.crud_operations,
             "format", OLD.format,
@@ -2413,6 +2441,7 @@ BEGIN
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
+            "internal", NEW.internal,
             "comments", NEW.comments,
             "options", NEW.options),
         NULL,
@@ -2436,6 +2465,7 @@ BEGIN
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
+            "internal", OLD.internal,
             "comments", OLD.comments,
             "options", OLD.options),
         JSON_OBJECT(
@@ -2445,6 +2475,7 @@ BEGIN
             "request_path", NEW.request_path,
             "requires_auth", NEW.requires_auth,
             "enabled", NEW.enabled,
+            "internal", NEW.internal,
             "comments", NEW.comments,
             "options", NEW.options),
         OLD.id,
@@ -2468,6 +2499,7 @@ BEGIN
             "request_path", OLD.request_path,
             "requires_auth", OLD.requires_auth,
             "enabled", OLD.enabled,
+            "internal", OLD.internal,
             "comments", OLD.comments,
             "options", OLD.options),
         NULL,
