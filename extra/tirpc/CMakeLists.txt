@@ -34,7 +34,7 @@
 
 INCLUDE(ExternalProject)
 
-SET(TIRPC_SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/tirpc/libtirpc-1.3.3")
+SET(TIRPC_SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/tirpc/libtirpc-1.3.5")
 
 # Set correct search path for executables, libraries, and data files.
 IF(ALTERNATIVE_GCC)
@@ -45,7 +45,6 @@ FIND_PROGRAM(MAKE_EXECUTABLE make)
 
 SET(TIRPC_CONFIGURE_PREFIX "${CMAKE_BINARY_DIR}/tirpc")
 SET(TIRPC_C_FLAGS "${CMAKE_C_COMPILER_ARG1} ${TIRPC_C_B_OPTION}")
-STRING_APPEND(TIRPC_C_FLAGS " -fPIC")
 STRING_APPEND(TIRPC_C_FLAGS " ${CMAKE_C_FLAGS}")
 STRING_APPEND(TIRPC_C_FLAGS " ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE_UPPER}}")
 
@@ -53,6 +52,7 @@ SET(TIRPC_CONFIGURE_ARGS
   "AR=${CMAKE_AR}"
   "RANLIB=${CMAKE_RANLIB}"
   "CC=${CMAKE_C_COMPILER}"
+  "--with-pic"
   "--disable-shared"
   "--disable-gssapi"
   "--prefix=${TIRPC_CONFIGURE_PREFIX}"
