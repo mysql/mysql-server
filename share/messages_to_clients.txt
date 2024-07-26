@@ -10521,6 +10521,9 @@ ER_LH_CP_MISSING_FILES_MODE
 ER_LH_CP_COMMIT_FAILED
   eng "Lakehouse Incremental Load commit operation failed."
 
+ER_LH_UNSTRUCTURED_INVALID_LANGUAGE
+  eng "Invalid language code. %s."
+
 #
 #  End of 9.x error messages (server-to-client).
 #
