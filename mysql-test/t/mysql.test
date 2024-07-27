@@ -1,4 +1,5 @@
-#
+
+
 # Testing the MySQL command line client(mysql)
 #
 
@@ -704,6 +705,19 @@ DROP USER bug21464621;
 --replace_regex /ERROR 2005 .HY000.: Unknown MySQL server host '127.0.0.1' \([0-9]*\)/ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (XXX)/ /\([0-9]+\)/(XXX)/
 --error 1
 --exec $MYSQL -h 127.0.0.1 -P 99999 2>&1
+
+--echo #
+--echo # Bug # 36377685: mysqldump blindly trusting SHOW CREATE TABLE leads to
+--echo #   arbitrary code execution.
+--echo #
+
+--echo # Test "system": Must return an error
+--error 1
+--exec $MYSQL test --skip-system-command -e "system ls;" 2>&1
+ 
+--echo # Test "!": Must return an error
+--error 1
+--exec $MYSQL test --skip-system-command -e "\\! ls" 2>&1
 
 --echo
 --echo # Test support for dollar quoting
