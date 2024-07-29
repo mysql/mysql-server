@@ -10958,7 +10958,8 @@ int runIndexStatNF(NDBT_Context *ctx, NDBT_Step *step) {
                    err.message);
 
           if (err.code == 781 || /* Invalid schema transaction key */
-              err.code == 286)   /* Node failure caused abort */
+              err.code == 286 || /* Node failure caused abort */
+              err.code == 787)   /* Schema transaction aborted */
           {
             ndbout_c("Retrying");
             continue;
