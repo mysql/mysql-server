@@ -337,3 +337,7 @@ cmd: test_event
 args: -n MergeEventConsumer_Graceful T1 --loops=3
 max-time: 480
 
+cmd: testDict
+args: -n IndexStatNodeFailures T1
+max-time: 360
+
