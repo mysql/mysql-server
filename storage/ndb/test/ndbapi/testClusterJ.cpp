@@ -36,6 +36,12 @@
 #include "ndb_global.h"
 #include "ndb_version.h"
 
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
+
 static constexpr const char *JarSrcPath =
     "storage" DIR_SEPARATOR "ndb" DIR_SEPARATOR "clusterj" DIR_SEPARATOR;
 
