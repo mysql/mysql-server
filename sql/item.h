@@ -6283,6 +6283,8 @@ class Item_outer_ref final : public Item_ref {
     m_ref_item = &outer_ref;
     link_referenced_item();
     set_properties();
+    // keep any select list alias:
+    item_name = ident_arg->item_name;
     fixed = false;
   }
   Item_outer_ref(Name_resolution_context *context_arg, Item **item,

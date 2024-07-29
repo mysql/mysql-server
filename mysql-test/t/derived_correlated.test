@@ -1155,3 +1155,84 @@ FROM
 WHERE t1.x = t2.x AND t2.x = t3.x ORDER BY t3.x;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36885503 MySQL reports a error when group by has a
+--echo # lateral subquery.
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo # Used to err with Duplicate column name 'a'.
+SELECT (SELECT ti1.a
+        FROM t1 AS ti1,
+             LATERAL
+             (SELECT to1.a AS c00,
+                     to1.a AS c11
+              FROM t1) AS subq_0
+        LIMIT 1) AS c1
+FROM t1 AS to1
+GROUP BY c1;
+
+--echo # But LATERAL is not necessary, this also failed
+SELECT (SELECT ti1.a
+        FROM t1 AS ti1,
+             (SELECT to1.a AS c00,
+                     to1.a AS c11
+              FROM t1) AS subq_0
+        LIMIT 1) AS c1
+FROM t1 AS to1
+GROUP BY c1;
+
+SELECT (SELECT to1.a
+        FROM t1 AS ti1,
+             (SELECT to1.a AS c00,
+                     to1.a AS c11
+              FROM t1) AS subq_0
+        ORDER BY to1.a
+        LIMIT 1) AS c1
+FROM t1 AS to1
+GROUP BY c1;
+
+SELECT to1.a AS c2,
+       to1.a AS c3,
+       (to1.a, to1.a) IN (
+           SELECT to1.a AS c1,
+                  to1.a AS c2
+           FROM t1 AS ti1,
+                (SELECT to1.a AS c00,
+                        to1.a AS c11
+                 FROM t1) AS subq_0) AS c1
+FROM t1 AS to1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1
+(integer1 INTEGER NULL,
+ integer2 INTEGER NULL,
+ varchar1 VARCHAR(255) NULL);
+
+CREATE TABLE t2
+(integer1 INTEGER NULL,
+ integer2 INTEGER NULL,
+ varchar1 VARCHAR(255) NULL);
+
+--echo # The ORDER BY c2 used to fail resolution before the fix, since
+--echo # the Item_outer_ref representing g_t3.g_f1 never inherited the
+--echo # item name c2. This is another instance of the same issue but
+--echo # here the symptom isn't duplicate column names as in the
+--echo # report, but instead a failed resolve of a reference to it.
+SELECT g_t3.g_f1, g_t3.g_f2, g_t3.g_f3
+FROM (SELECT g_t0.integer1 AS g_f1,
+             g_t0.integer2 AS g_f2,
+             g_t0.varchar1 AS g_f3
+      FROM t1 g_t0
+     ) g_t3
+GROUP BY g_t3.g_f1, g_t3.g_f2, g_t3.g_f3
+HAVING (g_t3.g_f3, 3) = (SELECT g_t3.g_f1 AS c1,
+                                g_t3.g_f1 AS c2
+                          FROM t2
+                          ORDER BY c2 LIMIT 1
+                          );
+
+DROP TABLE t1, t2;
