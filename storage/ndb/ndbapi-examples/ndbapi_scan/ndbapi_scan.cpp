@@ -73,32 +73,21 @@
  *
  */
 
-#include "config.h"
-
-#ifdef _WIN32
-#include <winsock2.h>
-#endif
 #include <mysql.h>
 #include <mysqld_error.h>
-#include <NdbApi.hpp>
-// Used for cout
-#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <NdbApi.hpp>
+#include <chrono>
 #include <iostream>
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#endif
+#include <thread>
 
 /**
  * Helper sleep function
  */
 static void milliSleep(int milliseconds) {
-  struct timeval sleeptime;
-  sleeptime.tv_sec = milliseconds / 1000;
-  sleeptime.tv_usec = (milliseconds - (sleeptime.tv_sec * 1000)) * 1000000;
-  select(0, 0, 0, 0, &sleeptime);
+  std::this_thread::sleep_for(std::chrono::milliseconds{milliseconds});
 }
 
 /**
