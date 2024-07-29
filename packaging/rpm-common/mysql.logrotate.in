@@ -30,7 +30,7 @@
 #       if test -x @bindir@/mysqladmin && \
 #          @bindir@/mysqladmin ping &>/dev/null
 #       then
-#          @bindir@/mysqladmin flush-logs
+#          env HOME=/root/ @bindir@/mysqladmin flush-logs
 #       fi
 #    endscript
 #}
