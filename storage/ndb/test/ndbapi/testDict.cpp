@@ -10900,6 +10900,88 @@ int runManyNdbObjectsGetTable(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
+int runIndexStatNF(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  if (pTab == NULL) {
+    ndbout << "Failed to get table " << endl;
+    return NDBT_FAILED;
+  }
+
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  const NdbDictionary::Index *pIdx = pDict->getIndex(idxname, pTab->getName());
+  if (pIdx == NULL) {
+    ndbout << "Failed to get index" << idxname << " error "
+           << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Test node failures while update index stats schema transaction
+   * is in various phases (prepare, commit, complete)
+   * Test node failures of :
+   *   Master node (requiring DICT SchemaTrans takeover)
+   *   Non master node (requiring node failure handling)
+   */
+  /* Fail in index stat ST prepare, commit, complete */
+  int nfcases[] = {6224, 6225, 6226};
+  constexpr int numCases = sizeof(nfcases) / sizeof(int);
+  for (int s = 0; s < 2; s++) {
+    const char *sname = (s == 0) ? "Master" : "Non-master";
+
+    ndbout_c("Scenario %d, inserting errors in %s node", s, sname);
+
+    for (int c = 0; c < numCases; c++) {
+      int errorCode = nfcases[c];
+      int errorNodeId = restarter.getNode(
+          (s == 0) ? NdbRestarter::NS_MASTER : NdbRestarter::NS_NON_MASTER);
+      ndbout_c("Inserting error %u in %s node %u", errorCode, sname,
+               errorNodeId);
+
+      if (restarter.insertErrorInNode(errorNodeId, errorCode) != 0) {
+        ndbout_c("Failed to insert error");
+        return NDBT_FAILED;
+      }
+
+      ndbout_c("Requesting updated index stats");
+      do {
+        if (pDict->updateIndexStat(*pIdx, *pTab) == 0) {
+          ndbout_c("Success generating new index stats");
+          break;
+        } else {
+          const NdbError err = pDict->getNdbError();
+
+          ndbout_c("Index stat update failed with error %u %s", err.code,
+                   err.message);
+
+          if (err.code == 781 || /* Invalid schema transaction key */
+              err.code == 286)   /* Node failure caused abort */
+          {
+            ndbout_c("Retrying");
+            continue;
+          }
+
+          return NDBT_FAILED;
+        }
+      } while (1);
+
+      ndbout_c("Wait for all data nodes to be running");
+
+      if (restarter.waitClusterStarted() != 0) {
+        ndbout_c("Timed out waiting for nodes to start");
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  ndbout_c("Success");
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -10926,6 +11008,7 @@ TESTCASE("Bug29501",
   STEP(runBug29501);
   FINALIZER(runDropDDObjects);
 }
+
 TESTCASE("CreateAndDrop",
          "Try to create and drop the table loop number of times\n") {
   INITIALIZER(runCreateAndDrop);
@@ -11301,6 +11384,14 @@ TESTCASE("TableAddAttrsUpdateMaxRecSzForLCP",
   INITIALIZER(changeLCPInterval);
   INITIALIZER(runTableAddAttrs);
   FINALIZER(changeLCPInterval);
+}
+TESTCASE("IndexStatNodeFailures",
+         "Test node failures in various phases of index stat updates") {
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runCreateTheIndex);
+  STEP(runIndexStatNF);
+  FINALIZER(runDropTheIndex);
+  FINALIZER(runDropTheTable);
 }
 
 NDBT_TESTSUITE_END(testDict)
