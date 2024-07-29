@@ -15145,6 +15145,8 @@ void Dbdict::indexStat_prepare(Signal *signal, SchemaOpPtr op_ptr) {
 
   D("indexStat_prepare" << V(*op_ptr.p));
 
+  CRASH_INSERTION(6224);
+
   if (impl_req->requestType == IndexStatReq::RT_UPDATE_STAT ||
       impl_req->requestType == IndexStatReq::RT_DELETE_STAT) {
     // the main op of stat update or delete does nothing
@@ -15191,7 +15193,11 @@ void Dbdict::indexStat_toLocalStat(Signal *signal, SchemaOpPtr op_ptr) {
 
   switch (impl_req->requestType) {
     case IndexStatReq::RT_SCAN_FRAG:
-      trans_ptr.p->m_abort_on_node_fail = true;
+      /**
+       * Node failure during prepare phase should result in ST rollback
+       * to handle the case where the single scanning node has failed
+       */
+      trans_ptr.p->m_abort_on_node_fail_pre_commit = true;
       req->fragId = indexPtr.p->indexStatFragId;
       if (!do_action(trans_ptr.p->m_nodes, indexPtr.p->indexStatNodes,
                      getOwnNodeId())) {
@@ -15278,6 +15284,7 @@ void Dbdict::indexStat_commit(Signal *signal, SchemaOpPtr op_ptr) {
   IndexStatRecPtr indexStatPtr;
   getOpRec(op_ptr, indexStatPtr);
   D("indexStat_commit" << *op_ptr.p);
+  CRASH_INSERTION(6225);
   sendTransConf(signal, op_ptr);
 }
 
@@ -15288,6 +15295,7 @@ void Dbdict::indexStat_complete(Signal *signal, SchemaOpPtr op_ptr) {
   IndexStatRecPtr indexStatPtr;
   getOpRec(op_ptr, indexStatPtr);
   D("indexStat_complete" << *op_ptr.p);
+  CRASH_INSERTION(6226);
   sendTransConf(signal, op_ptr);
 }
 
@@ -27227,12 +27235,34 @@ void Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal *signal) {
     jam();
     // trans_ptr.p->m_nodes.clear(nodeId);
     // No need to clear, will be cleared when next REQ is set
-    if (!trans_ptr.p->m_abort_on_node_fail) {
+    if (!trans_ptr.p->m_abort_on_node_fail_pre_commit) {
       jam();
       ref->errorCode = 0;
     } else {
       jam();
-      ref->errorCode = SchemaTransBeginRef::Nodefailure;
+      /* Abort on node fail if in pre-commit phase */
+      switch (trans_ptr.p->m_state) {
+        case SchemaTrans::TS_FLUSH_COMMIT:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_COMMITTING:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_FLUSH_COMPLETE:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_COMPLETING:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_ENDING:
+          jam();
+          /* Ignore */
+          ref->errorCode = 0;
+          break;
+        default:
+          ref->errorCode = SchemaTransBeginRef::Nodefailure;
+          break;
+      }
     }
   }
 
