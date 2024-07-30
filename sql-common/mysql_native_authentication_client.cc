@@ -33,9 +33,9 @@
 
 #include "mysql_native_authentication_client.h"
 #include "client_async_authentication.h"
-#include "config.h"
 #include "crypt_genhash_impl.h"
 #include "my_compiler.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql.h"

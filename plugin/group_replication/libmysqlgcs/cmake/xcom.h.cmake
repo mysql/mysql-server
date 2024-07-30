@@ -24,7 +24,7 @@
 #ifndef XCOM_H_CMAKE
 #define XCOM_H_CMAKE
 
-#include <config.h>
+#include "my_config.h"
 
 /*Definitions*/
 #cmakedefine HAVE_RPC_INLINE_T 1

@@ -28,7 +28,7 @@
   @file include/password.h
 */
 
-#include "config.h"
+#include "my_config.h"
 
 #if !defined(WITHOUT_MYSQL_NATIVE_PASSWORD) || \
     WITHOUT_MYSQL_NATIVE_PASSWORD == 0

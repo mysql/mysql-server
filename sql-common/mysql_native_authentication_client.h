@@ -28,7 +28,7 @@
 #ifndef MYSQL_NATIVE_AUTHENTICATION_CLIENT_H
 #define MYSQL_NATIVE_AUTHENTICATION_CLIENT_H
 
-#include "config.h"
+#include "my_config.h"
 
 #if !defined(WITHOUT_MYSQL_NATIVE_PASSWORD) || \
     WITHOUT_MYSQL_NATIVE_PASSWORD == 0

@@ -27,7 +27,7 @@
 
 #include <cstdint>
 
-#include "config.h"
+#include "my_config.h"
 #include "my_inttypes.h"  // fix 'ulong' in 'password.h' NOLINT(build/include_subdir)
 #include "mysql_com.h"  // NOLINT(build/include_subdir)
 #include "password.h"   // NOLINT(build/include_subdir)
