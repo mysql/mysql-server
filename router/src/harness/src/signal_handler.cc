@@ -43,7 +43,7 @@
 #include <unistd.h>
 #endif
 
-#include "config.h"  // HAVE_SYS_PRCTL_H
+#include "my_config.h"  // HAVE_SYS_PRCTL_H
 
 #ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>

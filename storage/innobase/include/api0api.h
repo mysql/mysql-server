@@ -38,7 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdint.h>
 #include <stdio.h>
 
-#include "config.h"
+#include "my_config.h"
+
 #include "db0err.h"
 
 /** Page number */

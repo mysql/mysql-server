@@ -27,9 +27,7 @@
 /*
   Includes only from server include folder.
 */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include "my_config.h"
 
 #include "my_stacktrace.h"
 #include "my_sys.h"
