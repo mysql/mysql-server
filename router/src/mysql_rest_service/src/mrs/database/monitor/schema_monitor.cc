@@ -339,6 +339,7 @@ void SchemaMonitor::run() {
           }
         }
 
+#if 0
         if (!fetcher.url_host->entries.empty()) {
           // dbobject_manager_->update(fetcher.url_host->entries);
           EntityCounter<kEntityCounterUpdatesHosts>::increment(
@@ -362,6 +363,7 @@ void SchemaMonitor::run() {
           EntityCounter<kEntityCounterUpdatesObjects>::increment(
               fetcher.db_object->entries.size());
         }
+#endif
 
         if (!fetcher.content_file->entries.empty()) {
           dbobject_manager_->update(fetcher.content_file->entries,
