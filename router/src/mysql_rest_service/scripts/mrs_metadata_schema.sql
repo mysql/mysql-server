@@ -966,6 +966,36 @@ SELECT f.* FROM (
     GROUP BY k.CONSTRAINT_NAME, c.TABLE_SCHEMA, c.TABLE_NAME
     ) AS f
 ORDER BY f.position;
+
+# -----------------------------------------------------
+# View `mysql_rest_service_metadata`.`router_services`
+# -----------------------------------------------------
+USE `mysql_rest_service_metadata`;
+CREATE  OR REPLACE SQL SECURITY INVOKER VIEW `router_services` AS
+SELECT r.id AS router_id, r.router_name, r.address, r.options->>'$.developer' AS router_developer,
+    s.id as service_id, h.name AS service_url_host_name,
+    s.url_context_root AS service_url_context_root,
+    CONCAT(h.name, s.url_context_root) AS service_host_ctx,
+    s.published, s.in_development,
+    (SELECT GROUP_CONCAT(IF(item REGEXP '^[A-Za-z0-9_]+$', item, QUOTE(item)) ORDER BY item)
+        FROM JSON_TABLE(
+        s.in_development->>'$.developers', '$[*]' COLUMNS (item text path '$')
+    ) AS jt) AS sorted_developers
+FROM `mysql_rest_service_metadata`.`service` s
+    LEFT JOIN `mysql_rest_service_metadata`.`url_host` h
+        ON s.url_host_id = h.id
+    JOIN `mysql_rest_service_metadata`.`router` r
+WHERE
+    (enabled = 1)
+    AND (
+    ((published = 1) AND (NOT EXISTS (select s2.id from `mysql_rest_service_metadata`.`service` s2 where s.url_host_id=s2.url_host_id AND s.url_context_root=s2.url_context_root
+        AND JSON_OVERLAPS(r.options->'$.developer', s2.in_development->>'$.developers'))))
+    OR
+    ((published = 0) AND (s.id IN (select s2.id from `mysql_rest_service_metadata`.`service` s2 where s.url_host_id=s2.url_host_id AND s.url_context_root=s2.url_context_root
+        AND JSON_OVERLAPS(r.options->'$.developer', s2.in_development->>'$.developers'))))
+    OR
+    ((published = 0) AND r.options->'$.developer' IS NOT NULL AND s.in_development IS NULL)
+    );
 USE `mysql_rest_service_metadata`;
 
 DELIMITER $$;
@@ -1494,6 +1524,28 @@ BEGIN
     RETURN @valid;
 END$$
 
+CREATE TRIGGER `mysql_rest_service_metadata`.`router_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `router` FOR EACH ROW
+BEGIN
+    IF (COALESCE(OLD.options, '') <> COALESCE(NEW.options, '')) THEN
+        INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+            table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+        VALUES (
+            "router",
+            "UPDATE",
+            JSON_OBJECT(
+                "id", OLD.id,
+                "options", OLD.options),
+            JSON_OBJECT(
+                "id", NEW.id,
+                "options", NEW.options),
+            UNHEX(LPAD(CONV(OLD.id, 10, 16), 32, '0')),
+            UNHEX(LPAD(CONV(NEW.id, 10, 16), 32, '0')),
+            CURRENT_USER(),
+            CURRENT_TIMESTAMP
+        );
+    END IF;
+END$$
+
 DELIMITER ;$$
 
 # Ensure that for STORED PROCEDURE parameters at least one of the 'in' and 'out' flag is set to true
@@ -1503,7 +1555,8 @@ ALTER TABLE `mysql_rest_service_metadata`.`object_field`
     (db_column->"$.in" + db_column->"$.out" >= 1));
 
 # Ensure the service.in_development->>$.developers is a list that only holds unique strings
-ALTER TABLE `mysql_rest_service_metadata`.`service` ADD CONSTRAINT CHECK(
+ALTER TABLE `mysql_rest_service_metadata`.`service`
+  ADD CONSTRAINT in_development_developers_check CHECK(
     JSON_SCHEMA_VALID('{
     "id": "https://dev.mysql.com/mrs/service/in_development",
     "type": "object",
@@ -3967,6 +4020,10 @@ GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`router_session`
     TO 'mysql_rest_service_meta_provider';
 GRANT SELECT ON `mysql_rest_service_metadata`.`router_session`
     TO 'mysql_rest_service_schema_admin', 'mysql_rest_service_dev';
+
+# `mysql_rest_service_metadata`.`router_services`
+GRANT SELECT ON `mysql_rest_service_metadata`.`router_services`
+    TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_dev', 'mysql_rest_service_meta_provider';
 
 # -----------------------------------------------------
 # Procedures
