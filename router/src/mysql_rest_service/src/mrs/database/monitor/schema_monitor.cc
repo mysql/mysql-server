@@ -106,28 +106,9 @@ std::set<UniversalId> query_allowed_services(
     q = "select s.id from mysql_rest_service_metadata.service s"
         " where (enabled = 1)";
   } else {
-    q = "select s.id "
-        " from mysql_rest_service_metadata.service s"
-        " JOIN mysql_rest_service_metadata.router r WHERE "
-        " (r.id = ?) AND (s.enabled = 1) AND"
-        " ("
-        "  ((s.published = 1) AND (NOT EXISTS (select s2.id from"
-        "     mysql_rest_service_metadata.service s2"
-        "      where s.url_host_id=s2.url_host_id"
-        "          AND s.url_context_root=s2.url_context_root AND"
-        "          JSON_OVERLAPS(r.options->'$.developer',"
-        "               s2.in_development->>'$.developers'))))"
-        " OR"
-        "  ((s.published = 0) AND (s.id IN (select s2.id from"
-        "     mysql_rest_service_metadata.service s2"
-        "      where s.url_host_id=s2.url_host_id"
-        "          AND s.url_context_root=s2.url_context_root AND"
-        "          JSON_OVERLAPS(r.options->'$.developer',"
-        "              s2.in_development->>'$.developers'))))"
-        " OR"
-        "  ((s.published = 0) AND r.options->'$.developer' IS NOT NULL"
-        "        AND s.in_development IS NULL)"
-        " )";
+    q = "select rs.service_id "
+        " from mysql_rest_service_metadata.router_services rs"
+        " WHERE rs.router_id = ?";
 
     q << router_id.value();
   }
