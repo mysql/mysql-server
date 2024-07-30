@@ -2554,7 +2554,7 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>status</td>
-      <td>[0x19] COM_STMT_CLOSE</td></tr>
+      <td>[0x1C] COM_STMT_FETCH</td></tr>
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>statement_id</td>
       <td>ID of the prepared statement to close</td></tr>
