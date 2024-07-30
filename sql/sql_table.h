@@ -124,12 +124,28 @@ bool mysql_discard_or_import_tablespace(THD *thd, Table_ref *table_list);
 */
 class Foreign_key_parents_invalidator {
  private:
-  typedef std::map<std::pair<dd::String_type, dd::String_type>, handlerton *>
+  enum enum_invalidation_type {
+    INVALIDATE_AND_CLOSE_TABLE,
+    INVALIDATE_AND_MARK_FOR_REOPEN
+  };
+  typedef std::map<std::pair<dd::String_type, dd::String_type>,
+                   std::pair<handlerton *, enum_invalidation_type>>
       Parent_map;
   Parent_map m_parent_map;
 
  public:
-  void add(const char *db_name, const char *table_name, handlerton *hton);
+  void add(
+      const char *db_name, const char *table_name, handlerton *hton,
+      enum_invalidation_type invalidation_type = INVALIDATE_AND_CLOSE_TABLE);
+  // Usually tables added to a Foreign_key_parents_invalidator instance are
+  // closed by the invalidate member function.  However, occasionally tables
+  // are added that we subsequently discover should only be invalidated and
+  // not closed by the invalidate member function as they will be closed
+  // elsewhere.
+  // See bool Query_result_create::send_eof(THD *thd) for an example.
+  // The mark_for_reopen_if_added member function updates the
+  // corresponding Parent_map entry if necessary in this situation.
+  void mark_for_reopen_if_added(const char *db_name, const char *table_name);
   void invalidate(THD *thd);
   const Parent_map &parents() const { return m_parent_map; }
   bool is_empty() const { return m_parent_map.empty(); }

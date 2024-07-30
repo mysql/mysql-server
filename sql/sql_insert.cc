@@ -3185,6 +3185,16 @@ bool Query_result_create::send_eof(THD *thd) {
       m_post_ddl_ht->post_ddl(thd);
     }
 
+    // The fk_invalidator.invalidate operation will close tables
+    // in its parent map: here we tell the fk_invalidator about
+    // tables that it should NOT close, as they will be closed
+    // elsewhere.
+    for (auto query_table = select_tables; query_table != nullptr;
+         query_table = query_table->next_global) {
+      fk_invalidator.mark_for_reopen_if_added(query_table->db,
+                                              query_table->table_name);
+    }
+
     fk_invalidator.invalidate(thd);
   }
   return error;
