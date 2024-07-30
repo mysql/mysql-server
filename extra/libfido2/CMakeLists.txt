@@ -54,7 +54,7 @@ ENDIF()
 # Use the same libraries as we use elsewhere.
 SET(CBOR_LIBRARIES ext::cbor)
 SET(ZLIB_LIBRARIES ext::zlib)
-SET(CRYPTO_LIBRARIES OpenSSL::Crypto)
+SET(CRYPTO_LIBRARIES ${CRYPTO_LIBRARY})
 
 SET(FIDO_VERSION_DIR "libfido2-1.15.0")
 
