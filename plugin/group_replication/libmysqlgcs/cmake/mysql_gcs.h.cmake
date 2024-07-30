@@ -24,7 +24,7 @@
 #ifndef MYSQL_GCS_H_CMAKE
 #define MYSQL_GCS_H_CMAKE
 
-#include <config.h>
+#include "my_config.h"
 
 #endif
 

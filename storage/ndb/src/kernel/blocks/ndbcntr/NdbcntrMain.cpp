@@ -52,7 +52,7 @@
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/TcKeyReq.hpp>
 #include <signaldata/WaitGCP.hpp>
-#include "config.h"  // WORDS_BIGENDIAN
+#include "my_config.h"  // WORDS_BIGENDIAN
 
 #include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/ReadConfig.hpp>

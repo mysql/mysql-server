@@ -25,7 +25,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "config.h"  // WORDS_BIGENDIAN
+#include "my_config.h"  // WORDS_BIGENDIAN
 #include "util/require.h"
 
 #include "kernel/signaldata/FsOpenReq.hpp"

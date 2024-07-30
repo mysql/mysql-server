@@ -28,6 +28,8 @@
   @file include/password.h
 */
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 

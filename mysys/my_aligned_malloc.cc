@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_aligned_malloc.h"
 
-#include "config.h"
+#include "my_config.h"
 
 #if defined(HAVE_POSIX_MEMALIGN)
 #include <stdlib.h>

@@ -75,6 +75,7 @@
 #include "map_helpers.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
