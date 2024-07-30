@@ -104,12 +104,11 @@ ADD_LIBRARY(mysql_rest_service_db
 TARGET_LINK_LIBRARIES(mysql_rest_service_db
   mysql_rest_service_if
   harness-library
-  router_lib
-  http_common
-  routing)
+  router_lib)
 
 TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_db
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PRIVATE ${PROJECT_SOURCE_DIR}/src/http/include/)
 
 ADD_LIBRARY(mysql_rest_service_json
   mrs/json/response_json_template.cc
