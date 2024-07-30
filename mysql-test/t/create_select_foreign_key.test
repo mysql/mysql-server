@@ -147,5 +147,34 @@ CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
 CREATE TABLE innodb_table1 (m INT, n INT,
   FOREIGN KEY (n) REFERENCES t0(f1)) START TRANSACTION;
 
+--echo #
+--echo # Bug#35553557 Table creation with foreign key assertion error
+--echo #
+
+SET sql_log_bin = OFF;
+CREATE TABLE innodb_table1(m INT, FOREIGN KEY (m) REFERENCES t0(f1))
+  AS SELECT f1 AS m FROM t0;
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM t0 WHERE f1 = 1;
+
+DROP TABLE innodb_table1;
+
+CREATE TABLE self_referencing_table(pk INT PRIMARY KEY, fk INT,
+  FOREIGN KEY (fk) REFERENCES self_referencing_table(pk))
+  AS SELECT 1 AS pk, 1 as fk;
+
+INSERT INTO self_referencing_table VALUES (2,1), (3, NULL), (4,3);
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM self_referencing_table WHERE pk=1;
+SELECT pk, fk FROM self_referencing_table ORDER BY pk;
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM self_referencing_table WHERE pk=3;
+DELETE FROM self_referencing_table WHERE pk=4;
+SELECT pk, fk FROM self_referencing_table ORDER BY pk;
+DELETE FROM self_referencing_table WHERE pk=3;
+SELECT pk, fk FROM self_referencing_table ORDER BY pk;
+
+DROP TABLE self_referencing_table;
 SET sql_log_bin = @saved_sql_log_bin;
 DROP TABLE t0;
