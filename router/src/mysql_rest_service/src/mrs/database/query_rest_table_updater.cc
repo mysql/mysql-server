@@ -1834,8 +1834,9 @@ void TableUpdater::check_primary_key(const PrimaryKeyColumnValues &pk_values) {
 
   for (const auto &col : pk_cols) {
     if (pk_values.find(col->name) == pk_values.end()) {
-      if (!m_row_ownership_info.is_owner_id(*col))
+      if (!m_row_ownership_info.is_owner_id(*col)) {
         throw RestError("Missing primary key column value");
+      }
     }
   }
 

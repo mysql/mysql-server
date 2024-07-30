@@ -1,19 +1,43 @@
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
-DROP TABLE IF EXISTS `test`.`user` ;
-Warnings:
-Note	1051	Unknown table 'test.user'
-CREATE TABLE IF NOT EXISTS `test`.`user` (
-`id` BINARY(16) NOT NULL,
+
+
+## I. POST data to REST object that has user-ownership configured
+# 1. Verify that MRS fill user_id column with current user when the user_id is PK
+# 2. Verify that MRS fill user_id column with current user when the user_id in no PK
+# 3. Verify that MRS fill user_id column with current user when the user_id is no PK
+#    and columns name is overwritten by field name to "userId".
+#
+## II. PUT data to REST object that has user-ownership configured
+# 1. Verify that MRS fill user_id column with current user when the user_id is PK
+# 2. Verify that MRS fill user_id column with current user when the user_id in no PK
+# 3. Verify that MRS fill user_id column with current user when the user_id is no PK
+#    and columns name is overwritten by field name to "userId".
+#
+## III. Get data from REST object that has user-ownership configured
+# 1. Verify that MRS returns user_id column as field, when the user_id is PK
+# 2. Verify that MRS returns user_id column as field, when the user_id in no PK
+# 3. Verify that MRS returns "user_id" column as "userId" field , when the user_id in no PK
+#
+CREATE TABLE IF NOT EXISTS `test`.`user1` (
+`user_id` BINARY(16) NOT NULL,
 `nickname` VARCHAR(255) NOT NULL,
 `email` VARCHAR(255) NULL,
-PRIMARY KEY (`id`))
+PRIMARY KEY (`user_id`))
 ENGINE = InnoDB;
+CREATE TABLE IF NOT EXISTS `test`.`user2` (
+`id` int AUTO_INCREMENT PRIMARY KEY,
+`user_id` BINARY(16) NOT NULL,
+`nickname` VARCHAR(255) NOT NULL,
+`email` VARCHAR(255) NULL)
+ENGINE = InnoDB;
+INSERT INTO `test`.`user2`(user_id, nickname, email) VALUES(0, "none", "no-email");
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/basic
 # Registred AUTH APP at path: /svc
-# Registred DB_OBJECT at path: /svc/basic/user
-GET /svc/basic/user
+# Registred DB_OBJECT at path: /svc/basic/user1
+# Registred DB_OBJECT at path: /svc/basic/user2
+GET /svc/basic/note
 {
     "message": "Unauthorized",
     "status": 401
@@ -22,7 +46,7 @@ OK
 GET /svc/authentication/login
 
 OK
-GET /svc/basic/user
+GET /svc/basic/user1
 {
     "items": [],
     "limit": 25,
@@ -32,18 +56,139 @@ GET /svc/basic/user
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/user/"
+            "href": "/svc/basic/user1/"
         }
     ]
 }
 OK
-PUT /svc/basic/user (payload-size:38)
+
+#
+# I.1
+POST /svc/basic/user1 (payload-size:38)
 {
     "email": "janusz",
     "nickname": "nick1"
 }
 OK
-DROP TABLE `test`.`user`;
+
+#
+# I.2
+POST /svc/basic/user2/ (payload-size:39)
+{
+    "id": 2,
+    "email": "janusz2",
+    "nickname": "nick2"
+}
+OK
+
+#
+# I.3
+POST /svc/basic/note/ (payload-size:82)
+{
+    "id": 1,
+    "tags": null,
+    "title": "asdasd",
+    "pinned": false,
+    "shared": false,
+    "content": "asdasddasdaddasad",
+    "lockedDown": false
+}
+OK
+
+#
+# II.1
+PUT /svc/basic/user1 (payload-size:38)
+{
+    "email": "janusz",
+    "nickname": "nick1"
+}
+OK
+
+#
+# II.2
+PUT /svc/basic/user2/2 (payload-size:45)
+{
+    "id": 2,
+    "email": "janusz",
+    "nickname": "nick1"
+}
+OK
+
+#
+# II.3
+PUT /svc/basic/note/1 (payload-size:135)
+{
+    "id": 1,
+    "tags": "",
+    "title": "1",
+    "pinned": false,
+    "shared": true,
+    "content": "2",
+    "createDate": "1900-01-01 00:00:00.000000",
+    "lastUpdate": "1900-01-01 00:00:00.000000",
+    "lockedDown": false
+}
+OK
+
+#
+# III.1
+GET /svc/basic/user1/
+{
+    "items": [
+        {
+            "email": "janusz",
+            "nickname": "nick1"
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 1
+}
+OK
+
+#
+# III.2
+GET /svc/basic/user2/
+{
+    "items": [
+        {
+            "id": 2,
+            "email": "janusz",
+            "nickname": "nick1"
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 1
+}
+OK
+
+#
+# III.3
+GET /svc/basic/note/
+{
+    "items": [
+        {
+            "id": 1,
+            "tags": "",
+            "title": "1",
+            "pinned": false,
+            "shared": true,
+            "content": "2",
+            "lockedDown": false
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 1
+}
+OK
+DROP TABLE `test`.`user1`;
+DROP TABLE `test`.`user2`;
+DROP TABLE `test`.`note`;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;

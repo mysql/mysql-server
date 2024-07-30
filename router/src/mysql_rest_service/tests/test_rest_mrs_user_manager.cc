@@ -83,8 +83,11 @@ class UserManagerFixture : public Test {
         "vendor_user_id='"};
     query_user.append(u.user[4]).append("' ");
     EXPECT_CALL(session_, query(StrEq(query_user), _, _))
-        .WillOnce(
-            Invoke([u](Unused, const RowProcessor &rp, Unused) { rp(u.user); }))
+        .WillOnce(Invoke(
+            [u](Unused, const RowProcessor &rp, const FieldValidator &fv) {
+              fv(u.user.size(), nullptr);
+              rp(u.user);
+            }))
         .RetiresOnSaturation();
 
     std::string query_user_privileges{
@@ -93,9 +96,11 @@ class UserManagerFixture : public Test {
     query_user_privileges.append(u.sql_id).append("\\)");
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_privileges), _, _))
-        .WillOnce(Invoke([u](Unused, const RowProcessor &rp, Unused) {
-          for (auto &p : u.privileges) rp(p);
-        }))
+        .WillOnce(Invoke(
+            [u](Unused, const RowProcessor &rp, const FieldValidator &fv) {
+              fv((u.privileges.empty() ? 0 : u.privileges[0].size()), nullptr);
+              for (auto &p : u.privileges) rp(p);
+            }))
         .RetiresOnSaturation();
 
     std::string query_user_groups{
@@ -105,9 +110,11 @@ class UserManagerFixture : public Test {
     query_user_groups.append(u.sql_id);
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_groups), _, _))
-        .WillOnce(Invoke([u](Unused, const RowProcessor &rp, Unused) {
-          for (auto &p : u.groups) rp(p);
-        }))
+        .WillOnce(Invoke(
+            [u](Unused, const RowProcessor &rp, const FieldValidator &fv) {
+              fv((u.groups.empty() ? 0 : u.groups[0].size()), nullptr);
+              for (auto &p : u.groups) rp(p);
+            }))
         .RetiresOnSaturation();
   }
 

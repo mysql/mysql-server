@@ -53,7 +53,8 @@ class QueryChangesDbObject : public QueryEntriesDbObject {
   std::set<entry::UniversalId> path_entries_fetched;
   uint64_t query_length_;
 
-  void query_path_entries(MySQLSession *session, VectorOfPathEntries *out,
+  void query_path_entries(MySQLSession *session,
+                          std::vector<DbObjectCompatible> *out,
                           const std::string &table_name,
                           const entry::UniversalId &id);
   std::string build_query(const std::string &table_name,
@@ -80,7 +81,8 @@ class QueryChangesDbObjectLite : public QueryEntriesDbObjectLite {
   std::set<entry::UniversalId> path_entries_fetched;
   uint64_t query_length_;
 
-  void query_path_entries(MySQLSession *session, VectorOfPathEntries *out,
+  void query_path_entries(MySQLSession *session,
+                          std::vector<DbObjectCompatible> *out,
                           const std::string &table_name,
                           const entry::UniversalId &id);
   std::string build_query(const std::string &table_name,

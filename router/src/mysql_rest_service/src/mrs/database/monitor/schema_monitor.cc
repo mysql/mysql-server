@@ -325,11 +325,12 @@ void SchemaMonitor::run() {
               fetcher.authentication->get_entries().size());
         }
 
-        if (!fetcher.object->entries.empty()) {
-          options_files.analyze(fetcher.object->entries);
-          dbobject_manager_->update(fetcher.object->entries, allowed_services);
+        const auto db_object_entries = fetcher.object->get_entries();
+        if (!db_object_entries.empty()) {
+          options_files.analyze(db_object_entries);
+          dbobject_manager_->update(db_object_entries, allowed_services);
           EntityCounter<kEntityCounterUpdatesObjects>::increment(
-              fetcher.object->entries.size());
+              db_object_entries.size());
 
           if (options_files.content_files_.size()) {
             dbobject_manager_->update(options_files.content_files_,
@@ -359,9 +360,9 @@ void SchemaMonitor::run() {
         }
 
         if (!fetcher.db_object->entries.empty()) {
-          // dbobject_manager_->update(fetcher.db_object->entries);
-          EntityCounter<kEntityCounterUpdatesObjects>::increment(
-              fetcher.db_object->entries.size());
+        // dbobject_manager_->update(fetcher.db_object->entries);
+        EntityCounter<kEntityCounterUpdatesObjects>::increment(
+            fetcher.db_object->entries.size());
         }
 #endif
 

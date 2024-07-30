@@ -81,7 +81,9 @@ void dump_table(std::shared_ptr<entry::Table> t, const std::string &indent) {
       std::cout << indent << (f->enabled ? "+ " : "- ") << f->name
                 << ": DataField  ";
       std::cout << df->source->table.lock()->table << "." << df->source->name
-                << "\n";
+                << ", dt:" << df->source->datatype
+                << ", is_primary:" << (df->source->is_primary ? "yes" : "no")
+                << ", id_gen:" << (int)df->source->id_generation << "\n";
     } else {
       std::cout << indent << (f->enabled ? "+ " : "- ") << f->name
                 << ": FIELD\n";

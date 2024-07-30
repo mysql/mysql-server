@@ -3,14 +3,41 @@
 --let $extra_mrs_router_id=1
 --source ../include/predefined_setup/configure_router_mrs_root.inc
 
-DROP TABLE IF EXISTS `test`.`user` ;
+--echo
+--echo
+--echo ## I. POST data to REST object that has user-ownership configured
+--echo # 1. Verify that MRS fill user_id column with current user when the user_id is PK
+--echo # 2. Verify that MRS fill user_id column with current user when the user_id in no PK
+--echo # 3. Verify that MRS fill user_id column with current user when the user_id is no PK
+--echo #    and columns name is overwritten by field name to "userId".
+--echo #
+--echo ## II. PUT data to REST object that has user-ownership configured
+--echo # 1. Verify that MRS fill user_id column with current user when the user_id is PK
+--echo # 2. Verify that MRS fill user_id column with current user when the user_id in no PK
+--echo # 3. Verify that MRS fill user_id column with current user when the user_id is no PK
+--echo #    and columns name is overwritten by field name to "userId".
+--echo #
+--echo ## III. Get data from REST object that has user-ownership configured
+--echo # 1. Verify that MRS returns user_id column as field, when the user_id is PK
+--echo # 2. Verify that MRS returns user_id column as field, when the user_id in no PK
+--echo # 3. Verify that MRS returns "user_id" column as "userId" field , when the user_id in no PK
+--echo #
 
-CREATE TABLE IF NOT EXISTS `test`.`user` (
-  `id` BINARY(16) NOT NULL,
+CREATE TABLE IF NOT EXISTS `test`.`user1` (
+  `user_id` BINARY(16) NOT NULL,
   `nickname` VARCHAR(255) NOT NULL,
   `email` VARCHAR(255) NULL,
-  PRIMARY KEY (`id`))
+  PRIMARY KEY (`user_id`))
 ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS `test`.`user2` (
+  `id` int AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BINARY(16) NOT NULL,
+  `nickname` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NULL)
+ENGINE = InnoDB;
+
+INSERT INTO `test`.`user2`(user_id, nickname, email) VALUES(0, "none", "no-email");
 
 --source ../include/mrs/start_object_definition.inc
 # The test uses HOST to have only paths in HREF fields.
@@ -28,19 +55,33 @@ ENGINE = InnoDB;
 --let $mrs_add_auth_service=/svc
 --source ../include/mrs/add_auth_app.inc
 
---let $mrs_add_db_object=user
---let $mrs_add_db_object_path=/user
---let $mrs_add_db_object_user_ownership_column="id"
+--let $mrs_add_db_object=user1
+--let $mrs_add_db_object_path=/user1
+--let $mrs_add_db_object_user_ownership_column="user_id"
+--let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object=user2
+--let $mrs_add_db_object_path=/user2
+--let $mrs_add_db_object_user_ownership_column="user_id"
 --let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
 --source ../include/mrs/db_object/add.inc
 
 --source ../include/mrs/end_object_definition.inc
 
+
+# Create `note` table, and configure it in MRS
+# the `mysqltest` is not synchronized to wait for
+# MRS fetching the data.
+#
+--source ../include/test/test_table_note.inc
+
 --let $mrs_host_and_port=127.0.0.1:$HTTP_SERVER_PORT
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 
+# Wait for data create in `test_table_note.inc`
 exec $MRS_CLIENT_ARGS
-  --path /svc/basic/user
+  --path /svc/basic/note
   --wait-until-found=60
    --expected-status Unauthorized;
 
@@ -51,18 +92,114 @@ exec $MRS_CLIENT_ARGS
   --session-file $MYSQL_TMP_DIR/user1_session.dat;
 
 exec $MRS_CLIENT_ARGS
-  --path /svc/basic/user
+  --path /svc/basic/user1
   --session-file $MYSQL_TMP_DIR/user1_session.dat;
 
---let $mrs_client_arg_path='/svc/basic/user'
---let $mrs_client_arg_exclude_json_pointer='/id,/links,/_metadata'
+--echo
+--echo #
+--echo # I.1
+
+--let $mrs_client_arg_path='/svc/basic/user1'
+--let $mrs_client_arg_exclude_json_pointer='/user_id,/links,/_metadata'
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_payload='{"nickname":"nick1", "email":"janusz"}'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.2
+
+--let $mrs_client_arg_path='/svc/basic/user2/'
+--let $mrs_client_arg_exclude_json_pointer='/user_id,/links,/_metadata'
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_payload='{"nickname":"nick2", "email":"janusz2"}'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # I.3
+
+--let $mrs_client_arg_path='/svc/basic/note/'
+--let $mrs_client_arg_exclude_json_pointer='/userId,/lastUpdate,/createDate,/links,/_metadata'
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_payload='{"title":"asdasd","content":"asdasddasdaddasad","pinned":false,"lockedDown":false}'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+
+--echo
+--echo #
+--echo # II.1
+
+# Presence of user-id is checked by "exclude json pointer"
+--let $mrs_client_arg_path='/svc/basic/user1'
+--let $mrs_client_arg_exclude_json_pointer='/user_id,/links,/_metadata'
 --let $mrs_client_arg_request_type='PUT'
 --let $mrs_client_arg_payload='{"nickname":"nick1", "email":"janusz"}'
 --let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
 --source ../include/mrs/mrs_client.inc
 
+--echo
+--echo #
+--echo # II.2
+
+--let $mrs_client_arg_path='/svc/basic/user2/2'
+--let $mrs_client_arg_exclude_json_pointer='/user_id,/links,/_metadata'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"id":2,"nickname":"nick1", "email":"janusz"}'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # II.3
+
+--let $mrs_client_arg_path='/svc/basic/note/1'
+--let $mrs_client_arg_exclude_json_pointer='/userId,/links,/_metadata'
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_payload='{"title":"1","content":"2","pinned":false,"lockedDown":false, "tags":"","shared":1,"lastUpdate":"1900-01-01","createDate":"1900-01-01"}'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+
+--echo
+--echo #
+--echo # III.1
+
+--let $mrs_client_arg_path='/svc/basic/user1/'
+--let $mrs_client_arg_exclude_json_pointer='/items/*/user_id,/links,/items/*/_metadata,/items/*/links'
+--let $mrs_client_arg_payload=
+--let $mrs_client_arg_request_type='GET'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # III.2
+
+--let $mrs_client_arg_path='/svc/basic/user2/'
+--let $mrs_client_arg_exclude_json_pointer='/items/*/user_id,/links,/items/*/_metadata,/items/*/links'
+--let $mrs_client_arg_payload=
+--let $mrs_client_arg_request_type='GET'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # III.3
+
+--let $mrs_client_arg_path='/svc/basic/note/'
+--let $mrs_client_arg_exclude_json_pointer='/items/*/userId,/items/*/lastUpdate,/items/*/createDate,/links,/items/*/_metadata,/items/*/links'
+--let $mrs_client_arg_payload=
+--let $mrs_client_arg_request_type='GET'
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--source ../include/mrs/mrs_client.inc
 
 # Cleanup
 remove_file $MYSQL_TMP_DIR/user1_session.dat;
-DROP TABLE `test`.`user`;
+DROP TABLE `test`.`user1`;
+DROP TABLE `test`.`user2`;
+DROP TABLE `test`.`note`;
 --source ../include/mrs/cleanup.inc

@@ -52,7 +52,7 @@ class QueryEntriesDbObject : protected Query {
    */
   virtual void query_entries(MySQLSession *session);
 
-  VectorOfPathEntries entries;
+  VectorOfPathEntries get_entries() const;
 
  protected:
   void on_row(const ResultRow &r) override;
@@ -61,7 +61,12 @@ class QueryEntriesDbObject : protected Query {
   SupportedMrsMetadataVersion db_version_;
   uint64_t audit_log_id_{0};
   mrs::interface::QueryFactory *query_factory_;
-  std::vector<std::optional<std::string>> db_object_user_ownership_v2_;
+
+  struct DbObjectCompatible : DbObject {
+    std::optional<std::string> user_ownership_v2;
+  };
+
+  std::vector<DbObjectCompatible> entries_;
 };
 
 class QueryEntriesDbObjectLite : protected Query {
@@ -83,7 +88,7 @@ class QueryEntriesDbObjectLite : protected Query {
    */
   virtual void query_entries(MySQLSession *session);
 
-  VectorOfPathEntries entries;
+  VectorOfPathEntries get_entries() const;
 
  protected:
   void on_row(const ResultRow &r) override;
@@ -92,7 +97,12 @@ class QueryEntriesDbObjectLite : protected Query {
   SupportedMrsMetadataVersion db_version_;
   uint64_t audit_log_id_{0};
   mrs::interface::QueryFactory *query_factory_;
-  std::vector<std::optional<std::string>> db_object_user_ownership_v2_;
+
+  struct DbObjectCompatible : DbObject {
+    std::optional<std::string> user_ownership_v2;
+  };
+
+  std::vector<DbObjectCompatible> entries_;
 };
 
 }  // namespace database

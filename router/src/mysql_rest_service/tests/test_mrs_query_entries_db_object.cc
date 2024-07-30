@@ -98,19 +98,19 @@ TEST_F(QueryEntriesDbObjectTests, returns_audit_id_one_without_entires) {
   expectFetch("1");
   sut_.query_entries(&mock_session);
   ASSERT_EQ(1, sut_.get_last_update());
-  ASSERT_EQ(0, sut_.entries.size());
+  ASSERT_EQ(0, sut_.get_entries().size());
 }
 
 TEST_F(QueryEntriesDbObjectTests, returns_audit_id_two_without_entires) {
   expectFetch("2");
   sut_.query_entries(&mock_session);
   ASSERT_EQ(2, sut_.get_last_update());
-  ASSERT_EQ(0, sut_.entries.size());
+  ASSERT_EQ(0, sut_.get_entries().size());
 }
 
 TEST_F(QueryEntriesDbObjectTests, returns_audit_id_two_with_one_entiry) {
   expectFetch("2");
   sut_.query_entries(&mock_session);
   ASSERT_EQ(2, sut_.get_last_update());
-  ASSERT_EQ(0, sut_.entries.size());
+  ASSERT_EQ(0, sut_.get_entries().size());
 }

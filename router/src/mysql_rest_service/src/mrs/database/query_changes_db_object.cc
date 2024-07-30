@@ -32,10 +32,6 @@
 #include "mrs/database/query_entry_group_row_security.h"
 #include "mrs/database/query_entry_object.h"
 
-#include "mysql/harness/logging/logging.h"
-
-IMPORT_LOG_FUNCTIONS()
-
 namespace mrs {
 namespace database {
 
@@ -56,7 +52,7 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
 
   MySQLSession::Transaction transaction(session);
   QueryAuditLogEntries audit_entries;
-  VectorOfPathEntries local_path_entries;
+  std::vector<DbObjectCompatible> local_path_entries;
   uint64_t max_audit_log_id = audit_log_id_;
   audit_entries.query_entries(
       session,
@@ -80,8 +76,6 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
   auto qfields = query_factory_->create_query_fields();
   auto qobject = query_factory_->create_query_object();
 
-  auto it_user_ownership = db_object_user_ownership_v2_.begin();
-
   for (auto &e : local_path_entries) {
     qgroup->query_group_row_security(session, e.id);
     e.row_group_security = std::move(qgroup->get_result());
@@ -94,45 +88,42 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
     e.object_description = qobject->object;
 
     if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2) {
-      if (it_user_ownership->has_value()) {
-        auto &value = it_user_ownership->value();
-        auto field = e.object_description->get_field(value);
+      if (e.user_ownership_v2.has_value()) {
+        auto &value = e.user_ownership_v2.value();
+        auto field = e.object_description->get_column_field(value);
+
         if (field) {
           e.object_description->user_ownership_field.emplace();
           e.object_description->user_ownership_field->field = field;
           e.object_description->user_ownership_field->uid = field->id;
         }
       }
-      ++it_user_ownership;
     }
   }
 
-  entries.swap(local_path_entries);
+  entries_.swap(local_path_entries);
 
   transaction.commit();
 
   audit_log_id_ = max_audit_log_id;
 }
 
-void QueryChangesDbObject::query_path_entries(MySQLSession *session,
-                                              VectorOfPathEntries *out,
-                                              const std::string &table_name,
-                                              const entry::UniversalId &id) {
-  entries.clear();
-  log_debug("Checking audit-log entry for table:%s, id:%s", table_name.c_str(),
-            id.to_string().c_str());
+void QueryChangesDbObject::query_path_entries(
+    MySQLSession *session, std::vector<DbObjectCompatible> *out,
+    const std::string &table_name, const entry::UniversalId &id) {
+  entries_.clear();
 
   query(session, build_query(table_name, id));
 
-  for (const auto &entry : entries) {
+  for (const auto &entry : entries_) {
     if (path_entries_fetched.count(entry.id)) continue;
 
     out->push_back(entry);
     path_entries_fetched.insert(entry.id);
   }
 
-  if (entries.empty() && table_name == "db_object") {
-    DbObject pe;
+  if (entries_.empty() && table_name == "db_object") {
+    DbObjectCompatible pe;
     pe.id = id;
     pe.deleted = true;
     path_entries_fetched.insert(id);
@@ -193,7 +184,7 @@ void QueryChangesDbObjectLite::query_entries(MySQLSession *session) {
 
   MySQLSession::Transaction transaction(session);
   QueryAuditLogEntries audit_entries;
-  VectorOfPathEntries local_path_entries;
+  std::vector<DbObjectCompatible> local_path_entries;
   uint64_t max_audit_log_id = audit_log_id_;
   audit_entries.query_entries(
       session,
@@ -216,8 +207,6 @@ void QueryChangesDbObjectLite::query_entries(MySQLSession *session) {
   auto qfields = query_factory_->create_query_fields();
   auto qobject = query_factory_->create_query_object();
 
-  auto it_user_ownership = db_object_user_ownership_v2_.begin();
-
   for (auto &e : local_path_entries) {
     qgroup->query_group_row_security(session, e.id);
     e.row_group_security = std::move(qgroup->get_result());
@@ -230,20 +219,20 @@ void QueryChangesDbObjectLite::query_entries(MySQLSession *session) {
     e.object_description = qobject->object;
 
     if (db_version_ == mrs::interface::kSupportedMrsMetadataVersion_2) {
-      if (it_user_ownership->has_value()) {
-        auto &value = it_user_ownership->value();
-        auto field = e.object_description->get_field(value);
+      if (e.user_ownership_v2.has_value()) {
+        auto &value = e.user_ownership_v2.value();
+        auto field = e.object_description->get_column_field(value);
+
         if (field) {
           e.object_description->user_ownership_field.emplace();
           e.object_description->user_ownership_field->field = field;
           e.object_description->user_ownership_field->uid = field->id;
         }
       }
-      ++it_user_ownership;
     }
   }
 
-  entries.swap(local_path_entries);
+  entries_.swap(local_path_entries);
 
   transaction.commit();
 
@@ -251,23 +240,21 @@ void QueryChangesDbObjectLite::query_entries(MySQLSession *session) {
 }
 
 void QueryChangesDbObjectLite::query_path_entries(
-    MySQLSession *session, VectorOfPathEntries *out,
+    MySQLSession *session, std::vector<DbObjectCompatible> *out,
     const std::string &table_name, const entry::UniversalId &id) {
-  entries.clear();
-  log_debug("Checking audit-log entry for table:%s, id:%s", table_name.c_str(),
-            id.to_string().c_str());
+  entries_.clear();
 
   query(session, build_query(table_name, id));
 
-  for (const auto &entry : entries) {
+  for (const auto &entry : entries_) {
     if (path_entries_fetched.count(entry.id)) continue;
 
     out->push_back(entry);
     path_entries_fetched.insert(entry.id);
   }
 
-  if (entries.empty() && table_name == "db_object") {
-    DbObject pe;
+  if (entries_.empty() && table_name == "db_object") {
+    DbObjectCompatible pe;
     pe.id = id;
     pe.deleted = true;
     path_entries_fetched.insert(id);

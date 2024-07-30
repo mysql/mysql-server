@@ -186,9 +186,11 @@ void Object::update_variables() {
   user_ownership_.user_ownership_enforced = false;
   if (pe_.object_description &&
       pe_.object_description->user_ownership_field.has_value()) {
+    auto dfield = std::dynamic_pointer_cast<mrs::database::entry::DataField>(
+        pe_.object_description->user_ownership_field->field);
+
     user_ownership_.user_ownership_enforced = true;
-    user_ownership_.user_ownership_column =
-        pe_.object_description->user_ownership_field->field->name;
+    user_ownership_.user_ownership_column = dfield->source->name;
   }
 }
 
