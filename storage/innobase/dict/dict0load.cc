@@ -1701,9 +1701,11 @@ static void dict_load_columns(dict_table_t *table, mem_heap_t *heap) {
       during upgrade because fts tables will be renamed
       as part of upgrade. These tables will be added
       to fts optimize queue when they are opened. */
-      if (table->fts == nullptr && !srv_is_upgrade_mode) {
+      if (table->fts == nullptr) {
         table->fts = fts_create(table);
-        fts_optimize_add_table(table);
+        if (!srv_is_upgrade_mode) {
+          fts_optimize_add_table(table);
+        }
       }
 
       ut_a(table->fts->doc_col == ULINT_UNDEFINED);
