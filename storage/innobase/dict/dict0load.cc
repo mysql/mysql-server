@@ -1702,13 +1702,9 @@ static void dict_load_columns(dict_table_t *table, mem_heap_t *heap) {
       This case does not arise for table create as
       the flag is set before the table is created. */
 
-      /* We do not add fts tables to optimize thread
-      during upgrade because fts tables will be renamed
-      as part of upgrade. These tables will be added
-      to fts optimize queue when they are opened. */
-      if (table->fts == nullptr && !srv_is_upgrade_mode) {
+      if (table->fts == nullptr) {
+        ut_ad(!srv_is_upgrade_mode);
         table->fts = fts_create(table);
-        fts_optimize_add_table(table);
       }
 
       ut_a(table->fts->doc_col == ULINT_UNDEFINED);
@@ -2571,18 +2567,12 @@ func_exit:
         table->ibd_file_missing || !table->is_corrupted());
 
   if (table && table->fts) {
-    /* We do not add fts tables to optimize thread
-    during upgrade because fts tables will be renamed
-    as part of upgrade. These tables will be added
-    to fts optimize queue when they are opened. */
-
     if (!(dict_table_has_fts_index(table) ||
           DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID) ||
           DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID))) {
-      /* the table->fts could be created in dict_load_column
+      /* the table->fts could be created in dict_load_columns
       when a user defined FTS_DOC_ID is present, but no
       FTS */
-      fts_optimize_remove_table(table);
       fts_free(table);
     } else if (!srv_is_upgrade_mode) {
       fts_optimize_add_table(table);
