@@ -80,7 +80,7 @@ class Cache {
       node.key() = key;
       node.mapped() = std::forward<V>(value);
       container_.insert(std::move(node));
-      return &node.mapped();
+      return &container_[key];
     }
 
     return &container_.emplace(std::make_pair(key, std::forward<V>(value)))
