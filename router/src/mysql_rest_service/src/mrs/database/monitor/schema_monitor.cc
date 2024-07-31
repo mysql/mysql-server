@@ -91,14 +91,26 @@ std::string query_developer(mysqlrouter::MySQLSession *session,
 }
 #endif
 
+bool is_router_in_md(mysqlrouter::MySQLSession *session,
+                     std::optional<uint64_t> router_id) {
+  if (!router_id.has_value()) {
+    return false;
+  }
+
+  mysqlrouter::sqlstring q =
+      "select COUNT(r.id) from mysql_rest_service_metadata.router r where"
+      " r.id=?";
+  q << router_id.value();
+
+  auto result{session->query_one(q)};
+
+  return std::stoul(std::string((*result)[0])) > 0;
+}
+
 std::set<UniversalId> query_allowed_services(
     mysqlrouter::MySQLSession *session,
     const mrs::interface::SupportedMrsMetadataVersion &md_version,
     std::optional<uint64_t> router_id) {
-  if (!router_id.has_value()) {
-    return {};
-  }
-
   mysqlrouter::sqlstring q;
   std::set<UniversalId> result;
   if (md_version < mrs::interface::SupportedMrsMetadataVersion::
@@ -106,11 +118,15 @@ std::set<UniversalId> query_allowed_services(
     q = "select s.id from mysql_rest_service_metadata.service s"
         " where (enabled = 1)";
   } else {
-    q = "select rs.service_id "
-        " from mysql_rest_service_metadata.router_services rs"
-        " WHERE rs.router_id = ?";
-
-    q << router_id.value();
+    if (is_router_in_md(session, router_id)) {
+      q = "select rs.service_id "
+          " from mysql_rest_service_metadata.router_services rs"
+          " WHERE rs.router_id = ?";
+      q << router_id.value();
+    } else {
+      q = "select s.id from mysql_rest_service_metadata.service s "
+          "WHERE s.published = 1 AND s.enabled = 1";
+    }
   }
 
   auto result_processor =
