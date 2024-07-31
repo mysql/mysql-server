@@ -123,6 +123,13 @@ MACRO(MYSQL_CHECK_PROTOBUF)
   IF(WITH_PROTOBUF STREQUAL "bundled")
     MYSQL_USE_BUNDLED_PROTOBUF()
   ELSE()
+    # In case we want grpc, it must be loaded *before* Protobuf,
+    # otherwise we get
+    # CMake Error at ..../cmake/protobuf/protobuf-targets.cmake:42 (message):
+    #   "some (but not all) targets in this export set were already defined".
+    IF(WITH_INTERNAL)
+      FIND_PACKAGE(gRPC QUIET)
+    ENDIF()
     FIND_PACKAGE(Protobuf)
   ENDIF()
 
