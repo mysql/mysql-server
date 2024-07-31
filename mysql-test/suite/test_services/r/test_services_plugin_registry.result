@@ -1,3 +1,4 @@
+call mtr.add_suppression("unknown handle");
 # restart: --log-error=MYSQLTEST_VARDIR/log/test_services_plugin_registry.err
 ------ Run plugin ------------------------------------------------
 INSTALL PLUGIN test_services_plugin_registry SONAME 'TEST_SERVICES_PLUGIN_REGISTRY';

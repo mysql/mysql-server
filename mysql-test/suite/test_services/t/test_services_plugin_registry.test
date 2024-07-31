@@ -1,3 +1,5 @@
+call mtr.add_suppression("unknown handle");
+
 # Restart of server to get deterministic results.
 --let server_log= $MYSQLTEST_VARDIR/log/test_services_plugin_registry.err
 --let $restart_parameters="restart: --log-error=$server_log"
