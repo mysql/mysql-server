@@ -1524,6 +1524,24 @@ BEGIN
     RETURN @valid;
 END$$
 
+CREATE TRIGGER `mysql_rest_service_metadata`.`router_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `router` FOR EACH ROW
+BEGIN
+    INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+        table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+    VALUES (
+        "router",
+        "INSERT",
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "options", NEW.options),
+        NULL,
+        UNHEX(LPAD(CONV(NEW.id, 10, 16), 32, '0')),
+        CURRENT_USER(),
+        CURRENT_TIMESTAMP
+    );
+END$$
+
 CREATE TRIGGER `mysql_rest_service_metadata`.`router_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `router` FOR EACH ROW
 BEGIN
     IF (COALESCE(OLD.options, '') <> COALESCE(NEW.options, '')) THEN
