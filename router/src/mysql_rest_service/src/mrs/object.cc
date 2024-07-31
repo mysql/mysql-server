@@ -189,6 +189,11 @@ void Object::update_variables() {
     auto dfield = std::dynamic_pointer_cast<mrs::database::entry::DataField>(
         pe_.object_description->user_ownership_field->field);
 
+    if (!dfield || !dfield->source) {
+      log_warning("ownership disabled for db_object:%s", object_name_.c_str());
+      return;
+    }
+
     user_ownership_.user_ownership_enforced = true;
     user_ownership_.user_ownership_column = dfield->source->name;
   }

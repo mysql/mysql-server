@@ -111,9 +111,12 @@ class RouteObjectTests : public Test {
     obj.format = kDefaultForamt;
     obj.object_description = std::make_shared<mrs::database::entry::Object>();
 
-    first_field_ = std::make_shared<mrs::database::entry::ObjectField>();
-    first_field_->id = mrs::UniversalId{kFirstColumnId};
-    first_field_->name = "name";
+    auto first_field = std::make_shared<mrs::database::entry::DataField>();
+    first_field->id = mrs::UniversalId{kFirstColumnId};
+    first_field->name = "name";
+    first_field->source = std::make_shared<mrs::database::entry::Column>();
+    first_field->source->name = "name";
+    first_field_ = first_field;
     obj.object_description->fields.push_back(first_field_);
 
     return obj;
