@@ -69,7 +69,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	399996	100.00	NULL
 2	DERIVED	b	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 2	DERIVED	r	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using join buffer (hash join)
-2	DERIVED	w	NULL	ALL	REQUESTING_ENGINE_LOCK_ID,BLOCKING_ENGINE_LOCK_ID	NULL	NULL	NULL	99999	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	w	NULL	ALL	PRIMARY,REQUESTING_ENGINE_LOCK_ID,BLOCKING_ENGINE_LOCK_ID	NULL	NULL	NULL	99999	100.00	Using where; Using join buffer (hash join)
 2	DERIVED	bl	NULL	eq_ref	PRIMARY	PRIMARY	644	performance_schema.w.BLOCKING_ENGINE_LOCK_ID,performance_schema.w.ENGINE	1	100.00	NULL
 2	DERIVED	rl	NULL	eq_ref	PRIMARY	PRIMARY	644	performance_schema.w.REQUESTING_ENGINE_LOCK_ID,performance_schema.w.ENGINE	1	100.00	NULL
 Warnings:
@@ -79,7 +79,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	399996	100.00	NULL
 2	DERIVED	b	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 2	DERIVED	r	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using join buffer (hash join)
-2	DERIVED	w	NULL	ALL	REQUESTING_ENGINE_LOCK_ID,BLOCKING_ENGINE_LOCK_ID	NULL	NULL	NULL	99999	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	w	NULL	ALL	PRIMARY,REQUESTING_ENGINE_LOCK_ID,BLOCKING_ENGINE_LOCK_ID	NULL	NULL	NULL	99999	100.00	Using where; Using join buffer (hash join)
 2	DERIVED	bl	NULL	eq_ref	PRIMARY	PRIMARY	644	performance_schema.w.BLOCKING_ENGINE_LOCK_ID,performance_schema.w.ENGINE	1	100.00	NULL
 2	DERIVED	rl	NULL	eq_ref	PRIMARY	PRIMARY	644	performance_schema.w.REQUESTING_ENGINE_LOCK_ID,performance_schema.w.ENGINE	1	100.00	NULL
 Warnings:

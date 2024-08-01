@@ -259,8 +259,13 @@
       New tables variable_metadata, global_variable_attributes added to
   performance_schema
 
+  90100:
+
+   - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
+     SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
+     - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 */
 
-static const uint PFS_DD_VERSION = 90000;
+static const uint PFS_DD_VERSION = 90100;
 
 #endif /* PFS_DD_VERSION_H */
