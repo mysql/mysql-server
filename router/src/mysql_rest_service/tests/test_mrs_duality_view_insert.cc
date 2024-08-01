@@ -1002,3 +1002,34 @@ TEST_F(DualityViewInsert, inconsistent_input) {
                       "match referenced ID");
   }
 }
+
+TEST_F(DualityViewInsert, regular_fields_are_optional_on_insert) {
+  // - all PKs are WITH CHECK (for etag ) by default, regardless of the table
+  // level CHECK
+  // - all non-PK fields are optional in the JSON
+
+  auto root = DualityViewBuilder("mrstestdb", "film", TableFlag::WITH_INSERT)
+                  .field("id", "film_id", FieldFlag::AUTO_INC)
+                  .field("title", FieldFlag::WITH_CHECK)
+                  .field("description", 0)
+                  .field_to_one("language",
+                                ViewBuilder("language", TableFlag::WITH_NOCHECK)
+                                    .field("language_id", FieldFlag::AUTO_INC)
+                                    .field("name", 0),
+                                false, {{"language_id", "language_id"}})
+                  .field_to_many(
+                      "actors",
+                      ViewBuilder("film_actor")
+                          .field("film_id")
+                          .field("actor_id", 0)
+                          .field_to_one("actor", ViewBuilder("actor")
+                                                     .field("actor_id",
+                                                            FieldFlag::AUTO_INC)
+                                                     .field("first_name")
+                                                     .field("last_name")))
+                  .resolve(m_.get());
+
+  SCOPED_TRACE(root->as_graphql());
+}
+
+// TEST_F(DualityViewGet, no_etag_if_no_check) {}

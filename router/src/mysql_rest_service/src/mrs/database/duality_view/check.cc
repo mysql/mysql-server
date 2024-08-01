@@ -91,6 +91,9 @@ void Check::on_no_value(const Column &column,
       }
     }
   } else {
+    // in an INSERT, all non-PK fields are optional
+    if (!for_update_) return;
+
     if (!row_ownership_.is_owner_id(*table_, column) &&
         table_->with_check(column) && (!unnested_ || has_unnested_pk_)) {
       throw_missing_field(table_->table, column.name);
@@ -144,7 +147,7 @@ void Check::process_to_one(const ForeignKeyReference &ref,
 
   if (!input.has_new() || input.new_empty()) return;
 
-  Check check(ref.ref_table, row_ownership_, true,
+  Check check(ref.ref_table, row_ownership_, for_update_,
               ref.unnest ? invalid_fields_ : nullptr, ref.unnest);
   check.process(input);
 

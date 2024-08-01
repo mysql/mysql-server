@@ -122,19 +122,28 @@ std::string Table::as_graphql(int depth, bool extended) const {
   return r;
 }
 
-bool Table::with_check_recursive() const {
-  // recursively check if any enabled field is marked for check
-  if (with_check_) return true;
+bool Table::needs_etag() const {
+  if (needs_etag_.has_value()) return needs_etag_.value();
 
-  return foreach_field<bool>(
+  // recursively check if any enabled field is marked for check
+  if (with_check_) {
+    needs_etag_ = true;
+    return true;
+  }
+
+  needs_etag_ = foreach_field<bool>(
       [](const Column &column) {
-        if (column.enabled && column.with_check.value_or(false)) return true;
+        if (column.enabled &&
+            column.with_check.value_or(column.is_primary ? true : false))
+          return true;
         return false;
       },
       [](const ForeignKeyReference &ref) {
-        if (ref.enabled && ref.ref_table->with_check_recursive()) return true;
+        if (ref.enabled && ref.ref_table->needs_etag()) return true;
         return false;
       });
+
+  return needs_etag_.value();
 }
 
 bool Table::is_editable(bool &has_unnested_1n) const {
@@ -171,9 +180,9 @@ bool Object::is_read_only() const {
 
 std::string DualityView::as_graphql(bool extended) const {
   std::string flags;
-  flags += with_insert() ? " @INSERT " : (extended ? " @NOINSERT" : "");
-  flags += with_update() ? " @UPDATE " : (extended ? " @NOUPDATE" : "");
-  flags += with_delete() ? " @DELETE " : (extended ? " @NODELETE" : "");
+  flags += with_insert() ? " @INSERT" : (extended ? " @NOINSERT" : "");
+  flags += with_update() ? " @UPDATE" : (extended ? " @NOUPDATE" : "");
+  flags += with_delete() ? " @DELETE" : (extended ? " @NODELETE" : "");
   flags += with_check_ ? (extended ? " @CHECK" : "") : " @NOCHECK";
 
   return table + flags + " " + Table::as_graphql(0, extended);

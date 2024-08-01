@@ -824,7 +824,7 @@ struct ChecksumHandler
                    current_field_)) {
       // references are checked if any of the child fields are checked and
       // enabled
-      with_check = ref->enabled && ref->ref_table->with_check_recursive();
+      with_check = ref->enabled && ref->ref_table->needs_etag();
       log_debug("check_field(%s:%s)%s ref => %i", ref->name.c_str(),
                 ref->ref_table->table.c_str(), ref->to_many ? "[]" : "",
                 with_check);
@@ -962,9 +962,12 @@ std::string post_process_json(
     handler.swap(&new_doc);
   }
 
-  if (compute_checksum) {
+  if (!view->needs_etag()) compute_checksum = false;
+
+  if (compute_checksum || !metadata.empty()) {
     rapidjson::Value metadata_object(rapidjson::kObjectType);
-    {
+
+    if (compute_checksum) {
       rapidjson::Value etag;
       etag.SetString(checksum.c_str(), new_doc.GetAllocator());
       metadata_object.AddMember("etag", etag, new_doc.GetAllocator());

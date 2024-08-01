@@ -195,11 +195,13 @@ class Table {
 
   inline bool with_check(const Column &column) const {
     if (column.with_check.has_value()) return column.with_check.value();
+    // PKs always default to being checked and ignore table level CHECK
+    if (column.is_primary) return true;
 
     return with_check_;
   }
 
-  bool with_check_recursive() const;
+  bool needs_etag() const;
 
   // used to determine if object can be updated
   bool unnests_to_value = false;
@@ -347,6 +349,7 @@ class Table {
   bool is_editable(bool &has_unnested_1n) const;
 
  protected:
+  mutable std::optional<bool> needs_etag_;
   std::string as_graphql(int depth, bool extended) const;
 };
 

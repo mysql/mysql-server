@@ -47,11 +47,11 @@ using testing::Test;
 class DualityViewCheck : public DatabaseRestTableTest {
  public:
   void check_e(std::shared_ptr<DualityView> view, const std::string &input,
-               bool pk_required = false,
+               bool for_update = false,
                const ObjectRowOwnership &row_owner = {}) {
     SCOPED_TRACE(input);
     try {
-      check(view, input, pk_required, row_owner);
+      check(view, input, for_update, row_owner);
     } catch (const JSONInputError &e) {
       ADD_FAILURE() << "check() threw JSONInputError: " << e.what();
       throw;
@@ -68,14 +68,14 @@ class DualityViewCheck : public DatabaseRestTableTest {
   }
 
   void check(std::shared_ptr<DualityView> view, const std::string &input,
-             bool pk_required = false,
+             bool for_update = false,
              const ObjectRowOwnership &row_owner = {}) {
     DualityViewUpdater dvu(view, row_owner);
 
     auto json = make_json(input);
     assert(json.IsObject());
 
-    dvu.check(json, pk_required);
+    dvu.check(json, for_update);
   }
 
   void insert_check(std::shared_ptr<DualityView> view, const std::string &input,
@@ -1006,8 +1006,84 @@ TEST_F(DualityViewCheck, unnest_1n) {
   }
 }
 
+TEST_F(DualityViewCheck, non_pk_fields_are_optional) {
+  // - all PKs are WITH CHECK (for etag ) by default, regardless of the table
+  // level CHECK
+
+  auto root =
+      DualityViewBuilder("mrstestdb", "film", TableFlag::WITH_INSERT)
+          .field("id", "film_id",
+                 FieldFlag::PRIMARY | FieldFlag::AUTO_INC |
+                     FieldFlag::WITH_NOCHECK)
+          .field("title", FieldFlag::WITH_CHECK)
+          .field("description", 0)
+          .field_to_one("language",
+                        ViewBuilder("language", TableFlag::WITH_NOCHECK)
+                            .field("language_id",
+                                   FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
+                            .field("name", 0),
+                        false, {{"language_id", "language_id"}})
+          .field_to_many(
+              "actors",
+              ViewBuilder("film_actor")
+                  .field("film_id",
+                         FieldFlag::PRIMARY | FieldFlag::WITH_NOCHECK)
+                  .field("actor_id", FieldFlag::PRIMARY)
+                  .field_to_one(
+                      "actor",
+                      ViewBuilder("actor", TableFlag::WITH_CHECK)
+                          .field("actor_id", FieldFlag::PRIMARY |
+                                                 FieldFlag::AUTO_INC |
+                                                 FieldFlag::WITH_NOCHECK)
+                          .field("first_name", FieldFlag::WITH_CHECK)
+                          .field("last_name")))
+          .resolve(m_.get());
+
+  SCOPED_TRACE(root->as_graphql());
+
+  EXPECT_NO_THROW(check(root, R"*({
+    "id": 1,
+    "language": {
+      "language_id": 1
+    },
+    "actors": [{
+      "film_id": 1,
+      "actor_id": 1,
+      "actor": {
+        "actor_id": 1
+      }
+    }]
+  })*",
+                        false));
+
+  // NOCHECK on a PK should affect the etag but not the validation
+  EXPECT_JSON_ERROR(check(root, R"*({
+    "id": 1,
+    "language": {
+      "name": "English"
+    }
+  })*",
+                          false),
+                    "ID for table `language` missing in JSON input");
+
+  // NOCHECK on a PK should affect the etag but not the validation
+  EXPECT_JSON_ERROR(check(root, R"*({
+    "id": 1,
+    "actors": [{
+      "actor": {
+        "first_name": "hello"
+      }
+    }]
+  })*",
+                          false),
+                    "ID for table `film_actor` missing in JSON input");
+}
+
 static std::string get_etag(const std::string &json) {
   auto j = make_json(json);
+  if (!j.GetObject().HasMember("_metadata") ||
+      !j.GetObject()["_metadata"].HasMember("etag"))
+    return "";
   return j["_metadata"]["etag"].GetString();
 }
 
@@ -1237,5 +1313,124 @@ TEST_F(DualityViewCheck, checksum) {
     EXPECT_EQ(
         get_etag(out),
         "8B5CCFA86FDD4C17DCE49BCA229B0D26D821738E9B576C5DB2B9AAFC1197D8FF");
+  }
+  // PK is always checksummed, unless explicitly NOCHECK on the field
+  {
+    auto root1 =
+        DualityViewBuilder("mrstestdb", "film", TableFlag::WITH_NOCHECK)
+            .field("id", "film_id", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
+            .field("title", FieldFlag::WITH_CHECK)
+            .field("description", 0)
+            .field_to_one("language",
+                          ViewBuilder("language", TableFlag::WITH_NOCHECK)
+                              .field("language_id",
+                                     FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
+                              .field("name", 0),
+                          false, {{"language_id", "language_id"}})
+            .field_to_many("actors",
+                           ViewBuilder("film_actor", TableFlag::WITH_NOCHECK)
+                               .field("film_id", FieldFlag::PRIMARY)
+                               .field("actor_id", FieldFlag::PRIMARY))
+            .resolve(m_.get());
+
+    auto root2 =
+        DualityViewBuilder("mrstestdb", "film", TableFlag::WITH_NOCHECK)
+            .field("id", "film_id",
+                   FieldFlag::PRIMARY | FieldFlag::AUTO_INC |
+                       FieldFlag::WITH_NOCHECK)
+            .field("title", FieldFlag::WITH_CHECK)
+            .field("description", 0)
+            .field_to_one("language",
+                          ViewBuilder("language", TableFlag::WITH_NOCHECK)
+                              .field("language_id", FieldFlag::PRIMARY |
+                                                        FieldFlag::AUTO_INC |
+                                                        FieldFlag::WITH_NOCHECK)
+                              .field("name", 0),
+                          false, {{"language_id", "language_id"}})
+            .field_to_many("actors",
+                           ViewBuilder("film_actor", TableFlag::WITH_NOCHECK)
+                               .field("film_id", FieldFlag::PRIMARY |
+                                                     FieldFlag::WITH_NOCHECK)
+                               .field("actor_id", FieldFlag::PRIMARY |
+                                                      FieldFlag::WITH_NOCHECK))
+            .resolve(m_.get());
+
+    SCOPED_TRACE(root1->as_graphql());
+
+    std::string out = post_process_json(root1, {}, {}, R"*({
+      "id": 1,
+      "language": {
+        "language_id": 1
+      },
+      "actors": [
+        {
+          "film_id": 1,
+          "actor_id": 1
+        }
+      ]
+    })*",
+                                        true);
+    std::string with_check_pk;
+    EXPECT_EQ(
+        with_check_pk = get_etag(out),
+        "B9B0920E2489A09F203820EEF91F5D0739B618DE7877931E78A92708A780F5C9");
+
+    SCOPED_TRACE(root2->as_graphql());
+
+    out = post_process_json(root2, {}, {}, R"*({
+      "id": 1,
+      "language": {
+        "language_id": 1
+      },
+      "actors": [
+        {
+          "film_id": 1,
+          "actor_id": 1
+        }
+      ]
+    })*",
+                            true);
+    EXPECT_NE(get_etag(out), with_check_pk);
+  }
+  // completely NOCHECK
+  {
+    auto root =
+        DualityViewBuilder("mrstestdb", "film", TableFlag::WITH_NOCHECK)
+            .field("id", "film_id",
+                   FieldFlag::PRIMARY | FieldFlag::AUTO_INC |
+                       FieldFlag::WITH_NOCHECK)
+            .field("title")
+            .field("description", 0)
+            .field_to_one("language",
+                          ViewBuilder("language", TableFlag::WITH_NOCHECK)
+                              .field("language_id", FieldFlag::PRIMARY |
+                                                        FieldFlag::AUTO_INC |
+                                                        FieldFlag::WITH_NOCHECK)
+                              .field("name", 0),
+                          false, {{"language_id", "language_id"}})
+            .field_to_many("actors",
+                           ViewBuilder("film_actor", TableFlag::WITH_NOCHECK)
+                               .field("film_id", FieldFlag::PRIMARY |
+                                                     FieldFlag::WITH_NOCHECK)
+                               .field("actor_id", FieldFlag::PRIMARY |
+                                                      FieldFlag::WITH_NOCHECK))
+            .resolve(m_.get());
+
+    SCOPED_TRACE(root->as_graphql());
+
+    std::string out = post_process_json(root, {}, {}, R"*({
+      "id": 1,
+      "language": {
+        "language_id": 1
+      },
+      "actors": [
+        {
+          "film_id": 1,
+          "actor_id": 1
+        }
+      ]
+    })*",
+                                        true);
+    EXPECT_EQ(get_etag(out), "");
   }
 }

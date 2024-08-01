@@ -124,7 +124,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_path='/svc/basic/note/'
 --let $mrs_client_arg_exclude_json_pointer='/userId,/lastUpdate,/createDate,/links,/_metadata'
 --let $mrs_client_arg_request_type='POST'
---let $mrs_client_arg_payload='{"title":"asdasd","content":"asdasddasdaddasad","pinned":false,"lockedDown":false,"createDate":"2024-07-31 1:00:00","lastUpdate":"2024-07-31 1:00:00","shared":true,"tags":null}'
+--let $mrs_client_arg_payload='{"title":"asdasd","content":"asdasddasdaddasad","pinned":false,"lockedDown":false}'
 --let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
 --source ../include/mrs/mrs_client.inc
 
