@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `test`.`note` (
 ENGINE = InnoDB;
 
 use mysql_rest_service_metadata;
+START TRANSACTION;
 if ($mrs_schema_version == 2)
 {
   INSERT INTO `db_object` (`id`,`db_schema_id`,`name`,`request_path`,`enabled`,`object_type`,`crud_operations`,`format`,`items_per_page`,`media_type`,`auto_detect_media_type`,`requires_auth`,`auth_stored_procedure`,`row_user_ownership_enforced`,`row_user_ownership_column`,`options`,`details`,`comments`) VALUES (1,@schema_id,'note','/note',1,'TABLE','CREATE,READ,UPDATE,DELETE','FEED',NULL,NULL,0,1,'',1,'user_id',NULL,NULL,'');
@@ -44,6 +45,7 @@ INSERT INTO `object_field` (`id`,`object_id`,`parent_reference_id`,`represents_r
 INSERT INTO `object_field` (`id`,`object_id`,`parent_reference_id`,`represents_reference_id`,`name`,`position`,`db_column`,`enabled`,`allow_filtering`,`allow_sorting`,`no_check`,`no_update`,`sdk_options`,`comments`) VALUES (12,2,NULL,NULL,'createDate',4,'{\"name\": \"create_date\", \"comment\": \"\", \"datatype\": \"datetime\", \"not_null\": true, \"is_unique\": false, \"is_primary\": false, \"is_generated\": false, \"id_generation\": null}',1,1,0,0,0,NULL,NULL);
 INSERT INTO `object_field` (`id`,`object_id`,`parent_reference_id`,`represents_reference_id`,`name`,`position`,`db_column`,`enabled`,`allow_filtering`,`allow_sorting`,`no_check`,`no_update`,`sdk_options`,`comments`) VALUES (13,2,NULL,NULL,'lockedDown',7,'{\"name\": \"locked_down\", \"comment\": \"\", \"datatype\": \"bit(1)\", \"not_null\": true, \"is_unique\": false, \"is_primary\": false, \"is_generated\": false, \"id_generation\": null}',1,1,0,0,0,NULL,NULL);
 INSERT INTO `object_field` (`id`,`object_id`,`parent_reference_id`,`represents_reference_id`,`name`,`position`,`db_column`,`enabled`,`allow_filtering`,`allow_sorting`,`no_check`,`no_update`,`sdk_options`,`comments`) VALUES (14,2,NULL,NULL,'content',9,'{\"name\": \"content\", \"comment\": \"\", \"datatype\": \"varchar(2000)\", \"not_null\": false, \"is_unique\": false, \"is_primary\": false, \"is_generated\": false, \"id_generation\": null}',1,1,0,0,0,NULL,NULL);
+COMMIT;
 use test;
 --enable_result_log
 --enable_query_log

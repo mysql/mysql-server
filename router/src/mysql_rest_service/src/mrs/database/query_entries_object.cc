@@ -415,8 +415,8 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     row.unserialize(&no_update);
     if (no_update) dfield->with_update = false;
 
-    log_debug("Creating dfield name=%s, table=%p", dfield->name.c_str(),
-              table.get());
+    log_debug("Creating dfield name=%s, table=%s", dfield->name.c_str(),
+              table.get()->table.c_str());
 
     table->fields.push_back(dfield);
   }
@@ -526,8 +526,9 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
         entry::Operation::Values::valueDelete;
   reference->ref_table->with_check_ = !with_no_check;
 
-  row.unserialize_with_converter(&object->user_ownership_field,
-                                 from_optional_user_ownership_field_id);
+  //  row.unserialize_with_converter(&object->user_ownership_field,
+  //                                 from_optional_user_ownership_field_id);
+  row.skip(1);
 
   reference->ref_table->table_alias = "t" + std::to_string(++m_alias_count);
   m_references[reference_id] = reference;
