@@ -295,6 +295,7 @@ class PFS_engine_index_abstract {
  public:
   uint m_fields{0};
   KEY *m_key_info{nullptr};
+  size_t m_key_fetch_count{0};
 };
 
 class PFS_engine_index : public PFS_engine_index_abstract {

@@ -253,8 +253,13 @@
       - events_transactions_history_long:
         - GTID 64->90 bytes
 
+  80403:
+
+   - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
+     SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
+     - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 */
 
-static const uint PFS_DD_VERSION = 80300;
+static const uint PFS_DD_VERSION = 80403;
 
 #endif /* PFS_DD_VERSION_H */

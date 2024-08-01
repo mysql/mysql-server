@@ -1431,6 +1431,19 @@ class PFS_key_string : public PFS_key_pstring {
                                  &m_key_value_length, sizeof(m_key_value));
   }
 
+  void get_exact_key_value(bool &is_null, const char *&key_value,
+                           size_t &key_value_length) {
+    if (m_find_flag == HA_READ_KEY_EXACT) {
+      is_null = m_is_null;
+      key_value = m_key_value;
+      key_value_length = m_key_value_length;
+    } else {
+      is_null = true;
+      key_value = nullptr;
+      key_value_length = 0;
+    }
+  }
+
  protected:
   bool do_match(bool record_null, const char *record_value,
                 size_t record_value_length) {

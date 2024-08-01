@@ -1512,6 +1512,7 @@ void PFS_engine_index::read_key(const uchar *key, uint key_len,
   }
 
   m_fields = reader.m_parts_found;
+  m_key_fetch_count = 0;
 }
 
 /** @} */

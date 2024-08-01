@@ -148,6 +148,31 @@ select @engine,
   @blocking_event_id is null;
 
 ###########################################################################
+# Test index on REQUESTING_ENGINE_LOCK_ID, BLOCKING_ENGINE_LOCK_ID, ENGINE
+###########################################################################
+
+let $table = performance_schema.data_lock_waits;
+
+let $column_count = 3;
+let $col1 = REQUESTING_ENGINE_LOCK_ID;
+let $col2 = BLOCKING_ENGINE_LOCK_ID;
+let $col3 = ENGINE;
+let $col1_act = @requesting_lock_id;
+let $col2_act = @blocking_lock_id;
+let $col3_act = @engine;
+
+--source ../include/idx_explain_test.inc
+
+# verify actual data
+select BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id,
+       REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id,
+       ENGINE = @engine
+  from performance_schema.data_lock_waits
+  where (ENGINE = @engine)
+  and (REQUESTING_ENGINE_LOCK_ID = @requesting_lock_id)
+  and (BLOCKING_ENGINE_LOCK_ID = @blocking_lock_id);
+
+###########################################################################
 # Test index on REQUESTING_ENGINE_LOCK_ID, ENGINE
 ###########################################################################
 

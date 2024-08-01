@@ -13,6 +13,7 @@ data_locks	1	performance_schema	THREAD_ID	HASH
 data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	HASH	
 data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	HASH	
 data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	HASH	
+data_lock_waits	0	performance_schema	PRIMARY	HASH	
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	HASH	
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	HASH	
 data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	HASH	
@@ -167,6 +168,9 @@ data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	1	BLOCKING_E
 data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
 data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	1	BLOCKING_THREAD_ID	NULL	YES
 data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	2	BLOCKING_EVENT_ID	NULL	YES
+data_lock_waits	0	performance_schema	PRIMARY	1	REQUESTING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	0	performance_schema	PRIMARY	2	BLOCKING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	0	performance_schema	PRIMARY	3	ENGINE	NULL	
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	1	REQUESTING_ENGINE_LOCK_ID	NULL	
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	2	ENGINE	NULL	
 data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	1	REQUESTING_ENGINE_TRANSACTION_ID	NULL	YES
