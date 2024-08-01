@@ -231,11 +231,12 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   execute(session);
 
   // resolve row ownership column
-  if (object->user_ownership_field.has_value())
+  if (object->user_ownership_field.has_value()) {
     object->user_ownership_field->field =
         object->get_column(object->user_ownership_field->uid);
-  if (object->user_ownership_field->field)
-    object->user_ownership_field->field->is_row_owner = true;
+    if (object->user_ownership_field->field)
+      object->user_ownership_field->field->is_row_owner = true;
+  }
 
   for (auto &[_, r] : m_references) {
     auto v = r->ref_table;
