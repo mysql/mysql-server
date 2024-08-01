@@ -105,15 +105,24 @@ class ServerConnection : public http::base::Connection<Socket> {
     }
 
     sessions_.erase(session_id);
-    auto pair = sessions_.try_emplace(session_id, this, session_id,
-                                      (base::method::key_type)(1 << method_pos),
-                                      path, std::move(input_headers));
+    try {
+      auto pair =
+          sessions_.try_emplace(session_id, this, session_id,
+                                (base::method::key_type)(1 << method_pos), path,
+                                std::move(input_headers));
 
-    char buffer[90];
-    http::base::time_to_rfc5322_fixdate(time(nullptr), buffer, sizeof(buffer));
-    pair.first->second.get_output_headers().add("Date", buffer);
-    pair.first->second.get_output_headers().add(
-        "Content-Type", "text/html; charset=ISO-8859-1");
+      char buffer[90];
+      http::base::time_to_rfc5322_fixdate(time(nullptr), buffer,
+                                          sizeof(buffer));
+      pair.first->second.get_output_headers().add("Date", buffer);
+      pair.first->second.get_output_headers().add(
+          "Content-Type", "text/html; charset=ISO-8859-1");
+    } catch (...) {
+      ServerRequest(this, session_id, (base::method::key_type)(1 << method_pos),
+                    "", std::move(input_headers))
+          .send_error(base::status_code::BadRequest);
+      return 1;
+    }
 
     return 0;
   }
