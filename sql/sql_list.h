@@ -29,6 +29,7 @@
 #include <iterator>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -63,7 +64,12 @@ class SQL_I_List {
         first(tmp.first),
         next(elements ? tmp.next : &first) {}
 
-  SQL_I_List(SQL_I_List &&) = default;
+  SQL_I_List(SQL_I_List &&that)
+      : elements(that.elements),
+        first(that.first),
+        next((elements != 0) ? that.next : &first) {
+    that.clear();
+  }
 
   inline void clear() {
     elements = 0;
@@ -78,10 +84,7 @@ class SQL_I_List {
     *next = nullptr;
   }
 
-  inline void save_and_clear(SQL_I_List<T> *save) {
-    *save = *this;
-    clear();
-  }
+  inline void save_and_clear(SQL_I_List<T> *save) { *save = std::move(*this); }
 
   inline void push_front(SQL_I_List<T> *save) {
     /* link current list last */
@@ -128,8 +131,26 @@ class SQL_I_List {
 
   inline uint size() const { return elements; }
 
-  SQL_I_List &operator=(SQL_I_List &) = default;
-  SQL_I_List &operator=(SQL_I_List &&) = default;
+  SQL_I_List &operator=(SQL_I_List &that) {
+    if (this == &that) {
+      return *this;
+    }
+    elements = that.elements;
+    first = that.first;
+    next = (elements != 0) ? that.next : &first;
+    return *this;
+  }
+
+  SQL_I_List &operator=(SQL_I_List &&that) {
+    if (this == &that) {
+      return *this;
+    }
+    elements = that.elements;
+    first = that.first;
+    next = (elements != 0) ? that.next : &first;
+    that.clear();
+    return *this;
+  }
 };
 
 /*

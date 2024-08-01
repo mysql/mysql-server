@@ -25,13 +25,14 @@
   This is a simple example of how to use the google unit test framework.
 
   For an introduction to the constructs used below, see:
-  http://code.google.com/p/googletest/wiki/GoogleTestPrimer
+  https://google.github.io/googletest/primer.html
 */
 
 #include <gtest/gtest.h>
 #include <stddef.h>
 
 #include <memory>
+#include <utility>
 
 #include "my_inttypes.h"
 #include "my_thread.h"
@@ -279,6 +280,61 @@ TEST_F(SqlListTest, Swap) {
   for (int i = 0; i < 10; i++) {
     EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 9 : (i == 9 ? 0 : i)));
   }
+}
+
+struct Element {
+  int value;
+  Element *next;
+};
+
+TEST(Sql_I_ListTest, Assignment) {
+  Element el1{0, nullptr};
+  Element el2{42, nullptr};
+  SQL_I_List<Element> x;
+  SQL_I_List<Element> y;
+  y = x;
+  EXPECT_EQ(&y.first, y.next);
+  y.link_in_list(&el1, &el1.next);
+  y.link_in_list(&el2, &el2.next);
+  EXPECT_EQ(2, y.elements);
+  x = y;
+  EXPECT_EQ(2, x.elements);
+  EXPECT_EQ(2, y.elements);
+  EXPECT_EQ(0, x.first->value);
+  EXPECT_EQ(42, x.first->next->value);
+
+  SQL_I_List<Element> z;
+  z = std::move(y);
+  EXPECT_EQ(2, z.elements);
+  EXPECT_EQ(0, y.elements);
+  EXPECT_EQ(&y.first, y.next);
+}
+
+TEST(Sql_I_ListTest, Construction) {
+  Element el1{0, nullptr};
+  Element el2{42, nullptr};
+  SQL_I_List<Element> x;
+  x.link_in_list(&el1, &el1.next);
+  x.link_in_list(&el2, &el2.next);
+  SQL_I_List<Element> y(x);
+  EXPECT_EQ(2, x.elements);
+  EXPECT_EQ(2, y.elements);
+  SQL_I_List<Element> z(std::move(y));
+  EXPECT_EQ(2, z.elements);
+  EXPECT_EQ(0, y.elements);
+  EXPECT_EQ(&y.first, y.next);
+}
+
+TEST(Sql_I_ListTest, SaveAndClear) {
+  Element el1{0, nullptr};
+  Element el2{42, nullptr};
+  SQL_I_List<Element> x;
+  x.link_in_list(&el1, &el1.next);
+  x.link_in_list(&el2, &el2.next);
+  SQL_I_List<Element> y;
+  x.save_and_clear(&y);
+  EXPECT_EQ(2, y.elements);
+  EXPECT_EQ(0, x.elements);
 }
 
 }  // namespace sql_list_unittest
