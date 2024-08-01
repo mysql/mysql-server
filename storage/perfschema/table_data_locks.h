@@ -134,6 +134,7 @@ class table_data_locks : public PFS_engine_table {
   PFS_data_lock_container m_container;
   PSI_engine_data_lock_iterator *m_iterator[COUNT_DATA_LOCK_ENGINES];
 
+  PFS_pk_data_locks *m_opened_pk;
   PFS_index_data_locks *m_opened_index;
 };
 

@@ -227,8 +227,14 @@
 
    - WL#15059: PERFORMANCE_SCHEMA, OTEL TRACE INTERFACE
      New column TELEMETRY_ACTIVE added to performance_schema.threads
+
+  80040:
+
+   - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
+     SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
+     - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 */
 
-static const uint PFS_DD_VERSION = 80033;
+static const uint PFS_DD_VERSION = 80040;
 
 #endif /* PFS_DD_VERSION_H */

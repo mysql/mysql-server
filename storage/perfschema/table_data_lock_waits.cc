@@ -62,6 +62,8 @@ Plugin_table table_data_lock_waits::m_table_def(
     "  BLOCKING_THREAD_ID BIGINT unsigned,\n"
     "  BLOCKING_EVENT_ID BIGINT unsigned,\n"
     "  BLOCKING_OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (REQUESTING_ENGINE_LOCK_ID, BLOCKING_ENGINE_LOCK_ID, "
+    "ENGINE) USING HASH,\n"
     "  KEY (REQUESTING_ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
     "  KEY (BLOCKING_ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
     "  KEY (REQUESTING_ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
@@ -100,9 +102,8 @@ ha_rows table_data_lock_waits::get_row_count() {
 table_data_lock_waits::table_data_lock_waits()
     : PFS_engine_table(&m_share, &m_pk_pos),
       m_row(nullptr),
-      m_pos(),
-      m_next_pos(),
-      m_pk_pos() {
+      m_opened_pk(nullptr),
+      m_opened_index(nullptr) {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
     m_iterator[i] = nullptr;
   }
@@ -230,40 +231,95 @@ int table_data_lock_waits::rnd_pos(const void *pos) {
 }
 
 int table_data_lock_waits::index_init(uint idx, bool) {
-  PFS_index_data_lock_waits *result = nullptr;
+  PFS_pk_data_lock_waits *pk = nullptr;
+  PFS_index_data_lock_waits *index = nullptr;
 
   switch (idx) {
     case 0:
-      result = PFS_NEW(PFS_index_data_lock_waits_by_requesting_lock_id);
+      pk = PFS_NEW(PFS_pk_data_lock_waits);
+      index = pk;
       break;
     case 1:
-      result = PFS_NEW(PFS_index_data_lock_waits_by_blocking_lock_id);
+      index = PFS_NEW(PFS_index_data_lock_waits_by_requesting_lock_id);
       break;
     case 2:
-      result = PFS_NEW(PFS_index_data_lock_waits_by_requesting_transaction_id);
+      index = PFS_NEW(PFS_index_data_lock_waits_by_blocking_lock_id);
       break;
     case 3:
-      result = PFS_NEW(PFS_index_data_lock_waits_by_blocking_transaction_id);
+      index = PFS_NEW(PFS_index_data_lock_waits_by_requesting_transaction_id);
       break;
     case 4:
-      result = PFS_NEW(PFS_index_data_lock_waits_by_requesting_thread_id);
+      index = PFS_NEW(PFS_index_data_lock_waits_by_blocking_transaction_id);
       break;
     case 5:
-      result = PFS_NEW(PFS_index_data_lock_waits_by_blocking_thread_id);
+      index = PFS_NEW(PFS_index_data_lock_waits_by_requesting_thread_id);
+      break;
+    case 6:
+      index = PFS_NEW(PFS_index_data_lock_waits_by_blocking_thread_id);
       break;
     default:
       assert(false);
       break;
   }
 
-  m_opened_index = result;
-  m_index = result;
+  m_opened_pk = pk;
+  m_opened_index = index;
+  m_index = index;
 
   m_container.set_filter(m_opened_index);
   return 0;
 }
 
-int table_data_lock_waits::index_next() { return rnd_next(); }
+int table_data_lock_waits::index_next() {
+  int status;
+
+  if (m_opened_pk != nullptr) {
+    pk_pos_data_lock_wait *position = m_opened_pk->get_pk();
+    /*
+     * In the ideal case when:
+     * - the opened index is the PRIMARY KEY
+     * - the keypart field REQUESTING_ENGINE_LOCK_ID is provided
+     * - the keypart field BLOCKING_ENGINE_LOCK_ID is provided
+     * - the index fetch is an exact match HA_READ_KEY_EXACT
+     * then we can inspect the REQUESTING_ENGINE_LOCK_ID
+     * and BLOCKING_ENGINE_LOCK_ID values,
+     * and perform a PSI_engine_data_lock_wait_iterator::fetch()
+     * in the underlying storage engine.
+     *
+     * Evaluating the condition in the third part
+     * of the primary key, ENGINE, will be done as
+     * an index condition pushdown when adding rows
+     * to the container, filtered by
+     * PFS_pk_data_lock_waits::match_engine().
+     */
+    if (position != nullptr) {
+      if (m_opened_pk->m_key_fetch_count == 0) {
+        status = rnd_pos(position);
+        if (status != 0) {
+          status = HA_ERR_KEY_NOT_FOUND;
+        }
+      } else {
+        status = HA_ERR_KEY_NOT_FOUND;
+      }
+
+      m_opened_pk->m_key_fetch_count++;
+      return status;
+    }
+  }
+
+  /*
+   * For every other cases:
+   * - index is the PRIMARY KEY, but both fields
+   *   REQUESTING_ENGINE_LOCK_ID and BLOCKING_ENGINE_LOCK_ID are not available
+   *   (for example, only REQUESTING_ENGINE_LOCK_ID is provided)
+   * - index is not the PRIMARY KEY
+   * we execute a scan, with filtering done as an index condition pushdown,
+   * attached to the data container.
+   */
+  status = rnd_next();
+
+  return status;
+}
 
 int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
                                            Field **fields, bool read_all) {

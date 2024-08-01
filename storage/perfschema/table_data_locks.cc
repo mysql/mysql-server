@@ -103,9 +103,8 @@ ha_rows table_data_locks::get_row_count() {
 table_data_locks::table_data_locks()
     : PFS_engine_table(&m_share, &m_pk_pos),
       m_row(nullptr),
-      m_pos(),
-      m_next_pos(),
-      m_pk_pos() {
+      m_opened_pk(nullptr),
+      m_opened_index(nullptr) {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
     m_iterator[i] = nullptr;
   }
@@ -222,6 +221,7 @@ int table_data_locks::rnd_pos(const void *pos) {
   PSI_engine_data_lock_iterator *it = m_iterator[index];
 
   m_container.clear();
+
   /*
     TODO: avoid requesting column LOCK_DATA if not used.
   */
@@ -236,34 +236,83 @@ int table_data_locks::rnd_pos(const void *pos) {
 }
 
 int table_data_locks::index_init(uint idx, bool) {
-  PFS_index_data_locks *result = nullptr;
+  PFS_pk_data_locks *pk = nullptr;
+  PFS_index_data_locks *index = nullptr;
 
   switch (idx) {
     case 0:
-      result = PFS_NEW(PFS_index_data_locks_by_lock_id);
+      pk = PFS_NEW(PFS_pk_data_locks);
+      index = pk;
       break;
     case 1:
-      result = PFS_NEW(PFS_index_data_locks_by_transaction_id);
+      index = PFS_NEW(PFS_index_data_locks_by_transaction_id);
       break;
     case 2:
-      result = PFS_NEW(PFS_index_data_locks_by_thread_id);
+      index = PFS_NEW(PFS_index_data_locks_by_thread_id);
       break;
     case 3:
-      result = PFS_NEW(PFS_index_data_locks_by_object);
+      index = PFS_NEW(PFS_index_data_locks_by_object);
       break;
     default:
       assert(false);
       break;
   }
 
-  m_opened_index = result;
-  m_index = result;
+  m_opened_pk = pk;
+  m_opened_index = index;
+  m_index = index;
 
   m_container.set_filter(m_opened_index);
   return 0;
 }
 
-int table_data_locks::index_next() { return rnd_next(); }
+int table_data_locks::index_next() {
+  int status;
+
+  if (m_opened_pk != nullptr) {
+    pk_pos_data_lock *position = m_opened_pk->get_pk();
+    /*
+     * In the ideal case when:
+     * - the opened index is the PRIMARY KEY
+     * - the keypart field ENGINE_LOCK_ID is provided
+     * - the index fetch is an exact match HA_READ_KEY_EXACT
+     * then we can inspect the ENGINE_LOCK_ID value,
+     * and perform a PSI_engine_data_lock_iterator::fetch()
+     * in the underlying storage engine.
+     *
+     * Evaluating the condition in the second part
+     * of the primary key, ENGINE, will be done as
+     * an index condition pushdown when adding rows
+     * to the container, filtered by
+     * PFS_pk_data_locks::match_engine().
+     */
+    if (position != nullptr) {
+      if (m_opened_pk->m_key_fetch_count == 0) {
+        status = rnd_pos(position);
+        if (status != 0) {
+          status = HA_ERR_KEY_NOT_FOUND;
+        }
+      } else {
+        status = HA_ERR_KEY_NOT_FOUND;
+      }
+
+      m_opened_pk->m_key_fetch_count++;
+      return status;
+    }
+  }
+
+  /*
+   * For every other cases:
+   * - index is the PRIMARY KEY, but ENGINE_LOCK_ID is not available
+   *   (not possible in practice, the HASH index will not be used then)
+   * - index is not the PRIMARY KEY
+   * we execute a scan, with filtering done as an index condition pushdown,
+   * attached to the data container.
+   */
+  status = rnd_next();
+
+  return status;
+}
 
 int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
                                       Field **fields, bool read_all) {

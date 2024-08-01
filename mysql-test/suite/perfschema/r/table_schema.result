@@ -38,13 +38,13 @@ def	performance_schema	data_locks	LOCK_TYPE	12	NULL	NO	varchar	32	128	NULL	NULL	
 def	performance_schema	data_locks	LOCK_MODE	13	NULL	NO	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
 def	performance_schema	data_locks	LOCK_STATUS	14	NULL	NO	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
 def	performance_schema	data_locks	LOCK_DATA	15	NULL	YES	varchar	8192	32768	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(8192)			select,insert,update,references			NULL
-def	performance_schema	data_lock_waits	ENGINE	1	NULL	NO	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	data_lock_waits	REQUESTING_ENGINE_LOCK_ID	2	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)	MUL		select,insert,update,references			NULL
+def	performance_schema	data_lock_waits	ENGINE	1	NULL	NO	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)	PRI		select,insert,update,references			NULL
+def	performance_schema	data_lock_waits	REQUESTING_ENGINE_LOCK_ID	2	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)	PRI		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	REQUESTING_ENGINE_TRANSACTION_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	REQUESTING_THREAD_ID	4	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	REQUESTING_EVENT_ID	5	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	REQUESTING_OBJECT_INSTANCE_BEGIN	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
-def	performance_schema	data_lock_waits	BLOCKING_ENGINE_LOCK_ID	7	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)	MUL		select,insert,update,references			NULL
+def	performance_schema	data_lock_waits	BLOCKING_ENGINE_LOCK_ID	7	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)	PRI		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	BLOCKING_ENGINE_TRANSACTION_ID	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	BLOCKING_THREAD_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	data_lock_waits	BLOCKING_EVENT_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
