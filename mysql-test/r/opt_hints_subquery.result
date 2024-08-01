@@ -2124,6 +2124,7 @@ EXPLAIN
         -> Single-row covering index lookup on t1 using PRIMARY (a = <cache>(t2.a))  (rows=1)
 
 Force Subquery Materialization
+Hypergraph does not support materializing subqueries in projection
 EXPLAIN
 SELECT a, a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1) FROM t2;
 EXPLAIN

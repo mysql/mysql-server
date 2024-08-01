@@ -365,6 +365,24 @@ bool ShouldEnableBatchMode(AccessPath *path) {
   }
 }
 
+// Check if a subquery present in a condition has forced materialization.
+bool IsForcedMaterialization(THD *thd, Item *cond) {
+  bool force_materialization = false;
+  WalkItem(cond, enum_walk::POSTFIX | enum_walk::SUBQUERY,
+           [&force_materialization, thd](Item *item) {
+             if (item->type() == Item::SUBQUERY_ITEM) {
+               Item_subselect *item_subs = down_cast<Item_subselect *>(item);
+               Query_block *qb = item_subs->query_expr()->first_query_block();
+               force_materialization =
+                   (qb->subquery_strategy(thd) ==
+                    Subquery_strategy::SUBQ_MATERIALIZATION);
+               if (force_materialization) return true;
+             }
+             return false;
+           });
+  return force_materialization;
+}
+
 /**
   If the path is a FILTER path marked that subqueries are to be materialized,
   do so. If not, do nothing.
@@ -378,11 +396,13 @@ bool ShouldEnableBatchMode(AccessPath *path) {
  */
 bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
   if (path->type != AccessPath::FILTER ||
-      !path->filter().materialize_subqueries) {
+      !(path->filter().materialize_subqueries ||
+        IsForcedMaterialization(thd, path->filter().condition))) {
     return false;
   }
   return WalkItem(
-      path->filter().condition, enum_walk::POSTFIX, [thd, join](Item *item) {
+      path->filter().condition, enum_walk::POSTFIX | enum_walk::SUBQUERY,
+      [thd, join](Item *item) {
         if (!is_quantified_comp_predicate(item)) {
           return false;
         }
@@ -392,6 +412,10 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
           return false;
         }
         Query_block *qb = item_subs->query_expr()->first_query_block();
+        // If IN-TO-EXISTS is forced, don't materialize.
+        if (qb->subquery_strategy(thd) == Subquery_strategy::SUBQ_EXISTS) {
+          return false;
+        }
         if (!item_subs->subquery_allows_materialization(thd, qb,
                                                         join->query_block)) {
           return false;

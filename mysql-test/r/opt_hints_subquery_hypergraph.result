@@ -2115,11 +2115,14 @@ EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
 EXPLAIN
--> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
     -> Table scan on t2  (rows=4)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
-            -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
 
 Query with two subqueries
 EXPLAIN
@@ -2128,14 +2131,17 @@ FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx)
 AND t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty);
 EXPLAIN
--> Filter: (<in_optimizer>(t3.a,<exists>(select #2)) and <in_optimizer>(t3.b,<exists>(select #3)))  (rows=3)
+-> Filter: (<in_optimizer>(t3.a,<exists>(select #2)) and <in_optimizer>(t3.b,t3.b in (select #3)))  (rows=3)
     -> Table scan on t3  (rows=3)
     -> Select #2 (subquery in condition; dependent)
         -> Filter: (<cache>(t3.a) = tx.a)  (rows=1)
             -> Table scan on tx  (rows=4)
-    -> Select #3 (subquery in condition; dependent)
-        -> Filter: (<cache>(t3.b) = ty.a)  (rows=1)
-            -> Table scan on ty  (rows=4)
+    -> Select #3 (subquery in condition; run only once)
+        -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on ty  (rows=4)
 
 Query with nested sub-queries
 EXPLAIN
@@ -2147,11 +2153,14 @@ EXPLAIN
 -> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (rows=3)
     -> Table scan on t3  (rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Filter: ((<cache>(t3.a) = tx.a) and <in_optimizer>(tx.b,<exists>(select #3)))  (rows=1)
+        -> Filter: ((<cache>(t3.a) = tx.a) and <in_optimizer>(tx.b,tx.b in (select #3)))  (rows=1)
             -> Table scan on tx  (rows=4)
-            -> Select #3 (subquery in condition; dependent)
-                -> Filter: (<cache>(tx.b) = ty.a)  (rows=1)
-                    -> Table scan on ty  (rows=4)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((tx.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = tx.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on ty  (rows=4)
 
 EXPLAIN
 SELECT /*+ SUBQUERY(@subq1 MATERIALIZATION) SUBQUERY(@subq2 INTOEXISTS) */ *
@@ -2159,14 +2168,18 @@ FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
 WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
 EXPLAIN
--> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (rows=3)
+-> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (rows=3)
     -> Table scan on t3  (rows=3)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: ((<cache>(t3.a) = tx.a) and <in_optimizer>(tx.b,<exists>(select #3)))  (rows=1)
-            -> Table scan on tx  (rows=4)
-            -> Select #3 (subquery in condition; dependent)
-                -> Filter: (<cache>(tx.b) = ty.a)  (rows=1)
-                    -> Table scan on ty  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t3.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Filter: <in_optimizer>(tx.b,<exists>(select #3))  (rows=4)
+                            -> Table scan on tx  (rows=4)
+                            -> Select #3 (subquery in condition; dependent)
+                                -> Filter: (<cache>(tx.b) = ty.a)  (rows=1)
+                                    -> Table scan on ty  (rows=4)
 
 This query does not support SEMIJOIN.  Materialization is default
 EXPLAIN
@@ -2207,6 +2220,7 @@ EXPLAIN
         -> Table scan on t1  (rows=4)
 
 Force Subquery Materialization
+Hypergraph does not support materializing subqueries in projection
 EXPLAIN
 SELECT a, a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1) FROM t2;
 EXPLAIN
@@ -2258,22 +2272,28 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2)";
 EXECUTE stmt1;
 EXPLAIN
--> Filter: (<in_optimizer>(t1.a,<exists>(select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
+-> Filter: (<in_optimizer>(t1.a,t1.a in (select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
     -> Table scan on t1  (rows=4)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(t1.a) = t3.a)  (rows=1)
-            -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=3)
+                        -> Table scan on t3  (rows=3)
     -> Select #3 (subquery in condition; dependent)
         -> Filter: (<cache>(t1.b) = t2.a)  (rows=1)
             -> Table scan on t2  (rows=4)
 
 EXECUTE stmt1;
 EXPLAIN
--> Filter: (<in_optimizer>(t1.a,<exists>(select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
+-> Filter: (<in_optimizer>(t1.a,t1.a in (select #2)) and <in_optimizer>(t1.b,<exists>(select #3)))  (rows=4)
     -> Table scan on t1  (rows=4)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(t1.a) = t3.a)  (rows=1)
-            -> Table scan on t3  (rows=3)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
+                    -> Materialize with deduplication  (rows=3)
+                        -> Table scan on t3  (rows=3)
     -> Select #3 (subquery in condition; dependent)
         -> Filter: (<cache>(t1.b) = t2.a)  (rows=1)
             -> Table scan on t2  (rows=4)
@@ -2299,13 +2319,16 @@ EXPLAIN
 SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
 EXPLAIN
--> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
     -> Table scan on t2  (rows=4)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(t2.a) = <ref_null_helper>(min(t1.a)))  (rows=2)
-            -> Group aggregate: min(t1.a)  (rows=2)
-                -> Sort: t1.a  (rows=4)
-                    -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.`min(a)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (min(a) = t2.a)
+                    -> Materialize with deduplication  (rows=2)
+                        -> Group aggregate: min(t1.a)  (rows=2)
+                            -> Sort: t1.a  (rows=4)
+                                -> Table scan on t1  (rows=4)
 
 SET optimizer_switch='materialization=on,subquery_materialization_cost_based=off';
 This query will now use materialization
@@ -2371,11 +2394,14 @@ SELECT * FROM t2
 WHERE t2.a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) SUBQUERY(INTOEXISTS) */ a
 FROM t1);
 EXPLAIN
--> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
     -> Table scan on t2  (rows=4)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
-            -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
 
 Warnings:
 Warning	3126	Hint SUBQUERY(  INTOEXISTS) is ignored as conflicting/duplicated
@@ -2411,11 +2437,14 @@ EXPLAIN
 SELECT /*+ SUBQUERY(@subq INTOEXISTS) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(MATERIALIZATION) */ a FROM t1);
 EXPLAIN
--> Filter: <in_optimizer>(t2.a,<exists>(select #2))  (rows=4)
+-> Filter: <in_optimizer>(t2.a,t2.a in (select #2))  (rows=4)
     -> Table scan on t2  (rows=4)
-    -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(t2.a) = t1.a)  (rows=1)
-            -> Table scan on t1  (rows=4)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t2.a = `<materialized_subquery>`.a))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t2.a)
+                    -> Materialize with deduplication  (rows=4)
+                        -> Table scan on t1  (rows=4)
 
 Warnings:
 Warning	3126	Hint SUBQUERY(@`subq`  INTOEXISTS) is ignored as conflicting/duplicated

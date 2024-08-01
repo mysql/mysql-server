@@ -960,6 +960,7 @@ WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ min(a) FROM t1 group by a);
 EXPLAIN
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
 --echo Force Subquery Materialization
+--echo Hypergraph does not support materializing subqueries in projection
 --replace_regex $elide_costs
 EXPLAIN
 SELECT a, a IN (SELECT /*+ SUBQUERY(MATERIALIZATION) */ a FROM t1) FROM t2;
@@ -1082,9 +1083,6 @@ WHERE t2.a IN (SELECT /*+ QB_NAME(subq) NO_SEMIJOIN() */ a FROM t1);
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(@subq INTOEXISTS) */ a FROM t1);
-
-
-
 
 drop table t1, t2, t3;
 
