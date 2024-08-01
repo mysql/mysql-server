@@ -99,7 +99,7 @@ class ServerConnection : public http::base::Connection<Socket> {
 
     if (!(*Parent::allowed_method_)[method_pos]) {
       ServerRequest(this, session_id, (base::method::key_type)(1 << method_pos),
-                    path, std::move(input_headers))
+                    "", std::move(input_headers))
           .send_error(base::status_code::NotImplemented);
       return 1;
     }
