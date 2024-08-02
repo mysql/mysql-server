@@ -125,16 +125,14 @@ void QueryRestSP::columns_set(unsigned number, MYSQL_FIELD *fields) {
   impl_columns_set(columns_, number, fields);
 }
 
-std::shared_ptr<JsonTemplate> QueryRestSP::create_template(
-    const bool unnested) {
+std::shared_ptr<JsonTemplate> QueryRestSP::create_template() {
   mrs::json::JsonTemplateFactory default_factory;
   mrs::database::JsonTemplateFactory *factory = &default_factory;
   using JsonTemplateType = mrs::database::JsonTemplateType;
 
   if (factory_) factory = factory_;
 
-  return factory->create_template(unnested ? JsonTemplateType::kObjectUnnested
-                                           : JsonTemplateType::kObjectNested);
+  return factory->create_template(JsonTemplateType::kObjectNested);
 }
 
 const char *QueryRestSP::get_sql_state() {
@@ -146,7 +144,7 @@ void QueryRestSP::query_entries(
     MySQLSession *session, const std::string &schema, const std::string &object,
     const std::string &url, const std::string &ignore_column,
     const mysqlrouter::sqlstring &values, std::vector<enum_field_types> pt,
-    const ResultSets &rs, const bool always_nest_result_sets) {
+    const ResultSets &rs) {
   rs_ = &rs;
   items_started_ = false;
   items = 0;
@@ -165,10 +163,7 @@ void QueryRestSP::query_entries(
     no_out_params = false;
     break;
   }
-  use_single_resultset_ =
-      !always_nest_result_sets && rs.results.size() == 1 && no_out_params;
-
-  response_template_ = create_template(use_single_resultset_);
+  response_template_ = create_template();
   response_template_->begin();
 
   prepare_and_execute(session, query_, pt);

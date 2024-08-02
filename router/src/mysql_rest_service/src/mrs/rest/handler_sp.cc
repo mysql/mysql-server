@@ -106,8 +106,8 @@ static CachedObject get_session(::mysqlrouter::MySQLSession *,
                                      false);
 }
 
-HttpResult HandlerSP::handle_delete([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerSP::handle_delete(
+    [[maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
@@ -358,8 +358,7 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
       db.query_entries(session.get(), route_->get_schema_name(),
                        route_->get_object_name(), route_->get_rest_url(),
                        route_->get_user_row_ownership().user_ownership_column,
-                       result.c_str(), variables, p,
-                       get_options().result.stored_procedure_nest_resultsets);
+                       result.c_str(), variables, p);
 
       Counter<kEntityCounterRestReturnedItems>::increment(db.items);
       Counter<kEntityCounterRestAffectedItems>::increment(

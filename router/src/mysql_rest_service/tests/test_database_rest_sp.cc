@@ -95,7 +95,6 @@ MATCHER_P2(MatchFields, fields, s, "") {
 
 TEST_F(QueryRestSpTests, procedure_returns_nothing) {
   mrs::database::entry::ResultSets rs;
-  const bool k_always_nest_result_sets = true;
 
   EXPECT_CALL(json_template_.mock_nested_, begin());
   EXPECT_CALL(json_template_.mock_nested_, finish());
@@ -103,14 +102,12 @@ TEST_F(QueryRestSpTests, procedure_returns_nothing) {
 
   EXPECT_CALL(mock_session_, prepare_execute(1, _, _, _)).WillOnce(Invoke([]() {
   }));
-  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs,
-                      k_always_nest_result_sets);
+  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs);
 }
 
 TEST_F(QueryRestSpTests, procedure_has_one_empty_resultset_unknow_fields) {
   mrs::database::entry::ResultSets rs;
   const std::string kUnknowResultset0 = "items0";
-  const bool k_always_nest_result_sets = true;
   MYSQL_FIELD fields[2] = {create_field("f1", MYSQL_TYPE_LONG),
                            create_field("f2", MYSQL_TYPE_VARCHAR)};
 
@@ -124,8 +121,7 @@ TEST_F(QueryRestSpTests, procedure_has_one_empty_resultset_unknow_fields) {
   EXPECT_CALL(mock_session_, prepare_execute(1, _, _, _))
       .WillOnce(Invoke(
           [this, &fields]() { sut_->on_metadata(std::size(fields), fields); }));
-  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs,
-                      k_always_nest_result_sets);
+  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs);
 }
 
 TEST_F(QueryRestSpTests,
@@ -137,7 +133,6 @@ TEST_F(QueryRestSpTests,
         k_resultset_name,
         {}}}};
   const std::string kUnknowResultset0 = "items0";
-  const bool k_always_nest_result_sets = true;
   MYSQL_FIELD fields[2] = {create_field("f1", MYSQL_TYPE_LONG),
                            create_field("f2", MYSQL_TYPE_VARCHAR)};
   MYSQL_FIELD fields_reported_to_serializer[2] = {
@@ -156,8 +151,7 @@ TEST_F(QueryRestSpTests,
   EXPECT_CALL(mock_session_, prepare_execute(1, _, _, _))
       .WillOnce(Invoke(
           [this, &fields]() { sut_->on_metadata(std::size(fields), fields); }));
-  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs,
-                      k_always_nest_result_sets);
+  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs);
 }
 
 TEST_F(QueryRestSpTests,
@@ -169,7 +163,6 @@ TEST_F(QueryRestSpTests,
         k_resultset_name,
         {}}}};
   const std::string kUnknowResultset0 = "items0";
-  const bool k_always_nest_result_sets = true;
   MYSQL_FIELD fields[2] = {create_field("f1", MYSQL_TYPE_LONG),
                            create_field("f2", MYSQL_TYPE_VARCHAR)};
   MYSQL_FIELD fields_reported_to_serializer[2] = {
@@ -188,6 +181,5 @@ TEST_F(QueryRestSpTests,
   EXPECT_CALL(mock_session_, prepare_execute(1, _, _, _))
       .WillOnce(Invoke(
           [this, &fields]() { sut_->on_metadata(std::size(fields), fields); }));
-  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs,
-                      k_always_nest_result_sets);
+  sut_->query_entries(&mock_session_, kSchema, kObject, kUrl, {}, {}, {}, rs);
 }

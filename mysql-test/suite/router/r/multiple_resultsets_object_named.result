@@ -31,188 +31,193 @@ PUT /svc/proc/one (payload-size:2)
 {
     "items": [
         {
-            "my_id": 1,
-            "my_name": "First row",
-            "my_comments": "First comment",
-            "my_date": "1977-01-21 00:00:00"
-        },
-        {
-            "my_id": 2,
-            "my_name": "Second row",
-            "my_comments": null,
-            "my_date": "1977-01-21 00:00:00"
-        },
-        {
-            "my_id": 3,
-            "my_name": "Thrid row",
-            "my_comments": null,
-            "my_date": "1977-02-21 00:00:00"
-        },
-        {
-            "my_id": 4,
-            "my_name": "4th row",
-            "my_comments": "This row was inserted as forth row.",
-            "my_date": "1977-01-21 00:00:00"
-        },
-        {
-            "my_id": 5,
-            "my_name": "5th row",
-            "my_comments": "",
-            "my_date": "2021-03-01 00:00:00"
-        },
-        {
-            "my_id": 6,
-            "my_name": "6th row",
-            "my_comments": "",
-            "my_date": "2023-01-21 00:00:00"
-        },
-        {
-            "my_id": 7,
-            "my_name": "7th row",
-            "my_comments": "Not empty string",
-            "my_date": "2023-02-21 00:00:00"
-        },
-        {
-            "my_id": 8,
-            "my_name": "8th row",
-            "my_comments": "Next entry",
-            "my_date": "2023-03-21 00:00:00"
-        },
-        {
-            "my_id": 9,
-            "my_name": "9th row",
-            "my_comments": "",
-            "my_date": "2023-04-21 00:00:00"
-        },
-        {
-            "my_id": 10,
-            "my_name": "10th row",
-            "my_comments": "...",
-            "my_date": "2023-05-21 00:00:00"
-        },
-        {
-            "my_id": 11,
-            "my_name": "11th row",
-            "my_comments": "...",
-            "my_date": "2023-06-21 00:00:00"
-        },
-        {
-            "my_id": 12,
-            "my_name": "12th row",
-            "my_comments": "...",
-            "my_date": "2023-07-21 00:00:00"
-        },
-        {
-            "my_id": 13,
-            "my_name": "13th row",
-            "my_comments": "...",
-            "my_date": "2023-08-21 00:00:00"
-        },
-        {
-            "my_id": 14,
-            "my_name": "14th row",
-            "my_comments": "this is fourteenth row",
-            "my_date": "2023-09-21 00:00:00"
-        },
-        {
-            "my_id": 15,
-            "my_name": "15th row",
-            "my_comments": "...",
-            "my_date": "2023-10-21 00:00:00"
-        },
-        {
-            "my_id": 16,
-            "my_name": "16th row",
-            "my_comments": "New entry in this month",
-            "my_date": "2023-11-02 00:00:00"
-        },
-        {
-            "my_id": 17,
-            "my_name": "17th row",
-            "my_comments": "Second in this month",
-            "my_date": "2023-11-04 00:00:00"
-        },
-        {
-            "my_id": 18,
-            "my_name": "18th row",
-            "my_comments": "Next one",
-            "my_date": "2023-11-05 00:00:00"
-        },
-        {
-            "my_id": 19,
-            "my_name": "19th row",
-            "my_comments": "...",
-            "my_date": "2023-11-06 00:00:00"
-        },
-        {
-            "my_id": 20,
-            "my_name": "20th row",
-            "my_comments": "...",
-            "my_date": "2023-11-07 00:00:00"
-        },
-        {
-            "my_id": 21,
-            "my_name": "21th row",
-            "my_comments": "New customer",
-            "my_date": "2023-11-08 00:00:00"
-        },
-        {
-            "my_id": 22,
-            "my_name": "22th row",
-            "my_comments": "...",
-            "my_date": "2023-11-09 00:00:00"
-        },
-        {
-            "my_id": 23,
-            "my_name": "23th row",
-            "my_comments": "...",
-            "my_date": "2023-11-10 00:00:00"
-        },
-        {
-            "my_id": 24,
-            "my_name": "24th row",
-            "my_comments": "...",
-            "my_date": "2023-11-11 00:00:00"
-        },
-        {
-            "my_id": 25,
-            "my_name": "25th row",
-            "my_comments": "...",
-            "my_date": "2023-11-12 00:00:00"
-        },
-        {
-            "my_id": 26,
-            "my_name": "26th row",
-            "my_comments": "...",
-            "my_date": "2023-11-12 00:00:00"
-        },
-        {
-            "my_id": 27,
-            "my_name": "27th row",
-            "my_comments": "...",
-            "my_date": "2023-11-12 00:00:00"
-        }
-    ],
-    "_metadata": {
-        "columns": [
-            {
-                "name": "my_id",
-                "type": " INTEGER"
-            },
-            {
-                "name": "my_name",
-                "type": "VARCHAR(255)"
-            },
-            {
-                "name": "my_comments",
-                "type": "VARCHAR(512)"
-            },
-            {
-                "name": "my_date",
-                "type": "DATETIME"
+            "type": "basicObject",
+            "items": [
+                {
+                    "my_id": 1,
+                    "my_name": "First row",
+                    "my_comments": "First comment",
+                    "my_date": "1977-01-21 00:00:00"
+                },
+                {
+                    "my_id": 2,
+                    "my_name": "Second row",
+                    "my_comments": null,
+                    "my_date": "1977-01-21 00:00:00"
+                },
+                {
+                    "my_id": 3,
+                    "my_name": "Thrid row",
+                    "my_comments": null,
+                    "my_date": "1977-02-21 00:00:00"
+                },
+                {
+                    "my_id": 4,
+                    "my_name": "4th row",
+                    "my_comments": "This row was inserted as forth row.",
+                    "my_date": "1977-01-21 00:00:00"
+                },
+                {
+                    "my_id": 5,
+                    "my_name": "5th row",
+                    "my_comments": "",
+                    "my_date": "2021-03-01 00:00:00"
+                },
+                {
+                    "my_id": 6,
+                    "my_name": "6th row",
+                    "my_comments": "",
+                    "my_date": "2023-01-21 00:00:00"
+                },
+                {
+                    "my_id": 7,
+                    "my_name": "7th row",
+                    "my_comments": "Not empty string",
+                    "my_date": "2023-02-21 00:00:00"
+                },
+                {
+                    "my_id": 8,
+                    "my_name": "8th row",
+                    "my_comments": "Next entry",
+                    "my_date": "2023-03-21 00:00:00"
+                },
+                {
+                    "my_id": 9,
+                    "my_name": "9th row",
+                    "my_comments": "",
+                    "my_date": "2023-04-21 00:00:00"
+                },
+                {
+                    "my_id": 10,
+                    "my_name": "10th row",
+                    "my_comments": "...",
+                    "my_date": "2023-05-21 00:00:00"
+                },
+                {
+                    "my_id": 11,
+                    "my_name": "11th row",
+                    "my_comments": "...",
+                    "my_date": "2023-06-21 00:00:00"
+                },
+                {
+                    "my_id": 12,
+                    "my_name": "12th row",
+                    "my_comments": "...",
+                    "my_date": "2023-07-21 00:00:00"
+                },
+                {
+                    "my_id": 13,
+                    "my_name": "13th row",
+                    "my_comments": "...",
+                    "my_date": "2023-08-21 00:00:00"
+                },
+                {
+                    "my_id": 14,
+                    "my_name": "14th row",
+                    "my_comments": "this is fourteenth row",
+                    "my_date": "2023-09-21 00:00:00"
+                },
+                {
+                    "my_id": 15,
+                    "my_name": "15th row",
+                    "my_comments": "...",
+                    "my_date": "2023-10-21 00:00:00"
+                },
+                {
+                    "my_id": 16,
+                    "my_name": "16th row",
+                    "my_comments": "New entry in this month",
+                    "my_date": "2023-11-02 00:00:00"
+                },
+                {
+                    "my_id": 17,
+                    "my_name": "17th row",
+                    "my_comments": "Second in this month",
+                    "my_date": "2023-11-04 00:00:00"
+                },
+                {
+                    "my_id": 18,
+                    "my_name": "18th row",
+                    "my_comments": "Next one",
+                    "my_date": "2023-11-05 00:00:00"
+                },
+                {
+                    "my_id": 19,
+                    "my_name": "19th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-06 00:00:00"
+                },
+                {
+                    "my_id": 20,
+                    "my_name": "20th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-07 00:00:00"
+                },
+                {
+                    "my_id": 21,
+                    "my_name": "21th row",
+                    "my_comments": "New customer",
+                    "my_date": "2023-11-08 00:00:00"
+                },
+                {
+                    "my_id": 22,
+                    "my_name": "22th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-09 00:00:00"
+                },
+                {
+                    "my_id": 23,
+                    "my_name": "23th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-10 00:00:00"
+                },
+                {
+                    "my_id": 24,
+                    "my_name": "24th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-11 00:00:00"
+                },
+                {
+                    "my_id": 25,
+                    "my_name": "25th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-12 00:00:00"
+                },
+                {
+                    "my_id": 26,
+                    "my_name": "26th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-12 00:00:00"
+                },
+                {
+                    "my_id": 27,
+                    "my_name": "27th row",
+                    "my_comments": "...",
+                    "my_date": "2023-11-12 00:00:00"
+                }
+            ],
+            "_metadata": {
+                "columns": [
+                    {
+                        "name": "my_id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "my_name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "my_comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "my_date",
+                        "type": "DATETIME"
+                    }
+                ]
             }
-        ]
-    }
+        }
+    ]
 }
 OK
 

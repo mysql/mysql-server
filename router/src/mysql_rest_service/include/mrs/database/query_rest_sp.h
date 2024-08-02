@@ -51,15 +51,14 @@ class QueryRestSP : private QueryLog {
                              const std::string &ignore_column,
                              const mysqlrouter::sqlstring &values = {},
                              std::vector<enum_field_types> pt = {},
-                             const ResultSets &rs = {},
-                             const bool always_nest_result_sets = false);
+                             const ResultSets &rs = {});
 
   const char *get_sql_state();
   std::string response;
   uint64_t items;
 
  protected:
-  std::shared_ptr<JsonTemplate> create_template(const bool is_nested);
+  std::shared_ptr<JsonTemplate> create_template();
 
   bool items_started_;
   bool has_out_params_;
@@ -71,7 +70,6 @@ class QueryRestSP : private QueryLog {
   const char *ignore_column_{nullptr};
   std::string url_;
   const ResultSets *rs_;
-  bool use_single_resultset_;
   uint32_t resultset_{0};
   JsonTemplateFactory *factory_{nullptr};
 

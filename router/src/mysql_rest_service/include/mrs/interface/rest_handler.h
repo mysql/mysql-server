@@ -114,7 +114,6 @@ class Options {
   class Result {
    public:
     bool include_links{true};
-    bool stored_procedure_nest_resultsets{false};
   } result;
 };
 

@@ -683,8 +683,6 @@ class ParseOptions
         result_.allowed_origins.allowed_origins.push_back(cvt::to_string(vt));
     } else if (key == "result.include_links") {
       result_.result.include_links = to_bool(vt);
-    } else if (key == "result.stored_procedure_nest_resultsets") {
-      result_.result.stored_procedure_nest_resultsets = to_bool(vt);
     }
   }
 
