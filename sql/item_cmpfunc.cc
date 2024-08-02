@@ -3558,18 +3558,17 @@ bool Item_func_ifnull::time_op(MYSQL_TIME *ltime) {
 
 String *Item_func_ifnull::str_op(String *str) {
   assert(fixed);
-  String *res = args[0]->val_str(str);
+  String *res = eval_string_arg(collation.collation, args[0], str);
   if (current_thd->is_error()) return error_str();
   if (!args[0]->null_value) {
     null_value = false;
-    res->set_charset(collation.collation);
     return res;
   }
-  res = args[1]->val_str(str);
+  res = eval_string_arg(collation.collation, args[1], str);
   if (current_thd->is_error()) return error_str();
 
   if ((null_value = args[1]->null_value)) return nullptr;
-  res->set_charset(collation.collation);
+
   return res;
 }
 

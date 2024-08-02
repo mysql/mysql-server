@@ -435,3 +435,12 @@ WHERE (CASE
       ) <=> c;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36844420: Assertion failed: tmp >= tmp_value.ptr() in
+--echo #               Item_func_reverse::val_str()
+--echo #
+
+SELECT REVERSE(IFNULL(DENSE_RANK() OVER(),
+                      CONVERT('abc' USING utf32))) AS c;
+

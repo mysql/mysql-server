@@ -534,3 +534,11 @@ END
 ) <=> c;
 ERROR 42000: Invalid JSON path expression. The error is around character position 1.
 DROP TABLE t;
+#
+# Bug#36844420: Assertion failed: tmp >= tmp_value.ptr() in
+#               Item_func_reverse::val_str()
+#
+SELECT REVERSE(IFNULL(DENSE_RANK() OVER(),
+CONVERT('abc' USING utf32))) AS c;
+c
+1
