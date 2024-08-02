@@ -137,6 +137,10 @@ insert into test.pfs_published_schema
         "00421db55e31bdc58161e2051c78e6b2040250db74f63afe3e473441d43769b4");
 
 insert into test.pfs_published_schema
+ values("MySQL 8.0.40", 80040,
+        "b56610322b2a64779b7cfe96976cd0b5c6542a098bec88dacb0bb8a1fe7be458");
+
+insert into test.pfs_published_schema
  values("MySQL 8.2.0", 80200,
         "283b7ecc142b0463234dab5ec178f3562dd3fa3c7daa5e3abc67e2a2609226c3");
 

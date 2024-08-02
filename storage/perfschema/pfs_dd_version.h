@@ -228,7 +228,7 @@
    - WL#15059: PERFORMANCE_SCHEMA, OTEL TRACE INTERFACE
      New column TELEMETRY_ACTIVE added to performance_schema.threads
 
-  80403:
+  80040:
 
    - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
@@ -258,6 +258,12 @@
         - GTID 64->90 bytes
       - events_transactions_history_long:
         - GTID 64->90 bytes
+
+  80403:
+
+   - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
+     SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
+     - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 
   90000:
 
