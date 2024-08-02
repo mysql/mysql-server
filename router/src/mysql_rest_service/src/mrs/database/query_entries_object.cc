@@ -162,7 +162,7 @@ QueryEntryObject::UniversalId QueryEntryObject::query_object(
       "  FROM mysql_rest_service_metadata.object"
       "  JOIN mysql_rest_service_metadata.db_object"
       "    ON object.db_object_id = db_object.id"
-      "  WHERE object.db_object_id=?"};
+      "  WHERE object.db_object_id=? ORDER by kind DESC"};
   q << db_object_id;
   auto res = query_one(session, q.str());
 
@@ -440,7 +440,7 @@ QueryEntryObject::UniversalId QueryEntryObject::query_object(
       "  FROM mysql_rest_service_metadata.object"
       "  JOIN mysql_rest_service_metadata.db_object"
       "    ON object.db_object_id = db_object.id"
-      "  WHERE object.db_object_id=?"};
+      "  WHERE object.db_object_id=? ORDER by kind DESC"};
   q << db_object_id;
 
   auto res = query_one(session, q.str());
