@@ -157,12 +157,6 @@ void QueryRestSP::query_entries(
   has_out_params_ = !pt.empty();
   resultset_ = 0;
 
-  bool no_out_params = true;
-  for (auto &f : rs.input_parameters.fields) {
-    if (f.mode == entry::Field::modeIn) continue;
-    no_out_params = false;
-    break;
-  }
   response_template_ = create_template();
   response_template_->begin();
 
