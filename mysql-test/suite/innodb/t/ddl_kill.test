@@ -39,6 +39,10 @@ connection con1;
 --error ER_QUERY_INTERRUPTED
 --reap
 
+--echo # Cleanup. Since ALTER TABLE was killed while waiting on sync point
+--echo # 'interrupt' signal might have been not received and properly cleared.
+SET DEBUG_SYNC='RESET';
+
 connect (con2,localhost,root,,);
 connection con2;
 --echo # con2: Start the DDL
