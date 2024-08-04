@@ -2284,7 +2284,7 @@ of a clustered index entry.
 @retval DB_OUT_OF_FILE_SPACE out of file-space */
 static dberr_t row_ins_index_entry_big_rec_func(
     trx_t *trx, const dtuple_t *entry, const big_rec_t *big_rec, ulint *offsets,
-    mem_heap_t **heap, IF_DEBUG(const THD *thd, ) dict_index_t *index) {
+    mem_heap_t **heap, IF_DEBUG(THD *thd, ) dict_index_t *index) {
   mtr_t mtr;
   btr_pcur_t pcur;
   rec_t *rec;
@@ -2292,7 +2292,7 @@ static dberr_t row_ins_index_entry_big_rec_func(
 
   ut_ad(index->is_clustered());
 
-  DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
+  DEBUG_SYNC(thd, "before_row_ins_extern_latch");
   DEBUG_SYNC_C("before_insertion_of_blob");
 
   mtr_start(&mtr);
@@ -2305,10 +2305,10 @@ static dberr_t row_ins_index_entry_big_rec_func(
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
                             UT_LOCATION_HERE, heap);
 
-  DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
+  DEBUG_SYNC(thd, "before_row_ins_extern");
   error = lob::btr_store_big_rec_extern_fields(
       trx, &pcur, nullptr, offsets, big_rec, &mtr, lob::OPCODE_INSERT);
-  DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
+  DEBUG_SYNC(thd, "after_row_ins_extern");
 
   if (error == DB_SUCCESS && dict_index_is_online_ddl(index)) {
     row_log_table_insert(pcur.get_rec(), entry, index, offsets);
@@ -2321,9 +2321,11 @@ static dberr_t row_ins_index_entry_big_rec_func(
   return (error);
 }
 
-static inline dberr_t row_ins_index_entry_big_rec(
-    trx_t *trx, const dtuple_t *e, const big_rec_t *big, ulint *ofs,
-    mem_heap_t **heap, dict_index_t *index, const THD *thd [[maybe_unused]]) {
+static inline dberr_t row_ins_index_entry_big_rec(trx_t *trx, const dtuple_t *e,
+                                                  const big_rec_t *big,
+                                                  ulint *ofs, mem_heap_t **heap,
+                                                  dict_index_t *index,
+                                                  THD *thd [[maybe_unused]]) {
   return row_ins_index_entry_big_rec_func(trx, e, big, ofs, heap,
                                           IF_DEBUG(thd, ) index);
 }
