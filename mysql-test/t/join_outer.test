@@ -2665,6 +2665,8 @@ INSERT INTO t1 VALUES(1, 10), (2, 20), (3, 30), (4, 40);
 INSERT INTO t2 VALUES(1, 10), (2, 20), (5, 30), (6, 40);
 INSERT INTO t3 VALUES(1, 20), (3, 30), (7, 40), (8, 50);
 
+ANALYZE TABLE t1, t2, t3;
+
 #Inner-joined tables with always false join condition and false WHERE clause
 EXPLAIN
 SELECT t1.f1
