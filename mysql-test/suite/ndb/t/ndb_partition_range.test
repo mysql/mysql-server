@@ -26,7 +26,8 @@ INSERT into t1 values (6, 1, 1);
 INSERT into t1 values (10, 1, 1);
 INSERT into t1 values (15, 1, 1);
 
---replace_column 16 # 19 # 20 #
+# Mask CREATE_TIME column
+--replace_column 20 #
 --sorted_result
 select * from information_schema.partitions where table_name= 't1';
 
