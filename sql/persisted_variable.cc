@@ -519,6 +519,16 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
             plugin_variables.erase(tmp_var);
             plugin_variables.insert(tmp_var);
           }
+          if (system_var->is_sensitive()) {
+            auto it = std::find_if(m_persisted_dynamic_variables.begin(),
+                                   m_persisted_dynamic_variables.end(),
+                                   [name](st_persist_var const &s) {
+                                     return !strcmp(s.key.c_str(), name);
+                                   });
+            if (it != m_persisted_dynamic_variables.end()) {
+              m_persisted_dynamic_variables.erase(it);
+            }
+          }
         }
       }
 
@@ -2073,8 +2083,11 @@ bool Persisted_variables_cache::append_read_only_variables(
 
   auto result = decrypt_sensitive_variables();
   if (result == return_status::ERROR) {
-    LogErr(ERROR_LEVEL, ER_CANNOT_INTERPRET_PERSISTED_SENSITIVE_VARIABLES);
-    return true;
+    if (!opt_persist_sensitive_variables_in_plaintext) {
+      LogErr(ERROR_LEVEL, ER_CANNOT_INTERPRET_PERSISTED_SENSITIVE_VARIABLES);
+      return true;
+    }
+    LogErr(WARNING_LEVEL, ER_CANNOT_INTERPRET_PERSISTED_SENSITIVE_VARIABLES);
   }
 
   /* create a set of values sorted by timestamp */
