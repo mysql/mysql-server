@@ -1,1 +1,2 @@
+--innodb_parallel_read_threads=4
 --innodb-sort-buffer-size=64k
