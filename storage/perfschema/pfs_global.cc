@@ -64,28 +64,28 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
 
   void *ptr = nullptr;
 
-#ifdef PFS_ALIGNEMENT
+#ifdef PFS_ALIGNMENT
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
-  if (unlikely(posix_memalign(&ptr, PFS_ALIGNEMENT, size))) {
+  if (unlikely(posix_memalign(&ptr, PFS_ALIGNMENT, size))) {
     return nullptr;
   }
 #else
 #ifdef HAVE_MEMALIGN
   /* Solaris */
-  ptr = memalign(PFS_ALIGNEMENT, size);
+  ptr = memalign(PFS_ALIGNMENT, size);
   if (unlikely(ptr == nullptr)) {
     return nullptr;
   }
 #else
 #ifdef HAVE_ALIGNED_MALLOC
   /* Windows */
-  ptr = _aligned_malloc(size, PFS_ALIGNEMENT);
+  ptr = _aligned_malloc(size, PFS_ALIGNMENT);
   if (unlikely(ptr == nullptr)) {
     return nullptr;
   }
 #else
-#error "Missing implementation for PFS_ALIGNENT"
+#error "Missing implementation for PFS_ALIGNMENT"
 #endif /* HAVE_ALIGNED_MALLOC */
 #endif /* HAVE_MEMALIGN */
 #endif /* HAVE_POSIX_MEMALIGN */

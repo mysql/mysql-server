@@ -38,9 +38,9 @@
 #include "storage/perfschema/terminology_use_previous.cc"
 #include "storage/perfschema/unittest/stub_digest.h"
 #include "storage/perfschema/unittest/stub_pfs_defaults.h"
+#include "storage/perfschema/unittest/stub_pfs_global.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
-#include "storage/perfschema/unittest/stub_print_error.h"
 #include "storage/perfschema/unittest/stub_server_logs.h"
 #include "storage/perfschema/unittest/stub_server_telemetry.h"
 #include "storage/perfschema/unittest/stub_telemetry_metrics.h"
@@ -2728,6 +2728,10 @@ int main(int, char **) {
   plan(429);
 
   MY_INIT("pfs-t");
+
+  stub_alloc_always_fails = false;
+  stub_alloc_maybe_fails = false;
+
   do_all_tests();
   my_end(0);
   return (exit_status());

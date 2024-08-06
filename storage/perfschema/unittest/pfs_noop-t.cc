@@ -33,8 +33,8 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/unittest/stub_pfs_defaults.h"
+#include "storage/perfschema/unittest/stub_pfs_global.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
-#include "storage/perfschema/unittest/stub_print_error.h"
 #include "unittest/mytap/tap.h"
 
 static void test_noop() {
@@ -261,6 +261,10 @@ int main(int, char **) {
   plan(35);
 
   MY_INIT("pfs_noop-t");
+
+  stub_alloc_always_fails = false;
+  stub_alloc_maybe_fails = false;
+
   test_noop();
   my_end(0);
   return (exit_status());

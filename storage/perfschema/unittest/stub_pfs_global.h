@@ -33,6 +33,7 @@ size_t pfs_allocated_memory_size = 0;
 size_t pfs_allocated_memory_count = 0;
 
 bool stub_alloc_always_fails = true;
+bool stub_alloc_maybe_fails = true;
 int stub_alloc_fails_after_count = 0;
 
 void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf) {
@@ -43,9 +44,38 @@ void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf) {
 
   if (stub_alloc_always_fails) return nullptr;
 
-  if (--stub_alloc_fails_after_count <= 0) return nullptr;
+  if (stub_alloc_maybe_fails) {
+    if (--stub_alloc_fails_after_count <= 0) {
+      return nullptr;
+    }
+  }
 
-  void *ptr = malloc(size);
+  void *ptr;
+
+#ifdef PFS_ALIGNMENT
+#ifdef HAVE_POSIX_MEMALIGN
+  /* Linux */
+  if (unlikely(posix_memalign(&ptr, PFS_ALIGNMENT, size))) {
+    return nullptr;
+  }
+#else
+#ifdef HAVE_MEMALIGN
+  /* Solaris */
+  ptr = memalign(PFS_ALIGNMENT, size);
+#else
+#ifdef HAVE_ALIGNED_MALLOC
+  /* Windows */
+  ptr = _aligned_malloc(size, PFS_ALIGNMENT);
+#else
+#error "Missing implementation for PFS_ALIGNMENT"
+#endif /* HAVE_ALIGNED_MALLOC */
+#endif /* HAVE_MEMALIGN */
+#endif /* HAVE_POSIX_MEMALIGN */
+#else  /* PFS_ALIGNMENT */
+  /* Everything else */
+  ptr = malloc(size);
+#endif
+
   if (ptr != nullptr) memset(ptr, 0, size);
   return ptr;
 }
