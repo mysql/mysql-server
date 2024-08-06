@@ -272,7 +272,26 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 # So the import succeeds, but the sort order of the keys in the imported
 # file is descending and all new keys will be ascending.
 ALTER TABLE t1 IMPORT TABLESPACE;
-# Show that column b is sorted inconsistently.
+Warnings:
+Warning	1817	InnoDB: Index corrupt: Index 'b' is found to be corrupt and should be recreated.
+# Show that the index is corrupt
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1817	InnoDB: Index corrupt: Index 'b' is found to be corrupt and should be recreated.
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: Index b is marked as corrupted
+test.t1	check	error	Corrupt
+# Fix the corruption
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# Show that the index is no longer corrupt
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Show that column b is sorted consistently.
 SELECT * FROM t1;
 a	b
 1	1
@@ -283,8 +302,8 @@ a	b
 2	2
 SELECT * FROM t1 order by b;
 a	b
-2	2
 1	1
+2	2
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
 SELECT * FROM t1;
@@ -301,8 +320,8 @@ a	b
 4	4
 SELECT * FROM t1 order by b;
 a	b
-2	2
 1	1
+2	2
 3	3
 4	4
 DROP TABLE t1;
