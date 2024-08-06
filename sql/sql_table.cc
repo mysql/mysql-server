@@ -10610,16 +10610,18 @@ static bool check_if_keyname_exists(const char *name, KEY *start, KEY *end) {
 
 static const char *make_unique_key_name(const char *field_name, KEY *start,
                                         KEY *end) {
-  char buff[MAX_FIELD_NAME], *buff_end;
+  // NOTE: This may not handle multi-byte characters properly
+  char buff[NAME_CHAR_LEN + 1];
 
   if (!check_if_keyname_exists(field_name, start, end) &&
       my_strcasecmp(system_charset_info, field_name, primary_key_name))
     return field_name;  // Use fieldname
-  buff_end = strmake(buff, field_name, sizeof(buff) - 4);
 
+  // Reserve space for '_', two-digit sequence number and terminating null char:
+  char *buff_end = strmake(buff, field_name, sizeof(buff) - 4);
   /*
-    Only 3 chars + '\0' left, so need to limit to 2 digit
-    This is ok as we can't have more than 100 keys anyway
+    2 digits support up to 100 keys, which is more than the normal MAX_INDEXES
+    limit (64).
   */
   for (uint i = 2; i < 100; i++) {
     *buff_end = '_';
