@@ -812,17 +812,21 @@ fts_drop_index(
 /*===========*/
 	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
 	dict_index_t*	index,	/*!< in: Index to be dropped */
-	trx_t*		trx)	/*!< in: Transaction for the drop */
+	trx_t*		trx,	/*!< in: Transaction for the drop */
+        bool            adding_another) /*! in: Another FTS index is to be
+                                            added as part of the same
+                                            transaction */
 {
 	ib_vector_t*	indexes = table->fts->indexes;
 	dberr_t		err = DB_SUCCESS;
 
 	ut_a(indexes);
 
-	if ((ib_vector_size(indexes) == 1
+	const bool last_index = (ib_vector_size(indexes) == 1
 	    && (index == static_cast<dict_index_t*>(
 			ib_vector_getp(table->fts->indexes, 0))))
-	   || ib_vector_is_empty(indexes)) {
+	   || ib_vector_is_empty(indexes);
+        if (last_index && !adding_another) {
 		doc_id_t	current_doc_id;
 		doc_id_t	first_doc_id;
 

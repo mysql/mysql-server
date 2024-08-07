@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+Copyright (c) 2005, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -8019,12 +8019,17 @@ commit_cache_norebuild(
 		}
 	}
 
+        bool adding_fts_index = false;
+
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
 		assert(dict_index_get_online_status(index)
 		       == ONLINE_INDEX_COMPLETE);
 		assert(!index->is_committed());
 		index->set_committed(true);
+                if (index->type & DICT_FTS) {
+                  adding_fts_index = true;
+                }
 	}
 
 	if (ctx->num_to_drop_index) {
@@ -8071,7 +8076,7 @@ commit_cache_norebuild(
 				       || (index->type
 					   & DICT_CORRUPT));
 				assert(index->table->fts);
-				fts_drop_index(index->table, index, trx);
+				fts_drop_index(index->table, index, trx, adding_fts_index);
 			}
 
 			dict_index_remove_from_cache(index->table, index);
@@ -8858,9 +8863,6 @@ foreign_fail:
 
 			if (index->type & DICT_FTS) {
 				assert(index->type == DICT_FTS);
-				/* We reset DICT_TF2_FTS here because the bit
-				is left unset when a drop proceeds the add. */
-				DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
 				fts_add_index(index, ctx->new_table);
 			}
 		}
