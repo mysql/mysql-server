@@ -7193,11 +7193,16 @@ after a successful commit_try_norebuild() call.
   of the column to 0. Here the columns are collected first. */
   get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
 
+  bool adding_fts_index{false};
+
   for (ulint i = 0; i < ctx->num_to_add_index; i++) {
     dict_index_t *index = ctx->add_index[i];
     assert(dict_index_get_online_status(index) == ONLINE_INDEX_COMPLETE);
     assert(!index->is_committed());
     index->set_committed(true);
+    if (index->type & DICT_FTS) {
+      adding_fts_index = true;
+    }
   }
 
   if (ctx->num_to_drop_index) {
@@ -7225,7 +7230,8 @@ after a successful commit_try_norebuild() call.
         assert(index->type == DICT_FTS || index->is_corrupted());
         assert(index->table->fts);
         ctx->fts_drop_aux_vec = new aux_name_vec_t;
-        fts_drop_index(index->table, index, trx, ctx->fts_drop_aux_vec);
+        fts_drop_index(index->table, index, trx, ctx->fts_drop_aux_vec,
+                       adding_fts_index);
       }
 
       /* It is a single table tablespace and the .ibd file is
@@ -7833,9 +7839,6 @@ rollback_trx:
 
       if (index->type & DICT_FTS) {
         assert(index->type == DICT_FTS);
-        /* We reset DICT_TF2_FTS here because the bit
-        is left unset when a drop proceeds the add. */
-        DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
         fts_add_index(index, ctx->new_table);
         add_fts = true;
       }
