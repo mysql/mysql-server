@@ -1034,6 +1034,12 @@ class Window {
                                mem_root_deque<Item *> *fields, ORDER *o,
                                bool partition_order);
   /**
+    If the ordering expression contains no inner column references, return true,
+    else false
+  */
+  bool can_eliminate_order(ORDER *order) const;
+
+  /**
     Return true if this window's name is not unique in windows
   */
   bool check_unique_name(const List<Window> &windows);

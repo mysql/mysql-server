@@ -13834,24 +13834,17 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "20.05"
+              "query_cost": "2.05"
             },
             "windowing": {
               "windows": [
                 {
                   "name": "<unnamed window>",
-                  "using_filesort": true,
-                  "filesort_key": [
-                    "(1 * 1)"
-                  ],
                   "functions": [
                     "rank"
                   ]
                 }
               ],
-              "cost_info": {
-                "sort_cost": "18.00"
-              },
               "table": {
                 "table_name": "t",
                 "access_type": "ALL",
@@ -14235,8 +14228,7 @@ EXPLAIN
           "name": "<unnamed window>",
           "using_filesort": true,
           "filesort_key": [
-            "(select (`a` + `d`) from `u`)",
-            "(select `d` from `u`)"
+            "(select (`a` + `d`) from `u`)"
           ],
           "frame_buffer": {
             "using_temporary_table": true,

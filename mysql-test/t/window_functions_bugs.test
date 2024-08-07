@@ -1545,3 +1545,63 @@ SELECT ROW(AVG(vkey) OVER (PARTITION BY vkey), 59) =
 FROM t1 AS outer_t;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36921175 Complex Join Predicate with Subquery Not
+--echo #              Possible To Offload to HeatWave
+--echo #              See also HeatWave test added to check offload
+CREATE TABLE t1(col INT);
+CREATE TABLE t2(col INT);
+INSERT INTO t1 VALUES (0), (1), (2), (NULL);
+INSERT INTO t1 VALUES (0), (1), (2), (NULL);
+ANALYZE TABLE t1;
+--echo # verify that PARTTITION BY containing no inner reference
+--echo # is eliminated
+let $query =
+SELECT
+    COUNT(s1.col)
+FROM ( t1 AS s1
+       JOIN
+       t1 AS s2
+       ON ( s2.col IN (WITH RECURSIVE cte1 AS (
+                       SELECT DENSE_RANK() OVER (PARTITION BY s1.col)
+                       FROM t2
+                       WHERE col >= 7)
+                       SELECT * FROM cte1))
+                       );
+eval $query;
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+eval EXPLAIN FORMAT=tree $query;
+
+SET optimizer_trace="enabled=on";
+eval $query;
+
+--echo Check that trace shows the elimination
+SELECT JSON_PRETTY(JSON_EXTRACT(
+   trace,
+   '$.steps[*].join_preparation.steps[*].'
+   'join_preparation.steps[*].join_preparation.steps[0]'))
+FROM information_schema.OPTIMIZER_TRACE;
+
+SET optimizer_trace="enabled=default";
+
+--echo # verify that PARTTITION BY is *not* eliminated; has an outer
+--echo # reference and an inner reference
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Different the query plan.
+EXPLAIN FORMAT=tree
+SELECT
+    COUNT(s1.col)
+FROM ( t1 AS s1
+       JOIN
+       t1 AS s2
+       ON ( s2.col IN (WITH RECURSIVE cte1 AS (
+                       SELECT DENSE_RANK() OVER (PARTITION BY s1.col + t2.col)
+                       FROM t2
+                       WHERE col >= 7)
+                       SELECT * FROM cte1))
+     );
+
+DROP TABLE t1, t2;
+

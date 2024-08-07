@@ -58,6 +58,7 @@
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld_cs.h"
+#include "sql/opt_trace.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_nodes.h"   // PT_*
 #include "sql/parse_tree_window.h"  // PT_window
@@ -399,27 +400,55 @@ ORDER *Window::sorting_order(THD *thd, bool implicitly_grouped) {
     return nullptr;
   }
 
-  ORDER *part = effective_partition_by() ? effective_partition_by()->value.first
-                                         : nullptr;
-  ORDER *ord =
-      effective_order_by() ? effective_order_by()->value.first : nullptr;
+  // Use Window::can_eliminate_order to determine if we can skip the sort as
+  // specified by PARTITION BY and/or ORDER BY clauses. If so also add info
+  // about it to the optimizer trace, if active.
+  std::array<std::pair<const PT_order_list *, const char *>, 2> orders{
+      std::make_pair(effective_partition_by(), "PARTITION BY"),
+      std::make_pair(effective_order_by(), "ORDER BY")};
+  constexpr uint part_i = 0;
+  constexpr uint ord_i = 1;
+  ORDER *sort[2] = {nullptr, nullptr};
+  uint idx = 0;
+  for (auto &order : orders) {
+    sort[idx] = order.first ? order.first->value.first : nullptr;
+    if (can_eliminate_order(sort[idx])) {
+      sort[idx] = nullptr;
+
+      char buff1[256];
+      String legend(buff1, sizeof(buff1), system_charset_info);
+      legend.length(0);
+      legend.append("eliminated sorting for ");
+      legend.append(order.second);
+      legend.append(" in window");
+      Opt_trace_context *const trace = &thd->opt_trace;
+      Opt_trace_object trace_wrapper(trace);
+
+      char buff2[256];
+      String w_spec(buff2, sizeof(buff2), system_charset_info);
+      w_spec.length(0);
+      print(thd, &w_spec, enum_query_type(QT_ORDINARY | QT_NO_DEFAULT_DB),
+            /*expand_definition*/ false);
+
+      trace_wrapper.add_utf8(legend.ptr(), w_spec.ptr(), w_spec.length());
+    }
+    idx++;
+  }
 
   /*
-    1. Copy both lists
-    2. Append the ORDER BY list to the partition list.
-
-    This ensures that all columns are present in the resulting sort ordering
-    and that all ORDER BY expressions are at the end.
-    The resulting sort can the be used to detect partition change and also
-    satisfy the window ordering.
+    Set up m_sorting_order.  The resulting sort can then be used to detect
+    partition change and also satisfy the window ordering.  This ensures that
+    all columns are present in the resulting sort ordering and that all ORDER
+    BY expressions are at the end.
   */
-  if (ord == nullptr)
-    m_sorting_order = part;
-  else if (part == nullptr)
-    m_sorting_order = ord;
+  if (sort[ord_i] == nullptr)
+    m_sorting_order = sort[part_i];
+  else if (sort[part_i] == nullptr)
+    m_sorting_order = sort[ord_i];
   else {
-    ORDER *sorting = clone(thd, part);
-    ORDER *ob = clone(thd, ord);
+    // Since we are building a new list, we must clone the contributors
+    ORDER *sorting = clone(thd, sort[part_i]);
+    ORDER *ob = clone(thd, sort[ord_i]);
     append_to_back(&sorting, ob);
     m_sorting_order = sorting;
   }
@@ -1087,6 +1116,17 @@ void Window::eliminate_unused_objects(List<Window> *windows) {
     /* Do this last, after any re-ordering */
     (*windows)[windows->size() - 1]->m_last = true;
   }
+}
+
+bool Window::can_eliminate_order(ORDER *order) const {
+  if (order == nullptr) return false;
+  for (ORDER *o = order; o != nullptr; o = o->next) {
+    // contains inner column? if so, return false
+    const table_map used_tables =
+        (*o->item)->used_tables() & ~PSEUDO_TABLE_BITS;
+    if (used_tables != 0) return false;
+  }
+  return true;
 }
 
 bool Window::setup_windows1(THD *thd, Query_block *select,

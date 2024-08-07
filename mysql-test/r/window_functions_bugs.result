@@ -2276,3 +2276,120 @@ ON (ta.vkey=outer_t.c5) LIMIT 1)
 1
 NULL
 DROP TABLE t1;
+#
+# Bug#36921175 Complex Join Predicate with Subquery Not
+#              Possible To Offload to HeatWave
+#              See also HeatWave test added to check offload
+CREATE TABLE t1(col INT);
+CREATE TABLE t2(col INT);
+INSERT INTO t1 VALUES (0), (1), (2), (NULL);
+INSERT INTO t1 VALUES (0), (1), (2), (NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# verify that PARTTITION BY containing no inner reference
+# is eliminated
+SELECT
+COUNT(s1.col)
+FROM ( t1 AS s1
+JOIN
+t1 AS s2
+ON ( s2.col IN (WITH RECURSIVE cte1 AS (
+SELECT DENSE_RANK() OVER (PARTITION BY s1.col)
+FROM t2
+WHERE col >= 7)
+SELECT * FROM cte1))
+);
+COUNT(s1.col)
+0
+EXPLAIN FORMAT=tree SELECT
+COUNT(s1.col)
+FROM ( t1 AS s1
+JOIN
+t1 AS s2
+ON ( s2.col IN (WITH RECURSIVE cte1 AS (
+SELECT DENSE_RANK() OVER (PARTITION BY s1.col)
+FROM t2
+WHERE col >= 7)
+SELECT * FROM cte1))
+);
+EXPLAIN
+-> Aggregate: count(s1.col)  (rows=1)
+    -> Inner hash join (no condition)  (rows=8)
+        -> Table scan on s1  (rows=8)
+        -> Hash
+            -> Remove duplicate s2 rows using temporary table (weedout)  (rows=1)
+                -> Inner hash join (s2.col = cte1.`DENSE_RANK() OVER (PARTITION BY s1.col)`)  (rows=1)
+                    -> Table scan on s2  (rows=8)
+                    -> Hash
+                        -> Table scan on cte1  (rows=1)
+                            -> Materialize CTE cte1  (rows=1)
+                                -> Window aggregate: dense_rank() OVER (PARTITION BY s1.col )   (rows=1)
+                                    -> Filter: (t2.col >= 7)  (rows=1)
+                                        -> Table scan on t2  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.s1.col' of SELECT #3 was resolved in SELECT #1
+SET optimizer_trace="enabled=on";
+SELECT
+COUNT(s1.col)
+FROM ( t1 AS s1
+JOIN
+t1 AS s2
+ON ( s2.col IN (WITH RECURSIVE cte1 AS (
+SELECT DENSE_RANK() OVER (PARTITION BY s1.col)
+FROM t2
+WHERE col >= 7)
+SELECT * FROM cte1))
+);
+COUNT(s1.col)
+0
+Check that trace shows the elimination
+SELECT JSON_PRETTY(JSON_EXTRACT(
+trace,
+'$.steps[*].join_preparation.steps[*].'
+   'join_preparation.steps[*].join_preparation.steps[0]'))
+FROM information_schema.OPTIMIZER_TRACE;
+JSON_PRETTY(JSON_EXTRACT(
+trace,
+'$.steps[*].join_preparation.steps[*].'
+   'join_preparation.steps[*].join_preparation.steps[0]'))
+[
+  {
+    "eliminated sorting for PARTITION BY in window": "(PARTITION BY `s1`.`col` ) "
+  }
+]
+SET optimizer_trace="enabled=default";
+# verify that PARTTITION BY is *not* eliminated; has an outer
+# reference and an inner reference
+EXPLAIN FORMAT=tree
+SELECT
+COUNT(s1.col)
+FROM ( t1 AS s1
+JOIN
+t1 AS s2
+ON ( s2.col IN (WITH RECURSIVE cte1 AS (
+SELECT DENSE_RANK() OVER (PARTITION BY s1.col + t2.col)
+FROM t2
+WHERE col >= 7)
+SELECT * FROM cte1))
+);
+EXPLAIN
+-> Aggregate: count(s1.col)  (rows=1)
+    -> Inner hash join (no condition)  (rows=8)
+        -> Table scan on s1  (rows=8)
+        -> Hash
+            -> Remove duplicate s2 rows using temporary table (weedout)  (rows=1)
+                -> Inner hash join (s2.col = cte1.`DENSE_RANK() OVER (PARTITION BY s1.col + t2.col)`)  (rows=1)
+                    -> Table scan on s2  (rows=8)
+                    -> Hash
+                        -> Table scan on cte1  (rows=1)
+                            -> Materialize CTE cte1  (rows=1)
+                                -> Window aggregate: dense_rank() OVER (PARTITION BY (s1.col + t2.col) )   (rows=1)
+                                    -> Sort: (s1.col + t2.col)  (rows=1)
+                                        -> Filter: (t2.col >= 7)  (rows=1)
+                                            -> Table scan on t2  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.s1.col' of SELECT #3 was resolved in SELECT #1
+DROP TABLE t1, t2;
