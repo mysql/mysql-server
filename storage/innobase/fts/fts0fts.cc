@@ -703,18 +703,22 @@ bool fts_check_cached_index(
 @param[in]      index           Index to be dropped
 @param[in]      trx             Transaction for the drop
 @param[in,out]  aux_vec         Aux table name vector
+@param[in]      adding_another  Another index is to be added as part
+                                of the same ransaction
 @return DB_SUCCESS or error number */
 dberr_t fts_drop_index(dict_table_t *table, dict_index_t *index, trx_t *trx,
-                       aux_name_vec_t *aux_vec) {
+                       aux_name_vec_t *aux_vec, bool adding_another) {
   ib_vector_t *indexes = table->fts->indexes;
   dberr_t err = DB_SUCCESS;
 
   ut_a(indexes);
 
-  if ((ib_vector_size(indexes) == 1 &&
-       (index ==
-        static_cast<dict_index_t *>(ib_vector_getp(table->fts->indexes, 0)))) ||
-      ib_vector_is_empty(indexes)) {
+  const bool last_index = (ib_vector_size(indexes) == 1 &&
+                           (index == static_cast<dict_index_t *>(ib_vector_getp(
+                                         table->fts->indexes, 0)))) ||
+                          ib_vector_is_empty(indexes);
+
+  if (last_index && !adding_another) {
     doc_id_t current_doc_id;
     doc_id_t first_doc_id;
 
