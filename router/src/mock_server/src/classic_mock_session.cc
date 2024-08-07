@@ -247,11 +247,57 @@ void MySQLServerMockSessionClassic::client_greeting() {
     return;
   }
 
+  // check what the test expects from the authentication
+
+  auto handshake_data_res =
+      json_reader_->handshake(false /* not is_greeting */);
+  if (!handshake_data_res) {
+    protocol_.encode_error(handshake_data_res.error());
+
+    send_response_then_disconnect();
+
+    return;
+  }
+
+  expected_handshake_ = handshake_data_res.value();
+
   protocol_.username(greeting.username());
 
   if (greeting.capabilities().test(
           classic_protocol::capabilities::pos::plugin_auth)) {
     protocol_.auth_method_name(greeting.auth_method_name());
+
+    if (auto expected_auth_method_name =
+            expected_handshake_->auth_method_name) {
+      if (protocol_.auth_method_name() != *expected_auth_method_name) {
+        // switch to the expected method.
+        protocol_.auth_method_data(std::string(20, 'a'));
+        protocol_.auth_method_name(*expected_auth_method_name);
+
+        protocol_.encode_auth_switch_message(
+            {protocol_.auth_method_name(),
+             protocol_.auth_method_data() + std::string(1, '\0')});
+
+        protocol_.async_send([this, to_send = protocol_.send_buffer().size()](
+                                 std::error_code ec, size_t transferred) {
+          if (ec) {
+            if (ec != std::errc::operation_canceled) {
+              log_warning("send auth result failed: %s", ec.message().c_str());
+            }
+
+            disconnect();
+            return;
+          }
+
+          if (to_send < transferred) {
+            std::terminate();
+          } else {
+            auth_switched();
+          }
+        });
+        return;
+      }
+    }
 
     /**
      * if the client client wants to switch to a method the server does not
@@ -331,7 +377,7 @@ void MySQLServerMockSessionClassic::client_greeting() {
     std::vector<uint8_t> auth_method_data_vec(client_auth_method_data.begin(),
                                               client_auth_method_data.end());
 
-    auto auth_res = authenticate(auth_method_data_vec);
+    auto auth_res = authenticate(*expected_handshake_, auth_method_data_vec);
 
     if (!auth_res) {
       protocol_.encode_error(auth_res.error());
@@ -417,8 +463,8 @@ void MySQLServerMockSessionClassic::auth_switched() {
   // -> authenticate expects {}
   // -> client expects OK, instead of AUTH_FAST in this case
   bool empty_password = payload == std::vector<uint8_t>{0};
-  auto auth_res =
-      authenticate(empty_password ? std::vector<uint8_t>{} : payload);
+  auto auth_res = authenticate(
+      *expected_handshake_, empty_password ? std::vector<uint8_t>{} : payload);
 
   if (!auth_res) {
     protocol_.encode_error(auth_res.error());
@@ -732,15 +778,8 @@ stdx::expected<std::string, std::error_code> cert_get_issuer_name(X509 *cert) {
 }
 
 stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
+    const StatementReaderBase::handshake_data &handshake,
     const std::vector<uint8_t> &client_auth_method_data) {
-  auto handshake_data_res =
-      json_reader_->handshake(false /* not is_greeting */);
-  if (!handshake_data_res) {
-    return stdx::unexpected(handshake_data_res.error());
-  }
-
-  auto handshake = handshake_data_res.value();
-
   if (handshake.username.has_value()) {
     if (handshake.username.value() != protocol_.username()) {
       return stdx::unexpected(ErrorResponse{
@@ -751,7 +790,7 @@ stdx::expected<void, ErrorResponse> MySQLServerMockSessionClassic::authenticate(
   }
 
   if (handshake.password.has_value()) {
-    if (!protocol_.authenticate(
+    if (!MySQLClassicProtocol::authenticate(
             protocol_.auth_method_name(), protocol_.auth_method_data(),
             handshake.password.value(), client_auth_method_data)) {
       return stdx::unexpected(ErrorResponse{

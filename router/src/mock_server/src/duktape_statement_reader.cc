@@ -1079,6 +1079,7 @@ DuktapeStatementReader::handshake(bool is_greeting) {
 
   std::optional<std::string> username;
   std::optional<std::string> password;
+  std::optional<std::string> auth_method_name;  // enforced auth-method
   bool cert_required{false};
   std::optional<std::string> cert_issuer;
   std::optional<std::string> cert_subject;
@@ -1140,6 +1141,14 @@ DuktapeStatementReader::handshake(bool is_greeting) {
       }
       duk_pop(ctx);
 
+      duk_get_prop_literal(ctx, -1, "auth_method_name");
+      if (duk_is_string(ctx, -1)) {
+        auth_method_name = std::string(duk_to_string(ctx, -1));
+      } else if (!duk_is_undefined(ctx, -1)) {
+        ec = make_error_code(std::errc::invalid_argument);
+      }
+      duk_pop(ctx);
+
       duk_get_prop_literal(ctx, -1, "certificate");
       if (duk_is_object(ctx, -1)) {
         cert_required = true;
@@ -1182,8 +1191,9 @@ DuktapeStatementReader::handshake(bool is_greeting) {
   }
 
   return handshake_data{
-      *server_greeting_res, username,    password, cert_required,
-      cert_subject,         cert_issuer, exec_time};
+      *server_greeting_res, username,     password,    auth_method_name,
+      cert_required,        cert_subject, cert_issuer, exec_time,
+  };
 }
 
 // @pre on the stack is an object

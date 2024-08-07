@@ -390,20 +390,45 @@ void ConfigGenerator::connect_to_metadata_server(
   // connect to (what should be a) metadata server
   mysql_ = std::make_unique<MySQLSession>(
       std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+
+#ifdef ROUTER_CLIENT_PLUGINS_ARE_BUNDLED
+  // if the router package bundles the client plugins, set the plugin-dir to the
+  // Router's plugin_folder. Otherwise use the defaults.
+  //
+  // If the user sets MYSQL_PLUGINDIR for libmysqlclient, take dir instead of
+  // the Router's plugin_folder.
+  const bool libmysql_plugin_dir_is_not_set =
+      (getenv("LIBMYSQL_PLUGIN_DIR") == nullptr);
+  if (libmysql_plugin_dir_is_not_set && !plugin_folder_.empty()) {
+    // set plugin-dir of the MySQLSession to the router's client-plugin-folder
+    // as it contains the mysql_native_password plugin.
+    mysql_->set_option(MySQLSession::PluginDir(plugin_folder_.c_str()));
+  }
+#endif
+
   try {
     // throws std::logic_error, std::runtime_error, Error(runtime_error)
     set_ssl_options(mysql_.get(), bootstrap_options);
     mysql_->connect(u.host, u.port, u.username, u.password, bootstrap_socket,
                     "", connect_timeout_, read_timeout_);
   } catch (const MySQLSession::Error &e) {
-    throw std::runtime_error("Unable to connect to the metadata server: "s +
-                             e.what());
+    std::string errmsg = e.what();
+#ifndef ROUTER_CLIENT_PLUGINS_ARE_BUNDLED
+    if (e.code() == 2059) {
+      errmsg +=
+          "\n\nThis may be resolved by installing the 'mysql-client-plugins' "
+          "package on this machine.";
+    }
+#endif
+
+    throw std::runtime_error("Unable to connect to the metadata server: " +
+                             errmsg);
   }
 
   const auto result = mysqlrouter::setup_metadata_session(*mysql_);
   if (!result) {
-    throw std::runtime_error("Failed setting up a metadata session: "s +
-                             result.error().c_str());
+    throw std::runtime_error("Failed setting up a metadata session: " +
+                             result.error());
   }
 }
 

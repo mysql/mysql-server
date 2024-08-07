@@ -398,6 +398,7 @@ class StatementReaderBase {
 
     std::optional<std::string> username;
     std::optional<std::string> password;
+    std::optional<std::string> auth_method_name;
     bool cert_required{false};
     std::optional<std::string> cert_subject;
     std::optional<std::string> cert_issuer;

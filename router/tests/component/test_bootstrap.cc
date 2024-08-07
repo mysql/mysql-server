@@ -161,6 +161,94 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
 }
 #endif
 
+class BootstrapWithDifferentAccountsTest
+    : public RouterComponentBootstrapWithDefaultCertsTest {};
+
+TEST_F(BootstrapWithDifferentAccountsTest, NativePassword) {
+  RecordProperty("Description",
+                 "Check that bootstrapping with a user that uses "
+                 "mysql_native_password works after mysql_native_password has "
+                 "converted into a plugin in libmysqlclient.");
+  RecordProperty("Bug", "36915646");
+  const auto server_port = port_pool_.get_next_available();
+  const std::string json_stmts =
+      get_data_dir().join("bootstrap_native_password.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, server_port);
+
+  auto &router =
+      router_spawner()
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .output_responder(
+              RouterComponentBootstrapTest::kBootstrapOutputResponder)
+          .spawn(
+              {
+                  "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+                  "--directory=" + bootstrap_dir.name(),
+                  "--disable-rest",
+                  "--report-host=dont.query.dns",
+                  "--conf-set-option=DEFAULT.plugin_folder=" +
+                      ProcessManager::get_plugin_dir().str(),
+              },
+              {
+                  // env var to let libmysqlclient find its
+                  // mysql_native_password plugin in tests.
+                  {"LIBMYSQL_PLUGIN_DIR",
+                   ProcessManager::get_plugin_dir().str()},
+              });
+
+  EXPECT_NO_THROW(router.wait_for_exit());
+}
+
+TEST_F(BootstrapWithDifferentAccountsTest, NativePasswordNoPluginDir) {
+  RecordProperty("Description",
+                 "Check that bootstrapping with a user that uses "
+                 "mysql_native_password gives a useful error if the auth "
+                 "plugin is not found.");
+  RecordProperty("Bug", "36915646");
+  const auto server_port = port_pool_.get_next_available();
+  const std::string json_stmts =
+      get_data_dir().join("bootstrap_native_password.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  launch_mysql_server_mock(json_stmts, server_port);
+
+  auto &router =
+      router_spawner()
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .expected_exit_code(EXIT_FAILURE)
+          .output_responder(
+              RouterComponentBootstrapTest::kBootstrapOutputResponder)
+          .spawn(
+              {
+                  "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+                  "--directory=" + bootstrap_dir.name(),
+                  "--disable-rest",
+                  "--report-host=dont.query.dns",
+                  "--conf-set-option=DEFAULT.plugin_folder=" +
+                      ProcessManager::get_plugin_dir().str(),
+              },
+              {
+                  // don't set LIBMYSQL_PLUGIN_DIR to trigger the auth-error.
+              });
+
+  EXPECT_NO_THROW(router.wait_for_exit());
+
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr(
+          "Authentication plugin 'mysql_native_password' cannot be loaded"));
+
+#ifndef ROUTER_CLIENT_PLUGINS_ARE_BUNDLED
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr("mysql-client-plugins"));
+#else
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::Not(::testing::HasSubstr("mysql-client-plugins")));
+#endif
+}
+
 struct BootstrapTestParam {
   ClusterType cluster_type;
   std::string description;

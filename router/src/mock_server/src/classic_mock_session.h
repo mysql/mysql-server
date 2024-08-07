@@ -123,11 +123,14 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   void finish();
 
   stdx::expected<void, ErrorResponse> authenticate(
+      const StatementReaderBase::handshake_data &handshake,
       const std::vector<uint8_t> &client_auth_method_data);
 
   MySQLClassicProtocol protocol_;
 
   bool with_tls_{false};
+
+  std::optional<StatementReaderBase::handshake_data> expected_handshake_;
 };
 
 }  // namespace server_mock

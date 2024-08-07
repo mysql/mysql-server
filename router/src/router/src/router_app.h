@@ -455,7 +455,7 @@ class MySQLRouter {
 
   void bootstrap(const std::string &program_name,
                  const std::string &metadata_server_uri,
-                 const std::string &plugin_folder = "");
+                 const std::string &plugin_folder);
 
   /*
    * @brief returns id of the router.

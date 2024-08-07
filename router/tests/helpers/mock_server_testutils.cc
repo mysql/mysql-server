@@ -24,6 +24,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#define RAPIDJSON_HAS_STDSTRING 1
+
 #include "mock_server_testutils.h"
 
 #include <array>
@@ -31,6 +33,7 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
 #endif
@@ -75,6 +78,150 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
   return result;
 }
 
+MockGrMetadata &MockGrMetadata::gr_id(const std::string &gr_id) {
+  gr_id_ = gr_id;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::cluster_name(const std::string &cluster_name) {
+  cluster_name_ = cluster_name;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::gr_node_host(const std::string &gr_node_host) {
+  gr_node_host_ = gr_node_host;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::router_options(
+    const std::string &router_options) {
+  router_options_ = router_options;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::router_version(
+    const std::string &router_version) {
+  router_version_ = router_version;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::gr_nodes(const std::vector<GRNode> &gr_nodes) {
+  gr_nodes_ = gr_nodes;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::cluster_nodes(
+    const std::vector<ClusterNode> &cluster_nodes) {
+  cluster_nodes_ = cluster_nodes;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::gr_pos(unsigned gr_pos) {
+  gr_pos_ = gr_pos;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::view_id(uint64_t id) {
+  view_id_ = id;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::metadata_version(
+    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
+  metadata_version_ = metadata_version;
+  return *this;
+}
+
+MockGrMetadata &MockGrMetadata::error_on_md_query(bool error_on_md_query) {
+  error_on_md_query_ = error_on_md_query;
+
+  return *this;
+}
+
+JsonValue MockGrMetadata::as_json() const {
+  JsonValue json_doc{rapidjson::kObjectType};
+  JsonAllocator allocator;
+
+  if (gr_id_) {
+    json_doc.AddMember("gr_id", JsonValue(*gr_id_, allocator), allocator);
+  }
+
+  if (cluster_name_) {
+    json_doc.AddMember("cluster_name", JsonValue(*cluster_name_, allocator),
+                       allocator);
+  }
+
+  if (gr_node_host_) {
+    json_doc.AddMember("gr_node_host", JsonValue(*gr_node_host_, allocator),
+                       allocator);
+  }
+
+  if (router_version_) {
+    json_doc.AddMember("router_version", JsonValue(*router_version_, allocator),
+                       allocator);
+  }
+  if (router_options_) {
+    json_doc.AddMember("router_options", JsonValue(*router_options_, allocator),
+                       allocator);
+  }
+
+  if (cluster_nodes_) {
+    JsonValue cluster_nodes_json(rapidjson::kArrayType);
+    for (const auto &cluster_node : *cluster_nodes_) {
+      JsonValue node(rapidjson::kArrayType);
+      node.PushBack(JsonValue(cluster_node.server_uuid, allocator), allocator);
+      node.PushBack(static_cast<int>(cluster_node.classic_port), allocator);
+      node.PushBack(static_cast<int>(cluster_node.x_port), allocator);
+      node.PushBack(JsonValue(cluster_node.attributes, allocator), allocator);
+      // The role (PRIMARY, SECONDARY) for ReplicaSet is in the static metadata
+      // as there is no GR there
+      node.PushBack(JsonValue(cluster_node.role, allocator), allocator);
+
+      cluster_nodes_json.PushBack(node, allocator);
+    }
+
+    json_doc.AddMember("cluster_nodes", cluster_nodes_json, allocator);
+  }
+
+  if (gr_nodes_) {
+    JsonValue gr_nodes_json(rapidjson::kArrayType);
+    for (const auto &gr_node : *gr_nodes_) {
+      JsonValue node(rapidjson::kArrayType);
+      node.PushBack(JsonValue(gr_node.server_uuid, allocator), allocator);
+      node.PushBack(static_cast<int>(gr_node.classic_port), allocator);
+      node.PushBack(JsonValue(gr_node.member_status, allocator), allocator);
+      node.PushBack(JsonValue(gr_node.member_role, allocator), allocator);
+
+      gr_nodes_json.PushBack(node, allocator);
+    }
+
+    json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
+  }
+
+  if (gr_pos_) {
+    json_doc.AddMember("gr_pos", *gr_pos_, allocator);
+  }
+
+  if (view_id_) {
+    json_doc.AddMember("view_id", *view_id_, allocator);
+  }
+
+  if (metadata_version_.has_value()) {
+    JsonValue md_version(rapidjson::kArrayType);
+    md_version.PushBack(static_cast<int>(metadata_version_->major), allocator);
+    md_version.PushBack(static_cast<int>(metadata_version_->minor), allocator);
+    md_version.PushBack(static_cast<int>(metadata_version_->patch), allocator);
+    json_doc.AddMember("metadata_schema_version", md_version, allocator);
+  }
+
+  if (error_on_md_query_.has_value()) {
+    json_doc.AddMember("error_on_md_query", *error_on_md_query_ ? 1 : 0,
+                       allocator);
+  }
+
+  return json_doc;
+}
+
 JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<GRNode> &gr_nodes,
     unsigned gr_pos, const std::vector<ClusterNode> &cluster_nodes,
@@ -82,76 +229,19 @@ JsonValue mock_GR_metadata_as_json(
     const std::string &router_options,
     const mysqlrouter::MetadataSchemaVersion &metadata_version,
     const std::string &cluster_name) {
-  JsonValue json_doc(rapidjson::kObjectType);
-  JsonAllocator allocator;
-  json_doc.AddMember(
-      "gr_id", JsonValue(gr_id.c_str(), gr_id.length(), allocator), allocator);
-  json_doc.AddMember(
-      "cluster_name",
-      JsonValue(cluster_name.c_str(), cluster_name.length(), allocator),
-      allocator);
-
-  JsonValue gr_nodes_json(rapidjson::kArrayType);
-  JsonValue cluster_nodes_json(rapidjson::kArrayType);
-  for (auto &gr_node : gr_nodes) {
-    JsonValue node(rapidjson::kArrayType);
-    node.PushBack(JsonValue(gr_node.server_uuid.c_str(),
-                            gr_node.server_uuid.length(), allocator),
-                  allocator);
-    node.PushBack(static_cast<int>(gr_node.classic_port), allocator);
-    node.PushBack(JsonValue(gr_node.member_status.c_str(),
-                            gr_node.member_status.length(), allocator),
-                  allocator);
-    node.PushBack(JsonValue(gr_node.member_role.c_str(),
-                            gr_node.member_role.length(), allocator),
-                  allocator);
-
-    gr_nodes_json.PushBack(node, allocator);
-  }
-
-  for (auto &cluster_node : cluster_nodes) {
-    JsonValue node(rapidjson::kArrayType);
-    node.PushBack(JsonValue(cluster_node.server_uuid.c_str(),
-                            cluster_node.server_uuid.length(), allocator),
-                  allocator);
-    node.PushBack(static_cast<int>(cluster_node.classic_port), allocator);
-    node.PushBack(static_cast<int>(cluster_node.x_port), allocator);
-    node.PushBack(JsonValue(cluster_node.attributes.c_str(),
-                            cluster_node.attributes.length(), allocator),
-                  allocator);
-    // The role (PRIMARY, SECONDARY) for ReplicaSet is in the static metadata as
-    // there is no GR there
-    node.PushBack(JsonValue(cluster_node.role.c_str(),
-                            cluster_node.role.length(), allocator),
-                  allocator);
-
-    cluster_nodes_json.PushBack(node, allocator);
-  }
-
-  json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
-  json_doc.AddMember("gr_pos", gr_pos, allocator);
-  json_doc.AddMember("cluster_nodes", cluster_nodes_json, allocator);
-  if (view_id > 0) {
-    json_doc.AddMember("view_id", view_id, allocator);
-  }
-  json_doc.AddMember("error_on_md_query", error_on_md_query ? 1 : 0, allocator);
-  json_doc.AddMember(
-      "gr_node_host",
-      JsonValue(gr_node_host.c_str(), gr_node_host.length(), allocator),
-      allocator);
-  json_doc.AddMember(
-      "router_options",
-      JsonValue(router_options.c_str(), router_options.length(), allocator),
-      allocator);
-
-  JsonValue md_version(rapidjson::kArrayType);
-  md_version.PushBack(static_cast<int>(metadata_version.major), allocator);
-  md_version.PushBack(static_cast<int>(metadata_version.minor), allocator);
-  md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
-  json_doc.AddMember("metadata_schema_version", md_version, allocator);
-  json_doc.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
-
-  return json_doc;
+  return MockGrMetadata()
+      .gr_id(gr_id)
+      .cluster_name(cluster_name)
+      .gr_nodes(gr_nodes)
+      .gr_pos(gr_pos)
+      .cluster_nodes(cluster_nodes)
+      .view_id(view_id)
+      .metadata_version(metadata_version)
+      .error_on_md_query(error_on_md_query)
+      .gr_node_host(gr_node_host)
+      .router_options(router_options)
+      .router_version(MYSQL_ROUTER_VERSION)
+      .as_json();
 }
 
 void set_mock_metadata(

@@ -1876,12 +1876,14 @@ void MySQLRouter::bootstrap(const std::string &program_name,
                                           sys_user_operations_
 #endif
   );
+  // set plugin-dir before .init() as it also used for the libmysqlclient
+  // plugins like "mysql_native_password".
+  config_gen.set_plugin_folder(plugin_folder);
   config_gen.init(
       server_url,
       bootstrap_options_);  // throws MySQLSession::Error, std::runtime_error,
                             // std::out_of_range, std::logic_error
   config_gen.warn_on_no_ssl(bootstrap_options_);  // throws std::runtime_error
-  config_gen.set_plugin_folder(plugin_folder);
 
 #ifdef _WIN32
   // Cannot run bootstrap mode as windows service since it requires console
