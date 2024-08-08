@@ -517,6 +517,28 @@ INCLUDE(mysql_version)
 PROJECT(${MYSQL_PROJECT_NAME}
   VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
 
+# Various 3rd party libraries have this option.
+# Some have it ON, other OFF, by default.
+# https://cmake.org/cmake/help/latest/variable/BUILD_SHARED_LIBS.html:
+# "the top level project must also call option(BUILD_SHARED_LIBS ...)
+#  before bringing in its dependencies."
+# We want all libraries to be explicitly STATIC or SHARED.
+OPTION(BUILD_SHARED_LIBS "Build shared libraries by default" OFF)
+IF(BUILD_SHARED_LIBS)
+  MESSAGE(WARNING "Do not set BUILD_SHARED_LIBS to ON/TRUE")
+  SET(BUILD_SHARED_LIBS OFF)
+  SET(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
+ENDIF()
+
+# https://cmake.org/cmake/help/latest/variable/CMAKE_SKIP_INSTALL_ALL_DEPENDENCY.html
+OPTION(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY
+  "Target 'install' does not depend on 'all'" OFF)
+IF(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY)
+  MESSAGE(WARNING "Do not set CMAKE_SKIP_INSTALL_ALL_DEPENDENCY to ON/TRUE")
+  SET(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY OFF)
+  SET(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY OFF CACHE INTERNAL "" FORCE)
+ENDIF()
+
 # Ninja only: List of available pools.
 SET_PROPERTY(GLOBAL PROPERTY JOB_POOLS one_job=1)
 
