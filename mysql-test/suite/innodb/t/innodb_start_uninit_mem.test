@@ -1,0 +1,11 @@
+--source include/have_valgrind.inc
+--source include/not_windows.inc
+
+--echo #
+--echo Bug#36705034	pwrite(buf) points to uninitialised byte(s) in os_fusionio_get_sector_size()
+--echo #
+
+# The bug occurs during initilization of innodb engine ,so if it comes till here with the clean
+# valgrind report,then the bug is fixed.
+
+ 
