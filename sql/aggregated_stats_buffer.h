@@ -60,6 +60,7 @@ struct aggregated_stats_buffer {
   std::atomic_uint64_t table_open_cache_overflows;
   std::atomic_uint64_t created_tmp_disk_tables;
   std::atomic_uint64_t created_tmp_tables;
+  std::atomic_uint64_t count_hit_tmp_table_size;
   std::atomic_uint64_t max_execution_time_exceeded;
   std::atomic_uint64_t max_execution_time_set;
   std::atomic_uint64_t max_execution_time_set_failed;

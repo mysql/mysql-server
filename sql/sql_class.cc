@@ -2420,6 +2420,11 @@ void THD::inc_status_created_tmp_tables() {
 #endif
 }
 
+void THD::inc_status_count_hit_tmp_table_size() {
+  assert(!status_var_aggregated);
+  status_var.count_hit_tmp_table_size++;
+}
+
 void THD::inc_status_select_full_join() {
   assert(!status_var_aggregated);
   status_var.select_full_join_count++;

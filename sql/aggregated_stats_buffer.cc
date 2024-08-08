@@ -96,6 +96,7 @@ void aggregated_stats_buffer::add_from(aggregated_stats_buffer &shard) {
   table_open_cache_overflows += shard.table_open_cache_overflows;
   created_tmp_disk_tables += shard.created_tmp_disk_tables;
   created_tmp_tables += shard.created_tmp_tables;
+  count_hit_tmp_table_size += shard.count_hit_tmp_table_size;
   max_execution_time_exceeded += shard.max_execution_time_exceeded;
   max_execution_time_set += shard.max_execution_time_set;
   max_execution_time_set_failed += shard.max_execution_time_set_failed;

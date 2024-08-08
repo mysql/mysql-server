@@ -218,6 +218,13 @@ int ha_heap::write_row(uchar *buf) {
     file->s->key_stat_version++;
   }
 
+  /*
+    Track in the status variable, if the table exceeds
+    specified limit min(tmp_table_size, max_heap_table_size)
+  */
+  if (res == HA_ERR_RECORD_FILE_FULL) {
+    ha_thd()->inc_status_count_hit_tmp_table_size();
+  }
   return res;
 }
 

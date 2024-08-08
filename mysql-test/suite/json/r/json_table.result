@@ -1048,6 +1048,7 @@ c1	c2	c3	c4	c5	c6	c7	c8
 20	20	20	20	20	20	20	20
 SHOW STATUS LIKE '%tmp%';
 Variable_name	Value
+Count_hit_tmp_table_size	1
 Created_tmp_disk_tables	1
 Created_tmp_files	0
 Created_tmp_tables	1
@@ -1066,6 +1067,7 @@ id
 1
 SHOW STATUS LIKE '%tmp%';
 Variable_name	Value
+Count_hit_tmp_table_size	0
 Created_tmp_disk_tables	0
 Created_tmp_files	0
 Created_tmp_tables	1

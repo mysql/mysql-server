@@ -2472,6 +2472,7 @@ class THD : public MDL_context_owner,
 
   void inc_status_created_tmp_disk_tables();
   void inc_status_created_tmp_tables();
+  void inc_status_count_hit_tmp_table_size();
   void inc_status_select_full_join();
   void inc_status_select_full_range_join();
   void inc_status_select_range();

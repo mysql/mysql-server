@@ -1,0 +1,524 @@
+# restart
+CREATE PROCEDURE print_status_variables(IN status_type VARCHAR(10))
+BEGIN
+IF status_type = 'session' THEN
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+SHOW SESSION STATUS LIKE 'Count_hit_tmp_table_size';
+ELSEIF status_type = 'global' THEN
+SHOW GLOBAL STATUS LIKE 'Count_hit_tmp_table_size';
+SHOW GLOBAL STATUS LIKE 'TempTable_count_hit_max_ram';
+ELSE
+SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid argument. Please use "session" or "global"';
+END IF;
+END //
+# Prepare Tables
+CREATE TABLE lob_table(c1 INT, c2 LONGBLOB);
+INSERT INTO lob_table VALUES (1, REPEAT(1, 2*1024*1024)),
+(2, REPEAT(2, 2*1024*1024)),
+(3, REPEAT(3, 2*1024*1024));
+ANALYZE TABLE lob_table;
+Table	Op	Msg_type	Msg_text
+test.lob_table	analyze	status	OK
+
+# Create Connections
+connect  con$counter, localhost, root,,;
+connect  con$counter, localhost, root,,;
+connection default;
+
+#################################
+# TempTable engine related tests
+#################################
+SELECT @@SESSION.internal_tmp_mem_storage_engine;
+@@SESSION.internal_tmp_mem_storage_engine
+TempTable
+SELECT @@SESSION.tmp_table_size;
+@@SESSION.tmp_table_size
+16777216
+SELECT @@GLOBAL.temptable_max_mmap;
+@@GLOBAL.temptable_max_mmap
+0
+#
+# Test case#1 RAM limit spill over.
+#
+SET @@GLOBAL.temptable_max_ram=2*1024*1024;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	0
+# There must be a tmp table created on disk after the
+# memory limit of TempTable engine was exhausted
+
+connection con1;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	0
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	1
+
+connection con2;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	0
+Variable_name	Value
+Count_hit_tmp_table_size	0
+# TempTable_count_hit_max_ram is 7 because statements to show these
+# status variables also use temp tables. Engine already exceeded the
+# memory limit exceeded when SELECT query executed in the first
+# iterataion. This count is accumulation of the hits after that.
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	7
+
+connection default;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	7
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status WHERE
+VARIABLE_NAME = 'Count_hit_tmp_table_size' OR
+VARIABLE_NAME = 'TempTable_count_hit_max_ram' ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Count_hit_tmp_table_size	0
+TempTable_count_hit_max_ram	7
+SET @@GLOBAL.temptable_max_ram=default;
+
+# Repeat the query again. Status variables count should not change
+# from the previous run
+connection con1;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	0
+Variable_name	Value
+Count_hit_tmp_table_size	0
+
+connection con2;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	0
+Variable_name	Value
+Count_hit_tmp_table_size	0
+
+connection default;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	7
+
+#
+# Test case#2 RAM + MMAP limit spill over.
+#
+FLUSH STATUS;
+SET @@GLOBAL.temptable_max_ram=2*1024*1024;
+SET @@GLOBAL.temptable_max_mmap=2*1024*1024;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	7
+# There must be a tmp table created on disk in MMAP after the RAM limit
+# of TempTable engine is exausted
+
+connection con1;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	0
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	8
+
+connection con2;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	0
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+
+connection default;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+# Test cleanup
+SET @@GLOBAL.temptable_max_ram=default
+SET @@GLOBAL.temptable_max_mmap=default;
+
+#
+# Test case#3 tmp table size exceeds the tmp_table_size
+#
+SELECT @@internal_tmp_mem_storage_engine;
+@@internal_tmp_mem_storage_engine
+TempTable
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	0
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+# There must be a tmp table created on disk because TempTable
+# engine found that table size exceeded the tmp_table_size
+
+connection con1;
+SET @@SESSION.tmp_table_size=2*1024;
+SET @@GLOBAL.temptable_max_ram=default;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	0
+Variable_name	Value
+Count_hit_tmp_table_size	1
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	4
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+
+connection con2;
+SET @@SESSION.tmp_table_size=2*1024;
+SET @@GLOBAL.temptable_max_ram=default;
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	0
+Variable_name	Value
+Count_hit_tmp_table_size	1
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	10
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+
+connection default;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	12
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.global_status WHERE
+VARIABLE_NAME = 'Count_hit_tmp_table_size' OR
+VARIABLE_NAME = 'TempTable_count_hit_max_ram' ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Count_hit_tmp_table_size	12
+TempTable_count_hit_max_ram	9
+# Test Cleanup
+SET @@SESSION.tmp_table_size=default
+
+#
+# Test case#4 Table exceeds the tmp_table_size and memory limit both
+#
+SET @@SESSION.tmp_table_size=2*1024;
+SET @@GLOBAL.temptable_max_ram=2*1024*1024;
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	12
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# Should be no different than the previous case
+# where table size exceeded the tmp_table_size
+
+# Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	0
+Variable_name	Value
+Count_hit_tmp_table_size	1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.session_status WHERE
+VARIABLE_NAME LIKE 'Created_tmp%tables' OR
+VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Count_hit_tmp_table_size	1
+Created_tmp_disk_tables	0
+Created_tmp_tables	1
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	18
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+# Test cleanup
+SET @@SESSION.tmp_table_size=default
+SET @@GLOBAL.temptable_max_ram=default;
+
+#
+# Test case#5 big_tables test
+#
+SET @@SESSION.big_tables=ON;
+SELECT @@internal_tmp_mem_storage_engine;
+@@internal_tmp_mem_storage_engine
+TempTable
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	20
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# Tables are created on the disk directly
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	0
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	20
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+
+# Test cleanup
+SET @@SESSION.big_tables=default;
+
+##################################
+# MEMORY engine related tests
+##################################
+SET @@SESSION.internal_tmp_mem_storage_engine=MEMORY;
+SELECT @@internal_tmp_mem_storage_engine;
+@@internal_tmp_mem_storage_engine
+MEMORY
+
+#
+# Test case#6 RAM limit spill over.
+#
+SET @@SESSION.max_heap_table_size=2*1024*1024;
+SELECT @@max_heap_table_size;
+@@max_heap_table_size
+2097152
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	20
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# MEMORY engine doesn't support blob columns so
+# it creates the temp table on disk directly
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	0
+CALL print_status_variables('global');
+Variable_name	Value
+Count_hit_tmp_table_size	20
+Variable_name	Value
+TempTable_count_hit_max_ram	9
+# Let us try with a CTE this time
+SET @@SESSION.max_heap_table_size=16384;
+SET cte_max_recursion_depth=5000;
+FLUSH STATUS;
+
+WITH RECURSIVE cte (c) as
+(SELECT 1 UNION ALL SELECT 1+c FROM cte WHERE c < 2000)
+SELECT MIN(c), MAX(c), AVG(c) FROM cte;
+MIN(c)	MAX(c)	AVG(c)
+1	2000	1000.5000
+
+# tmp table must be converted from in-memory to on-disk after the table
+# size would have exceeded the max_table_size aka max_heap_table_size
+# TempTable_count_hit_max_ram must remain unaffected
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	1
+SET @@SESSION.max_heap_table_size=default;
+
+#
+# Test case#7 table size exceeds tmp_table_size
+#
+SET @@SESSION.tmp_table_size=2*1024;
+FLUSH STATUS;
+
+WITH RECURSIVE cte (c) as
+(SELECT 1 UNION ALL SELECT 1+c FROM cte WHERE c < 2000)
+SELECT MIN(c), MAX(c), AVG(c) FROM cte;
+MIN(c)	MAX(c)	AVG(c)
+1	2000	1000.5000
+
+# MEMORY engine calculates the max_rows to hold as
+# min(tmp_table_size, max_heap_table_size). It fallsback to on-disk
+# TempTable_count_hit_max_ram must remain unaffected.
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	1
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+FROM performance_schema.session_status WHERE
+VARIABLE_NAME LIKE 'Created_tmp%tables' OR
+VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+Count_hit_tmp_table_size	1
+Created_tmp_disk_tables	1
+Created_tmp_tables	1
+
+#
+# Test case#8 big_table test
+#
+SET @@SESSION.big_tables=ON;
+SELECT @@internal_tmp_mem_storage_engine;
+@@internal_tmp_mem_storage_engine
+MEMORY
+SELECT @@max_heap_table_size;
+@@max_heap_table_size
+16777216
+SELECT @@tmp_table_size;
+@@tmp_table_size
+2048
+FLUSH STATUS;
+
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+c1	COUNT(DISTINCT(c2))
+1	1
+2	1
+3	1
+
+# Tables are created on the disk directly
+CALL print_status_variables('session');
+Variable_name	Value
+Created_tmp_tables	1
+Variable_name	Value
+Created_tmp_disk_tables	1
+Variable_name	Value
+Count_hit_tmp_table_size	0
+# Test cleanup
+SET @@SESSION.big_tables=default;
+# Final cleanup
+SET @@SESSION.internal_tmp_mem_storage_engine=default;
+DROP TABLE lob_table;
+DROP PROCEDURE print_status_variables;
+disconnect con1;
+disconnect con2;

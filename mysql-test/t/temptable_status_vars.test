@@ -1,0 +1,360 @@
+# WL#16377 Observability of tmp_table_size and temptable_max_memory threshold
+# breaches
+# This test tracks state of different status variables related to the internal
+# temp table engines.
+
+# Reset the global status variables for test stability
+--source include/restart_mysqld.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--enable_connect_log
+
+--DELIMITER //
+
+CREATE PROCEDURE print_status_variables(IN status_type VARCHAR(10))
+BEGIN
+    IF status_type = 'session' THEN
+        SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+        SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+        SHOW SESSION STATUS LIKE 'Count_hit_tmp_table_size';
+    ELSEIF status_type = 'global' THEN
+        SHOW GLOBAL STATUS LIKE 'Count_hit_tmp_table_size';
+        SHOW GLOBAL STATUS LIKE 'TempTable_count_hit_max_ram';
+    ELSE
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid argument. Please use "session" or "global"';
+    END IF;
+END //
+
+--DELIMITER ;
+
+--echo # Prepare Tables
+CREATE TABLE lob_table(c1 INT, c2 LONGBLOB);
+# Table with 2MB of LOB per row
+INSERT INTO lob_table VALUES (1, REPEAT(1, 2*1024*1024)),
+                             (2, REPEAT(2, 2*1024*1024)),
+                             (3, REPEAT(3, 2*1024*1024));
+ANALYZE TABLE lob_table;
+
+--echo
+--echo # Create Connections
+let $max_counter = 3;
+let $counter = 1;
+while($counter < $max_counter){
+  connect (con$counter, localhost, root,,);
+  inc $counter;
+}
+connection default;
+
+--echo
+--echo #################################
+--echo # TempTable engine related tests
+--echo #################################
+
+SELECT @@SESSION.internal_tmp_mem_storage_engine;
+SELECT @@SESSION.tmp_table_size;
+SELECT @@GLOBAL.temptable_max_mmap;
+
+--let $num=1
+--echo #
+--echo # Test case#$num RAM limit spill over.
+--echo #
+
+SET @@GLOBAL.temptable_max_ram=2*1024*1024;
+CALL print_status_variables('global');
+--echo # There must be a tmp table created on disk after the
+--echo # memory limit of TempTable engine was exhausted
+--echo
+
+let $counter = 1;
+while($counter < $max_counter){
+  connection con$counter;
+
+  FLUSH STATUS;
+  --echo
+  SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+  --echo
+
+  if($counter > 1) {
+    --echo # Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+  }
+  CALL print_status_variables('session');
+  if($counter > 1) {
+    --echo # TempTable_count_hit_max_ram is 7 because statements to show these
+    --echo # status variables also use temp tables. Engine already exceeded the
+    --echo # memory limit exceeded when SELECT query executed in the first
+    --echo # iterataion. This count is accumulation of the hits after that.
+  }
+  CALL print_status_variables('global');
+  inc $counter;
+  --echo
+}
+connection default;
+CALL print_status_variables('global');
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status WHERE
+  VARIABLE_NAME = 'Count_hit_tmp_table_size' OR
+  VARIABLE_NAME = 'TempTable_count_hit_max_ram' ORDER BY VARIABLE_NAME;
+
+SET @@GLOBAL.temptable_max_ram=default;
+
+--echo
+--echo # Repeat the query again. Status variables count should not change
+--echo # from the previous run
+let $counter = 1;
+while($counter < $max_counter){
+  connection con$counter;
+
+  FLUSH STATUS;
+  --echo
+  SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+  --echo
+  CALL print_status_variables('session');
+  inc $counter;
+  --echo
+}
+connection default;
+CALL print_status_variables('global');
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num RAM + MMAP limit spill over.
+--echo #
+
+FLUSH STATUS;
+
+SET @@GLOBAL.temptable_max_ram=2*1024*1024;
+SET @@GLOBAL.temptable_max_mmap=2*1024*1024;
+CALL print_status_variables('global');
+
+--echo # There must be a tmp table created on disk in MMAP after the RAM limit
+--echo # of TempTable engine is exausted
+--echo
+
+let $counter = 1;
+while($counter < $max_counter){
+  connection con$counter;
+
+  FLUSH STATUS;
+  --echo
+  SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+  --echo
+
+  CALL print_status_variables('session');
+  CALL print_status_variables('global');
+  inc $counter;
+  --echo
+}
+connection default;
+CALL print_status_variables('global');
+
+echo # Test cleanup
+SET @@GLOBAL.temptable_max_ram=default;
+SET @@GLOBAL.temptable_max_mmap=default;
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num tmp table size exceeds the tmp_table_size
+--echo #
+
+SELECT @@internal_tmp_mem_storage_engine;
+CALL print_status_variables('global');
+
+--echo # There must be a tmp table created on disk because TempTable
+--echo # engine found that table size exceeded the tmp_table_size
+--echo
+
+let $counter = 1;
+while($counter < $max_counter){
+  connection con$counter;
+
+  SET @@SESSION.tmp_table_size=2*1024;
+  # It is weird that I need to reset global variable again,
+  # otherwise value is not getting reset.
+  SET @@GLOBAL.temptable_max_ram=default;
+  FLUSH STATUS;
+  --echo
+  SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+  --echo
+
+  --echo # Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+  CALL print_status_variables('session');
+  CALL print_status_variables('global');
+  inc $counter;
+  --echo
+}
+connection default;
+CALL print_status_variables('global');
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+  FROM performance_schema.global_status WHERE
+  VARIABLE_NAME = 'Count_hit_tmp_table_size' OR
+  VARIABLE_NAME = 'TempTable_count_hit_max_ram' ORDER BY VARIABLE_NAME;
+
+echo # Test Cleanup
+SET @@SESSION.tmp_table_size=default;
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num Table exceeds the tmp_table_size and memory limit both
+--echo #
+
+SET @@SESSION.tmp_table_size=2*1024;
+SET @@GLOBAL.temptable_max_ram=2*1024*1024;
+CALL print_status_variables('global');
+FLUSH STATUS;
+
+--echo
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+--echo
+
+--echo # Should be no different than the previous case
+--echo # where table size exceeded the tmp_table_size
+
+--echo
+--echo # Count of Created_tmp_disk_tables is not changed due to Bug#36845804
+CALL print_status_variables('session');
+# Test the PFS session status table as well
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+    FROM performance_schema.session_status WHERE
+    VARIABLE_NAME LIKE 'Created_tmp%tables' OR
+    VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
+CALL print_status_variables('global');
+
+echo # Test cleanup
+SET @@SESSION.tmp_table_size=default;
+SET @@GLOBAL.temptable_max_ram=default;
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num big_tables test
+--echo #
+SET @@SESSION.big_tables=ON;
+SELECT @@internal_tmp_mem_storage_engine;
+CALL print_status_variables('global');
+
+FLUSH STATUS;
+
+--echo
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+--echo
+
+--echo # Tables are created on the disk directly
+CALL print_status_variables('session');
+CALL print_status_variables('global');
+
+--echo
+--echo # Test cleanup
+SET @@SESSION.big_tables=default;
+
+--echo
+--echo ##################################
+--echo # MEMORY engine related tests
+--echo ##################################
+
+SET @@SESSION.internal_tmp_mem_storage_engine=MEMORY;
+SELECT @@internal_tmp_mem_storage_engine;
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num RAM limit spill over.
+--echo #
+
+SET @@SESSION.max_heap_table_size=2*1024*1024;
+SELECT @@max_heap_table_size;
+CALL print_status_variables('global');
+
+FLUSH STATUS;
+--echo
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+--echo
+
+--echo # MEMORY engine doesn't support blob columns so
+--echo # it creates the temp table on disk directly
+CALL print_status_variables('session');
+CALL print_status_variables('global');
+
+--echo # Let us try with a CTE this time
+SET @@SESSION.max_heap_table_size=16384;
+SET cte_max_recursion_depth=5000;
+
+FLUSH STATUS;
+
+--echo
+WITH RECURSIVE cte (c) as
+  (SELECT 1 UNION ALL SELECT 1+c FROM cte WHERE c < 2000)
+SELECT MIN(c), MAX(c), AVG(c) FROM cte;
+--echo
+
+--echo # tmp table must be converted from in-memory to on-disk after the table
+--echo # size would have exceeded the max_table_size aka max_heap_table_size
+--echo # TempTable_count_hit_max_ram must remain unaffected
+CALL print_status_variables('session');
+
+SET @@SESSION.max_heap_table_size=default;
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num table size exceeds tmp_table_size
+--echo #
+
+SET @@SESSION.tmp_table_size=2*1024;
+FLUSH STATUS;
+
+--echo
+WITH RECURSIVE cte (c) as
+  (SELECT 1 UNION ALL SELECT 1+c FROM cte WHERE c < 2000)
+SELECT MIN(c), MAX(c), AVG(c) FROM cte;
+--echo
+
+--echo # MEMORY engine calculates the max_rows to hold as
+--echo # min(tmp_table_size, max_heap_table_size). It fallsback to on-disk
+--echo # TempTable_count_hit_max_ram must remain unaffected.
+CALL print_status_variables('session');
+SELECT VARIABLE_NAME, VARIABLE_VALUE
+    FROM performance_schema.session_status WHERE
+    VARIABLE_NAME LIKE 'Created_tmp%tables' OR
+    VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
+
+--inc $num
+--echo
+--echo #
+--echo # Test case#$num big_table test
+--echo #
+SET @@SESSION.big_tables=ON;
+SELECT @@internal_tmp_mem_storage_engine;
+SELECT @@max_heap_table_size;
+SELECT @@tmp_table_size;
+
+FLUSH STATUS;
+
+--echo
+SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
+--echo
+
+--echo # Tables are created on the disk directly
+CALL print_status_variables('session');
+
+--echo # Test cleanup
+SET @@SESSION.big_tables=default;
+
+--echo # Final cleanup
+SET @@SESSION.internal_tmp_mem_storage_engine=default;
+DROP TABLE lob_table;
+DROP PROCEDURE print_status_variables;
+
+let $counter = 1;
+while($counter < $max_counter){
+ disconnect con$counter;
+ inc $counter;
+}
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+--disable_connect_log

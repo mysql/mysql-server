@@ -526,6 +526,7 @@ struct System_status_var {
   /* IMPORTANT! See first_system_status_var definition below. */
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
+  ulonglong count_hit_tmp_table_size;
   ulonglong ha_commit_count;
   ulonglong ha_delete_count;
   ulonglong ha_read_first_count;

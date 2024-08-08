@@ -762,6 +762,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             " Sort_rows: %lu Sort_scan_count: %lu"
             " Created_tmp_disk_tables: %lu"
             " Created_tmp_tables: %lu"
+            " Count_hit_tmp_table_size: %lu "
             " Start: %s End: %s\n",
             query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
             (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
@@ -798,6 +799,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                     thd->copy_status_var_ptr->created_tmp_disk_tables),
             (ulong)(thd->status_var.created_tmp_tables -
                     thd->copy_status_var_ptr->created_tmp_tables),
+            (ulong)(thd->status_var.count_hit_tmp_table_size -
+                    thd->copy_status_var_ptr->count_hit_tmp_table_size),
             start_time_buff, end_time_buff) == (uint)-1)
       goto err; /* purecov: inspected */
   }

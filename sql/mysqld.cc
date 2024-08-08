@@ -5955,6 +5955,12 @@ static PSI_metric_info_v1 core_metrics[] = {
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
      get_metric_aggregated_integer,
      (void *)offsetof(aggregated_stats_buffer, created_tmp_tables)},
+    {"count.hit_tmp_table_size", "",
+     "The number of times temp table size exceeded the tmp table size limit"
+     "while executing statements (Count_hit_tmp_table_size)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, count_hit_tmp_table_size)},
     {"error_log.buffered_bytes", "",
      "The number of bytes currently used in the Performance Schema error_log "
      "table (Error_log_buffered_bytes)",
@@ -11441,6 +11447,9 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Created_tmp_tables",
      (char *)offsetof(System_status_var, created_tmp_tables),
+     SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Count_hit_tmp_table_size",
+     (char *)offsetof(System_status_var, count_hit_tmp_table_size),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Delayed_errors", (char *)&delayed_insert_errors, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
