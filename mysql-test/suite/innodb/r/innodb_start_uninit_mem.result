@@ -1,0 +1,3 @@
+#
+Bug#36705034	pwrite(buf) points to uninitialised byte(s) in os_fusionio_get_sector_size()
+#
