@@ -308,7 +308,7 @@ int main(int argc, char *const argv[]) {
     // Close write end
     close(pfd[1]);
 
-#if defined(HAVE_ASAN) && defined(HAVE_TIRPC)
+#if defined(HAVE_ASAN) && defined(HAVE_SYSTEM_TIRPC)
 #include "asan_library_name.h"
     std::string ld_preload = "LD_PRELOAD=";
     int lib_count = 0;

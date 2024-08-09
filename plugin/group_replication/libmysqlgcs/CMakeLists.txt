@@ -237,10 +237,6 @@ ADD_LIBRARY(mysqlgcs STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
 # but pick up symbols from the server:
 # TARGET_LINK_LIBRARIES(mysqlgcs mysys)
 
-IF(LINUX AND WITH_TIRPC STREQUAL "bundled")
-  ADD_DEPENDENCIES(mysqlgcs tirpc_ext)
-ENDIF()
-
 IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
   # New in version 3.19:
   # An interface library target may be created with source files.
@@ -257,8 +253,8 @@ IF(WIN32)
   TARGET_COMPILE_OPTIONS(mysqlgcs PRIVATE "/wd4005")
 ENDIF()
 
-IF(TIRPC_LIBRARIES)
-  TARGET_LINK_LIBRARIES(mysqlgcs ${TIRPC_LIBRARIES})
+IF(TARGET ext::rpc)
+  TARGET_LINK_LIBRARIES(mysqlgcs PUBLIC ext::rpc)
 ENDIF()
 
 IF(MSVC)
