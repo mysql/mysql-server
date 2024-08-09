@@ -117,24 +117,21 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
   int full_doit = xcom_full_receive_data != nullptr;
   int doit = (xcom_receive_data != nullptr && app_status == delivery_ok);
 
-  if (app_status == delivery_ok) {
-    if (!pma) {
-      g_critical(
-          "A fatal error ocurred that prevents XCom from delivering a message "
-          "that achieved consensus. XCom cannot proceed without compromising "
-          "correctness. XCom will now crash.");
-    }
-    assert(pma && "pma must not be a null pointer");
+  if (app_status == delivery_ok && !pma) {
+    g_critical(
+        "A message is to be delivered but it does not have an associated "
+        "PAXOS State Machine. XCom cannot proceed delivering this message "
+        "without compromising correctness. This message will be skipped. No "
+        "need to take any further action. If this behaviour persists, "
+        "consider restarting the group at the next convenient time");
+
+    return;
   }
 
   if (!(full_doit || doit)) return;
 
   IFDBG(D_NONE, FN; PTREXP(pma); PTREXP(app); NDBG(app_status, d);
         COPY_AND_FREE_GOUT(dbg_app_data(app)));
-  if (pma)
-    site = find_site_def(pma->synode);
-  else
-    site = get_site_def();
 
   while (app) {
     if (app->body.c_t == app_type) { /* Decode application data */
@@ -143,6 +140,71 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
         IFDBG(D_BASE, FN; if (pma) SYCEXP(pma->synode); SYCEXP(app->unique_id);
               SYCEXP(app->app_key));
       }
+
+      // Fix the site to provide when invoking the callback xcom_receive_data.
+      // Since the implementation of PAXOS Single Leader, we use app->unique_id
+      // to convey the actual node that sent the message. In very rare
+      // occasions, the node that sent the message might propose it, crash,
+      // be removed from the group and the message is re-proposed by any of the
+      // members that are still alive in the group, thus fulfilling the
+      // PAXOS protocol.
+      //
+      // We will check if the synode conveyed in app->unique_id is less that
+      // then the site start from the Paxos State Machine(PMA) of the message
+      // being delivered. If that happens, it means that this message was
+      // intended originally to be delivered in a past configuration. We will
+      // then retrieve the site nodes from that configuration.
+      // synode and not the PMA in which it ended up.
+      //
+      // If we are not able to retrieve the site in which this message was
+      // intended to be, this means that the configuration where this message
+      // made sense has long been evicted from the Current + past 3
+      // configurations. If this happens, we will log this occurence, drop
+      // it and continue to the next incoming message.
+
+      if (pma) {
+        site = find_site_def(pma->synode);
+
+        if (!site) {
+          g_critical(
+              "A message is to be delivered but it does not have an associated "
+              "configuration. XCom cannot proceed delivering this "
+              "message without compromising correctness. This message will be "
+              "skipped. "
+              "No need to take any further action. If this behaviour persists, "
+              "consider restarting the group at the next convenient time");
+          return;
+        }
+
+        if (app->unique_id.group_id != 0 &&
+            (app->unique_id.group_id == site->start.group_id) &&
+            synode_lt(app->unique_id, site->start)) {
+          synode_no delivered_message_site_start = site->start;
+
+          site = find_site_def(app->unique_id);
+          if (site) {
+            G_INFO(
+                "Received a network packet proposed in a previous "
+                "configuration: " SY_FMT
+                " and the configuration in which it was delivered starts "
+                "in " SY_FMT ". No need to take any further action.",
+                SY_MEM(app->unique_id), SY_MEM(delivered_message_site_start))
+          } else {
+            G_WARNING(
+                "Received a network packet proposed in a previous "
+                "configuration: " SY_FMT
+                " but we are not able to determine to which configuration it "
+                "belongs. We will safely ignore this message. No need to take "
+                "any further "
+                "action. If this behaviour persists, consider restarting "
+                "the group at the next convenient time",
+                SY_MEM(app->unique_id))
+            app = app->next;
+            continue;
+          }
+        }
+      }
+
       if (full_doit) {
         /* purecov: begin deadcode */
         xcom_full_receive_data(site, pma, app, app_status);
