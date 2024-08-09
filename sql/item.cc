@@ -10458,7 +10458,7 @@ static enum_field_types real_data_type(Item *item) {
   @returns false if success, true if error (types are incompatible)
 */
 
-bool Item_aggregate_type::unify_types(THD *thd, Item *item) {
+bool Item_aggregate_type::unify_types(THD *thd [[maybe_unused]], Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info:",
              ("was type %d len %d, dec %d name %s", data_type(), max_length,
