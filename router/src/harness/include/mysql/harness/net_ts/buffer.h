@@ -305,7 +305,7 @@ struct is_dynamic_buffer<T, decltype(dynamic_buffer_requirements<T>())>
 }  // namespace impl
 
 template <class T>
-struct is_dynamic_buffer : impl::is_dynamic_buffer<T>::type {};
+struct is_dynamic_buffer : impl::is_dynamic_buffer<std::decay_t<T>>::type {};
 
 // 16.8 [buffer.size]
 
@@ -832,9 +832,10 @@ class consuming_buffers {
 // 17.5 [buffer.read]
 
 template <class SyncReadStream, class MutableBufferSequence>
-std::enable_if_t<is_mutable_buffer_sequence<MutableBufferSequence>::value,
-                 stdx::expected<size_t, std::error_code>>
-read(SyncReadStream &stream, const MutableBufferSequence &buffers) {
+stdx::expected<size_t, std::error_code> read(
+    SyncReadStream &stream, const MutableBufferSequence &buffers)
+  requires(is_mutable_buffer_sequence_v<MutableBufferSequence>)
+{
   static_assert(net::is_mutable_buffer_sequence<MutableBufferSequence>::value,
                 "");
   return read(stream, buffers, transfer_all());
@@ -842,10 +843,11 @@ read(SyncReadStream &stream, const MutableBufferSequence &buffers) {
 
 template <class SyncReadStream, class MutableBufferSequence,
           class CompletionCondition>
-std::enable_if_t<is_mutable_buffer_sequence<MutableBufferSequence>::value,
-                 stdx::expected<size_t, std::error_code>>
-read(SyncReadStream &stream, const MutableBufferSequence &buffers,
-     CompletionCondition cond) {
+stdx::expected<size_t, std::error_code> read(
+    SyncReadStream &stream, const MutableBufferSequence &buffers,
+    CompletionCondition cond)
+  requires(is_mutable_buffer_sequence_v<MutableBufferSequence>)
+{
   static_assert(net::is_mutable_buffer_sequence<MutableBufferSequence>::value,
                 "");
 
@@ -868,16 +870,19 @@ read(SyncReadStream &stream, const MutableBufferSequence &buffers,
 }
 
 template <class SyncReadStream, class DynamicBuffer>
-std::enable_if_t<is_dynamic_buffer<std::decay_t<DynamicBuffer>>::value,
-                 stdx::expected<size_t, std::error_code>>
-read(SyncReadStream &stream, DynamicBuffer &&b) {
-  return read(stream, b, transfer_all());
+stdx::expected<size_t, std::error_code> read(SyncReadStream &stream,
+                                             DynamicBuffer &&b)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
+  return read(stream, std::forward<DynamicBuffer>(b), transfer_all());
 }
 
 template <class SyncReadStream, class DynamicBuffer, class CompletionCondition>
-std::enable_if_t<is_dynamic_buffer<std::decay_t<DynamicBuffer>>::value,
-                 stdx::expected<size_t, std::error_code>>
-read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
+stdx::expected<size_t, std::error_code> read(SyncReadStream &stream,
+                                             DynamicBuffer &&b,
+                                             CompletionCondition cond)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   std::error_code ec{};
 
   size_t transferred{};
@@ -925,61 +930,43 @@ read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
 // 17.6 [buffer.async.read]
 template <class AsyncReadStream, class DynamicBuffer, class CompletionCondition,
           class CompletionToken>
-std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value, void> async_read(
-    AsyncReadStream &stream, DynamicBuffer &&b,
-    CompletionCondition completion_condition, CompletionToken &&token) {
+void async_read(AsyncReadStream &stream, DynamicBuffer &&b,
+                CompletionCondition completion_condition,
+                CompletionToken &&token)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   async_completion<CompletionToken, void(std::error_code, size_t)> init{token};
 
   using compl_handler_type = typename decltype(init)::completion_handler_type;
+  stream.async_wait(net::impl::socket::wait_type::wait_read,
+                    [&stream, b_ = std::forward<DynamicBuffer>(b),
+                     compl_cond_ = completion_condition,
+                     compl_handler_ = std::forward<compl_handler_type>(
+                         init.completion_handler)](std::error_code ec) mutable {
+                      if (ec) {
+                        compl_handler_(ec, 0);
+                        return;
+                      }
 
-  class Completor {
-   public:
-    Completor(AsyncReadStream &stream, DynamicBuffer &&b,
-              CompletionCondition compl_cond,
-              compl_handler_type &&compl_handler)
-        : stream_{stream},
-          b_{std::forward<DynamicBuffer>(b)},
-          compl_cond_{compl_cond},
-          compl_handler_(std::forward<compl_handler_type>(compl_handler)) {}
+                      const auto res = net::read(stream, b_, compl_cond_);
 
-    Completor(const Completor &) = delete;
-    Completor(Completor &&) = default;
+                      if (!res) {
+                        compl_handler_(res.error(), 0);
+                      } else {
+                        compl_handler_({}, res.value());
+                      }
 
-    void operator()(std::error_code ec) {
-      if (ec) {
-        compl_handler_(ec, 0);
-        return;
-      }
-
-      const auto res = net::read(stream_, b_, compl_cond_);
-
-      if (!res) {
-        compl_handler_(res.error(), 0);
-      } else {
-        compl_handler_({}, res.value());
-      }
-
-      return;
-    }
-
-   private:
-    AsyncReadStream &stream_;
-    DynamicBuffer b_;
-    CompletionCondition compl_cond_;
-    compl_handler_type compl_handler_;
-  };
-
-  stream.async_wait(
-      net::impl::socket::wait_type::wait_read,
-      Completor(stream, std::forward<DynamicBuffer>(b), completion_condition,
-                std::move(init.completion_handler)));
+                      return;
+                    });
 
   return init.result.get();
 }
 
 template <class AsyncReadStream, class DynamicBuffer, class CompletionToken>
-std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value, void> async_read(
-    AsyncReadStream &stream, DynamicBuffer &&b, CompletionToken &&token) {
+void async_read(AsyncReadStream &stream, DynamicBuffer &&b,
+                CompletionToken &&token)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   return async_read(stream, std::forward<DynamicBuffer>(b), net::transfer_all(),
                     std::forward<CompletionToken>(token));
 }
@@ -987,18 +974,20 @@ std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value, void> async_read(
 // 17.7 [buffer.write]
 
 template <class SyncWriteStream, class ConstBufferSequence>
-std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence>,
-                 stdx::expected<size_t, std::error_code>>
-write(SyncWriteStream &stream, const ConstBufferSequence &buffers) {
+stdx::expected<size_t, std::error_code> write(
+    SyncWriteStream &stream, const ConstBufferSequence &buffers)
+  requires(is_const_buffer_sequence_v<ConstBufferSequence>)
+{
   return write(stream, buffers, transfer_all());
 }
 
 template <class SyncWriteStream, class ConstBufferSequence,
           class CompletionCondition>
-std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence>,
-                 stdx::expected<size_t, std::error_code>>
-write(SyncWriteStream &stream, const ConstBufferSequence &buffers,
-      CompletionCondition cond) {
+stdx::expected<size_t, std::error_code> write(
+    SyncWriteStream &stream, const ConstBufferSequence &buffers,
+    CompletionCondition cond)
+  requires(is_const_buffer_sequence_v<ConstBufferSequence>)
+{
   std::error_code ec{};
 
   consuming_buffers<ConstBufferSequence, const_buffer> consumable(buffers);
@@ -1029,16 +1018,19 @@ write(SyncWriteStream &stream, const ConstBufferSequence &buffers,
 }
 
 template <class SyncWriteStream, class DynamicBuffer>
-std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value,
-                 stdx::expected<size_t, std::error_code>>
-write(SyncWriteStream &stream, DynamicBuffer &&b) {
+stdx::expected<size_t, std::error_code> write(SyncWriteStream &stream,
+                                              DynamicBuffer &&b)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   return write(stream, std::forward<DynamicBuffer>(b), transfer_all());
 }
 
 template <class SyncWriteStream, class DynamicBuffer, class CompletionCondition>
-std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value,
-                 stdx::expected<size_t, std::error_code>>
-write(SyncWriteStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
+stdx::expected<size_t, std::error_code> write(SyncWriteStream &stream,
+                                              DynamicBuffer &&b,
+                                              CompletionCondition cond)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   std::error_code ec{};
 
   size_t to_transfer;
@@ -1071,9 +1063,10 @@ write(SyncWriteStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
 //
 template <class AsyncWriteStream, class ConstBufferSequence,
           class CompletionCondition, class CompletionToken>
-std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence>, void>
-async_write(AsyncWriteStream &stream, const ConstBufferSequence &buffers,
-            CompletionCondition cond, CompletionToken &&token) {
+void async_write(AsyncWriteStream &stream, const ConstBufferSequence &buffers,
+                 CompletionCondition cond, CompletionToken &&token)
+  requires(is_const_buffer_sequence_v<ConstBufferSequence>)
+{
   async_completion<CompletionToken, void(std::error_code, size_t)> init{token};
 
   stream.async_wait(
@@ -1101,74 +1094,58 @@ async_write(AsyncWriteStream &stream, const ConstBufferSequence &buffers,
 
 template <class AsyncWriteStream, class ConstBufferSequence,
           class CompletionToken>
-std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence>, void>
-async_write(AsyncWriteStream &stream, const ConstBufferSequence &buffers,
-            CompletionToken &&token) {
+void async_write(AsyncWriteStream &stream, const ConstBufferSequence &buffers,
+                 CompletionToken &&token)
+  requires(is_const_buffer_sequence_v<ConstBufferSequence>)
+{
   return async_write(stream, buffers, net::transfer_all(),
                      std::forward<CompletionToken>(token));
 }
 
 template <class AsyncWriteStream, class DynamicBuffer,
           class CompletionCondition, class CompletionToken>
-std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value, void> async_write(
-    AsyncWriteStream &stream, DynamicBuffer &&b, CompletionCondition cond,
-    CompletionToken &&token) {
+void async_write(AsyncWriteStream &stream, DynamicBuffer &&b,
+                 CompletionCondition cond, CompletionToken &&token)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   async_completion<CompletionToken, void(std::error_code, size_t)> init{token};
 
   using compl_handler_type = typename decltype(init)::completion_handler_type;
 
-  class Completor {
-   public:
-    Completor(AsyncWriteStream &stream, DynamicBuffer &&b,
-              CompletionCondition cond, compl_handler_type &&compl_handler)
-        : stream_{stream},
-          b_{std::forward<DynamicBuffer>(b)},
-          cond_{cond},
-          compl_handler_(std::forward<compl_handler_type>(compl_handler)) {}
-
-    Completor(const Completor &) = delete;
-    Completor(Completor &&) = default;
-
-    void operator()(std::error_code ec) {
-      if (ec) {
-        compl_handler_(ec, 0);
-        return;
-      }
-
-      const auto res =
-          net::write(stream_, std::forward<DynamicBuffer>(b_), cond_);
-
-      if (!res) {
-        compl_handler_(res.error(), 0);
-      } else {
-        compl_handler_({}, res.value());
-      }
-
-      return;
-    }
-
-   private:
-    AsyncWriteStream &stream_;
-    DynamicBuffer b_;
-    CompletionCondition cond_;
-    compl_handler_type compl_handler_;
-  };
-
   stream.async_wait(net::impl::socket::wait_type::wait_write,
-                    Completor(stream, std::forward<DynamicBuffer>(b), cond,
-                              std::move(init.completion_handler)));
+                    [&stream, buf = std::forward<DynamicBuffer>(b), cond,
+                     compl_handler = std::forward<compl_handler_type>(
+                         init.completion_handler)](std::error_code ec) mutable {
+                      if (ec) {
+                        compl_handler(ec, 0);
+                        return;
+                      }
+
+                      const auto res = net::write(
+                          stream, std::forward<DynamicBuffer>(buf), cond);
+
+                      if (!res) {
+                        compl_handler(res.error(), 0);
+                      } else {
+                        compl_handler({}, res.value());
+                      }
+
+                      return;
+                    });
 
   return init.result.get();
 }
 
 template <class AsyncWriteStream, class DynamicBuffer, class CompletionToken>
-std::enable_if_t<is_dynamic_buffer<DynamicBuffer>::value, void> async_write(
-    AsyncWriteStream &stream, DynamicBuffer &&b, CompletionToken &&token) {
+void async_write(AsyncWriteStream &stream, DynamicBuffer &&b,
+                 CompletionToken &&token)
+  requires(is_dynamic_buffer_v<DynamicBuffer>)
+{
   return async_write(stream, std::forward<DynamicBuffer>(b),
                      net::transfer_all(), std::forward<CompletionToken>(token));
 }
 
-// 17.9 [buffer.read.until] not-implemented-ye
+// 17.9 [buffer.read.until] not-implemented-yet
 
 // 17.10 [buffer.async.read.until] not-implemented-yet
 

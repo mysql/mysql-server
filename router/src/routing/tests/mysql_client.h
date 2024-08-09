@@ -1052,12 +1052,11 @@ class MysqlClient {
       }
 
       template <class T>
-      typename std::enable_if<
-          std::conjunction<std::is_same<typename T::value_type, MYSQL_BIND>,
-                           std::is_same<decltype(std::declval<T>().data()),
-                                        typename T::value_type *>>::value,
-          stdx::expected<void, MysqlError>>::type
-      bind_result(T &params) {
+      stdx::expected<void, MysqlError> bind_result(T &params)
+        requires((std::is_same_v<typename T::value_type, MYSQL_BIND> &&
+                  std::is_same_v<decltype(std::declval<T>().data()),
+                                 typename T::value_type *>))
+      {
         if (params.size() != field_count()) {
           return stdx::unexpected(make_mysql_error_code(1));
         }
