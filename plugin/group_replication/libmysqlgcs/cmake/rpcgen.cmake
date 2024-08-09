@@ -124,8 +124,6 @@ FOREACH(X xcom_vp)
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 
-    MYSQL_CHECK_RPC()
-
     MESSAGE(STATUS "RPC_INCLUDE_DIRS ${RPC_INCLUDE_DIRS}")
 
     # on unix systems try to generate them if needed
