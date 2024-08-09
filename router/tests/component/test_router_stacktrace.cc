@@ -449,6 +449,9 @@ TEST_F(RouterStacktraceTest, crash_me_core_file_1) {
 
 // TS_2_2
 TEST_F(RouterStacktraceTest, no_core_file) {
+  RecordProperty("Description",
+                 "check that if no --core-file option is present, no core-file "
+                 "is created on crash, but a stacktrace on stderr.");
   TempDirectory tmp_dir;
 
   auto http_port = port_pool_.get_next_available();
@@ -470,6 +473,14 @@ TEST_F(RouterStacktraceTest, no_core_file) {
 #endif
                 .spawn({"-c", writer.write()});
 
+  auto core_file_name = CoreFinder(r.executable(), r.get_pid()).core_name();
+
+  // check if the core-file exists before the abort, like from another test or
+  // so.
+  const bool core_file_exists_already =
+      core_file_name.empty() ? false
+                             : mysql_harness::Path(core_file_name).exists();
+
   SCOPED_TRACE("// aborting router");
   {
     IOContext io_ctx;
@@ -484,19 +495,19 @@ TEST_F(RouterStacktraceTest, no_core_file) {
   SCOPED_TRACE("// wait for the exit");
   ASSERT_NO_THROW(r.native_wait_for_exit());
 
-  auto core_file_name = CoreFinder(r.executable(), r.get_pid()).core_name();
-  // remove the core-file if it exists at the end of the test.
-  Scope_guard exit_guard([core_file_name]() {
-    if (core_file_name.empty() ||
-        !mysql_harness::Path(core_file_name).exists()) {
-      return;
-    }
+  if (!core_file_name.empty() && !core_file_exists_already) {
+    // remove the core-file if it exists at the end of the test.
+    Scope_guard exit_guard([core_file_name]() {
+      if (core_file_name.empty() ||
+          !mysql_harness::Path(core_file_name).exists()) {
+        return;
+      }
 
-    std::error_code ec;
-    stdx::filesystem::remove(core_file_name, ec);
-  });
+      std::error_code ec;
+      stdx::filesystem::remove(core_file_name, ec);
+    });
 
-  if (!core_file_name.empty()) {
+    SCOPED_TRACE("// expect no core-file");
     EXPECT_FALSE(mysql_harness::Path(core_file_name).exists())
         << core_file_name;
   }
@@ -511,6 +522,9 @@ TEST_F(RouterStacktraceTest, no_core_file) {
 
 // TS_2_2
 TEST_F(RouterStacktraceTest, core_file_0) {
+  RecordProperty("Description",
+                 "check that '--core-file=0' creates no core-file, but a "
+                 "stacktrace on stderr.");
   TempDirectory tmp_dir;
 
   auto http_port = port_pool_.get_next_available();
@@ -532,6 +546,14 @@ TEST_F(RouterStacktraceTest, core_file_0) {
 #endif
                 .spawn({"-c", writer.write(), "--core-file", "0"});
 
+  auto core_file_name = CoreFinder(r.executable(), r.get_pid()).core_name();
+
+  // check if the core-file exists before the abort, like from another test or
+  // so.
+  const bool core_file_exists_already =
+      core_file_name.empty() ? false
+                             : mysql_harness::Path(core_file_name).exists();
+
   SCOPED_TRACE("// aborting router");
   {
     IOContext io_ctx;
@@ -546,19 +568,19 @@ TEST_F(RouterStacktraceTest, core_file_0) {
   SCOPED_TRACE("// wait for the exit");
   ASSERT_NO_THROW(r.native_wait_for_exit());
 
-  auto core_file_name = CoreFinder(r.executable(), r.get_pid()).core_name();
-  // remove the core-file if it exists at the end of the test.
-  Scope_guard exit_guard([core_file_name]() {
-    if (core_file_name.empty() ||
-        !mysql_harness::Path(core_file_name).exists()) {
-      return;
-    }
+  if (!core_file_name.empty() && !core_file_exists_already) {
+    // remove the core-file if it exists at the end of the test.
+    Scope_guard exit_guard([core_file_name]() {
+      if (core_file_name.empty() ||
+          !mysql_harness::Path(core_file_name).exists()) {
+        return;
+      }
 
-    std::error_code ec;
-    stdx::filesystem::remove(core_file_name, ec);
-  });
+      std::error_code ec;
+      stdx::filesystem::remove(core_file_name, ec);
+    });
 
-  if (!core_file_name.empty()) {
+    SCOPED_TRACE("// expect no core-file");
     EXPECT_FALSE(mysql_harness::Path(core_file_name).exists())
         << core_file_name;
   }
