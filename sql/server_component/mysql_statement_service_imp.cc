@@ -159,6 +159,8 @@ auto enum_field_type_to_int(enum_field_types field_type) -> uint64_t {
       return MYSQL_SP_ARG_TYPE_STRING;
     case MYSQL_TYPE_GEOMETRY:
       return MYSQL_SP_ARG_TYPE_GEOMETRY;
+    case MYSQL_TYPE_VECTOR:
+      return MYSQL_SP_ARG_TYPE_VECTOR;
     default:
       return MYSQL_SP_ARG_TYPE_INVALID;
   }
