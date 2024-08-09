@@ -119,6 +119,11 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
           val.length = strlen(t->charset()->csname);
         }
         *((mysql_cstring_with_length *)inout_pvalue) = val;
+      } else if (!strcmp(name, "collation_connection_charset")) {
+        auto collation_charset = t->variables.collation_connection->csname;
+        auto val = mysql_cstring_with_length{collation_charset,
+                                             strlen(collation_charset)};
+        *((mysql_cstring_with_length *)inout_pvalue) = val;
       } else if (!strcmp(name, "sql_command")) {
         const char *sql_command = get_sql_command_string(t->lex->sql_command);
         if (t->lex->sql_command == SQLCOM_END &&
