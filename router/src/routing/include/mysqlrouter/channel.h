@@ -125,9 +125,9 @@ class ROUTING_CONNECTIONS_EXPORT Channel {
    * the data is appended to the send_buf()
    */
   template <class DynamicBuffer>
-  typename std::enable_if<net::is_dynamic_buffer<DynamicBuffer>::value,
-                          stdx::expected<size_t, std::error_code>>::type
-  write(DynamicBuffer &dyn_buf) {
+  stdx::expected<size_t, std::error_code> write(DynamicBuffer &dyn_buf)
+    requires(net::is_dynamic_buffer_v<DynamicBuffer>)
+  {
     auto orig_size = dyn_buf.size();
     size_t transferred{};
 

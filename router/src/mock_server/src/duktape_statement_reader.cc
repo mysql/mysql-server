@@ -28,6 +28,7 @@
 #include <stdexcept>
 #include <string>
 #include <system_error>
+#include <type_traits>
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -544,10 +545,11 @@ struct DuktapeStatementReader::Pimpl {
   }
 
   template <class INT_TYPE>
-  typename std::enable_if<std::is_unsigned<INT_TYPE>::value, INT_TYPE>::type
-  get_object_integer_value(duk_idx_t idx, const std::string &field,
-                           const INT_TYPE default_val = 0,
-                           bool is_required = false) {
+  INT_TYPE get_object_integer_value(duk_idx_t idx, const std::string &field,
+                                    const INT_TYPE default_val = 0,
+                                    bool is_required = false)
+    requires(std::is_unsigned_v<INT_TYPE>)
+  {
     INT_TYPE value;
 
     duk_get_prop_string(ctx, idx, field.c_str());

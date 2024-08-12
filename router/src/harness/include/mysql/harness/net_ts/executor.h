@@ -492,35 +492,27 @@ class executor_work_guard {
 
 // 13.17 [async.make.work.guard]
 
-// NOTE: 'is_executor_v' should be used here, but sun-cc fails with
-//
-// Error: Could not find a match for
-//   net::make_work_guard<Executor>(net::io_context::executor_type)
-// needed in
-//   net::executor_work_guard<net::io_context::executor_type>
-//   net::make_work_guard<net::io_context>(net::io_context&).
-//
-// Using the `is_executor<...>::value` makes it work correctly with all
-// compilers
 template <class Executor>
-std::enable_if_t<is_executor<Executor>::value, executor_work_guard<Executor>>
-make_work_guard(const Executor &ex) {
+executor_work_guard<Executor> make_work_guard(const Executor &ex)
+  requires(is_executor_v<Executor>)
+{
   return executor_work_guard<Executor>(ex);
 }
 
 template <class ExecutionContext>
-std::enable_if_t<
-    std::is_convertible<ExecutionContext &, execution_context &>::value,
-    executor_work_guard<typename ExecutionContext::executor_type>>
-make_work_guard(ExecutionContext &ctx) {
+executor_work_guard<typename ExecutionContext::executor_type> make_work_guard(
+    ExecutionContext &ctx)
+  requires(std::is_convertible_v<ExecutionContext &, execution_context &>)
+{
   return make_work_guard(ctx.get_executor());
 }
 
 template <class T>
-std::enable_if_t<!is_executor<T>::value &&
-                     !std::is_convertible<T &, execution_context &>::value,
-                 executor_work_guard<associated_executor_t<T>>>
-make_work_guard(const T &t) {
+executor_work_guard<associated_executor_t<T>> make_work_guard(const T &t)
+  requires(!is_executor_v<T> &&
+           !std::is_convertible_v<T &, execution_context &>)
+
+{
   return make_work_guard(get_associated_executor(t));
 }
 
@@ -712,10 +704,10 @@ auto dispatch(CompletionToken &&token) {
  * queue a function call for later execution.
  */
 template <class Executor, class CompletionToken>
-std::enable_if_t<
-    is_executor<Executor>::value,
-    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
-dispatch(const Executor &ex, CompletionToken &&token) {
+typename async_result<std::decay_t<CompletionToken>, void()>::return_type
+dispatch(const Executor &ex, CompletionToken &&token)
+  requires(is_executor_v<Executor>)
+{
   async_completion<CompletionToken, void()> completion(token);
 
   auto alloc = get_associated_allocator(completion.completion_handler);
@@ -729,10 +721,10 @@ dispatch(const Executor &ex, CompletionToken &&token) {
  * queue a function call for later execution.
  */
 template <class ExecutionContext, class CompletionToken>
-std::enable_if_t<
-    std::is_convertible<ExecutionContext &, execution_context &>::value,
-    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
-dispatch(ExecutionContext &ctx, CompletionToken &&token) {
+typename async_result<std::decay_t<CompletionToken>, void()>::return_type
+dispatch(ExecutionContext &ctx, CompletionToken &&token)
+  requires(std::is_convertible_v<ExecutionContext &, execution_context &>)
+{
   return net::dispatch(ctx.get_executor(),
                        std::forward<CompletionToken>(token));
 }
@@ -757,10 +749,10 @@ auto post(CompletionToken &&token) {
  * queue a function call for later execution.
  */
 template <class Executor, class CompletionToken>
-std::enable_if_t<
-    is_executor<Executor>::value,
-    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
-post(const Executor &ex, CompletionToken &&token) {
+typename async_result<std::decay_t<CompletionToken>, void()>::return_type  //
+post(const Executor &ex, CompletionToken &&token)
+  requires(is_executor_v<Executor>)
+{
   async_completion<CompletionToken, void()> completion(token);
 
   auto alloc = get_associated_allocator(completion.completion_handler);
@@ -774,10 +766,10 @@ post(const Executor &ex, CompletionToken &&token) {
  * queue a function call for later execution.
  */
 template <class ExecutionContext, class CompletionToken>
-std::enable_if_t<
-    std::is_convertible<ExecutionContext &, execution_context &>::value,
-    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
-post(ExecutionContext &ctx, CompletionToken &&token) {
+typename async_result<std::decay_t<CompletionToken>, void()>::return_type  //
+post(ExecutionContext &ctx, CompletionToken &&token)
+  requires(std::is_convertible_v<ExecutionContext &, execution_context &>)
+{
   return net::post(ctx.get_executor(), std::forward<CompletionToken>(token));
 }
 
@@ -798,10 +790,10 @@ auto defer(CompletionToken &&token) {
  * queue a function call for later execution.
  */
 template <class Executor, class CompletionToken>
-std::enable_if_t<
-    is_executor<Executor>::value,
-    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
-defer(const Executor &ex, CompletionToken &&token) {
+typename async_result<std::decay_t<CompletionToken>, void()>::return_type  //
+defer(const Executor &ex, CompletionToken &&token)
+  requires(is_executor_v<Executor>)
+{
   async_completion<CompletionToken, void()> completion(token);
 
   auto alloc = get_associated_allocator(completion.completion_handler);
@@ -815,10 +807,10 @@ defer(const Executor &ex, CompletionToken &&token) {
  * queue a function call for later execution.
  */
 template <class ExecutionContext, class CompletionToken>
-std::enable_if_t<
-    std::is_convertible<ExecutionContext &, execution_context &>::value,
-    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
-defer(ExecutionContext &ctx, CompletionToken &&token) {
+typename async_result<std::decay_t<CompletionToken>, void()>::return_type  //
+defer(ExecutionContext &ctx, CompletionToken &&token)
+  requires(std::is_convertible_v<ExecutionContext &, execution_context &>)
+{
   return net::defer(ctx.get_executor(), std::forward<CompletionToken>(token));
 }
 

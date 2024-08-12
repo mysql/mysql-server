@@ -158,7 +158,7 @@ class ClassicFrame {
     requires(
         (std::is_same_v<
              Msg, classic_protocol::borrowed::message::client::StmtExecute> &&
-         std::is_same_v<Proto, ClientSideClassicProtocolState>))  //
+         std::is_same_v<Proto, ClientSideClassicProtocolState>))
   static inline stdx::expected<Msg, std::error_code> recv_msg(
       Channel &src_channel, Proto &src_protocol,
       classic_protocol::capabilities::value_type caps) {

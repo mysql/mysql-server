@@ -522,8 +522,10 @@ template <class T>
 struct has_printer_unit<T, std::void_t<decltype(Printer<T>::unit)>>
     : std::true_type {};
 
-template <class T, std::enable_if_t<has_printer<T>::value> * = nullptr>
-std::ostream &operator<<(std::ostream &os, T v) {
+template <class T>
+std::ostream &operator<<(std::ostream &os, T v)
+  requires(has_printer<T>::value)
+{
   os << Printer<T>::name << ": ";
 
   if (std::is_same_v<decltype(v.value()), uint8_t>) {
