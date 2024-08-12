@@ -289,6 +289,28 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
+   Check if character set is utf8mb4, and return the default charset if not.
+
+   This is used to override non-utf8mb4 charset for non-SQL routines since
+   such routines will only use utf8mb4.
+
+   @param charset Character set to be checked.
+
+   @return my_charset_utf8mb4_0900_ai_ci if charset is not utf8mb4,
+           original charset, otherwise.
+
+*/
+static const CHARSET_INFO *convert_if_not_utf8mb4(const CHARSET_INFO *charset) {
+  if (strcmp(charset->csname, "utf8mb4") != 0) {
+    return &my_charset_utf8mb4_0900_ai_ci;
+  } else {
+    return charset;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+/**
   Helper method for create_routine() to prepare dd::Routine object
   from the sp_head.
 
@@ -382,16 +404,18 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
   // Set sql_mode.
   routine->set_sql_mode(thd->variables.sql_mode);
 
-  // Set client collation id.
+  // Set client collation id and connection collation id.
   if (sp->is_sql()) {
     routine->set_client_collation_id(thd->charset()->number);
+    routine->set_connection_collation_id(
+        thd->variables.collation_connection->number);
   } else {
-    routine->set_client_collation_id(my_charset_utf8mb4_0900_ai_ci.number);
+    // For non-SQL routines, we will always use utf8mb4
+    routine->set_client_collation_id(
+        convert_if_not_utf8mb4(thd->charset())->number);
+    routine->set_connection_collation_id(
+        convert_if_not_utf8mb4(thd->variables.collation_connection)->number);
   }
-
-  // Set connection collation id.
-  routine->set_connection_collation_id(
-      thd->variables.collation_connection->number);
 
   // Set schema collation id.
   const CHARSET_INFO *db_cs = nullptr;
