@@ -35,12 +35,9 @@
 
 #include <mysql.h>
 
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
-#define MYSQL_ROUTER_LOG_DOMAIN "sql"
-#include "mysql/harness/logging/logging.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 using namespace mysqlrouter;
 using namespace std::string_literals;
@@ -120,8 +117,7 @@ class SSLSessionsCache {
 
 }  // namespace
 
-MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy)
-    : logging_strategy_(std::move(logging_strategy)) {
+MySQLSession::MySQLSession() {
   MySQLClientThreadToken api_token;
 
   connection_ = new MYSQL();
@@ -476,31 +472,32 @@ stdx::expected<MySQLSession::mysql_result_type, MysqlError>
 MySQLSession::logged_real_query(const std::string &q) {
   using clock_type = std::chrono::steady_clock;
 
-  if (logging_strategy_->log_will_be_ignored()) {
-    return real_query(q);
-  }
-
   auto start = clock_type::now();
   auto query_res = real_query(q);
-  auto dur = clock_type::now() - start;
-  auto msg =
-      get_address() + " (" +
-      std::to_string(
-          std::chrono::duration_cast<std::chrono::microseconds>(dur).count()) +
-      " us)> " + log_filter_.filter(q);
-  if (query_res) {
-    auto const *res = query_res.value().get();
 
-    msg += " // OK";
-    if (res) {
-      msg += " " + std::to_string(res->row_count) + " row" +
-             (res->row_count != 1 ? "s" : "");
+  logger_.debug([this, &q, &query_res, start]() {
+    auto dur = clock_type::now() - start;
+    auto msg = get_address() + " (" +
+               std::to_string(
+                   std::chrono::duration_cast<std::chrono::microseconds>(dur)
+                       .count()) +
+               " us)> " + log_filter_.filter(q);
+
+    if (query_res) {
+      auto const *res = query_res.value().get();
+
+      msg += " // OK";
+      if (res) {
+        msg += " " + std::to_string(res->row_count) + " row" +
+               (res->row_count != 1 ? "s" : "");
+      }
+    } else {
+      auto err = query_res.error();
+      msg += " // ERROR: " + std::to_string(err.value()) + " " + err.message();
     }
-  } else {
-    auto err = query_res.error();
-    msg += " // ERROR: " + std::to_string(err.value()) + " " + err.message();
-  }
-  logging_strategy_->log(msg);
+
+    return msg;
+  });
 
   return query_res;
 }
@@ -654,13 +651,4 @@ bool MySQLSession::is_ssl_session_reused() {
 
 unsigned long MySQLSession::server_version() {
   return connection_ ? mysql_get_server_version(connection_) : 0;
-}
-
-bool MySQLSession::LoggingStrategyDebugLogger::log_will_be_ignored() const {
-  return !mysql_harness::logging::log_level_is_handled(
-      mysql_harness::logging::LogLevel::kDebug);
-}
-
-void MySQLSession::LoggingStrategyDebugLogger::log(const std::string &msg) {
-  log_debug("%s", msg.c_str());
 }

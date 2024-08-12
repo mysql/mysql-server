@@ -388,8 +388,7 @@ void ConfigGenerator::connect_to_metadata_server(
     const URI &u, const std::string &bootstrap_socket,
     const std::map<std::string, std::string> &bootstrap_options) {
   // connect to (what should be a) metadata server
-  mysql_ = std::make_unique<MySQLSession>(
-      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+  mysql_ = std::make_unique<MySQLSession>();
 
 #ifdef ROUTER_CLIENT_PLUGINS_ARE_BUNDLED
   // if the router package bundles the client plugins, set the plugin-dir to the

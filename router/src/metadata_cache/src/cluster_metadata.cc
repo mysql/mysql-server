@@ -126,8 +126,7 @@ bool ClusterMetadata::connect_and_setup_session(
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
   try {
-    metadata_connection_ = std::make_shared<MySQLSession>(
-        std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+    metadata_connection_ = std::make_shared<MySQLSession>();
   } catch (const std::logic_error &e) {
     // defensive programming, shouldn't really happen
     log_error("Failed connecting with Metadata Server: %s", e.what());
@@ -240,8 +239,7 @@ bool ClusterMetadata::update_router_attributes(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id,
     const metadata_cache::RouterAttributes &router_attributes) {
-  auto connection = std::make_unique<MySQLSession>(
-      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+  auto connection = std::make_unique<MySQLSession>();
   if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router attributes in metadata failed: Could not connect "
@@ -297,8 +295,7 @@ bool ClusterMetadata::update_router_attributes(
 bool ClusterMetadata::update_router_last_check_in(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id) {
-  auto connection = std::make_unique<MySQLSession>(
-      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+  auto connection = std::make_unique<MySQLSession>();
   if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router last_check_in in metadata failed: Could not "
@@ -374,8 +371,7 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
     const mysqlrouter::TargetCluster &target_cluster) {
   ClusterMetadata::auth_credentials_t auth_credentials;
 
-  auto connection = std::make_unique<MySQLSession>(
-      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+  auto connection = std::make_unique<MySQLSession>();
   if (!do_connect(*connection, md_server)) {
     log_debug(
         "Could not connect to the metadata server '%s' when trying to fetch "

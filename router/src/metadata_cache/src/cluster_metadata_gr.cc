@@ -327,8 +327,7 @@ void GRClusterMetadata::update_cluster_status_from_gr(
       gr_member_connection = connection;
     } else {
       try {
-        gr_member_connection = std::make_shared<MySQLSession>(
-            std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+        gr_member_connection = std::make_shared<MySQLSession>();
       } catch (const std::logic_error &e) {
         // defensive programming, shouldn't really happen. If it does, there's
         // nothing we can do really, we give up
