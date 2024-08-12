@@ -117,10 +117,12 @@ class PooledConnection : public PooledConnectionBase {
     // if the idle_timer fires, close the connection and remove it from the
     // pool.
     tmr.async_wait([this](std::error_code ec) {
-      if (ec) {
-        // either success or cancelled.
-        return;
-      }
+      if (ec) return;  // cancelled ...
+
+      // timed out.
+      //
+      // cancel the async_recv() and remove the connection.
+      (void)conn_.cancel();
 
       this->remove_me();
     });
