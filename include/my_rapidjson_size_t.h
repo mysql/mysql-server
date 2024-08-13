@@ -27,16 +27,16 @@
 
 /**
   @file include/my_rapidjson_size_t.h
-  Define rapidjson::SizeType to be std::size_t. See
+  Define rapidjson::SizeType to be std::uint64_t. See
   extra/rapidjson/include/rapidjson/rapidjson.h for more details.
 */
 
 #ifdef __cplusplus
 
-#include <cstddef>
+#include <cstdint>
 
 namespace rapidjson {
-typedef ::std::size_t SizeType;
+typedef ::std::uint64_t SizeType;
 }
 #endif
 
