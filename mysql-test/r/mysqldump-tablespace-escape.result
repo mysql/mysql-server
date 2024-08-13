@@ -1,0 +1,8 @@
+#
+# Bug#36816986 - MySQL Shell command injection
+#
+CREATE DATABASE bug36816986;
+-- Run mysqldump with tablespace_injection_test.
+The test injected string must be found:
+Pattern found.
+DROP DATABASE bug36816986;
