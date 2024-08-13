@@ -31,7 +31,7 @@
 #include <algorithm>  // min
 #include <array>
 #include <cstdint>
-#include <cstring>
+#include <cstring>  // strlen
 #include <stdexcept>
 #include <string>
 #include <string_view>

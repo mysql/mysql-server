@@ -27,8 +27,6 @@
 
 ////////////////////////////////////////
 // Standard include files
-#include <cstring>
-#include <fstream>
 #include <map>
 #include <stdexcept>
 #include <string>

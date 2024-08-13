@@ -27,7 +27,7 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
+#include <cstring>  // memcpy
 #include <stdexcept>
 
 #include <openssl/evp.h>

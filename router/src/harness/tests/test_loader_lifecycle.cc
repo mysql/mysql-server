@@ -66,7 +66,6 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <future>
 #include <iostream>

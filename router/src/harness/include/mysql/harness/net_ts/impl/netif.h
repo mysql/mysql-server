@@ -27,6 +27,7 @@
 #define MYSQL_HARNESS_NET_TS_IMPL_NETIF_H_
 
 #include <algorithm>  // find_if
+#include <cstring>    // memcpy
 #include <forward_list>
 #include <list>
 #include <string>

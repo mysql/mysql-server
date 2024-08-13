@@ -27,7 +27,7 @@
 
 #include <cassert>
 #include <cerrno>
-#include <cstring>
+#include <cstring>    // strerror
 #include <stdexcept>  // runtime_error
 
 #ifndef _WIN32

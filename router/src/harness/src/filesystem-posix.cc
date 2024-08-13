@@ -36,7 +36,7 @@
 #include <cassert>
 #include <cerrno>
 #include <climits>
-#include <cstring>
+#include <cstring>  // strlen, strcmp
 #include <fstream>
 #include <sstream>
 #include <stdexcept>

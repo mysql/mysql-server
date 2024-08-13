@@ -41,7 +41,7 @@
 #include <condition_variable>
 #include <cstdarg>
 #include <cstdlib>
-#include <cstring>
+#include <cstring>  // strcmp
 #include <mutex>
 #include <stdexcept>
 #include <thread>

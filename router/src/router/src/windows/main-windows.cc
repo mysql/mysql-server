@@ -27,7 +27,6 @@
 
 #include "../router_app.h"
 
-#include <cstring>
 #include <fstream>
 #include <iostream>
 

@@ -26,7 +26,8 @@
 #include <gmock/gmock.h>
 
 #include <csignal>
-#include <ctime>  // time_t
+#include <cstring>  // memset
+#include <ctime>    // time_t
 #include <fstream>
 #include <functional>
 #include <memory>

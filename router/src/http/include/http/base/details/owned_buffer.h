@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstring>  // memcpy
 #include <memory>
 #include <utility>
 

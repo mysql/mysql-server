@@ -31,11 +31,12 @@
 #include "mysqlrouter/mock_server_rest_client.h"
 
 #include <rapidjson/document.h>
+
 #include "mysqlrouter/rest_client.h"
 
 #include <algorithm>
-#include <cstring>
 #include <stdexcept>
+#include <string>
 #include <thread>
 
 MockServerRestClient::MockServerRestClient(const uint16_t http_port,
@@ -92,7 +93,7 @@ std::string MockServerRestClient::get_globals_as_json_string() {
   }
 
   auto pvalue = req.get_input_headers().find("Content-Type");
-  if (pvalue == nullptr || strcmp(pvalue->c_str(), "application/json") != 0) {
+  if (pvalue == nullptr || (*pvalue != "application/json")) {
     throw std::runtime_error(std::string("Invalid response Conten-Type: ") +
                              (pvalue ? *pvalue : ""));
   }

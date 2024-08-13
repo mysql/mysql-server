@@ -32,8 +32,8 @@
 #include <atomic>
 #include <cassert>
 #include <cctype>
-#include <cstdarg>
-#include <cstring>
+#include <cstdarg>  // va_list
+#include <cstring>  // strlen
 #include <exception>
 #include <map>
 #include <mutex>

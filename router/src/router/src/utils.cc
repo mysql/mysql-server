@@ -31,7 +31,7 @@
 #include <climits>
 #include <cstdarg>
 #include <cstdlib>
-#include <cstring>
+#include <cstring>  // strtol
 #include <fstream>
 #include <functional>
 #include <iomanip>
