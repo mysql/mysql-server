@@ -451,7 +451,7 @@ class Master_info : public Rpl_info {
   bool is_rotate_requested();
 
  protected:
-  char master_log_name[FN_REFLEN];
+  char master_log_name[FN_REFLEN]{};
   my_off_t master_log_pos;
 
  public:
