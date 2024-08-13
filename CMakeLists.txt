@@ -401,16 +401,16 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     ELSEIF(LINUX_SUSE_15)
       MESSAGE(STATUS "We need to look for a newer GCC on SUSE Linux.")
       IF(LINUX_SUSE_15)
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc-12
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++-12
+        FIND_PROGRAM(ALTERNATIVE_GPP g++-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-12
+        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-12
+        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
       ENDIF()
@@ -429,7 +429,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
         MESSAGE(WARNING "Could not find newer gcc.")
-        MESSAGE(FATAL_ERROR "Please do zypper install gcc12 gcc12-c++\n"
+        MESSAGE(FATAL_ERROR "Please do zypper install gcc13 gcc13-c++\n"
           "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
     ELSEIF(SOLARIS)
