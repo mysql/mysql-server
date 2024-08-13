@@ -27,7 +27,7 @@
 // Standard include files
 #include <climits>
 #include <fstream>
-#include <iostream>
+#include <memory>  // unique_ptr
 
 ////////////////////////////////////////
 // Third-party include files

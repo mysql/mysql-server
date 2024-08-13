@@ -26,12 +26,7 @@
 #ifndef MYSQLROUTER_DATATYPES_INCLUDED
 #define MYSQLROUTER_DATATYPES_INCLUDED
 
-#include <cstdint>
-#include <iostream>
 #include <string>
-#ifndef _WIN32
-#include <arpa/inet.h>
-#endif
 
 namespace mysqlrouter {
 

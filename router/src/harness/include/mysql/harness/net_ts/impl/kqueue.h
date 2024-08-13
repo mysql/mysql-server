@@ -30,7 +30,6 @@
 
 #ifdef HAVE_KQUEUE
 #include <chrono>
-#include <iostream>
 #include <system_error>
 
 #include <sys/event.h>  // kqueue

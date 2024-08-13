@@ -25,7 +25,7 @@
 
 #include "plugin_info_app.h"
 
-#include <iostream>
+#include <iostream>  // cerr
 #include <string>
 
 #include "mysql/harness/tty.h"

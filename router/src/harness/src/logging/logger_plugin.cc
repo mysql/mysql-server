@@ -26,6 +26,7 @@
 #define MYSQL_ROUTER_LOG_DOMAIN "logger"
 #include "mysql/harness/logging/logger_plugin.h"
 
+#include <iostream>  // cout
 #include <sstream>
 #include <vector>
 

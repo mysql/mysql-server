@@ -28,9 +28,8 @@
 #include <cstring>  // memset
 #include <ctime>    // mktime, gmtime_r, gmtime_s
 #include <map>
-
-#include <iostream>  // cerr
-#include <stdexcept>
+#include <stdexcept>  // out_of_range
+#include <string>
 
 #include "http/base/http_time.h"
 

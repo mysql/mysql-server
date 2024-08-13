@@ -34,7 +34,7 @@
 #include <termios.h>  // tcgetattr, ioctl
 #endif
 
-#include <iostream>
+#include <iostream>  // cerr
 
 Tty::state_type Tty::attrs() const {
   state_type tp;

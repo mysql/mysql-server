@@ -27,7 +27,6 @@
 
 #include <chrono>
 #include <cinttypes>  // PRIu64
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -48,6 +47,10 @@
 IMPORT_LOG_FUNCTIONS()
 
 #undef DEBUG_IO
+
+#ifdef DEBUG_IO
+#include <iostream>  // cerr
+#endif
 
 template <class T>
 static constexpr uint8_t type_byte() {

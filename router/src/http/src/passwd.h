@@ -26,7 +26,7 @@
 #ifndef ROUTER_HTTP_PASSWD_INCLUDED
 #define ROUTER_HTTP_PASSWD_INCLUDED
 
-#include <iostream>
+#include <iostream>  // cerr
 #include <istream>
 #include <string>
 #include <vector>

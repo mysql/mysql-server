@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <csignal>  // SIGPIPE
-#include <iostream>
+#include <csignal>   // SIGPIPE
+#include <iostream>  // cerr
 
 #include "mysql/harness/net_ts.h"
 #include "mysql/harness/net_ts/impl/file.h"

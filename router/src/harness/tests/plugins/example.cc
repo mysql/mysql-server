@@ -27,7 +27,6 @@
 #include "mysql/harness/plugin.h"
 
 #include <cstdlib>
-#include <iostream>
 
 #ifndef _WIN32
 #include <unistd.h>

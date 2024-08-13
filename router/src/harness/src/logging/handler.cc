@@ -32,6 +32,7 @@
 #include <cerrno>
 #include <chrono>
 #include <fstream>
+#include <iostream>  // cerr
 #include <sstream>
 #include <string>
 #include <thread>

@@ -41,7 +41,7 @@
 #include <sys/eventfd.h>
 #endif
 
-#include <iostream>
+#include <iostream>  // cerr
 #include <sstream>
 
 #include "my_compiler.h"  // MY_COMPILER_*

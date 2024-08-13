@@ -28,8 +28,8 @@
 
 #include <chrono>
 #include <functional>
+#include <iostream>  // cerr
 #include <map>
-#include <ostream>
 #include <set>
 #include <stdexcept>
 #include <string>

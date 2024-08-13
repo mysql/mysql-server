@@ -29,7 +29,6 @@
 // Standard include files
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <stdexcept>
 
 ////////////////////////////////////////

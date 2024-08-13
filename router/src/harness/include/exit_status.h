@@ -30,7 +30,6 @@
 
 #include <cstdlib>
 #include <cstring>  // strsignal
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <ostream>

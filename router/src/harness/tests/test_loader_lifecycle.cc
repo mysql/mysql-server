@@ -68,7 +68,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <future>
-#include <iostream>
+#include <ostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>

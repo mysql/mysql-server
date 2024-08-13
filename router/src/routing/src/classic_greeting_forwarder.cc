@@ -26,7 +26,6 @@
 #include "classic_greeting_forwarder.h"
 
 #include <cctype>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <random>  // uniform_int_distribution
