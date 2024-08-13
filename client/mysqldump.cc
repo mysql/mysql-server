@@ -2271,6 +2271,78 @@ static char *create_delimiter(char *query, char *delimiter_buff,
 }
 
 /*
+ * fprintf_string:
+ * -- Print the escaped version of the given char* row into the md_result_file.
+ *
+ * @param[in] row                 the row to be printed
+ * @param[in] row_len             length of the row
+ * @param[in] quote               quote character, like ' or ` etc.
+ * @param[in] needs_newline       whether to print newline after the row
+ *
+ * @retval void
+ *
+ */
+static void fprintf_string(char *row, ulong row_len, char quote,
+                           bool needs_newline) {
+  // Create the buffer where we'll have sanitized row.
+  char buffer[2048];
+  char *pbuffer;
+  pbuffer = &buffer[0];
+
+  uint64_t curr_row_size = (static_cast<uint64_t>(row_len) * 2) + 1;
+
+  // We'll allocate dynamic memory only for huge rows
+  if (curr_row_size > sizeof(buffer))
+    pbuffer = (char *)my_malloc(PSI_NOT_INSTRUMENTED, curr_row_size, MYF(0));
+
+  // Put the sanitized row in the buffer.
+  mysql_real_escape_string_quote(mysql, pbuffer, row, row_len, '\'');
+
+  // Opening quote
+  fputc(quote, md_result_file);
+
+  // Print the row to the file.
+  fputs(pbuffer, md_result_file);
+
+  // Closing quote
+  fputc(quote, md_result_file);
+
+  // Add the new line
+  if (needs_newline) fputc('\n', md_result_file);
+
+  // Free the buffer if we have to.
+  if (pbuffer != &buffer[0]) my_free(pbuffer);
+}
+
+/*
+ * is_string_integer:
+ * Check if the given string is a valid integer or not.
+ *
+ * @param[in]  str       number to be checked
+ * @param[in]  str_len   length of the string
+ *
+ * @retval     true      if the string represents an integer
+ * @retval     false     if the string has non-digit characters
+ */
+static bool is_string_integer(const char *str, ulong str_len) {
+  // Empty strings are invalid numbers
+  if (str_len == 0) return false;
+
+  ulong start_index = 0;
+
+  // For negative integers, start the index with 1
+  if (str[0] == '-') {
+    if (str_len == 1) return false;
+    start_index = 1;
+  }
+
+  for (ulong i = start_index; i < str_len; i++)
+    if (!std::isdigit(str[i])) return false;
+
+  return true;
+}
+
+/*
   dump_events_for_db
   -- retrieves list of events for a given db, and prints out
   the CREATE EVENT statement into the output (the dump).
@@ -4271,6 +4343,7 @@ static int dump_tablespaces(char *ts_where) {
   MYSQL_RES *tableres;
   char buf[FN_REFLEN];
   DYNAMIC_STRING sqlbuf;
+  ulong *lengths;
   int first = 0;
   /*
     The following are used for parsing the EXTRA field
@@ -4328,31 +4401,42 @@ static int dump_tablespaces(char *ts_where) {
 
   buf[0] = 0;
   while ((row = mysql_fetch_row(tableres))) {
+    lengths = mysql_fetch_lengths(tableres);
     if (strcmp(buf, row[0]) != 0) first = 1;
     if (first) {
+      /*
+       * The print_comment below prints single line comments in the
+       * md_result_file (--). The single line comment is terminated by a new
+       * line, however because of the usage of mysql_real_escape_string_quote,
+       * the new line character will get escaped too in the string, hence
+       * another new line characters are being used at the end of the string
+       * to terminate the single line comment.
+       */
+      mysql_real_escape_string_quote(mysql, buf, row[0], lengths[0], '\'');
       print_comment(md_result_file, false, "\n--\n-- Logfile group: %s\n--\n",
-                    row[0]);
-
+                    buf);
+      buf[0] = 0;
       fprintf(md_result_file, "\nCREATE");
     } else {
       fprintf(md_result_file, "\nALTER");
     }
-    fprintf(md_result_file,
-            " LOGFILE GROUP %s\n"
-            "  ADD UNDOFILE '%s'\n",
-            row[0], row[1]);
+    fprintf(md_result_file, " LOGFILE GROUP ");
+    fprintf_string(row[0], lengths[0], '`', true);
+    fprintf(md_result_file, "  ADD UNDOFILE ");
+    fprintf_string(row[1], lengths[1], '\'', true);
     if (first) {
       ubs = strstr(row[5], extra_format);
       if (!ubs) break;
       ubs += strlen(extra_format);
       endsemi = strstr(ubs, ";");
       if (endsemi) endsemi[0] = '\0';
+      if (!is_string_integer(ubs, (ulong)strlen(ubs))) return 1;
       fprintf(md_result_file, "  UNDO_BUFFER_SIZE %s\n", ubs);
     }
-    fprintf(md_result_file,
-            "  INITIAL_SIZE %s\n"
-            "  ENGINE=%s;\n",
-            row[3], row[4]);
+    if (!is_string_integer(row[3], lengths[3])) return 1;
+    fprintf(md_result_file, "  INITIAL_SIZE %s\n  ENGINE=", row[3]);
+    fprintf_string(row[4], lengths[4], '`', false);
+    fprintf(md_result_file, ";\n");
     check_io(md_result_file);
     if (first) {
       first = 0;
@@ -4382,30 +4466,50 @@ static int dump_tablespaces(char *ts_where) {
     return 1;
   }
 
+  DBUG_EXECUTE_IF("tablespace_injection_test", {
+    mysql_free_result(tableres);
+    mysql_query_with_error_report(
+        mysql, &tableres,
+        "SELECT 'TN; /*' AS TABLESPACE_NAME, 'FN' AS FILE_NAME, 'LGN' AS "
+        "LOGFILE_GROUP_NAME, 77 AS EXTENT_SIZE, 88 AS INITIAL_SIZE, "
+        "'*/\nsystem touch foo;\n' AS ENGINE");
+  });
+
   buf[0] = 0;
   while ((row = mysql_fetch_row(tableres))) {
+    lengths = mysql_fetch_lengths(tableres);
     if (strcmp(buf, row[0]) != 0) first = 1;
     if (first) {
+      /*
+       * The print_comment below prints single line comments in the
+       * md_result_file (--). The single line comment is terminated by a new
+       * line, however because of the usage of mysql_real_escape_string_quote,
+       * the new line character will get escaped too in the string, hence
+       * another new line characters are being used at the end of the string
+       * to terminate the single line comment.
+       */
+      mysql_real_escape_string_quote(mysql, buf, row[0], lengths[0], '\'');
       print_comment(md_result_file, false, "\n--\n-- Tablespace: %s\n--\n",
-                    row[0]);
+                    buf);
+      buf[0] = 0;
       fprintf(md_result_file, "\nCREATE");
     } else {
       fprintf(md_result_file, "\nALTER");
     }
-    fprintf(md_result_file,
-            " TABLESPACE %s\n"
-            "  ADD DATAFILE '%s'\n",
-            row[0], row[1]);
+    fprintf(md_result_file, " TABLESPACE ");
+    fprintf_string(row[0], lengths[0], '`', true);
+    fprintf(md_result_file, "  ADD DATAFILE ");
+    fprintf_string(row[1], lengths[1], '\'', true);
     if (first) {
-      fprintf(md_result_file,
-              "  USE LOGFILE GROUP %s\n"
-              "  EXTENT_SIZE %s\n",
-              row[2], row[3]);
+      fprintf(md_result_file, "  USE LOGFILE GROUP ");
+      fprintf_string(row[2], lengths[2], '`', true);
+      if (!is_string_integer(row[3], lengths[3])) return 1;
+      fprintf(md_result_file, "  EXTENT_SIZE %s\n", row[3]);
     }
-    fprintf(md_result_file,
-            "  INITIAL_SIZE %s\n"
-            "  ENGINE=%s;\n",
-            row[4], row[5]);
+    if (!is_string_integer(row[4], lengths[4])) return 1;
+    fprintf(md_result_file, "  INITIAL_SIZE %s\n  ENGINE=", row[4]);
+    fprintf_string(row[5], lengths[5], '`', false);
+    fprintf(md_result_file, ";\n");
     check_io(md_result_file);
     if (first) {
       first = 0;
