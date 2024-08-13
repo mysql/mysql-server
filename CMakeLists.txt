@@ -462,16 +462,16 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
       ELSEIF(LINUX_SUSE_15)
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc-9
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++-9
+        FIND_PROGRAM(ALTERNATIVE_GPP g++-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-9
+        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-9
+        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-13
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
       ENDIF()
@@ -499,7 +499,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           MESSAGE(FATAL_ERROR "Please do zypper install gcc10 gcc10-c++\n"
             "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
         ELSE()
-          MESSAGE(FATAL_ERROR "Please do zypper install gcc9 gcc9-c++\n"
+          MESSAGE(FATAL_ERROR "Please do zypper install gcc13 gcc13-c++\n"
             "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
         ENDIF()
       ENDIF()
