@@ -64,7 +64,7 @@ struct row_hosts {
   PFS_connection_stat_row m_connection_stat;
 };
 
-/** Table PERFORMANCE_SCHEMA.THREADS. */
+/** Table PERFORMANCE_SCHEMA.HOSTS. */
 class table_hosts : public cursor_by_host {
  public:
   /** Table share */
