@@ -11632,7 +11632,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal *signal, ListTablesReq *req) {
       ndbassert(found);
     }
 
-    tableDataWriter.putWords((Uint32 *)&ltd, listTablesDataSizeInWords);
+    tableDataWriter.putWordsFromChar((char *)&ltd, listTablesDataSizeInWords);
     count++;
 
     if (reqListNames) {
@@ -11642,7 +11642,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal *signal, ListTablesReq *req) {
       const Uint32 wsize = (size + 3) / 4;
       tableNamesWriter.putWord(size);
       name.copy(tname);
-      tableNamesWriter.putWords((Uint32 *)tname, wsize);
+      tableNamesWriter.putWordsFromChar(tname, wsize);
     }
 
   flush:

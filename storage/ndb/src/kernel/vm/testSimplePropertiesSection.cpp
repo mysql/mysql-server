@@ -144,7 +144,7 @@ void test(SectionSegmentPool &thePool, Uint32 sz, Uint32 loops, Uint32 iter) {
           Uint32 i = 0;
           while (i < alloc) {
             Uint32 sz = rand() % (alloc - i + 1);
-            w.putWords(&buf.buffer[i], sz);
+            w.putWordsFromChar((char *)&buf.buffer[i], sz);
             i += sz;
           }
           w.getPtr(dst);

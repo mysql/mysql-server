@@ -228,7 +228,21 @@ class SimpleProperties {
     virtual ~Writer() {}
     virtual bool reset() = 0;
     virtual bool putWord(Uint32 val) = 0;
-    virtual bool putWords(const Uint32 *src, Uint32 len) = 0;
+
+    /**
+     * @brief Put words from char array to the SimpleProperties buffer.
+     *        Function assumes that caller has zero initialized any trailing
+     *        bytes in the char array as it will put every word verbatim.
+     *
+     *        For example, to put 6 characters the char array should look like:
+     *           [M, a, g, n, u, s, 0, 0]
+     *
+     * @param src The array of chars to put words from.
+     * @param len The number of words to put.
+     *
+     * @return false on success
+     */
+    virtual bool putWordsFromChar(const char *src, Uint32 len) = 0;
 
    private:
     bool add(const char *value, int len);
@@ -269,7 +283,7 @@ class LinearWriter : public SimpleProperties::Writer {
 
   bool reset() override;
   bool putWord(Uint32 val) override;
-  bool putWords(const Uint32 *src, Uint32 len) override;
+  bool putWordsFromChar(const char *src, Uint32 len) override;
   Uint32 getWordsUsed() const;
 
  private:
@@ -288,7 +302,7 @@ class UtilBufferWriter : public SimpleProperties::Writer {
 
   bool reset() override;
   bool putWord(Uint32 val) override;
-  bool putWords(const Uint32 *src, Uint32 len) override;
+  bool putWordsFromChar(const char *src, Uint32 len) override;
   Uint32 getWordsUsed() const;
 
  private:
@@ -338,7 +352,7 @@ class SimplePropertiesSectionWriter : public SimpleProperties::Writer {
 
   bool reset() override;
   bool putWord(Uint32 val) override;
-  bool putWords(const Uint32 *src, Uint32 len) override;
+  bool putWordsFromChar(const char *src, Uint32 len) override;
   Uint32 getWordsUsed() const;
 
   /**
