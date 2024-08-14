@@ -24,7 +24,7 @@
 */
 
 #include <cstdio>
-#include <iostream>
+#include <iostream>  // cerr
 #include <sstream>
 #include <stdexcept>
 

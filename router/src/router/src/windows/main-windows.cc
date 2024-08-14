@@ -27,9 +27,8 @@
 
 #include "../router_app.h"
 
-#include <cstring>
 #include <fstream>
-#include <iostream>
+#include <iostream>  // cerr
 
 #include <windows.h>
 #include <winsock2.h>

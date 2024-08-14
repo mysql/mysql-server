@@ -25,7 +25,6 @@
 
 #include "router/src/routing/src/show_warnings_parser.h"
 
-#include <iostream>
 #include <string_view>
 
 #include "router/src/routing/src/sql_parser_state.h"

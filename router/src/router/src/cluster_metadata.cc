@@ -25,7 +25,7 @@
 
 #include "cluster_metadata.h"
 
-#include <cstring>
+#include <cstring>  // strcmp
 #include <stdexcept>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE

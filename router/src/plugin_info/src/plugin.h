@@ -26,8 +26,9 @@
 #ifndef MYSQLROUTER_PLUGIN_INFO_PLUGIN_INCLUDED
 #define MYSQLROUTER_PLUGIN_INFO_PLUGIN_INCLUDED
 
-#include <iostream>
 #include <list>
+#include <ostream>  // ostream
+#include <string>
 
 // we duplicate the Plugin struct here to have the history of the potential
 // changes but we still include this one for VERSION_ macros

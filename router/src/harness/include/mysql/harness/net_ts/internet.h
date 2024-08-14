@@ -31,7 +31,7 @@
 #include <bit>  // endian
 #include <bitset>
 #include <cstddef>  // ptrdiff_t
-#include <cstring>  // memset
+#include <cstring>  // memset, memcpy
 #include <forward_list>
 #include <sstream>
 #include <stdexcept>  // length_error

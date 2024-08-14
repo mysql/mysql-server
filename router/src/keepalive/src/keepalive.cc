@@ -36,7 +36,6 @@
 
 #include <array>
 #include <chrono>
-#include <iostream>
 #include <thread>
 
 // Harness interface include files

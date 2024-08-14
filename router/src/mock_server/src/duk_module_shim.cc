@@ -26,7 +26,7 @@
 #include "duk_module_shim.h"
 
 #include <cstdlib>  // _fullpath
-#include <cstring>
+#include <cstring>  // strlen, strcmp
 
 #ifdef _WIN32
 #include <direct.h>  // getcwd

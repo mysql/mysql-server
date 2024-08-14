@@ -31,7 +31,7 @@
 
 #include <array>
 #include <cstddef>
-#include <cstring>
+#include <cstdlib>  // getenv
 
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"

@@ -29,7 +29,6 @@
 
 #include "plugin_info_app.h"
 
-#include <iostream>
 #include <sstream>
 
 #include <gmock/gmock.h>
@@ -45,7 +44,6 @@
 
 using mysql_harness::Path;
 
-using testing::StartsWith;
 using testing::StrEq;
 using testing::ValuesIn;
 using testing::WithParamInterface;
@@ -291,7 +289,7 @@ TEST_P(PluginInfoAppTestReadInfo, ReadInfo) {
   const std::string plugin_conflicts = std::get<4>(GetParam());
   const std::string plugin_file_path = get_plugin_file_path(plugin_name);
 
-  std::vector<std::string> args{plugin_file_path.c_str(), plugin_name.c_str()};
+  std::vector<std::string> args{plugin_file_path, plugin_name};
 
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
                                      out_stream_);

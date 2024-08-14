@@ -28,6 +28,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>  // strtol
 #include <stdexcept>
 #include <string>
 

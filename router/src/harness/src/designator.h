@@ -26,7 +26,7 @@
 #ifndef MYSQL_HARNESS_DESIGNATOR_INCLUDED
 #define MYSQL_HARNESS_DESIGNATOR_INCLUDED
 
-#include <iostream>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <vector>

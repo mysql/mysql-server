@@ -24,7 +24,7 @@
 */
 
 #include <functional>
-#include <iostream>
+#include <iostream>      // cout
 #include <system_error>  // error_code
 #include <utility>
 

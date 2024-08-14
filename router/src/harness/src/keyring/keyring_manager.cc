@@ -25,7 +25,6 @@
 
 #include "keyring/keyring_manager.h"
 
-#include <cstring>
 #include <random>
 #include <stdexcept>
 #include <system_error>

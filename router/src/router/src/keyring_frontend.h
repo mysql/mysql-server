@@ -26,7 +26,7 @@
 #ifndef ROUTER_KEYRING_FRONTEND_INCLUDED
 #define ROUTER_KEYRING_FRONTEND_INCLUDED
 
-#include <iostream>
+#include <iostream>  // cerr
 #include <istream>
 #include <string>
 #include <vector>

@@ -30,8 +30,8 @@
 #include "mysql/harness/logging/logging.h"
 
 #include <fstream>
-#include <iostream>
 #include <mutex>
+#include <ostream>
 #include <string>
 
 namespace mysql_harness {

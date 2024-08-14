@@ -28,6 +28,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cstdio>    // fprintf()
+#include <cstring>   // memset
 #include <iterator>  // std::distance
 #include <stdexcept>
 #include <string>
@@ -39,7 +40,6 @@
 #else
 #include <csignal>
 #include <cstdlib>
-#include <cstring>
 
 #include <fcntl.h>
 #include <sys/select.h>

@@ -42,7 +42,7 @@
 #include "mysqlrouter/sys_user_operations.h"
 
 #include <cstdint>
-#include <iostream>
+#include <iostream>  // cerr, cout
 #include <stdexcept>
 #include <vector>
 

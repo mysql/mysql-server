@@ -27,9 +27,11 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <cstring>
+#include <cstring>  // strcmp
+#include <map>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/metadata_cache.h"

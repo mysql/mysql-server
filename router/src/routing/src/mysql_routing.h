@@ -41,7 +41,6 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>

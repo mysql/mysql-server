@@ -31,7 +31,8 @@
 #include "mysql/harness/plugin.h"
 
 #include <syslog.h>
-#include <cstring>
+
+#include <cstring>  // strncpy
 
 constexpr const char *kSyslogPluginName = "syslog";
 extern "C" {

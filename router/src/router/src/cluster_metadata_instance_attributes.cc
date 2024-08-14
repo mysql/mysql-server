@@ -25,7 +25,6 @@
 
 #include "mysqlrouter/cluster_metadata_instance_attributes.h"
 
-#include <cstring>
 #include <stdexcept>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE

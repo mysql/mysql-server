@@ -31,8 +31,8 @@
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
-#include <cstring>
 #include <fstream>
+#include <iostream>  // cerr
 #include <sstream>
 #include <string>
 #include <thread>

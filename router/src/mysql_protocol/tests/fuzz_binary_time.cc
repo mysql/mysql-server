@@ -26,7 +26,7 @@
 #include "mysqlrouter/classic_protocol_binary.h"
 #include "mysqlrouter/classic_protocol_codec_binary.h"
 
-#include <iostream>
+#include <iostream>  // cerr
 
 #include "hexify.h"
 

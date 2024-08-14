@@ -72,7 +72,7 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include <iostream>
+#include <iostream>  // cerr
 #include <stdexcept>
 
 #include <mysql.h>

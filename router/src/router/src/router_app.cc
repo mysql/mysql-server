@@ -32,7 +32,6 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <initializer_list>
 #include <memory>  // unique_ptr
@@ -90,7 +89,6 @@ const char dir_sep = '/';
 #include <string.h>
 #include "mysqlrouter/windows/password_vault.h"
 #include "mysqlrouter/windows/service_operations.h"
-#define strtok_r strtok_s
 const char dir_sep = '\\';
 #endif
 

@@ -28,7 +28,6 @@
 
 #include <array>
 #include <cstdlib>
-#include <iostream>
 
 #ifndef _WIN32
 #include <unistd.h>

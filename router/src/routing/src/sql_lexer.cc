@@ -28,7 +28,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>  // memcpy
+#include <cstring>  // memcpy, strtol
 #include <mutex>
 
 #include "lex_string.h"  // LEX_STRING

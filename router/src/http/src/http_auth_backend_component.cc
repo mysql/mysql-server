@@ -25,7 +25,6 @@
 
 #include "mysqlrouter/component/http_auth_backend_component.h"
 
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>

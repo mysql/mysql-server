@@ -14,10 +14,12 @@
 
 #include "nt_servc.h"
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>  // strcmp, memset
+
 #include <VersionHelpers.h>  // IsWindowsXPOrGreater
 #include <process.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <windows.h>
 
 static NTService *pService;

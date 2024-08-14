@@ -27,8 +27,8 @@
 #include <bitset>
 #include <chrono>
 #include <cstddef>
-#include <cstring>  // memcpy
-#include <iostream>
+#include <cstring>   // memcpy
+#include <iostream>  // cerr
 #include <sstream>
 #include <string>
 #include <string_view>

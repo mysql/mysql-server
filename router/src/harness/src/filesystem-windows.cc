@@ -34,6 +34,7 @@
 #include <array>
 #include <cassert>
 #include <cerrno>
+#include <cstring>  // strcmp, memcpy
 #include <fstream>
 #include <memory>  // unique_ptr
 #include <random>

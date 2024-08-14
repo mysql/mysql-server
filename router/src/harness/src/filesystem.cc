@@ -26,8 +26,6 @@
 #include "mysql/harness/filesystem.h"
 
 #include <algorithm>
-#include <cstring>
-#include <fstream>
 #include <functional>
 #include <iterator>
 #include <ostream>

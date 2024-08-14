@@ -25,7 +25,7 @@
 
 #include "mysqlrouter/utils_sqlstring.h"
 
-#include <cstring>
+#include <cstring>  // strcasecmp
 #include <string>
 
 #ifdef _WIN32

@@ -25,7 +25,7 @@
 
 #include <array>
 #include <csignal>
-#include <iostream>
+#include <iostream>  // cerr
 #include <memory>
 #include <sstream>
 #include <stdexcept>
