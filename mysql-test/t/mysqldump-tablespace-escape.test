@@ -1,4 +1,4 @@
---source include/have_debug.inc
+--source include/mysql_have_debug.inc
 
 --echo #
 --echo # Bug#36816986 - MySQL Shell command injection
