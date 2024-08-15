@@ -27,7 +27,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <algorithm>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -116,14 +115,6 @@ constexpr int kLogPrecision = -2;
 const double kMinPlainFormatNumber =
     std::pow(10, 1 - kPlainNumberLength - kLogPrecision);
 
-/// Find the number of integer digits (i.e. those before the decimal point) in
-/// 'd' when represented as a decimal number.
-int IntegerDigits(double d) {
-  return d == 0.0 ? 1
-                  : std::max(1, 1 + static_cast<int>(
-                                        std::floor(std::log10(std::abs(d)))));
-}
-
 /**
    Format 'd' as a decimal number with enough decimals to get a rounding error
    less than d*10^log_precision, without any trailing fractional zeros.
@@ -131,7 +122,7 @@ int IntegerDigits(double d) {
 std::string DecimalFormat(double d, int log_precision) {
   assert(d != 0.0);
   constexpr int max_digits = 18;
-  assert(IntegerDigits(d + 0.5) <= max_digits);
+  assert(std::abs(d + 0.5) < std::pow(10.0, max_digits));
 
   // The position of the first nonzero digit, relative to the decimal point.
   const int first_nonzero_digit_pos =
@@ -145,13 +136,8 @@ std::string DecimalFormat(double d, int log_precision) {
   // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
   // directions, so tests would not be reproducible between platforms.
   // Format/round using my_fcvt() instead.
-  my_fcvt(d, decimals, buff, nullptr);
-  if (strchr(buff, '.') == nullptr) {
-    return buff;
-  } else {
-    // Remove trailing fractional zeros.
-    return std::regex_replace(buff, std::regex("[.]?0+$"), "");
-  }
+  const size_t len{my_fcvt_no_trailing_zero(d, decimals, buff, nullptr)};
+  return {buff, len};
 }
 
 /**
@@ -164,7 +150,7 @@ std::string EngineeringFormat(double d) {
   double mantissa = d / std::pow(10.0, exp);
   std::ostringstream stream;
 
-  if (mantissa + 0.5 * std::pow(10, 3 - kMantissaLength) < 1000.0) {
+  if ((std::abs(mantissa) + 0.5) < 1000.0) {
     stream << DecimalFormat(mantissa, 1 - kMantissaLength) << "e"
            << std::showpos << exp;
   } else {
@@ -190,10 +176,12 @@ uint64_t constexpr Power(uint64_t base, int power) {
 }  // Anonymous namespace.
 
 std::string FormatNumberReadably(double d) {
+  constexpr double maxPlainNumber{Power(10, kPlainNumberLength) - 0.5};
+
   if (std::abs(d) < kMinNonZeroNumber) {
     return "0";
   } else if (std::abs(d) < kMinPlainFormatNumber ||
-             IntegerDigits(d + 0.5) > kPlainNumberLength) {
+             std::abs(d) > maxPlainNumber) {
     return EngineeringFormat(d);
   } else {
     return DecimalFormat(d, kLogPrecision);

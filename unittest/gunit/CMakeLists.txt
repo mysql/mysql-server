@@ -269,6 +269,7 @@ SET(SERVER_TESTS
   opt_ref
   opt_trace
   persisted_variables
+  print_utils
   protocol_classic
   regexp_engine
   regexp_facade

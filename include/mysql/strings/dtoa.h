@@ -67,6 +67,8 @@ MYSQL_STRINGS_EXPORT double my_strtod(const char *str, const char **end,
                                       int *error);
 MYSQL_STRINGS_EXPORT size_t my_fcvt(double x, int precision, char *to,
                                     bool *error);
+MYSQL_STRINGS_EXPORT size_t my_fcvt_no_trailing_zero(double x, int precision,
+                                                     char *to, bool *error);
 MYSQL_STRINGS_EXPORT size_t my_fcvt_compact(double x, char *to, bool *error);
 MYSQL_STRINGS_EXPORT size_t my_gcvt(double x, my_gcvt_arg_type type, int width,
                                     char *to, bool *error);

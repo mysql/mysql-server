@@ -203,6 +203,13 @@ size_t my_fcvt(double x, int precision, char *to, bool *error) {
   return my_fcvt_internal(x, precision, false, to, error);
 }
 
+/// Identical to my_fcvt, except that trailing zeros after the decimal point
+/// will be removed.
+size_t my_fcvt_no_trailing_zero(double x, int precision, char *to,
+                                bool *error) {
+  return my_fcvt_internal(x, precision, true, to, error);
+}
+
 /**
    @brief
    Converts a given floating point number to a zero-terminated string
