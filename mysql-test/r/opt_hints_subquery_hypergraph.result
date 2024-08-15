@@ -173,12 +173,11 @@ SELECT * FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
 WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
 EXPLAIN
--> Hash semijoin (FirstMatch) (t3.a = tx.a)  (rows=1.5)
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
     -> Table scan on t3  (rows=3)
-    -> Hash
-        -> Nested loop inner join  (rows=4)
-            -> Table scan on tx  (rows=4)
-            -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Single-row index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+        -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
 
 No SEMIJOIN transformation for outer subquery
 EXPLAIN
@@ -1428,12 +1427,11 @@ SELECT /*+ SEMIJOIN(@subq1) SEMIJOIN(@subq2) */ * FROM t3
 WHERE t3.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t1 tx
 WHERE tx.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t1 ty));
 EXPLAIN
--> Hash semijoin (FirstMatch) (t3.a = tx.a)  (rows=1.5)
+-> Nested loop semijoin (FirstMatch)  (rows=1.5)
     -> Table scan on t3  (rows=3)
-    -> Hash
-        -> Nested loop inner join  (rows=4)
-            -> Table scan on tx  (rows=4)
-            -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Single-row index lookup on tx using PRIMARY (a = t3.a)  (rows=1)
+        -> Single-row covering index lookup on ty using PRIMARY (a = tx.b)  (rows=1)
 
 Test strategies when some are disabled by optimizer_switch
 SET optimizer_switch='semijoin=on';

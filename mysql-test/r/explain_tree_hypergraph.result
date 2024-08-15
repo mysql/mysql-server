@@ -393,7 +393,8 @@ JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL
 AS operation_contains_firstmatch;
 first_match	operation_contains_firstmatch
 ["firstmatch"]	1
-EXPLAIN FORMAT=tree SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN) */ t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=1.41)
     -> Remove duplicates from input grouped on t2.b  (rows=1.41)
@@ -403,7 +404,8 @@ EXPLAIN
             -> Covering index lookup on t2 using b (b = t1.a)  (rows=1)
     -> Covering index lookup on t using a (a = t2.b)  (rows=1)
 
-EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN) */ t1.a FROM t AS t1 JOIN t AS t2 ON t1.a=t2.b);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS loosescan,
 JSON_SEARCH(@var, 'one', '%LooseScan%', NULL, '$**.operation') IS NOT NULL

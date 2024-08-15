@@ -4228,12 +4228,49 @@ NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
   return reachable;
 }
 
-// Returns whether the given set of parameter tables is partially, but not
-// fully, resolved by joining towards the other side.
-bool PartiallyResolvedParameterization(NodeMap parameter_tables,
-                                       NodeMap other_side) {
-  return (parameter_tables & ~other_side) != 0 &&
-         (parameter_tables & ~other_side) != parameter_tables;
+/**
+  Is it possible to resolve more parameter tables before performing a nested
+  loop join between "outer" and "inner", or will the join have to be performed
+  first?
+
+  In more precise terms:
+
+  Consider the set of parameters (a set of tables) that are left unresolved
+  after joining inner and outer. This function returns true if this set is
+  non-empty and at least one of these unresolved parameter tables, denoted by t,
+  can be joined directly into either outer or inner such that the result of
+  joining either {outer, t} with {inner} or {outer} with {inner, t} would end up
+  with more resolved parameters (fewer unresolved parameters) than simply
+  joining {outer} and {inner}.
+ */
+bool CanResolveMoreParameterTables(NodeMap outer, NodeMap inner,
+                                   NodeMap outer_parameters,
+                                   NodeMap inner_parameters,
+                                   NodeMap outer_reachable,
+                                   NodeMap inner_reachable) {
+  const NodeMap unresolved_parameters =
+      (outer_parameters | inner_parameters) & ~(outer | inner);
+
+  if (unresolved_parameters == 0) {
+    // No unresolved parameters after joining outer and inner (so we cannot
+    // resolve more parameters by first joining in parameter tables).
+    return false;
+  }
+
+  // Unresolved parameterizations on either side of the join can be resolved by
+  // joining a parameter table into the outer path first, if it's reachable.
+  if (Overlaps(unresolved_parameters, outer_reachable)) {
+    return true;
+  }
+
+  // Unresolved parameterizations that are only on the inner path, can also be
+  // resolved by joining a parameter table to the inner path first, if it's
+  // reachable.
+  if (Overlaps(unresolved_parameters & ~outer_parameters, inner_reachable)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -4245,40 +4282,72 @@ bool PartiallyResolvedParameterization(NodeMap parameter_tables,
   plans to be left-deep (since such plans never gain anything from being
   bushy), reducing the search space significantly without compromising
   plan quality.
+
+  @param left_path An access path which joins together a superset of all the
+  tables on the left-hand side of the hyperedge for which we are creating a
+  join.
+
+  @param right_path An access path which joins together a superset of all the
+  tables on the right-hand side of the hyperedge for which we are creating a
+  join.
+
+  @param left The set of tables joined together in "left_path".
+
+  @param right The set of tables joined together in "right_path".
+
+  @param left_reachable The set of tables that can be joined directly with
+  "left_path", with no intermediate join being performed first. If a table is in
+  this set, it is possible to construct a nested loop join between an access
+  path accessing only that table and the access path pointed to by "left_path".
+
+  @param right_reachable The set of tables that can be joined directly with
+  "right_path", with no intermediate join being performed first. If a table is
+  in this set, it is possible to construct a nested loop join between an access
+  path accessing only that table and the access path pointed to by "right_path".
+
+  @param is_reorderable True if the optimizer may try to construct a nested loop
+  join between "left_path" and "right_path" in either direction. False if the
+  optimizer will consider nested loop joins in only one direction, with
+  "left_path" as the outer table and "right_path" as the inner table. When it is
+  true, we disallow a parameterized join path only if it is possible to resolve
+  more parameter tables first in both join orders. This is slightly more lenient
+  than it has to be, as it will allow parameterized join paths with both join
+  orders, even though one of the orders can join with a parameter table first.
+  Since all of these joins will be parameterized on the same set of tables, this
+  extra leniency is not believed to contribute much to the explosion of plans
+  with different parameterizations.
  */
 bool DisallowParameterizedJoinPath(AccessPath *left_path,
                                    AccessPath *right_path, NodeMap left,
                                    NodeMap right, NodeMap left_reachable,
-                                   NodeMap right_reachable) {
+                                   NodeMap right_reachable,
+                                   bool is_reorderable) {
   const NodeMap left_parameters = left_path->parameter_tables & ~RAND_TABLE_BIT;
   const NodeMap right_parameters =
       right_path->parameter_tables & ~RAND_TABLE_BIT;
 
-  if (IsSubset(left_parameters | right_parameters, left | right)) {
-    // Not creating a parameterized path, so it's always fine.
+  if (!CanResolveMoreParameterTables(left, right, left_parameters,
+                                     right_parameters, left_reachable,
+                                     right_reachable)) {
+    // Neither left nor right can resolve parameterization that is left
+    // unresolved by this join by first joining in one of the parameter tables.
+    // E.g., we're still on the inside of an outer join, and the parameter
+    // tables are outside the outer join, and we still need to join together
+    // more tables on the inner side of the outer join before we're allowed to
+    // do the outer join. We have to allow creation of a parameterized join path
+    // if we want to use index lookups here at all.
     return false;
   }
 
-  if (!Overlaps(right_parameters, right_reachable) &&
-      !Overlaps(left_parameters, left_reachable)) {
-    // Either left or right cannot resolve any of their parameterizations yet
-    // (e.g., we're still on the inside of an outer join that we cannot
-    // finish yet), so we cannot avoid keeping them if we want to use index
-    // lookups here at all.
-    return false;
-  }
-
-  // If the outer table partially, but not fully, resolves the inner table's
-  // parameterization, we still allow it (otherwise, we could not have
-  // multi-part index lookups where the keyparts come from different tables).
-  // This is the so-called “star-schema exception”.
-  //
-  // We need to check both ways, in case we try to swap them for a hash join.
-  // Only one of these will ever be true in any given join anyway (joins where
-  // we try to resolve the outer path's parameterizations with the inner one
-  // are disallowed), so we do not allow more than is required.
-  if (PartiallyResolvedParameterization(left_parameters, right) ||
-      PartiallyResolvedParameterization(right_parameters, left)) {
+  // If the join can be performed both ways (such as a commutable join
+  // operation, or a semijoin that can be rewritten to an inner join), we're a
+  // bit more lenient and allow creation of a parameterized join path even
+  // though a parameter table can be resolved first, if it is not possible to
+  // resolve any parameter tables first in the reordered join. Otherwise, we
+  // might not be able to use indexes in the reordered join.
+  if (is_reorderable && !CanResolveMoreParameterTables(
+                            right, left, right_parameters, left_parameters,
+                            right_reachable, left_reachable)) {
     return false;
   }
 
@@ -4565,9 +4634,21 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       zero_path->delayed_predicates = right_path->delayed_predicates;
       right_path = zero_path;
     }
+
+    // Can this join be performed in both left-right and right-left order? It
+    // can if the join operation is commutative (or rewritable to one) and
+    // right_path's parameterization doesn't force it to be on the right side.
+    // If this condition is true, the right-left join will be attempted proposed
+    // in addition to the left-right join, but the additional checks in
+    // AllowNestedLoopJoin() and AllowHashJoin() decide if they are actually
+    // proposed.
+    const bool is_reorderable = (is_commutative || can_rewrite_semi_to_inner) &&
+                                !Overlaps(right_path->parameter_tables, left);
+
     for (AccessPath *left_path : left_it->second.paths) {
       if (DisallowParameterizedJoinPath(left_path, right_path, left, right,
-                                        left_reachable, right_reachable)) {
+                                        left_reachable, right_reachable,
+                                        is_reorderable)) {
         continue;
       }
 
@@ -4606,7 +4687,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                           new_obsolete_orderings,
                           /*rewrite_semi_to_inner=*/false, &wrote_trace);
         }
-        if (is_commutative || can_rewrite_semi_to_inner) {
+        if (is_reorderable) {
           ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
                           new_obsolete_orderings,
                           /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner,
@@ -4617,7 +4698,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
                             /*rewrite_semi_to_inner=*/false, new_fd_set,
                             new_obsolete_orderings, &wrote_trace);
-      if (is_commutative || can_rewrite_semi_to_inner) {
+      if (is_reorderable) {
         ProposeNestedLoopJoin(
             right, left, right_path, left_path, edge,
             /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
