@@ -24,6 +24,7 @@
 #include "encodedstream.h"
 #include <new>      // placement new
 #include <limits>
+#include <type_traits>
 #ifdef __cpp_lib_three_way_comparison
 #include <compare>
 #endif
@@ -1441,7 +1442,8 @@ public:
     template <typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (GenericValue&))
     AddMember(GenericValue& name, T value, Allocator& allocator) {
-        GenericValue v(value);
+        using Dest = std::conditional_t<std::is_same_v<T, size_t>, uint64_t, T>;
+        GenericValue v(Dest{value});
         return AddMember(name, v, allocator);
     }
 
@@ -1757,7 +1759,8 @@ public:
     template <typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (GenericValue&))
     PushBack(T value, Allocator& allocator) {
-        GenericValue v(value);
+        using Dest = std::conditional_t<std::is_same_v<T, size_t>, uint64_t, T>;
+        GenericValue v(Dest{value});
         return PushBack(v, allocator);
     }
 
