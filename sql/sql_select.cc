@@ -406,8 +406,7 @@ static bool set_secondary_engine_fail_reason(const LEX *lex,
   if (hton != nullptr &&
       hton->set_secondary_engine_offload_fail_reason != nullptr &&
       lex->thd->is_secondary_engine_forced()) {
-    hton->set_secondary_engine_offload_fail_reason(lex->thd, reason);
-    return true;
+    return hton->set_secondary_engine_offload_fail_reason(lex->thd, reason);
   }
   return false;
 }
