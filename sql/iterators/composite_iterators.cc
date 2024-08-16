@@ -1453,7 +1453,8 @@ class MaterializeIterator final : public TableRowIterator {
   bool process_row(const Operand &operand, Operands &operands, TABLE *t,
                    uchar *set_counter_0, uchar *set_counter_1, bool *read_next);
   bool process_row_hash(const Operand &operand, TABLE *t, ha_rows *stored_rows);
-  bool materialize_hash_map(TABLE *t, ha_rows *stored_rows);
+  bool materialize_hash_map(TABLE *t, ha_rows *stored_rows,
+                            bool single_row_too_large);
   bool load_HF_row_into_hash_map();
   bool init_hash_map_for_new_exec();
   friend class SpillState;
@@ -1841,21 +1842,25 @@ bool MaterializeIterator<Profiler>::MaterializeRecursive() {
   overflow HF chunks [1] and write said rows to table t, updating stored_rows
   counter.
 
-  [1] Depending on spill state. We have three cases:
+  [1] Depending on spill state. We have four cases:
 
-  a) No spill to disk: write rows from in-memory hash table.
+  a) No spill to disk: write rows from in-memory hash table
   b) Spill to disk: write completed HF chunks, all chunks exist in the same
      generation >= 2 (the number is the same as the number of set operands).
   c) We saw secondary overflow during spill processing and must recover: write
      completed HF chunks (mix of 1. and 2.generation) and write the in-memory
      hash table
+  d) too large single row, move to index based de-duplication
   @param t            output table
   @param stored_rows  counter for # of rows stored in output table
+  @param single_row_too_large
+                      move straight to index based de-duplication
   @returns true on error
 */
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::materialize_hash_map(TABLE *t,
-                                                         ha_rows *stored_rows) {
+bool MaterializeIterator<Profiler>::materialize_hash_map(
+    TABLE *t, ha_rows *stored_rows, bool single_row_too_large) {
+  // b)
   if (m_spill_state.spill()) {
     if (m_spill_state.secondary_overflow()) {
       // c) write finished HF chunks (a strict subset with secondary overflow)
@@ -1910,7 +1915,7 @@ bool MaterializeIterator<Profiler>::materialize_hash_map(TABLE *t,
 
   if (m_hash_map == nullptr) return false;  // left operand is empty
 
-  // a), c)
+  // a), c), d)
   for (const auto &[hash_key, first_row] : *m_hash_map) {
     if (*stored_rows >= m_limit_rows) break;
 
@@ -1929,11 +1934,12 @@ bool MaterializeIterator<Profiler>::materialize_hash_map(TABLE *t,
                                     /*insert_last_record=*/true,
                                     /*ignore_last_dup=*/true, nullptr))
           return true; /* purecov: inspected */
-        if (m_spill_state.secondary_overflow()) {
+        if (m_spill_state.secondary_overflow() || single_row_too_large) {
+          // c), d)
           assert(t->s->keys == 1);
           if (t->file->ha_index_init(0, false) != 0) return true;
         } else {
-          // else: we use hashing, so skip ha_index_init
+          // else: a) we use hashing, so skip ha_index_init
           assert(t->s->keys == 0);
         }
         ++*stored_rows;
@@ -2286,7 +2292,7 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(
     if (instantiate_tmp_table(thd(), t)) return true;
     if (t->file->ha_index_init(0, false) != 0) return true;
 
-    if (materialize_hash_map(t, stored_rows)) return true;
+    if (materialize_hash_map(t, stored_rows, single_row_too_large)) return true;
     return false;
   }
   if (m_spill_state.init(operand, m_hash_map.get(), m_rows_in_hash_map,
@@ -2869,7 +2875,7 @@ bool MaterializeIterator<Profiler>::MaterializeOperand(const Operand &operand,
       // operands (alias blocks).
       if (m_use_hash_map &&
           operand.m_operand_idx + 1 == operand.m_total_operands &&
-          materialize_hash_map(t, stored_rows))
+          materialize_hash_map(t, stored_rows, /*single_row_too_large=*/false))
         return true;
       break;
     }

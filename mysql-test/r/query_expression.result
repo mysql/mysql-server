@@ -2455,6 +2455,23 @@ FROM t1 INNER JOIN t2 USING (id) ) LIMIT 1)
 ORDER BY t1.d;
 ERROR 42S22: Unknown column 't1.d' in 'order clause'
 DROP TABLE t1, t2;
+#
+# Follow-up to Bug#36739383 Assertion 'false'
+# materialize_iterator::SpillState::read_next_row_secondary_over.
+# This is a case of too large a row for default hash table
+# space, which next also overflows the normal tmp table (error
+# 135 HA_ERR_RECORD_FILE_FULL) and must go to InnoDB tmp table.
+#
+CREATE TABLE t1 (a MEDIUMTEXT);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t2 AS
+SELECT REPEAT(a,20000000) AS a FROM t1
+INTERSECT
+SELECT REPEAT(a,20000000) AS a FROM t1;
+SELECT LENGTH(a), SUBSTRING(a FROM 20000000-4 FOR 4) FROM t2;
+LENGTH(a)	SUBSTRING(a FROM 20000000-4 FOR 4)
+20000000	aaaa
+DROP TABLE t1, t2;
 # Pre WL#15257 tests using hash table of WL#15257
 SET optimizer_switch='hash_set_operations=default';
 CREATE TABLE t(a INT);
@@ -4911,6 +4928,23 @@ d	d
 FROM t1 INNER JOIN t2 USING (id) ) LIMIT 1)
 ORDER BY t1.d;
 ERROR 42S22: Unknown column 't1.d' in 'order clause'
+DROP TABLE t1, t2;
+#
+# Follow-up to Bug#36739383 Assertion 'false'
+# materialize_iterator::SpillState::read_next_row_secondary_over.
+# This is a case of too large a row for default hash table
+# space, which next also overflows the normal tmp table (error
+# 135 HA_ERR_RECORD_FILE_FULL) and must go to InnoDB tmp table.
+#
+CREATE TABLE t1 (a MEDIUMTEXT);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t2 AS
+SELECT REPEAT(a,20000000) AS a FROM t1
+INTERSECT
+SELECT REPEAT(a,20000000) AS a FROM t1;
+SELECT LENGTH(a), SUBSTRING(a FROM 20000000-4 FOR 4) FROM t2;
+LENGTH(a)	SUBSTRING(a FROM 20000000-4 FOR 4)
+20000000	aaaa
 DROP TABLE t1, t2;
 # Test hash table set operations against "old" approach
 # and overflow of in-memory hash table
