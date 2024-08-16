@@ -41,4 +41,7 @@ ADD_CONVENIENCE_LIBRARY(ndblogger
 EXCLUDE_FROM_MSVC_PGO(ndblogger_objlib)
 
 NDB_ADD_TEST(logger-t Logger.cpp  LIBS ndbgeneral ndbportlib ndbclient_static)
-
+MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
+IF(TARGET logger-t AND HAS_WARN_FLAG)
+  MY_TARGET_LINK_OPTIONS(logger-t "${HAS_WARN_FLAG}")
+ENDIF()

@@ -79,7 +79,14 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
   LINK_LIBRARIES ext::zlib
   )
 
+
 # Exclude ndbapi_objlib from PGO on Windows to avoid linker error LNK1248
 EXCLUDE_FROM_MSVC_PGO(ndbapi_objlib)
+IF(MY_COMPILER_IS_GNU AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
+  ADD_COMPILE_FLAGS(Ndb.cpp
+    COMPILE_FLAGS
+    " -Wno-error=maybe-uninitialized"
+    )
+ENDIF()
 
 NDB_ADD_TEST(SectionIterators-t SectionIterators.cpp NdbApiSignal.cpp)
