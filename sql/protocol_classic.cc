@@ -697,7 +697,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
       <td>status_flags</td>
       <td>@ref SERVER_STATUS_flags_enum</td></tr>
   <tr><td colspan="3">}</td></tr>
-  <tr><td colspan="3">if capabilities @& ::CLIENT_SESSION_TRACK</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_SESSION_TRACK {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>info</td>
       <td>human readable status information</td></tr>
