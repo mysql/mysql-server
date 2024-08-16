@@ -157,7 +157,7 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.9.0" OR ${CMAKE_VERSION} VERSION_EQUAL "3
     cmake_policy(SET CMP0069 NEW)
     # Require LTO support to build libcbor with newer CMake versions
     include(CheckIPOSupported)
-    check_ipo_supported(RESULT use_lto)
+#    check_ipo_supported(RESULT use_lto)
 endif(${CMAKE_VERSION} VERSION_GREATER "3.9.0" OR ${CMAKE_VERSION} VERSION_EQUAL "3.9.0")
 if(use_lto)
     message(STATUS "LTO is enabled")
