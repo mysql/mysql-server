@@ -2732,3 +2732,45 @@
    fun:_dl_catch_exception
    ...
 }
+
+# Suppress abseil leaks - see Bug#36945957
+
+{
+   suppress_abseil_1
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   fun:_ZN4absl12lts_2023080212log_internal12_GLOBAL__N_116GlobalLogSinkSetC1Ev
+   fun:_ZN4absl12lts_2023080212log_internal12_GLOBAL__N_111GlobalSinksEv
+   fun:_ZN4absl12lts_2023080212log_internal10LogToSinksERKNS0_8LogEntryENS0_4SpanIPNS0_7LogSinkEEEb
+   fun:_ZN4absl12lts_2023080212log_internal10LogMessage9SendToLogEv
+   fun:_ZN4absl12lts_2023080212log_internal10LogMessageD1Ev
+   ...
+}
+
+{
+   suppress_abseil_2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   fun:_ZNSt6vectorIPN4absl12lts_202308027LogSinkESaIS3_EE17_M_realloc_insertIJRKS3_EEEvN9__gnu_cxx17__normal_iteratorIPS3_S5_EEDpOT_
+   fun:_ZN4absl12lts_2023080212log_internal12_GLOBAL__N_116GlobalLogSinkSet10AddLogSinkEPNS0_7LogSinkE
+   fun:_ZN4absl12lts_2023080212log_internal12_GLOBAL__N_116GlobalLogSinkSetC1Ev
+   fun:_ZN4absl12lts_2023080212log_internal12_GLOBAL__N_111GlobalSinksEv
+   fun:_ZN4absl12lts_2023080212log_internal10LogToSinksERKNS0_8LogEntryENS0_4SpanIPNS0_7LogSinkEEEb
+   fun:_ZN4absl12lts_2023080212log_internal10LogMessage9SendToLogEv
+   fun:_ZN4absl12lts_2023080212log_internal10LogMessageD1Ev
+   ...
+}
+
+{
+   suppress_abseil_3
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   fun:_ZN4absl12lts_2023080212log_internal12_GLOBAL__N_111GlobalSinksEv
+   fun:_ZN4absl12lts_2023080212log_internal10LogToSinksERKNS0_8LogEntryENS0_4SpanIPNS0_7LogSinkEEEb
+   fun:_ZN4absl12lts_2023080212log_internal10LogMessage9SendToLogEv
+   fun:_ZN4absl12lts_2023080212log_internal10LogMessageD1Ev
+   ...
+}
