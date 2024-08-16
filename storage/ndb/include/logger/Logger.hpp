@@ -145,7 +145,8 @@ class Logger {
     LL_ERROR,
     LL_CRITICAL,
     LL_ALERT,
-    LL_ALL
+    LL_ALL,
+    LL_UNDEFINED_LEVEL = 255
   };
 
   /**

@@ -128,11 +128,11 @@ let $slave_sql_errno= 3030;
 
 --echo # Show the error number after failure
 query_vertical
-  SELECT WORKER_ID, LAST_ERROR_NUMBER
+  SELECT LAST_ERROR_NUMBER
     FROM performance_schema.replication_applier_status_by_worker
     WHERE LAST_ERROR_NUMBER != 0;
 --echo # Show the coordinator error number and message
---replace_regex /end_log_pos [0-9]*/end_log_pos NNN/
+--replace_regex /end_log_pos [0-9]*/end_log_pos NNN/ /Worker [0-9]* failed/Worker NNN failed/
 query_vertical
   SELECT LAST_ERROR_NUMBER, LAST_ERROR_MESSAGE
     FROM performance_schema.replication_applier_status_by_coordinator;
