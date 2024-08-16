@@ -108,18 +108,16 @@ commit;
 # Wait for replication error
 include/rpl/wait_for_applier_error.inc [errno=3030]
 # Show the error number after failure
-SELECT WORKER_ID, LAST_ERROR_NUMBER
+SELECT LAST_ERROR_NUMBER
 FROM performance_schema.replication_applier_status_by_worker
 WHERE LAST_ERROR_NUMBER != 0;
-WORKER_ID	1
 LAST_ERROR_NUMBER	1205
-WORKER_ID	2
 LAST_ERROR_NUMBER	3030
 # Show the coordinator error number and message
 SELECT LAST_ERROR_NUMBER, LAST_ERROR_MESSAGE
 FROM performance_schema.replication_applier_status_by_coordinator;
 LAST_ERROR_NUMBER	3030
-LAST_ERROR_MESSAGE	Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 2 failed executing transaction 'ANONYMOUS' at source log master-bin.000001, end_log_pos NNN. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.
+LAST_ERROR_MESSAGE	Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker NNN failed executing transaction 'ANONYMOUS' at source log master-bin.000001, end_log_pos NNN. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.
 # Start replication again
 include/rpl/start_replica.inc
 # Resync

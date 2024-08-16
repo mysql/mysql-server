@@ -25,9 +25,9 @@
 
 #include "LogHandler.hpp"
 
+#include <NdbTick.h>
 #include <time.h>
 
-#include <NdbTick.h>
 #include "util/cstrbuf.h"
 
 //
@@ -39,7 +39,7 @@ LogHandler::LogHandler() : m_errorCode(0), m_errorStr(nullptr) {
   m_last_category[0] = 0;
   m_last_message[0] = 0;
   m_last_log_time = 0;
-  m_last_level = (Logger::LoggerLevel)-1;
+  m_last_level = Logger::LL_UNDEFINED_LEVEL;
 }
 
 LogHandler::~LogHandler() {}
