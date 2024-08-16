@@ -39,6 +39,11 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
   LINK_LIBRARIES ndbmgmapi
   )
 
+MY_CHECK_CXX_COMPILER_WARNING("format-overflow" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(thr_config.cpp COMPILE_FLAGS "-Wno-error=format-overflow")
+ENDIF()
+
 NDB_ADD_TEST(thr_config-t thr_config.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
           LIBS ndbmgmcommon ndbgeneral ndbportlib)

@@ -241,7 +241,7 @@ class Argument_value {
     double d;
     float f;
     bool b;
-  } m_value;
+  } m_value{};
 };
 
 using Argument_array = Argument_value::Arguments;
