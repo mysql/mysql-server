@@ -2529,6 +2529,7 @@ DROP TABLE t24c;
 
 # simplified repro w/CUBE
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+--replace_regex / query tables \[[a-z]+\.[a-z]+[0-9]+\]/ query tables/
 --error ER_SECONDARY_ENGINE
 SELECT ( SELECT f2
          FROM (SELECT 1
