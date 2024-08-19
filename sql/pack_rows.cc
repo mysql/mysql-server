@@ -313,12 +313,18 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
   return ptr;
 }
 
+static bool ShouldGetRowIdFor(const TABLE &table,
+                              table_map tables_to_get_rowid_for) {
+  return table.pos_in_table_list != nullptr &&
+         Overlaps(table.pos_in_table_list->map(), tables_to_get_rowid_for);
+}
+
 // Request the row ID for all tables where it should be kept.
 void RequestRowId(const Prealloced_array<Table, 4> &tables,
                   table_map tables_to_get_rowid_for) {
   for (const Table &it : tables) {
     const TABLE *table = it.table;
-    if ((tables_to_get_rowid_for & table->pos_in_table_list->map()) &&
+    if (ShouldGetRowIdFor(*table, tables_to_get_rowid_for) &&
         can_call_position(table)) {
       table->file->position(table->record[0]);
     }
@@ -328,7 +334,7 @@ void RequestRowId(const Prealloced_array<Table, 4> &tables,
 void PrepareForRequestRowId(const Prealloced_array<Table, 4> &tables,
                             table_map tables_to_get_rowid_for) {
   for (const Table &it : tables) {
-    if (tables_to_get_rowid_for & it.table->pos_in_table_list->map()) {
+    if (ShouldGetRowIdFor(*it.table, tables_to_get_rowid_for)) {
       it.table->prepare_for_position();
     }
   }
