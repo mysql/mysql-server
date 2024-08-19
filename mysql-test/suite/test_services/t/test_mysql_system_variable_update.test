@@ -520,8 +520,8 @@ SELECT test_set_global_variable_attributes(NULL, "offline_mode", "when", "today"
 SELECT * FROM performance_schema.global_variable_attributes;
 
 --echo # Validate new user session gets rejected with a custom message (including reason)
---replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
---replace_regex /mode since .*, reason/mode since TIMESTAMP, reason/
+let $replace_pattern = /mode since .*, reason/mode since TIMESTAMP, reason/  /.*\/mysqld\.1\.sock\$/SOURCE_SOCKET/ /$MASTER_MYPORT/SOURCE_PORT/;
+--replace_regex $replace_pattern
 --error ER_SERVER_OFFLINE_MODE_REASON
 --connect(conu1,localhost,user1)
 
@@ -539,8 +539,8 @@ SELECT * FROM performance_schema.global_variable_attributes;
 SELECT @@global.offline_mode;
 
 --echo # Validate new user session gets rejected with a custom message (not including reason, but includes user name)
---replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
---replace_regex /mode since .*, set by user/mode since TIMESTAMP, set by user/
+let $replace_pattern = /mode since .*, set by user/mode since TIMESTAMP, set by user/  /.*\/mysqld\.1\.sock\$/SOURCE_SOCKET/ /$MASTER_MYPORT/SOURCE_PORT/;
+--replace_regex $replace_pattern
 --error ER_SERVER_OFFLINE_MODE_USER
 --connect(conu1,localhost,user1)
 
@@ -624,8 +624,8 @@ RESET PERSIST;
 --source include/restart_mysqld.inc
 
 --echo # Validate new user session gets rejected with a legacy message (not including reason nor user name)
---replace_result $MASTER_MYSOCK SOURCE_SOCKET $MASTER_MYPORT SOURCE_PORT
---replace_regex /[0-9][0-9]*T[0-9]*/TIMESTAMP/
+let $replace_pattern = /[0-9][0-9]*T[0-9]*/TIMESTAMP/ /.*\/mysqld\.1\.sock\$/SOURCE_SOCKET/ /$MASTER_MYPORT/SOURCE_PORT/;
+--replace_regex $replace_pattern
 --error ER_SERVER_OFFLINE_MODE
 --connect(conu1,localhost,user1)
 
