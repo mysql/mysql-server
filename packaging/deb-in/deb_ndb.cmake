@@ -95,15 +95,11 @@ Architecture: any
 Depends: \${shlibs:Depends}, \${misc:Depends}
 Description: Java connector
  This package contains MySQL Cluster Connector for Java, which includes
- ClusterJ and ClusterJPA, a plugin for use with OpenJPA.
+ ClusterJ.
  .
  ClusterJ is a high level database API that is similar in style and
  concept to object-relational mapping persistence frameworks such as
  Hibernate and JPA.
- .
- ClusterJPA is an OpenJPA implementation for MySQL Cluster that
- attempts to offer the best possible performance by leveraging the
- strengths of both ClusterJ and JDBC
 
 Package: mysql-${DEB_PRODUCTNAME}-nodejs
 Architecture: any
