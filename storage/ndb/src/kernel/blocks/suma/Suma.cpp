@@ -2647,6 +2647,7 @@ void Suma::sendDIGETNODESREQ(Signal *signal, Uint32 synPtrI, Uint32 tableId,
       signal->theData[2] = tableId;
       signal->theData[3] = fragNo + 1;
       sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+      return;
     }
   }
   jam();
