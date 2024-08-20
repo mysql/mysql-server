@@ -34,6 +34,7 @@
 #include <utility>
 
 #include "basic_protocol_splicer.h"
+#include "classic_auth_caching_sha2.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
@@ -844,7 +845,7 @@ bool MysqlRoutingClassicConnectionBase::connection_sharing_possible() const {
   const auto &sysvars = client_protocol().system_variables();
 
   return context_.connection_sharing() &&             // config must allow it.
-         client_protocol().password().has_value() &&  // a password is required
+         !client_protocol().credentials().empty() &&  // a password is required
          sysvars.get("session_track_gtids") == "OWN_GTID" &&
          sysvars.get("session_track_state_change") == "ON" &&
          sysvars.get("session_track_system_variables") == "*" &&
@@ -964,7 +965,7 @@ std::string MysqlRoutingClassicConnectionBase::connection_sharing_blocked_by()
 
   // "possible"
   if (!context_.connection_sharing()) return "config";
-  if (!client_protocol().password().has_value()) return "no-password";
+  if (client_protocol().credentials().empty()) return "no-password";
   if (sysvars.get("session_track_gtids") != "OWN_GTID")
     return "session-track-gtids";
   if (sysvars.get("session_track_state_change") != "ON")

@@ -33,6 +33,7 @@
 #include <ratio>
 #include <sstream>
 
+#include "classic_auth_caching_sha2.h"
 #include "classic_change_user_sender.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
@@ -457,7 +458,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
         connection(), in_handshake_,
         [this](const classic_protocol::message::server::Error &err) {
           if (connect_error_is_transient(err) &&
-              (connection()->client_protocol().password().has_value() ||
+              (connection()->client_protocol().credentials().get(
+                   AuthCachingSha2Password::kName) ||
                !connection()
                     ->server_protocol()
                     .server_greeting()

@@ -153,7 +153,7 @@ AuthCachingSha2Forwarder::client_data() {
       tr.trace(Tracer::Event().stage("caching_sha2::forward::empty_password"));
     }
 
-    src_protocol.password("");
+    src_protocol.credentials().emplace(Auth::kName, "");
 
     stage(Stage::Response);
 
@@ -222,7 +222,7 @@ AuthCachingSha2Forwarder::encrypted_password() {
         msg_res->auth_method_data(), nonce);
     if (!recv_res) return recv_client_failed(recv_res.error());
 
-    src_protocol.password(*recv_res);
+    src_protocol.credentials().emplace(Auth::kName, *recv_res);
 
     discard_current_msg(src_conn);
 
@@ -255,8 +255,9 @@ AuthCachingSha2Forwarder::plaintext_password() {
     }
 
     // remove trailing null
-    src_protocol.password(std::string(
-        AuthBase::strip_trailing_null(msg_res->auth_method_data())));
+    src_protocol.credentials().emplace(
+        Auth::kName,
+        AuthBase::strip_trailing_null(msg_res->auth_method_data()));
 
     discard_current_msg(src_conn);
 
@@ -335,7 +336,7 @@ AuthCachingSha2Forwarder::send_password() {
     // server hasn't requested full auth yet, it expects a scrambled password.
     auto scramble_res =
         Auth::scramble(AuthBase::strip_trailing_null(initial_server_auth_data_),
-                       *src_protocol.password());
+                       *src_protocol.credentials().get(Auth::kName));
     if (!scramble_res) {
       return send_server_failed(make_error_code(std::errc::bad_message));
     }
@@ -360,7 +361,7 @@ AuthCachingSha2Forwarder::send_password() {
     stage(Stage::Response);
 
     auto send_res = Auth::send_plaintext_password(
-        dst_conn, src_protocol.password().value());
+        dst_conn, *src_protocol.credentials().get(Auth::kName));
     if (!send_res) return send_server_failed(send_res.error());
     return Result::SendToServer;
   }
@@ -484,7 +485,7 @@ AuthCachingSha2Forwarder::public_key() {
     tr.trace(Tracer::Event().stage("caching_sha2::forward::public-key"));
   }
 
-  if (!src_protocol.password().has_value()) {
+  if (!src_protocol.credentials().get(Auth::kName)) {
     // the client's password isn't known.
     //
     // Forward the server's public-key to the client
@@ -500,7 +501,7 @@ AuthCachingSha2Forwarder::public_key() {
 
   discard_current_msg(dst_conn);
 
-  auto password = *src_protocol.password();
+  auto password = *src_protocol.credentials().get(Auth::kName);
 
   auto nonce = initial_server_auth_data_;
 
@@ -540,7 +541,7 @@ AuthCachingSha2Forwarder::auth_data() {
           Tracer::Event().stage("caching_sha2::forward::request_full_auth"));
     }
 
-    if (src_protocol.password().has_value()) {
+    if (src_protocol.credentials().get(Auth::kName)) {
       discard_current_msg(dst_conn);
 
       return send_password();

@@ -832,10 +832,11 @@ ServerGreetor::client_greeting_full() {
     tr.trace(Tracer::Event().stage("client::greeting::plain"));
   }
 
-  if (src_protocol.password().has_value()) {
+  if (auto creds = src_protocol.credentials().get(
+          client_greeting_msg.auth_method_name())) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
-    auto pwd = *(src_protocol.password());
+    auto pwd = *creds;
 
     // if the password set and not empty, rehash it.
     if (!pwd.empty()) {
@@ -1088,10 +1089,11 @@ ServerGreetor::client_greeting_after_tls() {
     ev->attrs.emplace_back("db.name", client_greeting_msg.schema());
   }
 
-  if (src_protocol.password().has_value()) {
+  if (auto creds = src_protocol.credentials().get(
+          client_greeting_msg.auth_method_name())) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
-    auto pwd = *(src_protocol.password());
+    auto pwd = *creds;
 
     // if the password set and not empty, rehash it.
     if (!pwd.empty()) {
@@ -1136,10 +1138,12 @@ ServerGreetor::initial_response() {
   // auto &src_channel = src_conn.channel();
   auto &src_protocol = src_conn.protocol();
 
-  connection()->push_processor(std::make_unique<AuthForwarder>(
-      connection(),
-      // password was requested already.
-      src_protocol.password() && !src_protocol.password()->empty()));
+  auto creds = src_protocol.credentials().get(AuthCachingSha2Password::kName);
+
+  connection()->push_processor(
+      std::make_unique<AuthForwarder>(connection(),
+                                      // password was requested already.
+                                      creds && !creds->empty()));
 
   stage(Stage::FinalResponse);
   return Result::Again;
@@ -1673,10 +1677,11 @@ ServerFirstAuthenticator::client_greeting_full() {
   client_greeting_msg.capabilities(dst_protocol.client_capabilities());
   client_greeting_msg.attributes(attrs);
 
-  if (src_protocol.password().has_value()) {
+  if (auto creds = src_protocol.credentials().get(
+          client_greeting_msg.auth_method_name())) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
-    auto pwd = *(src_protocol.password());
+    auto pwd = *creds;
 
     // if the password set and not empty, rehash it.
     if (!pwd.empty()) {
@@ -2005,10 +2010,11 @@ ServerFirstAuthenticator::client_greeting_after_tls() {
   client_greeting_msg.capabilities(dst_protocol.client_capabilities());
   client_greeting_msg.attributes(attrs);
 
-  if (src_protocol.password().has_value()) {
+  if (auto creds = src_protocol.credentials().get(
+          client_greeting_msg.auth_method_name())) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
-    auto pwd = *(src_protocol.password());
+    auto pwd = *creds;
 
     // if the password set and not empty, rehash it.
     if (!pwd.empty()) {
@@ -2037,10 +2043,12 @@ ServerFirstAuthenticator::initial_response() {
   auto &src_conn = connection()->client_conn();
   auto &src_protocol = src_conn.protocol();
 
-  connection()->push_processor(std::make_unique<AuthForwarder>(
-      connection(),
-      // password was requested already.
-      src_protocol.password() && !src_protocol.password()->empty()));
+  auto creds = src_protocol.credentials().get(AuthCachingSha2Password::kName);
+
+  connection()->push_processor(
+      std::make_unique<AuthForwarder>(connection(),
+                                      // password was requested already.
+                                      creds && !creds->empty()));
 
   stage(Stage::FinalResponse);
   return Result::Again;

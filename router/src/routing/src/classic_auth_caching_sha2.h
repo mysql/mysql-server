@@ -26,14 +26,12 @@
 #ifndef ROUTING_CLASSIC_AUTH_CACHING_SHA2_INCLUDED
 #define ROUTING_CLASSIC_AUTH_CACHING_SHA2_INCLUDED
 
+#include <optional>
 #include <string_view>
 #include <system_error>
 
-#include <openssl/ssl.h>
-
-#include "basic_protocol_splicer.h"
+#include "basic_protocol_splicer.h"  // TlsSwitchableConnection
 #include "classic_auth.h"
-#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 // low-level routings for caching_sha2_password

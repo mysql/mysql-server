@@ -29,9 +29,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
-
-#include "classic_connection_base.h"
 
 class AuthCleartextPassword {
  public:

@@ -97,12 +97,14 @@ AuthSha256Forwarder::client_data() {
   if (src_channel.ssl() ||
       msg_res->auth_method_data() == Auth::kEmptyPassword) {
     // password is null-terminated, remove it.
-    src_protocol.password(std::string(
-        AuthBase::strip_trailing_null(msg_res->auth_method_data())));
+    src_protocol.credentials().emplace(
+        Auth::kName,
+        AuthBase::strip_trailing_null(msg_res->auth_method_data()));
 
     if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
-                                     hexify(*src_protocol.password())));
+      tr.trace(Tracer::Event().stage(
+          "sha256_password::forward::password:\n" +
+          hexify(*src_protocol.credentials().get(Auth::kName))));
     }
 
     discard_current_msg(src_conn);
@@ -200,11 +202,12 @@ AuthSha256Forwarder::encrypted_password() {
       return recv_client_failed(recv_res.error());
     }
 
-    src_protocol.password(*recv_res);
+    src_protocol.credentials().emplace(Auth::kName, *recv_res);
 
     if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
-                                     hexify(*src_protocol.password())));
+      tr.trace(Tracer::Event().stage(
+          "sha256_password::forward::password:\n" +
+          hexify(*src_protocol.credentials().get(Auth::kName))));
     }
 
     discard_current_msg(src_conn);
@@ -231,7 +234,8 @@ AuthSha256Forwarder::send_password() {
   auto &dst_protocol = dst_conn.protocol();
   auto &dst_channel = dst_conn.channel();
 
-  if (dst_channel.ssl() || src_protocol.password()->empty()) {
+  if (dst_channel.ssl() ||
+      src_protocol.credentials().get(Auth::kName)->empty()) {
     // the server-side is encrypted (or the password is empty):
     //
     // send plaintext password
@@ -243,7 +247,8 @@ AuthSha256Forwarder::send_password() {
     stage(Stage::Response);
 
     auto send_res = Auth::send_plaintext_password(
-        dst_channel, dst_protocol, src_protocol.password().value());
+        dst_channel, dst_protocol,
+        *src_protocol.credentials().get(Auth::kName));
     if (!send_res) return send_server_failed(send_res.error());
   } else {
     // the server is NOT encrypted: ask for the server's publickey
@@ -371,7 +376,7 @@ AuthSha256Forwarder::public_key() {
     tr.trace(Tracer::Event().stage("sha256_password::forward::public_key"));
   }
 
-  if (!src_protocol.password().has_value()) {
+  if (!src_protocol.credentials().get(Auth::kName)) {
     stage(Stage::EncryptedPassword);
 
     return forward_server_to_client();
@@ -393,8 +398,8 @@ AuthSha256Forwarder::public_key() {
     nonce = nonce.substr(0, Auth::kNonceLength);
   }
 
-  const auto encrypted_res =
-      Auth::rsa_encrypt_password(*pubkey_res, *src_protocol.password(), nonce);
+  const auto encrypted_res = Auth::rsa_encrypt_password(
+      *pubkey_res, *src_protocol.credentials().get(Auth::kName), nonce);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
   if (auto &tr = tracer()) {

@@ -224,10 +224,11 @@ static classic_protocol::message::client::ChangeUser change_user_for_reuse(
   // fail too.
   auto attrs = append_attrs_res.value_or(src_protocol.attributes());
 
-  if (src_protocol.password().has_value()) {
+  if (auto creds =
+          src_protocol.credentials().get(src_protocol.auth_method_name())) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
-    auto pwd = *(src_protocol.password());
+    auto pwd = *creds;
 
     // if the password set and not empty, rehash it.
     if (auto scramble_res = scramble_them_all(

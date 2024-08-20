@@ -30,6 +30,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "classic_prepared_statement.h"
 
@@ -299,8 +300,38 @@ class ClientSideClassicProtocolState : public ClassicProtocolState {
  public:
   using ClassicProtocolState::ClassicProtocolState;
 
-  void password(std::optional<std::string> pw) { password_ = std::move(pw); }
-  const std::optional<std::string> &password() const { return password_; }
+  /**
+   * credentials per authentication method.
+   */
+  class Credentials {
+   public:
+    std::optional<std::string> get(const std::string_view &auth_method) const {
+      auto it = credentials_.find(auth_method);
+      if (it == credentials_.end()) return std::nullopt;
+
+      return it->second;
+    }
+
+    template <class... Args>
+    void emplace(Args &&...args) {
+      credentials_.emplace(std::forward<Args>(args)...);
+    }
+
+    void erase(const std::string &auth_method) {
+      credentials_.erase(auth_method);
+    }
+
+    void clear() { credentials_.clear(); }
+
+    bool empty() const { return credentials_.empty(); }
+
+   private:
+    std::map<std::string, std::string, std::less<>> credentials_;
+  };
+
+  Credentials &credentials() { return credentials_; }
+
+  const Credentials &credentials() const { return credentials_; }
 
   classic_protocol::status::value_type status_flags() const {
     return status_flags_;
@@ -354,7 +385,7 @@ class ClientSideClassicProtocolState : public ClassicProtocolState {
   void access_mode(std::optional<AccessMode> v) { access_mode_ = v; }
 
  private:
-  std::optional<std::string> password_;
+  Credentials credentials_;
 
   // status flags of the last statement.
   classic_protocol::status::value_type status_flags_{};

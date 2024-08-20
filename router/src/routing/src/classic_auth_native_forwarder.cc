@@ -118,7 +118,7 @@ AuthNativeForwarder::client_data() {
   }
 
   if (msg_res->auth_method_data().empty()) {
-    src_protocol.password("");
+    src_protocol.credentials().emplace(Auth::kName, "");
   }
 
   stage(Stage::Response);
@@ -149,7 +149,7 @@ AuthNativeForwarder::caching_sha2_scrambled() {
   // caching-sha2-password sends a "\x00" for empty-password.
   if (msg_res->auth_method_data() == std::string_view("\x00", 1) ||
       msg_res->auth_method_data().empty()) {
-    src_protocol.password("");
+    src_protocol.credentials().emplace(Auth::kName, "");
 
     discard_current_msg(src_conn);
 
@@ -245,15 +245,15 @@ AuthNativeForwarder::caching_sha2_plaintext() {
     tr.trace(Tracer::Event().stage("native::forward::plaintext"));
   }
 
-  src_protocol.password(
-      std::string(AuthBase::strip_trailing_null(msg_res->auth_method_data())));
+  src_protocol.credentials().emplace(
+      Auth::kName, AuthBase::strip_trailing_null(msg_res->auth_method_data()));
 
   discard_current_msg(src_conn);
 
   // scramble according the mysql_native_password.
   auto scramble_res =
       Auth::scramble(AuthBase::strip_trailing_null(initial_server_auth_data_),
-                     *src_protocol.password());
+                     *src_protocol.credentials().get(Auth::kName));
   if (!scramble_res) {
     return recv_client_failed(make_error_code(std::errc::bad_message));
   }
@@ -304,13 +304,13 @@ AuthNativeForwarder::caching_sha2_encrypted() {
       msg_res->auth_method_data(), nonce);
   if (!recv_res) return recv_client_failed(recv_res.error());
 
-  src_protocol.password(*recv_res);
+  src_protocol.credentials().emplace(Auth::kName, *recv_res);
 
   discard_current_msg(src_conn);
 
   auto scramble_res =
       Auth::scramble(AuthBase::strip_trailing_null(initial_server_auth_data_),
-                     *src_protocol.password());
+                     *src_protocol.credentials().get(Auth::kName));
   if (!scramble_res) {
     return send_server_failed(make_error_code(std::errc::bad_message));
   }
