@@ -1138,7 +1138,7 @@ ServerGreetor::initial_response() {
   // auto &src_channel = src_conn.channel();
   auto &src_protocol = src_conn.protocol();
 
-  auto creds = src_protocol.credentials().get(AuthCachingSha2Password::kName);
+  auto creds = src_protocol.credentials().get(src_protocol.auth_method_name());
 
   connection()->push_processor(
       std::make_unique<AuthForwarder>(connection(),
@@ -2043,7 +2043,7 @@ ServerFirstAuthenticator::initial_response() {
   auto &src_conn = connection()->client_conn();
   auto &src_protocol = src_conn.protocol();
 
-  auto creds = src_protocol.credentials().get(AuthCachingSha2Password::kName);
+  auto creds = src_protocol.credentials().get(src_protocol.auth_method_name());
 
   connection()->push_processor(
       std::make_unique<AuthForwarder>(connection(),

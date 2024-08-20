@@ -35,10 +35,13 @@
 #include "auth_digest.h"
 #include "classic_auth_caching_sha2_forwarder.h"
 #include "classic_auth_caching_sha2_sender.h"
+#include "classic_auth_cleartext.h"
 #include "classic_auth_cleartext_forwarder.h"
 #include "classic_auth_cleartext_sender.h"
 #include "classic_auth_native_forwarder.h"
 #include "classic_auth_native_sender.h"
+#include "classic_auth_openid_connect_forwarder.h"
+#include "classic_auth_openid_connect_sender.h"
 #include "classic_auth_sha256_password_forwarder.h"
 #include "classic_auth_sha256_password_sender.h"
 #include "classic_frame.h"
@@ -313,6 +316,9 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::init() {
   } else if (auth_method_name == AuthCleartextPassword::kName) {
     connection()->push_processor(std::make_unique<AuthCleartextForwarder>(
         connection(), initial_auth_method_data, true));
+  } else if (auth_method_name == AuthOpenidConnect::kName) {
+    connection()->push_processor(std::make_unique<AuthOpenidConnectForwarder>(
+        connection(), initial_auth_method_data, true));
   } else {
     connection()->push_processor(std::make_unique<AuthGenericForwarder>(
         connection(), auth_method_name, initial_auth_method_data, true));
@@ -394,6 +400,17 @@ AuthForwarder::auth_method_switch() {
           connection(), auth_method_data, *creds));
     } else {
       connection()->push_processor(std::make_unique<AuthCleartextForwarder>(
+          connection(), auth_method_data, false));
+    }
+  } else if (auth_method_name == AuthOpenidConnect::kName) {
+    dst_protocol.auth_method_name(auth_method_name);
+    dst_protocol.auth_method_data(auth_method_data);
+
+    if (auto creds = dst_protocol.credentials().get(auth_method_name)) {
+      connection()->push_processor(std::make_unique<AuthOpenidConnectSender>(
+          connection(), auth_method_data, *creds));
+    } else {
+      connection()->push_processor(std::make_unique<AuthOpenidConnectForwarder>(
           connection(), auth_method_data, false));
     }
   } else {

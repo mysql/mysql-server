@@ -104,6 +104,7 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   classic_auth_caching_sha2_forwarder.cc
   classic_auth_forwarder.cc
   classic_auth_native_forwarder.cc
+  classic_auth_openid_connect_forwarder.cc
   classic_auth_sha256_password_forwarder.cc
   classic_binlog_dump_forwarder.cc
   classic_change_user_forwarder.cc
@@ -131,6 +132,7 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   classic_auth_cleartext_sender.cc
   classic_auth_caching_sha2_sender.cc
   classic_auth_native_sender.cc
+  classic_auth_openid_connect_sender.cc
   classic_auth_sha256_password_sender.cc
   classic_change_user_sender.cc
   # classic_greeting_sender.cc
