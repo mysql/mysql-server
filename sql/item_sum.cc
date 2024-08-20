@@ -1223,14 +1223,14 @@ bool Aggregator_distinct::setup(THD *thd) {
     }
 
     const enum enum_field_types field_type =
-        calc_tmp_field_type(arg->data_type(), arg->result_type());
+        calc_tmp_field_type(item_sum->data_type(), item_sum->result_type());
 
     field_def.init_for_tmp_table(
-        field_type, arg->max_length,
+        field_type, item_sum->max_length,
         field_type == MYSQL_TYPE_NEWDECIMAL
-            ? min<unsigned int>(arg->decimals, DECIMAL_MAX_SCALE)
-            : arg->decimals,
-        arg->is_nullable(), arg->unsigned_flag, 0);
+            ? min<unsigned int>(item_sum->decimals, DECIMAL_MAX_SCALE)
+            : item_sum->decimals,
+        item_sum->is_nullable(), item_sum->unsigned_flag, 0);
 
     if (!(table = create_tmp_table_from_fields(thd, field_list))) return true;
 

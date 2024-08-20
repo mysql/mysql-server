@@ -171,3 +171,9 @@ SUM(DISTINCT SUBSTRING("text", 1, 3))
 0
 Warnings:
 Warning	1366	Incorrect DOUBLE value: 'tex' for column '' at row 1
+
+Bug#36796197: BIT query wrong result
+
+SELECT SUM(b'1100'), SUM(DISTINCT b'1100');
+SUM(b'1100')	SUM(DISTINCT b'1100')
+12	12

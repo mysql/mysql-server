@@ -149,3 +149,8 @@ drop table t1,t2;
 SELECT SUM(         SUBSTRING("text", 1, 3)) FROM dual;
 --echo # Used to not give warnings:
 SELECT SUM(DISTINCT SUBSTRING("text", 1, 3)) FROM dual;
+
+--echo
+--echo Bug#36796197: BIT query wrong result
+--echo
+SELECT SUM(b'1100'), SUM(DISTINCT b'1100');
