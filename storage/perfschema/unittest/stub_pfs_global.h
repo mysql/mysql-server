@@ -50,7 +50,7 @@ void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf) {
     }
   }
 
-  void *ptr;
+  void *ptr = nullptr;
 
 #ifdef PFS_ALIGNMENT
 #ifdef HAVE_POSIX_MEMALIGN
