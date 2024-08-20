@@ -31,6 +31,7 @@
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
 --source include/have_debug.inc
 --let $rpl_gtid_utils= 1
 --source include/rpl/init_source_replica.inc

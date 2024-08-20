@@ -76,7 +76,7 @@ while ($iter < 2)
   --let $statement_connection = slave
   --let $statement = stop replica sql_thread
   --let $auxiliary_connection = server_2_1
-  --let $sync_point = terminate_slave_threads_after_set_abort_slave
+  --let $sync_point = terminate_replica_threads_after_set_abort_replica
   --source include/execute_to_sync_point.inc
 
   --echo #

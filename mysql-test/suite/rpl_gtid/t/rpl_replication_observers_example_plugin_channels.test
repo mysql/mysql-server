@@ -26,3 +26,4 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 
 --source include/uninstall_replication_observers_example.inc
+RESET REPLICA ALL;
