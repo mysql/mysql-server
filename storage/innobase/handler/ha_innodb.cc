@@ -4536,6 +4536,10 @@ static inline bool innodb_flush_method_is_set() {
 }
 #endif
 
+/** Update the mysql_sysvar_innodb_buffer_pool_size's default value
+@param [in] new_def  New default value */
+static void innodb_buffer_pool_size_update_default(ulonglong new_def);
+
 /** Initialize and normalize innodb_buffer_pool_size. */
 static void innodb_buffer_pool_size_init() {
 #ifdef UNIV_DEBUG
@@ -4546,18 +4550,20 @@ static void innodb_buffer_pool_size_init() {
   if (srv_dedicated_server && sysvar_source_svc != nullptr) {
     static const char *variable_name = "innodb_buffer_pool_size";
     enum enum_variable_source source;
+    double server_mem = my_physical_memory() / GB;
+    const ulint dedicated_buf_pool_size =
+    (server_mem < 1.0)
+        ? srv_buf_pool_def_size
+        : (server_mem <= 4.0)
+              ? static_cast<ulint>(server_mem * 0.5 * GB)
+              : static_cast<ulint>(server_mem * 0.75 * GB);
+    // initialize the default value for innodb_buffer_pool_size to dedicated_buf_pool_size when innodb_dedicated_server is enabled
+    innodb_buffer_pool_size_update_default(dedicated_buf_pool_size);
     if (!sysvar_source_svc->get(
             variable_name, static_cast<unsigned int>(strlen(variable_name)),
             &source)) {
       if (source == COMPILED) {
-        double server_mem = my_physical_memory() / GB;
-
-        if (server_mem < 1.0) {
-          ;
-        } else if (server_mem <= 4.0) {
-          srv_buf_pool_size = static_cast<ulint>(server_mem * 0.5 * GB);
-        } else
-          srv_buf_pool_size = static_cast<ulint>(server_mem * 0.75 * GB);
+        srv_buf_pool_size = dedicated_buf_pool_size;
       } else {
         ib::warn(ER_IB_MSG_533)
             << "Option innodb_dedicated_server"
@@ -4651,14 +4657,16 @@ static void innodb_redo_log_capacity_init() {
   }
 
   if (srv_dedicated_server) {
+    const ulonglong dedicated_redo_log_capacity = std::clamp(
+      std::min(std::thread::hardware_concurrency() / 2, 16U) * GB,
+      LOG_CAPACITY_MIN, LOG_CAPACITY_MAX);
+    // initialize the default value for innodb_redo_log_capacity to dedicated_redo_log_capacity when innodb_dedicated_server is enabled
+    innodb_redo_log_capacity_update_default(dedicated_redo_log_capacity);
     if (!capacity_set) {
       /* Growth of REDO has high correlation with num of concurrent users which
 depends on num of CPUs */
-      srv_redo_log_capacity = std::clamp(
-          std::min(std::thread::hardware_concurrency() / 2, 16U) * GB,
-          LOG_CAPACITY_MIN, LOG_CAPACITY_MAX);
+      srv_redo_log_capacity = dedicated_redo_log_capacity;
       srv_redo_log_capacity_used = srv_redo_log_capacity;
-      innodb_redo_log_capacity_update_default(srv_redo_log_capacity);
     } else {
       ut_a(srv_redo_log_capacity_used % MB == 0);
       ib::warn(ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED,
@@ -22481,6 +22489,10 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, srv_buf_pool_curr_size,
                              static_cast<longlong>(srv_buf_pool_def_size),
                              static_cast<longlong>(srv_buf_pool_min_size),
                              longlong{srv_buf_pool_max_size}, 1024 * 1024L);
+
+static void innodb_buffer_pool_size_update_default(ulonglong new_def) {
+  mysql_sysvar_buffer_pool_size.def_val = new_def;
+}
 
 static MYSQL_SYSVAR_ULONGLONG(
     buffer_pool_chunk_size, srv_buf_pool_chunk_unit,

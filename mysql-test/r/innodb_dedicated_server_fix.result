@@ -1,0 +1,38 @@
+Starting mysqld with innodb_dedicated_server disabled and default values for parameters innodb_buffer_pool_size and innodb_redo_log_capacity
+Comparing the actual value of innodb_buffer_pool_size with the expected value(128MB)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(100MB)
+With innodb_dedicated_server disabled, setting innodb_buffer_pool_size=2GB and innodb_redo_log_capacity=3GB
+set global innodb_buffer_pool_size=2147483648;
+set global innodb_redo_log_capacity=3221225472;
+Comparing the actual value of innodb_buffer_pool_size with the expected value(2GB)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(3GB)
+Starting mysqld with innodb_dedicated_server enabled and default values for innodb_buffer_pool_size and innodb_redo_log_capacity, then setting them to the custom values, and then again resetting them to defaaults
+# restart: --innodb_dedicated_server=ON
+Comparing the actual value of innodb_buffer_pool_size with the expected value(calculated by innodb_dedicated_server)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(calculated by innodb_dedicated_server)
+With innodb_dedicated_server enabled, setting innodb_buffer_pool_size=2GB and innodb_redo_log_capacity=3GB
+set global innodb_buffer_pool_size=2147483648;
+set global innodb_redo_log_capacity=3221225472;
+Comparing the actual value of innodb_buffer_pool_size with the expected value(2GB)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(3GB)
+Wait for buffer pool resize to complete
+With innodb_dedicated_server enabled, setting innodb_buffer_pool_size and innodb_redo_log_capacity to their default values
+set global innodb_buffer_pool_size=default;
+set global innodb_redo_log_capacity=default;
+Comparing the actual value of innodb_buffer_pool_size with the expected value(calculated by innodb_dedicated_server)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(calculated by innodb_dedicated_server)
+Starting mysqld with innodb_dedicated_server enabled and custom values for innodb_buffer_pool_size and innodb_redo_log_capacity, then setting them to the custom values, and then again resetting them to defaults
+# restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=2147483648 --innodb_redo_log_capacity=3221225472
+Comparing the actual value of innodb_buffer_pool_size with the expected value(2GB)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(3GB)
+With innodb_dedicated_server enabled, setting innodb_buffer_pool_size=1GB and innodb_redo_log_capacity=4GB
+set global innodb_buffer_pool_size=1073741824;
+set global innodb_redo_log_capacity=4294967296;
+Comparing the actual value of innodb_buffer_pool_size with the expected value(1GB)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(4GB)
+Wait for buffer pool resize to complete
+With innodb_dedicated_server enabled, setting innodb_buffer_pool_size and innodb_redo_log_capacity to their default values
+set global innodb_buffer_pool_size=default;
+set global innodb_redo_log_capacity=default;
+Comparing the actual value of innodb_buffer_pool_size with the expected value(calculated by innodb_dedicated_server)
+Comparing the actual value of innodb_redo_log_capacity with the expected value(calculated by innodb_dedicated_server)

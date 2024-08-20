@@ -1,0 +1,256 @@
+ #####################################################################################
+ # Test for fix on resetting innodb_buffer_pool_size and innodb_redo_log_capacity    #
+ #  when innodb_dedicated_server=1   				                    #
+ #####################################################################################
+ 
+ # Make sure to run only on Linux
+ --source include/linux.inc
+ 
+ # Make sure this test is not run on PB2 machines
+ --source include/is_local_machine.inc
+ 
+ # Make sure that there are no other tests running in parallel
+ --source include/not_parallel.inc
+
+# Calculate the Total Memory on the server by reading the content of the file /proc/meminfo 
+--exec sed -n '/MemTotal/s/^MemTotal:\s*\([0-9]*\).*/\1/p' /proc/meminfo > $MYSQLTEST_VARDIR/tmp.txt
+--exec echo "let \$total_mem=`cat $MYSQLTEST_VARDIR/tmp.txt`;" > $MYSQLTEST_VARDIR/assign.txt
+--source $MYSQLTEST_VARDIR/assign.txt
+--remove_file $MYSQLTEST_VARDIR/tmp.txt
+--remove_file $MYSQLTEST_VARDIR/assign.txt
+
+# Read the number of VCPUs from the environmental variable NUMBER_OF_CPUS
+ --let $vcpu_count = $NUMBER_OF_CPUS
+
+
+# Calculate the expected size of the innodb_buffer_pool based on the formulae set by innodb_dedicated_server
+ --let $mem_size1K = 1024
+ --let $mem_size1G = 1048576
+ --let $mem_size4G = 4194304
+ --let $mem_size8G = 8388608
+ --let $mem_size128G = 134217728
+ --let $zero_point_five = 0.5
+ --let $zero_point_seven_five = 0.75
+ --let $redolog1G = 1073741824
+ --let $max_autoscaled_redolog = 16
+ 
+ if ($total_mem > $mem_size4G) {
+    --expr $calculated_buffer_pool_size = $total_mem * $zero_point_seven_five
+ }
+ if ($total_mem <= $mem_size4G) {
+    --expr $calculated_buffer_pool_size = $total_mem * $zero_point_five
+ }
+ if ($total_mem < $mem_size1G) {
+    --let $calculated_buffer_pool_size = 131072
+ }
+ 
+ --expr $calculated_redo_log_capacity = $vcpu_count * $zero_point_five
+ --let $calculated_redo_log_capacity = `SELECT CAST($calculated_redo_log_capacity AS SIGNED)`
+ 
+ if ($calculated_redo_log_capacity > $max_autoscaled_redolog) {
+     --expr $calculated_redo_log_capacity = $max_autoscaled_redolog
+  }
+ 
+ --expr $calculated_redo_log_capacity = $calculated_redo_log_capacity * $redolog1G
+ 
+ --disable_query_log
+ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Resizing redo log");
+ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite redo log files.");
+ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New redo log files created");
+ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored ");
+ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* No argument was provided to --log-bin, and --log-bin-index was not used");
+ --enable_query_log
+
+ 
+
+# innodb_dedicated_server=0
+# innodb_buffer_pool_size=default
+# innodb_redo_log_capacity=default
+echo Starting mysqld with innodb_dedicated_server disabled and default values for parameters innodb_buffer_pool_size and innodb_redo_log_capacity;
+--assert(`select VARIABLE_VALUE='OFF' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(128MB);
+--disable_query_log 
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND(134217728/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size,0)`;
+--enable_query_log
+--assert(`select $actual_innodb_buffer_pool_size=$expected_innodb_buffer_pool_size`) 
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(100MB);
+--disable_query_log
+--let $expected_redo_log_capacity = round(104857600/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+echo With innodb_dedicated_server disabled, setting innodb_buffer_pool_size=2GB and innodb_redo_log_capacity=3GB;
+--disable_result_log
+set global innodb_buffer_pool_size=2147483648;
+set global innodb_redo_log_capacity=3221225472;
+--enable_result_log
+--assert(`select VARIABLE_VALUE='OFF' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(2GB);
+--disable_query_log
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND(2147483648/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size,0)`;
+--enable_query_log
+--assert(`select $expected_innodb_buffer_pool_size=$actual_innodb_buffer_pool_size` )
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(3GB);
+--disable_query_log
+--let $expected_redo_log_capacity = round(3221225472/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+
+
+# innodb_dedicated_server=1
+# innodb_buffer_pool_size=default
+# innodb_redo_log_capacity=default
+echo Starting mysqld with innodb_dedicated_server enabled and default values for innodb_buffer_pool_size and innodb_redo_log_capacity, then setting them to the custom values, and then again resetting them to defaults;
+let $restart_parameters = restart: --innodb_dedicated_server=ON;
+let $explicit_default_wait_counter=100000;
+--source include/restart_mysqld.inc
+--assert(`select VARIABLE_VALUE='ON' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(calculated by innodb_dedicated_server);
+--disable_query_log
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size/1024,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND($calculated_buffer_pool_size/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size/1024,0)`;
+--enable_query_log 
+--assert(`select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size`)
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(calculated by innodb_dedicated_server);
+--disable_query_log
+--let $expected_redo_log_capacity = round($calculated_redo_log_capacity/1048576,0)*1048576 
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+echo With innodb_dedicated_server enabled, setting innodb_buffer_pool_size=2GB and innodb_redo_log_capacity=3GB;
+--disable_result_log
+set global innodb_buffer_pool_size=2147483648;
+set global innodb_redo_log_capacity=3221225472;
+--enable_result_log
+--assert(`select VARIABLE_VALUE='ON' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(2GB);
+--disable_query_log
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND(2147483648/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size,0)`;
+--enable_query_log
+--assert(`select $expected_innodb_buffer_pool_size=$actual_innodb_buffer_pool_size` )
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(3GB);
+--disable_query_log
+--let $expected_redo_log_capacity = round(3221225472/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+echo Wait for buffer pool resize to complete;
+let $wait_condition = SELECT VARIABLE_VALUE = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+echo With innodb_dedicated_server enabled, setting innodb_buffer_pool_size and innodb_redo_log_capacity to their default values;
+--disable_result_log
+set global innodb_buffer_pool_size=default;
+set global innodb_redo_log_capacity=default;
+--enable_result_log
+--assert(`select VARIABLE_VALUE='ON' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(calculated by innodb_dedicated_server);
+--disable_query_log
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size/1024,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND($calculated_buffer_pool_size/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size/1024,0)`;
+--enable_query_log
+--assert(`select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size`)
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(calculated by innodb_dedicated_server);
+--disable_query_log
+--let $expected_redo_log_capacity = round($calculated_redo_log_capacity/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+
+ 
+# innodb_dedicated_server=1
+# innodb_buffer_pool_size=2GB
+# innodb_redo_log_capacity=3GB
+# Reset them to default
+echo Starting mysqld with innodb_dedicated_server enabled and custom values for innodb_buffer_pool_size and innodb_redo_log_capacity, then setting them to the custom values, and then again resetting them to defaults;
+let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=2147483648 --innodb_redo_log_capacity=3221225472;
+let $explicit_default_wait_counter=100000;
+--source include/restart_mysqld.inc
+--assert(`select VARIABLE_VALUE='ON' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(2GB);
+--disable_query_log
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND(2147483648/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size,0)`;
+--enable_query_log
+--assert(`select $expected_innodb_buffer_pool_size=$actual_innodb_buffer_pool_size` )
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(3GB);
+--disable_query_log
+--let $expected_redo_log_capacity = round(3221225472/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+echo With innodb_dedicated_server enabled, setting innodb_buffer_pool_size=1GB and innodb_redo_log_capacity=4GB; 
+--disable_result_log
+set global innodb_buffer_pool_size=1073741824;
+set global innodb_redo_log_capacity=4294967296;
+--enable_result_log
+--assert(`select VARIABLE_VALUE='ON' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(1GB);
+--disable_query_log
+ set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size,0) * @@global.innodb_buffer_pool_instances;
+ let $expected_innodb_buffer_pool_size = `select ROUND(1073741824/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+ let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size,0)`;
+--enable_query_log
+--assert(`select $expected_innodb_buffer_pool_size=$actual_innodb_buffer_pool_size` )
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(4GB);
+--disable_query_log
+--let $expected_redo_log_capacity = round(4294967296/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
+
+echo Wait for buffer pool resize to complete;
+let $wait_condition = SELECT VARIABLE_VALUE = 0 FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+echo With innodb_dedicated_server enabled, setting innodb_buffer_pool_size and innodb_redo_log_capacity to their default values;
+--disable_result_log
+set global innodb_buffer_pool_size=default;
+set global innodb_redo_log_capacity=default;
+--enable_result_log
+--assert(`select VARIABLE_VALUE='ON' FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_dedicated_server'`)
+
+echo Comparing the actual value of innodb_buffer_pool_size with the expected value(calculated by innodb_dedicated_server);
+--disable_query_log
+set @innodb_chunk_instance_product = ROUND(@@global.innodb_buffer_pool_chunk_size/1024,0) * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ROUND($calculated_buffer_pool_size/@innodb_chunk_instance_product,0) * @innodb_chunk_instance_product`;
+let $actual_innodb_buffer_pool_size = `select  ROUND(@@global.innodb_buffer_pool_size/1024,0)`;
+--enable_query_log
+--assert(`select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size`)
+
+echo Comparing the actual value of innodb_redo_log_capacity with the expected value(calculated by innodb_dedicated_server);
+--disable_query_log
+--let $expected_redo_log_capacity = round($calculated_redo_log_capacity/1048576,0)*1048576
+--let $actual_redo_log_capacity = `SELECT @@innodb_redo_log_capacity`
+--enable_query_log
+--assert(`select $actual_redo_log_capacity = $expected_redo_log_capacity`)
