@@ -4905,24 +4905,91 @@ runBug44915(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   
   NdbRestarter res;
-  int error[] = { 13031, 13044, 13045, 13031, 0 };
-  int error2[] = { 13049, 13050, 13049, 13050, 0 };
   /**
-   * error2 is used to test CONTINUEB handling when reading table
-   * fragmentation, it is not expected to give any faults.
+   * Test various failures in SUMA::SUB_CREATE_REQ which
+   * is invoked when a subscription is setup
+   * (A side effect of the first subscriber (EventOperation)
+   * being created)
    */
+  int error[] = {13031, /* SUMA SUB_CREATE_REQ Table::UNDEFINED */
+                 13044, /* SUMA SUB_CREATE_REQ Out of op records */
+                 13045, /* SUMA SUB_CREATE_REQ Out of table records */
+                 13031, /* SUMA SUB_CREATE_REQ Table::UNDEFINED */
+                 0};
   for (int i = 0; error[i] && result == NDBT_OK; i++)
   {
     Uint32 nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
-    ndbout_c("error: %d", error[i]);
-    res.insertErrorInNode(nodeId, error[i]);
-    
-    result = runCreateEvent(ctx, step); // should fail due to error insert
-    res.insertErrorInNode(nodeId, error2[i]);
-    result = runCreateEvent(ctx, step); // should pass
-    result = runDropEvent(ctx, step);
+    {
+      ndbout_c("error: %d on node %u", error[i], nodeId);
+      res.insertErrorInNode(nodeId, error[i]);
+      result = runCreateEvent(ctx, step);
+      NdbEventOperation *pOp = createEventOperation(
+          GETNDB(step), *ctx->getTab(), 1); /* report errors */
+      /* Expect failure */
+      if (pOp != 0) {
+        ndbout_c("Expected failure, but succeeded.");
+        return NDBT_FAILED;
+      }
+      result = runDropEvent(ctx, step);
+    }
   }
   return result;
+}
+
+int runTestSumaScanGetNodesContinueB(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+
+  NdbRestarter res;
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  Ndb *pNdb = GETNDB(step);
+
+  /**
+   * Get code coverage of a SUMA-internal CONTINUEB path
+   * when requesting distribution info for table fragments
+   * being scanned
+   */
+  int error[] = {13049, /* SUMA CONTINUEB::WAIT_GET_FRAGMENT (last fragment) */
+                 13050, /* SUMA CONTINUEB::WAIT_GET_FRAGMENT (first fragment) */
+                 13049, 13050, 0};
+  /**
+   * error is used to test CONTINUEB handling when reading table
+   * fragmentation, it is not expected to give any faults.
+   */
+  for (int i = 0; error[i] && result == NDBT_OK; i++) {
+    Uint32 nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
+    {
+      ndbout_c("error: %d on node %u", error[i], nodeId);
+      res.insertErrorInNode(nodeId, error[i]);
+
+      /* Cause a SUMA scan to occur, hitting path */
+      /* Build an ordered index on the pk cols */
+      {
+        ndbout_c("Defining index on table");
+        const char *indexName = "SUMAIDX";
+        NdbDictionary::Index idxDef(indexName);
+        idxDef.setTable(pTab->getName());
+        idxDef.setType(NdbDictionary::Index::OrderedIndex);
+        for (int c = 0; c < pTab->getNoOfColumns(); c++) {
+          const NdbDictionary::Column *col = pTab->getColumn(c);
+          if (col->getPrimaryKey()) {
+            ndbout_c("  Adding column %s", col->getName());
+            idxDef.addIndexColumn(col->getName());
+          }
+        }
+        idxDef.setStoredIndex(false);
+
+        if (pNdb->getDictionary()->createIndex(idxDef) != 0) {
+          ndbout_c("Failed to create index with error %u %s",
+                   pNdb->getDictionary()->getNdbError().code,
+                   pNdb->getDictionary()->getNdbError().message);
+          return NDBT_FAILED;
+        }
+        ndbout_c("Created index ok, dropping it");
+        pNdb->getDictionary()->dropIndex(indexName, pTab->getName());
+      }
+    }
+  }
+  return NDBT_OK;
 }
 
 int
@@ -7411,6 +7478,10 @@ TESTCASE("Bug30780", "")
 TESTCASE("Bug44915", "")
 {
   INITIALIZER(runBug44915);
+}
+TESTCASE("SumaScanGetNodesContinueB", "")
+{
+  STEP(runTestSumaScanGetNodesContinueB);
 }
 TESTCASE("Bug56579", "")
 {

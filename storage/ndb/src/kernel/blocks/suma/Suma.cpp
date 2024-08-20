@@ -2966,6 +2966,7 @@ Suma::sendDIGETNODESREQ(Signal *signal,
       signal->theData[3] = fragNo + 1;
       sendSignal(reference(), GSN_CONTINUEB, signal,
                  4, JBB);
+      return;
     }
   }
   jam();
