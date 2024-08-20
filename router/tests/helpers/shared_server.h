@@ -73,9 +73,23 @@ class SharedServer {
   void spawn_server(const std::vector<std::string> &extra_args = {});
 
   struct Account {
+    Account(std::string usr, std::string pwd, std::string with)
+        : username(std::move(usr)),
+          password(std::move(pwd)),
+          auth_method(std::move(with)) {}
+
+    Account(std::string usr, std::string pwd, std::string with,
+            std::optional<std::string> as)
+        : username(std::move(usr)),
+          password(std::move(pwd)),
+          auth_method(std::move(with)),
+          identified_as(std::move(as)) {}
+
     std::string username;
     std::string password;
     std::string auth_method;
+
+    std::optional<std::string> identified_as;
   };
 
   stdx::expected<MysqlClient, MysqlError> admin_cli();
@@ -93,11 +107,31 @@ class SharedServer {
 
   static void drop_account(MysqlClient &cli, Account account);
 
-  void setup_mysqld_accounts();
+  static void setup_mysqld_accounts(MysqlClient &cli);
 
-  void install_plugins();
+  // set the openid_connect specific configuration.
+  //
+  // local, not replicated.
+  static stdx::expected<void, MysqlError> local_set_openid_connect_config(
+      MysqlClient &cli);
 
-  static void install_plugins(MysqlClient &cli);
+  static stdx::expected<void, MysqlError> local_set_openid_connect_config(
+      MysqlClient &cli, const std::string &openid_connect_config);
+
+  // installed a plugin in the server.
+  //
+  // local, not replicated.
+  static stdx::expected<void, MysqlError> local_install_plugin(
+      MysqlClient &cli, const std::string &plugin_name) {
+    return local_install_plugin(cli, plugin_name, plugin_name);
+  }
+
+  // installed a plugin in the server.
+  //
+  // local, not replicated.
+  static stdx::expected<void, MysqlError> local_install_plugin(
+      MysqlClient &cli, const std::string &plugin_name,
+      const std::string &so_name);
 
   void flush_privileges();
 
@@ -121,6 +155,7 @@ class SharedServer {
         sha256_empty_password_account().username,
         sha256_password_account().username,
         sha256_short_password_account().username,
+        openid_connect_account().username,
     };
   }
 
@@ -196,7 +231,20 @@ class SharedServer {
     return {"root", "", "caching_sha2_password"};
   }
 
+  static Account openid_connect_account() {
+    // - identity_provider must match the key of the
+    //   'authentication_openid_connect_configuration'
+    // - user must match the 'sub' of the id-token from the client.
+    return {"openid_connect", "", "authentication_openid_connect", R"({
+  "identity_provider": "myissuer",
+  "user": "openid_user1"
+})"};
+  }
+
   static void destroy_statics();
+
+  void has_openid_connect(bool val) { has_openid_connect_ = val; }
+  bool has_openid_connect() const { return has_openid_connect_; }
 
  private:
   static TempDirectory *mysqld_init_once_dir_;
@@ -212,6 +260,8 @@ class SharedServer {
   bool mysqld_failed_to_start_{false};
 
   uint32_t starts_{};
+
+  bool has_openid_connect_{false};
 };
 
 #endif

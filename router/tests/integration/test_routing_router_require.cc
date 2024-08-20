@@ -415,12 +415,15 @@ class TestEnv : public ::testing::Environment {
         if (s->mysqld_failed_to_start()) {
           GTEST_SKIP() << "mysql-server failed to start.";
         }
-        s->setup_mysqld_accounts();
+
+        auto cli_res = s->admin_cli();
+        ASSERT_NO_ERROR(cli_res);
+
+        auto cli = std::move(*cli_res);
+
+        SharedServer::setup_mysqld_accounts(cli);
 
         SCOPED_TRACE("// create accounts for the different scenarios");
-        auto admin_cli_res = s->admin_cli();
-        ASSERT_NO_ERROR(admin_cli_res);
-
         {
           auto account = server_requires_ssl_account();
 
@@ -429,7 +432,7 @@ class TestEnv : public ::testing::Environment {
               " IDENTIFIED WITH " << std::quoted(account.auth_method) <<  //
               " BY " << std::quoted(account.password) <<                  //
               " REQUIRE SSL";
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -440,7 +443,7 @@ class TestEnv : public ::testing::Environment {
               " IDENTIFIED WITH " << std::quoted(account.auth_method) <<  //
               " BY " << std::quoted(account.password) <<                  //
               " REQUIRE X509";
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -453,7 +456,7 @@ class TestEnv : public ::testing::Environment {
               " REQUIRE ISSUER "
               "'/C=IN/ST=Karnataka/L=Bengaluru/O=Oracle/OU=MySQL/CN=MySQL CRL "
               "test ca certificate'";
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -466,7 +469,7 @@ class TestEnv : public ::testing::Environment {
               " REQUIRE SUBJECT "
               "'/C=IN/ST=Karnataka/L=Bengaluru/O=Oracle/OU=MySQL/CN=MySQL CRL "
               "test client certificate'";
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -478,7 +481,7 @@ class TestEnv : public ::testing::Environment {
               " BY " << std::quoted(account.password) <<                  //
               " ATTRIBUTE "
                << std::quoted(R"({"router_require":{"ssl":false}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -490,7 +493,7 @@ class TestEnv : public ::testing::Environment {
               " BY " << std::quoted(account.password) <<                  //
               " ATTRIBUTE "
                << std::quoted(R"({"router_require":{"ssl":true}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -502,7 +505,7 @@ class TestEnv : public ::testing::Environment {
               " BY " << std::quoted(account.password) <<                  //
               " ATTRIBUTE "
                << std::quoted(R"({"router_require":{"x509":false}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -514,7 +517,7 @@ class TestEnv : public ::testing::Environment {
               " BY " << std::quoted(account.password) <<                  //
               " ATTRIBUTE "
                << std::quoted(R"({"router_require":{"x509":true}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -528,7 +531,7 @@ class TestEnv : public ::testing::Environment {
               " ATTRIBUTE "
               << std::quoted(
                      R"({"router_require":{"issuer":"/C=IN/ST=Karnataka/L=Bengaluru/O=Oracle/OU=MySQL/CN=MySQL CRL test ca certificate"}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -542,7 +545,7 @@ class TestEnv : public ::testing::Environment {
               " ATTRIBUTE "
               << std::quoted(
                      R"({"router_require":{"subject":"/C=IN/ST=Karnataka/L=Bengaluru/O=Oracle/OU=MySQL/CN=MySQL CRL test client certificate"}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -554,7 +557,7 @@ class TestEnv : public ::testing::Environment {
               " BY " << std::quoted(account.password) <<                  //
               " ATTRIBUTE "
                << std::quoted(R"({"router_require":{"unknown": true}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
 
         {
@@ -566,7 +569,7 @@ class TestEnv : public ::testing::Environment {
               " BY " << std::quoted(account.password) <<                  //
               " ATTRIBUTE "
                << std::quoted(R"({"other":{}, "router_require": {}})");
-          ASSERT_NO_ERROR(admin_cli_res->query(stmt.str())) << stmt.str();
+          ASSERT_NO_ERROR(cli.query(stmt.str())) << stmt.str();
         }
       }
     }

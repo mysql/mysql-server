@@ -694,8 +694,6 @@ class TestEnv : public ::testing::Environment {
       if (s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "mysql-server failed to start.";
       }
-      s->setup_mysqld_accounts();
-      s->install_plugins();
 
       auto cli = new MysqlClient;
 
@@ -704,6 +702,11 @@ class TestEnv : public ::testing::Environment {
 
       auto connect_res = cli->connect(s->server_host(), s->server_port());
       ASSERT_NO_ERROR(connect_res);
+
+      ASSERT_NO_ERROR(
+          SharedServer::local_install_plugin(*cli, "clone", "mysql_clone"));
+
+      SharedServer::setup_mysqld_accounts(*cli);
 
       admin_clis_[ndx] = cli;
     }
@@ -2069,7 +2072,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, classic_protocol_clone) {
   ASSERT_NO_ERROR(recipient_res);
 
   auto recipient = std::move(*recipient_res);
-  SharedServer::install_plugins(recipient);
+  SharedServer::local_install_plugin(recipient, "clone", "mysql_clone");
   {
     std::ostringstream oss;
 

@@ -44,7 +44,6 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlxclient.h"
@@ -55,7 +54,6 @@
 #include "procs.h"
 #include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"
-#include "router_test_helpers.h"
 #include "scope_guard.h"
 #include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
@@ -71,6 +69,14 @@ static constexpr const std::string_view kRequired{"REQUIRED"};
 static constexpr const std::string_view kPreferred{"PREFERRED"};
 static constexpr const std::string_view kPassthrough{"PASSTHROUGH"};
 static constexpr const std::string_view kAsClient{"AS_CLIENT"};
+
+#ifdef _WIN32
+#define EXE_EXTENSION ".exe"
+#define SO_EXTENSION ".dll"
+#else
+#define EXE_EXTENSION ""
+#define SO_EXTENSION ".so"
+#endif
 
 std::ostream &operator<<(std::ostream &os, MysqlError e) {
   os << e.sql_state() << " (" << e.value() << ") " << e.message();
@@ -367,9 +373,23 @@ class SharedServer {
   }
 
   struct Account {
+    Account(std::string usr, std::string pwd, std::string with)
+        : username(std::move(usr)),
+          password(std::move(pwd)),
+          auth_method(std::move(with)) {}
+
+    Account(std::string usr, std::string pwd, std::string with,
+            std::optional<std::string> as)
+        : username(std::move(usr)),
+          password(std::move(pwd)),
+          auth_method(std::move(with)),
+          identified_as(std::move(as)) {}
+
     std::string username;
     std::string password;
     std::string auth_method;
+
+    std::optional<std::string> identified_as;
   };
 
   stdx::expected<MysqlClient, MysqlError> admin_cli() {
@@ -400,9 +420,16 @@ class SharedServer {
 
   void create_account(MysqlClient &cli, Account account) {
     {
-      const std::string q = "CREATE USER " + account.username + " " +         //
-                            "IDENTIFIED WITH " + account.auth_method + " " +  //
-                            "BY '" + account.password + "'";
+      std::string q = "CREATE USER " + account.username + " " +  //
+                      "IDENTIFIED WITH " + account.auth_method;
+
+      if (!account.password.empty()) {
+        q += " BY '" + account.password + "'";
+      }
+
+      if (account.identified_as) {
+        q += " AS '" + *account.identified_as + "'";
+      }
 
       SCOPED_TRACE("// " + q);
       auto res = cli.query(q);
@@ -435,13 +462,43 @@ class SharedServer {
 
     auto cli = std::move(cli_res.value());
 
+    // openid_connect
+    //
+    auto install_res = cli.query(
+        "INSTALL PLUGIN authentication_openid_connect"
+        "        SONAME 'authentication_openid_connect" SO_EXTENSION "'");
+
+    if (install_res) {
+      has_openid_connect_ = true;
+    } else {
+      // can't open shared object file.
+      ASSERT_EQ(install_res.error().value(), 1126);
+    }
+
+    if (has_openid_connect()) {
+      std::string set_openid_connect_config(R"(
+{ "myissuer" : "{\"kid\":\"6f7254101f56e41cf35c9926de84a2d552b4c6f1\",\"e\":\"AQAB\",\"name\":\"https://myissuer.com\",\"alg\":\"RS256\",\"use\":\"sig\",\"n\":\"oEpcwfsGjBWzWanhb-WNGy4NgPFXOztLiZOZUWFZh25Vgny0YIlVPwtNRqqXgiyvVYzp-uMD7noQl8FUkqNM22NgjpzOWZAcIwc103qxgNr_kIV8__5uDu-ppl5qnHIEYP_IW9_uBpzJ_L2oZjv-AoSCvHiIFpcg9lq5gxKVe9A8FuCGfQ2rodlYqUC2qha0CTwgbUIT9H3469gpoU88AXiHDC90Dsi8Wpa5D1aNGJ8VbPl9CzyMWp-evHmtfDzNzz9yKF7JKExU6pBjG9HsQ0CEW9_8LtQ6NZrt6o3pQoMm8gjUScrUJnrfN16k0q8hfFuewQi5syV0GBlPg6en1w\",\"kty\":\"RSA\"}", "authService.oracle.com": "{\"alg\":\"RS256\",\"use\":\"sig\",\"kty\":\"RSA\",\"e\":\"AQAB\",\"kid\":\"967ea044-88bc-47d7-b286-52b87d0f08a5\",\"n\":\"nSfpzwAHkXy7NPxAh_SyLklu_l1d1hYhWjWl35HIeKMtvlr5oYWAGpbB19EMrkdCcxrXH8kIMhQ9rbmnn9BtaiQ6qbhQgPhBjJfq7k9-csn-qHWpNbALpLY5EuF7ZJQr-Ith13iEAG_qXoapDesWYwBNHDG6muKKeVYdiLc_AsP4CXYtt1emHKIt1zEqFFBJo2tiooXf_oRvC9d_U5lWU0NiSz6yT8z9-4g7XrdDtETmkL--EJLzhywIItuRTykkxPOWOCesSz1BQWcS6y0oTVKE5FNpUCWydvvzataERq5jHd61HbTKw0casV9Lod5MwGFG1dIDk7x8qt0ptOBleQ\"}" }
+)");
+
+      std::string set_openid_connect_config_stmt(
+          "SET GLOBAL authentication_openid_connect_configuration = \"JSON://" +
+          cli.escape(set_openid_connect_config) + "\"");
+      SCOPED_TRACE("// " + set_openid_connect_config_stmt);
+      ASSERT_NO_ERROR(cli.query(set_openid_connect_config_stmt));
+    }
+
     ASSERT_NO_FATAL_FAILURE(
         create_account(cli, caching_sha2_password_account()));
     ASSERT_NO_FATAL_FAILURE(
         create_account(cli, caching_sha2_empty_password_account()));
     ASSERT_NO_FATAL_FAILURE(create_account(cli, sha256_password_account()));
+
     ASSERT_NO_FATAL_FAILURE(
         create_account(cli, sha256_empty_password_account()));
+
+    if (has_openid_connect()) {
+      ASSERT_NO_FATAL_FAILURE(create_account(cli, openid_connect_account()));
+    }
   }
 
   void setup_mysqld_xproto_test_env() {
@@ -562,6 +619,18 @@ class SharedServer {
     return {"root", "", "caching_sha2_password"};
   }
 
+  static Account openid_connect_account() {
+    // - identity_provider must match the key of the
+    //   'authentication_openid_connect_configuration'
+    // - user must match the 'sub' of the id-token from the client.
+    return {"openid_connect", "", "authentication_openid_connect", R"({
+  "identity_provider": "myissuer",
+  "user": "openid_user1"
+})"};
+  }
+
+  bool has_openid_connect() { return has_openid_connect_; }
+
  private:
   TempDirectory mysqld_dir_{"mysqld"};
 
@@ -573,6 +642,7 @@ class SharedServer {
   uint16_t server_mysqlx_port_{port_pool_.get_next_available()};
 
   bool mysqld_failed_to_start_{false};
+  bool has_openid_connect_{false};
 };
 
 class SharedRouter {
@@ -585,7 +655,7 @@ class SharedRouter {
     auto writer = process_manager().config_writer(conf_dir_.name());
 
     writer.section("connection_pool", {
-                                          {"max_idle_server_connections", "0"},
+                                          {"max_idle_server_connections", "1"},
                                       });
 
     for (const auto &param : reuse_connection_params) {
@@ -725,6 +795,8 @@ class ReuseConnectionTest
     TestWithSharedServer::TearDownTestSuite();
   }
 
+  static SharedRouter *shared_router() { return shared_router_; }
+
   static TcpPortPool port_pool_;
 
   void SetUp() override {
@@ -737,6 +809,7 @@ class ReuseConnectionTest
   ~ReuseConnectionTest() override {
     if (::testing::Test::HasFailure()) {
       shared_router_->process_manager().dump_logs();
+      shared_server_->process_manager().dump_logs();
     }
   }
 
@@ -2147,6 +2220,273 @@ TEST_P(ReuseConnectionTest,
 
     ASSERT_NO_ERROR(
         cli.connect(shared_router_->host(), shared_router_->port(GetParam())));
+  }
+}
+
+//
+// openid_connection
+//
+
+TEST_P(ReuseConnectionTest, classic_protocol_connect_openid_connect) {
+#ifdef SKIP_AUTHENTICATION_CLIENT_PLUGINS_TESTS
+  GTEST_SKIP() << "built with WITH_AUTHENTICATION_CLIENT_PLUGINS=OFF";
+#endif
+
+  if (!shared_server_->has_openid_connect()) GTEST_SKIP();
+
+  SCOPED_TRACE("// create the JWT token for authentication.");
+
+  TempDirectory jwtdir;
+  auto id_token_res = create_openid_connect_id_token_file(
+      "openid_user1",                  // subject
+      "https://myissuer.com",          // ${identity_provider}.name
+      120,                             // expiry in seconds
+      CMAKE_SOURCE_DIR                 //
+      "/router/tests/component/data/"  //
+      "openid_key.pem",                // private-key of the identity-provider
+      jwtdir.name()                    // out-dir
+  );
+  ASSERT_NO_ERROR(id_token_res);
+
+  auto id_token = *id_token_res;
+
+  SCOPED_TRACE("// setup mysql connection");
+  MysqlClient cli;
+
+  auto account = SharedServer::openid_connect_account();
+
+  SCOPED_TRACE(
+      "// set the JWT-token in the authentication_openid_connect_client "
+      "plugin.");
+
+  cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
+
+  auto plugin_res = cli.find_plugin("authentication_openid_connect_client",
+                                    MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+  ASSERT_NO_ERROR(plugin_res);
+
+  plugin_res->set_option(
+      MysqlClient::Plugin::StringOption("id-token-file", id_token.c_str()));
+
+  SCOPED_TRACE("// connecting to server");
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  bool expect_success = true;
+  if (GetParam().client_ssl_mode == kDisabled ||
+      GetParam().server_ssl_mode == kDisabled) {
+    expect_success = false;
+  }
+
+  auto connect_res =
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+  if (expect_success) {
+    ASSERT_NO_ERROR(connect_res);
+
+    {
+      auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+      ASSERT_NO_ERROR(query_res);
+
+      EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
+                                  account.username + "@localhost", "<NULL>")));
+    }
+  } else {
+    ASSERT_ERROR(connect_res);
+    if (GetParam().server_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kAsClient) {
+      EXPECT_EQ(connect_res.error().value(), 1045);
+    } else {
+      EXPECT_EQ(connect_res.error().value(), 2000);
+    }
+  }
+}
+
+TEST_P(ReuseConnectionTest,
+       classic_protocol_connect_openid_connect_as_default) {
+#ifdef SKIP_AUTHENTICATION_CLIENT_PLUGINS_TESTS
+  GTEST_SKIP() << "built with WITH_AUTHENTICATION_CLIENT_PLUGINS=OFF";
+#endif
+
+  if (!shared_server_->has_openid_connect()) GTEST_SKIP();
+
+  SCOPED_TRACE("// create the JWT token for authentication.");
+
+  TempDirectory jwtdir;
+  auto id_token_res = create_openid_connect_id_token_file(
+      "openid_user1",                  // subject
+      "https://myissuer.com",          // ${identity_provider}.name
+      120,                             // expiry in seconds
+      CMAKE_SOURCE_DIR                 //
+      "/router/tests/component/data/"  //
+      "openid_key.pem",                // private-key of the identity-provider
+      jwtdir.name()                    // out-dir
+  );
+  ASSERT_NO_ERROR(id_token_res);
+
+  auto id_token = *id_token_res;
+
+  SCOPED_TRACE("// setup mysql connection");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::openid_connect_account();
+
+  SCOPED_TRACE(
+      "// set the JWT-token in the authentication_openid_connect_client "
+      "plugin.");
+
+  cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
+
+  // set the id-token-file path
+  auto plugin_res = cli.find_plugin("authentication_openid_connect_client",
+                                    MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+  ASSERT_NO_ERROR(plugin_res);
+
+  plugin_res->set_option(
+      MysqlClient::Plugin::StringOption("id-token-file", id_token.c_str()));
+
+  SCOPED_TRACE("// connecting to server");
+
+  cli.username(account.username);
+  cli.password(account.password);
+  cli.set_option(MysqlClient::DefaultAuthentication(
+      "authentication_openid_connect_client"));
+
+  auto connect_res =
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+  if ((GetParam().client_ssl_mode == kPassthrough ||
+       GetParam().client_ssl_mode == kPreferred ||
+       GetParam().client_ssl_mode == kRequired) &&
+      GetParam().server_ssl_mode != kDisabled) {
+    ASSERT_NO_ERROR(connect_res);
+    {
+      auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+      ASSERT_NO_ERROR(query_res);
+
+      EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
+                                  account.username + "@localhost", "<NULL>")));
+    }
+  } else {
+    ASSERT_ERROR(connect_res);
+    if (GetParam().client_ssl_mode == kDisabled) {
+      EXPECT_EQ(connect_res.error().value(), 2000);
+    } else {
+      EXPECT_EQ(connect_res.error().value(), 1045);
+    }
+  }
+}
+
+TEST_P(ReuseConnectionTest, classic_protocol_reuse_openid_connect) {
+#ifdef SKIP_AUTHENTICATION_CLIENT_PLUGINS_TESTS
+  GTEST_SKIP() << "built with WITH_AUTHENTICATION_CLIENT_PLUGINS=OFF";
+#endif
+
+  if (!shared_server_->has_openid_connect()) GTEST_SKIP();
+
+  auto account = SharedServer::openid_connect_account();
+
+  SCOPED_TRACE("// create the JWT token for authentication.");
+
+  TempDirectory jwtdir;
+  auto id_token_res = create_openid_connect_id_token_file(
+      "openid_user1",                  // subject
+      "https://myissuer.com",          // ${identity_provider}.name
+      120,                             // expiry in seconds
+      CMAKE_SOURCE_DIR                 //
+      "/router/tests/component/data/"  //
+      "openid_key.pem",                // private-key of the identity-provider
+      jwtdir.name()                    // out-dir
+  );
+  ASSERT_NO_ERROR(id_token_res);
+
+  auto id_token = *id_token_res;
+
+  {
+    SCOPED_TRACE("// connecting to server");
+    MysqlClient cli;
+
+    SCOPED_TRACE("// locate plugin dir");
+
+    cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
+
+    // set the id-token-file path
+    auto plugin_res = cli.find_plugin("authentication_openid_connect_client",
+                                      MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+    ASSERT_NO_ERROR(plugin_res);
+
+    SCOPED_TRACE("// set the JWT-token in the plugin.");
+
+    plugin_res->set_option(
+        MysqlClient::Plugin::StringOption("id-token-file", id_token.c_str()));
+
+    cli.username(account.username);
+    cli.password(account.password);
+
+    bool expect_success = true;
+    if (GetParam().client_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kDisabled) {
+      expect_success = false;
+    }
+
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    if (expect_success) {
+      ASSERT_NO_ERROR(connect_res);
+
+      {
+        auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+        ASSERT_NO_ERROR(query_res);
+
+        EXPECT_THAT(*query_res,
+                    ElementsAre(ElementsAre(account.username + "@localhost",
+                                            "<NULL>")));
+      }
+    } else {
+      ASSERT_ERROR(connect_res);
+      if (GetParam().server_ssl_mode == kDisabled ||
+          GetParam().server_ssl_mode == kAsClient) {
+        EXPECT_EQ(connect_res.error().value(), 1045);
+      } else {
+        EXPECT_EQ(connect_res.error().value(), 2000);
+      }
+
+      return;
+    }
+  }
+
+  {
+    SCOPED_TRACE("// connecting to server");
+    MysqlClient cli;
+
+    SCOPED_TRACE("// locate plugin dir");
+
+    cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
+
+    // set the id-token-file path
+    auto plugin_res = cli.find_plugin("authentication_openid_connect_client",
+                                      MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+    ASSERT_NO_ERROR(plugin_res);
+
+    SCOPED_TRACE("// set the JWT-token in the plugin.");
+
+    plugin_res->set_option(
+        MysqlClient::Plugin::StringOption("id-token-file", id_token.c_str()));
+
+    cli.username(account.username);
+    cli.password(account.password);
+
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    ASSERT_NO_ERROR(connect_res);
+
+    {
+      auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+      ASSERT_NO_ERROR(query_res);
+
+      EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
+                                  account.username + "@localhost", "<NULL>")));
+    }
   }
 }
 

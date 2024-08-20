@@ -27,7 +27,6 @@
 #include <charconv>
 #include <chrono>
 #include <fstream>
-#include <iomanip>
 #include <memory>
 #include <ostream>
 #include <sstream>
@@ -35,7 +34,6 @@
 #include <string>
 #include <system_error>
 #include <thread>
-#include <type_traits>
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock-more-matchers.h>
@@ -51,7 +49,6 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/stdx/ranges.h"   // enumerate
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysql/harness/tls_context.h"
@@ -60,7 +57,6 @@
 #include "mysqlrouter/classic_protocol_codec_message.h"
 #include "mysqlrouter/classic_protocol_frame.h"
 #include "mysqlrouter/classic_protocol_message.h"
-#include "mysqlrouter/utils.h"
 #include "openssl_version.h"  // ROUTER_OPENSSL_VERSION
 #include "process_manager.h"
 #include "procs.h"
@@ -706,7 +702,6 @@ class TestEnv : public ::testing::Environment {
       if (s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "mysql-server failed to start.";
       }
-      s->setup_mysqld_accounts();
 
       auto cli = new MysqlClient;
 
@@ -715,6 +710,23 @@ class TestEnv : public ::testing::Environment {
 
       auto connect_res = cli->connect(s->server_host(), s->server_port());
       ASSERT_NO_ERROR(connect_res);
+
+      // install plugin that will be used later with setup_mysqld_accounts.
+      auto install_res = SharedServer::local_install_plugin(
+          *cli, "authentication_openid_connect");
+      if (install_res) s->has_openid_connect(true);
+
+      if (s->has_openid_connect()) {
+        ASSERT_NO_ERROR(SharedServer::local_set_openid_connect_config(*cli));
+
+        auto account = SharedServer::openid_connect_account();
+
+        ASSERT_NO_FATAL_FAILURE(SharedServer::create_account(*cli, account));
+        ASSERT_NO_FATAL_FAILURE(SharedServer::grant_access(
+            *cli, account, "SELECT", "performance_schema"));
+      }
+
+      SharedServer::setup_mysqld_accounts(*cli);
 
       admin_clis_[ndx] = cli;
     }
@@ -872,6 +884,9 @@ class ShareConnectionTestBase : public RouterComponentTest {
   ~ShareConnectionTestBase() override {
     if (::testing::Test::HasFailure()) {
       shared_router()->process_manager().dump_logs();
+      for (auto &srv : shared_servers()) {
+        srv->process_manager().dump_logs();
+      }
     }
   }
 
@@ -1052,6 +1067,283 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
     }
+  }
+}
+
+TEST_P(ShareConnectionTest,
+       classic_protocol_share_after_connect_openid_connect) {
+#ifdef SKIP_AUTHENTICATION_CLIENT_PLUGINS_TESTS
+  GTEST_SKIP() << "built with WITH_AUTHENTICATION_CLIENT_PLUGINS=OFF";
+#endif
+
+  if (!shared_servers()[0]->has_openid_connect()) GTEST_SKIP();
+
+  RecordProperty("Worklog", "16466");
+  RecordProperty("Requirement", "FR5");
+  RecordProperty("Description",
+                 "check that connection via openid_connect can be shared if "
+                 "the connection is encrypted, and fails otherwise.");
+
+  SCOPED_TRACE("// create the JWT token for authentication.");
+  TempDirectory jwtdir;
+  auto id_token_res = create_openid_connect_id_token_file(
+      "openid_user1",                  // subject
+      "https://myissuer.com",          // ${identity_provider}.name
+      120,                             // expiry in seconds
+      CMAKE_SOURCE_DIR                 //
+      "/router/tests/component/data/"  //
+      "openid_key.pem",                // private-key of the identity-provider
+      jwtdir.name()                    // out-dir
+  );
+  ASSERT_NO_ERROR(id_token_res);
+
+  auto id_token = *id_token_res;
+
+  // 4 connections are needed as router does round-robin over 3 endpoints
+  std::array<MysqlClient, 4> clis;
+
+  std::array accounts{SharedServer::openid_connect_account(),
+                      SharedServer::openid_connect_account(),
+                      SharedServer::openid_connect_account(),
+                      SharedServer::openid_connect_account()};
+
+  const bool can_share = GetParam().can_share();
+  for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
+    auto account = accounts[ndx];
+
+    cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
+
+    SCOPED_TRACE("// set the JWT-token in the plugin.");
+    // set the id-token-file path
+    auto plugin_res = cli.find_plugin("authentication_openid_connect_client",
+                                      MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+    ASSERT_NO_ERROR(plugin_res) << "plugin not found :(";
+
+    plugin_res->set_option(
+        MysqlClient::Plugin::StringOption("id-token-file", id_token.c_str()));
+
+    cli.username(account.username);
+    cli.password(account.password);
+
+    // wait until connection 0, 1, 2 are in the pool as 3 shall share with 0.
+    if (ndx == 3 && can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
+    }
+
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+
+    if (GetParam().client_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kDisabled) {
+      // should fail as the connection is not secure.
+      ASSERT_ERROR(connect_res);
+      if (GetParam().server_ssl_mode == kDisabled ||
+          GetParam().server_ssl_mode == kAsClient) {
+        EXPECT_EQ(connect_res.error().value(), 1045);
+      } else {
+        EXPECT_EQ(connect_res.error().value(), 2000);
+      }
+
+      return;
+    }
+
+    ASSERT_NO_ERROR(connect_res);
+
+    // connection goes out of the pool and back to the pool again.
+    if (ndx == 3 && can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
+    }
+  }
+
+  // cli[0] and [3] share the same backend
+  //
+  // as connection-attributes differ between the connections
+  // (router adds _client_port = ...) a change-user is needed whenever
+  // client-connection changes.
+  {
+    auto events_res = changed_event_counters(clis[0]);
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share) {
+      // cli[0]
+      // - connect
+      // - set-option
+      // cli[3]
+      // - change-user
+      // - set-option
+      // cli[0]
+      // - change-user
+      // - set-option
+      // - (+ select)
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/com/Change user", 2),
+                              Pair("statement/sql/select", 2),
+                              Pair("statement/sql/set_option", 3)));
+    } else {
+      EXPECT_THAT(*events_res, ::testing::IsEmpty());
+    }
+  }
+
+  // a fresh connection to host2
+  {
+    auto events_res = changed_event_counters(clis[1]);
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share) {
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
+    } else {
+      EXPECT_THAT(*events_res, ::testing::IsEmpty());
+    }
+  }
+
+  // a fresh connection to host3
+  {
+    auto events_res = changed_event_counters(clis[2]);
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share) {
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/sql/select", 1),
+                              Pair("statement/sql/set_option", 1)));
+    } else {
+      EXPECT_THAT(*events_res, ::testing::IsEmpty());
+    }
+  }
+
+  // shared with cli1 on host1
+  {
+    auto events_res = changed_event_counters(clis[3]);
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share) {
+      // cli[0]
+      // - connect
+      // - set-option
+      // cli[3]
+      // - change-user
+      // - set-option
+      // cli[0]
+      // - change-user
+      // - set-option
+      // - select
+      // cli[3]
+      // - change-user
+      // - set-option
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/com/Change user", 3),
+                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 4)));
+    } else {
+      EXPECT_THAT(*events_res, ::testing::IsEmpty());
+    }
+  }
+}
+
+TEST_P(ShareConnectionTest,
+       classic_protocol_openid_connect_expired_at_reconnect) {
+#ifdef SKIP_AUTHENTICATION_CLIENT_PLUGINS_TESTS
+  GTEST_SKIP() << "built with WITH_AUTHENTICATION_CLIENT_PLUGINS=OFF";
+#endif
+
+  if (!shared_servers()[0]->has_openid_connect()) GTEST_SKIP();
+
+  RecordProperty("Worklog", "16466");
+  RecordProperty("Requirement", "FR5");
+  RecordProperty("Description",
+                 "check that connection via openid_connect fails properly if "
+                 "sharing is enabled and the id-token expires.");
+
+  SCOPED_TRACE("// create the JWT token for authentication.");
+  TempDirectory jwtdir;
+  auto id_token_res = create_openid_connect_id_token_file(
+      "openid_user1",                  // subject
+      "https://myissuer.com",          // ${identity_provider}.name
+      2,                               // expiry in seconds
+      CMAKE_SOURCE_DIR                 //
+      "/router/tests/component/data/"  //
+      "openid_key.pem",                // private-key of the identity-provider
+      jwtdir.name()                    // out-dir
+  );
+  ASSERT_NO_ERROR(id_token_res);
+
+  auto id_token = *id_token_res;
+
+  // 4 connections are needed as router does round-robin over 3 endpoints
+  std::array<MysqlClient, 4> clis;
+
+  auto account = SharedServer::openid_connect_account();
+
+  const bool can_share = GetParam().can_share();
+  for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
+    // plugin-dir for the openid-connect client plugin.
+    cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
+
+    SCOPED_TRACE("// set the JWT-token in the plugin.");
+    // set the id-token-file path
+    auto plugin_res = cli.find_plugin("authentication_openid_connect_client",
+                                      MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+    ASSERT_NO_ERROR(plugin_res) << "pluging not found :(";
+
+    plugin_res->set_option(
+        MysqlClient::Plugin::StringOption("id-token-file", id_token.c_str()));
+
+    cli.username(account.username);
+    cli.password(account.password);
+
+    // wait until connection 0, 1, 2 are in the pool as 3 shall share with 0.
+    if (ndx == 3 && can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
+    }
+
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+
+    if (GetParam().client_ssl_mode == kDisabled ||
+        GetParam().server_ssl_mode == kDisabled) {
+      // should fail as the connection is not secure.
+      ASSERT_ERROR(connect_res);
+      if (GetParam().server_ssl_mode == kDisabled ||
+          GetParam().server_ssl_mode == kAsClient) {
+        EXPECT_EQ(connect_res.error().value(), 1045);
+      } else {
+        EXPECT_EQ(connect_res.error().value(), 2000);
+      }
+
+      return;
+    }
+
+    ASSERT_NO_ERROR(connect_res);
+
+    // connection goes out of the pool and back to the pool again.
+    if (ndx == 3 && can_share) {
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_stashed_server_connections(3, 10s));
+    }
+  }
+
+  // wait a bit to expire the id-token.
+  std::this_thread::sleep_for(3s);
+
+  // clis[0] and clis[3] share the same server-connection
+  //
+  // The connection is currently owned by clis[3], and clis[1] wants to have it
+  // back, and needs to reauthenticate. ... which should fail with due to the
+  // expired id-token.
+
+  auto events_res = changed_event_counters(clis[0]);
+  if (can_share) {
+    ASSERT_ERROR(events_res);
+    EXPECT_EQ(events_res.error().value(), 1045);
+    EXPECT_THAT(events_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(events_res);
+    EXPECT_THAT(*events_res, ::testing::IsEmpty());
   }
 }
 

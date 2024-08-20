@@ -31,6 +31,7 @@
 #include "dim.h"
 #include "filesystem_utils.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/utils.h"  // copy_file
 #include "random_generator.h"
 #include "router_component_testutils.h"
@@ -138,6 +139,29 @@ std::string RouterComponentTest::plugin_output_directory() {
   }
 
   return plugindir.str();
+}
+
+stdx::expected<std::string, int>
+RouterComponentTest::create_openid_connect_id_token_file(
+    const std::string &subject, const std::string &identity_provider_name,
+    int expiry, const std::string &private_key_file,
+    const std::string &outdir) {
+  auto jwt_exit_code =
+      spawner(
+          ProcessManager::get_origin().join("mysql_test_jwt_generator").str())
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              subject,
+              identity_provider_name,
+              std::to_string(expiry),
+              private_key_file,
+              outdir,
+          })
+          .wait_for_exit();
+
+  if (jwt_exit_code != 0) return stdx::unexpected(jwt_exit_code);
+
+  return Path(outdir).join("jwt.txt").str();
 }
 
 constexpr const char RouterComponentBootstrapTest::kRootPassword[];

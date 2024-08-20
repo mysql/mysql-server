@@ -27,6 +27,15 @@
 
 #include <gtest/gtest.h>
 
+#define RAPIDJSON_HAS_STDSTRING 1
+
+#include "my_rapidjson_size_t.h"
+
+#include <rapidjson/document.h>
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/utils.h"  // copy_file
@@ -299,9 +308,16 @@ void SharedServer::grant_access(MysqlClient &cli, const Account &account,
 }
 
 void SharedServer::create_account(MysqlClient &cli, Account account) {
-  const std::string q = "CREATE USER " + account.username + " " +         //
-                        "IDENTIFIED WITH " + account.auth_method + " " +  //
-                        "BY '" + account.password + "'";
+  std::string q = "CREATE USER " + account.username + " " +  //
+                  "IDENTIFIED WITH " + account.auth_method;
+
+  if (!account.password.empty()) {
+    q += " BY '" + account.password + "'";
+  }
+
+  if (account.identified_as) {
+    q += " AS '" + *account.identified_as + "'";
+  }
 
   SCOPED_TRACE("// " + q);
   ASSERT_NO_ERROR(cli.query(q)) << q;
@@ -314,12 +330,30 @@ void SharedServer::drop_account(MysqlClient &cli, Account account) {
   ASSERT_NO_ERROR(cli.query(q)) << q;
 }
 
-void SharedServer::setup_mysqld_accounts() {
-  auto cli_res = admin_cli();
-  ASSERT_NO_ERROR(cli_res);
+stdx::expected<void, MysqlError> SharedServer::local_set_openid_connect_config(
+    MysqlClient &cli) {
+  std::string set_openid_connect_config(R"(
+{ "myissuer" : "{\"kid\":\"6f7254101f56e41cf35c9926de84a2d552b4c6f1\",\"e\":\"AQAB\",\"name\":\"https://myissuer.com\",\"alg\":\"RS256\",\"use\":\"sig\",\"n\":\"oEpcwfsGjBWzWanhb-WNGy4NgPFXOztLiZOZUWFZh25Vgny0YIlVPwtNRqqXgiyvVYzp-uMD7noQl8FUkqNM22NgjpzOWZAcIwc103qxgNr_kIV8__5uDu-ppl5qnHIEYP_IW9_uBpzJ_L2oZjv-AoSCvHiIFpcg9lq5gxKVe9A8FuCGfQ2rodlYqUC2qha0CTwgbUIT9H3469gpoU88AXiHDC90Dsi8Wpa5D1aNGJ8VbPl9CzyMWp-evHmtfDzNzz9yKF7JKExU6pBjG9HsQ0CEW9_8LtQ6NZrt6o3pQoMm8gjUScrUJnrfN16k0q8hfFuewQi5syV0GBlPg6en1w\",\"kty\":\"RSA\"}", "authService.oracle.com": "{\"alg\":\"RS256\",\"use\":\"sig\",\"kty\":\"RSA\",\"e\":\"AQAB\",\"kid\":\"967ea044-88bc-47d7-b286-52b87d0f08a5\",\"n\":\"nSfpzwAHkXy7NPxAh_SyLklu_l1d1hYhWjWl35HIeKMtvlr5oYWAGpbB19EMrkdCcxrXH8kIMhQ9rbmnn9BtaiQ6qbhQgPhBjJfq7k9-csn-qHWpNbALpLY5EuF7ZJQr-Ith13iEAG_qXoapDesWYwBNHDG6muKKeVYdiLc_AsP4CXYtt1emHKIt1zEqFFBJo2tiooXf_oRvC9d_U5lWU0NiSz6yT8z9-4g7XrdDtETmkL--EJLzhywIItuRTykkxPOWOCesSz1BQWcS6y0oTVKE5FNpUCWydvvzataERq5jHd61HbTKw0casV9Lod5MwGFG1dIDk7x8qt0ptOBleQ\"}" }
+)");
 
-  auto cli = std::move(cli_res.value());
+  return SharedServer::local_set_openid_connect_config(
+      cli, set_openid_connect_config);
+}
 
+stdx::expected<void, MysqlError> SharedServer::local_set_openid_connect_config(
+    MysqlClient &cli, const std::string &openid_connect_config) {
+  std::string set_openid_connect_config_stmt(
+      "SET GLOBAL authentication_openid_connect_configuration = \"JSON://" +
+      cli.escape(openid_connect_config) + "\"");
+
+  auto query_res = cli.query(set_openid_connect_config_stmt);
+
+  if (!query_res) return stdx::unexpected(query_res.error());
+
+  return {};
+}
+
+void SharedServer::setup_mysqld_accounts(MysqlClient &cli) {
   create_schema(cli, "testing");
 
   ASSERT_NO_ERROR(cli.query(R"(CREATE PROCEDURE testing.multiple_results()
@@ -328,7 +362,7 @@ BEGIN
   SELECT 2;
 END)"));
 
-  for (auto account : {
+  for (const auto &account : {
            caching_sha2_password_account(),
            caching_sha2_empty_password_account(),
            sha256_password_account(),
@@ -371,18 +405,15 @@ END)"));
                 "         SONAME 'version_token" SO_EXTENSION "'"));
 }
 
-void SharedServer::install_plugins() {
-  SCOPED_TRACE("// install plugins");
-  auto cli_res = admin_cli();
-  ASSERT_NO_ERROR(cli_res);
+stdx::expected<void, MysqlError> SharedServer::local_install_plugin(
+    MysqlClient &cli, const std::string &plugin_name,
+    const std::string &so_name) {
+  auto query_res = cli.query("INSTALL PLUGIN " + plugin_name +
+                             "        SONAME '" + so_name + SO_EXTENSION "'");
 
-  install_plugins(*cli_res);
-}
+  if (!query_res) return stdx::unexpected(query_res.error());
 
-void SharedServer::install_plugins(MysqlClient &cli) {
-  ASSERT_NO_ERROR(
-      cli.query("INSTALL PLUGIN clone"
-                "        SONAME 'mysql_clone" SO_EXTENSION "'"));
+  return {};
 }
 
 void SharedServer::flush_privileges() {

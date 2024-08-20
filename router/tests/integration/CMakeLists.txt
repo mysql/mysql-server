@@ -49,4 +49,8 @@ ADD_GOOGLETEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_routing_reuse.cc
   router_mysqlxmessages # for TextFormatParser
   routertest_helpers
   mysql_protocol
-  )
+)
+
+IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  ADD_DEFINITIONS(-DSKIP_AUTHENTICATION_CLIENT_PLUGINS_TESTS)
+ENDIF()
