@@ -42,6 +42,6 @@ EXCLUDE_FROM_MSVC_PGO(ndblogger_objlib)
 
 NDB_ADD_TEST(logger-t Logger.cpp  LIBS ndbgeneral ndbportlib ndbclient_static)
 MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
+IF(TARGET logger-t AND HAS_WARN_FLAG)
   TARGET_LINK_OPTIONS(logger-t PRIVATE ${HAS_WARN_FLAG})
 ENDIF()
