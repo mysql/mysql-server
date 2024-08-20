@@ -172,6 +172,8 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
 
   static void copy_default_certs_to_datadir(const std::string &dst_dir);
 
+  static std::string plugin_output_directory();
+
  protected:
   TcpPortPool port_pool_;
 };

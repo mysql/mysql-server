@@ -589,31 +589,6 @@ class MockServerConnectTest
       public ::testing::WithParamInterface<MockServerConnectTestParam> {};
 
 TEST_P(MockServerConnectTest, check) {
-  // detect the plugin-dir
-
-  // parent is either:
-  //
-  // - runtime_output_directory/ or
-  // - runtime_output_directory/Debug/
-  auto bindir = get_origin().real_path();
-
-  // if this is a multi-config-build, remember the build-type.
-  auto build_type = bindir.basename().str();
-  if (build_type == "runtime_output_directory") {
-    // no multi-config build.
-    build_type = {};
-  }
-
-  auto builddir = bindir.dirname();
-  if (!build_type.empty()) {
-    builddir = builddir.dirname();
-  }
-  auto sharedir = builddir.join("share");
-  auto plugindir = builddir.join("plugin_output_directory");
-  if (!build_type.empty()) {
-    plugindir = plugindir.join(build_type);
-  }
-
   auto classic_port = port_pool_.get_next_available();
   std::map<std::string, std::string> config{
       {"http_port", std::to_string(port_pool_.get_next_available())},
@@ -622,7 +597,7 @@ TEST_P(MockServerConnectTest, check) {
       {"datadir", get_data_dir().str()},
       {"certdir", SSL_TEST_DATA_DIR},
       {"hostname", "127.0.0.1"},
-      {"plugin_dir", plugindir.str()},
+      {"plugin_dir", plugin_output_directory()},
   };
 
   std::vector<std::string> cmdline_args{"--logging-folder",

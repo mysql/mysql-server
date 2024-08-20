@@ -118,6 +118,28 @@ void RouterComponentTest::check_log_contains(
       << log_content;
 }
 
+std::string RouterComponentTest::plugin_output_directory() {
+  const auto bindir = get_origin().real_path();
+
+  // if this is a multi-config-build, remember the build-type.
+  auto build_type = bindir.basename().str();
+  if (build_type == "runtime_output_directory") {
+    // no multi-config build.
+    build_type = {};
+  }
+
+  auto builddir = bindir.dirname();
+  if (!build_type.empty()) {
+    builddir = builddir.dirname();
+  }
+  auto plugindir = builddir.join("plugin_output_directory");
+  if (!build_type.empty()) {
+    plugindir = plugindir.join(build_type);
+  }
+
+  return plugindir.str();
+}
+
 constexpr const char RouterComponentBootstrapTest::kRootPassword[];
 
 const RouterComponentBootstrapTest::OutputResponder
