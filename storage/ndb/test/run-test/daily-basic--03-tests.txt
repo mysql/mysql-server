@@ -27,6 +27,10 @@ cmd: test_event
 args: -n Bug44915 T1
 max-time: 180
 
+cmd: test_event
+args: -n SumaScanGetNodesContinueB T1
+max-time: 180
+
 cmd: testNdbApi
 args: -n ExecuteAsynch T1
 max-time: 180
