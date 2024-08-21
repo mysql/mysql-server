@@ -80,13 +80,14 @@ class SharedServer {
 
   stdx::expected<MysqlClient, MysqlError> admin_cli();
 
-  void create_schema(MysqlClient &cli, const std::string &schema);
+  static void create_schema(MysqlClient &cli, const std::string &schema);
 
-  void grant_access(MysqlClient &cli, const Account &account,
-                    const std::string &rights);
+  static void grant_access(MysqlClient &cli, const Account &account,
+                           const std::string &rights);
 
-  void grant_access(MysqlClient &cli, const Account &account,
-                    const std::string &rights, const std::string &schema);
+  static void grant_access(MysqlClient &cli, const Account &account,
+                           const std::string &rights,
+                           const std::string &schema);
 
   static void create_account(MysqlClient &cli, Account account);
 

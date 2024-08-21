@@ -1250,6 +1250,75 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
   EXPECT_EQ(cli_ids[2].first, cli_ids[5].first);
 }
 
+TEST_P(ShareConnectionTest, classic_protocol_share_password_changed_query) {
+  // 4 connections are needed as router does round-robin over 3 endpoints
+  std::array<MysqlClient, 4> clis;
+
+  SharedServer::Account account{
+      "onetime",
+      "",  // no password.
+      "caching_sha2_password",
+  };
+
+  for (auto *srv : shared_servers()) {
+    auto cli_res = srv->admin_cli();
+    ASSERT_NO_ERROR(cli_res);
+
+    auto cli = std::move(*cli_res);
+
+    ASSERT_NO_ERROR(cli.query("DROP USER IF EXISTS " + account.username));
+
+    SharedServer::create_account(cli, account);
+  }
+
+  const bool can_share = GetParam().can_share();
+
+  for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
+    SCOPED_TRACE("// connection [" + std::to_string(ndx) + "]");
+
+    cli.username(account.username);
+    cli.password(account.password);
+    cli.set_option(MysqlClient::GetServerPublicKey(true));
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(GetParam())));
+
+    // wait until the connection is in the pool.
+    if (can_share) {
+      size_t expected_pooled_connections = ndx < 3 ? ndx + 1 : 3;
+
+      ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(
+          expected_pooled_connections, 10s));
+    }
+  }
+
+  SCOPED_TRACE(
+      "// change the password of the 'onetime' user to force a reauth fail.");
+  for (auto *srv : shared_servers()) {
+    auto cli_res = srv->admin_cli();
+    ASSERT_NO_ERROR(cli_res);
+
+    auto cli = std::move(*cli_res);
+
+    ASSERT_NO_ERROR(cli.query("ALTER USER " + account.username +
+                              " IDENTIFIED BY 'someotherpass'"));
+  }
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+  {
+    auto &cli = clis[0];
+    auto cmd_res = cli.query("DO 1");
+    if (can_share) {
+      ASSERT_ERROR(cmd_res);
+      EXPECT_EQ(cmd_res.error().value(), 1045);
+      EXPECT_THAT(cmd_res.error().message(),
+                  testing::HasSubstr("while reauthenticating"));
+    } else {
+      ASSERT_NO_ERROR(cmd_res);
+    }
+  }
+}
+
 /**
  * check connections can be shared after the connection is established.
  *
@@ -7043,6 +7112,217 @@ TEST_P(ShareConnectionTest, aborted_lexing) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,
+                         ::testing::ValuesIn(share_connection_params),
+                         [](auto &info) {
+                           return "ssl_modes_" + info.param.testname;
+                         });
+
+class ShareConnectionReconnectTest
+    : public ShareConnectionTestBase,
+      public ::testing::WithParamInterface<ShareConnectionParam> {
+ public:
+  void SetUp() override {
+    SharedServer::Account account{
+        "onetime",
+        "",  // no password.
+        "caching_sha2_password",
+    };
+
+    for (auto *srv : shared_servers()) {
+      auto cli_res = srv->admin_cli();
+      ASSERT_NO_ERROR(cli_res);
+
+      auto cli = std::move(*cli_res);
+
+      ASSERT_NO_ERROR(cli.query("DROP USER IF EXISTS " + account.username));
+
+      SharedServer::create_account(cli, account);
+      SharedServer::grant_access(cli, account, "SELECT", "testing");
+    }
+
+    const bool can_share = GetParam().can_share();
+
+    for (auto [ndx, cli] : stdx::views::enumerate(clis_)) {
+      SCOPED_TRACE("// connection [" + std::to_string(ndx) + "]");
+
+      cli.username(account.username);
+      cli.password(account.password);
+      cli.set_option(MysqlClient::GetServerPublicKey(true));
+
+      ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                  shared_router()->port(GetParam())));
+
+      // wait until the connection is in the pool.
+      if (can_share) {
+        size_t expected_pooled_connections = ndx < 3 ? ndx + 1 : 3;
+
+        ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(
+            expected_pooled_connections, 10s));
+      }
+    }
+
+    SCOPED_TRACE(
+        "// change the password of the 'onetime' user to force a reauth fail.");
+    for (auto *srv : shared_servers()) {
+      auto cli_res = srv->admin_cli();
+      ASSERT_NO_ERROR(cli_res);
+
+      auto cli = std::move(*cli_res);
+
+      ASSERT_NO_ERROR(cli.query("ALTER USER " + account.username +
+                                " IDENTIFIED BY 'someotherpass'"));
+    }
+  }
+
+  void TearDown() override {
+    for (auto &cli : clis_) cli.close();
+  }
+
+ protected:
+  // 4 connections are needed as router does round-robin over 3 endpoints
+  std::array<MysqlClient, 4> clis_;
+};
+
+TEST_P(ShareConnectionReconnectTest, ping) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.ping();
+  if (can_share) {
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045);
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, query) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.query("DO 1");
+  if (can_share) {
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045);
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, list_schema) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.list_dbs();
+  if (can_share) {
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045);
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, stat) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.stat();
+  if (can_share) {
+    // returns the error-msg as success ... mysql_stat() is a bit special.
+    ASSERT_NO_ERROR(cmd_res);
+    EXPECT_THAT(*cmd_res, testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+    EXPECT_THAT(*cmd_res,
+                testing::Not(testing::HasSubstr("while reauthenticating")));
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, init_schema) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.use_schema("testing");
+  if (can_share) {
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045);
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, reset_connection) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.reset_connection();
+  if (can_share) {
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045);
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, prepare_stmt) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.prepare("DO 1");
+  if (can_share) {
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045) << cmd_res.error();
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+TEST_P(ShareConnectionReconnectTest, change_user) {
+  SCOPED_TRACE("// check if a changed password has handled properly.");
+
+  auto &cli = clis_[0];
+  const auto cmd_res = cli.change_user("onetime", "someotherpass", "");
+  if (GetParam().client_ssl_mode == kDisabled &&
+      (GetParam().server_ssl_mode == kRequired ||
+       GetParam().server_ssl_mode == kPreferred)) {
+    // caching-sha2-password needs a secure-channel on the client side too if
+    // the server side is secure (Required/Preferred)
+    ASSERT_ERROR(cmd_res);
+    EXPECT_EQ(cmd_res.error().value(), 1045) << cmd_res.error();
+    EXPECT_THAT(cmd_res.error().message(),
+                testing::HasSubstr("while reauthenticating"));
+  } else {
+    ASSERT_NO_ERROR(cmd_res);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionReconnectTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;

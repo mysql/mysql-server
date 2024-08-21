@@ -245,6 +245,11 @@ var router_update_last_check_in_v2 =
               value: "ON"
             },
             {
+              type: "system_variable",
+              name: "session_track_schema",
+              value: "ON"
+            },
+            {
               type: "trx_characteristics",
               value: "",
             },
