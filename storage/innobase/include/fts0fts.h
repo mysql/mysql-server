@@ -860,8 +860,8 @@ void fts_add_index(dict_index_t *index,  /*!< FTS index to be added */
 @param[in]      index           Index to be dropped
 @param[in]      trx             Transaction for the drop
 @param[in,out]  aux_vec         Aux table name vector
-@param[in]      adding_another  Another index is to be added as part
-                                of the same ransaction
+@param[in]      adding_another  Another FTS index is to be added as part
+                                of the same transaction
 @return DB_SUCCESS or error number */
 dberr_t fts_drop_index(dict_table_t *table, dict_index_t *index, trx_t *trx,
                        aux_name_vec_t *aux_vec, bool adding_another = false);
