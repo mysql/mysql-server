@@ -408,13 +408,12 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                     order_list.first))
       return true;
   }
+  hidden_order_field_count = fields.size() - all_fields_count;
 
   if (fulltext_uses_rollup_column(this)) {
     my_error(ER_FULLTEXT_WITH_ROLLUP, MYF(0));
     return true;
   }
-
-  hidden_order_field_count = fields.size() - all_fields_count;
 
   // Resolve OFFSET and LIMIT clauses
   if (resolve_limits(thd)) return true;
@@ -767,10 +766,12 @@ bool Query_block::prepare_values(THD *thd) {
     setup_order() is needed, however calling setup_order_final() is
     not necessary since this construct cannot be aggregated.
   */
+  const size_t all_fields_count = fields.size();
   if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
                                   &fields, order_list.first)) {
     return true;
   }
+  hidden_order_field_count = fields.size() - all_fields_count;
 
   if (query_result() && query_result()->prepare(thd, fields, unit))
     return true; /* purecov: inspected */
