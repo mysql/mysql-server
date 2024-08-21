@@ -13990,6 +13990,8 @@ static bool mysql_inplace_alter_table(
     close_temporary_table(thd, altered_table, true, false);
     rollback_needs_dict_cache_reset = true;
 
+    DEBUG_SYNC(thd, "alter_table_inplace_will_need_reset");
+
     /*
       Replace table definition in the data-dictionary.
 
