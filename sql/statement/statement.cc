@@ -194,6 +194,8 @@ bool Regular_statement_handle::execute(Server_runnable *server_runnable) {
 
   set_thd_protocol();
 
+  MEM_ROOT *saved_user_var_events_alloc = m_thd->user_var_events_alloc;
+
   const auto saved_secondary_engine = m_thd->secondary_engine_optimization();
   m_thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
@@ -230,6 +232,12 @@ bool Regular_statement_handle::execute(Server_runnable *server_runnable) {
   // This is needed as we use a single DA for all sql-callout queries within the
   // stored program
   copy_warnings();
+
+  /*
+    Executing a stored procedure sets THD::user_var_events_alloc to nullptr. It
+    is reset to statement execution mem_root here.
+  */
+  m_thd->user_var_events_alloc = saved_user_var_events_alloc;
 
   DEBUG_SYNC(m_thd, "wait_after_query_execution");
 
@@ -526,6 +534,8 @@ bool Prepared_statement_handle::internal_execute() {
 
   MYSQL_EXECUTE_PS(m_thd->m_statement_psi, m_stmt->m_prepared_stmt);
 
+  MEM_ROOT *saved_user_var_events_alloc = m_thd->user_var_events_alloc;
+
   /*
     Initially, optimize the statement for the primary storage engine.
     If an eligible secondary storage engine is found, the statement
@@ -555,6 +565,12 @@ bool Prepared_statement_handle::internal_execute() {
 
   sp_cache_enforce_limit(m_thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(m_thd->sp_func_cache, stored_program_cache_size);
+
+  /*
+    Executing a stored procedure sets THD::user_var_events_alloc to nullptr. It
+    is reset to statement execution mem_root here.
+  */
+  m_thd->user_var_events_alloc = saved_user_var_events_alloc;
 
   DEBUG_SYNC(m_thd, "wait_after_query_execution");
 
