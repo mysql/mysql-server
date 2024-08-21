@@ -16564,8 +16564,6 @@ void Dbdih::execGCP_COMMIT(Signal *signal) {
     signal->theData[0] = 5048;
     sendSignal(numberToRef(DBLQH, c_error_insert_extra), GSN_NDB_TAMPER, signal,
                1, JBB);
-    signal->theData[0] = save;
-    CLEAR_ERROR_INSERT_VALUE;
 
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, c_error_insert_extra), GSN_DUMP_STATE_ORD,
