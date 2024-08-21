@@ -4,12 +4,13 @@
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,8 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* See http://code.google.com/p/googletest/wiki/Primer */
-
 #include <gtest/gtest.h>
 
 #include "storage/innobase/include/fts0fts.h"
@@ -31,9 +30,7 @@
 
 namespace innodb_ut0rbt_unittest {
 
-/* Doc id array for test
-   1675241735 rbt search fails first
-   3839877411 after it's inserted */
+/* Doc id array for testing with values exceeding 32-bit integer limit */
 const doc_id_t doc_ids[] = {
     17574,      89783,      94755,      97537,      101358,     101361,
     102587,     103571,     104018,     106821,     108647,     109352,
@@ -53,10 +50,8 @@ struct dummy {
 };
 }  // namespace
 
-/* Test fts_ranking_doc_id_cmp() */
 TEST(ut0rbt, fts_doc_id_cmp) {
-  ib_rbt_t *doc_id_rbt =
-      rbt_create(sizeof(fts_ranking_t), fts_doc_id_field_cmp<dummy>);
+  ib_rbt_t *doc_id_rbt = rbt_create(sizeof(dummy), fts_doc_id_field_cmp<dummy>);
 
   /* Insert doc ids into rbtree. */
   for (auto doc_id : doc_ids) {
