@@ -1519,7 +1519,6 @@ char *opt_authentication_policy;
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
 
-my_decimal decimal_zero;
 /** Number of connection errors from internal server errors. */
 ulong connection_errors_internal = 0;
 /** Number of errors when reading the peer address. */
@@ -6486,8 +6485,7 @@ int init_common_variables() {
   my_find_build_id(server_build_id);
 #endif
 
-  my_decimal_set_zero(&decimal_zero);  // set decimal_zero constant;
-  tzset();                             // Set tzname
+  tzset();  // Set tzname
 
   max_system_variables.pseudo_thread_id = (my_thread_id)~0;
   server_start_time = flush_status_time = time(nullptr);

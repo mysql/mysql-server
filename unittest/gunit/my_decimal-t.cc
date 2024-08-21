@@ -38,6 +38,8 @@
 
 namespace my_decimal_unittest {
 
+static const my_decimal decimal_zero;
+
 using my_testing::chars_2_decimal;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;

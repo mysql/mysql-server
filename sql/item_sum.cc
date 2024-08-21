@@ -3394,7 +3394,8 @@ void Item_sum_hybrid::reset_field() {
       break;
     }
     case DECIMAL_RESULT: {
-      my_decimal value_buff, *arg_dec = args[0]->val_decimal(&value_buff);
+      my_decimal value_buff;
+      my_decimal *arg_dec = args[0]->val_decimal(&value_buff);
 
       if (is_nullable()) {
         if (args[0]->null_value)
@@ -3406,8 +3407,10 @@ void Item_sum_hybrid::reset_field() {
         We must store zero in the field as we will use the field value in
         add()
       */
-      if (!arg_dec)  // Null
-        arg_dec = &decimal_zero;
+      if (arg_dec == nullptr) {  // Null
+        value_buff.init();
+        arg_dec = &value_buff;
+      }
       result_field->store_decimal(arg_dec);
       break;
     }
@@ -3420,9 +3423,12 @@ void Item_sum_hybrid::reset_field() {
 void Item_sum_sum::reset_field() {
   assert(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
   if (hybrid_type == DECIMAL_RESULT) {
-    my_decimal value, *arg_val = args[0]->val_decimal(&value);
-    if (!arg_val)  // Null
-      arg_val = &decimal_zero;
+    my_decimal value;
+    my_decimal *arg_val = args[0]->val_decimal(&value);
+    if (arg_val == nullptr) {  // Null
+      value.init();
+      arg_val = &value;
+    }
     result_field->store_decimal(arg_val);
   } else {
     assert(hybrid_type == REAL_RESULT);
@@ -3448,9 +3454,11 @@ void Item_sum_avg::reset_field() {
   assert(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
   if (hybrid_type == DECIMAL_RESULT) {
     longlong tmp;
-    my_decimal value, *arg_dec = args[0]->val_decimal(&value);
+    my_decimal value;
+    my_decimal *arg_dec = args[0]->val_decimal(&value);
     if (args[0]->null_value) {
-      arg_dec = &decimal_zero;
+      value.init();
+      arg_dec = &value;
       tmp = 0;
     } else
       tmp = 1;

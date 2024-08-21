@@ -2961,6 +2961,7 @@ Field *Field_new_decimal::create_from_item(const Item *item) {
 }
 
 type_conversion_status Field_new_decimal::reset() {
+  my_decimal decimal_zero;
   (void)my_decimal2binary(0, &decimal_zero, ptr, precision, dec);
   return TYPE_OK;
 }
@@ -3011,6 +3012,7 @@ type_conversion_status Field_new_decimal::store_value(
   }
 #endif
 
+  my_decimal decimal_zero;
   /* check that we do not try to write negative value in unsigned field */
   if (is_unsigned() && decimal_value->sign()) {
     DBUG_PRINT("info", ("unsigned overflow"));
