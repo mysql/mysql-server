@@ -111,15 +111,6 @@ class Loader {
   /** DDL context, shared by the loader threads. */
   ddl::Context &m_ctx;
 
-  /** If true then use parallel scan and index build. */
-  bool m_parallel{};
-
-  /** Sort buffer size. */
-  size_t m_sort_buffer_size{};
-
-  /** IO buffer size. */
-  size_t m_io_buffer_size{};
-
   /** Index builders. */
   Builders m_builders{};
 

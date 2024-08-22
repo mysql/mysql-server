@@ -1,0 +1,131 @@
+SET innodb_tmpdir='/var/tmp';
+CREATE DATABASE test_db;
+CREATE PROCEDURE test_db.check_read_write_io_threshold(IN threshold DOUBLE)
+BEGIN
+SELECT
+CASE
+WHEN SUM_NUMBER_OF_BYTES_READ < threshold THEN 1
+ELSE 0
+END AS is_total_read_less_than_threshold,
+CASE
+WHEN SUM_NUMBER_OF_BYTES_WRITE < threshold THEN 1
+ELSE 0
+END AS is_total_written_less_than_threshold
+FROM performance_schema.file_summary_by_instance
+WHERE file_name LIKE '%/var/tmp/Innodb Merge Temp File';
+END //
+
+# Prepare the table with 18 non-clustered indexes
+SELECT COUNT(*) FROM test_db.test_table;
+COUNT(*)
+100000
+
+SHOW CREATE TABLE test_db.test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `pkcol` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `col1` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col2` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col3` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col4` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col5` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col6` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col7` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col8` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col9` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col10` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col11` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col12` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col13` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col14` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col15` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col16` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col17` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  `col18` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT '',
+  PRIMARY KEY (`pkcol`),
+  UNIQUE KEY `uniq_idx1` (`col1`),
+  KEY `idx1` (`col2`),
+  KEY `idx2` (`col3`,`col2`),
+  KEY `idx3` (`col4`),
+  KEY `idx4` (`col5`,`col4`),
+  KEY `idx5` (`col6`,`col5`),
+  KEY `idx6` (`col7`,`col6`,`col5`),
+  KEY `idx7` (`col8`,`col7`,`col6`),
+  KEY `idx8` (`col9`,`col8`),
+  KEY `idx9` (`col10`,`col9`),
+  KEY `idx10` (`col11`,`col10`),
+  KEY `idx11` (`col12`,`col11`),
+  KEY `idx12` (`col13`,`col12`),
+  KEY `idx13` (`col14`,`col13`),
+  KEY `idx14` (`col15`,`col14`),
+  KEY `idx15` (`col16`,`col15`),
+  KEY `idx16` (`col17`,`col16`),
+  KEY `idx17` (`col18`,`col17`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+#
+# Test#1 : Rebuild the table with default settings
+#
+
+# Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+
+# Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+
+# check the read/write IO on the temp sort files with default settings
+CALL test_db.check_read_write_io_threshold(1.80 * 1024 * 1024 * 1024);
+is_total_read_less_than_threshold	is_total_written_less_than_threshold
+1	1
+#
+# Test#2 : Increase the DDL threads, IOs must remain as they were before
+#
+# Double the DDL threads.
+SET innodb_ddl_threads=8;
+# Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+# Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+CALL test_db.check_read_write_io_threshold(1.80 * 1024 * 1024 * 1024);
+is_total_read_less_than_threshold	is_total_written_less_than_threshold
+1	1
+#
+# Test#3 : Reduce the DDL threads, IOs must remain as they were before.
+#
+# Use one DDL thread
+SET innodb_ddl_threads=1;
+# Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+# Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+CALL test_db.check_read_write_io_threshold(1.80 * 1024 * 1024 * 1024);
+is_total_read_less_than_threshold	is_total_written_less_than_threshold
+1	1
+#
+# Test#4 : Increase the DDL Buffer size, IO should be reduced this time
+#
+# Set buffer large enough as would have been the case prior to WL#14283
+# ddl_threads(1) * ddl_buffer_size(18MB) = 18 MB
+SET innodb_ddl_buffer_size=18874368;
+# Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+# Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+CALL test_db.check_read_write_io_threshold(1 * 1024 * 1024 * 1024);
+is_total_read_less_than_threshold	is_total_written_less_than_threshold
+1	1
+# Reset to default
+SET innodb_ddl_threads=4;
+#
+# Test#5 : Reduce the DDL Buffer size, IO should increase again
+#
+# Set it 3MB, that is ddl_threads(4) * ddl_buffer_size(3MB) = 12MB
+SET innodb_ddl_buffer_size=3145728;
+# Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+# Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+CALL test_db.check_read_write_io_threshold(1.40 * 1024 * 1024 * 1024);
+is_total_read_less_than_threshold	is_total_written_less_than_threshold
+1	1
+
+DROP DATABASE test_db;
