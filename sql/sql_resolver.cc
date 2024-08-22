@@ -5413,30 +5413,29 @@ static bool update_context_to_derived(Item *expr, Query_block *new_derived);
   made LATERAL, but as a certain secondary engine doesn't support that we just
   return an error.
 
-  @param thd   Connection handle
-  @param subq  Item for subquery
-  @returns true if error
+  @param thd       Connection handle
+  @param subq_pred Subquery predicate (IN, EXISTS)
+
+  @returns false if success, true if error
 */
 
 bool Query_block::transform_table_subquery_to_join_with_derived(
-    THD *thd, Item_exists_subselect *subq) {
-  assert(first_execution);
-  Query_expression *const subs_query_expression = subq->query_expr();
-  Query_block *subs_query_block = subs_query_expression->first_query_block();
-  assert(subs_query_block->first_execution);
+    THD *thd, Item_exists_subselect *subq_pred) {
+  Query_expression *const inner_qe = subq_pred->query_expr();
+  Query_block *const inner_qb = inner_qe->first_query_block();
 
-  subq->strategy = Subquery_strategy::DERIVED_TABLE;
+  assert(inner_qe->query_term()->term_type() == QT_QUERY_BLOCK);
 
-  const int hidden_fields = CountHiddenFields(subs_query_block->fields);
-  const bool no_aggregates = !subs_query_block->is_grouped() &&
-                             !subs_query_block->with_sum_func &&
-                             subs_query_block->having_cond() == nullptr &&
-                             !subs_query_block->has_windows();
+  subq_pred->strategy = Subquery_strategy::DERIVED_TABLE;
+
+  const int hidden_fields = CountHiddenFields(inner_qb->fields);
+  const bool no_aggregates =
+      !inner_qb->is_grouped() && !inner_qb->with_sum_func &&
+      inner_qb->having_cond() == nullptr && !inner_qb->has_windows();
   const bool decorrelate =
-      no_aggregates &&
-      (subs_query_expression->uncacheable & UNCACHEABLE_DEPENDENT) &&
-      subs_query_block->where_cond() != nullptr &&
-      subs_query_block->where_cond()->is_outer_reference() &&
+      no_aggregates && (inner_qe->uncacheable & UNCACHEABLE_DEPENDENT) &&
+      inner_qb->where_cond() != nullptr &&
+      inner_qb->where_cond()->is_outer_reference() &&
       // decorrelation adds to the SELECT list, and hidden fields make it
       // impossible (search for "hidden" in this function). Hidden fields
       // usually come from aggregation, which we disallowed just above, but also
@@ -5461,20 +5460,19 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   mem_root_deque<Item *> sj_inner_exprs(thd->mem_root);
   Mem_root_array<Item_func::Functype> op_types(thd->mem_root);
 
-  if (subq->subquery_type() == Item_subselect::IN_SUBQUERY) {
-    build_sj_exprs(thd, &sj_outer_exprs, &sj_inner_exprs, subq,
-                   subs_query_block);
+  if (subq_pred->subquery_type() == Item_subselect::IN_SUBQUERY) {
+    build_sj_exprs(thd, &sj_outer_exprs, &sj_inner_exprs, subq_pred, inner_qb);
     // All these expressions are compared with '=':
     op_types.resize(sj_outer_exprs.size(), Item_func::EQ_FUNC);
   } else {
-    assert(subq->subquery_type() == Item_subselect::EXISTS_SUBQUERY);
+    assert(subq_pred->subquery_type() == Item_subselect::EXISTS_SUBQUERY);
 
-    if (subs_query_block->is_table_value_constructor) {
-      if ((subs_query_block->select_limit != nullptr &&
-           !subs_query_block->select_limit->const_item()) ||
-          (subs_query_block->offset_limit != nullptr &&
-           !subs_query_block->offset_limit->const_item())) {
-        subq->strategy = Subquery_strategy::SUBQ_MATERIALIZATION;
+    if (inner_qb->is_table_value_constructor) {
+      if ((inner_qb->select_limit != nullptr &&
+           !inner_qb->select_limit->const_item()) ||
+          (inner_qb->offset_limit != nullptr &&
+           !inner_qb->offset_limit->const_item())) {
+        subq_pred->strategy = Subquery_strategy::SUBQ_MATERIALIZATION;
         // We can't determine until materialization time whether we have
         // an empty or non-empty result set, skip transform
         return false;
@@ -5500,43 +5498,43 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // Resolving ensures that this assertion holds.
     assert(no_aggregates);
 
-    if (subs_query_block->is_table_value_constructor) {
+    if (inner_qb->is_table_value_constructor) {
       // This transformation effectively converts a table value constructor
       // query block to a scalar subquery with zero or one constant rows.
-      subs_query_block->is_table_value_constructor = false;
+      inner_qb->is_table_value_constructor = false;
       // We checked above that we can evaluate LIMIT/OFFSET, so use that to
       // compute here whether result set is empty or not
-      const ulonglong limit = (subs_query_block->select_limit != nullptr)
-                                  ? subs_query_block->select_limit->val_uint()
+      const ulonglong limit = (inner_qb->select_limit != nullptr)
+                                  ? inner_qb->select_limit->val_uint()
                                   : std::numeric_limits<ulonglong>::max();
-      const ulonglong offset = (subs_query_block->offset_limit != nullptr)
-                                   ? subs_query_block->offset_limit->val_uint()
+      const ulonglong offset = (inner_qb->offset_limit != nullptr)
+                                   ? inner_qb->offset_limit->val_uint()
                                    : 0;
-      const ulonglong actual_rows = subs_query_block->row_value_list->size();
-      const bool empty_rs = limit == 0 || offset >= actual_rows;
-      auto limes = new (thd->mem_root) Item_int(empty_rs ? 0 : 1);
+      const ulonglong actual_rows = inner_qb->row_value_list->size();
+      const bool empty_result = limit == 0 || offset >= actual_rows;
+      auto limes = new (thd->mem_root) Item_int(empty_result ? 0 : 1);
       if (limes == nullptr) return true;
 
-      subs_query_block->select_limit = limes;
-      subs_query_block->offset_limit = nullptr;
+      inner_qb->select_limit = limes;
+      inner_qb->offset_limit = nullptr;
     }
 
     Item::Cleanup_after_removal_context ctx(this);
     int i = 0;
-    for (auto it = subs_query_block->visible_fields().begin();
-         it != subs_query_block->visible_fields().end(); ++it, ++i) {
+    for (auto it = inner_qb->visible_fields().begin();
+         it != inner_qb->visible_fields().end(); ++it, ++i) {
       Item *inner = *it;
       if (inner->basic_const_item()) continue;  // no need to replace it
-      auto constant = new (thd->mem_root) Item_int(
-          NAME_STRING("Not_used"), (longlong)1, MY_INT64_NUM_DECIMAL_DIGITS);
+      auto constant = new (thd->mem_root)
+          Item_int(NAME_STRING("Not_used"), 1LL, MY_INT64_NUM_DECIMAL_DIGITS);
       *it = constant;
-      subs_query_block->base_ref_items[i] = constant;
+      inner_qb->base_ref_items[i] = constant;
       // Expressions from the SELECT list will not be used; unlike in the case
       // of IN, they are not part of sj_inner_exprs.
       inner->walk(&Item::clean_up_after_removal, walk_options,
                   pointer_cast<uchar *>(&ctx));
     }
-    subs_query_block->select_list_tables = 0;
+    inner_qb->select_list_tables = 0;
   }
 
   Semijoin_decorrelation sj_decor(
@@ -5545,8 +5543,8 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
       // multiple inner rows may match '<>', but they will fail the IS NULL
       // condition, and if this condition is top-level in WHERE it will
       // eliminate the rows.
-      (subq->can_do_aj &&
-       subq->outer_condition_context == enum_condition_context::ANDS)
+      (subq_pred->can_do_aj &&
+       subq_pred->outer_condition_context == enum_condition_context::ANDS)
           ? &op_types
           : nullptr);
 
@@ -5556,7 +5554,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // EXISTS(SELECT FROM it WHERE it.c=ot.c AND <condition on 'it' only>)
     const int initial_sj_inner_exprs_count = sj_inner_exprs.size();
 
-    if (subs_query_block->decorrelate_condition(sj_decor, nullptr)) return true;
+    if (inner_qb->decorrelate_condition(sj_decor, nullptr)) return true;
 
     // Append inner expressions of decorrelated equalities to the SELECT
     // list. Correct context info of outer expressions.
@@ -5574,13 +5572,13 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
       // break the usual layout of base_ref_items which is: "non-hidden then
       // hidden" (see Query_block::add_hidden_item()). While this layout is not
       // documented (?), it is safer to not break it.
-      subs_query_block->base_ref_items[subs_query_block->fields.size()] = inner;
-      subs_query_block->fields.push_back(inner);
+      inner_qb->base_ref_items[inner_qb->fields.size()] = inner;
+      inner_qb->fields.push_back(inner);
 
       // Needed for fix_after_pullout:
       update_context_to_derived(outer, this);
       // Decorrelated outer expression will move to ON, so fix it.
-      outer->fix_after_pullout(this, subs_query_block);
+      outer->fix_after_pullout(this, inner_qb);
     }
 
     // Decorrelation identified new outer/inner expression pairs.
@@ -5589,18 +5587,18 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // BY, we only have to collect used_tables bits from the SELECT list, FROM
     // clause (outer-correlated derived tables and join conditions) and WHERE
     // clause.
-    for (Item *inner : subs_query_block->visible_fields()) {
-      subs_query_block->select_list_tables |= inner->used_tables();
+    for (Item *inner : inner_qb->visible_fields()) {
+      inner_qb->select_list_tables |= inner->used_tables();
     }
 
-    table_map new_used_tables = subs_query_block->select_list_tables;
-    if (subs_query_block->where_cond()) {
-      subs_query_block->where_cond()->update_used_tables();
-      new_used_tables |= subs_query_block->where_cond()->used_tables();
+    table_map new_used_tables = inner_qb->select_list_tables;
+    if (inner_qb->where_cond() != nullptr) {
+      inner_qb->where_cond()->update_used_tables();
+      new_used_tables |= inner_qb->where_cond()->used_tables();
     }
     // Walk the FROM clause to gather any outer-correlated derived table or join
     // condition.
-    walk_join_list(subs_query_block->m_table_nest, [&](Table_ref *tr) -> bool {
+    walk_join_list(inner_qb->m_table_nest, [&](Table_ref *tr) -> bool {
       if (tr->join_cond()) new_used_tables |= tr->join_cond()->used_tables();
       if (tr->is_derived() && tr->uses_materialization())
         new_used_tables |= tr->derived_query_expression()->m_lateral_deps;
@@ -5609,16 +5607,16 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
     if (!(new_used_tables & OUTER_REF_TABLE_BIT)) {
       // there is no outer reference anymore
-      subs_query_block->uncacheable &= ~UNCACHEABLE_DEPENDENT;
-      subs_query_expression->uncacheable &= ~UNCACHEABLE_DEPENDENT;
+      inner_qb->uncacheable &= ~UNCACHEABLE_DEPENDENT;
+      inner_qe->uncacheable &= ~UNCACHEABLE_DEPENDENT;
       // this must be called only after the change to 'uncacheable' above
-      subq->update_used_tables();
+      subq_pred->update_used_tables();
     }
   }
 
-  if (!subs_query_block->can_skip_distinct())
-    subs_query_block->add_base_options(SELECT_DISTINCT);
-
+  if (!inner_qb->can_skip_distinct()) {
+    inner_qb->add_base_options(SELECT_DISTINCT);
+  }
   // As the synthesised ON and WHERE will reference columns of the derived
   // table, we must have unique names.
   // A derived table must have unique column names, while a quantified
@@ -5626,31 +5624,29 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   // make them so.
   {
     int i = 1;
-    for (Item *inner : subs_query_block->visible_fields()) {
+    for (Item *inner : inner_qb->visible_fields()) {
       if (baptize_item(thd, inner, &i)) return true;
     }
   }
 
   // If the subquery is (still) correlated, we would need to create a LATERAL
   // derived table, but a certain secondary engine doesn't support it. Error:
-  if ((subq->subquery_used_tables() & ~PSEUDO_TABLE_BITS) != 0) {
+  if ((subq_pred->subquery_used_tables() & ~PSEUDO_TABLE_BITS) != 0) {
     my_error(ER_SUBQUERY_TRANSFORM_REJECTED, MYF(0));
     return true;
   }
 
-  assert(subs_query_expression->query_term()->term_type() == QT_QUERY_BLOCK);
-
   Table_ref *tr;
   if (transform_subquery_to_derived(
-          thd, &tr, subs_query_expression, subq,
+          thd, &tr, inner_qe, subq_pred,
           // If subquery is top-level in WHERE, and not negated, use INNER JOIN,
           // else use LEFT JOIN.
           // We could use LEFT JOIN unconditionally and let simplify_joins()
           // convert it to INNER JOIN, but the conversion is not perfect, as
           // not all effects of propagate_nullability() are undone.
           /*use_inner_join=*/
-          subq->outer_condition_context == enum_condition_context::ANDS &&
-              !subq->can_do_aj,
+          subq_pred->outer_condition_context == enum_condition_context::ANDS &&
+              !subq_pred->can_do_aj,
           /*reject_multiple_rows*/ false,
           /*subquery=*/nullptr,
           /*lifted_where_cond*/ nullptr))
@@ -5658,7 +5654,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
   assert(CountVisibleFields(sj_inner_exprs) == sj_inner_exprs.size());
   const int first_sj_inner_expr_of_subquery =
-      CountVisibleFields(subs_query_block->fields) - sj_inner_exprs.size();
+      CountVisibleFields(inner_qb->fields) - sj_inner_exprs.size();
 
   Item_field *derived_field;
   // Make the join condition for the derived table:
@@ -5721,7 +5717,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   Item *null_check;
   if (!tr->outer_join) {
     null_check = new (thd->mem_root) Item_func_true();
-  } else if (subq->can_do_aj) {
+  } else if (subq_pred->can_do_aj) {
     null_check = new (thd->mem_root) Item_func_isnull(derived_field);
   } else {
     null_check = new (thd->mem_root) Item_func_isnotnull(derived_field);
@@ -5745,7 +5741,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   // was empty.
 
   // Walk the parent query's WHERE, to find the subquery item, and replace it.
-  if (replace_subcondition(thd, &m_where_cond, subq, null_check, false))
+  if (replace_subcondition(thd, &m_where_cond, subq_pred, null_check, false))
     return true; /* purecov: inspected */
 
   // WHERE now references the derived table's column, so used_tables needs an
