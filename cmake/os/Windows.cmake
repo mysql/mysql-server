@@ -145,10 +145,18 @@ IF(MSVC)
   #     Allowing inline reduces test time using the debug server by
   #     30% or so. If you do want to keep inlining off, set the
   #     cmake flag WIN_DEBUG_NO_INLINE.
+  # - Disable optimization
+  #     /Od
+  #     Turns off all optimizations in the program and speeds compilation.
   FOREACH(lang C CXX)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
 
+  # Defaults initialized by cmake:
+  # DEBUG          /MDd /Zi /Od  /Ob0 /RTC1
+  # RELWITHDEBINFO /MD  /Zi /O2  /Ob1 /DNDEBUG
+  # RELEASE        /MD      /O2  /Ob2 /DNDEBUG
+  # MINSIZEREL     /MD      /O1  /Ob1 /DNDEBUG
   FOREACH(flag
       CMAKE_C_FLAGS_MINSIZEREL
       CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO

@@ -77,7 +77,7 @@ ELSEIF(APPLE)
   # We must postpone the version test until we have called 'uname -r' below.
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
-  IF(CMAKE_VERSION VERSION_LESS 3.5.1)
+  IF(CMAKE_VERSION VERSION_LESS 3.11.2)
     # Default cmake is 2.8.12.2 on RedHat
     IF(EXISTS "/etc/redhat-release")
       MESSAGE(WARNING "Please use cmake3 rather than cmake on this platform")
@@ -236,8 +236,8 @@ IF(APPLE)
 ENDIF()
 
 # Add all policies *after* CMAKE_MINIMUM_REQUIRED
-# Repeating CMAKE_MINIMUM_REQUIRED here will load defaults for 3.5.1
-CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
+# Repeating CMAKE_MINIMUM_REQUIRED here will load defaults for 3.11.2
+CMAKE_MINIMUM_REQUIRED(VERSION 3.11.2)
 INCLUDE(cmake_policies NO_POLICY_SCOPE)
 
 MACRO(STRING_APPEND STRING_VAR INPUT)
