@@ -59,7 +59,6 @@
 #include "openssl_version.h"
 #include "processor.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
-#include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
