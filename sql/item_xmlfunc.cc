@@ -497,7 +497,6 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
   longlong val_int() override {
     auto comp = down_cast<Item_bool_func *>(args[1]);
     auto fake = down_cast<Item_string *>(comp->arguments()[0]);
-    fake->collation.collation = collation.collation;
     auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
     XPathFilter res;
     nodeset_func->val_nodeset(&res);

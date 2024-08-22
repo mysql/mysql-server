@@ -1201,3 +1201,9 @@ select ExtractValue( @x, '/MESSAGE/DATA2' ) into @y;
 select @y;
 @y
 
+#
+# Bug#36236440 Encoding problem in xpath comparision
+#
+SELECT EXTRACTVALUE('<A><B>èè</B><C>AA</C></A>', '/A[B = "èè"]/C');
+EXTRACTVALUE('<A><B>èè</B><C>AA</C></A>', '/A[B = "èè"]/C')
+AA

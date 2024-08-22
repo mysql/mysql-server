@@ -701,3 +701,10 @@ set @x = '<MESSAGE><DATA1>HOLA</DATA1></MESSAGE>';
 set @y = 'Default Value';
 select ExtractValue( @x, '/MESSAGE/DATA2' ) into @y;
 select @y;
+
+
+--echo #
+--echo # Bug#36236440 Encoding problem in xpath comparision
+--echo #
+
+SELECT EXTRACTVALUE('<A><B>èè</B><C>AA</C></A>', '/A[B = "èè"]/C');
