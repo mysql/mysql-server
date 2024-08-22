@@ -506,10 +506,10 @@ struct Merge_cursor : public Load_cursor {
   /** Add the cursor to use for merge load.
   @param[in] file               File file to read.
   @param[in] buffer_size        IO buffer size to use for reading.
-  @param[in] offset             Page to read from.
+  @param[in] range              Range to read from
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t add_file(const ddl::file_t &file, size_t buffer_size,
-                                 os_offset_t offset) noexcept;
+                                 const Range &range) noexcept;
 
   /** Open the cursor.
   @return DB_SUCCESS or error code. */

@@ -179,10 +179,10 @@ struct File_cursor : public Load_cursor {
   @param[in] builder            The index build driver.
   @param[in] file               File to read from.
   @param[in] buffer_size        IO buffer size to use for reads.
-  @param[in] size               Size of the file in bytes.
+  @param[in] range              Offsets of the chunk to read from the file
   @param[in,out] stage          PFS observability. */
   File_cursor(Builder *builder, const Unique_os_file_descriptor &file,
-              size_t buffer_size, os_offset_t size,
+              size_t buffer_size, const Range &range,
               Alter_stage *stage) noexcept;
 
   /** Destructor. */
@@ -234,9 +234,11 @@ bool Load_cursor::duplicates_detected() const noexcept {
 
 dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
                                dtuple_t *&dtuple) noexcept {
-  dtuple = row_rec_to_index_entry_low(m_mrec, m_index, &m_offsets[0], heap);
+  dtuple =
+      row_rec_to_index_entry_low(m_mrec, m_index, &m_field_offsets[0], heap);
   if (!builder->is_fts_index()) {
-    return builder->dtuple_copy_blobs(dtuple, &m_offsets[0], m_mrec, heap);
+    return builder->dtuple_copy_blobs(dtuple, &m_field_offsets[0], m_mrec,
+                                      heap);
   } else {
     return DB_SUCCESS;
   }
@@ -244,10 +246,10 @@ dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
 
 File_cursor::File_cursor(Builder *builder,
                          const Unique_os_file_descriptor &file,
-                         size_t buffer_size, os_offset_t size,
+                         size_t buffer_size, const Range &range,
                          Alter_stage *stage) noexcept
     : Load_cursor(builder, nullptr),
-      m_reader(file, builder->index(), buffer_size, size),
+      m_reader(file, builder->index(), buffer_size, range),
       m_stage(stage) {
   ut_a(m_reader.m_file.is_open());
 }
@@ -290,7 +292,7 @@ dberr_t File_cursor::fetch(const mrec_t *&mrec, ulint *&offsets) noexcept {
   }
 
   mrec = m_reader.m_mrec;
-  offsets = &m_reader.m_offsets[0];
+  offsets = &m_reader.m_field_offsets[0];
 
   return DB_SUCCESS;
 }
@@ -336,25 +338,28 @@ bool Merge_cursor::Compare::operator()(const File_cursor *lhs,
 
   ut_a(l.m_index == r.m_index);
 
-  auto cmp = cmp_rec_rec_simple(r.m_mrec, l.m_mrec, &r.m_offsets[0],
-                                &l.m_offsets[0], r.m_index,
+  auto cmp = cmp_rec_rec_simple(r.m_mrec, l.m_mrec, &r.m_field_offsets[0],
+                                &l.m_field_offsets[0], r.m_index,
                                 m_dup != nullptr ? m_dup->m_table : nullptr);
 
   /* Check for duplicates. */
   if (unlikely(cmp == 0 && m_dup != nullptr)) {
-    m_dup->report(l.m_mrec, &l.m_offsets[0]);
+    m_dup->report(l.m_mrec, &l.m_field_offsets[0]);
   }
 
   return cmp < 0;
 }
 
-dberr_t Merge_cursor::add_file(const ddl::file_t &file,
-                               size_t buffer_size) noexcept {
+dberr_t Merge_cursor::add_file(const ddl::file_t &file, size_t buffer_size,
+                               const Range &range) noexcept {
   ut_a(file.m_file.is_open());
-
+  /* Keep the buffer size as much required to avoid the overlapping reads from
+  the subsequent ranges. In this iteration, buffer size would remain same for
+  subsequent reads */
+  buffer_size = std::min(size_t(range.second - range.first), buffer_size);
   auto cursor = ut::new_withkey<File_cursor>(
       ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
-      file.m_size, m_stage);
+      range, m_stage);
 
   if (cursor == nullptr) {
     m_err = DB_OUT_OF_MEMORY;
@@ -366,16 +371,9 @@ dberr_t Merge_cursor::add_file(const ddl::file_t &file,
   return DB_SUCCESS;
 }
 
-dberr_t Merge_cursor::add_file(const ddl::file_t &file, size_t buffer_size,
-                               os_offset_t offset) noexcept {
-  auto err = add_file(file, buffer_size);
-
-  if (err != DB_SUCCESS) {
-    return err;
-  } else {
-    m_cursors.back()->m_reader.set_offset(offset);
-    return DB_SUCCESS;
-  }
+dberr_t Merge_cursor::add_file(const ddl::file_t &file,
+                               size_t buffer_size) noexcept {
+  return add_file(file, buffer_size, Range{0, file.m_size});
 }
 
 void Merge_cursor::clear_eof() noexcept {
@@ -387,7 +385,7 @@ void Merge_cursor::clear_eof() noexcept {
 
   for (auto cursor : m_cursors) {
     ut_a(cursor->m_err == DB_END_OF_INDEX);
-    if (!cursor->m_reader.eof()) {
+    if (!cursor->m_reader.end_of_range()) {
       cursor->m_err = DB_SUCCESS;
       m_pq.push(cursor);
     }

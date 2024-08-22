@@ -1,0 +1,132 @@
+# Online DDL operations that rebuild the table write temporary sort files
+# to the MySQL temporary directory during index creation. Each temporary
+# sort file is corresponds to a secondary index in the table.
+# This test tracks the IOs on these temp sort files during the table rebuild
+# operation. Aim is to detect any change from the current numbers.
+# Increase in the numbers must be justified, reducing the numbers should be
+# welcomed.
+
+--source include/have_nodebug.inc
+--source include/big_test.inc
+--source include/not_windows.inc
+
+# By default push build system uses tmpfs to run the tests. We need to
+# create the temp files on the real file system to be able to track the temp
+# files usage. On MacOS, /var is symlinked to /private/var.
+SET innodb_tmpdir='/var/tmp';
+
+CREATE DATABASE test_db;
+
+--DELIMITER //
+
+CREATE PROCEDURE test_db.check_read_write_io_threshold(IN threshold DOUBLE)
+BEGIN
+    SELECT
+      CASE
+          WHEN SUM_NUMBER_OF_BYTES_READ < threshold THEN 1
+          ELSE 0
+      END AS is_total_read_less_than_threshold,
+      CASE
+          WHEN SUM_NUMBER_OF_BYTES_WRITE < threshold THEN 1
+          ELSE 0
+      END AS is_total_written_less_than_threshold
+    FROM performance_schema.file_summary_by_instance
+    WHERE file_name LIKE '%/var/tmp/Innodb Merge Temp File';
+END //
+
+--DELIMITER ;
+
+--echo
+--echo # Prepare the table with 18 non-clustered indexes
+--exec $MYSQL test < $MYSQLTEST_VARDIR/std_data/bug36444172/dump.sql
+SELECT COUNT(*) FROM test_db.test_table;
+
+--echo
+SHOW CREATE TABLE test_db.test_table;
+
+let $default_ddl_threads=`SELECT @@innodb_ddl_threads`;
+
+--echo #
+--echo # Test#1 : Rebuild the table with default settings
+--echo #
+
+--echo
+--echo # Reset the PFS table
+# To measure the temp sort files stats of the DDL operatation next.
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+
+--echo
+--echo # Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+
+--echo
+--echo # check the read/write IO on the temp sort files with default settings
+CALL test_db.check_read_write_io_threshold(1.80 * 1024 * 1024 * 1024);
+
+--echo #
+--echo # Test#2 : Increase the DDL threads, IOs must remain as they were before
+--echo #
+
+--echo # Double the DDL threads.
+SET innodb_ddl_threads=8;
+
+--echo # Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+
+--echo # Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+
+CALL test_db.check_read_write_io_threshold(1.80 * 1024 * 1024 * 1024);
+
+
+--echo #
+--echo # Test#3 : Reduce the DDL threads, IOs must remain as they were before.
+--echo #
+
+--echo # Use one DDL thread
+SET innodb_ddl_threads=1;
+
+--echo # Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+
+--echo # Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+
+CALL test_db.check_read_write_io_threshold(1.80 * 1024 * 1024 * 1024);
+
+--echo #
+--echo # Test#4 : Increase the DDL Buffer size, IO should be reduced this time
+--echo #
+
+--echo # Set buffer large enough as would have been the case prior to WL#14283
+--echo # ddl_threads(1) * ddl_buffer_size(18MB) = 18 MB
+SET innodb_ddl_buffer_size=18874368;
+
+--echo # Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+
+--echo # Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+
+CALL test_db.check_read_write_io_threshold(1 * 1024 * 1024 * 1024);
+
+--echo # Reset to default
+eval SET innodb_ddl_threads=$default_ddl_threads;
+
+--echo #
+--echo # Test#5 : Reduce the DDL Buffer size, IO should increase again
+--echo #
+
+--echo # Set it 3MB, that is ddl_threads(4) * ddl_buffer_size(3MB) = 12MB
+SET innodb_ddl_buffer_size=3145728;
+
+--echo # Reset the PFS table
+TRUNCATE `performance_schema`.`file_summary_by_instance`;
+
+--echo # Rebuild the table.
+ALTER TABLE test_db.test_table ENGINE INNODB, ALGORITHM=INPLACE;
+
+CALL test_db.check_read_write_io_threshold(1.40 * 1024 * 1024 * 1024);
+
+--echo
+DROP DATABASE test_db;
