@@ -40,7 +40,7 @@ endif (POLICY CMP0077)
 
 # Allow the user to specify the MSVC runtime
 if (POLICY CMP0091)
-  cmake_policy(SET CMP0091 NEW)
+# cmake_policy(SET CMP0091 NEW)
 endif (POLICY CMP0091)
 
 # try_compile() honors the CMAKE_CXX_STANDARD value
