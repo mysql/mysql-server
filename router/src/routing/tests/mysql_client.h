@@ -866,6 +866,25 @@ class MysqlClient {
     return ret_type{std::in_place, m_.get(), res};
   }
 
+  std::string escape(std::string_view stmt, char quote = '\'') {
+    std::string out;
+
+    // From mysql_real_escape_string():
+    //
+    // You must allocate the to buffer to be at least length*2+1 bytes long.
+    out.resize(stmt.size() * 2 + 1);
+
+    auto res = mysql_real_escape_string_quote(m_.get(), out.data(), stmt.data(),
+                                              stmt.size(), quote);
+
+    // should not happen as the out.size() should be large enough.
+    if (res == static_cast<ulong>(-1)) std::terminate();
+
+    out.resize(res);  // shrink to the actual size.
+
+    return out;
+  }
+
   stdx::expected<Statement::Result, MysqlError> query(
       std::string_view stmt, const std::span<MYSQL_BIND> &params,
       const std::span<const char *> &names) {
@@ -1279,6 +1298,61 @@ class MysqlClient {
   }
 
   [[nodiscard]] int native_handle() const { return m_->net.fd; }
+
+  class Plugin {
+   public:
+    Plugin(st_mysql_client_plugin *plugin) : plugin_(plugin) {}
+
+    /**
+     * type-safe type for string-based options
+     */
+    class StringOption {
+     public:
+      StringOption(const char *key, const char *value)
+          : key_(key), value_(value) {}
+
+      const char *key() { return key_; }
+      const void *value() { return value_; }
+
+     private:
+      const char *key_;
+      const char *value_;
+    };
+
+    /**
+     * set a client-plugin option.
+     *
+     * @code
+     * plugin.set_option(StringOption("foo", "bar"));
+     * @endcode
+     *
+     * There is no error-code, only success or failure.
+     *
+     * @retval true  on success
+     * @retval false on error
+     */
+    template <class Opt>
+    bool set_option(Opt opt) {
+      return 0 == mysql_plugin_options(plugin_, opt.key(), opt.value());
+    }
+
+   private:
+    st_mysql_client_plugin *plugin_;
+  };
+
+  /**
+   * find a client-plugin by name and type.
+   *
+   * @param name name of the plugin
+   * @param type type of the plugin like MYSQL_CLIENT_AUTHENTICATION_PLUGIN
+   */
+  stdx::expected<Plugin, MysqlError> find_plugin(const char *name, int type) {
+    if (auto *find_res = mysql_client_find_plugin(m_.get(), name, type)) {
+      return find_res;
+    }
+
+    return stdx::unexpected(make_mysql_error_code(m_.get()));
+  }
 
  private:
   std::string username_;
