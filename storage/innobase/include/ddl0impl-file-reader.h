@@ -39,17 +39,25 @@ namespace ddl {
 // Forward declaration
 struct File_cursor;
 
-/** Read rows from the temporary file. */
+/** Represents the chunk in bytes : first element represents the beginning
+offset of the chunk and, second element represents the length of the chunk. */
+using Range = std::pair<os_offset_t, os_offset_t>;
+
+/** Read rows from the temporary file. Rows could be read in the from of chunks
+or ranges. */
 struct File_reader : private ut::Non_copyable {
   /** Constructor.
   @param[in] file               Opened file.
   @param[in,out] index          Index that the rows belong to.
   @param[in] buffer_size        Size of file buffer for reading.
-  @param[in] size               File size in bytes. */
+  @param[in] range              Offsets of the chunk to read */
   File_reader(const Unique_os_file_descriptor &file, dict_index_t *index,
-              size_t buffer_size, os_offset_t size) noexcept
-      : m_index(index), m_file(file), m_size(size), m_buffer_size(buffer_size) {
-    ut_a(size > 0);
+              size_t buffer_size, const Range &range) noexcept
+      : m_index(index),
+        m_file(file),
+        m_range(range),
+        m_buffer_size(buffer_size) {
+    ut_a(range.first < range.second);
     ut_a(m_buffer_size > 0);
     ut_a(m_index != nullptr);
     ut_a(m_file.is_open());
@@ -74,17 +82,17 @@ struct File_reader : private ut::Non_copyable {
   [[nodiscard]] dberr_t get_tuple(Builder *builder, mem_heap_t *heap,
                                   dtuple_t *&dtuple) noexcept;
 
-  /** Seek to the offset and read the page in.
-  @param[in] offset              Offset to read in.
+  /** Set the start and end offsets to read from, to avoid the possibility of
+   overlapping reads from the other ranges in subsequent reads. Seek to the
+   start offset, read the page and, position to the first record on the page
+  @param[in]  range Start and end offsets of the range to read from.
   @return DB_SUCCESS or error code. */
-  dberr_t read(os_offset_t offset) noexcept;
-
-  /** Set the range or rows to traverse.
-  @param[in] offset              New offset to read from. */
-  void set_offset(os_offset_t offset) noexcept { m_offset = offset; }
+  dberr_t read(const Range &range) noexcept;
 
   /** @return true if the range first == second. */
-  [[nodiscard]] bool eof() const noexcept { return m_offset == m_size; }
+  [[nodiscard]] bool end_of_range() const noexcept {
+    return m_range.first == m_range.second;
+  }
 
   /** @return the number of rows read from the file. */
   [[nodiscard]] uint64_t get_n_rows_read() const noexcept {
@@ -92,10 +100,10 @@ struct File_reader : private ut::Non_copyable {
   }
 
  private:
-  /** Seek to the start of the range and load load the page.
-  @param[in] offset              Offset to read in.
+  /** Read the page in the file buffer from the start offset, and reset the
+  cursor to the beginning of the file buffer
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t seek(os_offset_t offset) noexcept;
+  [[nodiscard]] dberr_t seek() noexcept;
 
   /** Advance page number to the next and read in.
   @return DB_SUCCESS or error code. */
@@ -115,7 +123,7 @@ struct File_reader : private ut::Non_copyable {
   const mrec_t *m_mrec{};
 
   /** Columns offsets. */
-  Offsets m_offsets{};
+  Offsets m_field_offsets{};
 
   /** File handle to read from. */
   const Unique_os_file_descriptor &m_file;
@@ -123,11 +131,8 @@ struct File_reader : private ut::Non_copyable {
  private:
   using Bounds = std::pair<const byte *, const byte *>;
 
-  /** Size of the file in bytes. */
-  os_offset_t m_size{};
-
-  /** Offset to read. */
-  os_offset_t m_offset{};
+  /* Coordinates of the chunk that this file reader can read the rows from */
+  Range m_range{};
 
   /** Pointer current offset within file buffer. */
   const byte *m_ptr{};
