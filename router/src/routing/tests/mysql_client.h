@@ -878,7 +878,7 @@ class MysqlClient {
                                               stmt.size(), quote);
 
     // should not happen as the out.size() should be large enough.
-    if (res == static_cast<ulong>(-1)) std::terminate();
+    if (res == static_cast<unsigned long>(-1)) std::terminate();
 
     out.resize(res);  // shrink to the actual size.
 
