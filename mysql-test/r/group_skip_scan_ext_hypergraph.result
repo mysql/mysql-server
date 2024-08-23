@@ -265,8 +265,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.b = 2) or (t.b = 15)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1)  (rows=1)
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
@@ -276,8 +276,8 @@ a
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	4
-Handler_read_last	1
+Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -315,8 +315,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=17)
+    -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=17)
 
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -364,8 +364,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=17)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=17)
 
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
@@ -387,8 +387,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=1)
+-> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=12)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=12)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
@@ -437,8 +437,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=1.73)
-    -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=3)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -977,8 +977,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 EXPLAIN
--> Filter: (t.a > 9)  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=1)
+-> Filter: (t.a > 9)  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
@@ -1391,8 +1391,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.b = 2) or (t.b = 15)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1)  (rows=1)
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
@@ -1402,8 +1402,8 @@ a
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	4
-Handler_read_last	1
+Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1441,8 +1441,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=17)
+    -> Covering index skip scan for grouping on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=17)
 
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -1490,8 +1490,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=17)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 12 AND b = 2) OR (a = 12 AND b = 15) OR (2 more)  (rows=17)
 
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
@@ -1513,8 +1513,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 12) OR (a = 1)  (rows=1)
+-> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=12)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 12) OR (a = 1)  (rows=12)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
@@ -1563,8 +1563,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=1.73)
-    -> Covering index skip scan for grouping on t using k1 over (a < 9) OR (a = 1)  (rows=3)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (a < 9) OR (a = 1)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -2103,8 +2103,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 EXPLAIN
--> Filter: (t.a > 9)  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (a < 9)  (rows=1)
+-> Filter: (t.a > 9)  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (a < 9)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
@@ -2392,8 +2392,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.b = 2) or (t.b = 15)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1)  (rows=1)
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2)  (rows=51)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
@@ -2403,8 +2403,8 @@ a
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	5
-Handler_read_last	1
+Handler_read_key	2
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -2442,8 +2442,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=17)
+    -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=17)
 
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -2491,8 +2491,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=17)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 15) OR (a = 1 AND b = 2) OR (2 more)  (rows=17)
 
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
@@ -2514,8 +2514,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=1)
+-> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=12)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=12)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
@@ -2564,8 +2564,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=1.73)
-    -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=3)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -3104,8 +3104,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 EXPLAIN
--> Filter: (t.a > 9)  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=1)
+-> Filter: (t.a > 9)  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
@@ -3393,8 +3393,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: ((t.a = 1) and ((t.b = 2) or (t.b = 15)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1)  (rows=1)
+-> Limit: 1 row(s)  (rows=1)
+    -> Covering index range scan on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15)  (rows=51)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE a = 1 AND (b = 2 OR b = 15);
@@ -3404,8 +3404,8 @@ a
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	3
-Handler_read_last	1
+Handler_read_key	1
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -3443,8 +3443,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a, b;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=24)
+    -> Covering index skip scan for grouping on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=24)
 
 FLUSH STATUS;
 SELECT a, b, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -3492,8 +3492,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=1)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=24)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 1 AND b = 2) OR (a = 1 AND b = 15) OR (2 more)  (rows=24)
 
 FLUSH STATUS;
 SELECT DISTINCT a, b FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40);
@@ -3515,8 +3515,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
 EXPLAIN
--> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=1)
-    -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=1)
+-> Filter: (((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a = 12)))  (rows=12)
+    -> Covering index skip scan for deduplication on t using k1 over (a = 1) OR (a = 12)  (rows=12)
 
 FLUSH STATUS;
 SELECT DISTINCT a FROM t  WHERE (a = 1 OR a = 12) AND (b = 2 OR b = 15);
@@ -3565,8 +3565,8 @@ drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
 GROUP BY a;
 EXPLAIN
--> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=2.65)
-    -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=7)
+-> Filter: (((t.c = 3) or (t.c = 40)) and ((t.b = 2) or (t.b = 15)) and ((t.a = 1) or (t.a > 9)))  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (a = 1) OR (9 < a)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MAX(d), MIN(d) FROM t  WHERE (a = 1 OR a > 9) AND (b = 2 OR b = 15) AND (c = 3 OR c = 40)
@@ -4104,8 +4104,8 @@ include/diff_tables.inc [test.group_query, test.no_group_query]
 drop tables test.group_query, test.no_group_query;
 EXPLAIN FORMAT=TREE SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;
 EXPLAIN
--> Filter: (t.a > 9)  (rows=1)
-    -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=1)
+-> Filter: (t.a > 9)  (rows=12)
+    -> Covering index skip scan for grouping on t using k1 over (9 < a)  (rows=12)
 
 FLUSH STATUS;
 SELECT a, MIN(b), MAX(b) FROM t  WHERE a > 9 GROUP BY a;

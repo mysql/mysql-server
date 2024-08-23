@@ -424,8 +424,10 @@ EXPLAIN
 -> Inner hash join (no condition)  (rows=10e-6)
     -> Table scan on t6  (rows=1)
     -> Hash
-        -> Nested loop inner join (FirstMatch)  (rows=10e-6)
-            -> Limit: 1 row(s)  (rows=100e-6)
+        -> Hash semijoin (FirstMatch) (no condition)  (rows=10e-6)
+            -> Filter: (t1.f1 = t1.f1)  (rows=0.1)
+                -> Table scan on t1  (rows=1)
+            -> Hash
                 -> Filter: (t2.f2 = t4.f2)  (rows=100e-6)
                     -> Left hash join (no condition)  (rows=0.001)
                         -> Filter: (t3.f1 = t2.f2)  (rows=0.001)
@@ -435,8 +437,6 @@ EXPLAIN
                                     -> Table scan on t3  (rows=1)
                         -> Hash
                             -> Table scan on t4  (rows=1)
-            -> Filter: (t1.f1 = t1.f1)  (rows=0.1)
-                -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #2
@@ -827,7 +827,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT DISTINCT b FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using b  (rows=2.24) (actual rows=5 loops=1)
+-> Covering index skip scan for deduplication on t1 using b  (rows=5) (actual rows=5 loops=1)
 
 EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
 EXPLAIN

@@ -1841,20 +1841,20 @@ FROM
 b AS subquery3_t1
 );
 EXPLAIN
--> Nested loop left join  (rows=0.2)
-    -> Inner hash join (subquery1_t1.col_varchar = subquery1_t2.col_varchar)  (rows=0.2)
-        -> Table scan on subquery1_t2  (rows=2)
-        -> Hash
+-> Inner hash join (subquery1_t1.col_varchar = subquery1_t2.col_varchar)  (rows=0.2)
+    -> Table scan on subquery1_t2  (rows=2)
+    -> Hash
+        -> Nested loop left join  (rows=1)
             -> Table scan on subquery1_t1  (rows=1)
-    -> Filter: <in_optimizer>(subquery1_t1.col_varchar,<exists>(select #4))  (rows=0.141)
-        -> Covering index lookup on table2 using <auto_key0> (col_varchar = subquery1_t1.col_varchar)  (rows=0.141)
-            -> Materialize  (rows=1.41)
-                -> Group (no aggregates)  (rows=1.41)
-                    -> Sort: subquery2_t1.col_varchar  (rows=2)
-                        -> Table scan on subquery2_t1  (rows=2)
-        -> Select #4 (subquery in condition; dependent)
-            -> Filter: (<cache>(subquery1_t1.col_varchar) = lower(subquery3_t1.pk))  (rows=1)
-                -> Table scan on subquery3_t1  (rows=1)
+            -> Filter: <in_optimizer>(subquery1_t1.col_varchar,<exists>(select #4))  (rows=0.141)
+                -> Covering index lookup on table2 using <auto_key0> (col_varchar = subquery1_t1.col_varchar)  (rows=0.141)
+                    -> Materialize  (rows=1.41)
+                        -> Group (no aggregates)  (rows=1.41)
+                            -> Sort: subquery2_t1.col_varchar  (rows=2)
+                                -> Table scan on subquery2_t1  (rows=2)
+                -> Select #4 (subquery in condition; dependent)
+                    -> Filter: (<cache>(subquery1_t1.col_varchar) = lower(subquery3_t1.pk))  (rows=1)
+                        -> Table scan on subquery3_t1  (rows=1)
 
 SELECT
 table1.col_varchar

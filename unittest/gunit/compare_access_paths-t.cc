@@ -101,7 +101,7 @@ TEST(CompareAccessPathsTest, CompareAccessPaths) {
   // Fuzzily identical, neither path dominates.
   a = b;
   a.set_cost(100.5);
-  b.set_init_cost(100.5);
+  a.set_init_cost(99.5);
   EXPECT_EQ(CompareAccessPaths(orderings, a, b, obsolete_orderings),
             PathComparisonResult::IDENTICAL);
   EXPECT_EQ(CompareAccessPaths(orderings, b, a, obsolete_orderings),
@@ -120,8 +120,8 @@ TEST(CompareAccessPathsTest, CompareAccessPaths) {
   // Different strenghts in numerical dimensions.
   a.set_cost(100.0);
   b.set_cost(95.0);
-  a.set_init_cost(95.0);
-  b.set_init_cost(100.0);
+  a.set_init_cost(50.0);
+  b.set_init_cost(80.0);
   EXPECT_EQ(CompareAccessPaths(orderings, a, b, obsolete_orderings),
             PathComparisonResult::DIFFERENT_STRENGTHS);
   EXPECT_EQ(CompareAccessPaths(orderings, b, a, obsolete_orderings),

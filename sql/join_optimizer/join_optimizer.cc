@@ -5730,9 +5730,9 @@ bool HasFlag(uint32_t flags, FuzzyComparisonResult flag) {
 // (if so, we say it dominates the other one). If not, we return
 // DIFFERENT_STRENGTHS so that both must be kept.
 //
-// TODO(sgunders): Support turning off certain cost dimensions; e.g., init_cost
-// only matters if we have a LIMIT or nested loop semijoin somewhere in the
-// query, and it might not matter for secondary engine.
+// TODO(sgunders): Support turning off certain cost dimensions; e.g.,
+// first_row_cost only matters if we have a LIMIT or nested loop semijoin
+// somewhere in the query, and it might not matter for secondary engine.
 PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
                                         const AccessPath &a,
                                         const AccessPath &b,
@@ -5820,8 +5820,8 @@ PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
                                          b.num_output_rows(), fuzz_factor));
 
   flags = AddFlag(flags, FuzzyComparison(a.cost(), b.cost(), fuzz_factor));
-  flags = AddFlag(flags,
-                  FuzzyComparison(a.init_cost(), b.init_cost(), fuzz_factor));
+  flags = AddFlag(flags, FuzzyComparison(a.first_row_cost(), b.first_row_cost(),
+                                         fuzz_factor));
   flags = AddFlag(
       flags, FuzzyComparison(a.rescan_cost(), b.rescan_cost(), fuzz_factor));
 
@@ -7288,6 +7288,25 @@ bool ForceMaterializationBeforeSort(const Query_block &query_block,
           join.m_windows.is_empty());
 }
 
+/// Set the estimated number of output rows for a group skip scan to match the
+/// estimate calculated by EstimateDistinctRows() or EstimateAggregateRows().
+void SetGroupSkipScanCardinality(AccessPath *path, double output_rows) {
+  assert(path->has_group_skip_scan);
+  assert(path->type == AccessPath::GROUP_INDEX_SKIP_SCAN ||
+         (path->type == AccessPath::FILTER &&
+          path->filter().child->type == AccessPath::GROUP_INDEX_SKIP_SCAN));
+  if (output_rows != kUnknownRowCount) {
+    path->set_num_output_rows(output_rows);
+    // For display only: When the new estimate is higher than the old one, make
+    // sure it doesn't look like a filter adds rows.
+    if (path->type == AccessPath::FILTER) {
+      AccessPath *const child = path->filter().child;
+      child->set_num_output_rows(
+          std::max(output_rows, child->num_output_rows()));
+    }
+  }
+}
+
 /** This struct implements a builder pattern for creating paths that
     do DISTINCT (sort with duplicate removal) and adding them as
     parent of the current candidate paths (except for candidate paths
@@ -7455,7 +7474,7 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
     // A path using group skip scan should give the same number of result
     // rows as any other path. So we set the same number to get a fair
     // comparison.
-    root_path->set_num_output_rows(output_rows);
+    SetGroupSkipScanCardinality(root_path, output_rows);
     receiver->ProposeAccessPath(root_path, new_root_candidates,
                                 /*obsolete_orderings=*/0,
                                 "deduplication elided");
@@ -8561,10 +8580,7 @@ bool ApplyAggregation(
   // these already-aggregated paths where available.
   for (AccessPath *root_path : root_candidates) {
     if (!IsAlreadyAggregated(root_path)) continue;
-    if (aggregate_rows != kUnknownRowCount) {
-      // Use AGGREGATE row estimate if available
-      root_path->set_num_output_rows(aggregate_rows);
-    }
+    SetGroupSkipScanCardinality(root_path, aggregate_rows);
     receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                /*obsolete_orderings=*/0, "aggregation elided");
   }

@@ -301,23 +301,23 @@ b	i421	l421
 b	m422	p422
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
+-> Filter: (t1.a1 < 'd')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 >= 'b')  (rows=13)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=13)
+-> Filter: (t1.a1 >= 'b')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=16)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=13)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=13)
+-> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=16)
 
 explain format=tree select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=13)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=13)
+-> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=16)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
@@ -326,58 +326,58 @@ EXPLAIN
 
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=9)
+-> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=16)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=9)
+-> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=16)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=9)
+-> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=16)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=9)
+-> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=16)
 
 explain format=tree select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 >= 'b')  (rows=13)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=13)
+-> Filter: (t1.a1 >= 'b')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=16)
 
 explain format=tree select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 in ('a','b','d'))  (rows=13)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=13)
+-> Filter: (t1.a1 in ('a','b','d'))  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=16)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 < 'd')  (rows=21)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=21)
+-> Filter: (t2.a1 < 'd')  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=32.8)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 < 'd')  (rows=21)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=21)
+-> Filter: (t2.a1 < 'd')  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=32.8)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 >= 'b')  (rows=24)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=24)
+-> Filter: (t2.a1 >= 'b')  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=32.8)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=26)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=26)
+-> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=32.8)
 
 explain format=tree select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=26)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=26)
+-> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=32.8)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
@@ -386,33 +386,33 @@ EXPLAIN
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=13)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=13)
+-> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=32.8)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=13)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=13)
+-> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=32.8)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=12)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=12)
+-> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=32.8)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=12)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=12)
+-> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=32.8)
 
 explain format=tree select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 >= 'b')  (rows=24)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=24)
+-> Filter: (t2.a1 >= 'b')  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=32.8)
 
 explain format=tree select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 in ('a','b','d'))  (rows=21)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=21)
+-> Filter: (t2.a1 in ('a','b','d'))  (rows=32.8)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=32.8)
 
 select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
@@ -1797,7 +1797,7 @@ EXPLAIN
 
 explain format=tree select sql_big_result distinct a1,a2,b from t2;
 EXPLAIN
--> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32)
+-> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32.8)
 
 explain format=tree select sql_big_result distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
@@ -1961,7 +1961,7 @@ EXPLAIN
 
 explain format=tree select sql_big_result distinct a1,a2,b from t2;
 EXPLAIN
--> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32)
+-> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32.8)
 
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
@@ -2099,23 +2099,23 @@ select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 104
 explain format=tree select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
+-> Filter: (t1.a1 < 'd')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
 
 explain format=tree select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
+-> Filter: (t1.a1 < 'd')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
 
 explain format=tree select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
+-> Filter: (t1.a1 < 'd')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
 
 explain format=tree select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=3)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
+-> Filter: (t1.a1 < 'd')  (rows=16)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
 
 explain format=tree select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 EXPLAIN
@@ -2689,7 +2689,7 @@ INSERT INTO t1 VALUES
 (4), (2), (1), (2), (2), (4), (1), (4);
 EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx  (rows=3.16)
+-> Covering index skip scan for deduplication on t1 using idx  (rows=4.9)
 
 SELECT DISTINCT(a) FROM t1;
 a
@@ -2698,7 +2698,7 @@ a
 4
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx  (rows=3.16)
+-> Covering index skip scan for deduplication on t1 using idx  (rows=4.9)
 
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 a
