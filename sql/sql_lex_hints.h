@@ -224,7 +224,11 @@ class Hint_scanner {
       case HINT_CHR_IDENT:
       case HINT_CHR_DIGIT:
       case HINT_CHR_MB:
-        return scan_ident() == HINT_ARG_IDENT ? HINT_ARG_QB_NAME : HINT_ERROR;
+        if (scan_ident() == HINT_ARG_IDENT) {
+          yytext = thd->strmake(yytext, yyleng);
+          return HINT_ARG_QB_NAME;
+        } else
+          return HINT_ERROR;
       case HINT_CHR_BACKQUOTE:
         return scan_quoted<HINT_CHR_BACKQUOTE>() == HINT_ARG_IDENT
                    ? HINT_ARG_QB_NAME
