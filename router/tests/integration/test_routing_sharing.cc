@@ -3247,6 +3247,18 @@ TEST_P(ShareConnectionTest,
 
   ASSERT_NO_ERROR(cli.query("DO 0/0"));
 
+  if (can_share) {
+    // if the server-side connection is not stashed away when the
+    // "close_all_connection()" is called, the close of the server-side
+    // connection will also close the client-side connection.
+    //
+    // But for this test, we want the client connection to stay alive when the
+    // server-connection goes away. -> wait until it is stashed away.
+    //
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  }
+
   for (auto *admin_cli : admin_clis()) {
     ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
   }
