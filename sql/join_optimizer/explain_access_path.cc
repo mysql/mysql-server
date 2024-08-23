@@ -1015,15 +1015,9 @@ static bool AddPathCosts(const AccessPath *path,
     }
 
     if (init_cost >= 0.0) {
-      double first_row_cost;
-      if (path->num_output_rows() <= 1.0) {
-        first_row_cost = cost;
-      } else {
-        first_row_cost =
-            init_cost + (cost - init_cost) / path->num_output_rows();
-      }
-      error |= AddMemberToObject<Json_double>(obj, "estimated_first_row_cost",
-                                              first_row_cost);
+      error |= AddMemberToObject<Json_double>(
+          obj, "estimated_first_row_cost",
+          FirstRowCost(init_cost, cost, path->num_output_rows()));
     }
     error |= AddMemberToObject<Json_double>(obj, "estimated_total_cost", cost);
     // For a MATERIALIZE path, num_output_rows() gives the number of rows read

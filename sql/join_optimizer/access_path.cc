@@ -963,10 +963,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 ? &join->hash_table_generation
                 : nullptr;
 
-        const auto first_row_cost = [](const AccessPath &p) {
-          return p.init_cost() + p.cost() / std::max(p.num_output_rows(), 1.0);
-        };
-
         // If the probe (outer) input is empty, the join result will be empty,
         // and we do not need to read the build input. For inner join and
         // semijoin, the converse is also true. To benefit from this, we want to
@@ -977,7 +973,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // first for left join and antijoin.
         const HashJoinInput first_input =
             (thd->lex->using_hypergraph_optimizer() &&
-             first_row_cost(*param.inner) > first_row_cost(*param.outer))
+             param.inner->first_row_cost() > param.outer->first_row_cost())
                 ? HashJoinInput::kProbe
                 : HashJoinInput::kBuild;
 

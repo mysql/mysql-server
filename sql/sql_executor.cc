@@ -1973,6 +1973,7 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
     // measured costs.
     path->set_cost(cost * num_rows_after_filtering / pos->prefix_rowcount);
   }
+  path->set_init_cost(kUnknownCost);
 }
 
 void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,

@@ -458,7 +458,7 @@ EXPLAIN
     -> Table scan on t1  (cost=0.35 rows=4)
     -> Hash
         -> Nested loop inner join  (cost=1.65 rows=3)
-            -> Filter: (`<subquery2>`.b is not null)  (cost=1.99..0.6 rows=3)
+            -> Filter: (`<subquery2>`.b is not null)  (cost=0.6 rows=3)
                 -> Table scan on <subquery2>  (cost=3.54..5.23 rows=3)
                     -> Materialize with deduplication  (cost=2.69..2.69 rows=3)
                         -> Filter: (t3.b is not null)  (cost=2 rows=3)

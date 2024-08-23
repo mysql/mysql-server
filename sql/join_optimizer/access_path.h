@@ -189,6 +189,19 @@ constexpr double kUnknownRowCount = -1.0;
 /// a real (positive) cost.
 constexpr double kUnknownCost = -1e12;
 
+/// Calculate the cost of reading the first row from an access path, given
+/// estimates for init cost, total cost and the number of rows returned.
+inline double FirstRowCost(double init_cost, double total_cost,
+                           double output_rows) {
+  assert(init_cost >= 0.0);
+  assert(total_cost >= init_cost);
+  assert(output_rows >= 0.0);
+  if (output_rows <= 1.0) {
+    return total_cost;
+  }
+  return init_cost + (total_cost - init_cost) / output_rows;
+}
+
 /**
   Access paths are a query planning structure that correspond 1:1 to iterators,
   in that an access path contains pretty much exactly the information
@@ -373,6 +386,11 @@ struct AccessPath {
   double cost() const { return m_cost; }
 
   double init_cost() const { return m_init_cost; }
+
+  /// The cost of reading the first row.
+  double first_row_cost() const {
+    return FirstRowCost(m_init_cost, m_cost, m_num_output_rows);
+  }
 
   double init_once_cost() const { return m_init_once_cost; }
 

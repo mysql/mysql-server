@@ -1381,7 +1381,7 @@ FROM t2 WHERE 1 = (SELECT t1.a FROM t1 WHERE t1.b = t2.a);
 EXPLAIN
 -> Nested loop inner join  (cost=1.85 rows=1.33)
     -> Table scan on t2  (cost=0.45 rows=2)
-    -> Filter: reject_if((derived_1_2.Name_exp_3 > 1))  (cost=0.533..0.533 rows=0.667)
+    -> Filter: reject_if((derived_1_2.Name_exp_3 > 1))  (cost=0.533 rows=0.667)
         -> Index lookup on derived_1_2 using <auto_key0> (b = t2.a)  (cost=0.267..0.533 rows=2)
             -> Materialize  (cost=0..0 rows=0)
                 -> Filter: (1 = any_value(t1.a))
