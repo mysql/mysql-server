@@ -1895,8 +1895,7 @@ QueryForwarder::explicit_commit_connect() {
 
 stdx::expected<Processor::Result, std::error_code>
 QueryForwarder::explicit_commit_connect_done() {
-  auto &server_conn = connection()->server_conn();
-  if (!server_conn.is_open()) {
+  if (reconnect_error().error_code() != 0) {
     auto &src_conn = connection()->client_conn();
 
     discard_current_msg(src_conn);
@@ -2554,8 +2553,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
-  auto &server_conn = connection()->server_conn();
-  if (!server_conn.is_open()) {
+  if (reconnect_error().error_code() != 0) {
     auto &src_conn = connection()->client_conn();
 
     // take the client::command from the connection.

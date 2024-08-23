@@ -88,8 +88,7 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::connect() {
 }
 
 stdx::expected<Processor::Result, std::error_code> PingForwarder::connected() {
-  auto &server_conn = connection()->server_conn();
-  if (!server_conn.is_open()) {
+  if (reconnect_error().error_code() != 0) {
     auto &src_conn = connection()->client_conn();
 
     // take the client::command from the connection.
