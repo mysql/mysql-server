@@ -173,8 +173,7 @@ INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
 
 SET DEBUG="+d, fsp_crash_before_space_extend";
 
-# Write file to make mysql-test-run.pl expect crash
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 
 --error 2013
 INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));

@@ -46,10 +46,6 @@ DROP TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 let datadir= `select @@datadir`;
 
-# These are from include/shutdown_mysqld.inc and allow to call start_mysqld.inc
---let $_server_id= `SELECT @@server_id`
---let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
-
 --echo #
 --echo # Bug #14669848 CRASH DURING ALTER MAKES ORIGINAL TABLE INACCESSIBLE
 --echo #
@@ -65,10 +61,9 @@ let $orig_table_id = `SELECT table_id
 	FROM information_schema.innodb_tables
 	WHERE name = 'test/t1'`;
 
-# Write file to make mysql-test-run.pl expect crash
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
 
 --echo # Restart mysqld after the crash and reconnect.
@@ -105,10 +100,9 @@ let $orig_table_id = `SELECT table_id
 	FROM information_schema.innodb_tables
 	WHERE name = 'test/t2'`;
 
-# Write file to make mysql-test-run.pl expect crash
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
 
 --echo # Startup the server after the crash
@@ -141,10 +135,9 @@ SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 let $orig_table_id = `select table_id from
   information_schema.innodb_tables where name = 'test/t1'`;
 
-# Write file to make mysql-test-run.pl expect crash
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
 
 --echo # Restart mysqld after the crash and reconnect.

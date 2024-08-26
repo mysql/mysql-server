@@ -16,7 +16,6 @@ start transaction;
 insert into t1 values (1, repeat('x', 50000));
 SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
 rollback;
-# restart
 select * from t1;
 f1	f2
 drop table t1;

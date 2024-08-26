@@ -12,7 +12,7 @@
 --source include/not_windows.inc
 
 # Increased server restart time
---let $wait_counter= 4000
+--let $wait_counter= 8000
 
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
 

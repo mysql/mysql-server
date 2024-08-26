@@ -1,4 +1,5 @@
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+--source include/check_windows.inc
+if (!$have_windows)
 {
   skip Need windows;
 }

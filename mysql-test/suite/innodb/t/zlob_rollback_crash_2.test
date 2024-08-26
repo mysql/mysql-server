@@ -18,12 +18,8 @@ show create table t1;
 start transaction;
 insert into t1 values (1, repeat('x', 50000));
 SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
---source include/expect_crash.inc
-
---error 0,2013
+# Historical note: since inception, above string seems too short to trigger the code path which could cause an error even for innodb_page_size=4k.
 rollback;
-
---source include/start_mysqld.inc
 
 select * from t1;
 drop table t1;
