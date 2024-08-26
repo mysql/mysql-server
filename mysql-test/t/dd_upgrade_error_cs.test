@@ -1,7 +1,6 @@
 --source include/have_case_sensitive_file_system.inc
 
 --echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/shutdown_mysqld.inc
 
 --echo # ------------------------------------------------------------------
@@ -56,10 +55,6 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --remove_file $MYSQLD_LOG
 --remove_file $MYSQL_TMP_DIR/data80011_upgrade_groupby_desc_cs.zip
 --force-rmdir $MYSQL_TMP_DIR/data80011_upgrade_groupby_desc_cs
-
---echo # Restart the server with default options.
---source include/start_mysqld.inc
-
 
 --echo ########################################################################
 --echo #

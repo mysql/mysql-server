@@ -230,7 +230,6 @@ PATH	SIZE	STATE	PURPOSE
 ./#innodb_temp/temp_9.ibt	81920	INACTIVE	NONE
 ./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
 # Simulating disk space full scenario
-# restart: --innodb_temp_tablespaces_dir=.
 SET GLOBAL big_tables=ON;
 SELECT @@innodb_temp_tablespaces_dir;
 @@innodb_temp_tablespaces_dir

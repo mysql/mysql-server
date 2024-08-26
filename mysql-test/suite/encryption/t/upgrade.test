@@ -151,6 +151,6 @@ alter tablespace mysql encryption='N';
 --echo ########################################################################
 --source suite/component_keyring_file/inc/teardown_component_customized.inc
 let $restart_parameters =;
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc
 
 

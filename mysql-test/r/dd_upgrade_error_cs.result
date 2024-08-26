@@ -18,8 +18,6 @@ Pattern "Error in parsing Routine 'test'.'procedure_groupby_desc' during upgrade
 Pattern "Error in parsing View 'test'.'view_groupby_desc' during upgrade" found
 Pattern "Data Dictionary initialization failed." found
 # Remove copied files
-# Restart the server with default options.
-# restart
 ########################################################################
 #
 # Bug#28204431: mysql upgrade from "version < 8.0.13" to "version >= 8.0.13"

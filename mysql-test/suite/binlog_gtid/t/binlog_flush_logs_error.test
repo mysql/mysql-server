@@ -11,7 +11,7 @@
 #
 # Test:
 # =====
-# We will activate the debug point "crash_commit_before" this will ensure
+# We will activate the debug point "simulate_flush_commit_error" this will ensure
 # that the commit fails for FLUSH LOGS. We will then check if the command
 # FLUSH LOGS returns an error.
 ###############################################################################
@@ -38,8 +38,6 @@ INSERT INTO t VALUES(10);
 
 --error ER_ERROR_DURING_FLUSH_LOGS, ER_BINLOG_LOGGING_IMPOSSIBLE
 FLUSH LOGS;
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
 SET GLOBAL debug = '-d,simulate_flush_commit_error';
 
 #cleanup

@@ -56,7 +56,7 @@
 --echo # Restart server to trigger upgrade.
 
 --error 1
---exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1 --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1 --secure-file-priv=""
 
 --echo
 --echo # Check for errors in the error log.

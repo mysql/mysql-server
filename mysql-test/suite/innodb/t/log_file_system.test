@@ -34,7 +34,6 @@ if ($OLD_IBDATA == $NEW_IBDATA_PREFIX)
   --skip Needs default innodb_data_file_path
 }
 
-let NEW_CNF_VARS = $MYSQLTEST_VARDIR/tmp/config.txt;
 
 perl;
 my $cmd = $ENV{MYSQLD_CMD};
@@ -48,10 +47,6 @@ my @files = split(';', $ENV{NEW_IBDATA_PREFIX});
 my $file = $ENV{DATADIR} . '/' . $files[$#files];
 
 my $size = (stat($file))[7] || die "cannot stat $file";
-
-open(FILE, ">$ENV{NEW_CNF_VARS}") || die "cannot open $ENV{NEW_CNF_VARS}";
-print FILE "let NEW_CMD= $cmd;\n";
-close(FILE);
 
 my $path = "$ENV{NEW_IBDATA_PREFIX}:" . ($size / 1048576) . "M;foo:1M";
 
@@ -68,9 +63,6 @@ foreach (@rec){
 }
 close(NEW_CNF);
 EOF
-
---source $NEW_CNF_VARS
---remove_file $NEW_CNF_VARS
 
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 

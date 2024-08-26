@@ -199,7 +199,7 @@ BEGIN
   -- not give consistent result either.
   --
   SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE COMMAND NOT IN ('Sleep', 'Daemon')
+    WHERE COMMAND NOT IN ('Sleep', 'Daemon', 'Killed')
       AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 

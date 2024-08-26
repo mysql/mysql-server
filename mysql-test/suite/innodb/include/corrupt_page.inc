@@ -19,7 +19,19 @@ my $page_num    = $ENV{'PAGE_NUM'}         or die "PAGE_NUM is required";
 my $all_zeroes  = $ENV{'ALL_ZEROES'} || 0;
 my $file_offset = $page_size * $page_num;
 my $bytes_to_corrupt;
-open(FILE, "+<", $file) or die "Could not open the $file";
+
+# On Windows something prevents opening files for up to several minutes
+# (perhaps an antivirus). At any rate, even the mysqld process might
+# still be going through termination logic while keeping files open.
+my $attempts = 0;
+while (!open(FILE, "+<", $file)) {
+ if($! == 13 && ++$attempts < 600){
+  sleep 1;
+ }else{
+  die "Could not open the $file due to error $!"
+ }
+}
+
 FILE->autoflush(1);
 binmode FILE;
 
