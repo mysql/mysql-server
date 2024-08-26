@@ -1,0 +1,4 @@
+# With disabled log writer threads the testcase fails sporadically on InnoDB
+# recovery actually recovering the XA transaction while it should not.
+--innodb_log_writer_threads=ON
+

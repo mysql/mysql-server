@@ -3,10 +3,6 @@ SET GLOBAL innodb_log_writer_threads = OFF;
 SELECT @@global.innodb_log_writer_threads;
 @@global.innodb_log_writer_threads
 0
-SET GLOBAL innodb_log_writer_threads = default;
-SELECT @@global.innodb_log_writer_threads;
-@@global.innodb_log_writer_threads
-1
 SET GLOBAL innodb_log_writer_threads = ON;
 SELECT @@global.innodb_log_writer_threads;
 @@global.innodb_log_writer_threads

@@ -4,9 +4,6 @@ SET @orig = @@global.innodb_log_writer_threads;
 SET GLOBAL innodb_log_writer_threads = OFF;
 SELECT @@global.innodb_log_writer_threads;
 
-SET GLOBAL innodb_log_writer_threads = default;
-SELECT @@global.innodb_log_writer_threads;
-
 SET GLOBAL innodb_log_writer_threads = ON;
 SELECT @@global.innodb_log_writer_threads;
 

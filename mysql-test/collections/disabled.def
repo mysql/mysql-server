@@ -155,7 +155,6 @@ rpl.rpl_writeset_add_unique_key : Bug#33134835 RPL_WRITESET_ADD_UNIQUE_KEY FAILS
 
 # sys_vars tests
 sys_vars.max_execution_time_basic @freebsd : BUG#31041720
-sys_vars.innodb_log_writer_threads_basic : Bug#32129814 SYS_VARS.INNODB_LOG_WRITER_THREADS_BASIC TIMES OUT SPORADICALLY ON PB2
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.

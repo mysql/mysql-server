@@ -1,0 +1,2 @@
+# Number of resurrected records varies when log writer threads is disabled
+--innodb_log_writer_threads=ON

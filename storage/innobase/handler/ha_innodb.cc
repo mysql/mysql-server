@@ -22888,11 +22888,15 @@ static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
                           INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
                           OS_FILE_LOG_BLOCK_SIZE);
 
+/* The `thd_get_num_vcpus() >= 32` was derived from performance testing results
+  and relate to the `Bug #113485 Let innodb_dedicated_server set
+  innodb_log_writer_threads based on server size` feature request. */
 static MYSQL_SYSVAR_BOOL(
     log_writer_threads, srv_log_writer_threads, PLUGIN_VAR_RQCMDARG,
     "Whether the log writer threads should be activated (ON), or write/flush "
     "of the redo log should be done by each thread individually (OFF).",
-    nullptr, innodb_log_writer_threads_update, true);
+    nullptr, innodb_log_writer_threads_update,
+    std::thread::hardware_concurrency() >= 32);
 
 static MYSQL_SYSVAR_UINT(
     log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
