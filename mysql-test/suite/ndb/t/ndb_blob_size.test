@@ -19,6 +19,22 @@ SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'defs';
 
 DROP TABLE test.defs;
 
+## Create table with inline values of 0
+CREATE TABLE test.zeroinline(
+       a int primary key,
+       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+       bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+       bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+       t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+       tm mediumtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+       tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+       j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=0") engine=ndb;
+
+## Verify inline and partition sizes of test.zeroinline
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 'zeroinline';
+
+DROP TABLE test.zeroinline;
+
 ## Create table with less than default inline values
 CREATE TABLE test.shortinline(
                        a int primary key,
@@ -135,9 +151,6 @@ DROP TABLE test.withmaxparts;
 
 ## Create tables with bad values
 
-CREATE TABLE test.zerolen(
-                      a int primary key,
-                      b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=0") engine=ndb;
 CREATE TABLE test.neglen(
                       a int primary key,
                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=-20") engine=ndb;
@@ -145,12 +158,10 @@ CREATE TABLE test.badchar(
                       a int primary key,
                       b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=ten") engine=ndb;
 
-## Verify inline of test.zerolen and test.neglen
-SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'zerolen';
+## Verify inline_size
 SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'neglen';
 SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'badchar';
 
-DROP TABLE test.zerolen;
 DROP TABLE test.neglen;
 DROP TABLE test.badchar;
 
@@ -236,6 +247,13 @@ ALTER TABLE test.inline ALGORITHM=inplace,
                         change column b b longblob comment "NDB_COLUMNrandom= BLOB_INLINE_SIZE=1000";
 SHOW WARNINGS;
 
+## Insert some data and verify that read data remains the same
+INSERT INTO test.inline (a, b, t, j) VALUES (1,
+                                            repeat(0x424C4F, 512),
+                                            repeat(0x424C4F, 512),
+                                            "{\"a\": \"42\"}");
+SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
+
 ## Copy ALTER TABLE change column BLOB_INLINE_SIZE changes inline_blob_size
 ALTER TABLE test.inline algorithm=copy,
                         change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=1000",
@@ -244,6 +262,8 @@ ALTER TABLE test.inline algorithm=copy,
 
 ## Verify updated test.inline
 SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+## Verify data
+SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 
 ## Copy ALTER TABLE change back BLOB_INLINE_SIZE to less
 ALTER TABLE test.inline algorithm=copy,
@@ -253,6 +273,19 @@ ALTER TABLE test.inline algorithm=copy,
 
 ## Verify updated test.inline with reduced BLOB_INLINE_SIZE
 SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+## Verify data
+SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
+
+## Copy ALTER TABLE change to zero inline size
+ALTER TABLE test.inline algorithm=copy,
+                        change column b b longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+                        change column t t longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=0",
+                        change column j j json comment "NDB_COLUMN=BLOB_INLINE_SIZE=0";
+
+## Verify updated test.inline with zero inline size
+SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'inline';
+## Verify data
+SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 
 ## Copy ALTER TABLE too big BLOB_INLINE_SIZE
 --error ER_CANT_CREATE_TABLE
