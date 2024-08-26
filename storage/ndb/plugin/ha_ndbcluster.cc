@@ -8157,11 +8157,12 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         const NDB_Modifier *mod = column_modifiers.get("BLOB_INLINE_SIZE");
 
         if (mod->m_found) {
-          int mod_size = atoi(mod->m_val_str.str);
+          char *end = nullptr;
+          long mod_size = strtol(mod->m_val_str.str, &end, 10);
 
           if (mod_size > INT_MAX) mod_size = INT_MAX;
 
-          if (mod_size <= 0) {
+          if (*end != 0 || mod_size < 0) {
             if (thd) {
               get_thd_ndb(thd)->push_warning(
                   "Failed to parse BLOB_INLINE_SIZE=%s, "
