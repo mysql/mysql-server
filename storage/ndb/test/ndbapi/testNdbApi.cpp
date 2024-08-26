@@ -8084,6 +8084,89 @@ testSlowConnectEnable(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int testSetVarbinaryWithSetValue(NDBT_Context *ctx, NDBT_Step *step)
+{
+  // Test for bug#36989337 NDB Varbinary like columns fail with OO_SETVALUE
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *pTab = ctx->getTab();
+
+  // Run as a 'WIDE_2COL' testcase - do nothing for other tables
+  if (strcmp(pTab->getName(), "WIDE_2COL") != 0) return NDBT_SKIPPED;
+
+  NdbTransaction *pTrans;
+  NdbOperation *pOp;
+  NdbDictionary::Dictionary *dict = pNdb->getDictionary();
+  char readbuf[NDB_MAX_TUPLE_SIZE_IN_WORDS << 2];
+
+  // Insert the test tuple ['xyz','abc']
+  CHECKE(pTrans = pNdb->startTransaction(), (*pNdb));
+  CHECKE(pOp = pTrans->getNdbOperation(pTab->getName()), (*pTrans));
+  CHECKE(pOp->insertTuple() == 0, (*pOp));
+  CHECKE(pOp->setValue("KEY", "\003\000xyz") == 0, (*pOp));
+  CHECKE(pOp->setValue("ATTR", "\003\000abc") == 0, (*pOp));
+  CHECKE(pTrans->execute(Commit) == 0, (*pTrans));
+  pTrans->close();
+
+  // Read and verify ATTR value
+  CHECKE(pTrans = pNdb->startTransaction(), (*pNdb));
+  CHECKE(pOp = pTrans->getNdbOperation(pTab->getName()), (*pTrans));
+  CHECKE(pOp->readTuple() == 0, (*pOp));
+  CHECKE(pOp->equal("KEY", "\003\000xyz") == 0, (*pOp));
+  CHECKE(pOp->getValue("ATTR", readbuf) != NULL, (*pOp));
+  CHECKE(pTrans->execute(NoCommit) == 0, (*pTrans));
+  CHECK(memcmp(readbuf, "\003\000abc", 5) == 0);
+  CHECKE(pTrans->getNdbError().code == 0, (*pTrans));
+  CHECKE(pTrans->execute(Rollback) == 0, (*pTrans));
+  pTrans->close();
+
+  // Insert the test tuple ['XYZ','ABC'] using NdbRecord and OO_SETVALUE
+  // Whole key must be in record for writeTuple
+  const NdbRecord *tabRec;
+  NdbDictionary::RecordSpecification spec[1];
+  spec->column =
+      pTab->getColumn("KEY");  // Whole key must be in record for writeTuple
+  spec->offset = 0;
+  spec->nullbit_byte_offset = 0;
+  spec->nullbit_bit_in_byte = 0;
+  spec->column_flags = 0;
+  tabRec = dict->createRecord(
+      pTab, spec, 1, sizeof(NdbDictionary::RecordSpecification),
+      NdbDictionary::RecMysqldBitfield | NdbDictionary::RecPerColumnFlags);
+  CHECKE(tabRec != NULL, (*dict));
+
+  const Uint32 rowLen = NDB_MAX_TUPLE_SIZE_IN_WORDS << 2;
+  char rowBuf[rowLen] = "\003\000XYZ";
+  unsigned char mask[1] = {(1 << 0) | (1 << 1)};
+
+  NdbOperation::SetValueSpec setValueSpec[1];
+  setValueSpec[0].column = pTab->getColumn("ATTR");
+  setValueSpec[0].value = "\003\000ABC";
+
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent = NdbOperation::OperationOptions::OO_SETVALUE;
+  opts.extraSetValues = setValueSpec;
+  opts.numExtraSetValues = 1;
+
+  CHECKE(pTrans = pNdb->startTransaction(), (*pNdb));
+  const NdbOperation * writeOp = pTrans->writeTuple(
+      tabRec, rowBuf, tabRec, NULL, mask, &opts, sizeof(opts));
+  CHECKE(writeOp != NULL, (*pTrans));
+  CHECKE(pTrans->execute(Commit) == 0, (*pTrans));  // Failed by bug#xyz
+  pTrans->close();
+
+  // Read and verify ATTR value
+  CHECKE(pTrans = pNdb->startTransaction(), (*pNdb));
+  CHECKE(pOp = pTrans->getNdbOperation(pTab->getName()), (*pTrans));
+  CHECKE(pOp->readTuple() == 0, (*pOp));
+  CHECKE(pOp->equal("KEY", "\003\000XYZ") == 0, (*pOp));
+  CHECKE(pOp->getValue("ATTR", readbuf) != NULL, (*pOp));
+  CHECKE(pTrans->execute(NoCommit) == 0, (*pTrans));
+  CHECK(memcmp(readbuf, "\003\000ABC", 5) == 0);
+  CHECKE(pTrans->execute(Rollback) == 0, (*pTrans));
+  pTrans->close();
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -8507,6 +8590,10 @@ TESTCASE("TestSlowConnectEnable",
          "Test behaviour with slow connection enale")
 {
   STEP(testSlowConnectEnable);
+}
+TESTCASE("SetVarbinaryWithSetValue", "Check OO_SETVALUE works with Varbinary")
+{
+  STEP(testSetVarbinaryWithSetValue);
 }
 
 NDBT_TESTSUITE_END(testNdbApi);
