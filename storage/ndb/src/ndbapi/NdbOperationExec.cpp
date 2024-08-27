@@ -1207,6 +1207,7 @@ int NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
               setErrorCodeAbort(4209);
               return -1;
             }
+            length += lengthInfoBytes;
           }
         }
 
