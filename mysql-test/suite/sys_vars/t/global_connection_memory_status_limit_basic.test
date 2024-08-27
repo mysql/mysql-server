@@ -1,0 +1,29 @@
+--source include/load_sysvars.inc
+--source include/have_nodebug.inc
+
+SELECT @@global.global_connection_memory_status_limit;
+
+-- error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.global_connection_memory_status_limit;
+
+SET @@global.global_connection_memory_status_limit = 16777216;
+SELECT @@global.global_connection_memory_status_limit;
+
+SET @@global.global_connection_memory_status_limit = -5666777;
+SELECT @@global.global_connection_memory_status_limit;
+
+SET @@global.global_connection_memory_status_limit = -1;
+SELECT @@global.global_connection_memory_status_limit;
+
+SET @@global.global_connection_memory_status_limit = 0;
+SELECT @@global.global_connection_memory_status_limit;
+
+SET @@global.global_connection_memory_status_limit = default;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@global.global_connection_memory_status_limit = NULL;
+SELECT @@global.global_connection_memory_status_limit;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@global.global_connection_memory_status_limit = 'foo';
+SELECT @@global.global_connection_memory_status_limit;

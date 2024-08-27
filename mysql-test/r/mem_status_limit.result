@@ -1,0 +1,157 @@
+
+# Check access rights for
+# connection_memory_status_limit, global_connection_memory_status_limit vars
+CREATE USER 'user1'@localhost;
+GRANT USAGE ON *.* TO 'user1'@localhost;
+GRANT RELOAD ON *.* TO 'user1'@localhost;
+GRANT SELECT,DROP ON performance_schema.* TO 'user1'@localhost;
+# Connection con1
+SET GLOBAL connection_memory_status_limit = 1024 * 1024 * 5;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET global global_connection_memory_status_limit = 1024 * 1024 * 1024;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+# Connection default
+CREATE TABLE t1 (f1 LONGTEXT , f2  INTEGER);
+INSERT INTO t1 VALUES
+(REPEAT('a', 1024), 0), (REPEAT('b', 1024), 1),
+(REPEAT('c', 1024), 2), (REPEAT('d', 1024), 3),
+(REPEAT('e', 1024), 4), (REPEAT('f', 1024), 5);
+INSERT INTO t1 SELECT f1, f2 + 6 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 12 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 24 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 48 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 96 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 192 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 384 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 768 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 1536 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 3072 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 6144 FROM t1;
+INSERT INTO t1 SELECT f1, f2 + 12288 FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT SUM(LENGTH(f1)) FROM t1;
+SUM(LENGTH(f1))
+25165824
+SET GLOBAL global_connection_memory_tracking = ON;
+SET GLOBAL group_concat_max_len= 167108864;
+SET GLOBAL connection_memory_chunk_size = 1024;
+SET GLOBAL connection_memory_status_limit = 1024 * 1024 * 5;
+#
+# Test connection_memory_status_limit variable is crossed.
+#
+
+# Testing sql memory key allocation
+SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
+LENGTH(GROUP_CONCAT(f1 ORDER BY f2))
+25190399
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	1
+Count_hit_query_past_global_connection_memory_status_limit	0
+include/assert.inc ['expected connection_memory_status_limit is crossed only once']
+
+# Testing temptable memory key allocation
+SET @@tmp_table_size = 64 * 1024 * 1024;
+EXPLAIN ANALYZE SELECT COUNT(*)
+FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+EXPLAIN
+-> Aggregate: count(0)  (...) (actual rows=1 loops=1)
+    -> Table scan on subquery  (...) (actual rows=24576 loops=1)
+        -> Materialize  (...) (actual rows=24576 loops=1)
+            -> Table scan on <temporary>  (actual rows=24576 loops=1)
+                -> Aggregate using temporary table  (actual rows=24576 loops=1)
+                    -> Table scan on t1  (...) (actual rows=24576 loops=1)
+
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	2
+Count_hit_query_past_global_connection_memory_status_limit	0
+include/assert.inc ['expected connection_memory_status_limit is crossed 2 times now']
+SET GLOBAL connection_memory_limit = 1024 * 1024 * 5;
+
+# Testing sql memory key allocation
+SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
+ERROR HY000: Connection closed. Connection memory limit 5242880 bytes exceeded. Consumed SOME bytes.
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	3
+Count_hit_query_past_global_connection_memory_status_limit	0
+include/assert.inc ['expected connection_memory_status_limit is crossed 3 times now']
+
+# Testing temptable memory key allocation
+SET @@tmp_table_size = 64 * 1024 * 1024;
+EXPLAIN ANALYZE SELECT COUNT(*)
+FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+ERROR HY000: Connection closed. Connection memory limit 5242880 bytes exceeded. Consumed SOME bytes.
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	4
+Count_hit_query_past_global_connection_memory_status_limit	0
+include/assert.inc ['expected connection_memory_status_limit is crossed 4 times now']
+#
+# Testing global_connection_memory_status_limit variable is crossed.
+#
+SET GLOBAL global_connection_memory_status_limit = 1024 * 1024 * 24;
+SET GLOBAL connection_memory_status_limit = default;
+SET GLOBAL connection_memory_limit = default;
+SET GLOBAL global_connection_memory_limit = default;
+
+# Testing sql memory key allocation
+SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
+LENGTH(GROUP_CONCAT(f1 ORDER BY f2))
+25190399
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	4
+Count_hit_query_past_global_connection_memory_status_limit	1
+include/assert.inc ['expected global_connection_memory_status_limit is crossed 1 times now']
+
+# Testing temptable memory key allocation
+SET @@tmp_table_size = 64 * 1024 * 1024;
+EXPLAIN ANALYZE SELECT COUNT(*)
+FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+EXPLAIN
+-> Aggregate: count(0)  (...) (actual rows=1 loops=1)
+    -> Table scan on subquery  (...) (actual rows=24576 loops=1)
+        -> Materialize  (...) (actual rows=24576 loops=1)
+            -> Table scan on <temporary>  (actual rows=24576 loops=1)
+                -> Aggregate using temporary table  (actual rows=24576 loops=1)
+                    -> Table scan on t1  (...) (actual rows=24576 loops=1)
+
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	4
+Count_hit_query_past_global_connection_memory_status_limit	2
+include/assert.inc ['expected global_connection_memory_status_limit is crossed 2 times now']
+SET GLOBAL global_connection_memory_limit = 1024 * 1024 * 24;
+
+# Testing sql memory key allocation
+SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
+ERROR HY000: Connection closed. Global connection memory limit 25165824 bytes exceeded. Consumed SOME bytes.
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	4
+Count_hit_query_past_global_connection_memory_status_limit	3
+include/assert.inc ['expected global_connection_memory_status_limit is crossed 3 times now']
+
+# Testing temptable memory key allocation
+SET @@tmp_table_size = 64 * 1024 * 1024;
+EXPLAIN ANALYZE SELECT COUNT(*)
+FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+ERROR HY000: Connection closed. Global connection memory limit 25165824 bytes exceeded. Consumed SOME bytes.
+SHOW STATUS LIKE 'count_hit_query_past%';
+Variable_name	Value
+Count_hit_query_past_connection_memory_status_limit	4
+Count_hit_query_past_global_connection_memory_status_limit	4
+include/assert.inc ['expected global_connection_memory_status_limit is crossed 4 times now']
+SET @@tmp_table_size = default;
+SET GLOBAL connection_memory_chunk_size = default;
+SET GLOBAL global_connection_memory_status_limit = default;
+SET GLOBAL connection_memory_status_limit = default;
+SET GLOBAL group_concat_max_len = default;
+SET GLOBAL global_connection_memory_tracking = default;
+SET GLOBAL global_connection_memory_limit = default;
+DROP USER 'user1'@localhost;
+DROP TABLE t1;

@@ -4277,6 +4277,14 @@ struct LEX : public Query_tables_list {
   */
   bool m_exec_completed;
   /**
+    Set to true when execution crosses global_connection_memory_status_limit.
+  */
+  bool m_crossed_global_connection_memory_status_limit{false};
+  /**
+    Set to true when execution crosses connection_memory_status_limit.
+  */
+  bool m_crossed_connection_memory_status_limit{false};
+  /**
     Current SP parsing context.
     @see also sp_head::m_root_parsing_ctx.
   */
@@ -4353,6 +4361,23 @@ struct LEX : public Query_tables_list {
   */
   bool is_exec_completed() const { return m_exec_completed; }
   void set_exec_completed() { m_exec_completed = true; }
+
+  bool is_crossed_global_connection_memory_status_limit() const {
+    return m_crossed_global_connection_memory_status_limit;
+  }
+  bool is_crossed_connection_memory_status_limit() const {
+    return m_crossed_connection_memory_status_limit;
+  }
+  void set_crossed_global_connection_memory_status_limit() {
+    m_crossed_global_connection_memory_status_limit = true;
+  }
+  void set_crossed_connection_memory_status_limit() {
+    m_crossed_connection_memory_status_limit = true;
+  }
+  void reset_crossed_memory_status_limit() {
+    m_crossed_global_connection_memory_status_limit = false;
+    m_crossed_connection_memory_status_limit = false;
+  }
   sp_pcontext *get_sp_current_parsing_ctx() { return sp_current_parsing_ctx; }
 
   void set_sp_current_parsing_ctx(sp_pcontext *ctx) {

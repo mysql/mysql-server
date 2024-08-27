@@ -1394,7 +1394,11 @@ bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
 
 ulonglong global_conn_mem_limit = 0;
+ulonglong global_conn_memory_status_limit = 0;
 ulonglong global_conn_mem_counter = 0;
+std::atomic<long> atomic_count_hit_query_past_global_conn_mem_status_limit{0};
+ulonglong conn_memory_status_limit = 0;
+std::atomic<long> atomic_count_hit_query_past_conn_mem_status_limit{0};
 
 /**
   This variable holds handle to the object that's responsible
@@ -4931,6 +4935,28 @@ static void get_metric_global_mem_counter(
   delivery->value_int64(delivery_context, value);
 }
 
+static void get_count_hit_query_past_global_conn_mem_status_limit(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_count_hit_query_past_global_conn_mem_status_limit()
+  assert(delivery != nullptr);
+  const auto measurement =
+      atomic_count_hit_query_past_global_conn_mem_status_limit.load();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_count_hit_query_past_conn_mem_status_limit(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_count_hit_query_past_conn_mem_status_limit()
+  assert(delivery != nullptr);
+  const auto measurement =
+      atomic_count_hit_query_past_conn_mem_status_limit.load();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
 static void get_metric_open_table_definitions(
     void * /* measurement_context */, measurement_delivery_callback_t delivery,
     void *delivery_context) {
@@ -5963,6 +5989,16 @@ static PSI_metric_info_v1 core_metrics[] = {
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
      get_metric_aggregated_integer,
      (void *)offsetof(aggregated_stats_buffer, count_hit_tmp_table_size)},
+    {"count_hit_query_past_connection_memory_status_limit", "",
+     "The number of time connection memory usage crossed the threshold limit"
+     "(Count_hit_query_past_connection_memory_status_limit)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_count_hit_query_past_conn_mem_status_limit, nullptr},
+    {"count_hit_query_past_global_connection_memory_status_limit", "",
+     "The number of time global memory usage crossed the threshold limit"
+     "(Count_hit_query_past_global_connection_memory_status_limit)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_count_hit_query_past_global_conn_mem_status_limit, nullptr},
     {"error_log.buffered_bytes", "",
      "The number of bytes currently used in the Performance Schema error_log "
      "table (Error_log_buffered_bytes)",
@@ -11179,6 +11215,25 @@ static int show_global_mem_counter(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static int show_count_hit_query_past_global_conn_mem_status_limit(THD *,
+                                                                  SHOW_VAR *var,
+                                                                  char *buf) {
+  var->type = SHOW_LONG;
+  var->value = buf;
+  *((long *)buf) =
+      (long)(atomic_count_hit_query_past_global_conn_mem_status_limit.load());
+  return 0;
+}
+
+static int show_count_hit_query_past_conn_mem_status_limit(THD *, SHOW_VAR *var,
+                                                           char *buf) {
+  var->type = SHOW_LONG;
+  var->value = buf;
+  *((long *)buf) =
+      (long)(atomic_count_hit_query_past_conn_mem_status_limit.load());
+  return 0;
+}
+
 static int show_table_definitions(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
@@ -11443,6 +11498,12 @@ SHOW_VAR status_vars[] = {
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Connection_errors_tcpwrap", (char *)&show_connection_errors_tcpwrap,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Count_hit_query_past_connection_memory_status_limit",
+     (char *)&show_count_hit_query_past_conn_mem_status_limit, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Count_hit_query_past_global_connection_memory_status_limit",
+     (char *)&show_count_hit_query_past_global_conn_mem_status_limit, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Created_tmp_disk_tables",
      (char *)offsetof(System_status_var, created_tmp_disk_tables),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},

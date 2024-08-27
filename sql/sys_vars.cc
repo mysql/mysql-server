@@ -3301,6 +3301,30 @@ static Sys_var_ulonglong Sys_global_connection_memory_limit(
     BLOCK_SIZE(1), &PLock_global_conn_mem_limit, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
+static Sys_var_ulonglong Sys_global_connection_memory_status_limit(
+    "global_connection_memory_status_limit",
+    "Global connection memory usage threshold for triggering status update",
+    GLOBAL_VAR(global_conn_memory_status_limit), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
+#else
+    VALID_RANGE(1024 * 1024 * 16, max_mem_sz), DEFAULT(max_mem_sz),
+#endif
+    BLOCK_SIZE(1), &PLock_global_conn_mem_limit, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_ulonglong Sys_connection_memory_status_limit(
+    "connection_memory_status_limit",
+    "Maximum amount of memory connection can consume before status update",
+    GLOBAL_VAR(conn_memory_status_limit), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
+#else
+    VALID_RANGE(1024 * 1024 * 2, max_mem_sz), DEFAULT(max_mem_sz),
+#endif
+    BLOCK_SIZE(1), &PLock_global_conn_mem_limit, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
 static Sys_var_ulonglong Sys_connection_memory_limit(
     "connection_memory_limit",
     "Maximum amount of memory connection can consume",

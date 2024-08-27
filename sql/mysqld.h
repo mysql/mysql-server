@@ -395,6 +395,13 @@ extern ulong opt_keyring_migration_port;
 
 extern ulonglong global_conn_mem_limit;
 extern ulonglong global_conn_mem_counter;
+
+extern ulonglong global_conn_memory_status_limit;
+extern ulonglong conn_memory_status_limit;
+extern std::atomic<long>
+    atomic_count_hit_query_past_global_conn_mem_status_limit;
+extern std::atomic<long> atomic_count_hit_query_past_conn_mem_status_limit;
+
 /**
   Variable to check if connection related options are set
   as part of keyring migration.

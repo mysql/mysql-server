@@ -1,0 +1,18 @@
+CREATE USER 'user1'@localhost;
+GRANT USAGE ON *.* TO 'user1'@localhost;
+SET GLOBAL global_connection_memory_tracking = ON;
+# Check memory status limit cross for init_connect.
+SET GLOBAL init_connect = 'show variables';
+# Global limit.
+SET GLOBAL global_connection_memory_status_limit = 1;
+# Connection con1
+include/assert.inc ['expected global_connection_memory_status_limit is crossed atleast 1  times now']
+SET GLOBAL global_connection_memory_status_limit = default;
+# Connection limit.
+SET GLOBAL connection_memory_status_limit = 1;
+# Connection con1
+include/assert.inc ['expected connection_memory_status_limit is crossed atleast 1  times now']
+SET GLOBAL connection_memory_status_limit = default;
+SET GLOBAL init_connect = default;
+SET GLOBAL global_connection_memory_tracking = default;
+DROP USER 'user1'@localhost;

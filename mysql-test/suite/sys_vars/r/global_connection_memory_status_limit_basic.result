@@ -1,0 +1,38 @@
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+18446744073709551615
+SELECT @@session.global_connection_memory_status_limit;
+ERROR HY000: Variable 'global_connection_memory_status_limit' is a GLOBAL variable
+SET @@global.global_connection_memory_status_limit = 16777216;
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+16777216
+SET @@global.global_connection_memory_status_limit = -5666777;
+Warnings:
+Warning	1292	Truncated incorrect global_connection_memory_status_limit value: '-5666777'
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+16777216
+SET @@global.global_connection_memory_status_limit = -1;
+Warnings:
+Warning	1292	Truncated incorrect global_connection_memory_status_limit value: '-1'
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+16777216
+SET @@global.global_connection_memory_status_limit = 0;
+Warnings:
+Warning	1292	Truncated incorrect global_connection_memory_status_limit value: '0'
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+16777216
+SET @@global.global_connection_memory_status_limit = default;
+SET @@global.global_connection_memory_status_limit = NULL;
+ERROR 42000: Incorrect argument type to variable 'global_connection_memory_status_limit'
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+18446744073709551615
+SET @@global.global_connection_memory_status_limit = 'foo';
+ERROR 42000: Incorrect argument type to variable 'global_connection_memory_status_limit'
+SELECT @@global.global_connection_memory_status_limit;
+@@global.global_connection_memory_status_limit
+18446744073709551615

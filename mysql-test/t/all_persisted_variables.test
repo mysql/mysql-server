@@ -56,7 +56,7 @@ let $total_global_vars=`SELECT COUNT(*)
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
 
-let $total_persistent_vars=441;
+let $total_persistent_vars=443;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

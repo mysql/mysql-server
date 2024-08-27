@@ -273,6 +273,9 @@ The following options may be given as the first argument:
  memory counter
  --connection-memory-limit=# 
  Maximum amount of memory connection can consume
+ --connection-memory-status-limit=# 
+ Maximum amount of memory connection can consume before
+ status update
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
@@ -400,6 +403,9 @@ The following options may be given as the first argument:
  CREATE USER-,SET PASSWORD- or ALTER USER statements
  --global-connection-memory-limit=# 
  Maximum amount of memory all connections can consume
+ --global-connection-memory-status-limit=# 
+ Global connection memory usage threshold for triggering
+ status update
  --global-connection-memory-tracking 
  Enable updating the global memory counter and checking
  the global connection memory limit exceeding
@@ -1670,6 +1676,7 @@ concurrent-insert AUTO
 connect-timeout 10
 connection-memory-chunk-size 8192
 connection-memory-limit 18446744073709551615
+connection-memory-status-limit 18446744073709551615
 console FALSE
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
@@ -1705,6 +1712,7 @@ gdb FALSE
 general-log FALSE
 generated-random-password-length 20
 global-connection-memory-limit 18446744073709551615
+global-connection-memory-status-limit 18446744073709551615
 global-connection-memory-tracking FALSE
 group-concat-max-len 1024
 group-replication-consistency BEFORE_ON_PRIMARY_FAILOVER

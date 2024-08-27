@@ -14,7 +14,9 @@ SHOW VARIABLES like '%connection_memory%';
 Variable_name	Value
 connection_memory_chunk_size	16777216
 connection_memory_limit	2097152
+connection_memory_status_limit	18446744073709551615
 global_connection_memory_limit	16777216
+global_connection_memory_status_limit	18446744073709551615
 global_connection_memory_tracking	ON
 SET SESSION connection_memory_limit = default;
 SET SESSION connection_memory_chunk_size = default;

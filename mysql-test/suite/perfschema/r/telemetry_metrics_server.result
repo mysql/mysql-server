@@ -10,31 +10,31 @@ INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
 SELECT test_component_metric_log('TEST - Check registration with slot holes:');
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-424
+426
 SELECT test_register_metric_a();
 test_register_metric_a()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-425
+427
 SELECT test_register_metric_b();
 test_register_metric_b()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-426
+428
 SELECT test_unregister_metric_a();
 test_unregister_metric_a()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-425
+427
 SELECT test_unregister_metric_b();
 test_unregister_metric_b()
 0
 SELECT count(*) FROM performance_schema.setup_metrics;
 count(*)
-424
+426
 SELECT test_component_metric_log('TEST - All metrics exported except ones in mysql.x group:');
 UPDATE performance_schema.setup_meters SET enabled = 'YES';
 UPDATE performance_schema.setup_meters SET enabled = 'NO' WHERE NAME='mysql.x';
@@ -346,6 +346,8 @@ test_report_metrics > report start:
  > metric 'bytes_received': unit='', desc='The number of bytes received from all clients (Bytes_received)'
  > metric 'bytes_sent': unit='', desc='The number of bytes sent to all clients (Bytes_sent)'
  > metric 'count.hit_tmp_table_size': unit='', desc='The number of times temp table size exceeded the tmp table size limitwhile executing statements (Count_hit_tmp_table_size)'
+ > metric 'count_hit_query_past_connection_memory_status_limit': unit='', desc='The number of time connection memory usage crossed the threshold limit(Count_hit_query_past_connection_memory_status_limit)'
+ > metric 'count_hit_query_past_global_connection_memory_status_limit': unit='', desc='The number of time global memory usage crossed the threshold limit(Count_hit_query_past_global_connection_memory_status_limit)'
  > metric 'created.tmp_disk_tables': unit='', desc='The number of internal on-disk temporary tables created by the server while executing statements (Created_tmp_disk_tables)'
  > metric 'created.tmp_files': unit='', desc='How many temporary files mysqld has created (Created_tmp_files)'
  > metric 'created.tmp_tables': unit='', desc='The number of internal temporary tables created by the server while executing statements (Created_tmp_tables)'
@@ -394,7 +396,7 @@ test_report_metrics > report start:
  > metric 'threads_created': unit='', desc='The number of threads created to handle connections (Threads_created)'
  > metric 'threads_running': unit='', desc='The number of threads that are not sleeping (Threads_running)'
  > metric 'uptime': unit='', desc='The number of seconds that the server has been up (Uptime)'
-< meter 'mysql.stats' end (58 metrics)
+< meter 'mysql.stats' end (60 metrics)
 > meter 'mysql.stats.com' (desc='MySql command stats', frequency=10) start:
  > metric 'admin_commands': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'alter_db': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -627,7 +629,7 @@ test_report_metrics > report start:
  > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
  > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
 < meter 'mysql.x.stmt' end (16 metrics)
-test_report_metrics < done reporting (total meters=13, metrics=378)
+test_report_metrics < done reporting (total meters=13, metrics=380)
 TEST - All metrics exported:
 *** Meter change notification: mysql.x updated
 *** Meter change - silently enumerate metrics for mysql.x
@@ -754,6 +756,8 @@ test_report_metrics > report start:
  > metric 'bytes_received': unit='', desc='The number of bytes received from all clients (Bytes_received)'
  > metric 'bytes_sent': unit='', desc='The number of bytes sent to all clients (Bytes_sent)'
  > metric 'count.hit_tmp_table_size': unit='', desc='The number of times temp table size exceeded the tmp table size limitwhile executing statements (Count_hit_tmp_table_size)'
+ > metric 'count_hit_query_past_connection_memory_status_limit': unit='', desc='The number of time connection memory usage crossed the threshold limit(Count_hit_query_past_connection_memory_status_limit)'
+ > metric 'count_hit_query_past_global_connection_memory_status_limit': unit='', desc='The number of time global memory usage crossed the threshold limit(Count_hit_query_past_global_connection_memory_status_limit)'
  > metric 'created.tmp_disk_tables': unit='', desc='The number of internal on-disk temporary tables created by the server while executing statements (Created_tmp_disk_tables)'
  > metric 'created.tmp_files': unit='', desc='How many temporary files mysqld has created (Created_tmp_files)'
  > metric 'created.tmp_tables': unit='', desc='The number of internal temporary tables created by the server while executing statements (Created_tmp_tables)'
@@ -802,7 +806,7 @@ test_report_metrics > report start:
  > metric 'threads_created': unit='', desc='The number of threads created to handle connections (Threads_created)'
  > metric 'threads_running': unit='', desc='The number of threads that are not sleeping (Threads_running)'
  > metric 'uptime': unit='', desc='The number of seconds that the server has been up (Uptime)'
-< meter 'mysql.stats' end (58 metrics)
+< meter 'mysql.stats' end (60 metrics)
 > meter 'mysql.stats.com' (desc='MySql command stats', frequency=10) start:
  > metric 'admin_commands': unit='', desc='Number of times corresponding command statement has been executed.'
  > metric 'alter_db': unit='', desc='Number of times corresponding command statement has been executed.'
@@ -1082,7 +1086,7 @@ test_report_metrics > report start:
  > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
  > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
 < meter 'mysql.x.stmt' end (16 metrics)
-test_report_metrics < done reporting (total meters=13, metrics=424)
+test_report_metrics < done reporting (total meters=13, metrics=426)
 TEST - Register duplicate meters/metrics:
 test_duplicate_metrics > called
 *** Meter change notification: mysql.test4 added

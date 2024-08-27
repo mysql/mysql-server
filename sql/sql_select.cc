@@ -762,6 +762,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
   if (validate_use_secondary_engine(lex)) goto err;
 
   lex->set_exec_started();
+  lex->reset_crossed_memory_status_limit();
 
   DBUG_EXECUTE_IF("use_attachable_trx",
                   thd->begin_attachable_ro_transaction(););
