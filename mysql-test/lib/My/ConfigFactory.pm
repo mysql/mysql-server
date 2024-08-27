@@ -485,7 +485,7 @@ sub post_check_client_group {
 sub post_check_client_groups {
   my ($self, $config) = @_;
 
-  my $first_mysqld = $config->first_like('mysqld.');
+  my $first_mysqld = $config->first_like('mysqld\.');
 
   return unless $first_mysqld;
 
@@ -494,7 +494,7 @@ sub post_check_client_groups {
   $self->post_check_client_group($config, 'client', $first_mysqld->name());
 
   # Then generate [client.<suffix>] for each [mysqld.<suffix>].
-  foreach my $mysqld ($config->like('mysqld.')) {
+  foreach my $mysqld ($config->like('mysqld\.')) {
     $self->post_check_client_group($config, 'client' . $mysqld->after('mysqld'),
                                    $mysqld->name());
   }
@@ -545,7 +545,7 @@ sub post_fix_mysql_cluster_section {
   foreach my $group ($config->like('cluster_config\.\w*$')) {
     my @urls;
     # Generate ndb_connectstring for this cluster
-    foreach my $ndb_mgmd ($config->like('cluster_config.ndb_mgmd.')) {
+    foreach my $ndb_mgmd ($config->like('cluster_config\.ndb_mgmd\.')) {
       if ($ndb_mgmd->suffix() eq $group->suffix()) {
         my $host = $ndb_mgmd->value('HostName');
         my $port = $ndb_mgmd->value('PortNumber');
@@ -562,7 +562,7 @@ sub post_fix_mysql_cluster_section {
 
     # Add ndb_connectstring to each ndbd connected to this
     # cluster.
-    foreach my $ndbd ($config->like('cluster_config.ndbd.')) {
+    foreach my $ndbd ($config->like('cluster_config\.ndbd\.')) {
       if ($ndbd->suffix() eq $group->suffix()) {
         my $after = $ndbd->after('cluster_config.ndbd');
         $config->insert("ndbd$after",
@@ -572,7 +572,7 @@ sub post_fix_mysql_cluster_section {
 
     # Add ndb_connectstring to each ndb_mgmd connected to this
     # cluster.
-    foreach my $ndb_mgmd ($config->like('cluster_config.ndb_mgmd.')) {
+    foreach my $ndb_mgmd ($config->like('cluster_config\.ndb_mgmd\.')) {
       if ($ndb_mgmd->suffix() eq $group->suffix()) {
         my $after = $ndb_mgmd->after('cluster_config.ndb_mgmd');
         $config->insert("ndb_mgmd$after",
@@ -582,7 +582,7 @@ sub post_fix_mysql_cluster_section {
 
     # Add ndb_connectstring to each mysqld connected to this
     # cluster.
-    foreach my $mysqld ($config->like('cluster_config.mysqld.')) {
+    foreach my $mysqld ($config->like('cluster_config\.mysqld\.')) {
       if ($mysqld->suffix() eq $group->suffix()) {
         my $after = $mysqld->after('cluster_config.mysqld');
         $config->insert("mysqld$after",
@@ -762,17 +762,17 @@ sub new_config {
   $self->run_section_rules($config, 'cluster_config\.\w',
                            ({ 'CODE' => \&track_allocated_nodeid }));
 
-  $self->run_section_rules($config, 'cluster_config.ndb_mgmd.',
+  $self->run_section_rules($config, 'cluster_config\.ndb_mgmd\.',
                            @ndb_mgmd_rules);
 
-  $self->run_section_rules($config, 'ndb_mgmd.',
+  $self->run_section_rules($config, 'ndb_mgmd\.',
     ({ 'cluster-config-suffix' => \&fix_cluster_config_suffix },
      { 'bind-address' => \&fix_bind_address },
     ));
 
-  $self->run_section_rules($config, 'cluster_config.ndbd', @ndbd_rules);
+  $self->run_section_rules($config, 'cluster_config\.ndbd', @ndbd_rules);
 
-  $self->run_section_rules($config, 'mysqld.', @mysqld_rules);
+  $self->run_section_rules($config, 'mysqld\.', @mysqld_rules);
 
   # [mysqlbinlog] need additional settings
   $self->run_rules_for_group($config, $config->insert('mysqlbinlog'),
