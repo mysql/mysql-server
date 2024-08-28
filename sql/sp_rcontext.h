@@ -169,8 +169,8 @@ class sp_rcontext {
   // SP-variables.
   /////////////////////////////////////////////////////////////////////////
 
-  bool set_variable(THD *thd, uint var_idx, Item **value) {
-    return set_variable(thd, m_var_table->field[var_idx], value);
+  bool set_variable(THD *thd, bool standalone, uint var_idx, Item **value) {
+    return set_variable(thd, standalone, m_var_table->field[var_idx], value);
   }
 
   Item *get_item(uint var_idx) const { return m_var_items[var_idx]; }
@@ -181,7 +181,7 @@ class sp_rcontext {
 
   Field *get_return_field() const { return m_return_value_fld; }
 
-  bool set_return_value(THD *thd, Item **return_value_item);
+  bool set_return_value(THD *thd, bool standalone, Item **return_value_item);
 
   bool is_return_value_set() const { return m_return_value_set; }
 
@@ -278,12 +278,11 @@ class sp_rcontext {
   /// Set CASE expression to the specified value.
   ///
   /// @param thd             Thread handler.
+  /// @param standalone      Whether instruction is a standalone query expr.
   /// @param case_expr_id    The CASE expression identifier.
   /// @param case_expr_item_ptr  The CASE expression value
   ///
-  /// @return error flag.
-  /// @retval false on success.
-  /// @retval true on error.
+  /// @returns false on success, true on error
   ///
   /// @note The idea is to reuse Item_cache for the expression of the one
   /// CASE statement. This optimization takes place when there is CASE
@@ -300,7 +299,8 @@ class sp_rcontext {
   ///   In order to cope with this problem, we check type each time, when we
   ///   use already created object. If the type does not match, we re-create
   ///   Item.  This also can (should?) be optimized.
-  bool set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
+  bool set_case_expr(THD *thd, bool standalone, int case_expr_id,
+                     Item **case_expr_item_ptr);
 
   Item *get_case_expr(int case_expr_id) const {
     return m_case_expr_holders[case_expr_id];
@@ -348,7 +348,7 @@ class sp_rcontext {
   /// @return Pointer to valid object on success, or NULL in case of error.
   Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
 
-  bool set_variable(THD *thd, Field *field, Item **value);
+  bool set_variable(THD *thd, bool standalone, Field *field, Item **value);
 
   /// Pop the Handler_call_frame on top of the stack of active handlers.
   /// Also pop the matching Diagnostics Area and transfer conditions.

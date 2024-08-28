@@ -2470,19 +2470,28 @@ bool sp_check_name(LEX_STRING *ident) {
 /**
   Prepare an Item for evaluation (call of fix_fields).
 
-  @param thd       thread handler
-  @param it_addr   pointer on item reference
+  @param thd        thread handler
+  @param standalone if true, thd->lex is directly associated with item.
+                    Preparation and execution state will be changed and
+                    preparation data will be saved for later executions.
+                    If false, item is part of a larger query expression and
+                    no such state transitions should take place.
+                    It also means that such items cannot save preparation data.
+  @param it_addr    pointer to item reference
 
-  @retval
-    NULL      error
-  @retval
-    non-NULL  prepared item
+  @returns pointer to prepared Item on success, NULL on error.
 */
-Item *sp_prepare_func_item(THD *thd, Item **it_addr) {
+Item *sp_prepare_func_item(THD *thd, bool standalone, Item **it_addr) {
+  LEX *const lex = standalone ? thd->lex : nullptr;
+
+  // If item is part of larger query expression, it must be in executing state:
+  assert(lex != nullptr ||
+         (thd->lex->unit->is_prepared() && thd->lex->is_exec_started()));
+
   it_addr = (*it_addr)->this_item_addr(thd, it_addr);
 
   if ((*it_addr)->fixed) {
-    thd->lex->set_exec_started();
+    if (lex != nullptr) lex->set_exec_started();
     return *it_addr;
   }
 
@@ -2493,27 +2502,29 @@ Item *sp_prepare_func_item(THD *thd, Item **it_addr) {
     DBUG_PRINT("info", ("fix_fields() failed"));
     return nullptr;
   }
-  thd->lex->unit->set_prepared();
-  thd->lex->save_cmd_properties(thd);
-  thd->lex->set_exec_started();
-
+  // If item is a separate query expression, set it's state to executing
+  if (lex != nullptr) {
+    lex->unit->set_prepared();
+    lex->save_cmd_properties(thd);
+    lex->set_exec_started();
+  }
   return *it_addr;
 }
 
 /**
   Evaluate an expression and store the result in the field.
 
-  @param thd                    current thread object
-  @param result_field           the field to store the result
-  @param expr_item_ptr          the root item of the expression
+  @param thd            current thread object
+  @param standalone     if true, thd->lex contains preparation and execution
+                        state of item, otherwise item is part of
+                        a query expression that is already in executing state.
+  @param result_field   the field to store the result
+  @param expr_item_ptr  the root item of the expression
 
-  @retval
-    false  on success
-  @retval
-    true   on error
+  @returns false on success, true on error
 */
-bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr) {
-  Item *expr_item;
+bool sp_eval_expr(THD *thd, bool standalone, Field *result_field,
+                  Item **expr_item_ptr) {
   Strict_error_handler strict_handler(
       Strict_error_handler::ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
   const enum_check_fields save_check_for_truncated_fields =
@@ -2521,9 +2532,10 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr) {
   const unsigned int stmt_unsafe_rollback_flags =
       thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
 
-  if (!*expr_item_ptr) goto error;
+  assert(*expr_item_ptr != nullptr);
 
-  if (!(expr_item = sp_prepare_func_item(thd, expr_item_ptr))) goto error;
+  Item *expr_item = sp_prepare_func_item(thd, standalone, expr_item_ptr);
+  if (expr_item == nullptr) goto error;
 
   /*
     Set THD flags to emit warnings/errors in case of overflow/type errors
