@@ -81,7 +81,7 @@ public:
     // Not implemented
     void Put(Ch) {}
     void Flush() {} 
-    Ch* PutBegin() { return 0; }
+    Ch* PutBegin() { return nullptr; }
     size_t PutEnd(Ch*) { return 0; }
 
     MemoryStream& is_;

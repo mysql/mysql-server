@@ -160,7 +160,7 @@ struct GenericStringStream {
     Ch Take() { return *src_++; }
     size_t Tell() const { return static_cast<size_t>(src_ - head_); }
 
-    Ch* PutBegin() { RAPIDJSON_ASSERT(false); return 0; }
+    Ch* PutBegin() { RAPIDJSON_ASSERT(false); return nullptr; }
     void Put(Ch) { RAPIDJSON_ASSERT(false); }
     void Flush() { RAPIDJSON_ASSERT(false); }
     size_t PutEnd(Ch*) { RAPIDJSON_ASSERT(false); return 0; }
