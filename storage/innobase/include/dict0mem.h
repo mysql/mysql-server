@@ -317,11 +317,6 @@ parent table will fail, and user has to drop excessive foreign constraint
 before proceeds. */
 constexpr uint32_t FK_MAX_CASCADE_DEL = 15;
 
-/** Maximum number of rows version allowed when columns are added/dropped
-INSTANTly. After this limit is reached, any attempt to do ADD/DROP INSTANT
-column will result in error. */
-const uint8_t MAX_ROW_VERSION = 64;
-
 /** Adds a virtual column definition to a table.
 @param[in,out]  table           table
 @param[in]      heap            temporary memory heap, or NULL. It is
@@ -424,10 +419,10 @@ reasonably unique temporary file name.
 char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
                                           table_id_t id);
 
-static inline bool is_valid_row_version(const uint8_t version) {
+static inline bool is_valid_row_version(const row_version_t version) {
   /* NOTE : 0 is also a valid row versions for rows which are inserted after
   upgrading from earlier INSTANT implemenation */
-  if (version <= MAX_ROW_VERSION) {
+  if (std::cmp_less_equal(version, MAX_ROW_VERSION)) {
     return true;
   }
 
@@ -545,10 +540,10 @@ struct dict_col_t {
   uint32_t phy_pos{UINT32_UNDEFINED};
 
   /* Row version in which this column was added INSTANTly to the table */
-  uint8_t version_added{UINT8_UNDEFINED};
+  row_version_t version_added{INVALID_ROW_VERSION};
 
   /* Row version in which this column was dropped INSTANTly from the table */
-  uint8_t version_dropped{UINT8_UNDEFINED};
+  row_version_t version_dropped{INVALID_ROW_VERSION};
 
  public:
   /* If column prefix is there on row. */
@@ -583,19 +578,19 @@ struct dict_col_t {
   void set_phy_pos(uint32_t pos) { phy_pos = pos; }
 
   bool is_instant_added() const {
-    if (version_added != UINT8_UNDEFINED && version_added > 0) {
+    if (version_added != INVALID_ROW_VERSION && version_added > 0) {
       return true;
     }
     return false;
   }
 
-  uint8_t get_version_added() const {
+  row_version_t get_version_added() const {
     ut_ad(is_instant_added());
     return version_added;
   }
 
-  void set_version_added(uint8_t version) {
-    ut_ad(version == UINT8_UNDEFINED || is_valid_row_version(version));
+  void set_version_added(row_version_t version) {
+    ut_ad(version == INVALID_ROW_VERSION || is_valid_row_version(version));
     version_added = version;
   }
 
@@ -612,19 +607,19 @@ struct dict_col_t {
   }
 
   bool is_instant_dropped() const {
-    if (version_dropped != UINT8_UNDEFINED && version_dropped > 0) {
+    if (version_dropped != INVALID_ROW_VERSION && version_dropped > 0) {
       return true;
     }
     return false;
   }
 
-  uint8_t get_version_dropped() const {
+  row_version_t get_version_dropped() const {
     ut_ad(is_instant_dropped());
     return version_dropped;
   }
 
-  void set_version_dropped(uint8_t version) {
-    ut_ad(version == UINT8_UNDEFINED || is_valid_row_version(version));
+  void set_version_dropped(row_version_t version) {
+    ut_ad(version == INVALID_ROW_VERSION || is_valid_row_version(version));
     version_dropped = version;
   }
 
@@ -737,7 +732,7 @@ struct dict_col_t {
   /** Check if column is dropped before the given version.
   @param[in]    version row version
   @return true if the column is dropped before or in the version. */
-  bool is_dropped_in_or_before(uint8_t version) const {
+  bool is_dropped_in_or_before(row_version_t version) const {
     ut_ad(is_valid_row_version(version));
 
     if (!is_instant_dropped()) {
@@ -750,7 +745,7 @@ struct dict_col_t {
   /** Check if column is added after the current version.
   @param[in]    version row version
   @return true if column is added after the current row version. */
-  bool is_added_after(uint8_t version) const {
+  bool is_added_after(row_version_t version) const {
     ut_ad(is_valid_row_version(version));
 
     if (!is_instant_added()) {
@@ -763,7 +758,7 @@ struct dict_col_t {
   /** Check if a column is visible in given version.
   @param[in]      version         row version
   return true if column is visible in version. */
-  bool is_visible_in_version(uint8_t version) const {
+  bool is_visible_in_version(row_version_t version) const {
     ut_ad(is_valid_row_version(version));
     return (!is_added_after(version) && !is_dropped_in_or_before(version));
   }
@@ -1433,7 +1428,7 @@ struct dict_index_t {
   void create_nullables(uint32_t current_row_version);
 
   /** Return nullable in a specific row version */
-  uint32_t get_nullable_in_version(uint8_t version) const {
+  uint32_t get_nullable_in_version(row_version_t version) const {
     ut_ad(is_valid_row_version(version));
 
     return nullables[version];
@@ -1527,9 +1522,9 @@ struct dict_index_t {
     return get_field(pos)->get_phy_pos();
   }
 
-  uint16_t get_field_phy_pos(ulint pos, uint8_t version) const {
+  uint16_t get_field_phy_pos(ulint pos, row_version_t version) const {
     uint16_t phy_pos = get_field(pos)->get_phy_pos();
-    if (version == UINT8_UNDEFINED) {
+    if (version == INVALID_ROW_VERSION) {
       return phy_pos;
     }
 

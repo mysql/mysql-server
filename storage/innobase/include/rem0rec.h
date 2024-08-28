@@ -397,11 +397,9 @@ static inline rec_t *rec_copy(void *buf, const rec_t *rec,
 @param[out]     extra           extra size
 @param[in]      rec_version     row version of record
 @return total size */
-[[nodiscard]] ulint rec_get_serialize_size(const dict_index_t *index,
-                                           const dfield_t *fields,
-                                           ulint n_fields,
-                                           const dtuple_t *v_entry,
-                                           ulint *extra, uint8_t rec_version);
+[[nodiscard]] ulint rec_get_serialize_size(
+    const dict_index_t *index, const dfield_t *fields, ulint n_fields,
+    const dtuple_t *v_entry, ulint *extra, row_version_t rec_version);
 
 /** Determine the offset to each field in temporary file.
 @param[in]      rec     temporary file record
@@ -421,7 +419,7 @@ void rec_deserialize_init_offsets(const rec_t *rec, const dict_index_t *index,
 @see rec_deserialize_init_offsets() */
 void rec_serialize_dtuple(rec_t *rec, const dict_index_t *index,
                           const dfield_t *fields, ulint n_fields,
-                          const dtuple_t *v_entry, uint8_t rec_version);
+                          const dtuple_t *v_entry, row_version_t rec_version);
 
 /** Copies the first n fields of a physical record to a new physical record in
 a buffer.
@@ -520,13 +518,15 @@ static inline uint8_t rec_get_n_fields_length(ulint n_fields);
 This is only needed for table after instant ADD/DROP COLUMN.
 @param[in,out]  rec             leaf page record
 @param[in]      version         row version */
-static inline void rec_set_instant_row_version_new(rec_t *rec, uint8_t version);
+static inline void rec_set_instant_row_version_new(rec_t *rec,
+                                                   row_version_t version);
 
 /** Set the row version on one old style leaf page record.
 This is only needed for table after instant ADD/DROP COLUMN.
 @param[in,out]  rec             leaf page record
 @param[in]      version         row version */
-static inline void rec_set_instant_row_version_old(rec_t *rec, uint8_t version);
+static inline void rec_set_instant_row_version_old(rec_t *rec,
+                                                   row_version_t version);
 
 /** Validates the consistency of a physical record.
 @param[in]      rec     physical record

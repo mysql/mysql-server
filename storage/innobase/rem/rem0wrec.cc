@@ -84,7 +84,7 @@ ulint rec_get_nth_field_size(const dict_index_t *index, const rec_t *rec,
   if (index) {
     ut_ad(!dict_table_is_comp(index->table));
     if (index->has_row_versions()) {
-      uint8_t version = UINT8_UNDEFINED;
+      row_version_t version = INVALID_ROW_VERSION;
       if (rec_old_is_versioned(rec)) {
         version = rec_get_instant_row_version_old(rec);
       }
@@ -101,7 +101,7 @@ ulint rec_get_nth_field_offs_old(const dict_index_t *index, const rec_t *rec,
   if (index) {
     ut_ad(!dict_table_is_comp(index->table));
     if (index->has_row_versions()) {
-      uint8_t version = UINT8_UNDEFINED;
+      row_version_t version = INVALID_ROW_VERSION;
       if (rec_old_is_versioned(rec)) {
         version = rec_get_instant_row_version_old(rec);
       }
@@ -166,7 +166,7 @@ ulint rec_2_is_field_extern(const dict_index_t *index, const rec_t *rec,
   if (index) {
     ut_ad(!dict_table_is_comp(index->table));
     if (index->has_row_versions()) {
-      uint8_t version = UINT8_UNDEFINED;
+      row_version_t version = INVALID_ROW_VERSION;
       if (rec_old_is_versioned(rec)) {
         version = rec_get_instant_row_version_old(rec);
       }

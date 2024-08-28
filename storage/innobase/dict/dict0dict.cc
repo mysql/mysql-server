@@ -1145,8 +1145,8 @@ void dict_table_add_system_columns(dict_table_t *table, mem_heap_t *heap) {
   for these tables. */
 
   const uint32_t phy_pos = UINT32_UNDEFINED;
-  const uint8_t v_added = 0;
-  const uint8_t v_dropped = 0;
+  const row_version_t v_added = 0;
+  const row_version_t v_dropped = 0;
 
   dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
                          DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN, false,

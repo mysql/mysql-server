@@ -3656,7 +3656,7 @@ static inline void fill_dict_existing_column(
 
     dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
                            col_len, !field->is_hidden_by_system(), phy_pos,
-                           (uint8_t)v_added, UINT8_UNDEFINED);
+                           (row_version_t)v_added, INVALID_ROW_VERSION);
   } else {
     dict_mem_table_add_v_col(m_table, heap, field->field_name, mtype, prtype,
                              col_len, pos,

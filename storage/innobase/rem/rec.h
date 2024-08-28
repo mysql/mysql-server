@@ -804,7 +804,8 @@ static inline enum REC_INSERT_STATE get_rec_insert_state(
       ((temp ? REC_N_TMP_EXTRA_BYTES : REC_N_NEW_EXTRA_BYTES) + 1);
   const bool is_versioned =
       (temp) ? rec_new_temp_is_versioned(rec) : rec_new_is_versioned(rec);
-  const uint8_t version = (is_versioned) ? (uint8_t)(*v_ptr) : UINT8_UNDEFINED;
+  const row_version_t version =
+      (is_versioned) ? static_cast<row_version_t>(*v_ptr) : INVALID_ROW_VERSION;
 
   const bool is_instant = (temp) ? rec_get_instant_flag_new_temp(rec)
                                  : rec_get_instant_flag_new(rec);
@@ -860,12 +861,12 @@ record generated for a record from REDUNDANT FORAMT
 static inline enum REC_INSERT_STATE init_nulls_lens_for_temp_redundant(
     const dict_index_t *index, const rec_t *rec, uint16_t *n_null,
     const byte **nulls, const byte **lens, uint16_t &non_default_fields,
-    uint8_t &row_version) {
+    row_version_t &row_version) {
   ut_ad(!dict_table_is_comp(index->table));
 
   non_default_fields = static_cast<uint16_t>(dict_index_get_n_fields(index));
 
-  row_version = UINT8_UNDEFINED;
+  row_version = INVALID_ROW_VERSION;
 
   /* Set nulls just before the record */
   *nulls = rec - 1;
@@ -923,7 +924,7 @@ for a new-style temporary record
 static inline enum REC_INSERT_STATE rec_init_null_and_len_temp(
     const rec_t *rec, const dict_index_t *index, const byte **nulls,
     const byte **lens, uint16_t *n_null, uint16_t &non_default_fields,
-    uint8_t &row_version) {
+    row_version_t &row_version) {
   /* Following is the format for TEMP record.
   +----+----+-------------------+--------------------+
   | OP | ES |<-- Extra info --> | F1 | F2 | ...  | Fn|
@@ -948,7 +949,7 @@ static inline enum REC_INSERT_STATE rec_init_null_and_len_temp(
 
   non_default_fields = static_cast<uint16_t>(dict_index_get_n_fields(index));
 
-  row_version = UINT8_UNDEFINED;
+  row_version = INVALID_ROW_VERSION;
 
   /* Set nulls just before the record */
   *nulls = rec - 1;
@@ -1025,10 +1026,10 @@ for a new style record
 static inline enum REC_INSERT_STATE rec_init_null_and_len_comp(
     const rec_t *rec, const dict_index_t *index, const byte **nulls,
     const byte **lens, uint16_t *n_null, uint16_t &non_default_fields,
-    uint8_t &row_version) {
+    row_version_t &row_version) {
   non_default_fields = static_cast<uint16_t>(dict_index_get_n_fields(index));
 
-  row_version = UINT8_UNDEFINED;
+  row_version = INVALID_ROW_VERSION;
 
   /* Position nulls */
   *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
@@ -1125,7 +1126,7 @@ inline void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
   const byte *lens = nullptr;
   uint16_t n_null = 0;
   enum REC_INSERT_STATE rec_insert_state = REC_INSERT_STATE::NONE;
-  uint8_t row_version = UINT8_UNDEFINED;
+  row_version_t row_version = INVALID_ROW_VERSION;
   uint16_t non_default_fields = 0;
 
   if (temp) {
@@ -1148,7 +1149,7 @@ inline void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
       if (rec_insert_state == INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION ||
           rec_insert_state == INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION) {
         rec_insert_state = INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION;
-        ut_ad(row_version == UINT8_UNDEFINED);
+        ut_ad(row_version == INVALID_ROW_VERSION);
       }
     }
   }
@@ -1171,7 +1172,7 @@ inline void rec_init_offsets_comp_ordinary(const rec_t *rec, bool temp,
         break;
 
       case INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
-        ut_ad(row_version == UINT8_UNDEFINED || row_version == 0);
+        ut_ad(row_version == INVALID_ROW_VERSION || row_version == 0);
         ut_ad(index->has_row_versions() || temp);
         /* Record has to be interpreted in v0. */
         row_version = 0;

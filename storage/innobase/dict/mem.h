@@ -80,8 +80,8 @@ void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
                             const char *name, ulint mtype, ulint prtype,
                             ulint len, bool is_visible,
                             uint32_t phy_pos = UINT32_UNDEFINED,
-                            uint8_t v_added = UINT8_UNDEFINED,
-                            uint8_t v_dropped = UINT8_UNDEFINED);
+                            row_version_t v_added = INVALID_ROW_VERSION,
+                            row_version_t v_dropped = INVALID_ROW_VERSION);
 
 /** This function populates a dict_col_t memory structure with
 supplied information.
@@ -96,8 +96,8 @@ supplied information.
 @param[in]  v_dropped   table row version when col was dropped INSTANTly */
 void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
                                  ulint prtype, ulint col_len, bool is_visible,
-                                 uint32_t phy_pos, uint8_t v_added,
-                                 uint8_t v_dropped);
+                                 uint32_t phy_pos, row_version_t v_added,
+                                 row_version_t v_dropped);
 
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */

@@ -7,7 +7,7 @@
 --source include/have_lowercase0.inc
 
 # ------------------------------------------------------------
-# Tables created on earlier version with following
+# Tables created on 8.0.28 with following (specific to this test)
 # ------------------------------------------------------------
 # CREATE TABLE t1_redundant (c1 INT, c2 CHAR(10)) ROW_FORMAT=REDUNDANT
 #  PARTITION BY RANGE(c1)
@@ -20,7 +20,7 @@
 # INSERT INTO t1_redundant VALUES(40, "r5c2", "r5c3");
 # ALTER TABLE t1_redundant ADD COLUMN c4 CHAR(10) default "c4_def";
 # INSERT INTO t1_redundant VALUES(60, "r6c2", "r6c3", "r6c4");
-
+# 
 # CREATE TABLE t1_dynamic (c1 INT, c2 CHAR(10)) ROW_FORMAT=DYNAMIC
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
@@ -32,7 +32,7 @@
 # INSERT INTO t1_dynamic VALUES(40, "r5c2", "r5c3");
 # ALTER TABLE t1_dynamic ADD COLUMN c4 CHAR(10) default "c4_def";
 # INSERT INTO t1_dynamic VALUES(60, "r6c2", "r6c3", "r6c4");
-
+# 
 # CREATE TABLE t1_compact (c1 INT, c2 CHAR(10)) ROW_FORMAT=COMPACT
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
@@ -74,6 +74,8 @@
 # INSERT INTO t2_compact VALUES (90, 1, 1, "1"), (190, 1, 1, "2"), (290, 1, 1, "3"), (390, 1, 1, "3");
 # Alter table t2_compact add column c5 INT, algorithm=INSTANT;
 # ALTER TABLE t2_compact TRUNCATE PARTITION p0, p1, p2;
+#
+# -- Upgrade to 8.4.3 and zip data directory
 # ------------------------------------------------------------
 
 --echo #########
@@ -84,9 +86,9 @@
 --source include/shutdown_mysqld.inc
 
 --echo # Copy and unzip the datadir.
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_part.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part.zip
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part.zip
---exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_part_8_4_3.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server against the unzipped datadir
@@ -121,9 +123,9 @@ let $row_format = compact;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove copied files
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part.zip
+--remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_part_8_4_3.zip
 
 --echo # Restarting server to restore server state
 let $restart_parameters =;

@@ -917,8 +917,7 @@ This is only needed for table after instant ADD/DROP COLUMN.
 @param[in,out]  rec             leaf page record
 @param[in]      row_version     row version */
 static inline void rec_set_instant_row_version_new(rec_t *rec,
-                                                   uint8_t row_version) {
-  /* Note : row_version might be 0 while storing a new row in upgraded table */
+                                                   row_version_t row_version) {
   ut_ad(is_valid_row_version(row_version));
 
   byte *ptr = rec - (REC_N_NEW_EXTRA_BYTES + 1);
@@ -929,11 +928,9 @@ static inline void rec_set_instant_row_version_new(rec_t *rec,
 This is only needed for table after instant ADD/DROP COLUMN.
 @param[in]      rec             leaf page record
 @return row version */
-static inline uint8_t rec_get_instant_row_version_new(const rec_t *rec) {
-  uint8_t row_version = 0;
+static inline row_version_t rec_get_instant_row_version_new(const rec_t *rec) {
   const byte *ptr = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-  row_version = *ptr;
-  /* For upgraded table, we store version 0 */
+  row_version_t row_version = static_cast<row_version_t>(*ptr);
   ut_ad(is_valid_row_version(row_version));
 
   return row_version;
@@ -944,8 +941,7 @@ This is only needed for table after instant ADD/DROP COLUMN.
 @param[in,out]  rec             leaf page record
 @param[in]      row_version     row version */
 static inline void rec_set_instant_row_version_old(rec_t *rec,
-                                                   uint8_t row_version) {
-  /* Note : row_version might be 0 while storing a new row in upgraded table */
+                                                   row_version_t row_version) {
   ut_ad(is_valid_row_version(row_version));
 
   byte *ptr = rec - (REC_N_OLD_EXTRA_BYTES + 1);
@@ -956,9 +952,9 @@ static inline void rec_set_instant_row_version_old(rec_t *rec,
 This is only needed for table after instant ADD/DROP COLUMN.
 @param[in]      rec             leaf page record
 @return row version */
-static inline uint8_t rec_get_instant_row_version_old(const rec_t *rec) {
+static inline row_version_t rec_get_instant_row_version_old(const rec_t *rec) {
   const byte *ptr = rec - (REC_N_OLD_EXTRA_BYTES + 1);
-  uint8_t row_version = *ptr;
+  row_version_t row_version = static_cast<row_version_t>(*ptr);
   ut_ad(is_valid_row_version(row_version));
 
   return row_version;
@@ -980,7 +976,7 @@ static inline const byte *rec_get_nth_field_old_instant(
     /* Fields are stored in record in order of the version they are added in.
     Get the field number on physical record. */
 
-    uint8_t version = UINT8_UNDEFINED;
+    row_version_t version = INVALID_ROW_VERSION;
     if (rec_old_is_versioned(rec)) {
       version = rec_get_instant_row_version_old(rec);
     }

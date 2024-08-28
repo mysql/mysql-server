@@ -162,7 +162,7 @@ stored in 1 byte.
 @param[in]      row_version  row version in record */
 static void rec_init_offset_old_1byte(const rec_t *rec,
                                       const dict_index_t *index, ulint *offsets,
-                                      uint8_t row_version) {
+                                      row_version_t row_version) {
   ut_ad(is_valid_row_version(row_version));
 
   ulint offs = REC_N_OLD_EXTRA_BYTES;
@@ -242,7 +242,7 @@ stored in 2 byte.
 @param[in]      row_version     row version in record */
 static void rec_init_offset_old_2byte(const rec_t *rec,
                                       const dict_index_t *index, ulint *offsets,
-                                      uint8_t row_version) {
+                                      row_version_t row_version) {
   ut_ad(is_valid_row_version(row_version));
 
   ulint offs = REC_N_OLD_EXTRA_BYTES;

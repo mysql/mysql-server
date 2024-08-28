@@ -3,6 +3,7 @@
 
 # InnoDB does not support compressed tables for page sizes=32k,64k
 --source include/have_innodb_max_16k.inc
+--source include/big_test.inc
 
 --echo #
 --echo # Scenario 1:
@@ -128,62 +129,69 @@ DROP TABLE t1;
 
 --echo #
 --echo # Scenario 7:
---echo # Maximum row versions (MAX_ROW_VERSION is 64)
+--echo # Maximum row versions (MAX_ROW_VERSION is 255)
 --echo #
 CREATE TABLE t1 (c1 int);
 --echo # INSTANT ADD COLUMNS to table to make it reach the maximum versions
 --disable_query_log
 let $counter=2;
-while ($counter<=65)
-{ 
-  eval ALTER TABLE t1 ADD COLUMN c$counter INT, ALGORITHM=INSTANT;
-  inc $counter;
-}
---enable_query_log
-
---echo # Table TOTAL_ROW_VERSIONS should be 64 (MAX)
---let $table_name=t1
---source suite/innodb/include/print_instant_metadata.inc
-
---echo # An INSTANT ADD COLUMN should result in error now.
---error ER_INNODB_MAX_ROW_VERSION
-ALTER TABLE t1 ADD COLUMN c66 INT, ALGORITHM=INSTANT;
-
---echo # ADD COLUMN shall fall back to INPLACE if ALGORITHM not given explicitly
-ALTER TABLE t1 ADD COLUMN c66 INT;
-
---echo # Table would have been rebuilt
---let $table_name=t1
---source suite/innodb/include/print_instant_metadata.inc
-DROP TABLE t1;
-
-CREATE TABLE t1 (c1 int);
-INSERT INTO t1(c1) VALUES(1);
-SELECT * FROM t1;
-
---echo # INSTANT ADD COLUMNS to table to make it reach the maximum versions
---disable_query_log
-let $counter=2;
-while ($counter<=65)
+while ($counter<=256)
 {
   eval ALTER TABLE t1 ADD COLUMN c$counter INT, ALGORITHM=INSTANT;
   inc $counter;
 }
 --enable_query_log
 
+--echo # Table TOTAL_ROW_VERSIONS should be 255 (MAX)
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+CHECK TABLE t1 EXTENDED;
+
+--echo # An INSTANT ADD COLUMN should result in error now.
+--error ER_INNODB_MAX_ROW_VERSION
+ALTER TABLE t1 ADD COLUMN c257 INT, ALGORITHM=INSTANT;
+
+--echo # ADD COLUMN shall fall back to INPLACE if ALGORITHM not given explicitly
+ALTER TABLE t1 ADD COLUMN c257 INT;
+CHECK TABLE t1 EXTENDED;
+
+--echo # Table would have been rebuilt
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 int);
+INSERT INTO t1(c1) VALUES(1);
+SELECT * FROM t1;
+CHECK TABLE t1 EXTENDED;
+
+--echo # INSTANT ADD COLUMNS to table to make it reach the maximum versions
+--disable_query_log
+let $counter=2;
+while ($counter<=256)
+{
+  eval ALTER TABLE t1 ADD COLUMN c$counter INT, ALGORITHM=INSTANT;
+  inc $counter;
+}
+--enable_query_log
+CHECK TABLE t1 EXTENDED;
+
 --echo # An INSTANT DROP COLUMN should result in error now.
 --error ER_INNODB_MAX_ROW_VERSION
-ALTER TABLE t1 DROP COLUMN c65, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c256, ALGORITHM=INSTANT;
+
 INSERT INTO t1(c1) VALUES(2);
 SELECT * FROM t1;
 
 --echo # DROP COLUMN shall fall back to INPLACE if ALGORITHM not given explicitly
-ALTER TABLE t1 DROP COLUMN c65;
+ALTER TABLE t1 DROP COLUMN c256;
 INSERT INTO t1(c1) VALUES(3);
 SELECT * FROM t1;
 
 --echo # Table would have been rebuilt
 --let $table_name=t1
 --source suite/innodb/include/print_instant_metadata.inc
+CHECK TABLE t1 EXTENDED;
 
 DROP TABLE t1;

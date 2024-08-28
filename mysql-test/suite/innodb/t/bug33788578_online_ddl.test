@@ -33,9 +33,9 @@
 
 --echo # Upgrade previous tables to current
 --source include/shutdown_mysqld.inc
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578_online_ddl.zip $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
---file_exists $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
---exec unzip -qo $MYSQL_TMP_DIR/bug33788578_online_ddl.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578_online_ddl_8_4_3.zip $MYSQL_TMP_DIR/bug33788578_online_ddl_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/bug33788578_online_ddl_8_4_3.zip
+--exec unzip -qo $MYSQL_TMP_DIR/bug33788578_online_ddl_8_4_3.zip -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server
@@ -201,9 +201,9 @@ SHOW TABLES;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove temp files used
---file_exists $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
+--file_exists $MYSQL_TMP_DIR/bug33788578_online_ddl_8_4_3.zip
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
+--remove_file $MYSQL_TMP_DIR/bug33788578_online_ddl_8_4_3.zip
 
 --echo # Restart server to restore server state
 let $restart_parameters =;
@@ -535,6 +535,7 @@ let $restart_parameters =;
 #         ALTER TABLE ta3b4_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
 #     -- UPGRADE --
+# -- UPGRADE -- => upgrade to 8.4.3 and zip data directory
 # 
 # What does an, bn mean: see also: (https://confluence.oraclecorp.com/confluence/display/~mayank.prasad@oracle.com/ROW+LOG+with+Online++DDL)
 # ===============================================================================================

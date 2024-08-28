@@ -35,9 +35,9 @@
 
 --echo # Upgrade previous tables to current
 --source include/shutdown_mysqld.inc
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578_ddl.zip $MYSQL_TMP_DIR/bug33788578_ddl.zip
---file_exists $MYSQL_TMP_DIR/bug33788578_ddl.zip
---exec unzip -qo $MYSQL_TMP_DIR/bug33788578_ddl.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578_ddl_8_4_3.zip $MYSQL_TMP_DIR/bug33788578_ddl_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/bug33788578_ddl_8_4_3.zip
+--exec unzip -qo $MYSQL_TMP_DIR/bug33788578_ddl_8_4_3.zip -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server
@@ -176,9 +176,9 @@ SHOW TABLES;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove temp files used
---file_exists $MYSQL_TMP_DIR/bug33788578_ddl.zip
+--file_exists $MYSQL_TMP_DIR/bug33788578_ddl_8_4_3.zip
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/bug33788578_ddl.zip
+--remove_file $MYSQL_TMP_DIR/bug33788578_ddl_8_4_3.zip
 
 --echo # Restart server to restore server state
 let $restart_parameters =;
@@ -193,113 +193,411 @@ let $restart_parameters =;
 # USE test;
 # 
 # -- ta1b1
-# CREATE TABLE ta1b1 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta1b1_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta1b1 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta1b1 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta1b1_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b1_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- no alter in 8.0.28 --
 # -- <UPGRADE>
 # 
 # -- ta1b2
-# CREATE TABLE ta1b2 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta1b2_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta1b2 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta1b2 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta1b2_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b2_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- no alter in 8.0.28 --
 # -- <UPGRADE>
 # 
 # -- ta1b4
-# CREATE TABLE ta1b4 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta1b4_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta1b4 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta1b4 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta1b4_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b4_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- no alter in 8.0.28 --
 # -- <UPGRADE>
 # 
 # -- ta2b1
-# CREATE TABLE ta2b1 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta2b1_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta2b1 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta2b1 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta2b1_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b1_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- alter add in 8.0.28 --
-# ALTER TABLE ta2b1 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
-# ALTER TABLE ta2b1 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# ALTER TABLE ta2b1_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b1_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
 # -- <UPGRADE>
 # 
 # -- ta2b2
-# CREATE TABLE ta2b2 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta2b2_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta2b2 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta2b2 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta2b2_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b2_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- alter add in 8.0.28 --
-# ALTER TABLE ta2b2 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
-# ALTER TABLE ta2b2 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# ALTER TABLE ta2b2_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b2_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
 # -- <UPGRADE>
 # 
 # -- ta2b4
-# CREATE TABLE ta2b4 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta2b4_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta2b4 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta2b4 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta2b4_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b4_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- alter add in 8.0.28 --
-# ALTER TABLE ta2b4 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
-# ALTER TABLE ta2b4 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# ALTER TABLE ta2b4_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b4_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
 # -- <UPGRADE>
 # 
 # -- ta4b1
-# CREATE TABLE ta4b1 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta4b1_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta4b1 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta4b1 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta4b1_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b1_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- alter add in 8.0.28 --
-# ALTER TABLE ta4b1 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
-# ALTER TABLE ta4b1 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# ALTER TABLE ta4b1_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b1_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
-# INSERT INTO ta4b1 VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888, 999);
-# INSERT INTO ta4b1 (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333, 5555, 7777, 9999);
+# INSERT INTO ta4b1_redundant VALUES (3, "row3", 222, 333, 444, 555, 666, 777,
+# 888, 999);
+# INSERT INTO ta4b1_redundant (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
 # 
 # -- <UPGRADE>
 # 
 # -- ta4b2
-# CREATE TABLE ta4b2 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta4b2_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta4b2 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta4b2 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta4b2_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b2_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- alter add in 8.0.28 --
-# ALTER TABLE ta4b2 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
-# ALTER TABLE ta4b2 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# ALTER TABLE ta4b2_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b2_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
-# INSERT INTO ta4b2 VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888, 999);
-# INSERT INTO ta4b2 (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333, 5555, 7777, 9999);
+# INSERT INTO ta4b2_redundant VALUES (3, "row3", 222, 333, 444, 555, 666, 777,
+# 888, 999);
+# INSERT INTO ta4b2_redundant (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
 # 
 # -- <UPGRADE>
 # 
 # -- ta4b4
-# CREATE TABLE ta4b4 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# CREATE TABLE ta4b4_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 # 
-# INSERT INTO ta4b4 VALUES (1, "row1", 2, 3, 4, 5);
-# INSERT INTO ta4b4 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# INSERT INTO ta4b4_redundant VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b4_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
 # 
 # -- alter add in 8.0.28 --
-# ALTER TABLE ta4b4 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
-# ALTER TABLE ta4b4 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# ALTER TABLE ta4b4_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b4_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
 # 
-# INSERT INTO ta4b4 VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888, 999);
-# INSERT INTO ta4b4 (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333, 5555, 7777, 9999);
+# INSERT INTO ta4b4_redundant VALUES (3, "row3", 222, 333, 444, 555, 666, 777,
+# 888, 999);
+# INSERT INTO ta4b4_redundant (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
 # 
 # -- <UPGRADE>
 # 
+# -- ta1b1
+# CREATE TABLE ta1b1_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta1b1_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b1_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- no alter in 8.0.28 --
+# -- <UPGRADE>
+# 
+# -- ta1b2
+# CREATE TABLE ta1b2_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta1b2_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b2_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- no alter in 8.0.28 --
+# -- <UPGRADE>
+# 
+# -- ta1b4
+# CREATE TABLE ta1b4_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta1b4_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b4_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- no alter in 8.0.28 --
+# -- <UPGRADE>
+# 
+# -- ta2b1
+# CREATE TABLE ta2b1_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta2b1_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b1_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta2b1_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b1_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# -- <UPGRADE>
+# 
+# -- ta2b2
+# CREATE TABLE ta2b2_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta2b2_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b2_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta2b2_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b2_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# -- <UPGRADE>
+# 
+# -- ta2b4
+# CREATE TABLE ta2b4_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta2b4_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b4_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta2b4_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b4_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# -- <UPGRADE>
+# 
+# -- ta4b1
+# CREATE TABLE ta4b1_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta4b1_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b1_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta4b1_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b1_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# INSERT INTO ta4b1_compact VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888,
+# 999);
+# INSERT INTO ta4b1_compact (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
+# 
+# -- <UPGRADE>
+# 
+# -- ta4b2
+# CREATE TABLE ta4b2_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta4b2_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b2_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta4b2_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b2_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# INSERT INTO ta4b2_compact VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888,
+# 999);
+# INSERT INTO ta4b2_compact (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
+# 
+# -- <UPGRADE>
+# 
+# -- ta4b4
+# CREATE TABLE ta4b4_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT ENGINE=INNODB;
+# 
+# INSERT INTO ta4b4_compact VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b4_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta4b4_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b4_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# INSERT INTO ta4b4_compact VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888,
+# 999);
+# INSERT INTO ta4b4_compact (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
+# 
+# -- <UPGRADE>
+# 
+# -- ta1b1
+# CREATE TABLE ta1b1_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta1b1_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b1_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- no alter in 8.0.28 --
+# -- <UPGRADE>
+# 
+# -- ta1b2
+# CREATE TABLE ta1b2_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta1b2_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b2_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- no alter in 8.0.28 --
+# -- <UPGRADE>
+# 
+# -- ta1b4
+# CREATE TABLE ta1b4_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta1b4_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta1b4_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- no alter in 8.0.28 --
+# -- <UPGRADE>
+# 
+# -- ta2b1
+# CREATE TABLE ta2b1_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta2b1_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b1_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta2b1_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b1_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# -- <UPGRADE>
+# 
+# -- ta2b2
+# CREATE TABLE ta2b2_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta2b2_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b2_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta2b2_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b2_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# -- <UPGRADE>
+# 
+# -- ta2b4
+# CREATE TABLE ta2b4_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta2b4_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta2b4_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta2b4_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta2b4_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# -- <UPGRADE>
+# 
+# -- ta4b1
+# CREATE TABLE ta4b1_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta4b1_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b1_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta4b1_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b1_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# INSERT INTO ta4b1_dynamic VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888,
+# 999);
+# INSERT INTO ta4b1_dynamic (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
+# 
+# -- <UPGRADE>
+# 
+# -- ta4b2
+# CREATE TABLE ta4b2_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta4b2_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b2_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta4b2_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b2_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# INSERT INTO ta4b2_dynamic VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888,
+# 999);
+# INSERT INTO ta4b2_dynamic (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
+# 
+# -- <UPGRADE>
+# 
+# -- ta4b4
+# CREATE TABLE ta4b4_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT
+# DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC ENGINE=INNODB;
+# 
+# INSERT INTO ta4b4_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+# INSERT INTO ta4b4_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# -- alter add in 8.0.28 --
+# ALTER TABLE ta4b4_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL,
+# ALGORITHM=INSTANT;
+# ALTER TABLE ta4b4_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT
+# NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# INSERT INTO ta4b4_dynamic VALUES (3, "row3", 222, 333, 444, 555, 666, 777, 888,
+# 999);
+# INSERT INTO ta4b4_dynamic (c0, c1, c3, c5, c7, c9) VALUES (4, "row4", 3333,
+# 5555, 7777, 9999);
+# 
+# -- <UPGRADE>
+# -- <UPGRADE> => upgrade to 8.4.3 and zip data directory after all tables are
+# created
 # What does an, bn mean:
 # 
 # [mysql-8.0.28-release]	Table definition

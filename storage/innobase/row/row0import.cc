@@ -1782,10 +1782,10 @@ dberr_t row_import::add_instant_dropped_columns(dict_table_t *target_table) {
     ut_ad(cfg_col != nullptr);
 
     if (cfg_col->is_instant_dropped()) {
-      uint8_t v_added = cfg_col->is_instant_added()
-                            ? cfg_col->get_version_added()
-                            : UINT8_UNDEFINED;
-      uint8_t v_dropped = cfg_col->get_version_dropped();
+      row_version_t v_added = cfg_col->is_instant_added()
+                                  ? cfg_col->get_version_added()
+                                  : INVALID_ROW_VERSION;
+      row_version_t v_dropped = cfg_col->get_version_dropped();
       uint32_t phy_pos = cfg_col->get_phy_pos();
       std::string col_name = (char *)m_col_names[i];
 
@@ -3783,26 +3783,56 @@ dict_col_t structure, along with the column name.
 
     /* Read INSTANT metadata of column */
     if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V7) {
-      byte row[2 + sizeof(uint32_t)];
+      row_version_t v_added{INVALID_ROW_VERSION};
+      row_version_t v_dropped{INVALID_ROW_VERSION};
 
-      /* Read column's v_added, v_dropped, phy_pos  */
-      if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-        ib::send_errno_error(thd, ER_IO_READ_ERROR,
-                             "while reading table column INSTANT meta-data.");
+      if (cfg->m_version == IB_EXPORT_CFG_VERSION_V7) {
+        /* V7: 1 byte v_added, 1 byte v_dropped, 4 bytes physical position */
+        byte row[2 + sizeof(uint32_t)];
 
-        return (DB_IO_ERROR);
+        /* Read column's v_added, v_dropped, phy_pos  */
+        if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+          ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                               "while reading table column INSTANT meta-data.");
+          return DB_IO_ERROR;
+        }
+
+        byte *ptr = row;
+        v_added = static_cast<row_version_t>(mach_read_from_1(ptr));
+        ptr++;
+
+        v_dropped = static_cast<row_version_t>(mach_read_from_1(ptr));
+        ptr++;
+
+        /* V7 valid row version is [0, 64] and 255 is INVALID_ROW_VERSION */
+        v_added = (v_added == UINT8_UNDEFINED) ? INVALID_ROW_VERSION : v_added;
+        v_dropped =
+            (v_dropped == UINT8_UNDEFINED) ? INVALID_ROW_VERSION : v_dropped;
+
+        col->set_phy_pos(mach_read_from_4(ptr));
+      } else {
+        /* V8: 2 bytes v_added, 2 bytes v_dropped, 4 bytes physical position */
+        byte row[2 * sizeof(row_version_t) + sizeof(uint32_t)];
+
+        /* Read column's v_added, v_dropped, phy_pos  */
+        if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+          ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                               "while reading table column INSTANT meta-data.");
+          return DB_IO_ERROR;
+        }
+
+        byte *ptr = row;
+        v_added = mach_read_from_2(ptr);
+        ptr += 2;
+
+        v_dropped = mach_read_from_2(ptr);
+        ptr += 2;
+
+        col->set_phy_pos(mach_read_from_4(ptr));
       }
 
-      byte *ptr = row;
-      uint8_t v = mach_read_from_1(ptr);
-      col->set_version_added(v);
-      ptr++;
-
-      v = mach_read_from_1(ptr);
-      col->set_version_dropped(v);
-      ptr++;
-
-      col->set_phy_pos(mach_read_from_4(ptr));
+      col->set_version_added(v_added);
+      col->set_version_dropped(v_dropped);
 
       if (col->is_instant_dropped()) {
         const char *col_name = (const char *)cfg->m_col_names[i];
@@ -4133,6 +4163,7 @@ Read the contents of the @<tablespace@>.cfg file.
     case IB_EXPORT_CFG_VERSION_V5:
     case IB_EXPORT_CFG_VERSION_V6:
     case IB_EXPORT_CFG_VERSION_V7:
+    case IB_EXPORT_CFG_VERSION_V8:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {

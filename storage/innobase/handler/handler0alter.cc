@@ -4732,8 +4732,8 @@ template <typename Table>
         dict_mem_table_add_col(
             ctx->new_table, ctx->heap, field->field_name, col_type,
             dtype_form_prtype(field_type, charset_no), col_len,
-            !field->is_hidden_by_system(), UINT32_UNDEFINED, UINT8_UNDEFINED,
-            UINT8_UNDEFINED);
+            !field->is_hidden_by_system(), UINT32_UNDEFINED,
+            INVALID_ROW_VERSION, INVALID_ROW_VERSION);
       }
     }
 
@@ -10202,9 +10202,8 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
         }
         /* INSTANT can't be done any more. Fall back to INPLACE. */
         break;
-      } else if (!is_valid_row_version(m_prebuilt->table->current_row_version +
-                                       1)) {
-        ut_ad(is_valid_row_version(m_prebuilt->table->current_row_version));
+      } else if (std::cmp_equal(m_prebuilt->table->current_row_version,
+                                MAX_ROW_VERSION)) {
         if (ha_alter_info->alter_info->requested_algorithm ==
             Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
           my_error(ER_INNODB_MAX_ROW_VERSION, MYF(0),

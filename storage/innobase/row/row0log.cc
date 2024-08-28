@@ -668,7 +668,7 @@ static void row_log_table_low_redundant(const rec_t *rec,
   ut_ad(!dict_table_is_comp(index->table)); /* redundant row format */
   ut_ad(new_index->is_clustered());
 
-  uint8_t rec_version = UINT8_UNDEFINED;
+  row_version_t rec_version = INVALID_ROW_VERSION;
   bool rec_has_version = false;
   if (rec_old_is_versioned(rec)) {
     rec_version = rec_get_instant_row_version_old(rec);
@@ -776,7 +776,7 @@ static void row_log_table_low_redundant(const rec_t *rec,
       *b++ = static_cast<byte>(old_pk_extra_size);
       /* It's PK fields for new table, version doesn't matter. */
       rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
-                           old_pk->n_fields, ventry, UINT8_UNDEFINED);
+                           old_pk->n_fields, ventry, INVALID_ROW_VERSION);
       b += old_pk_size;
     }
 
@@ -802,7 +802,8 @@ static void row_log_table_low_redundant(const rec_t *rec,
         rec_new_temp_set_versioned(temp_rec, true);
         /* Write the record version in 1 byte */
         byte *temp_version = temp_rec - 2;
-        memcpy(temp_version, &rec_version, sizeof(uint8_t));
+        *temp_version = static_cast<byte>(rec_version);
+        ut_ad(is_valid_row_version(*temp_version));
       } else {
         rec_new_temp_set_versioned(temp_rec, false);
       }

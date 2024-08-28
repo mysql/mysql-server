@@ -1037,8 +1037,8 @@ static const byte *parse_index_fields(const byte *ptr, const byte *end_ptr,
     }
 
     uint32_t phy_pos = UINT32_UNDEFINED;
-    uint8_t v_added = UINT8_UNDEFINED;
-    uint8_t v_dropped = UINT8_UNDEFINED;
+    row_version_t v_added = INVALID_ROW_VERSION;
+    row_version_t v_dropped = INVALID_ROW_VERSION;
 
     /* The high-order bit of len is the NOT NULL flag;
     the rest is 0 or 0x7fff for variable-length fields,
@@ -1079,8 +1079,8 @@ static const byte *parse_index_fields(const byte *ptr, const byte *end_ptr,
 struct Field_instant_info {
   uint16_t logical_pos{UINT16_UNDEFINED};
   uint16_t phy_pos{UINT16_UNDEFINED};
-  uint8_t v_added{UINT8_UNDEFINED};
-  uint8_t v_dropped{UINT8_UNDEFINED};
+  row_version_t v_added{INVALID_ROW_VERSION};
+  row_version_t v_dropped{INVALID_ROW_VERSION};
 };
 
 using instant_fields_list_t = std::vector<Field_instant_info>;
@@ -1113,21 +1113,25 @@ static const byte *parse_index_versioned_fields(const byte *ptr,
     if ((info.phy_pos & 0x8000) != 0) {
       info.phy_pos &= ~0x8000;
 
+      uint8_t version{0};
       /* Read v_added */
-      ptr = read_1_bytes(ptr, end_ptr, info.v_added);
+      ptr = read_1_bytes(ptr, end_ptr, version);
       if (ptr == nullptr) return (nullptr);
-      ut_ad(info.v_added != UINT8_UNDEFINED);
-      crv = std::max(crv, (uint16_t)info.v_added);
+
+      info.v_added = static_cast<row_version_t>(version);
+      crv = std::max(crv, info.v_added);
     }
 
     if ((info.phy_pos & 0x4000) != 0) {
       info.phy_pos &= ~0x4000;
 
+      uint8_t version{0};
       /* Read v_dropped */
-      ptr = read_1_bytes(ptr, end_ptr, info.v_dropped);
+      ptr = read_1_bytes(ptr, end_ptr, version);
       if (ptr == nullptr) return (nullptr);
-      ut_ad(info.v_dropped != UINT8_UNDEFINED);
-      crv = std::max(crv, (uint16_t)info.v_dropped);
+
+      info.v_dropped = static_cast<row_version_t>(version);
+      crv = std::max(crv, info.v_dropped);
       n_dropped++;
     }
 
@@ -1153,8 +1157,8 @@ static void update_instant_info(instant_fields_list_t f, dict_index_t *index) {
   size_t n_dropped = 0;
 
   for (auto field : f) {
-    bool is_added = field.v_added != UINT8_UNDEFINED;
-    bool is_dropped = field.v_dropped != UINT8_UNDEFINED;
+    bool is_added = field.v_added != INVALID_ROW_VERSION;
+    bool is_dropped = field.v_dropped != INVALID_ROW_VERSION;
 
     dict_col_t *col = index->fields[field.logical_pos].col;
 
@@ -1191,8 +1195,8 @@ static void populate_dummy_fields(dict_index_t *index, dict_table_t *table,
   ut_ad(!is_comp);
 
   uint32_t phy_pos = UINT32_UNDEFINED;
-  uint8_t v_added = UINT8_UNDEFINED;
-  uint8_t v_dropped = UINT8_UNDEFINED;
+  row_version_t v_added = INVALID_ROW_VERSION;
+  row_version_t v_dropped = INVALID_ROW_VERSION;
   size_t dummy_len = 10;
 
   for (size_t i = 0; i < n; i++) {

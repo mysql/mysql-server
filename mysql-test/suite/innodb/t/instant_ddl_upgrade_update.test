@@ -12,7 +12,7 @@
 --source include/have_innodb_16k.inc
 
 # ------------------------------------------------------------
-# Tables created on earlier version with following
+# Tables created on 8.0.28 with following
 # ------------------------------------------------------------
 # CREATE TABLE t1_redundant(c1 longtext) ROW_FORMAT=REDUNDANT;
 # INSERT INTO t1_redundant VALUES (repeat('x', 8098));
@@ -37,6 +37,8 @@
 # CREATE TABLE t2_dynamic(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext) ROW_FORMAT=DYNAMIC;
 # INSERT INTO t2_dynamic VALUES (1, repeat('x', 8100));
 # ALTER TABLE t2_dynamic ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+#
+# -- Upgrade to 8.4.3 and zip data directory
 # ------------------------------------------------------------
 
 --echo #########
@@ -47,9 +49,9 @@
 --source include/shutdown_mysqld.inc
 
 --echo # Copy and unzip the datadir.
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/instant_ddl_upgrade_update.zip $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
---file_exists $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
---exec unzip -qo $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/instant_ddl_upgrade_update_8_4_3.zip $MYSQL_TMP_DIR/instant_ddl_upgrade_update_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/instant_ddl_upgrade_update_8_4_3.zip
+--exec unzip -qo $MYSQL_TMP_DIR/instant_ddl_upgrade_update_8_4_3.zip -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server against the unzipped datadir
@@ -84,9 +86,9 @@ let $row_format = compact;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove copied files
---file_exists $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
+--file_exists $MYSQL_TMP_DIR/instant_ddl_upgrade_update_8_4_3.zip
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/instant_ddl_upgrade_update.zip
+--remove_file $MYSQL_TMP_DIR/instant_ddl_upgrade_update_8_4_3.zip
 
 --echo # Restarting server to restore server state
 let $restart_parameters =;

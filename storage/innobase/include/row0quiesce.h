@@ -55,6 +55,9 @@ constexpr uint32_t IB_EXPORT_CFG_VERSION_V5 = 5;
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V6 = 6;
 /** The v7 .cfg has metadata of INSTANT DROP/ADD columns. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V7 = 7;
+/** The v8 .cfg indicates valid row version range is [0-255] (in v7 it was
+[0-64]) */
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V8 = 8;
 /** Future version used to test that the correct error message is returned. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V99 = 99;
 

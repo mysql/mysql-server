@@ -11,19 +11,21 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 --enable_query_log
 
 # ------------------------------------------------------------
-# Tables created on earlier version with following
+# Tables created on 8.0.28 with following (--innodb_page_size=4k)
 # ------------------------------------------------------------
 # CREATE TABLE t1_redundant (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=REDUNDANT;
-# INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000));
-# ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# INSERT INTO t1_redundant VALUES(1, repeat('a', 4000), repeat('b', 4000));
+# ALTER TABLE t1_redundant ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
 #
 # CREATE TABLE t1_compact (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=COMPACT;
-# INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000));
-# ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# INSERT INTO t1_compact VALUES(1, repeat('a', 4000), repeat('b', 4000));
+# ALTER TABLE t1_compact ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
 #
 # CREATE TABLE t1_dynamic (id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=DYNAMIC;
-# INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000));
-# ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# INSERT INTO t1_dynamic VALUES(1, repeat('a', 4000), repeat('b', 4000));
+# ALTER TABLE t1_dynamic ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+#
+# -- Upgrade to 8.4.3 and zip data directory
 # ------------------------------------------------------------
 
 --echo #########
@@ -34,9 +36,9 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 --source include/shutdown_mysqld.inc
 
 --echo # Copy and unzip the datadir.
---copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_rollback.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
---exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade_rollback_8_4_3.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback_8_4_3.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback_8_4_3.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback_8_4_3.zip -d $MYSQL_TMP_DIR
 let $DATADIR = $MYSQL_TMP_DIR/data;
 
 --echo # Restart the server against the unzipped datadir
@@ -71,9 +73,9 @@ let $row_format = compact;
 --source include/shutdown_mysqld.inc
 
 --echo # Remove copied files
---file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback_8_4_3.zip
 --force-rmdir $MYSQL_TMP_DIR/data
---remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback.zip
+--remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade_rollback_8_4_3.zip
 
 --echo # Restarting server to restore server state
 let $restart_parameters =;

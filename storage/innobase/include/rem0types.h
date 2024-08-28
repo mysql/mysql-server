@@ -40,6 +40,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* We define the physical record simply as an array of bytes */
 typedef byte rec_t;
 
+/* Maximum number of rows version allowed when columns are added/dropped
+INSTANTly. After this limit is reached, any attempt to do ADD/DROP INSTANT
+column will result in error. */
+const uint8_t MAX_ROW_VERSION = 255;
+
+/* Type of Row version which is stamped on rows inserted/updated after an
+INSTANT ADD/DROP column is done. Maximum allowed row version is MAX_ROW_VERSION
+which is 255. This is stamped on rows header on disk in 1 byte. But in-memory,
+we use uint16_t to represent a row version to accommodate invalid row versions
+which is defined as INVALID_ROW_VERSION. */
+using row_version_t = uint16_t;
+
+/* Invalid row version */
+const row_version_t INVALID_ROW_VERSION = UINT16_UNDEFINED;
+
 /* Maximum values for various fields (for non-blob tuples) */
 constexpr uint32_t REC_MAX_N_FIELDS = 1024 - 1;
 constexpr uint32_t REC_MAX_HEAP_NO = 2 * 8192 - 1;
