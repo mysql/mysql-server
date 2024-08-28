@@ -62,8 +62,8 @@ inline int StrCmp(const Ch* s1, const Ch* s2) {
 //! Returns number of code points in a encoded string.
 template<typename Encoding>
 bool CountStringCodePoint(const typename Encoding::Ch* s, SizeType length, SizeType* outCount) {
-    RAPIDJSON_ASSERT(s != 0);
-    RAPIDJSON_ASSERT(outCount != 0);
+    RAPIDJSON_ASSERT(s != nullptr);
+    RAPIDJSON_ASSERT(outCount != nullptr);
     GenericStringStream<Encoding> is(s);
     const typename Encoding::Ch* end = s + length;
     SizeType count = 0;

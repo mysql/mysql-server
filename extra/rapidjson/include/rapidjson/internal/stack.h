@@ -38,7 +38,7 @@ class Stack {
 public:
     // Optimization note: Do not allocate memory for stack_ in constructor.
     // Do it lazily when first Push() -> Expand() -> Resize().
-    Stack(Allocator* allocator, size_t stackCapacity) : allocator_(allocator), ownAllocator_(0), stack_(0), stackTop_(0), stackEnd_(0), initialCapacity_(stackCapacity) {
+    Stack(Allocator* allocator, size_t stackCapacity) : allocator_(allocator), ownAllocator_(nullptr), stack_(nullptr), stackTop_(nullptr), stackEnd_(nullptr), initialCapacity_(stackCapacity) {
     }
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
@@ -102,9 +102,9 @@ public:
         if (Empty()) {
             // If the stack is empty, completely deallocate the memory.
             Allocator::Free(stack_); // NOLINT (+clang-analyzer-unix.Malloc)
-            stack_ = 0;
-            stackTop_ = 0;
-            stackEnd_ = 0;
+            stack_ = nullptr;
+            stackTop_ = nullptr;
+            stackEnd_ = nullptr;
         }
         else
             Resize(GetSize());
@@ -166,7 +166,7 @@ public:
     const T* Bottom() const { return reinterpret_cast<T*>(stack_); }
 
     bool HasAllocator() const {
-        return allocator_ != 0;
+        return allocator_ != nullptr;
     }
 
     Allocator& GetAllocator() {
@@ -183,7 +183,7 @@ private:
     void Expand(size_t count) {
         // Only expand the capacity if the current stack exists. Otherwise just create a stack with initial capacity.
         size_t newCapacity;
-        if (stack_ == 0) {
+        if (stack_ == nullptr) {
             if (!allocator_)
                 ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
             newCapacity = initialCapacity_;

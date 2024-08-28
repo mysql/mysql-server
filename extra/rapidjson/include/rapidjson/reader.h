@@ -1421,7 +1421,7 @@ private:
 
         size_t Tell() { return is.Tell(); }
         size_t Length() { return 0; }
-        const StackCharacter* Pop() { return 0; }
+        const StackCharacter* Pop() { return nullptr; }
 
     protected:
         NumberStream& operator=(const NumberStream&);
