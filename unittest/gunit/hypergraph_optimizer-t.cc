@@ -7685,8 +7685,8 @@ struct CountingReceiver {
   }
 
   size_t count(NodeMap map) const {
-#if defined(__GNUC__) && __GNUC__ >= 15
-    // Silence -Warray-bounds warning in GCC 15.
+#if defined(__GNUC__) && __GNUC__ >= 14
+    // Silence -Warray-bounds warning in GCC 14.
     [[assume(map != std::numeric_limits<uint64_t>::max())]];
 #endif
     return m_num_subplans[map];
