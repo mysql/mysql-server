@@ -10524,6 +10524,8 @@ ER_LH_CP_COMMIT_FAILED
 ER_LH_UNSTRUCTURED_INVALID_LANGUAGE
   eng "Invalid language code. %s."
 
+ER_LH_VECTOR_TOO_MANY_ENTRIES
+  eng "Column %d in %s: Vector has more entries than its dimension: %s"
 #
 #  End of 9.x error messages (server-to-client).
 #
