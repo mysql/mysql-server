@@ -1281,12 +1281,14 @@ ENDIF()
 IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
   # By default, do this for STANDALONE and tarball builds.
   # Off by default for sanitizer or valgrind builds.
+  # Off by default in pushbuild.
   # Off by default for Apple Clang.
   IF((INSTALL_LAYOUT MATCHES "STANDALONE" OR
         INSTALL_LAYOUT MATCHES "TARGZ" OR
         INSTALL_LAYOUT MATCHES "SVR4"
         )
       AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND
+      AND NOT DEFINED ENV{PB2WORKDIR}
       AND NOT APPLE)
     SET(MINIMAL_RELWITHDEBINFO_DEFAULT ON)
   ELSE()
