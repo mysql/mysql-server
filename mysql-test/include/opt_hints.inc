@@ -1241,3 +1241,29 @@ SELECT REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n') FROM
 
 SET SESSION OPTIMIZER_TRACE="enabled=off";
 DROP TABLE t;
+
+--echo # Statement modifiers for SELECT which affect temporary table creation
+CREATE TABLE t1 (
+    f1 int unsigned NOT NULL auto_increment primary key,
+    f2 varchar(100) NOT NULL default ''
+);
+CREATE TABLE t2 (
+    f1 varchar(10) NOT NULL default '',
+    f2 char(3) NOT NULL default '',
+    PRIMARY KEY  (`f1`),
+    KEY `k1` (`f2`,`f1`)
+);
+INSERT INTO t1 values(NULL, '');
+INSERT INTO t2 VALUES ('486878','WDT'),('486910','WDT');
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+
+--echo # SELECT SQL_BUFFER_RESULT should use temporary table
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT SQL_BUFFER_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+
+--echo # SELECT SQL_BIG_RESULT should not use temporary table
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+
+DROP TABLE t1, t2;

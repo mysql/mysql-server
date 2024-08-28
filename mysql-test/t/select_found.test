@@ -1,4 +1,4 @@
---source include/not_hypergraph.inc  # Does not support SQL_CALC_FOUND_ROWS.
+--source include/elide_costs.inc
 
 #
 # Testing of found_rows()
@@ -25,6 +25,7 @@ select SQL_CALC_FOUND_ROWS * from t1 left join t1 as t2 on (t1.b=t2.a) limit 2,1
 select found_rows(); 
 # Demonstrate printing of SQL_CALC_FOUND_ROWS in EXPLAIN.
 ANALYZE TABLE t1;
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 select found_rows();

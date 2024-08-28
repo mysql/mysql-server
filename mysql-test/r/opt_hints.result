@@ -2639,3 +2639,46 @@ REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n')
 index_dives_for_eq_ranges": true
 SET SESSION OPTIMIZER_TRACE="enabled=off";
 DROP TABLE t;
+# Statement modifiers for SELECT which affect temporary table creation
+CREATE TABLE t1 (
+f1 int unsigned NOT NULL auto_increment primary key,
+f2 varchar(100) NOT NULL default ''
+);
+CREATE TABLE t2 (
+f1 varchar(10) NOT NULL default '',
+f2 char(3) NOT NULL default '',
+PRIMARY KEY  (`f1`),
+KEY `k1` (`f2`,`f1`)
+);
+INSERT INTO t1 values(NULL, '');
+INSERT INTO t2 VALUES ('486878','WDT'),('486910','WDT');
+EXPLAIN FORMAT=TREE SELECT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+EXPLAIN
+-> Group aggregate: avg(t2.f1)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Covering index scan on t1 using PRIMARY  (rows=1)
+        -> Filter: (t2.f2 = 'SIR')  (rows=1)
+            -> Covering index lookup on t2 using k1 (f2 = 'SIR')  (rows=1)
+
+# SELECT SQL_BUFFER_RESULT should use temporary table
+EXPLAIN FORMAT=TREE SELECT SQL_BUFFER_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+EXPLAIN
+-> Table scan on <temporary>  (rows=1)
+    -> Temporary table  (rows=1)
+        -> Group aggregate: avg(t2.f1)  (rows=1)
+            -> Nested loop inner join  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=1)
+                -> Filter: (t2.f2 = 'SIR')  (rows=1)
+                    -> Covering index lookup on t2 using k1 (f2 = 'SIR')  (rows=1)
+
+# SELECT SQL_BIG_RESULT should not use temporary table
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+EXPLAIN
+-> Group aggregate: avg(t2.f1)  (rows=1)
+    -> Nested loop inner join  (rows=1)
+        -> Sort: t1.f1  (rows=1)
+            -> Covering index scan on t1 using PRIMARY  (rows=1)
+        -> Filter: (t2.f2 = 'SIR')  (rows=1)
+            -> Covering index lookup on t2 using k1 (f2 = 'SIR')  (rows=1)
+
+DROP TABLE t1, t2;

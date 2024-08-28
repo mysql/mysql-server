@@ -778,6 +778,12 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   // flattening even if features specific to single-table DELETE (that is, ORDER
   // BY and LIMIT) are used.
   if (lex->using_hypergraph_optimizer()) {
+    if (!multitable) {
+      Table_ref *const delete_table_ref = table_list->updatable_base_table();
+      TABLE *const table = delete_table_ref->table;
+      if (select->active_options() & OPTION_QUICK)
+        (void)table->file->ha_extra(HA_EXTRA_QUICK);
+    }
     multitable = true;
   }
 

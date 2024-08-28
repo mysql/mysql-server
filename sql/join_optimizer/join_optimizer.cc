@@ -7466,7 +7466,7 @@ void ApplyDistinctParameters::ProposeDistinctPaths(
     // Only const fields.
     AccessPath *limit_path =
         NewLimitOffsetAccessPath(thd, root_path, /*limit=*/1, /*offset=*/0,
-                                 query_block->join->calc_found_rows,
+                                 /*calc_found_rows=*/false,
                                  /*reject_multiple_rows=*/false,
                                  /*send_records_override=*/nullptr);
     receiver->ProposeAccessPath(limit_path, new_root_candidates,

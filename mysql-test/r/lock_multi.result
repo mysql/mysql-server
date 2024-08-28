@@ -35,6 +35,25 @@ select release_lock("mysqltest_lock");
 release_lock("mysqltest_lock")
 1
 drop table t1;
+CREATE TABLE t1(col1 INT);
+INSERT INTO t1 VALUES (1);
+SELECT get_lock("mysqltest_lock", 100);
+get_lock("mysqltest_lock", 100)
+1
+SELECT col1 FROM t1 WHERE get_lock('mysqltest_lock', 100);
+UPDATE t1 SET col1 = 4;
+SELECT HIGH_PRIORITY col1 FROM t1;
+col1
+1
+SELECT release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
+col1
+1
+SELECT release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
+DROP TABLE t1;
 #
 # Test locking in multi-update statements.
 #

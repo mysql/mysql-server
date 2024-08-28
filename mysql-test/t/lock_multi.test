@@ -94,6 +94,40 @@ connection writer;
 reap;
 drop table t1;
 
+# Test to see if SELECT HIGH_PRIORITY will get the lock ahead of UPDATE
+
+connection locker;
+CREATE TABLE t1(col1 INT);
+INSERT INTO t1 VALUES (1);
+connection locker2;
+SELECT get_lock("mysqltest_lock", 100);
+connection locker;
+send
+SELECT col1 FROM t1 WHERE get_lock('mysqltest_lock', 100);
+connection writer;
+# Wait till above select gets blocked on a user lock.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "User lock" AND info = "SELECT col1 FROM t1 WHERE get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
+send
+UPDATE t1 SET col1 = 4;
+connection reader;
+# Sleep a bit till the update of connection writer is in work and hangs
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table level lock" AND
+        INFO = "UPDATE t1 SET col1 = 4";
+--source include/wait_condition.inc
+SELECT HIGH_PRIORITY col1 FROM t1;
+connection locker2;
+SELECT release_lock("mysqltest_lock");
+connection locker;
+reap;
+SELECT release_lock("mysqltest_lock");
+connection writer;
+reap;
+DROP TABLE t1;
 
 --echo #
 --echo # Test locking in multi-update statements.

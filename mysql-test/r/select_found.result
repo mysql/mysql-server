@@ -83,8 +83,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree select SQL_CALC_FOUND_ROWS * from t1 limit 10 offset 100;
 EXPLAIN
--> Limit/Offset: 10/100 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (cost=1.05 rows=0)
-    -> Table scan on t1  (cost=1.05 rows=8)
+-> Limit/Offset: 10/100 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (rows=0)
+    -> Table scan on t1  (rows=8)
 
 Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
