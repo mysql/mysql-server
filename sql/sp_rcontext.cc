@@ -146,12 +146,13 @@ bool sp_rcontext::init_var_items(THD *thd) {
   return false;
 }
 
-bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item) {
+bool sp_rcontext::set_return_value(THD *thd, bool standalone,
+                                   Item **return_value_item) {
   assert(m_return_value_fld);
 
   m_return_value_set = true;
 
-  return sp_eval_expr(thd, m_return_value_fld, return_value_item);
+  return sp_eval_expr(thd, standalone, m_return_value_fld, return_value_item);
 }
 
 bool sp_rcontext::push_cursor(sp_instr_cpush *i) {
@@ -402,13 +403,13 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
   return true;
 }
 
-bool sp_rcontext::set_variable(THD *thd, Field *field, Item **value) {
-  if (!value) {
+bool sp_rcontext::set_variable(THD *thd, bool standalone, Field *field,
+                               Item **value) {
+  if (value == nullptr) {
     field->set_null();
     return false;
   }
-
-  return sp_eval_expr(thd, field, value);
+  return sp_eval_expr(thd, standalone, field, value);
 }
 
 Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
@@ -425,10 +426,11 @@ Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
   return holder;
 }
 
-bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
+bool sp_rcontext::set_case_expr(THD *thd, bool standalone, int case_expr_id,
                                 Item **case_expr_item_ptr) {
-  Item *case_expr_item = sp_prepare_func_item(thd, case_expr_item_ptr);
-  if (!case_expr_item) return true;
+  Item *case_expr_item =
+      sp_prepare_func_item(thd, standalone, case_expr_item_ptr);
+  if (case_expr_item == nullptr) return true;
 
   if (!m_case_expr_holders[case_expr_id] ||
       m_case_expr_holders[case_expr_id]->result_type() !=
@@ -547,7 +549,7 @@ bool sp_cursor::Query_fetch_into_spvars::send_data(
   */
   while ((spvar = spvar_iter++)) {
     Item *item = *item_iter++;
-    if (thd->sp_runtime_ctx->set_variable(thd, spvar->offset, &item))
+    if (thd->sp_runtime_ctx->set_variable(thd, false, spvar->offset, &item))
       return true;
   }
   return false;

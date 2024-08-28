@@ -915,6 +915,12 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     return true;
   }
 
+  // Statement is fully prepared:
+  thd->lex->unit->set_prepared();
+
+  // Start execution:
+  thd->lex->set_exec_started();
+
   if (m_is_local_file) {
     (void)net_request_file(thd->get_protocol_classic()->get_net(),
                            m_exchange.file_name);

@@ -2004,7 +2004,7 @@ void Item_splocal::print(const THD *thd, String *str, enum_query_type) const {
 }
 
 bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it) {
-  return ctx->set_variable(thd, get_var_idx(), it);
+  return ctx->set_variable(thd, false, get_var_idx(), it);
 }
 
 /*****************************************************************************
@@ -9428,8 +9428,8 @@ bool Item_trigger_field::eq(const Item *item, bool) const {
              down_cast<const Item_trigger_field *>(item)->field_name);
 }
 
-bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it) {
-  Item *item = sp_prepare_func_item(thd, it);
+bool Item_trigger_field::set_value(THD *thd, sp_rcontext *, Item **it) {
+  Item *item = sp_prepare_func_item(thd, true, it);
   if (item == nullptr) return true;
 
   if (!fixed) {

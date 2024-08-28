@@ -720,7 +720,8 @@ bool Query_dumpvar::send_data(THD *thd, const mem_root_deque<Item *> &items) {
   while ((mv = var_li++) && it != VisibleFields(items).end()) {
     Item *item = *it++;
     if (mv->is_local()) {
-      if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
+      if (thd->sp_runtime_ctx->set_variable(thd, false, mv->get_offset(),
+                                            &item))
         return true;
     } else {
       Item_func_set_user_var *suv = new Item_func_set_user_var(mv->name, item);

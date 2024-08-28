@@ -2791,8 +2791,8 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     /* Arguments must be fixed in Item_func_sp::fix_fields */
     assert(argp[arg_no]->fixed);
 
-    err_status = func_runtime_ctx->set_variable(thd, arg_no, &(argp[arg_no]));
-
+    err_status =
+        func_runtime_ctx->set_variable(thd, false, arg_no, &(argp[arg_no]));
     if (err_status) goto err_with_cleanup;
   }
 
@@ -2975,11 +2975,12 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   sp_rcontext *proc_runtime_ctx =
       sp_rcontext::create(thd, m_root_parsing_ctx, nullptr);
 
-  if (!proc_runtime_ctx) {
+  if (proc_runtime_ctx == nullptr) {
     thd->sp_runtime_ctx = sp_runtime_ctx_saved;
 
-    if (sp_runtime_ctx_saved != nullptr) ::destroy_at(parent_sp_runtime_ctx);
-
+    if (sp_runtime_ctx_saved != nullptr) {
+      ::destroy_at(parent_sp_runtime_ctx);
+    }
     return true;
   }
 
@@ -2992,17 +2993,15 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
 
     for (uint i = 0; i < params; ++i, ++it_args) {
       Item *arg_item = *it_args;
-      if (!arg_item) break;
+      if (arg_item == nullptr) break;
 
       sp_variable *spvar = m_root_parsing_ctx->find_variable(i);
-
-      if (!spvar) continue;
+      if (spvar == nullptr) continue;
 
       if (spvar->mode != sp_variable::MODE_IN) {
         Settable_routine_parameter *srp =
             arg_item->get_settable_routine_parameter();
-
-        if (!srp) {
+        if (srp == nullptr) {
           my_error(ER_SP_NOT_VAR_ARG, MYF(0), i + 1, m_qname.str);
           err_status = true;
           break;
@@ -3010,15 +3009,17 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
       }
 
       if (spvar->mode == sp_variable::MODE_OUT) {
-        Item_null *null_item = new Item_null();
-
-        if (!null_item ||
-            proc_runtime_ctx->set_variable(thd, i, (Item **)&null_item)) {
+        Item *null_item = new Item_null();
+        if (null_item == nullptr) {
+          err_status = true;
+          break;
+        }
+        if (proc_runtime_ctx->set_variable(thd, false, i, &null_item)) {
           err_status = true;
           break;
         }
       } else {
-        if (proc_runtime_ctx->set_variable(thd, i, &*it_args)) {
+        if (proc_runtime_ctx->set_variable(thd, false, i, &*it_args)) {
           err_status = true;
           break;
         }
