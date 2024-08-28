@@ -39,6 +39,14 @@ a	b	d
 8	6	20
 10	1	10
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT) row_format=REDUNDANT;
+INSERT INTO t1 VALUES(0,0);
+ALTER TABLE t1 ADD COLUMN c varchar(25)  DEFAULT NULL, ALGORITHM=INSTANT;
+UPDATE t1 SET c="" WHERE a=0;
+SELECT * FROM t1;
+a	b	c
+0	0	
+DROP TABLE t1;
 ############################################
 # Test instant ADD COLUMN for DYNAMIC format
 ############################################
@@ -80,6 +88,14 @@ a	b	d
 8	6	20
 10	1	10
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT) row_format=DYNAMIC;
+INSERT INTO t1 VALUES(0,0);
+ALTER TABLE t1 ADD COLUMN c varchar(25)  DEFAULT NULL, ALGORITHM=INSTANT;
+UPDATE t1 SET c="" WHERE a=0;
+SELECT * FROM t1;
+a	b	c
+0	0	
+DROP TABLE t1;
 ############################################
 # Test instant ADD COLUMN for COMPACT format
 ############################################
@@ -120,4 +136,12 @@ a	b	d
 7	7	10
 8	6	20
 10	1	10
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT) row_format=COMPACT;
+INSERT INTO t1 VALUES(0,0);
+ALTER TABLE t1 ADD COLUMN c varchar(25)  DEFAULT NULL, ALGORITHM=INSTANT;
+UPDATE t1 SET c="" WHERE a=0;
+SELECT * FROM t1;
+a	b	c
+0	0	
 DROP TABLE t1;

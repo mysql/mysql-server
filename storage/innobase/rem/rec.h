@@ -533,7 +533,7 @@ static inline uint64_t rec_get_instant_offset(const dict_index_t *index,
   index->get_nth_default(n, &length);
 
   if (length == UNIV_SQL_NULL) {
-    return (offs | REC_OFFS_SQL_NULL);
+    return (offs | REC_OFFS_DEFAULT | REC_OFFS_SQL_NULL);
   } else {
     return (offs | REC_OFFS_DEFAULT);
   }
