@@ -48,3 +48,13 @@ SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+#
+# Bug#36840107 mysql crash after update inplace in instant ddl redundant table
+#
+--eval CREATE TABLE t1 (a INT, b INT) row_format=$row_format
+INSERT INTO t1 VALUES(0,0);
+ALTER TABLE t1 ADD COLUMN c varchar(25)  DEFAULT NULL, ALGORITHM=INSTANT;
+UPDATE t1 SET c="" WHERE a=0;
+SELECT * FROM t1;
+DROP TABLE t1;
