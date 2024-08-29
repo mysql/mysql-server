@@ -194,5 +194,6 @@ connect (con1, localhost, u1);
 
 --echo # Clean up.
 connection default;
+disconnect con1;
 DROP USER u1@localhost;
 SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

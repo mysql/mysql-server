@@ -6626,6 +6626,9 @@ sub mysqld_start ($$$$) {
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{ $mysqld->value('datadir') } = 1 if $opt_gprof;
 
+  # Set $AWS_SHARED_CREDENTIALS_FILE required by some AWS tests
+  push(@opt_mysqld_envs, "AWS_SHARED_CREDENTIALS_FILE=$opt_vardir/tmp/credentials");
+
   if (defined $exe) {
     $mysqld->{'proc'} =
       My::SafeProcess->new(name        => $mysqld->name(),

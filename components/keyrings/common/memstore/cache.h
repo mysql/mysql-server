@@ -25,6 +25,7 @@
 #define CACHE_INCLUDED
 
 #include <unordered_map>
+#include <utility>
 
 #include "components/keyrings/common/data/data.h" /* data::Data */
 #include "components/keyrings/common/data/meta.h" /* meta::Metadata */
@@ -49,6 +50,17 @@ class Datacache final {
 
   /** Destructor */
   ~Datacache() = default;
+
+  /**
+    Swap content of two caches.
+
+    @param [in, out] a   first cache to be swapped
+    @param [in, out] b   second cache to be swapped
+  */
+  static void swap(Datacache &a, Datacache &b) {
+    std::swap(a.version_, b.version_);
+    std::swap(a.cache_, b.cache_);
+  }
 
   /**
     Retrieve an element from cache

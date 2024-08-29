@@ -46,6 +46,7 @@
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
+%{?with_aws_1_11: %add_component_keyring_aws 1}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -935,6 +936,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%if 0%{?add_component_keyring_aws}
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_aws.so
+%endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
@@ -1022,6 +1026,9 @@ fi
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
 %endif # add_fido_plugins
+%if 0%{?add_component_keyring_aws}
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_aws.so
+%endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
@@ -1543,6 +1550,7 @@ fi
 
 * Wed May 29 2024 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 9.1.0-1
 - Added component_test_server_telemetry_logs_* test components
+- Added component_keyring_aws
 
 * Mon May 27 2024 Georgi "Joro" Kodinov <georgi.kodinov@oracle.com> - 9.0.0-1
 - Added the option usage tracker component

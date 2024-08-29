@@ -83,6 +83,22 @@ class Json_writer {
   /** Validity of the document */
   bool valid() const { return valid_; }
 
+ protected:
+  /**
+    Set a property in the main JSON object. It is intended to be used by derived
+    classes, so it is possible to store some specific, data file-wide
+    properties.
+
+    @param [in]  property_key  key (name) of the property
+    @param [in]  property      value of the property
+
+    @returns status
+      @retval false Success
+      @retval true  Failure
+  */
+  virtual bool set_property(const std::string &property_key,
+                            const std::string &property);
+
  private:
   /** Data in JSON DOM format */
   rapidjson::Document document_;

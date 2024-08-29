@@ -201,6 +201,9 @@ DROP TABLE tde_db.test_tbl;
 # Cleanup
 DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+--remove_file $MYSQLD_DATADIR/t1.cfg_back
+--remove_file $MYSQLD_DATADIR/t1.cfp_back
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\].* Decrypting a page in doublewrite file failed");

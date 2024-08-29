@@ -34,6 +34,8 @@ connect (con1, localhost, u1);
 --let expected_error4=0
 --let caseno=0
 
+--let algo=
+
 --echo `````````````````````````````````````````````````````````
 --echo # table_encryption_privilege_check=false
 --let privilege_check=false

@@ -6,6 +6,9 @@
 # ==== Usage ====
 #
 # --let $openssl_binary_version = 1.1.*
+# --let $not_have_openssl_binary_version = 1
+#       optional, by default not set,
+#       if set, skip the test if openssl is NOT of a particular version
 # --source include/have_openssl_binary_version.inc
 
 --disable_query_log
@@ -45,19 +48,26 @@ EOF
 
 --source $OPENSSL_CONFIG_INC
 
-if ($STATUS_VAR)
-{
- --error 0,1
- --remove_file $OPENSSL_VERSION_INFO
- --error 0,1
- --remove_file $OPENSSL_CONFIG_INC
- --skip Test requires openssl version to be $openssl_binary_version
-}
-
 --error 0,1
 --remove_file $OPENSSL_VERSION_INFO
 --error 0,1
 --remove_file $OPENSSL_CONFIG_INC
+
+if (!$not_have_openssl_binary_version)
+{
+  if ($STATUS_VAR)
+  {
+    --skip Test requires openssl version to be $openssl_binary_version
+  }
+}
+
+if ($not_have_openssl_binary_version)
+{
+  if (!$STATUS_VAR)
+  {
+    --skip Test requires openssl version not to be $openssl_binary_version
+  }
+}
 
 --enable_query_log
 --enable_result_log

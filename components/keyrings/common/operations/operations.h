@@ -24,6 +24,7 @@
 #ifndef OPERATIONS_INCLUDED
 #define OPERATIONS_INCLUDED
 
+#include <assert.h>
 #include <memory> /* std::unique_ptr */
 
 #include "components/keyrings/common/data/data_extension.h"

@@ -52,6 +52,9 @@
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=1 -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
+%{?with_aws_1_11: %global add_component_keyring_aws 1}
+
+%{echo: add_component_keyring_aws = %{add_component_keyring_aws}}
 
 %global ssl_default 1
 
@@ -1308,6 +1311,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%if 0%{?add_component_keyring_aws}
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_aws.so
+%endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
@@ -1401,6 +1407,9 @@ fi
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
+%if 0%{?add_component_keyring_aws}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_aws.so
+%endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
@@ -1983,6 +1992,7 @@ fi
 
 * Wed May 29 2024 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 9.1.0-1
 - Added component_test_server_telemetry_logs_* test components
+- Added component_keyring_aws
 
 * Mon May 27 2024 Georgi "Joro" Kodinov <georgi.kodinov@oracle.com> - 9.0.0-1
 - Added the option usage tracker component

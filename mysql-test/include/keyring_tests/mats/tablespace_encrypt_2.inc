@@ -318,9 +318,9 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 --source include/start_mysqld_no_echo.inc
 
 --echo # Wait for Unencryption processing to finish in background thread
-let $wait_condition = select count(*) = 0
-        from performance_schema.events_stages_current
-        where EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+let $wait_condition = SELECT ENCRYPTION = 'Y'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='encrypt_ts';
 --source include/wait_condition.inc
 
 # Encrytion property of tablespace shouldn't have changed i.e. it should still
@@ -340,9 +340,9 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 --source include/start_mysqld_no_echo.inc
 
 --echo # Wait for Unencryption processing to finish in background thread
-let $wait_condition = select count(*) = 0
-        from performance_schema.events_stages_current
-        where EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+let $wait_condition = SELECT ENCRYPTION = 'N'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='encrypt_ts';
 --source include/wait_condition.inc
 
 # Encrytion property of tablespace should have changed i.e. it should be

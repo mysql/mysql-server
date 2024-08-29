@@ -142,6 +142,18 @@ usr/lib/mysql/plugin/telemetry_client.so
     SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
 usr/lib/mysql/plugin/keyring_aws.so
 ")
+
+    IF (DEFINED ENV{AWS_VER})
+      IF ($ENV{AWS_VER} STREQUAL "1.11")
+        SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
+usr/lib/mysql/plugin/component_keyring_aws.so
+")
+      ELSE()
+        MESSAGE(STATUS "Unsupported AWS SDK version: $ENV{AWS_VER}, skip packaging component_keyring_aws.")
+      ENDIF()
+    ELSE()
+      MESSAGE(STATUS "Environment variable AWS_VER not set, skip packaging component_keyring_aws.")
+    ENDIF()
   ENDIF()
 
   IF (WITH_CURL)
@@ -305,4 +317,3 @@ ENDFOREACH()
 EXECUTE_PROCESS(
   COMMAND chmod +x ${CMAKE_BINARY_DIR}/debian/rules
 )
-

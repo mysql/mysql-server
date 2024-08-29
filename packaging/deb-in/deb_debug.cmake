@@ -235,10 +235,24 @@ usr/lib/mysql/plugin/debug/component_group_replication_flow_control_stats.so
 usr/lib/mysql/plugin/debug/authentication_webauthn.so
 ")
   ENDIF()
+
   IF (DEB_AWS_SDK)
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
     SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS "${DEB_INSTALL_DEBUG_SERVER_PLUGINS}
 usr/lib/mysql/plugin/debug/keyring_aws.so
 ")
+
+    IF (DEFINED ENV{AWS_VER})
+      IF ($ENV{AWS_VER} STREQUAL "1.11")
+	      SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS "${DEB_INSTALL_DEBUG_SERVER_PLUGINS}
+usr/lib/mysql/plugin/debug/component_keyring_aws.so
+")
+      ELSE()
+        MESSAGE(STATUS "Unsupported AWS SDK version: $ENV{AWS_VER}, skip packaging component_keyring_aws.")
+      ENDIF()
+    ELSE()
+      MESSAGE(STATUS "Environment variable AWS_VER not set, skip packaging component_keyring_aws.")
+    ENDIF()
   ENDIF()
   SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
 usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so

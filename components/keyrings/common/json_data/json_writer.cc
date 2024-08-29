@@ -150,4 +150,17 @@ size_t Json_writer::num_elements() const {
   return static_cast<size_t>(document_[array_key_.c_str()].Size());
 }
 
+bool Json_writer::set_property(const std::string &property_key,
+                               const std::string &property) {
+  if (!valid_) return true;
+  rapidjson::Document::AllocatorType &allocator = document_.GetAllocator();
+  rapidjson::Value property_value(rapidjson::kObjectType);
+  property_value.SetString(property.c_str(),
+                           static_cast<rapidjson::SizeType>(property.length()),
+                           allocator);
+  document_.AddMember(rapidjson::StringRef(property_key.c_str()),
+                      property_value, allocator);
+  return false;
+}
+
 }  // namespace keyring_common::json_data

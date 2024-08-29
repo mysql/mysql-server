@@ -12862,6 +12862,51 @@ ER_THREAD_POOL_EPOLL_WAIT_ERROR
 ER_THREAD_POOL_POLL_WAIT_ERROR
    eng "Thread pool poll_wait() error: errno=%d."
 
+ER_KEYRING_COMPONENT_AWS_FILE_PATH_EMPTY
+  eng "Keyring data file path is empty in configuration file."
+
+ER_KEYRING_COMPONENT_AWS_FILE_OPEN_FAILED
+  eng "Failed to open keyring data file: %s."
+
+ER_KEYRING_COMPONENT_AWS_FILE_READ_FAILED
+  eng "Failed to read data from keyring data file: %s."
+
+ER_KEYRING_COMPONENT_AWS_FILE_WRITE_FAILED
+  eng "Failed to write data to keyring data file: %s."
+
+ER_KEYRING_COMPONENT_AWS_FILE_PARSE_FAILED
+   eng "The keyring file content is not in a valid JSON format."
+
+ER_KEYRING_COMPONENT_AWS_KEY_EXTRACT_FAILED
+   eng "Failed to extract %d. element from keyring file content."
+
+ER_KEYRING_COMPONENT_AWS_CLIENT_CREATE_FAILED
+  eng "Failed to create AWS KMS client."
+
+ER_KEYRING_COMPONENT_AWS_CLIENT_OPERATION_FAILED
+  eng "Failed AWS KMS operation %s: %s."
+
+ER_KEYRING_COMPONENT_AWS_GENERATE_KEY_INVALID_PARAMETER
+  eng "Invalid key generate parameter: %s = %s, must be %s."
+
+ER_KEYRING_COMPONENT_AWS_BACKEND_OPERATION_FAILED
+  eng "Failed operation %s on key %s owned by %s."
+
+ER_KEYRING_COMPONENT_AWS_CACHE_OPERATION_FAILED
+  eng "Failed keyring cache operation %s."
+
+ER_KEYRING_COMPONENT_AWS_ADD_TO_DOC_FAILED
+  eng "Failed to add key %s for %s to JSON document."
+
+ER_KEYRING_COMPONENT_AWS_WRITE_AFTER_REENCRYPTION_FAILED
+  eng "Failed to write the data after reencryption."
+
+ER_KEYRING_COMPONENT_AWS_READ_ONLY_LIMIT
+  eng "Cannot %s, the keyring is read only."
+
+ER_KEYRING_COMPONENT_AWS_CANNOT_ENCRYPT_READ_ONLY
+  eng "CMK was changed and the keyring must be re-encrypted, but the keyring is read only. Set the read_only config parameter to false for re-encryption and reload the component."
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

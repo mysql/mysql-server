@@ -1,5 +1,5 @@
 # Migrate keyring from plugin to component - Offline mode
-# 
+#
 # ==== Usage ====
 # --let $SOURCE_KEYRING_PLUGIN=<plugin_name>
 # --let $SOURCE_KEYRING_OPTIONS=<options to initialize source plugin>

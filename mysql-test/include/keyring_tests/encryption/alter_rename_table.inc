@@ -50,6 +50,7 @@ GRANT TABLE_ENCRYPTION_ADMIN ON *.* TO u1@localhost;
 connection con1;
 }
 
+--let clause=
 if ($algo == 'copy')
 {
 --let clause=,MODIFY f1 CHAR(30)

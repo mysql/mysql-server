@@ -107,14 +107,16 @@ Json_reader::Json_reader(const std::string &data)
 Json_reader::Json_reader() : Json_reader(schema_version_1_0, "") {}
 
 /**
-  Get version info
+  Get property value
 
-  @returns version string in case same is
-           present, empty string otherwise.
+  @param [in] property_key   key (name) of the property
+
+  @returns property value string in case property is present,
+  empty string otherwise.
 */
-std::string Json_reader::version() const {
+std::string Json_reader::property(const std::string property_key) const {
   if (!valid_) return {};
-  return document_[version_key_.c_str()].Get<std::string>();
+  return document_[property_key.c_str()].Get<std::string>();
 }
 
 /**
