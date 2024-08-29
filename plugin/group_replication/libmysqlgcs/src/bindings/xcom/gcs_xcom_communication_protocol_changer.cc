@@ -64,12 +64,26 @@ Gcs_xcom_communication_protocol_changer::set_protocol_version(
       m_tagged_lock.try_lock();
   assert(we_acquired_lock);
 
+  std::string new_version_readable = gcs_protocol_to_mysql_version(new_version);
+
+  MYSQL_GCS_LOG_INFO(
+      "This node has started changing the protocol version from "
+      << gcs_protocol_to_mysql_version(get_protocol_version()).c_str() << "to "
+      << new_version_readable.c_str());
+
   if (new_version <= get_maximum_supported_protocol_version()) {
     begin_protocol_version_change(new_version);
     will_change_protocol = true;
     future = m_promise.get_future();
   } else {
     /* The protocol change will not proceed. */
+    MYSQL_GCS_LOG_WARN(
+        "This node has failed to apply a protocol version change. The proposed "
+        "protocol version ("
+        << new_version_readable.c_str()
+        << ") is above the maximum supported version or you have "
+           "input an incompatible version. Please "
+           "review the proposed version and retry it.");
     release_tagged_lock_and_notify_waiters();
   }
 
@@ -84,6 +98,9 @@ void Gcs_xcom_communication_protocol_changer::begin_protocol_version_change(
   m_tentative_new_protocol = new_version;
   m_promise = std::promise<void>();
 
+  std::string old_version_readable =
+      gcs_protocol_to_mysql_version(get_protocol_version());
+
   /* Change the pipeline. */
 #ifndef NDEBUG
   bool const failed =
@@ -92,11 +109,39 @@ void Gcs_xcom_communication_protocol_changer::begin_protocol_version_change(
           static_cast<Gcs_protocol_version>(m_tentative_new_protocol));
   assert(!failed && "Setting the pipeline version should not have failed");
 
+  std::string new_version_readable = gcs_protocol_to_mysql_version(new_version);
+
+  MYSQL_GCS_LOG_INFO(
+      "Message Pipeline version has been modified to protocol version "
+      << new_version_readable.c_str()
+      << ". We will now try and change to this new protocol version.");
+
   /*
    Finish the protocol change if all my in-transit messages have been delivered.
    */
   bool const no_messages_in_transit = (get_nr_packets_in_transit() == 0);
-  if (no_messages_in_transit) commit_protocol_version_change();
+  if (no_messages_in_transit) {
+    MYSQL_GCS_LOG_INFO(
+        "There are no messages in transit. We will now change to the new "
+        "protocol "
+        "version "
+        << new_version_readable.c_str() << ", from protocol version"
+        << old_version_readable.c_str()
+        << ", effectively changing the running protocol version.");
+    commit_protocol_version_change();
+    MYSQL_GCS_LOG_INFO("Successfully changed protocol version from "
+                       << old_version_readable.c_str() << " to "
+                       << new_version_readable.c_str());
+  } else {
+    MYSQL_GCS_LOG_INFO(
+        "There are still messages in transit after setting the proposed "
+        "protocol "
+        "version in the pipeline. We will not change to the new protocol "
+        "version "
+        << new_version_readable.c_str() << ", from protocol version"
+        << gcs_protocol_to_mysql_version(get_protocol_version()).c_str()
+        << ", and we will wait for 0 messages in transit");
+  }
 }
 
 void Gcs_xcom_communication_protocol_changer::commit_protocol_version_change() {
@@ -213,6 +258,11 @@ void Gcs_xcom_communication_protocol_changer::
         "rollback_increment_nr_packets_in_transit: attempting to finish "
         "protocol change");
 
+    MYSQL_GCS_LOG_INFO(
+        "During rollback of the number of packets in transit, we detected that "
+        "we can finish the protocol version change to "
+        << gcs_protocol_to_mysql_version(get_protocol_version()).c_str())
+
     Gcs_xcom_notification *notification = new Protocol_change_notification(
         do_function_finish_protocol_version_change, this, tag);
     bool scheduled = m_gcs_engine.push(notification);
@@ -232,6 +282,9 @@ void Gcs_xcom_communication_protocol_changer::
   std::unique_lock<std::mutex> lock(m_mutex);
   m_protocol_change_finished.wait(
       lock, [this]() { return !is_protocol_change_ongoing(); });
+
+  MYSQL_GCS_LOG_INFO("Successfully changed protocol version to "
+                     << gcs_protocol_to_mysql_version(get_protocol_version()));
 
   MYSQL_GCS_LOG_TRACE("wait_for_protocol_change_to_finish: done");
 }
@@ -263,13 +316,23 @@ void Gcs_xcom_communication_protocol_changer::
      */
     bool const protocol_change_started = !successful;
     if (protocol_change_started) {
+      MYSQL_GCS_LOG_INFO(
+          "Rolling back the last increment for the packets in transit, because "
+          "a protocol version change has started.");
       rollback_increment_nr_packets_in_transit(tag);
     }
 
     need_to_wait_for_protocol_change = protocol_change_started;
 
     /* A protocol change has started meanwhile, wait for it. */
-    if (need_to_wait_for_protocol_change) wait_for_protocol_change_to_finish();
+    if (need_to_wait_for_protocol_change) {
+      MYSQL_GCS_LOG_INFO(
+          "Protocol version change has started. Not sending new messages until "
+          "this "
+          "change finishes. The current number of packets in transit is:"
+          << get_nr_packets_in_transit());
+      wait_for_protocol_change_to_finish();
+    }
   }
 }
 
@@ -374,6 +437,9 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
     Gcs_member_identifier myself{myself_node_address_string};
 
     bool const message_comes_from_me = (origin == myself);
+    std::string new_version_readable =
+        gcs_protocol_to_mysql_version(get_protocol_version());
+
     if (message_comes_from_me) {
       assert(get_nr_packets_in_transit() > 0 &&
              "Number of packets in transit should not have been 0");
@@ -389,8 +455,34 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
       // Finish the protocol change if we delivered the last pending packet.
       bool const delivered_last_pending_packet =
           (previous_nr_of_packets_in_transit == 1);
-      if (is_protocol_change_ongoing() && delivered_last_pending_packet) {
-        commit_protocol_version_change();
+      if (is_protocol_change_ongoing()) {
+        if (delivered_last_pending_packet) {
+          MYSQL_GCS_LOG_INFO(
+              "Last packet for this protocol version change processed. It is "
+              "safe to "
+              "change to the new protocol "
+              "version: "
+              << new_version_readable.c_str())
+          commit_protocol_version_change();
+          MYSQL_GCS_LOG_INFO("Successfully changed protocol version to "
+                             << new_version_readable.c_str());
+        } else {
+          MYSQL_GCS_LOG_INFO(
+              "One ongoing packet decremented. Waiting for more packets to "
+              "arrive before changing to new protocol version: "
+              << new_version_readable.c_str()
+              << ". We are currently waiting for "
+              << get_nr_packets_in_transit() << " packets");
+        }
+      }
+    } else {
+      if (is_protocol_change_ongoing()) {
+        MYSQL_GCS_LOG_INFO(
+            "One ongoing packet processeed that was not sent by this node. "
+            "Waiting for more packets sent by this node to "
+            "arrive before changing new protocol version: "
+            << new_version_readable.c_str() << ". We are currently waiting for "
+            << get_nr_packets_in_transit() << " packets");
       }
     }
   }

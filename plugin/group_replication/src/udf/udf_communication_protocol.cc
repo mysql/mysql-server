@@ -296,6 +296,12 @@ static char *group_replication_set_communication_protocol(
 
   Communication_protocol_action group_action(gcs_protocol);
   Group_action_diagnostics action_diagnostics;
+
+  action_diagnostics.set_execution_message(
+      Group_action_diagnostics::GROUP_ACTION_LOG_INFO,
+      "group_replication_set_communication_protocol will be "
+      "started on this node");
+
   group_action_coordinator->coordinate_action_execution(
       &group_action, &action_diagnostics,
       Group_action_message::ACTION_UDF_COMMUNICATION_PROTOCOL_MESSAGE);
