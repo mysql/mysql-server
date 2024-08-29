@@ -92,5 +92,5 @@ ENDIF()
 # The ``OLD`` behavior for this policy is to allow target overwrite.
 # The ``NEW`` behavior of this policy is to prevent target overwriting.
 IF(POLICY CMP0107)
-  CMAKE_POLICY(SET CMP0107 NEW)
+#  CMAKE_POLICY(SET CMP0107 NEW)
 ENDIF()
