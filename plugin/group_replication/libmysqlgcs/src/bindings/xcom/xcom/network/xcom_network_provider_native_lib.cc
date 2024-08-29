@@ -236,12 +236,13 @@ result Xcom_network_provider_library::announce_tcp(xcom_port port) {
     // IPv4 socket.
     /* purecov: begin deadcode */
     fd = create_server_socket_v4();
+    free(sock_addr);
+    sock_addr = nullptr;
+
     if (fd.val < 0) {
       return fd;
     }
 
-    free(sock_addr);
-    sock_addr = nullptr;
     init_server_addr(&sock_addr, &sock_addr_len, port, AF_INET);
     if (bind(fd.val, sock_addr, sock_addr_len) < 0) {
       int err = to_errno(GET_OS_ERR);
