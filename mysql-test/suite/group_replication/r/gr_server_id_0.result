@@ -12,6 +12,7 @@ call mtr.add_suppression("Failure when cleaning Group Replication server state")
 call mtr.add_suppression("Failure when unregistering the server state observers");
 call mtr.add_suppression("Failure when unregistering the transactions state observers");
 call mtr.add_suppression("Failure when unregistering the binlog state observers");
+call mtr.add_suppression("Failure when unregistering service 'group_replication_flow_control_service'");
 call mtr.add_suppression("Group Replication plugin is not installed");
 call mtr.add_suppression("For the creation of replication channels the server id must be different from 0");
 call mtr.add_suppression("Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with server_id=0. Please, restart the server with server_id larger than 0.");

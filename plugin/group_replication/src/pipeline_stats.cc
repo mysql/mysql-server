@@ -1008,9 +1008,18 @@ int32 Flow_control_module::do_wait() {
     struct timespec delay;
     set_timespec(&delay, 1);
 
+    metrics_handler->increment_flow_control_throttle();
+
+    const uint64_t flow_control_begin = Metrics_handler::get_current_time();
     mysql_mutex_lock(&m_flow_control_lock);
     mysql_cond_timedwait(&m_flow_control_cond, &m_flow_control_lock, &delay);
     mysql_mutex_unlock(&m_flow_control_lock);
+    const uint64_t flow_control_end = Metrics_handler::get_current_time();
+
+    metrics_handler->decrement_flow_control_throttle();
+
+    metrics_handler->add_flow_control_throttle_stats(flow_control_begin,
+                                                     flow_control_end);
   }
 
   return 0;

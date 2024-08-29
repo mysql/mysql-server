@@ -115,6 +115,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/services/status_service/status_service.cc
   src/services/system_variable/get_system_variable.cc
   src/services/system_variable/set_system_variable.cc
+  src/services/flow_control/get_metrics.cc
   src/services/registry.cc
   src/services/server_services_references.cc
   src/sql_service/sql_command_test.cc

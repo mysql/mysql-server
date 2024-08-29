@@ -48,6 +48,7 @@
 #include "plugin/group_replication/include/plugin_status_variables.h"
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
+#include "plugin/group_replication/include/services/flow_control/get_metrics.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/services/status_service/status_service.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
@@ -2156,6 +2157,14 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
     return 1;
   }
 
+  if (gr::flow_control_metrics_service::
+          register_gr_flow_control_metrics_service()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                 "Failed to initialize Group Replication flow control "
+                 "service.");
+    return 1;
+  }
+
   // Initialize the recovery SSL option map
   initialize_ssl_option_map();
 
@@ -2214,6 +2223,9 @@ int plugin_group_replication_deinit(void *p) {
   finalize_perfschema_module();
 
   gr::status_service::unregister_gr_status_service();
+
+  gr::flow_control_metrics_service::
+      unregister_gr_flow_control_metrics_service();
 
   if (plugin_group_replication_stop())
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_STOP_ON_PLUGIN_UNINSTALL);
@@ -2364,6 +2376,15 @@ static int plugin_group_replication_check_uninstall(void *) {
              "Plugin is busy, it cannot be uninstalled. To"
              " force a stop run STOP GROUP_REPLICATION and then UNINSTALL"
              " PLUGIN group_replication.");
+    return 1;
+  }
+
+  if (gr::flow_control_metrics_service::
+          unregister_gr_flow_control_metrics_service()) {
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), "group_replication",
+             "Please uninstall the component"
+             " 'component_group_replication_flow_control_stats'"
+             " and then UNINSTALL PLUGIN group_replication.");
     return 1;
   }
 
