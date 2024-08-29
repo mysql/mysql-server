@@ -172,6 +172,8 @@ ENDFOREACH()
 IF(TARGET mysql_native_password)
   ADD_DEPENDENCIES(routertest_component_mock_server
     mysql_native_password)
+ELSE()
+  ADD_DEFINITIONS(-DSKIP_MYSQL_NATIVE_PASSWORD_TESTS)
 ENDIF()
 
 

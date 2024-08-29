@@ -170,6 +170,11 @@ TEST_F(BootstrapWithDifferentAccountsTest, NativePassword) {
                  "mysql_native_password works after mysql_native_password has "
                  "converted into a plugin in libmysqlclient.");
   RecordProperty("Bug", "36915646");
+
+#ifdef SKIP_MYSQL_NATIVE_PASSWORD_TESTS
+  GTEST_SKIP() << "Test needs 'mysql_native_password' client plugin.";
+#endif
+
   const auto server_port = port_pool_.get_next_available();
   const std::string json_stmts =
       get_data_dir().join("bootstrap_native_password.js").str();

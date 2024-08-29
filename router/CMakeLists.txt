@@ -116,16 +116,18 @@ INCLUDE(cmake/fuzzer.cmake)
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
 IF(ROUTER_INSTALL_LAYOUT STREQUAL "STANDALONE")
-  ADD_DEFINITIONS(-DROUTER_CLIENT_PLUGINS_ARE_BUNDLED)
-  # install libmysqlclient's mysql_native_password client plugin
-  # into the Router's plugin-dir.
+  IF(TARGET mysql_native_password)
+    ADD_DEFINITIONS(-DROUTER_CLIENT_PLUGINS_ARE_BUNDLED)
+    # install libmysqlclient's mysql_native_password client plugin
+    # into the Router's plugin-dir.
 
-  INSTALL(TARGETS mysql_native_password
-    RUNTIME DESTINATION ${ROUTER_INSTALL_PLUGINDIR}
-    LIBRARY DESTINATION ${ROUTER_INSTALL_PLUGINDIR}
-    COMPONENT Router
-    NAMELINK_SKIP
-    )
+    INSTALL(TARGETS mysql_native_password
+      RUNTIME DESTINATION ${ROUTER_INSTALL_PLUGINDIR}
+      LIBRARY DESTINATION ${ROUTER_INSTALL_PLUGINDIR}
+      COMPONENT Router
+      NAMELINK_SKIP
+      )
+  ENDIF()
 ENDIF()
 
 
