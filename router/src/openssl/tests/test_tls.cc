@@ -544,7 +544,7 @@ int main(int argc, char *argv[]) {
   struct sigaction sigact;
   memset(&sigact, 0, sizeof(sigact));
   sigact.sa_handler = SIG_IGN;
-  sigaction(SIGPIPE, &sigact, NULL);
+  sigaction(SIGPIPE, &sigact, nullptr);
 #endif
 
   g_data_dir = get_tests_data_dir(Path(argv[0]).dirname().str());
