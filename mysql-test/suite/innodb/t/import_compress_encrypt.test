@@ -206,6 +206,6 @@ DROP TABLE t1;
 #--force-rmdir $MYSQL_TMP_DIR/data
 #--remove_file $MYSQL_TMP_DIR/data_8021.zip
 
---echo # Restarting server without keyring to restore server state
-let $restart_parameters =;
---source include/start_mysqld.inc
+#--echo # Restarting server without keyring to restore server state
+#let $restart_parameters =;
+#--source include/start_mysqld.inc
