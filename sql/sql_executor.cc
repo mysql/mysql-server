@@ -126,8 +126,43 @@ using std::vector;
 static int read_system(TABLE *table);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
 
-/// Maximum amount of space (in bytes) to allocate for a Record_buffer.
+/// The minimum size of the record buffer allocated by set_record_buffer().
+/// If all the rows (estimated) can be accomodated with a smaller
+/// buffer than the minimum size, we allocate only the required size.
+/// Else, set_record_buffer() adjusts the size to the minimum size for
+/// smaller ranges. This value shouldn't be too high, as benchmarks
+/// have shown that a too big buffer can hurt performance in some
+/// high-concurrency scenarios.
+static constexpr size_t MIN_RECORD_BUFFER_SIZE = 4 * 1024;  // 4KB
+
+/// The maximum size of the record buffer allocated by set_record_buffer().
+/// Having a bigger buffer than this does not seem to give noticeably better
+/// performance, and having a too big buffer has been seen to hurt performance
+/// in high-concurrency scenarios.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
+
+/// How big a fraction of the estimated number of returned rows to make room
+/// for in the record buffer allocated by set_record_buffer(). The actual
+/// size of the buffer will be adjusted to a value between
+/// MIN_RECORD_BUFFER_SIZE and MAX_RECORD_BUFFER_SIZE if it falls outside of
+/// this range. If all rows can be accomodated with a much smaller buffer
+/// size than MIN_RECORD_BUFFER_SIZE, we only allocate the required size.
+///
+/// The idea behind using a fraction of the estimated number of rows, and not
+/// just allocate a buffer big enough to hold all returned rows if they fit
+/// within the maximum size, is that using big record buffers for small ranges
+/// have been seen to hurt performance in high-concurrency scenarios. So we want
+/// to pull the buffer size towards the minimum buffer size if the range is not
+/// that large, while still pulling the buffer size towards the maximum buffer
+/// size for large ranges and table scans.
+///
+/// The actual number is the result of an attempt to find the balance between
+/// the advantages of big buffers in scenarios with low concurrency and/or large
+/// ranges, and the disadvantages of big buffers in scenarios with high
+/// concurrency. Increasing it could improve the performance of some queries
+/// when the concurrency is low and hurt the performance if the concurrency is
+/// high, and reducing it could have the opposite effect.
+static constexpr double RECORD_BUFFER_FRACTION = 0.1f;
 
 string RefToString(const Index_lookup &ref, const KEY &key,
                    bool include_nulls) {
@@ -705,8 +740,9 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
     return false;
   }
 
-  ha_rows rows_in_buffer =
+  ha_rows expected_rows =
       static_cast<ha_rows>(std::ceil(expected_rows_to_fetch));
+  ha_rows rows_in_buffer = expected_rows;
 
   /*
     How much space do we need to allocate for each record? Enough to
@@ -716,13 +752,28 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   */
   const size_t record_size = record_prefix_size(table);
 
-  // Do not allocate a buffer whose total size exceeds MAX_RECORD_BUFFER_SIZE.
-  if (record_size > 0)
-    rows_in_buffer =
-        std::min<ha_rows>(MAX_RECORD_BUFFER_SIZE / record_size, rows_in_buffer);
+  if (record_size > 0) {
+    const ha_rows min_rows =
+        std::ceil(double{MIN_RECORD_BUFFER_SIZE} / record_size);
+    // If the expected rows to fetch can be accomodated with a
+    // lesser buffer size than MIN_RECORD_BUFFER_SIZE, we allocate
+    // only the required size.
+    if (expected_rows < min_rows) {
+      rows_in_buffer = expected_rows;
+    } else {
+      rows_in_buffer = std::ceil(rows_in_buffer * RECORD_BUFFER_FRACTION);
+      // Adjust the number of rows, if necessary, to fit within the
+      // minimum and maximum buffer size range.
+      const ha_rows max_rows = (MAX_RECORD_BUFFER_SIZE / record_size);
+      rows_in_buffer = std::clamp(rows_in_buffer, min_rows, max_rows);
+    }
+  }
 
-  // Do not allocate space for more rows than the handler asked for.
-  rows_in_buffer = std::min(rows_in_buffer, max_rows);
+  // After adjustments made above, we still need a minimum of 2 rows to
+  // use a record buffer.
+  if (rows_in_buffer <= 1) {
+    return false;
+  }
 
   const auto bufsize = Record_buffer::buffer_size(rows_in_buffer, record_size);
   const auto ptr = pointer_cast<uchar *>(current_thd->alloc(bufsize));
