@@ -6845,7 +6845,6 @@ Item *Item_func_nop_all::truth_transformer(THD *, Bool_test test) {
   // "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...)
   Item_func_not_all *new_item = new Item_func_not_all(args[0]);
   Item_allany_subselect *allany = down_cast<Item_allany_subselect *>(args[0]);
-  allany->m_func = allany->m_func_creator(false);
   allany->m_all = !allany->m_all;
   allany->m_upper_item = new_item;
   return new_item;
@@ -6857,7 +6856,6 @@ Item *Item_func_not_all::truth_transformer(THD *, Bool_test test) {
   Item_func_nop_all *new_item = new Item_func_nop_all(args[0]);
   Item_allany_subselect *allany = down_cast<Item_allany_subselect *>(args[0]);
   allany->m_all = !allany->m_all;
-  allany->m_func = allany->m_func_creator(true);
   allany->m_upper_item = new_item;
   return new_item;
 }
