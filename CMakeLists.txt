@@ -1291,7 +1291,7 @@ IF(USE_LD_LLD)
 ENDIF()
 SET(USING_LD_LLD ${USING_LD_LLD} CACHE INTERNAL "")
 
-IF(LINUX_STANDALONE)
+IF(LINUX_STANDALONE OR SOLARIS)
   # ON by default in pushbuild, but only for standalone builds.
   # The comression does not play well with some RPM/DEB packaging.
   # Developers can set default in environment.
@@ -1328,9 +1328,11 @@ IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
   # Off by default for sanitizer or valgrind builds.
   # Off by default in pushbuild.
   # Off by default for Apple Clang.
-  IF((INSTALL_LAYOUT MATCHES "STANDALONE" OR
-        INSTALL_LAYOUT MATCHES "TARGZ" OR
-        INSTALL_LAYOUT MATCHES "SVR4"
+  # ON by default for SOLARIS (also in PB2), to reduce package sizes.
+  IF(SOLARIS)
+    SET(MINIMAL_RELWITHDEBINFO_DEFAULT ON)
+  ELSEIF((INSTALL_LAYOUT MATCHES "STANDALONE" OR
+          INSTALL_LAYOUT MATCHES "TARGZ"
         )
       AND NOT CMAKE_COMPILER_FLAG_WITH_SANITIZE AND NOT WITH_VALGRIND
       AND NOT DEFINED ENV{PB2WORKDIR}
