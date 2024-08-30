@@ -1,0 +1,77 @@
+--source include/elide_costs.inc
+--echo # WL#8017 Infrastructure for Optimizer Hints
+
+--echo # MAX_EXECUTION_TIME hint testing
+--source include/have_statement_timeout.inc
+SET EXPLAIN_FORMAT=tree;
+
+--echo # MAX_EXECUTION_TIME hint testing
+
+CREATE TABLE t1 (a INT, b VARCHAR(300));
+INSERT INTO t1 VALUES (1, 'string');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1 a, t1 b;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(10) MAX_EXECUTION_TIME(100) */ * FROM t1;
+
+DROP TABLE t1;
+
+
+--echo
+--echo # test the MAX_EXECUTION_TIME hint for SELECT statements:
+--echo
+
+CREATE TABLE t1 (i INT, j INT);
+CREATE INDEX i1 ON t1(i);
+CREATE INDEX i2 ON t1(j);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+
+SELECT /*+ MAX_EXECUTION_TIME(4294967296) */ 1 FROM t1;
+
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1;
+--error ER_QUERY_TIMEOUT
+SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1 UNION SELECT 1, 2, 3;
+--error ER_QUERY_TIMEOUT
+(SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1) UNION (SELECT 1, 2, 3);
+--error ER_QUERY_TIMEOUT
+((SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1));
+
+--echo
+--echo # only SELECT statements supports the MAX_EXECUTION_TIME hint (warning):
+--echo
+CREATE TABLE t2 (i INT);
+INSERT /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
+REPLACE /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
+UPDATE /*+ MAX_EXECUTION_TIME(1) */ t2 SET i = 1;
+DELETE /*+ MAX_EXECUTION_TIME(1) */ FROM t2 WHERE i = 1;
+
+DROP TABLE t1, t2;
+
+SELECT 1 FROM (SELECT /*+ MAX_EXECUTION_TIME(10) */ 1) a;
+
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS INT BEGIN SELECT /*+ MAX_EXECUTION_TIME(10) */ 1
+INTO @a; RETURN 1; END|
+DELIMITER ;|
+DROP FUNCTION f1;

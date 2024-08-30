@@ -1,0 +1,17 @@
+Resource group hints
+CREATE TABLE t1 (
+f1 int unsigned NOT NULL auto_increment primary key,
+f2 varchar(100) NOT NULL default ''
+);
+INSERT INTO t1 values(1, 'resource_grp');
+SELECT /*+ RESOURCE_GROUP(notexist) */ * from t1;
+f1	f2
+1	resource_grp
+Warnings:
+Warning	3651	Resource Group 'notexist' does not exist.
+SELECT /*+ RESOURCE_GROUP(SYS_default) */ * from t1;
+f1	f2
+1	resource_grp
+Warnings:
+Warning	3661	Unable to bind resource group SYS_default with thread id ID.(System resource group can't be bound with a session thread).
+DROP TABLE t1;

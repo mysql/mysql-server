@@ -1,0 +1,3 @@
+--source include/have_hypergraph.inc
+--source include/opt_hints_set_var.inc
+--source include/disable_hypergraph.inc
