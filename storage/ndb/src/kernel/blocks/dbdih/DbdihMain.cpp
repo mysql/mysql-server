@@ -9061,6 +9061,9 @@ void Dbdih::execNODE_FAILREP(Signal *signal) {
   sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
              JBB, lsptr, 1);
 
+  sendSignal(TRIX_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
+             lsptr, 1);
+
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
              lsptr, 1);
 

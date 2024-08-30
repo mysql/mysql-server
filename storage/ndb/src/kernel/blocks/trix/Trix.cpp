@@ -78,6 +78,7 @@ Trix::Trix(Block_context &ctx)
   addRecSignal(GSN_STTOR, &Trix::execSTTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trix::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trix::execDBINFO_SCANREQ);
+  addRecSignal(GSN_NODE_FAILREP, &Trix::execNODE_FAILREP);
 
   // Index build
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Trix::execBUILD_INDX_IMPL_REQ);
@@ -178,6 +179,19 @@ void Trix::execSTTOR(Signal *signal) {
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
   return;
 }  // Trix::execSTTOR()
+
+void Trix::execNODE_FAILREP(Signal *signal) {
+  jamEntry();
+
+  if (signal->getNoOfSections() >= 1) {
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
+  }
+
+  if (ERROR_INSERTED(18026)) {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+}
 
 // Debugging
 void Trix::execDUMP_STATE_ORD(Signal *signal) {

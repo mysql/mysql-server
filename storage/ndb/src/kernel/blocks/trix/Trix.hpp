@@ -266,6 +266,9 @@ class Trix : public SimulatedBlock {
   void execREAD_CONFIG_REQ(Signal *signal);
   void execSTTOR(Signal *signal);
 
+  // Node management
+  void execNODE_FAILREP(Signal *signal);
+
   // Debugging
   void execDUMP_STATE_ORD(Signal *signal);
 
