@@ -9520,6 +9520,9 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB);
 
+  sendSignal(TRIX_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
   sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB);
 
