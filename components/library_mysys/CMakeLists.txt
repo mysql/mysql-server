@@ -26,4 +26,5 @@ DISABLE_MISSING_PROFILE_WARNING()
 ADD_LIBRARY(library_mysys STATIC
   my_memory.cc
   my_hex_tools.cc
+  my_base64_encode.cc
 )
