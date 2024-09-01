@@ -607,17 +607,13 @@ void buf_flush_insert_sorted_into_flush_list(
 
   buf_flush_list_mutex_enter(buf_pool);
 
-  /* The field in_LRU_list is protected by buf_pool->LRU_list_mutex,
-  which we are not holding.  However, while a block is in the flush
-  list, it is dirty and cannot be discarded, not from the
-  page_hash or from the LRU list.  At most, the uncompressed
-  page frame of a compressed block may be discarded or created
-  (copying the block->page to or from a buf_page_t that is
-  dynamically allocated from buf_buddy_alloc()).  Because those
-  transitions hold block->mutex and the flush list mutex (via
+  /* While a block is in the flush list, it is dirty and cannot be discarded,
+  not from the page_hash. At most, the uncompressed page frame of a compressed
+  block may be discarded or created (copying the block->page to or from a
+  buf_page_t that is dynamically allocated from buf_buddy_alloc()).  Because
+  those transitions hold block->mutex and the flush list mutex (via
   buf_flush_relocate_on_flush_list()), there is no possibility
   of a race condition in the assertions below. */
-  ut_ad(block->page.in_LRU_list);
   ut_ad(block->page.in_page_hash);
   /* buf_buddy_block_register() will take a block in the
   BUF_BLOCK_MEMORY state, not a file page. */
