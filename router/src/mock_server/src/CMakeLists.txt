@@ -40,109 +40,27 @@ ADD_CUSTOM_TARGET(mysql_server_mock_schema
 ADD_DEPENDENCIES(clang_tidy_prerequisites mysql_server_mock_schema)
 
 SET(common_libraries)
-SET(math_libraries)
 IF(WIN32)
   LIST(APPEND common_libraries ws2_32)
 ELSEIF(SOLARIS)
   LIST(APPEND common_libraries -lnsl -lsocket -lpthread)
-  LIST(APPEND math_libraries -lm)
 ELSE()
   LIST(APPEND common_libraries -lpthread)
-  LIST(APPEND math_libraries -lm)
 ENDIF()
-
-SET(DUKTAPE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/extra/duktape/duktape-2.7.0/)
-
-SET(DUKTAPE_SRCS
-  ${DUKTAPE_SOURCE_DIR}/src/duktape.c
-  ${DUKTAPE_SOURCE_DIR}/extras/logging/duk_logging.c
-  ${DUKTAPE_SOURCE_DIR}/extras/module-node/duk_module_node.c)
 
 SET(MOCK_SERVER_HTTP_CLIENT_SRCS
     mock_server_rest_client.cc)
 
-# disable compiler warnings in duktape
-MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-variable" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wunused-function" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Werror" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-noreturn" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wconditional-uninitialized" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wsuggest-attribute=format" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wimplicit-fallthrough" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wformat-truncation" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wformat-overflow" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wparentheses-equality" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_WARNING("-Wmaybe-uninitialized" HAS_WARN_FLAG)
-IF(HAS_WARN_FLAG)
-  ADD_COMPILE_FLAGS(${DUKTAPE_SRCS} COMPILE_FLAGS "${HAS_WARN_FLAG}")
-ENDIF()
-
-ADD_LIBRARY(duktape SHARED ${DUKTAPE_SRCS})
-TARGET_INCLUDE_DIRECTORIES(duktape SYSTEM PUBLIC
-  ${DUKTAPE_SOURCE_DIR}/src/
-  ${DUKTAPE_SOURCE_DIR}/extras/logging/
-  ${DUKTAPE_SOURCE_DIR}/extras/module-node/
+ADD_LIBRARY(mock_server_rest_client ${MOCK_SERVER_HTTP_CLIENT_SRCS})
+TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
+  ${PROJECT_SOURCE_DIR}/src/mock_server/include/
+  ${PROJECT_SOURCE_DIR}/src/http/include/
   )
-TARGET_LINK_LIBRARIES(duktape ${math_libraries})
+TARGET_LINK_LIBRARIES(mock_server_rest_client http_client extra::rapidjson)
+ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)
 
-SET_TARGET_PROPERTIES(duktape PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
-
-IF(WIN32)
-  # LNK4049: locally defined symbol 'symbol' imported
-  # LNK4217: locally defined symbol 'symbol' imported in function 'function'
-  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " /ignore:4049 /ignore:4217")
-
-  ADD_CUSTOM_COMMAND(TARGET duktape POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/duktape.dll"
-    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/duktape.dll"
-   )
+IF(NOT TARGET duktape)
+  RETURN()
 ENDIF()
 
 add_harness_plugin(mock_server
@@ -175,13 +93,6 @@ ADD_DEPENDENCIES(mock_server
   mysql_server_mock_schema
   )
 
-TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
-  ${DUKTAPE_SOURCE_DIR}/src/
-  ${DUKTAPE_SOURCE_DIR}/extras/logging/
-  ${DUKTAPE_SOURCE_DIR}/extras/module-node/
-  ${DUKTAPE_SOURCE_DIR}/extras/module-duktape/
-  )
-
 TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/router/include
@@ -207,14 +118,6 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   harness_net_ts
   SKIP_INSTALL
   )
-
-ADD_LIBRARY(mock_server_rest_client ${MOCK_SERVER_HTTP_CLIENT_SRCS})
-TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
-  ${PROJECT_SOURCE_DIR}/src/mock_server/include/
-  ${PROJECT_SOURCE_DIR}/src/http/include/
-  )
-TARGET_LINK_LIBRARIES(mock_server_rest_client http_client extra::rapidjson)
-ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)
 
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1

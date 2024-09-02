@@ -38,7 +38,6 @@
 #include <mysqld_error.h>
 #include <openssl/ssl.h>
 
-#include "duk_logging.h"
 #include "duk_module_shim.h"
 #include "duk_node_fs.h"
 #include "duktape.h"
