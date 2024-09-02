@@ -235,7 +235,7 @@ static int authentication_openid_connect_client_option(const char *option,
   const char *value = static_cast<const char *>(val);
   if (strcmp(option, "id-token-file") == 0) {
     free_plugin_option(s_id_token_location);
-    if (value == nullptr) return 1;
+    if (value == nullptr) return 0;
     const std::ifstream file(value);
     if (file.good()) {
       s_id_token_location = my_strdup(PSI_NOT_INSTRUMENTED, value, MYF(MY_WME));
