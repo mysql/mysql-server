@@ -79,42 +79,6 @@ class Trix : public SimulatedBlock {
   // DBtrix(const Trix &obj);
   // void operator = (const Trix &);
 
-  // Block state
-  enum BlockState { NOT_STARTED, STARTED, NODE_FAILURE, IDLE, BUSY };
-
-  BlockState c_blockState;
-
-  // Node data needed when communicating with remote TRIX:es
-  struct NodeRecord {
-    NodeRecord() {}
-    bool alive;
-    BlockReference trixRef;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
-  };
-
-  typedef Ptr<NodeRecord> NodeRecPtr;
-  typedef ArrayPool<NodeRecord> NodeRecord_pool;
-  typedef DLList<NodeRecord_pool> NodeRecord_list;
-
-  /**
-   * The pool of node records
-   */
-  NodeRecord_pool c_theNodeRecPool;
-
-  /**
-   * The list of other NDB nodes
-   */
-  NodeRecord_list c_theNodes;
-
-  Uint32 c_masterNodeId;
-  BlockReference c_masterTrixRef;
-  Uint16 c_noNodesFailed;
-  Uint16 c_noActiveNodes;
-
   AttrOrderBuffer::DataBufferPool c_theAttrOrderBufferPool;
 
   struct SubscriptionRecord {
@@ -301,13 +265,10 @@ class Trix : public SimulatedBlock {
   // System start
   void execREAD_CONFIG_REQ(Signal *signal);
   void execSTTOR(Signal *signal);
-  void execNDB_STTOR(Signal *signal);
 
   // Node management
-  void execREAD_NODESCONF(Signal *signal);
-  void execREAD_NODESREF(Signal *signal);
   void execNODE_FAILREP(Signal *signal);
-  void execINCL_NODEREQ(Signal *signal);
+
   // Debugging
   void execDUMP_STATE_ORD(Signal *signal);
 

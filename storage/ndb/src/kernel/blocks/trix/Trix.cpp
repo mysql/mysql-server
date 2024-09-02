@@ -36,19 +36,17 @@
 #include <signaldata/BuildFKImpl.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/CopyData.hpp>
+#include <signaldata/DbinfoScan.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/NodeFailRep.hpp>
-#include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/TcKeyReq.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <signaldata/UtilExecute.hpp>
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/UtilRelease.hpp>
-
-#include <signaldata/DbinfoScan.hpp>
-#include <signaldata/TransIdAI.hpp>
 #include <signaldata/WaitGCP.hpp>
 
 #define JAM_FILE_ID 433
@@ -72,25 +70,15 @@ static bool check_timeout(Uint32 errCode) {
  *
  */
 Trix::Trix(Block_context &ctx)
-    : SimulatedBlock(TRIX, ctx),
-      c_theNodes(c_theNodeRecPool),
-      c_masterNodeId(0),
-      c_masterTrixRef(0),
-      c_noNodesFailed(0),
-      c_noActiveNodes(0),
-      c_theSubscriptions(c_theSubscriptionRecPool) {
+    : SimulatedBlock(TRIX, ctx), c_theSubscriptions(c_theSubscriptionRecPool) {
   BLOCK_CONSTRUCTOR(Trix);
 
   // Add received signals
   addRecSignal(GSN_READ_CONFIG_REQ, &Trix::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Trix::execSTTOR);
-  addRecSignal(GSN_NDB_STTOR, &Trix::execNDB_STTOR);  // Forwarded from DICT
-  addRecSignal(GSN_READ_NODESCONF, &Trix::execREAD_NODESCONF);
-  addRecSignal(GSN_READ_NODESREF, &Trix::execREAD_NODESREF);
-  addRecSignal(GSN_NODE_FAILREP, &Trix::execNODE_FAILREP);
-  addRecSignal(GSN_INCL_NODEREQ, &Trix::execINCL_NODEREQ);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trix::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trix::execDBINFO_SCANREQ);
+  addRecSignal(GSN_NODE_FAILREP, &Trix::execNODE_FAILREP);
 
   // Index build
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Trix::execBUILD_INDX_IMPL_REQ);
@@ -137,7 +125,6 @@ Trix::~Trix() {}
 
 void Trix::execREAD_CONFIG_REQ(Signal *signal) {
   jamEntry();
-
   const ReadConfigReq *req = (ReadConfigReq *)signal->getDataPtr();
 
   Uint32 ref = req->senderRef;
@@ -184,8 +171,6 @@ void Trix::execREAD_CONFIG_REQ(Signal *signal) {
  */
 void Trix::execSTTOR(Signal *signal) {
   jamEntry();
-
-  // const Uint32 startphase   = signal->theData[1];
   const Uint32 theSignalKey = signal->theData[6];
 
   signal->theData[0] = theSignalKey;
@@ -195,156 +180,16 @@ void Trix::execSTTOR(Signal *signal) {
   return;
 }  // Trix::execSTTOR()
 
-/**
- *
- */
-void Trix::execNDB_STTOR(Signal *signal) {
-  jamEntry();
-  BlockReference ndbcntrRef = signal->theData[0];
-  Uint16 startphase = signal->theData[2]; /* RESTART PHASE           */
-  Uint16 mynode = signal->theData[1];
-  // Uint16 restarttype = signal->theData[3];
-  // UintR configInfo1 = signal->theData[6];     /* CONFIGURATION INFO PART 1 */
-  // UintR configInfo2 = signal->theData[7];     /* CONFIGURATION INFO PART 2 */
-  switch (startphase) {
-    case 3:
-      jam();
-      /* SYMBOLIC START PHASE 4             */
-      /* ABSOLUTE PHASE 5                   */
-      /* REQUEST NODE IDENTITIES FROM DBDIH */
-      signal->theData[0] = calcTrixBlockRef(mynode);
-      sendSignal(ndbcntrRef, GSN_READ_NODESREQ, signal, 1, JBB);
-      return;
-      break;
-    case 6:
-      break;
-    default:
-      break;
-  }
-}
-
-/**
- *
- */
-void Trix::execREAD_NODESCONF(Signal *signal) {
-  jamEntry();
-
-  ReadNodesConf *const readNodes = (ReadNodesConf *)signal->getDataPtr();
-  // Uint32 noOfNodes   = readNodes->noOfNodes;
-  NodeRecPtr nodeRecPtr;
-
-  {
-    ndbrequire(signal->getNoOfSections() == 1);
-    SegmentedSectionPtr ptr;
-    SectionHandle handle(this, signal);
-    ndbrequire(handle.getSection(ptr, 0));
-    ndbrequire(ptr.sz == 5 * NdbNodeBitmask::Size);
-    copy(readNodes->definedNodes.rep.data, ptr);
-    releaseSections(handle);
-  }
-
-  c_masterNodeId = readNodes->masterNodeId;
-  c_masterTrixRef = RNIL;
-  c_noNodesFailed = 0;
-
-  for (unsigned i = 0; i < MAX_NDB_NODES; i++) {
-    jam();
-    if (readNodes->definedNodes.get(i)) {
-      // Node is defined
-      jam();
-      ndbrequire(c_theNodes.getPool().seizeId(nodeRecPtr, i));
-      c_theNodes.addFirst(nodeRecPtr);
-      nodeRecPtr.p->trixRef = calcTrixBlockRef(i);
-      if (i == c_masterNodeId) {
-        c_masterTrixRef = nodeRecPtr.p->trixRef;
-      }
-      if (readNodes->inactiveNodes.get(i)) {
-        // Node is not active
-        jam();
-        /**-----------------------------------------------------------------
-         * THIS NODE IS DEFINED IN THE CLUSTER BUT IS NOT ALIVE CURRENTLY.
-         * WE ADD THE NODE TO THE SET OF FAILED NODES AND ALSO SET THE
-         * BLOCKSTATE TO BUSY TO AVOID ADDING TRIGGERS OR INDEXES WHILE
-         * NOT ALL NODES ARE ALIVE.
-         *------------------------------------------------------------------*/
-        arrGuard(c_noNodesFailed, MAX_NDB_NODES);
-        nodeRecPtr.p->alive = false;
-        c_noNodesFailed++;
-        c_blockState = Trix::NODE_FAILURE;
-      } else {
-        // Node is active
-        jam();
-        c_noActiveNodes++;
-        nodeRecPtr.p->alive = true;
-      }
-    }
-  }
-  if (c_noNodesFailed == 0) {
-    c_blockState = Trix::STARTED;
-  }
-}
-
-/**
- *
- */
-void Trix::execREAD_NODESREF(Signal *signal) {
-  // NYI
-}
-
-/**
- *
- */
 void Trix::execNODE_FAILREP(Signal *signal) {
   jamEntry();
-  NodeFailRep *const nodeFail = (NodeFailRep *)signal->getDataPtr();
 
   if (signal->getNoOfSections() >= 1) {
-    ndbrequire(ndbd_send_node_bitmask_in_section(
-        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
-    SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
-    ndbrequire(handle.getSection(ptr, 0));
-    memset(nodeFail->theNodes, 0, sizeof(nodeFail->theNodes));
-    copy(nodeFail->theNodes, ptr);
     releaseSections(handle);
-  } else {
-    memset(nodeFail->theNodes + NdbNodeBitmask48::Size, 0, _NDB_NBM_DIFF_BYTES);
   }
 
-  // Uint32 failureNr    = nodeFail->failNo;
-  // Uint32 numberNodes  = nodeFail->noOfNodes;
-  Uint32 masterNodeId = nodeFail->masterNodeId;
-
-  NodeRecPtr nodeRecPtr;
-
-  for (c_theNodes.first(nodeRecPtr); nodeRecPtr.i != RNIL;
-       c_theNodes.next(nodeRecPtr)) {
-    if (NdbNodeBitmask::get(nodeFail->theNodes, nodeRecPtr.i)) {
-      nodeRecPtr.p->alive = false;
-      c_noNodesFailed++;
-      c_noActiveNodes--;
-    }
-  }
-  if (c_masterNodeId != masterNodeId) {
-    c_masterNodeId = masterNodeId;
-    NodeRecord *nodeRec = c_theNodes.getPtr(masterNodeId);
-    c_masterTrixRef = nodeRec->trixRef;
-  }
-}
-
-/**
- *
- */
-void Trix::execINCL_NODEREQ(Signal *signal) {
-  jamEntry();
-  UintR node_id = signal->theData[1];
-  NodeRecord *nodeRec = c_theNodes.getPtr(node_id);
-  nodeRec->alive = true;
-  c_noNodesFailed--;
-  c_noActiveNodes++;
-  nodeRec->trixRef = calcTrixBlockRef(node_id);
-  if (c_noNodesFailed == 0) {
-    c_blockState = Trix::STARTED;
+  if (ERROR_INSERTED(18026)) {
+    CLEAR_ERROR_INSERT_VALUE;
   }
 }
 
