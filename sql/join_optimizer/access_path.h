@@ -1727,6 +1727,18 @@ inline double AddCost(double c1, double c2) {
   }
 }
 
+/// Add row counts c1 and c2, but handle kUnknownRowCount correctly.
+inline double AddRowCount(double c1, double c2) {
+  // If one is undefined, use the other, as we have nothing else.
+  if (c1 == kUnknownRowCount) {
+    return c2;
+  } else if (c2 == kUnknownRowCount) {
+    return c1;
+  } else {
+    return c1 + c2;
+  }
+}
+
 // The Mem_root_array must be allocated on a MEM_ROOT that lives at least for as
 // long as the access path.
 inline AccessPath *NewAppendAccessPath(
@@ -1734,13 +1746,14 @@ inline AccessPath *NewAppendAccessPath(
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::APPEND;
   path->append().children = children;
-  double num_output_rows = 0.0;
+  double num_output_rows = kUnknownRowCount;
   for (const AppendPathParameters &child : *children) {
     path->set_cost(AddCost(path->cost(), child.path->cost()));
     path->set_init_cost(AddCost(path->init_cost(), child.path->init_cost()));
     path->set_init_once_cost(path->init_once_cost() +
                              child.path->init_once_cost());
-    num_output_rows += child.path->num_output_rows();
+    num_output_rows =
+        AddRowCount(num_output_rows, child.path->num_output_rows());
   }
   path->set_num_output_rows(num_output_rows);
   return path;
