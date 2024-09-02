@@ -129,6 +129,7 @@ static int openid_connect_authentication_client_plugin(MYSQL_PLUGIN_VIO *vio,
   std::string token, id_token_file(s_id_token_location);
   // Check if the file exists
   const int fd = open(filename, O_RDONLY);
+  free_plugin_option(s_id_token_location);
   if (fd == -1) {
     log_error("Unable to open ID token file: " + id_token_file);
     return CR_AUTH_USER_CREDENTIALS;
