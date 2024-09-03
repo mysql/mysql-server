@@ -28,7 +28,6 @@ usr/bin/mysqltest
 usr/bin/mysqltest_safe_process
 usr/bin/mysqlxtest
 usr/bin/mysql_keyring_encryption_test
-usr/bin/jwt_generator_test
 usr/bin/mysql_test_event_tracking
 # man pages
 usr/share/man/man1/comp_err.1

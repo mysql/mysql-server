@@ -334,7 +334,7 @@ our $exe_libtool;
 our $exe_mysql;
 our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
-our $exe_jwt_generator_test;
+our $exe_mysql_test_jwt_generator;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_mysql_test_event_tracking;
@@ -2806,7 +2806,7 @@ sub executable_setup () {
     mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
   $exe_mysql_keyring_encryption_test =
     mtr_exe_exists("$path_client_bindir/mysql_keyring_encryption_test");
-  $exe_jwt_generator_test = mtr_exe_exists("$path_client_bindir/jwt_generator_test");
+  $exe_mysql_test_jwt_generator = mtr_exe_maybe_exists("$path_client_bindir/mysql_test_jwt_generator");
   # Look for mysql_test_event_tracking binary
   $exe_mysql_test_event_tracking = my_find_bin($bindir,
                 [ "runtime_output_directory", "bin" ],
@@ -3363,7 +3363,7 @@ sub environment_setup {
   $ENV{'MYSQL_SECURE_INSTALLATION'} =
     "$path_client_bindir/mysql_secure_installation";
   $ENV{'OPENSSL_EXECUTABLE'} = $exe_openssl;
-  $ENV{'JWT_GENERATOR_TEST'} = $exe_jwt_generator_test;
+  $ENV{'MYSQL_TEST_JWT_GENERATOR'} = $exe_mysql_test_jwt_generator;
   my $exe_mysqld = find_mysqld($basedir);
   $ENV{'MYSQLD'} = $exe_mysqld;
 

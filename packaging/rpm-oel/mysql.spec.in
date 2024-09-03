@@ -1477,7 +1477,9 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
-%attr(755, root, root) %{_bindir}/jwt_generator_test
+%if 0%{?commercial}
+%attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
+%endif # commercial
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
 %attr(644, root, root) %{_mandir}/man1/mysqladmin.1*
@@ -1988,7 +1990,7 @@ fi
 %changelog
 * Wed Jul 10 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 9.1.0-1
 - Added authentication_openid_connect plugin
-- Added jwt_generator_test tool
+- Added mysql_test_jwt_generator tool
 
 * Wed May 29 2024 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 9.1.0-1
 - Added component_test_server_telemetry_logs_* test components

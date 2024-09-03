@@ -491,7 +491,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
-%attr(755, root, root) %{_bindir}/jwt_generator_test
 
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
@@ -585,6 +584,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 %endif # add_fido_plugins
 %if 0%{?commercial}
+%attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
 %attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
 %endif # commercial
 
@@ -721,7 +721,7 @@ rm -r $(readlink var) var
 %changelog
 * Wed Jul 10 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 9.1.0-1
 - Added authentication_openid_connect plugin
-- Added jwt_generator_test tool
+- Added mysql_test_jwt_generator tool
 
 * Wed May 29 2024 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 9.1.0-1
 - Added component_test_server_telemetry_logs_* test components
