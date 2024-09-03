@@ -43,7 +43,7 @@
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=1 -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
-%{?with_aws_1_11: %add_component_keyring_aws 1}
+%{?with_aws_1_11: %global add_component_keyring_aws 1}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}

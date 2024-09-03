@@ -54,8 +54,6 @@
 %{?with_aws_sdk: %global aws_sdk 1}
 %{?with_aws_1_11: %global add_component_keyring_aws 1}
 
-%{echo: add_component_keyring_aws = %{add_component_keyring_aws}}
-
 %global ssl_default 1
 
 # Pass alternative ssl setting if provided. Can be used for newer OpenSSL.

@@ -23,6 +23,14 @@
 
 ADD_WSHADOW_WARNING()
 
+# Workaround to avoid "cannot allocate memory in static TLS block" error
+STRING(REPLACE "-ftls-model=initial-exec" "-ftls-model=global-dynamic"
+  CMAKE_C_FLAGS "${CMAKE_C_FLAGS}"
+  )
+STRING(REPLACE "-ftls-model=initial-exec" "-ftls-model=global-dynamic"
+  CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}"
+  )
+
 SET(KEYRING_COMMON_SOURCES
   # Component implementation helpers
   component_helpers/src/keyring_log_builtins_definition.cc
