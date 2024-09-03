@@ -176,11 +176,18 @@ TEST_F(BootstrapWithDifferentAccountsTest, NativePassword) {
 #endif
 
   const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
   const std::string json_stmts =
       get_data_dir().join("bootstrap_native_password.js").str();
 
   // launch mock server that is our metadata server for the bootstrap
-  launch_mysql_server_mock(json_stmts, server_port);
+  launch_mysql_server_mock(json_stmts, server_port, 0, false, http_port);
+
+  auto globals_json = json_to_string(
+      MockGrMetadata().router_version(MYSQL_ROUTER_VERSION).as_json());
+
+  ASSERT_NO_THROW(MockServerRestClient(http_port).set_globals(globals_json))
+      << globals_json;
 
   auto &router =
       router_spawner()
