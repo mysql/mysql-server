@@ -23620,6 +23620,161 @@ static void test_bug34951115(void) {
   myquery(rc);
 }
 
+static void test_bug36891894() {
+  mysql_library_init(0, nullptr, nullptr);
+
+  // Initialize two connections.
+  // To keep things simple, both connections have the same setup.
+  MYSQL *connection_1 = mysql_client_init(nullptr);
+
+  if (connection_1 == nullptr) {
+    fprintf(stderr, "mysql_init failed\n");
+    mysql_library_end();
+    return;
+  }
+
+  MYSQL *connection_2 = mysql_client_init(nullptr);
+
+  if (connection_2 == nullptr) {
+    fprintf(stderr, "mysql_init failed\n");
+    mysql_close(connection_1);
+    mysql_library_end();
+    return;
+  }
+
+  const char *host = "127.0.0.1";
+  const char *user = "test";
+  const char *passwd = "test";
+  const char *db = nullptr;
+  unsigned int port = 0;
+  const char *unix_socket = nullptr;
+  unsigned long clientflag = 0;
+  net_async_status status;
+
+  do {
+    status = mysql_real_connect_nonblocking(connection_1, host, user, passwd,
+                                            db, port, unix_socket, clientflag);
+  } while (status == NET_ASYNC_NOT_READY);
+
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stderr, "mysql_real_connect_nonblocking failed\n");
+    mysql_close(connection_1);
+    mysql_library_end();
+    return;
+  }
+
+  do {
+    status = mysql_real_connect_nonblocking(connection_2, host, user, passwd,
+                                            db, port, unix_socket, clientflag);
+  } while (status == NET_ASYNC_NOT_READY);
+
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stderr, "mysql_real_connect_nonblocking failed\n");
+    mysql_close(connection_1);
+    mysql_close(connection_2);
+    mysql_library_end();
+    return;
+  }
+
+  // The query on the first connection must cause a packet split.
+  const char *query = "SELECT REPEAT(1, 256 * 256 * 256 + 1)";
+  std::size_t query_length = std::strlen(query);
+
+  do {
+    status = mysql_real_query_nonblocking(connection_1, query, query_length);
+  } while (status == NET_ASYNC_NOT_READY);
+
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stderr, "mysql_real_query_nonblocking failed\n");
+    mysql_close(connection_1);
+    mysql_close(connection_2);
+    mysql_library_end();
+    return;
+  }
+
+  // The query on the second connection can be anything.
+  query = "SELECT 0";
+  query_length = std::strlen(query);
+
+  do {
+    status = mysql_real_query_nonblocking(connection_2, query, query_length);
+  } while (status == NET_ASYNC_NOT_READY);
+
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stderr, "mysql_real_query_nonblocking failed\n");
+    mysql_close(connection_1);
+    mysql_close(connection_2);
+    mysql_library_end();
+    return;
+  }
+
+  // We are going to interleave result fetching of query one and two.
+  // Fetching the result of the second query must start after the first packet
+  // of the first query has been received.
+  MYSQL_RES *result_1 = nullptr;
+  int count = 0;
+
+  do {
+    ++count;
+    status = mysql_store_result_nonblocking(connection_1, &result_1);
+
+    // At this point, the first maximum length packet of the first query's
+    // result has been received. Now go and fetch the result of the second
+    // query. The count of 1025 may be very individual. If you don't get a
+    // crash, check the output of the count variable.
+    if (status == NET_ASYNC_NOT_READY && count == 1025) {
+      MYSQL_RES *result_2 = nullptr;
+      net_async_status status_2;
+      do {
+        status_2 = mysql_store_result_nonblocking(connection_2, &result_2);
+      } while (status_2 == NET_ASYNC_NOT_READY);
+
+      if (status_2 == NET_ASYNC_ERROR) {
+        fprintf(stderr, "mysql_store_result_nonblocking failed\n");
+        if (result_1 != nullptr) {
+          mysql_free_result(result_1);
+        }
+        if (result_2 != nullptr) {
+          mysql_free_result(result_2);
+        }
+        mysql_close(connection_1);
+        mysql_close(connection_2);
+        mysql_library_end();
+        return;
+      }
+      MYSQL_ROW row = mysql_fetch_row(result_2);
+      if (row != nullptr) {
+        // std::cout << row[0] << std::endl;
+      }
+      mysql_free_result(result_2);
+    }
+  } while (status == NET_ASYNC_NOT_READY);
+
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stderr, "mysql_store_result_nonblocking failed\n");
+    if (result_1 != nullptr) {
+      mysql_free_result(result_1);
+    }
+    mysql_close(connection_1);
+    mysql_close(connection_2);
+    mysql_library_end();
+    return;
+  }
+
+  fprintf(stderr, "mysql_store_result_nonblocking count: %d\n", count);
+
+  // This will cause a crash
+  MYSQL_ROW row = mysql_fetch_row(result_1);
+
+  if (row != nullptr) {
+    // std::cout << row[0] << std::endl;
+  }
+  mysql_free_result(result_1);
+  mysql_close(connection_1);
+  mysql_close(connection_2);
+  mysql_library_end();
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23939,6 +24094,7 @@ static struct my_tests_st my_tests[] = {
     {"test_34556764", test_34556764},
     {"test_bug34869076", test_bug34869076},
     {"test_bug34951115", test_bug34951115},
+    {"test_bug36891894", test_bug36891894},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

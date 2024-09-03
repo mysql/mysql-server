@@ -6166,6 +6166,10 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   mysql_async_connect ctx;
   memset(&ctx, 0, sizeof(ctx));
 
+  // Reset multipacket processing state
+  NET_ASYNC *net_async = NET_ASYNC_DATA(&mysql->net);
+  if (net_async) net_async->mp_state.reset();
+
   ctx.mysql = mysql;
   ctx.host = host;
   ctx.port = port;
