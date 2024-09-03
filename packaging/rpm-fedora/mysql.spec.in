@@ -966,9 +966,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
-%if 0%{?commercial}
-%attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
-%endif # commercial
 
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
 %attr(644, root, root) %{_mandir}/man1/mysqladmin.1*
@@ -1094,6 +1091,9 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
 %attr(755, root, root) %{_bindir}/mysql_test_event_tracking
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
+%if 0%{?commercial}
+%attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
+%endif # commercial
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so

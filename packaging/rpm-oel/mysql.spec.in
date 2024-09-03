@@ -1477,10 +1477,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
-%if 0%{?commercial}
-%attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
-%endif # commercial
-
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
 %attr(644, root, root) %{_mandir}/man1/mysqladmin.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlbinlog.1*
@@ -1638,6 +1634,9 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
+%if 0%{?commercial}
+%attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
+%endif # commercial
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
