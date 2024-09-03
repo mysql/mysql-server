@@ -1992,51 +1992,50 @@ static ulong net_read_update_offsets(NET *net, size_t start_of_packet,
 static net_async_status net_read_compressed_nonblocking(NET *net,
                                                         ulong *len_ptr) {
   DBUG_TRACE;
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   assert(net->compress);
   ulong &len = *len_ptr;
-
-  /* Maintain the local states to read the multipacket asynchronously */
-  static size_t start_of_packet;
-  static size_t first_packet_offset;
-  static size_t buf_length;
-  static uint multi_byte_packet = 0;
-  static net_async_status status = NET_ASYNC_COMPLETE;
-
-  if (status != NET_ASYNC_NOT_READY)
-    net_read_init_offsets(net, start_of_packet, first_packet_offset,
-                          multi_byte_packet, buf_length);
+  if (net_async->mp_state.mp_status != NET_ASYNC_NOT_READY)
+    net_read_init_offsets(net, net_async->mp_state.mp_start_of_packet,
+                          net_async->mp_state.mp_first_packet_offset,
+                          net_async->mp_state.mp_multi_byte_packet,
+                          net_async->mp_state.mp_buf_length);
 
   for (;;) {
     /*  Read the current packet in net->buff */
-    if (net_read_process_buffer(net, start_of_packet, buf_length,
-                                multi_byte_packet, first_packet_offset))
+    if (net_read_process_buffer(net, net_async->mp_state.mp_start_of_packet,
+                                net_async->mp_state.mp_buf_length,
+                                net_async->mp_state.mp_multi_byte_packet,
+                                net_async->mp_state.mp_first_packet_offset))
       break;
 
     /*
       Read the mysql packet from vio, uncompress it and make it accessible
       through net->buff.
     */
-    status = net_read_packet_nonblocking(net, &len);
-    if (status == NET_ASYNC_NOT_READY) {
-      net->save_char = net->buff[first_packet_offset];
-      net->buf_length = buf_length;
-      return status;
+    net_async->mp_state.mp_status = net_read_packet_nonblocking(net, &len);
+    if (net_async->mp_state.mp_status == NET_ASYNC_NOT_READY) {
+      net->save_char = net->buff[net_async->mp_state.mp_first_packet_offset];
+      net->buf_length = net_async->mp_state.mp_buf_length;
+      return net_async->mp_state.mp_status;
     }
 
     if (len == packet_error) {
-      status = NET_ASYNC_COMPLETE;
-      return status;
+      net_async->mp_state.mp_status = NET_ASYNC_COMPLETE;
+      return net_async->mp_state.mp_status;
     }
-    buf_length += len;
+    net_async->mp_state.mp_buf_length += len;
   }
   /*
     Once the packets are read in the net->buff, adjust the tracking offsets to
     the appropriate values.
   */
-  len = net_read_update_offsets(net, start_of_packet, first_packet_offset,
-                                buf_length, multi_byte_packet);
-  status = NET_ASYNC_COMPLETE;
-  return status;
+  len = net_read_update_offsets(net, net_async->mp_state.mp_start_of_packet,
+                                net_async->mp_state.mp_first_packet_offset,
+                                net_async->mp_state.mp_buf_length,
+                                net_async->mp_state.mp_multi_byte_packet);
+  net_async->mp_state.mp_status = NET_ASYNC_COMPLETE;
+  return net_async->mp_state.mp_status;
 }
 
 /**
@@ -2050,33 +2049,31 @@ static net_async_status net_read_compressed_nonblocking(NET *net,
 static net_async_status net_read_uncompressed_nonblocking(NET *net,
                                                           ulong *len_ptr) {
   DBUG_TRACE;
+  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   assert(!net->compress);
   ulong &len = *len_ptr;
 
-  // Maintain the local states
-  static net_async_status status = NET_ASYNC_COMPLETE;
-  static ulong save_pos;
-  static ulong total_length;
-
   // Initialize the states
-  if (status == NET_ASYNC_COMPLETE) {
-    save_pos = net->where_b;
-    total_length = 0;
+  if (net_async->mp_state.mp_status == NET_ASYNC_COMPLETE) {
+    net_async->mp_state.mp_save_pos = net->where_b;
+    net_async->mp_state.mp_total_length = 0;
   }
 
-  status = net_read_packet_nonblocking(net, &len);
-  total_length += len;
+  net_async->mp_state.mp_status = net_read_packet_nonblocking(net, &len);
+  net_async->mp_state.mp_total_length += len;
   net->where_b += len;
 
-  if (len == MAX_PACKET_LENGTH) status = NET_ASYNC_NOT_READY;
-  if (status == NET_ASYNC_NOT_READY) return status;
+  if (len == MAX_PACKET_LENGTH)
+    net_async->mp_state.mp_status = NET_ASYNC_NOT_READY;
+  if (net_async->mp_state.mp_status == NET_ASYNC_NOT_READY)
+    return net_async->mp_state.mp_status;
 
   // Update the offsets
-  net->where_b = save_pos;
-  len = total_length;
+  net->where_b = net_async->mp_state.mp_save_pos;
+  len = net_async->mp_state.mp_total_length;
   net->read_pos = net->buff + net->where_b;
-  status = NET_ASYNC_COMPLETE;
-  return status;
+  net_async->mp_state.mp_status = NET_ASYNC_COMPLETE;
+  return net_async->mp_state.mp_status;
 }
 
 /**

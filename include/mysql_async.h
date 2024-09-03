@@ -92,6 +92,27 @@ struct io_vec {
   size_t iov_len; /**< Number of bytes to transfer */
 };
 
+/** Local state for multipacket processing */
+struct mp_state {
+  net_async_status mp_status;
+  size_t mp_start_of_packet;
+  size_t mp_first_packet_offset;
+  size_t mp_buf_length;
+  uint mp_multi_byte_packet;
+  ulong mp_save_pos;
+  ulong mp_total_length;
+
+  void reset() {
+    mp_status = NET_ASYNC_COMPLETE;
+    mp_start_of_packet = 0;
+    mp_first_packet_offset = 0;
+    mp_buf_length = 0;
+    mp_multi_byte_packet = 0;
+    mp_save_pos = 0;
+    mp_total_length = 0;
+  }
+};
+
 typedef struct NET_ASYNC {
   /**
     The position in buff we continue reads from when data is next
@@ -171,6 +192,8 @@ typedef struct NET_ASYNC {
   unsigned char **compressed_write_buffers;
   /** Size of the compressed buffer */
   size_t compressed_buffers_size;
+  struct mp_state mp_state;
+
 } NET_ASYNC;
 
 struct NET_EXTENSION {
