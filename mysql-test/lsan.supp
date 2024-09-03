@@ -36,6 +36,7 @@ leak:/usr/bin/tail
 leak:/lib64/libperl.so.*
 leak:/bin/bash
 leak:/usr/bin/zip
+leak:mysqltest_safe_process
 # OpenLDAP bug 9081
 # Fixed in 2.4.49, we build with 2.4.48
 leak:ldap_initialize

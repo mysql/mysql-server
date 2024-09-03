@@ -6627,7 +6627,8 @@ sub mysqld_start ($$$$) {
   $gprof_dirs{ $mysqld->value('datadir') } = 1 if $opt_gprof;
 
   # Set $AWS_SHARED_CREDENTIALS_FILE required by some AWS tests
-  push(@opt_mysqld_envs, "AWS_SHARED_CREDENTIALS_FILE=$opt_vardir/tmp/credentials");
+  push(@opt_mysqld_envs,
+       "AWS_SHARED_CREDENTIALS_FILE=$opt_vardir/tmp/credentials");
 
   if (defined $exe) {
     $mysqld->{'proc'} =
