@@ -1027,7 +1027,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
 %endif # add_fido_plugins
 %if 0%{?add_component_keyring_aws}
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_aws.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_aws.so
 %endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
