@@ -7292,18 +7292,20 @@ bool ForceMaterializationBeforeSort(const Query_block &query_block,
 /// estimate calculated by EstimateDistinctRows() or EstimateAggregateRows().
 void SetGroupSkipScanCardinality(AccessPath *path, double output_rows) {
   assert(path->has_group_skip_scan);
-  assert(path->type == AccessPath::GROUP_INDEX_SKIP_SCAN ||
-         (path->type == AccessPath::FILTER &&
-          path->filter().child->type == AccessPath::GROUP_INDEX_SKIP_SCAN));
-  if (output_rows != kUnknownRowCount) {
-    path->set_num_output_rows(output_rows);
-    // For display only: When the new estimate is higher than the old one, make
-    // sure it doesn't look like a filter adds rows.
-    if (path->type == AccessPath::FILTER) {
-      AccessPath *const child = path->filter().child;
-      child->set_num_output_rows(
-          std::max(output_rows, child->num_output_rows()));
-    }
+  assert(output_rows >= 0.0);
+  const double old_output_rows = path->num_output_rows();
+  path->set_num_output_rows(output_rows);
+  // For display only: When the new estimate is higher than the old one, make
+  // sure it doesn't look like the steps after the group skip scan, such as
+  // filtering and windowing, add any rows.
+  if (output_rows > old_output_rows) {
+    ForEachChild(path, /*join=*/nullptr,
+                 WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                 [output_rows](AccessPath *child, const JOIN *) {
+                   if (output_rows > child->num_output_rows()) {
+                     SetGroupSkipScanCardinality(child, output_rows);
+                   }
+                 });
   }
 }
 

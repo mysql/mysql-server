@@ -4482,3 +4482,30 @@ GROUP BY field1;
 field1
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Bug#37014535: Assertion path->type == AccessPath::GROUP_INDEX_SKIP_SCAN
+# || (path->type == AccessPath::FILTER && path->filter().child
+#
+CREATE TABLE t (a INT, b INT, KEY k1 (a, b));
+INSERT INTO t VALUES (1,1), (1,2), (1,3), (2,1), (2,2),
+(2,2), (2,2), (2,3), (2,3), (2,4);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT DISTINCT a, b FROM t QUALIFY RANK() OVER (ORDER BY a, b) > 2;
+a	b
+1	3
+2	1
+2	2
+2	3
+2	4
+SELECT DISTINCT a, b FROM t WHERE b > 0 HAVING b < 10;
+a	b
+1	1
+1	2
+1	3
+2	1
+2	2
+2	3
+2	4
+DROP TABLE t;
