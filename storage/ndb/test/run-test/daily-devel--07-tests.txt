@@ -349,3 +349,11 @@ cmd: testNdbApi
 args: -n SetVarbinaryWithSetValue WIDE_COL
 max-time: 180
 
+cmd: test_event
+args: -n ExhaustedPreparedPoolsApiOps T1 -l 10000
+max-time: 240
+
+cmd: test_event
+args: -n ExhaustedPreparedPoolsInternalOps T1 -l 1000
+max-time: 240
+

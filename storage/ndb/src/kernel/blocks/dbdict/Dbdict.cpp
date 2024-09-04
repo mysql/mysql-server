@@ -16064,6 +16064,7 @@ void Dbdict::prepareUtilTransaction(Callback *pcallback, Signal *signal,
 
   utilPrepareReq->setSenderRef(reference());
   utilPrepareReq->setSenderData(senderData);
+  utilPrepareReq->flags = 0;
 
   const Uint32 pageSizeInWords = 128;
   Uint32 propPage[pageSizeInWords];
@@ -21681,6 +21682,7 @@ void Dbdict::createFile_parse(Signal *signal, bool master, SchemaOpPtr op_ptr,
         f.FileType == DictTabInfo::Datafile   ? "datafile"
         : f.FileType == DictTabInfo::Undofile ? "undofile"
                                               : "<unknown>",
+
         filePtr.p->m_file_size, createFilePtr.p->m_warningFlags);
   }
 

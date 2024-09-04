@@ -947,6 +947,7 @@ void Trix::prepareInsertTransactions(Signal *signal,
   utilPrepareReq->senderRef = reference();
   utilPrepareReq->senderData = subRecPtr.i;
   utilPrepareReq->schemaTransId = subRec->schemaTransId;
+  utilPrepareReq->flags = UtilPrepareReq::InternalOperation;
 
   const Uint32 pageSizeInWords = 128;
   Uint32 propPage[pageSizeInWords];
@@ -1408,6 +1409,7 @@ void Trix::execCOPY_DATA_IMPL_REQ(Signal *signal) {
     utilPrepareReq->senderRef = reference();
     utilPrepareReq->senderData = subRecPtr.i;
     utilPrepareReq->schemaTransId = subRec->schemaTransId;
+    utilPrepareReq->flags = UtilPrepareReq::InternalOperation;
 
     const Uint32 pageSizeInWords = 128;
     Uint32 propPage[pageSizeInWords];
@@ -1521,6 +1523,7 @@ void Trix::execBUILD_FK_IMPL_REQ(Signal *signal) {
     utilPrepareReq->senderRef = reference();
     utilPrepareReq->senderData = subRecPtr.i;
     utilPrepareReq->schemaTransId = subRec->schemaTransId;
+    utilPrepareReq->flags = UtilPrepareReq::InternalOperation;
 
     const Uint32 pageSizeInWords = 128;
     Uint32 propPage[pageSizeInWords];
@@ -2655,6 +2658,7 @@ void Trix::statSendPrepare(Signal *signal, StatOp &stat) {
   utilReq->senderData = stat.m_ownPtrI;
   utilReq->senderRef = reference();
   utilReq->schemaTransId = req->transId;
+  utilReq->flags = UtilPrepareReq::InternalOperation;
 
   Uint32 wbuf[256];
   LinearWriter w(&wbuf[0], sizeof(wbuf) >> 2);
