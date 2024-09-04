@@ -23492,6 +23492,7 @@ static void test_bug36891894() {
   if (status == NET_ASYNC_ERROR) {
     fprintf(stderr, "mysql_real_connect_nonblocking failed\n");
     mysql_close(connection_1);
+    mysql_close(connection_2);
     mysql_library_end();
     return;
   }
