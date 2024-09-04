@@ -4794,7 +4794,8 @@ bool udf_handler::call_init_func() {
     f_args.attribute_lengths[i] = args[i]->item_name.length();
     m_args_extension.charset_info[i] = args[i]->collation.collation;
 
-    if (args[i]->const_for_execution() && !args[i]->has_subquery()) {
+    if (args[i]->const_for_execution() && !args[i]->has_subquery() &&
+        !args[i]->has_stored_program()) {
       switch (args[i]->result_type()) {
         case STRING_RESULT:
         case DECIMAL_RESULT: {
