@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5345,7 +5345,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
     nodePtr.p->is_pausable = false;
   }
 
-  if (getNodeState().startLevel != NodeState::SL_STARTED)
+  if (getNodeState().startLevel < NodeState::SL_STARTED)
   {
     jam();
     /**
@@ -9802,6 +9802,8 @@ void Dbdih::checkStopPermMaster(Signal* signal, NodeRecordPtr failedNodePtr)
                DihSwitchReplicaRef::SignalLength, JBB);
     return;
   }//if
+  /* Node is no longer 'stopping', clear from bitmap */
+  c_stopPermMaster.stoppingNodes.clear(failedNodePtr.i);
 }//Dbdih::checkStopPermMaster()
 
 void Dbdih::checkStopPermProxy(Signal* signal, NodeId failedNodeId)
@@ -27454,6 +27456,21 @@ void Dbdih::execSTOP_PERM_REQ(Signal* signal){
                  StopPermRef::SignalLength, JBB);
       return;
     }//if
+
+    if (c_stopPermMaster.stoppingNodes.count() > 0) {
+      jam();
+
+      /**
+       * Only grant one node graceful stopping
+       * permission currently
+       * Future extension : Max one per NG
+       */
+      ref->senderData = senderData;
+      ref->errorCode = StopPermRef::NodeShutdownInProgress;
+      sendSignal(senderRef, GSN_STOP_PERM_REF, signal,
+                 StopPermRef::SignalLength, JBB);
+      return;
+    }
     
     if (c_nodeStartMaster.activeState) {
       jam();
@@ -27469,6 +27486,7 @@ void Dbdih::execSTOP_PERM_REQ(Signal* signal){
      */
     c_nodeStartMaster.activeState = true;
     c_stopPermMaster.clientRef = senderRef;
+    c_stopPermMaster.stoppingNodes.set(nodeId);
 
     c_stopPermMaster.clientData = senderData;
     c_stopPermMaster.returnValue = 0;
@@ -27661,6 +27679,11 @@ Dbdih::switchReplica(Signal* signal,
         ref->senderData = c_stopPermMaster.clientData;
         ref->errorCode  = c_stopPermMaster.returnValue;
         sendSignal(c_stopPermMaster.clientRef, GSN_STOP_PERM_REF, signal, 2,JBB);
+
+        /* Failure to get stop permission, clear node from stopping bitmap */
+        const Uint32 nodeId = refToNode(c_stopPermMaster.clientRef);
+        ndbrequire(c_stopPermMaster.stoppingNodes.get(nodeId));
+        c_stopPermMaster.stoppingNodes.clear(nodeId);
       }//if
       
       /**
