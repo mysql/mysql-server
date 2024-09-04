@@ -375,7 +375,7 @@ int NdbRestarter::getRandomNodePreferOtherNodeGroup(int nodeId, int rand) {
 // Wait until connected to ndb_mgmd
 int NdbRestarter::waitConnected(unsigned int _timeout) {
   _timeout *= 10;
-  while (isConnected() && getStatus() != 0) {
+  while (!(isConnected() && getStatus() == 0)) {
     if (_timeout-- == 0) {
       ndbout << "NdbRestarter::waitConnected failed" << endl;
       return -1;
