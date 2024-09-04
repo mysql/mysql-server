@@ -40,7 +40,7 @@ Next LGMAN 15002
 Next TSMAN 16002
 Next DBSPJ 17000
 Next TRIX 18004
-Next DBUTIL 19001
+Next DBUTIL 19002
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -905,3 +905,4 @@ Index stats:
 DBUTIL
 -------
 19000: fail UTIL_PREPARE_REQ with PREPARE_SEIZE_ERROR
+19001: crash in UTIL_PREPARE_REQ if preparedOperationPool or runningPrepares pool is exhausted
