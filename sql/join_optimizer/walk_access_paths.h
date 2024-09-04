@@ -61,25 +61,60 @@ enum class WalkAccessPathPolicy {
   JOIN * if a non-const JOIN is given in.
  */
 template <class AccessPathPtr, class Func, class JoinPtr>
+  requires std::is_convertible_v<AccessPathPtr, const AccessPath *> &&
+           std::is_convertible_v<JoinPtr, const JOIN *> &&
+           std::is_invocable_r_v<bool, Func, AccessPathPtr, JoinPtr>
 void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
                      WalkAccessPathPolicy cross_query_blocks, Func &&func,
                      bool post_order_traversal = false) {
-  static_assert(
-      std::is_convertible<AccessPathPtr, const AccessPath *>::value,
-      "The “path” argument must be AccessPath * or const AccessPath *.");
-  static_assert(
-      std::is_convertible<JoinPtr, const JOIN *>::value,
-      "The “join” argument must be JOIN * or const JOIN * (or nullptr).");
-
   if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK) {
     assert(join != nullptr);
   }
+
   if (!post_order_traversal) {
     if (func(path, join)) {
       // Stop recursing in this branch.
       return;
     }
   }
+
+  ForEachChild(path, join, cross_query_blocks,
+               [&](auto &&subpath, auto &&subjoin) {
+                 WalkAccessPaths(subpath, subjoin, cross_query_blocks, func,
+                                 post_order_traversal);
+               });
+
+  if (post_order_traversal) {
+    if (func(path, join)) {
+      // Stop recursing in this branch. In practice a no-op, since we are
+      // already done with this branch.
+      return;
+    }
+  }
+}
+
+/**
+  Call a function on every immediate child of the given access path.
+
+  @param path The access path whose children to visit.
+  @param join The JOIN object for the current query block. Can be nullptr if
+  cross_query_blocks is not ENTIRE_QUERY_BLOCK.
+  @param cross_query_blocks Tells whether to stop traversal at materialization
+  or query block boundaries.
+  @param func The function to call. It takes two arguments: a pointer to an
+  access path (the child) and a pointer to the JOIN object for which the access
+  path was created.
+ */
+template <class AccessPathPtr, class Func, class JoinPtr>
+  requires std::is_convertible_v<AccessPathPtr, const AccessPath *> &&
+           std::is_convertible_v<JoinPtr, const JOIN *> &&
+           std::is_invocable_v<Func, AccessPathPtr, JoinPtr>
+void ForEachChild(AccessPathPtr path, JoinPtr join,
+                  WalkAccessPathPolicy cross_query_blocks, Func &&func) {
+  if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK) {
+    assert(join != nullptr);
+  }
+
   switch (path->type) {
     case AccessPath::TABLE_SCAN:
     case AccessPath::SAMPLE_SCAN:
@@ -106,153 +141,108 @@ void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
       // No children.
       break;
     case AccessPath::NESTED_LOOP_JOIN:
-      WalkAccessPaths(path->nested_loop_join().outer, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
-      WalkAccessPaths(path->nested_loop_join().inner, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->nested_loop_join().outer, join);
+      func(path->nested_loop_join().inner, join);
       break;
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
-      WalkAccessPaths(path->nested_loop_semijoin_with_duplicate_removal().outer,
-                      join, cross_query_blocks, std::forward<Func &&>(func),
-                      post_order_traversal);
-      WalkAccessPaths(path->nested_loop_semijoin_with_duplicate_removal().inner,
-                      join, cross_query_blocks, std::forward<Func &&>(func),
-                      post_order_traversal);
+      func(path->nested_loop_semijoin_with_duplicate_removal().outer, join);
+      func(path->nested_loop_semijoin_with_duplicate_removal().inner, join);
       break;
     case AccessPath::BKA_JOIN:
-      WalkAccessPaths(path->bka_join().outer, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
-      WalkAccessPaths(path->bka_join().inner, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->bka_join().outer, join);
+      func(path->bka_join().inner, join);
       break;
     case AccessPath::HASH_JOIN:
-      WalkAccessPaths(path->hash_join().inner, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
-      WalkAccessPaths(path->hash_join().outer, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->hash_join().inner, join);
+      func(path->hash_join().outer, join);
       break;
     case AccessPath::FILTER:
-      WalkAccessPaths(path->filter().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->filter().child, join);
       break;
     case AccessPath::SORT:
-      WalkAccessPaths(path->sort().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->sort().child, join);
       break;
     case AccessPath::AGGREGATE:
-      WalkAccessPaths(path->aggregate().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->aggregate().child, join);
       break;
     case AccessPath::TEMPTABLE_AGGREGATE:
       if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
           (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
            path->temptable_aggregate().join == join)) {
-        WalkAccessPaths(path->temptable_aggregate().subquery_path, join,
-                        cross_query_blocks, std::forward<Func &&>(func),
-                        post_order_traversal);
+        func(path->temptable_aggregate().subquery_path, join);
       }
-      WalkAccessPaths(path->temptable_aggregate().table_path, join,
-                      cross_query_blocks, std::forward<Func &&>(func),
-                      post_order_traversal);
+      func(path->temptable_aggregate().table_path, join);
       break;
     case AccessPath::LIMIT_OFFSET:
-      WalkAccessPaths(path->limit_offset().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->limit_offset().child, join);
       break;
     case AccessPath::STREAM:
       if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
           (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
            path->stream().join == join)) {
-        WalkAccessPaths(path->stream().child, path->stream().join,
-                        cross_query_blocks, std::forward<Func &&>(func),
-                        post_order_traversal);
+        func(path->stream().child, path->stream().join);
       }
       break;
     case AccessPath::MATERIALIZE:
-      WalkAccessPaths(path->materialize().table_path, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->materialize().table_path, join);
       for (const MaterializePathParameters::Operand &operand :
            path->materialize().param->m_operands) {
         if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
             (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
              operand.join == join)) {
-          WalkAccessPaths(operand.subquery_path, operand.join,
-                          cross_query_blocks, std::forward<Func &&>(func),
-                          post_order_traversal);
+          func(operand.subquery_path, operand.join);
         }
       }
       break;
     case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
-      WalkAccessPaths(path->materialize_information_schema_table().table_path,
-                      join, cross_query_blocks, std::forward<Func &&>(func),
-                      post_order_traversal);
+      func(path->materialize_information_schema_table().table_path, join);
       break;
     case AccessPath::APPEND:
       if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE) {
         for (const AppendPathParameters &child : *path->append().children) {
-          WalkAccessPaths(child.path, child.join, cross_query_blocks,
-                          std::forward<Func &&>(func), post_order_traversal);
+          func(child.path, child.join);
         }
       }
       break;
     case AccessPath::WINDOW:
-      WalkAccessPaths(path->window().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->window().child, join);
       break;
     case AccessPath::WEEDOUT:
-      WalkAccessPaths(path->weedout().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->weedout().child, join);
       break;
     case AccessPath::REMOVE_DUPLICATES:
-      WalkAccessPaths(path->remove_duplicates().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->remove_duplicates().child, join);
       break;
     case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
-      WalkAccessPaths(path->remove_duplicates_on_index().child, join,
-                      cross_query_blocks, std::forward<Func &&>(func),
-                      post_order_traversal);
+      func(path->remove_duplicates_on_index().child, join);
       break;
     case AccessPath::ALTERNATIVE:
-      WalkAccessPaths(path->alternative().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->alternative().child, join);
       break;
     case AccessPath::CACHE_INVALIDATOR:
-      WalkAccessPaths(path->cache_invalidator().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->cache_invalidator().child, join);
       break;
     case AccessPath::INDEX_MERGE:
       for (AccessPath *child : *path->index_merge().children) {
-        WalkAccessPaths(child, join, cross_query_blocks,
-                        std::forward<Func &&>(func), post_order_traversal);
+        func(child, join);
       }
       break;
     case AccessPath::ROWID_INTERSECTION:
       for (AccessPath *child : *path->rowid_intersection().children) {
-        WalkAccessPaths(child, join, cross_query_blocks,
-                        std::forward<Func &&>(func), post_order_traversal);
+        func(child, join);
       }
       break;
     case AccessPath::ROWID_UNION:
       for (AccessPath *child : *path->rowid_union().children) {
-        WalkAccessPaths(child, join, cross_query_blocks,
-                        std::forward<Func &&>(func), post_order_traversal);
+        func(child, join);
       }
       break;
     case AccessPath::DELETE_ROWS:
-      WalkAccessPaths(path->delete_rows().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->delete_rows().child, join);
       break;
     case AccessPath::UPDATE_ROWS:
-      WalkAccessPaths(path->update_rows().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+      func(path->update_rows().child, join);
       break;
-  }
-  if (post_order_traversal) {
-    if (func(path, join)) {
-      // Stop recursing in this branch. In practice a no-op, since we are
-      // already done with this branch.
-      return;
-    }
   }
 }
 
