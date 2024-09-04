@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3774,6 +3774,21 @@ int runTestCreateLogEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static int runCheckClusterStarted(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+
+  if (restarter.waitConnected() != NDBT_OK) {
+    ndbout_c("Timed out waiting to connect to MGMD");
+    return NDBT_FAILED;
+  }
+
+  if (restarter.waitClusterStarted() != NDBT_OK) {
+    ndbout_c("Timed out waiting for nodes to be started");
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -3941,6 +3956,7 @@ TESTCASE("TestCreateLogEvent", "Test ndb_mgm_create_log_event_handle"){
 TESTCASE("TestConnectionFailure",
          "Test if Read Error is received after mgmd is restarted"){
   INITIALIZER(runTestMgmApiReadErrorRestart);
+  FINALIZER(runCheckClusterStarted);
 }
 NDBT_TESTSUITE_END(testMgm);
 

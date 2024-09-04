@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -398,7 +398,7 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
 int
 NdbRestarter::waitConnected(unsigned int _timeout){
   _timeout*= 10;
-  while (isConnected() && getStatus() != 0){
+  while (!(isConnected() && getStatus() == 0)){
     if (_timeout-- == 0){
       ndbout << "NdbRestarter::waitConnected failed" << endl;
       return -1;
