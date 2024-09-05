@@ -85,13 +85,13 @@
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/system_variables.h"
 #include "sql/tc_log.h"
-#include "sql/vector_conversion.h"
 #include "sql/xa/sql_cmd_xa.h"  // Sql_cmd_xa_*
 #include "sql_const.h"
 #include "sql_string.h"
 #include "strmake.h"
 #include "strxmov.h"
 #include "template_utils.h"
+#include "vector-common/vector_constants.h"  // get_dimensions
 
 #ifndef MYSQL_SERVER
 #include "client/mysqlbinlog.h"

@@ -58,9 +58,9 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"  // Sql_condition
 #include "sql/table.h"
-#include "sql/vector_conversion.h"  // get_dimensions
-#include "sql_string.h"             // String
+#include "sql_string.h"  // String
 #include "template_utils.h"
+#include "vector-common/vector_constants.h"  // max_dimensions
 
 class Create_field;
 class CostOfItem;
@@ -3945,7 +3945,7 @@ class Field_blob : public Field_longstr {
 
 class Field_vector : public Field_blob {
  public:
-  static const uint32 max_dimensions = 16383;
+  static const uint32 max_dimensions = vector_constants::max_dimensions;
   static const uint32 precision = sizeof(float);
   static uint32 dimension_bytes(uint32 dimensions) {
     return precision * dimensions;

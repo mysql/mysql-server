@@ -21,24 +21,52 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef VECTOR_CONV_INCLUDED
-#define VECTOR_CONV_INCLUDED
-
 #include <errno.h>
 #include <math.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cstring>
+
 #include "sql_string.h"
 
-static inline bool from_string_to_vector(const char *input, uint32_t input_len,
-                                         char *const output,
-                                         uint32_t *max_output_dims) {
-  if (input == nullptr || input[0] != '[' || input_len == 0 ||
-      input[input_len - 1] != ']') {
+bool from_string_to_vector(const CHARSET_INFO *cs, const char *input,
+                           uint32_t input_len, char *output,
+                           uint32_t *max_output_dims) {
+  if (input_len == 0 || input == nullptr) {
+    *max_output_dims = 0;
+    return true;
+  }
+
+  /* Convert the input to UTF-8 */
+  const CHARSET_INFO *process_cs = cs;
+  String temp_input;
+  if (!my_charset_is_ascii_based(cs)) {
+    process_cs = &my_charset_utf8mb4_bin;
+    temp_input.alloc(input_len);
+    unsigned err = 0;
+    input_len = my_convert(temp_input.ptr(), input_len, process_cs, input,
+                           input_len, cs, &err);
+    if (err != 0) {
+      *max_output_dims = 0;
+      return true;
+    }
+    input = temp_input.ptr();
+  }
+
+  // Skip the leading whitespaces
+  auto len = process_cs->cset->scan(process_cs, input, input + input_len,
+                                    MY_SEQ_SPACES);
+  if (len >= input_len) {
+    *max_output_dims = 0;
+    return true;
+  }
+  input_len -= len;
+  input += len;
+
+  // Check that we start with '['
+  if (input_len == 0 || input[0] != '[') {
     *max_output_dims = 0;
     return true;
   }
@@ -66,16 +94,28 @@ static inline bool from_string_to_vector(const char *input, uint32_t input_len,
     }
     memcpy(temp_output.ptr() + dim * sizeof(float), &fnum, sizeof(float));
 
+    input +=
+        process_cs->cset->scan(process_cs, input, input_end, MY_SEQ_SPACES);
+
     if (*input == ',') {
+      // Check that we have delimiter with ','
       input = input + 1;
       dim++;
-    } else if (*input == ']' && input == input_end) {
+    } else if (*input == ']') {
+      // Check that we end with ']'
+      input += 1;
       with_success = true;
       dim++;
       break;
     } else {
       break;
     }
+  }
+
+  if (with_success &&
+      !check_if_only_end_space(process_cs, input, input_end + 1)) {
+    *max_output_dims = 0;
+    return true;
   }
 
   if (temp_output.ptr() != output) {
@@ -86,10 +126,8 @@ static inline bool from_string_to_vector(const char *input, uint32_t input_len,
   return !with_success;
 }
 
-static inline bool from_vector_to_string(const char *const input,
-                                         uint32_t input_dims,
-                                         char *const output,
-                                         uint32_t *max_output_len) {
+bool from_vector_to_string(const char *input, uint32_t input_dims, char *output,
+                           uint32_t *max_output_len) {
   const uint32_t end_cushion = 12;
   if (input == nullptr || *max_output_len < end_cushion) {
     return true;
@@ -133,13 +171,3 @@ static inline bool from_vector_to_string(const char *const input,
   *max_output_len = total_length;
   return false;
 }
-
-static inline uint32_t get_dimensions(const uint32_t length,
-                                      const uint32_t precision) {
-  if (length == 0 || (length % precision > 0)) {
-    return UINT32_MAX;
-  }
-  return length / precision;
-}
-
-#endif /* VECTOR_CONV_INCLUDED */

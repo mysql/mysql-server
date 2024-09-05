@@ -1,0 +1,54 @@
+#
+# Bug#37009633 - Allow string format vectors with whitespaces
+#
+SELECT TO_VECTOR('[1,2]');
+TO_VECTOR('[1,2]')
+0x0000803F00000040
+SELECT TO_VECTOR('[1,  2]');
+TO_VECTOR('[1,  2]')
+0x0000803F00000040
+SELECT TO_VECTOR('[1   ,2]');
+TO_VECTOR('[1   ,2]')
+0x0000803F00000040
+SELECT TO_VECTOR('  [1  ,2]');
+TO_VECTOR('  [1  ,2]')
+0x0000803F00000040
+SELECT TO_VECTOR('[1  ,2]   ');
+TO_VECTOR('[1  ,2]   ')
+0x0000803F00000040
+SELECT TO_VECTOR('  [1  ,2]   ');
+TO_VECTOR('  [1  ,2]   ')
+0x0000803F00000040
+SELECT TO_VECTOR('  [1  ,    2]   ');
+TO_VECTOR('  [1  ,    2]   ')
+0x0000803F00000040
+SELECT TO_VECTOR('  [1.0  ,    2.0]   ');
+TO_VECTOR('  [1.0  ,    2.0]   ')
+0x0000803F00000040
+SELECT TO_VECTOR('  [1.,0  ,    2.0]   ');
+TO_VECTOR('  [1.,0  ,    2.0]   ')
+0x0000803F0000000000000040
+SELECT TO_VECTOR('  1.,0  ,    2.0]   ');
+ERROR HY000: Data cannot be converted to a valid vector: '  1.,0  ,    2.0]   '
+SELECT TO_VECTOR('  [1.,0  ,    2.0   ');
+ERROR HY000: Data cannot be converted to a valid vector: '  [1.,0  ,    2.0   '
+SELECT TO_VECTOR('  [1  x,0  ,    2.0]   ');
+ERROR HY000: Data cannot be converted to a valid vector: '  [1  x,0  ,    2.0]   '
+SELECT TO_VECTOR('  [1.,0  ,    2.0]   a');
+ERROR HY000: Data cannot be converted to a valid vector: '  [1.,0  ,    2.0]   a'
+SELECT TO_VECTOR('  [1.,0  ,    2.0]]');
+ERROR HY000: Data cannot be converted to a valid vector: '  [1.,0  ,    2.0]]'
+CREATE TABLE A(a1 INT, a2 VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci);
+INSERT INTO A VALUES (1, '[1,2,3]'),(2, ' [1,2,3] ');
+SELECT TO_VECTOR(a2) FROM A;
+TO_VECTOR(a2)
+0x0000803F0000004000004040
+0x0000803F0000004000004040
+DROP TABLE A;
+CREATE TABLE B(b1 INT, b2 VARCHAR(30) CHARACTER SET utf32);
+INSERT INTO B VALUES (1, '[1,2,3]'),(2, ' [1,2,3] ');
+SELECT TO_VECTOR(b2) FROM B;
+TO_VECTOR(b2)
+0x0000803F0000004000004040
+0x0000803F0000004000004040
+DROP TABLE B;

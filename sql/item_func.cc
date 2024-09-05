@@ -145,14 +145,14 @@
 #include "sql/strfunc.h"        // find_type
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
-#include "sql/val_int_compare.h"    // Integer_value
-#include "sql/vector_conversion.h"  // get_dimensions
+#include "sql/val_int_compare.h"  // Integer_value
 #include "sql_string.h"
 #include "storage/perfschema/terminology_use_previous_enum.h"
 #include "string_with_len.h"
 #include "template_utils.h"
 #include "template_utils.h"  // pointer_cast
 #include "thr_mutex.h"
+#include "vector-common/vector_constants.h"  // get_dimensions
 
 using std::max;
 using std::min;

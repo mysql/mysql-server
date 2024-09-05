@@ -84,9 +84,8 @@
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
-#include "sql/tztime.h"             // Time_zone
-#include "sql/vector_conversion.h"  // get_dimensions
-#include "sql_string.h"             // convert_to_printable
+#include "sql/tztime.h"  // Time_zone
+#include "sql_string.h"  // convert_to_printable
 #include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "typelib.h"

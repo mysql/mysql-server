@@ -352,6 +352,7 @@ SET(SQL_SHARED_SOURCES
   auth/role_tables.cc
   auth/sha2_password_common.cc
   auth/sha2_password.cc
+  ../vector-common/vector_conversion.cc
   ssl_wrapper_service.cc
   bootstrap.cc
   check_stack.cc

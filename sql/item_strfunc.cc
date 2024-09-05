@@ -122,14 +122,14 @@
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/val_int_compare.h"    // Integer_value
-#include "sql/vector_conversion.h"  // from_string_to_vector
-#include "sql_string.h"             // needs_conversion
+#include "sql/val_int_compare.h"  // Integer_value
+#include "sql_string.h"           // needs_conversion
 #include "string_with_len.h"
 #include "strxmov.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "unhex.h"
+#include "vector-common/vector_conversion.h"  // from_string_to_vector, from_vector_to_string
 
 extern uint *my_aes_opmode_key_sizes;
 
@@ -4139,8 +4139,8 @@ String *Item_func_to_vector::val_str(String *str) {
   auto dimension_bytes = Field_vector::dimension_bytes(output_dims);
   if (buffer.mem_realloc(dimension_bytes)) return error_str();
 
-  bool err = from_string_to_vector(res->ptr(), res->length(), buffer.ptr(),
-                                   &output_dims);
+  bool err = from_string_to_vector(res->charset(), res->ptr(), res->length(),
+                                   buffer.ptr(), &output_dims);
   if (err) {
     if (output_dims == Field_vector::max_dimensions) {
       res->replace(32, 5, "... \0", 5);
