@@ -8062,8 +8062,8 @@ void Dblqh::execLQHKEYREQ(Signal *signal) {
     ndbassert(refToMain(senderRef) == getDBLQH());
     ndbassert(LqhKeyReq::getRowidFlag(Treqinfo));
     if (!(fragptr.p->fragStatus == Fragrecord::ACTIVE_CREATION)) {
+      /* Unexpected fragment state */
       g_eventLogger->info("fragptr.p->fragStatus: %d", fragptr.p->fragStatus);
-      CRASH_INSERTION(5046);
     }
     /**
      * We discover start of Node recovery phase in starting node

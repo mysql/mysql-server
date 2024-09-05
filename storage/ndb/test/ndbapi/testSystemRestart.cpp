@@ -1994,7 +1994,7 @@ int runBug27434(NDBT_Context *ctx, NDBT_Step *step) {
     restarter.restartAll(false, true, true);
     NdbSleep_SecSleep(3);
     CHECK(restarter.waitClusterNoStart() == 0);
-    restarter.insertErrorInNode(node1, 5046);
+    restarter.insertErrorInNode(node1, 5045);
     restarter.startAll();
     CHECK(restarter.waitClusterStarted() == 0);
   } while (false);
