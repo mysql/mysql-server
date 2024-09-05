@@ -764,8 +764,8 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
       rows_in_buffer = std::ceil(rows_in_buffer * RECORD_BUFFER_FRACTION);
       // Adjust the number of rows, if necessary, to fit within the
       // minimum and maximum buffer size range.
-      const ha_rows max_rows = (MAX_RECORD_BUFFER_SIZE / record_size);
-      rows_in_buffer = std::clamp(rows_in_buffer, min_rows, max_rows);
+      const ha_rows local_max_rows = (MAX_RECORD_BUFFER_SIZE / record_size);
+      rows_in_buffer = std::clamp(rows_in_buffer, min_rows, local_max_rows);
     }
   }
 
