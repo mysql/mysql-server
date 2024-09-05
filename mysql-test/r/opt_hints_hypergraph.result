@@ -79,7 +79,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
 -> Filter: (t3.f1 < 33)  (rows=6.22)
-    -> Covering index skip scan on t3 using f3_idx over 30 < f1  (rows=6)
+    -> Covering index skip scan on t3 using f3_idx over 30 < f1  (rows=6.22)
 
 # Turn off range access for all keys
 # Should use index access
@@ -93,7 +93,7 @@ EXPLAIN
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) NO_RANGE_OPTIMIZATION(t3 f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
 -> Filter: (t3.f1 < 33)  (rows=6.22)
-    -> Covering index skip scan on t3 using f3_idx over 30 < f1  (rows=6)
+    -> Covering index skip scan on t3 using f3_idx over 30 < f1  (rows=6.22)
 
 # NO_ICP hint testing
 set optimizer_switch='index_condition_pushdown=on';

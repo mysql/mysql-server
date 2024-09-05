@@ -778,6 +778,7 @@ class CostingReceiver {
                                    OverflowBitset applied_predicates,
                                    OverflowBitset subsumed_predicates,
                                    bool materialize_subqueries,
+                                   double force_num_output_rows_after_filter,
                                    AccessPath *path,
                                    FunctionalDependencySet *new_fd_set);
   void ApplyDelayedPredicatesAfterJoin(
@@ -881,6 +882,16 @@ bool IsDeleteStatement(const THD *thd) {
 bool IsUpdateStatement(const THD *thd) {
   return thd->lex->sql_command == SQLCOM_UPDATE ||
          thd->lex->sql_command == SQLCOM_UPDATE_MULTI;
+}
+
+/// Set the number of output rows after filter for an access path to a new
+/// value. If that value is higher than the existing estimate for the number of
+/// output rows *before* filter, also increase the number of output rows before
+/// filter for consistency, as a filter never adds rows.
+void SetNumOutputRowsAfterFilter(AccessPath *path, double output_rows) {
+  path->set_num_output_rows(output_rows);
+  path->num_output_rows_before_filter =
+      std::max(path->num_output_rows_before_filter, output_rows);
 }
 
 void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
@@ -1487,7 +1498,8 @@ CostingReceiver::FindRangeScansResult CostingReceiver::FindRangeScans(
       MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
       /*subsumed_predicates=*/
       MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
-      /*materialize_subqueries=*/false, zero_path, &new_fd_set);
+      /*materialize_subqueries=*/false, kUnknownRowCount, zero_path,
+      &new_fd_set);
 
   zero_path->filter_predicates =
       MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()};
@@ -2405,10 +2417,8 @@ void CostingReceiver::ProposeRangeScans(
       FunctionalDependencySet new_fd_set;
       ApplyPredicatesForBaseTable(
           node_idx, scan.applied_predicates, scan.subsumed_predicates,
-          materialize_subqueries, &new_path, &new_fd_set);
-
-      // Override the number of estimated rows, so that all paths get the same.
-      new_path.set_num_output_rows(num_output_rows_after_filter);
+          materialize_subqueries, num_output_rows_after_filter, &new_path,
+          &new_fd_set);
 
       string description_for_trace = string(key->name) + " range";
       ProposeAccessPathWithOrderings(
@@ -2479,11 +2489,8 @@ void CostingReceiver::ProposeRangeScans(
         FunctionalDependencySet new_fd_set;
         ApplyPredicatesForBaseTable(
             node_idx, scan.applied_predicates, scan.subsumed_predicates,
-            materialize_subqueries, &new_path, &new_fd_set);
-
-        // Override the number of estimated rows, so that all paths get the
-        // same.
-        new_path.set_num_output_rows(num_output_rows_after_filter);
+            materialize_subqueries, num_output_rows_after_filter, &new_path,
+            &new_fd_set);
 
         string description_for_trace = string(key->name) + " ordered range";
         auto access_path_it = m_access_paths.find(TableBitmap(node_idx));
@@ -2886,11 +2893,8 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
-                                &new_path, &new_fd_set);
-
-    // Override the number of estimated rows, so that all paths get the
-    // same.
-    new_path.set_num_output_rows(num_output_rows_after_filter);
+                                num_output_rows_after_filter, &new_path,
+                                &new_fd_set);
 
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set,
@@ -3047,11 +3051,8 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
-                                &new_path, &new_fd_set);
-
-    // Override the number of estimated rows, so that all paths get the
-    // same.
-    new_path.set_num_output_rows(num_output_rows_after_filter);
+                                num_output_rows_after_filter, &new_path,
+                                &new_fd_set);
 
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set,
@@ -3262,11 +3263,8 @@ void CostingReceiver::ProposeIndexMerge(
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
-                                &new_path, &new_fd_set);
-
-    // Override the number of estimated rows, so that all paths get the
-    // same.
-    new_path.set_num_output_rows(num_output_rows_after_filter);
+                                num_output_rows_after_filter, &new_path,
+                                &new_fd_set);
 
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set,
@@ -3318,7 +3316,8 @@ void CostingReceiver::ProposeIndexSkipScan(
     ApplyPredicatesForBaseTable(
         node_idx, OverflowBitset(std::move(applied_predicates)),
         OverflowBitset(std::move(subsumed_predicates)),
-        /*materialize_subqueries*/ false, skip_scan_path, &new_fd_set);
+        /*materialize_subqueries*/ false, num_output_rows_after_filter,
+        skip_scan_path, &new_fd_set);
   } else {
     // Subsumed predicates cannot be reliably calculated, so, for safety,
     // no predicates are marked as subsumed. This may result in a FILTER
@@ -3327,7 +3326,8 @@ void CostingReceiver::ProposeIndexSkipScan(
     ApplyPredicatesForBaseTable(
         node_idx, all_predicates,  // all predicates applied
         OverflowBitset(std::move(subsumed_predicates)),
-        /*materialize_subqueries*/ false, skip_scan_path, &new_fd_set);
+        /*materialize_subqueries*/ false, num_output_rows_after_filter,
+        skip_scan_path, &new_fd_set);
   }
 
   uint keynr =
@@ -3344,9 +3344,6 @@ void CostingReceiver::ProposeIndexSkipScan(
     skip_scan_path->ordering_state = m_orderings->SetOrder(
         m_orderings->RemapOrderingIndex(it->forward_order));
   }
-
-  if (skip_scan_path->type == AccessPath::INDEX_SKIP_SCAN)
-    skip_scan_path->set_num_output_rows(num_output_rows_after_filter);
 
   ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
                                  /*obsolete_orderings=*/0, skip_scan_path,
@@ -3477,11 +3474,8 @@ void CostingReceiver::ProposeAccessPathForIndex(
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
-                                path, &new_fd_set);
-
-    if (force_num_output_rows_after_filter >= 0.0) {
-      path->set_num_output_rows(force_num_output_rows_after_filter);
-    }
+                                force_num_output_rows_after_filter, path,
+                                &new_fd_set);
 
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
@@ -4055,12 +4049,10 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
         MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
         /*subsumed_predicates=*/
         MutableOverflowBitset{m_thd->mem_root, m_graph->predicates.size()},
-        materialize_subqueries, path, &new_fd_set);
+        materialize_subqueries, force_num_output_rows_after_filter, path,
+        &new_fd_set);
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
-    if (force_num_output_rows_after_filter >= 0.0) {
-      path->set_num_output_rows(force_num_output_rows_after_filter);
-    }
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set, /*obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);
@@ -4087,6 +4079,9 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
   @param materialize_subqueries If true, any subqueries in the
     predicate should be materialized. (If there are multiple ones,
     this is an all-or-nothing decision, for simplicity.)
+  @param force_num_output_rows_after_filter The number of output rows from the
+    path after the filters have been applied. If kUnknownRowCount, use the
+    estimate calculated by this function.
   @param [in,out] path The access path to apply the predicates to.
     Note that if materialize_subqueries is true, a FILTER access path
     will be inserted (overwriting "path", although a copy of it will
@@ -4096,7 +4091,8 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
 void CostingReceiver::ApplyPredicatesForBaseTable(
     int node_idx, OverflowBitset applied_predicates,
     OverflowBitset subsumed_predicates, bool materialize_subqueries,
-    AccessPath *path, FunctionalDependencySet *new_fd_set) {
+    double force_num_output_rows_after_filter, AccessPath *path,
+    FunctionalDependencySet *new_fd_set) {
   double materialize_cost = 0.0;
 
   const NodeMap my_map = TableBitmap(node_idx);
@@ -4163,6 +4159,10 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
   }
   path->filter_predicates = std::move(filter_predicates);
   path->delayed_predicates = std::move(delayed_predicates);
+
+  if (force_num_output_rows_after_filter >= 0.0) {
+    SetNumOutputRowsAfterFilter(path, force_num_output_rows_after_filter);
+  }
 
   if (materialize_subqueries) {
     CommitBitsetsToHeap(path);
@@ -5154,8 +5154,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
         // in order to force them into being representative for their multiple
         // equality.
         if (pred.selectivity > 1e-6) {
-          join_path->set_num_output_rows(join_path->num_output_rows() /
-                                         pred.selectivity);
+          SetNumOutputRowsAfterFilter(
+              join_path, join_path->num_output_rows() / pred.selectivity);
         }
       }
       *new_fd_set |= pred.functional_dependencies;
@@ -6196,11 +6196,14 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     }
 
     assert(!m_thd->is_error());
-    assert(path->init_cost() <= path->cost());
-    if (!IsEmpty(path->filter_predicates)) {
-      assert(path->num_output_rows() <= path->num_output_rows_before_filter);
-      assert(path->cost_before_filter() <= path->cost());
-    }
+  }
+
+  assert(path->init_cost() >= 0.0);
+  assert(path->cost() >= path->init_cost());
+  assert(path->num_output_rows() >= 0.0);
+  if (!IsEmpty(path->filter_predicates)) {
+    assert(path->num_output_rows() <= path->num_output_rows_before_filter);
+    assert(path->cost_before_filter() <= path->cost());
   }
 
   DBUG_EXECUTE_IF("subplan_tokens", {

@@ -172,7 +172,7 @@ explain select * from t0 where
 (key1 < 2 or key2 < 2) and (key3 < 3 or key4 < 3) and (key5 < 5 or key6 < 5);
 EXPLAIN
 -> Filter: (((t0.key3 < 3) or (t0.key4 < 3)) and ((t0.key5 < 5) or (t0.key6 < 5)))  (rows=176)
-    -> Sort-deduplicate by row ID  (rows=2)
+    -> Sort-deduplicate by row ID  (rows=176)
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 < 2)  (rows=1)
 
@@ -180,7 +180,7 @@ explain
 select * from t0 where (key1 < 2 or key2 < 4) and (key1 < 5 or key3 < 3);
 EXPLAIN
 -> Filter: ((t0.key1 < 5) or (t0.key3 < 3))  (rows=316)
-    -> Sort-deduplicate by row ID  (rows=4)
+    -> Sort-deduplicate by row ID  (rows=316)
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 < 4)  (rows=3)
 
@@ -193,7 +193,7 @@ explain select * from t0 where
 (key1 < 3 or key2 < 2) and (key3 < 3 or key4 < 3) and (key5 < 2 or key6 < 2);
 EXPLAIN
 -> Filter: (((t0.key1 < 3) or (t0.key2 < 2)) and ((t0.key3 < 3) or (t0.key4 < 3)))  (rows=176)
-    -> Sort-deduplicate by row ID  (rows=2)
+    -> Sort-deduplicate by row ID  (rows=176)
         -> Index range scan on t0 using i5 over (key5 < 2)  (rows=1)
         -> Index range scan on t0 using i6 over (key6 < 2)  (rows=1)
 
@@ -201,7 +201,7 @@ explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 70);
 EXPLAIN
 -> Filter: (t0.key3 < 70)  (rows=38.3)
-    -> Sort-deduplicate by row ID  (rows=4)
+    -> Sort-deduplicate by row ID  (rows=38.3)
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=2)
         -> Index range scan on t0 using i2 over (key2 < 3)  (rows=2)
 
@@ -209,7 +209,7 @@ explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 EXPLAIN
 -> Filter: (t0.key3 < 1000)  (rows=555)
-    -> Sort-deduplicate by row ID  (rows=4)
+    -> Sort-deduplicate by row ID  (rows=555)
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=2)
         -> Index range scan on t0 using i2 over (key2 < 3)  (rows=2)
 
@@ -229,7 +229,7 @@ or
 key1 < 5;
 EXPLAIN
 -> Filter: ((((t0.key1 < 4) or (t0.key2 < 4)) and ((t0.key2 < 4) or (t0.key3 < 3))) or (t0.key1 < 5))  (rows=552)
-    -> Sort-deduplicate by row ID  (rows=7)
+    -> Sort-deduplicate by row ID  (rows=552)
         -> Index range scan on t0 using i1 over (key1 < 5)  (rows=4)
         -> Index range scan on t0 using i2 over (key2 < 4)  (rows=3)
 
@@ -249,7 +249,7 @@ or
 ((key5 < 3 or key6 < 3) and (key7 <3 or key8 < 3));
 EXPLAIN
 -> Filter: ((((t0.key1 < 2) or (t0.key2 < 2)) and ((t0.key3 < 4) or (t0.key5 < 3))) or (((t0.key5 < 3) or (t0.key6 < 3)) and ((t0.key7 < 3) or (t0.key8 < 3))))  (rows=534)
-    -> Sort-deduplicate by row ID  (rows=6)
+    -> Sort-deduplicate by row ID  (rows=534)
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 < 2)  (rows=1)
         -> Index range scan on t0 using i5 over (key5 < 3)  (rows=2)
@@ -261,7 +261,7 @@ or
 ((key7 <5 or key8 < 3) and (key5 < 4 or key6 < 4));
 EXPLAIN
 -> Filter: ((((t0.key3 < 3) or (t0.key5 < 4)) and ((t0.key1 < 3) or (t0.key2 < 3))) or (((t0.key7 < 5) or (t0.key8 < 3)) and ((t0.key5 < 4) or (t0.key6 < 4))))  (rows=534)
-    -> Sort-deduplicate by row ID  (rows=12)
+    -> Sort-deduplicate by row ID  (rows=534)
         -> Index range scan on t0 using i3 over (key3 < 3)  (rows=2)
         -> Index range scan on t0 using i5 over (key5 < 4)  (rows=3)
         -> Index range scan on t0 using i7 over (key7 < 5)  (rows=4)
@@ -273,7 +273,7 @@ or
 ((key3 <4 or key5 < 2) and (key5 < 5 or key6 < 3));
 EXPLAIN
 -> Filter: ((((t0.key3 < 3) or (t0.key5 < 4)) and ((t0.key1 < 3) or (t0.key2 < 4))) or (((t0.key3 < 4) or (t0.key5 < 2)) and ((t0.key5 < 5) or (t0.key6 < 3))))  (rows=534)
-    -> Sort-deduplicate by row ID  (rows=6)
+    -> Sort-deduplicate by row ID  (rows=534)
         -> Index range scan on t0 using i3 over (key3 < 4)  (rows=3)
         -> Index range scan on t0 using i5 over (key5 < 4)  (rows=3)
 
@@ -283,7 +283,7 @@ or
 (((key3 <5 and key7 < 5) or key5 < 2) and (key5 < 4 or key6 < 4));
 EXPLAIN
 -> Filter: ((((t0.key3 < 4) or (t0.key5 < 3)) and ((t0.key1 < 3) or (t0.key2 < 3))) or ((((t0.key3 < 5) and (t0.key7 < 5)) or (t0.key5 < 2)) and ((t0.key5 < 4) or (t0.key6 < 4))))  (rows=476)
-    -> Sort-deduplicate by row ID  (rows=6)
+    -> Sort-deduplicate by row ID  (rows=476)
         -> Index range scan on t0 using i3 over (key3 < 5)  (rows=4)
         -> Index range scan on t0 using i5 over (key5 < 3)  (rows=2)
 

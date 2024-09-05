@@ -182,12 +182,12 @@ struct AppendPathParameters {
 };
 
 /// To indicate that a row estimate is not yet made.
-constexpr double kUnknownRowCount = -1.0;
+inline constexpr double kUnknownRowCount = -1.0;
 
 /// To indicate that a cost estimate is not yet made. We use a large negative
 /// value to avoid getting a positive result if we by mistake add this to
 /// a real (positive) cost.
-constexpr double kUnknownCost = -1e12;
+inline constexpr double kUnknownCost = -1e12;
 
 /// Calculate the cost of reading the first row from an access path, given
 /// estimates for init cost, total cost and the number of rows returned.

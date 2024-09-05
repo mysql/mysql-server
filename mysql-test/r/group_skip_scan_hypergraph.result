@@ -2510,7 +2510,7 @@ explain format=tree SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP 
 EXPLAIN
 -> Group aggregate: min(t2.c)  (rows=1)
     -> Filter: (t2.c > 1)  (rows=1)
-        -> Covering index lookup on t2 using PRIMARY (a = 1, b = 2)  (rows=0.577)
+        -> Covering index lookup on t2 using PRIMARY (a = 1, b = 2)  (rows=1)
 
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 MIN(c)
@@ -3575,7 +3575,7 @@ EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
     -> Filter: (t1.a = 1)  (rows=2)
-        -> Covering index skip scan on t1 using a over NULL < b < 2000  (rows=1)
+        -> Covering index skip scan on t1 using a over NULL < b < 2000  (rows=2)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
 a	MAX(b)
@@ -3584,7 +3584,7 @@ EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP B
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
     -> Filter: (t1.a = 1)  (rows=2)
-        -> Covering index skip scan on t1 using a over NULL < b < 2000  (rows=1)
+        -> Covering index skip scan on t1 using a over NULL < b < 2000  (rows=2)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
 a	MAX(b)
@@ -3594,7 +3594,7 @@ GROUP BY a;
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
     -> Filter: ((t1.b between 0 and 1999.5) and (t1.a = 1))  (rows=2)
-        -> Covering index skip scan on t1 using a over 0 <= b < 2000  (rows=1)
+        -> Covering index skip scan on t1 using a over 0 <= b < 2000  (rows=2)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
 GROUP BY a;
@@ -3604,7 +3604,7 @@ EXPLAIN FORMAT=TREE SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY
 EXPLAIN
 -> Group aggregate: min(t1.b)  (rows=1)
     -> Filter: (t1.a = 1)  (rows=3)
-        -> Covering index skip scan on t1 using a over 2000 < b  (rows=1)
+        -> Covering index skip scan on t1 using a over 2000 < b  (rows=3)
 
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
 a	MIN(b)
@@ -3613,7 +3613,7 @@ EXPLAIN FORMAT=TREE SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP B
 EXPLAIN
 -> Group aggregate: min(t1.b)  (rows=1)
     -> Filter: (t1.a = 1)  (rows=3)
-        -> Covering index skip scan on t1 using a over 2000 < b  (rows=1)
+        -> Covering index skip scan on t1 using a over 2000 < b  (rows=3)
 
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
 a	MIN(b)
