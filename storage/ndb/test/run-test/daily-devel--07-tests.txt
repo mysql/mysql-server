@@ -346,7 +346,7 @@ args: -n IndexStatNodeFailures T1
 max-time: 360
 
 cmd: testNdbApi
-args: -n SetVarbinaryWithSetValue WIDE_COL
+args: -n SetVarbinaryWithSetValue WIDE_2COL
 max-time: 180
 
 cmd: test_event
