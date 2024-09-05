@@ -64,6 +64,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0cmp.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "ut0math.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
@@ -2930,7 +2931,7 @@ names which must be loaded
 subsequently to load all the
 foreign key constraints. */
 {
-  ulint tuple_buf[(DTUPLE_EST_ALLOC(1) + sizeof(ulint) - 1) / sizeof(ulint)];
+  ulint tuple_buf[ut::div_ceil(DTUPLE_EST_ALLOC(1), sizeof(ulint))];
   btr_pcur_t pcur;
   dtuple_t *tuple;
   dfield_t *dfield;

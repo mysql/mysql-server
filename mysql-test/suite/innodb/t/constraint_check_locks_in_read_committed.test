@@ -119,6 +119,7 @@ while ( $i <= 17 )
         REPLACE INTO t1 VALUES (0,2);
     }
 
+    --sorted_result
     SELECT index_name,lock_type,lock_mode,lock_status,lock_data
     FROM performance_schema.data_locks
     WHERE object_schema='test' AND object_name = 't1';

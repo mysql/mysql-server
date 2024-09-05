@@ -33,7 +33,7 @@ COUNT(*)
 # and "right" page.
 CREATE FUNCTION lock_page_no (engine_lock_id CHAR(100))
 RETURNS CHAR(20) DETERMINISTIC
-RETURN SUBSTRING_INDEX(SUBSTRING_INDEX(engine_lock_id, ':', 3), ':', -1);
+RETURN SUBSTRING_INDEX(SUBSTRING_INDEX(engine_lock_id, ':', 4), ':', -1);
 BEGIN;
 SELECT * FROM t1 WHERE id=894000 FOR UPDATE;
 id	val

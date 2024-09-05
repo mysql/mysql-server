@@ -356,8 +356,8 @@ static void *table_cache_create_empty_row(
 static bool i_s_locks_row_validate(
     const i_s_locks_row_t *row) /*!< in: row to validate */
 {
-  ut_ad(row->lock_immutable_id != 0);
-  ut_ad(row->lock_trx_immutable_id != 0);
+  ut_ad(row->lock_guid);
+  ut_ad(row->lock_guid.m_trx_guid);
   ut_ad(row->lock_table_id != 0);
 
   if (row->lock_space == SPACE_UNKNOWN) {
@@ -625,6 +625,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   page = reinterpret_cast<const page_t *>(buf_block_get_frame(block));
 
   rec = page_find_rec_with_heap_no(page, heap_no);
+  ut_a(rec != nullptr);
 
   index = lock_rec_get_index(lock);
 
@@ -649,8 +650,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 }
 
 void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
-  row->lock_immutable_id = lock_get_immutable_id(lock);
-  row->lock_trx_immutable_id = lock_get_trx_immutable_id(lock);
+  row->lock_guid = lock_guid_t(*lock);
   switch (lock_get_type(lock)) {
     case LOCK_REC: {
       const auto page_id = lock_rec_get_page_id(lock);
@@ -979,26 +979,37 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 
   return (row);
 }
-constexpr const char *LOCK_RECORD_ID_FORMAT =
-    UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
-constexpr const char *LOCK_TABLE_ID_FORMAT = UINT64PF ":" UINT64PF ":" UINT64PF;
+constexpr const char *LOCK_RECORD_ID_FORMAT = UINT64PF
+    ":" UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
+constexpr const int LOCK_RECORD_ID_FORMAT_PARTS = 6;
+constexpr const char *LOCK_TABLE_ID_FORMAT =
+    UINT64PF ":" UINT64PF ":" UINT64PF ":" UINT64PF;
+constexpr const int LOCK_TABLE_ID_FORMAT_PARTS = 4;
 
 char *trx_i_s_create_lock_id(const i_s_locks_row_t &row, char *lock_id,
                              size_t lock_id_size) {
   int res_len;
 
-  /* please adjust TRX_I_S_LOCK_ID_MAX_LEN if you change this */
+  /* Please adjust TRX_I_S_LOCK_ID_MAX_LEN if you change this.
+  The reason lock_guid.* fields are not being printed next to each other,
+  and thus the reason why printing them is not a member function of lock_guit_t,
+  is that we want the natural lexicographic order on LOCK_ENGINE_ID to be useful
+  for humans and it is much more useful if the rows are sorted by space, page
+  and heap_no, or by table, rather than by immutable id. */
 
   if (row.lock_space != SPACE_UNKNOWN) {
     /* record lock */
-    res_len = snprintf(lock_id, lock_id_size, LOCK_RECORD_ID_FORMAT,
-                       row.lock_trx_immutable_id, row.lock_space, row.lock_page,
-                       row.lock_rec, row.lock_immutable_id);
+    res_len =
+        snprintf(lock_id, lock_id_size, LOCK_RECORD_ID_FORMAT,
+                 row.lock_guid.m_trx_guid.m_immutable_id,
+                 row.lock_guid.m_trx_guid.m_version, row.lock_space,
+                 row.lock_page, row.lock_rec, row.lock_guid.m_immutable_id);
   } else {
     /* table lock */
     res_len = snprintf(lock_id, lock_id_size, LOCK_TABLE_ID_FORMAT,
-                       row.lock_trx_immutable_id, row.lock_table_id,
-                       row.lock_immutable_id);
+                       row.lock_guid.m_trx_guid.m_immutable_id,
+                       row.lock_guid.m_trx_guid.m_version, row.lock_table_id,
+                       row.lock_guid.m_immutable_id);
   }
 
   /* the typecast is safe because snprintf(3) never returns
@@ -1010,13 +1021,17 @@ char *trx_i_s_create_lock_id(const i_s_locks_row_t &row, char *lock_id,
 }
 
 int trx_i_s_parse_lock_id(const char *lock_id, i_s_locks_row_t *row) {
-  if (sscanf(lock_id, LOCK_RECORD_ID_FORMAT, &row->lock_trx_immutable_id,
-             &row->lock_space, &row->lock_page, &row->lock_rec,
-             &row->lock_immutable_id) == 5) {
+  if (sscanf(lock_id, LOCK_RECORD_ID_FORMAT,
+             &row->lock_guid.m_trx_guid.m_immutable_id,
+             &row->lock_guid.m_trx_guid.m_version, &row->lock_space,
+             &row->lock_page, &row->lock_rec,
+             &row->lock_guid.m_immutable_id) == LOCK_RECORD_ID_FORMAT_PARTS) {
     return LOCK_REC;
   }
-  if (sscanf(lock_id, LOCK_TABLE_ID_FORMAT, &row->lock_trx_immutable_id,
-             &row->lock_table_id, &row->lock_immutable_id) == 3) {
+  if (sscanf(lock_id, LOCK_TABLE_ID_FORMAT,
+             &row->lock_guid.m_trx_guid.m_immutable_id,
+             &row->lock_guid.m_trx_guid.m_version, &row->lock_table_id,
+             &row->lock_guid.m_immutable_id) == LOCK_TABLE_ID_FORMAT_PARTS) {
     return LOCK_TABLE;
   }
   static_assert(LOCK_TABLE != 0 && LOCK_REC != 0);

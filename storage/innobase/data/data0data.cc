@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sys/types.h>
 #include <new>
+#include <type_traits>
 
 #include "data0data.h"
 #include "ha_prototypes.h"
@@ -885,12 +886,21 @@ void multi_value_data::alloc(uint32_t num, bool alc_bitset, mem_heap_t *heap) {
 void multi_value_data::alloc_bitset(mem_heap_t *heap, uint32_t size) {
   ut_ad(bitset == nullptr);
 
-  bitset = static_cast<Bitset *>(mem_heap_zalloc(heap, sizeof(Bitset)));
-  uint32_t alloc_size = (size == 0 ? num_v : size);
-  byte *bitmap =
-      static_cast<byte *>(mem_heap_zalloc(heap, UT_BITS_IN_BYTES(alloc_size)));
-  bitset->init(bitmap, UT_BITS_IN_BYTES(alloc_size));
+  bitset = static_cast<Bitset<> *>(mem_heap_zalloc(heap, sizeof(Bitset<>)));
+  /*TODO: why is it num_v? Shouldn't it be num_alc? Looks like copy_low assumes
+  that this->bitset points to a bitmap which is at least as large as other's
+  multi_value->bitset->size(), as it is copying bytes from it, yet the only
+  assert protection is that num_alc is larger than that. So, what's preventing
+  num_alc > multi_value->bitset->size() > num_v = bitmap_bytes? */
+  uint32_t alloc_size = UT_BITS_IN_BYTES(size == 0 ? num_v : size);
+  byte *bitmap = static_cast<byte *>(mem_heap_zalloc(heap, alloc_size));
+  ut_d(bitmap_bytes = alloc_size);
+  new (bitset) Bitset(bitmap, alloc_size);
   bitset->set();
+  static_assert(
+      std::is_trivially_destructible_v<Bitset<>>,
+      "Bitset<> must be trivially destructible in order to be able to "
+      "(de)allocate it via mem_heap_t");
 }
 
 uint32_t Multi_value_logger::get_log_len(bool precise) const {
@@ -955,12 +965,17 @@ byte *Multi_value_logger::log(byte **ptr) {
     ut_memcpy(*ptr, m_mv_data->datap[i], m_mv_data->data_len[i]);
     *ptr += m_mv_data->data_len[i];
   }
-
+  /* This fragment is optional, which will be detected by reader by comparing
+  the amount of data read, to the length we will write to *old_ptr later. */
   if (m_mv_data->bitset != nullptr) {
     /* Always just write out the bitset of enough size for all data,
     rather than the size of bitset. */
     uint32_t bitset_len = UT_BITS_IN_BYTES(m_mv_data->num_v);
-    ut_memcpy(*ptr, m_mv_data->bitset->bitset(), bitset_len);
+    /* make sure we will not read past the buffer */
+    ut_ad_le(bitset_len, m_mv_data->bitmap_bytes);
+    /* make sure we will not miss actual data */
+    ut_ad_le(m_mv_data->bitset->size_bytes(), bitset_len);
+    ut_memcpy(*ptr, m_mv_data->bitset->data(), bitset_len);
     *ptr += bitset_len;
   }
 
@@ -1020,7 +1035,10 @@ const byte *Multi_value_logger::read(const byte *ptr, dfield_t *field,
 
   if (ptr < old_ptr + total_len) {
     multi_val->alloc_bitset(heap);
-    multi_val->bitset->copy(ptr, UT_BITS_IN_BYTES(num));
+    ut_ad_eq(num, multi_val->num_v);
+    ut_ad_eq(UT_BITS_IN_BYTES(num), multi_val->bitmap_bytes);
+    ut_a_eq(UT_BITS_IN_BYTES(num), multi_val->bitset->size_bytes());
+    multi_val->bitset->copy_from(ptr);
     ptr += UT_BITS_IN_BYTES(num);
   }
 

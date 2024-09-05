@@ -209,8 +209,8 @@ srv_start() has executed using the call command. */
                                    debugging without UNIV_DEBUG */
 #define UNIV_BLOB_LIGHT_DEBUG      /* Enable off-page column \
                                    debugging without UNIV_DEBUG */
-#define UNIV_DEBUG_LOCK_VALIDATE   /* Enable                       \
-                                   ut_ad(lock_rec_validate_page()) \
+#define UNIV_DEBUG_LOCK_VALIDATE   /* Enable                      \
+                                   ut_d(lock_rec_validate_page()) \
                                    assertions. */
 #define UNIV_LRU_DEBUG             /* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG            /* debug HASH_ macros */

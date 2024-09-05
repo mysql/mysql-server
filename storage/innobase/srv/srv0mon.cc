@@ -1435,7 +1435,7 @@ monitor_value_t innodb_counter_value[NUM_MONITOR];
 
 /* monitor_set_tbl is used to record and determine whether a monitor
 has been turned on/off. */
-ulint monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT - 1) / NUM_BITS_ULINT];
+std::bitset<NUM_MONITOR> monitor_set_tbl;
 
 /** Get a monitor's "monitor_info" by its monitor id (index into the
  innodb_counter_info array.

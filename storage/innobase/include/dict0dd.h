@@ -1204,6 +1204,13 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
                                     ulint ignore_err, int *error = nullptr);
 
 /** Returns a cached table object based on table id.
+This function does NOT move the table to the front of MRU, because currently it
+is called in contexts where we don't really mean to "use" the table, and believe
+that it would actually hurt performance if we moved it to the front, such as:
+1. The table would be evicted soon anyway.
+2. A batch of FTS tables would be opened from background thread,
+   and it is not proper to move these tables to mru.
+3. All tables in memory will be accessed sequentially, so it is useless to move.
 @param[in]      table_id        table id
 @param[in]      dict_locked     true=data dictionary locked
 @return table, NULL if does not exist */

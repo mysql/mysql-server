@@ -363,8 +363,7 @@ static bool rtr_pcur_getnext_from_path(
         rw_lock_s_lock(&block->lock, UT_LOCATION_HERE);
       }
 
-      lock_prdt_lock(block, &prdt, index, LOCK_S, LOCK_PREDICATE,
-                     btr_cur->rtr_info->thr);
+      lock_prdt_lock(block, &prdt, index, btr_cur->rtr_info->thr);
 
       if (rw_latch == RW_NO_LATCH) {
         rw_lock_s_unlock(&(block->lock));

@@ -50,14 +50,14 @@ static inline void hash_table_clear(
   memset(table->cells.get(), 0x0, table->get_n_cells() * sizeof(hash_cell_t));
 }
 
-static inline size_t hash_get_n_cells(hash_table_t *table) {
+static inline size_t hash_get_n_cells(hash_table_t const *table) {
   ut_ad(table);
   ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   return table->get_n_cells();
 }
 
 static inline uint64_t hash_calc_cell_id(uint64_t hash_value,
-                                         hash_table_t *table) {
+                                         hash_table_t const *table) {
   ut_ad(table);
   ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   return hash_value % table->get_n_cells_fast_modulo();

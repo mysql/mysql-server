@@ -8082,7 +8082,7 @@ class Altered_partitions {
     m_ins_nodes[new_part_id] = prebuilt->ins_node;
     m_trx_ids[new_part_id] = prebuilt->trx_id;
     if (!prebuilt->sql_stat_start) {
-      m_sql_stat_start.set(new_part_id, false);
+      m_sql_stat_start.reset(new_part_id);
     }
   }
 
@@ -8169,7 +8169,7 @@ bool Altered_partitions::initialize() {
     return (true);
   }
 
-  m_sql_stat_start.init(m_bitset, UT_BITS_IN_BYTES(m_num_new_parts));
+  m_sql_stat_start = {m_bitset, UT_BITS_IN_BYTES(m_num_new_parts)};
 
   return (false);
 }

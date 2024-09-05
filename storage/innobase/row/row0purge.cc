@@ -532,7 +532,7 @@ if possible.
 
           page = btr_cur_get_page(btr_cur);
 
-          if (!lock_test_prdt_page_lock(trx, page_get_page_id(page)) &&
+          if (lock_other_has_prdt_page_lock(trx, page_get_page_id(page)) &&
               page_get_n_recs(page) < 2 &&
               page_get_page_no(page) != dict_index_get_page(index)) {
             /* this is the last record on page,
