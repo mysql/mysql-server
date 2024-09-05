@@ -53,3 +53,7 @@ mysql_string_spc::convert_from_buffer, mysql_string_spc::convert_to_buffer,
 BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, mysql_string_factory)
 mysql_string_spc::create, mysql_string_spc::destroy,
     END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME,
+                             mysql_string_get_data_in_charset)
+nullptr END_SERVICE_IMPLEMENTATION();

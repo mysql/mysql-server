@@ -1248,7 +1248,6 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_page_track_component.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_global_priv_registration.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_option_tracker.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
@@ -1361,7 +1360,6 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_page_track_component.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_global_priv_registration.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_option_tracker.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so

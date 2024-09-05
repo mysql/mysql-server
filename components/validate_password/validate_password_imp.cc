@@ -36,7 +36,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/library_mysys/my_memory.h"
 #include "mysql/components/services/mysql_rwlock.h"
 #include "mysql/components/services/psi_memory.h"
+#include "mysql/components/services/registry.h"
 #include "mysqld_error.h"
+#include "option_usage.h"
 #include "scope_guard.h"
 
 #define PSI_NOT_INSTRUMENTED 0
@@ -545,6 +547,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
     return true;
   }
 
+  validate_password_component_option_usage_set();
   if (!is_valid_password_by_user_name(thd, password)) return true;
 
   if (mysql_service_mysql_string_iterator->iterator_create(password, &iter)) {
@@ -593,7 +596,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::validate,
         .message("validate_password component is not yet initialized");
     return true;
   }
-
+  validate_password_component_option_usage_set();
   return (validate_password_policy_strength(thd, password,
                                             validate_password_policy) == 0);
 }
@@ -614,6 +617,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::validate,
 DEFINE_BOOL_METHOD(validate_password_changed_characters_imp::validate,
                    (my_h_string current_password, my_h_string new_password,
                     uint *minimum_required, uint *changed)) {
+  validate_password_component_option_usage_set();
   try {
     uint current_length = 0, new_length = 0;
     if (changed) *changed = 0;
@@ -1038,6 +1042,15 @@ static mysql_service_status_t validate_password_init() {
     mysql_rwlock_destroy(&LOCK_dict_file);
     return true;
   }
+  if (validate_password_component_option_usage_init()) {
+    unregister_status_variables();
+    unregister_system_variables();
+    log_service_deinit();
+    delete dictionary_words;
+    dictionary_words = nullptr;
+    mysql_rwlock_destroy(&LOCK_dict_file);
+    return true;
+  }
   read_dictionary_file();
   /* Check if validate_password_length needs readjustment */
   readjust_validate_password_length();
@@ -1053,6 +1066,7 @@ static mysql_service_status_t validate_password_init() {
   @retval true failure
 */
 static mysql_service_status_t validate_password_deinit() {
+  if (validate_password_component_option_usage_deinit()) return true;
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
   delete dictionary_words;
@@ -1097,6 +1111,10 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
 REQUIRES_MYSQL_RWLOCK_SERVICE_PLACEHOLDER;
+REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
+REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
+REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
+                                mysql_service_registration_no_lock);
 
 /* A list of dependencies.
    The dynamic_loader fetches the references for the below services at the
@@ -1114,6 +1132,12 @@ REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(mysql_thd_security_context),
     REQUIRES_SERVICE(mysql_security_context_options),
+    REQUIRES_SERVICE(registry_registration),
+    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
+                                       mysql_minimal_chassis_no_lock,
+                                       mysql_service_registration_no_lock),
+    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
+                                       mysql_service_registry_no_lock),
     REQUIRES_PSI_MEMORY_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
     END_COMPONENT_REQUIRES();
 

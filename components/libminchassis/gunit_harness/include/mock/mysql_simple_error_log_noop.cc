@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2023, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,30 +21,20 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <components/keyrings/keyring_file/keyring_file.h> /* Globals */
-#include "option_usage.h"
+#include <stdio.h>
+#include "mysql/components/component_implementation.h"
+#include "mysql/components/service_implementation.h"
+#include "mysql/components/services/mysql_simple_error_log.h"
 
-#include <components/keyrings/common/component_helpers/include/keyring_generator_service_definition.h>
-#include <components/keyrings/common/component_helpers/include/keyring_generator_service_impl_template.h>
+namespace mysql_service_simple_error_log_noop_spc {
 
-using keyring_file::g_component_callbacks;
-using keyring_file::g_keyring_operations;
-using keyring_file::backend::Keyring_file_backend;
-
-namespace keyring_common {
-
-using service_implementation::generate_template;
-
-namespace service_definition {
-
-DEFINE_BOOL_METHOD(Keyring_generator_service_impl::generate,
-                   (const char *data_id, const char *auth_id,
-                    const char *data_type, size_t data_size)) {
-  keyring_file_component_option_usage_set();
-  return generate_template<Keyring_file_backend>(
-      data_id, auth_id, data_type, data_size, *g_keyring_operations,
-      *g_component_callbacks);
+DEFINE_BOOL_METHOD(emit, (const char * /*component*/, const char * /*file*/,
+                          unsigned long /*line*/, int /*severity*/,
+                          int /*error_id*/, ...)) {
+  return 0;
 }
 
-}  // namespace service_definition
-}  // namespace keyring_common
+}  // namespace mysql_service_simple_error_log_noop_spc
+
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, mysql_simple_error_log)
+mysql_service_simple_error_log_noop_spc::emit END_SERVICE_IMPLEMENTATION();

@@ -27,4 +27,10 @@ ADD_LIBRARY(library_mysys STATIC
   my_memory.cc
   my_hex_tools.cc
   my_base64_encode.cc
+  option_usage_data.cc
 )
+
+IF(UNIX)
+TARGET_COMPILE_OPTIONS(library_mysys PRIVATE "-fvisibility=hidden")
+ENDIF()
+TARGET_LINK_LIBRARIES(library_mysys rapidjson)

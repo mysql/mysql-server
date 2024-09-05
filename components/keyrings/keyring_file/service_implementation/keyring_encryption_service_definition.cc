@@ -22,6 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <components/keyrings/keyring_file/keyring_file.h>
+#include "option_usage.h"
 
 #include <components/keyrings/common/component_helpers/include/keyring_encryption_service_definition.h>
 #include <components/keyrings/common/component_helpers/include/keyring_encryption_service_impl_template.h>
@@ -50,6 +51,7 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::encrypt,
                     const unsigned char *data_buffer, size_t data_buffer_length,
                     unsigned char *out_buffer, size_t out_buffer_length,
                     size_t *out_length)) {
+  keyring_file_component_option_usage_set();
   return aes_encrypt_template<Keyring_file_backend>(
       data_id, auth_id, mode, block_size, iv, padding, data_buffer,
       data_buffer_length, out_buffer, out_buffer_length, out_length,
@@ -62,6 +64,7 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::decrypt,
                     const unsigned char *data_buffer, size_t data_buffer_length,
                     unsigned char *out_buffer, size_t out_buffer_length,
                     size_t *out_length)) {
+  keyring_file_component_option_usage_set();
   return aes_decrypt_template<Keyring_file_backend>(
       data_id, auth_id, mode, block_size, iv, padding, data_buffer,
       data_buffer_length, out_buffer, out_buffer_length, out_length,

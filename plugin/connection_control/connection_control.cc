@@ -34,11 +34,14 @@
 #include "mysqld_error.h"
 #include "plugin/connection_control/connection_control_coordinator.h" /* g_connection_event_coordinator */
 #include "plugin/connection_control/connection_delay_api.h" /* connection_delay apis */
+#include "plugin/connection_control/option_usage.h"
 #include "template_utils.h"
 
-static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
+SERVICE_TYPE(registry_registration) *reg_reg = nullptr;
+my_h_service h_reg_svc = nullptr;
 
 namespace connection_control {
 class Connection_control_error_handler : public Error_handler {
@@ -159,6 +162,9 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
 
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
+  reg_srv->acquire("registry_registration", &h_reg_svc);
+  reg_reg = reinterpret_cast<SERVICE_TYPE(registry_registration) *>(h_reg_svc);
+  if (connection_control_plugin_option_usage_init()) return 1;
 
   connection_control_plugin_info = plugin_info;
   Connection_control_error_handler error_handler;
@@ -189,11 +195,13 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
 */
 
 static int connection_control_deinit(void *arg [[maybe_unused]]) {
+  if (connection_control_plugin_option_usage_deinit()) return 1;
   delete g_connection_event_coordinator;
   g_connection_event_coordinator = nullptr;
   connection_control::deinit_connection_delay_event();
   connection_control_plugin_info = nullptr;
 
+  if (h_reg_svc) reg_srv->release(h_reg_svc);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }

@@ -24,32 +24,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stdio.h>
 #include "mysql/components/component_implementation.h"
 #include "mysql/components/service_implementation.h"
-#include "mysql/components/services/table_access_service.h"
+#include "mysql/components/services/dynamic_privilege.h"
 
-namespace table_access_all_empty_spc {
-// TODO: copy the method signatures here and provide them instead of the
-// nullptrs that we currently do
-}  // namespace table_access_all_empty_spc
+namespace mysql_dynamic_privilege_register_all_empty_spc {
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_factory_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+static DEFINE_BOOL_METHOD(register_privilege, (const char * /*priv_name*/,
+                                               size_t /*priv_name_len*/)) {
+  return 0;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+static DEFINE_BOOL_METHOD(unregister_privilege, (const char * /*priv_name*/,
+                                                 size_t /*priv_name_len*/)) {
+  return 0;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_index_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+}  // namespace mysql_dynamic_privilege_register_all_empty_spc
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_update_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, field_varchar_access_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_binlog)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_scan_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, dynamic_privilege_register)
+mysql_dynamic_privilege_register_all_empty_spc::register_privilege,
+    mysql_dynamic_privilege_register_all_empty_spc::unregister_privilege
+    END_SERVICE_IMPLEMENTATION();

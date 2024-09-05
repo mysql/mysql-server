@@ -405,7 +405,6 @@ for p in \
          component_test_event_tracking_consumer_a.so \
          component_test_event_tracking_consumer_b.so \
          component_test_event_tracking_consumer_c.so \
-         component_test_option_tracker.so \
          ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done

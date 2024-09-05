@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_string.h>
 #include <mysql/components/services/psi_memory_service.h>
+#include <mysql/components/services/registry.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/validate_password.h>
 
@@ -50,7 +51,11 @@ extern REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 extern REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
-
+extern REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry,
+                                       mysql_service_registry_no_lock);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
+                                       mysql_service_registration_no_lock);
 /**
   An implementation of the password_validation_service to validate password and
   to get its strength.

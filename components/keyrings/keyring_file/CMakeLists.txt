@@ -69,11 +69,14 @@ SET(KEYRING_FILE_SOURCE
 
   # Component callbacks
   component_callbacks.cc
+
+  option_usage.cc
 )
 
 SET(KEYRING_FILE_LIBRARIES
   keyring_common
   OpenSSL::SSL OpenSSL::Crypto
+  library_mysys
 )
 
 MYSQL_ADD_COMPONENT(keyring_file

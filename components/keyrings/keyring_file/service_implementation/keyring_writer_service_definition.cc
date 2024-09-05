@@ -22,6 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <components/keyrings/keyring_file/keyring_file.h>
+#include "option_usage.h"
 
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_definition.h>
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_impl_template.h>
@@ -40,6 +41,7 @@ DEFINE_BOOL_METHOD(Keyring_writer_service_impl::store,
                    (const char *data_id, const char *auth_id,
                     const unsigned char *data, size_t data_size,
                     const char *data_type)) {
+  keyring_file_component_option_usage_set();
   return store_template<Keyring_file_backend>(data_id, auth_id, data, data_size,
                                               data_type, *g_keyring_operations,
                                               *g_component_callbacks);
@@ -47,6 +49,7 @@ DEFINE_BOOL_METHOD(Keyring_writer_service_impl::store,
 
 DEFINE_BOOL_METHOD(Keyring_writer_service_impl::remove,
                    (const char *data_id, const char *auth_id)) {
+  keyring_file_component_option_usage_set();
   return remove_template<Keyring_file_backend>(
       data_id, auth_id, *g_keyring_operations, *g_component_callbacks);
 }

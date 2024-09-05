@@ -22,6 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <components/keyrings/keyring_file/keyring_file.h>
+#include "option_usage.h"
 
 #include <components/keyrings/common/component_helpers/include/keyring_metadata_query_service_definition.h>
 #include <components/keyrings/common/component_helpers/include/keyring_metadata_query_service_impl_template.h>
@@ -49,6 +50,7 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::is_initialized, ()) {
 DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::init,
                    (my_h_keyring_component_metadata_iterator *
                     metadata_iterator)) {
+  keyring_file_component_option_usage_set();
   *metadata_iterator = nullptr;
   std::unique_ptr<config_vector> it;
   const bool retval =

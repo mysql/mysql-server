@@ -23,6 +23,7 @@
 
 MYSQL_ADD_COMPONENT(validate_password
   validate_password_imp.cc
+  option_usage.cc
   MODULE_ONLY
   LINK_LIBRARIES library_mysys
   )

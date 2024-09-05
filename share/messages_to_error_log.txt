@@ -12785,6 +12785,9 @@ ER_AUTHENTICATION_OPENID_CONFIGURATION_NOT_SET
 ER_AUTHENTICATION_OPENID_FAILED_TO_UPDATE_CONFIGURATION
   eng "Failed to update authentication_openid_connect_configuration to a new value and the old value is lost too. Please set it to avoid unexpected results."
 
+ER_SIMPLE_ERROR_LOG_COMPONENT_STATUS
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

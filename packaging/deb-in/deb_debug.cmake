@@ -257,7 +257,6 @@ usr/lib/mysql/plugin/debug/component_keyring_aws.so
   SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
 usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/debug/component_test_page_track_component.so
-usr/lib/mysql/plugin/debug/component_test_option_tracker.so
 ")
 
 ENDIF()

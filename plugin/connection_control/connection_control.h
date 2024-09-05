@@ -29,6 +29,8 @@
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_thread.h> /* mysql_rwlock_t */
+#include "mysql/components/service.h"
+#include "mysql/components/services/registry.h"
 
 #include "plugin/connection_control/connection_control_data.h"
 
@@ -36,6 +38,9 @@ extern PSI_mutex_key key_connection_delay_mutex;
 extern PSI_rwlock_key key_connection_event_delay_lock;
 extern PSI_cond_key key_connection_delay_wait;
 extern PSI_stage_info stage_waiting_in_connection_control_plugin;
+
+extern SERVICE_TYPE(registry) * reg_srv;
+extern SERVICE_TYPE(registry_registration) * reg_reg;
 
 namespace connection_control {
 

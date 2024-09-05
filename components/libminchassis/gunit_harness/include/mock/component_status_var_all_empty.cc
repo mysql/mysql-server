@@ -21,35 +21,24 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stdio.h>
 #include "mysql/components/component_implementation.h"
 #include "mysql/components/service_implementation.h"
-#include "mysql/components/services/table_access_service.h"
+#include "mysql/components/services/component_status_var_service.h"
 
-namespace table_access_all_empty_spc {
-// TODO: copy the method signatures here and provide them instead of the
-// nullptrs that we currently do
-}  // namespace table_access_all_empty_spc
+namespace mysql_service_component_status_var_service_spc {
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_factory_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+DEFINE_BOOL_METHOD(register_variable, (SHOW_VAR * /*status_var*/)) {
+  return false;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+DEFINE_BOOL_METHOD(unregister_variable, (SHOW_VAR * /*status_var*/)) {
+  return false;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_index_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+}  // namespace mysql_service_component_status_var_service_spc
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_update_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, field_varchar_access_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_binlog)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_scan_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME,
+                             status_variable_registration)
+mysql_service_component_status_var_service_spc::register_variable,
+    mysql_service_component_status_var_service_spc::unregister_variable,
+    END_SERVICE_IMPLEMENTATION();

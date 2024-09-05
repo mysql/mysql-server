@@ -24,32 +24,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stdio.h>
 #include "mysql/components/component_implementation.h"
 #include "mysql/components/service_implementation.h"
-#include "mysql/components/services/table_access_service.h"
+#include "mysql/components/services/udf_registration.h"
 
-namespace table_access_all_empty_spc {
-// TODO: copy the method signatures here and provide them instead of the
-// nullptrs that we currently do
-}  // namespace table_access_all_empty_spc
+namespace udf_registration_all_empty_spc {
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_factory_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+static DEFINE_BOOL_METHOD(udf_register,
+                          (const char * /*func_name*/,
+                           enum Item_result /*return_type*/,
+                           Udf_func_any /*func*/, Udf_func_init /*init_func*/,
+                           Udf_func_deinit /*deinit_func*/)) {
+  return 0;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+static DEFINE_BOOL_METHOD(udf_unregister,
+                          (const char * /*name*/, int * /*was_present*/)) {
+  return 0;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_index_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+}  // namespace udf_registration_all_empty_spc
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_update_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, field_varchar_access_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_binlog)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_scan_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, udf_registration)
+udf_registration_all_empty_spc::udf_register,
+    udf_registration_all_empty_spc::udf_unregister END_SERVICE_IMPLEMENTATION();

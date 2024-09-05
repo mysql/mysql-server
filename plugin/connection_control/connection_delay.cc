@@ -31,6 +31,7 @@
 #include "my_systime.h"
 #include "mysql/strings/m_ctype.h" /* my_charset_bin */
 #include "mysqld_error.h"
+#include "option_usage.h"
 #include "plugin/connection_control/connection_control.h"
 #include "plugin/connection_control/security_context_wrapper.h"
 #include "sql/current_thd.h" /* current_thd */
@@ -564,6 +565,8 @@ bool Connection_delay_action::notify_event(
     rd_lock.unlock();
     conditional_wait(thd, wait_time);
     rd_lock.lock();
+
+    connection_control_plugin_option_usage_set();
 
     /* Introduce a delay to check that connection delay status doesn't last
      * longer than configured */

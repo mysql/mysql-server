@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 
 #include "keyring_file.h"
+#include "option_usage.h"
 
 /* Keyring_encryption_service_impl */
 #include <components/keyrings/common/component_helpers/include/keyring_encryption_service_definition.h>
@@ -132,6 +133,10 @@ using keyring_file::config::g_instance_path;
 /** Dependencies */
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
+REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
+REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
+                                mysql_service_registration_no_lock);
 
 SERVICE_TYPE(log_builtins) * log_bi;
 SERVICE_TYPE(log_builtins_string) * log_bs;
@@ -228,7 +233,7 @@ bool init_or_reinit_keyring(std::string &err) {
 static mysql_service_status_t keyring_file_init() {
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
-
+  if (keyring_file_component_option_usage_init()) return true;
   g_component_callbacks = new (std::nothrow)
       keyring_common::service_implementation::Component_callbacks();
 
@@ -239,6 +244,7 @@ static mysql_service_status_t keyring_file_init() {
   De-initialization function for component - Used when unloading the component
 */
 static mysql_service_status_t keyring_file_deinit() {
+  if (keyring_file_component_option_usage_deinit()) return true;
   g_keyring_file_inited = false;
   if (g_component_path) free(g_component_path);
   g_component_path = nullptr;
@@ -292,8 +298,14 @@ PROVIDES_SERVICE(component_keyring_file, keyring_aes),
 
 /** List of dependencies */
 BEGIN_COMPONENT_REQUIRES(component_keyring_file)
-REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
-    REQUIRES_SERVICE(log_builtins_string), END_COMPONENT_REQUIRES();
+REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
+    REQUIRES_SERVICE(registry_registration),
+    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
+                                       mysql_minimal_chassis_no_lock,
+                                       mysql_service_registration_no_lock),
+    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
+                                       mysql_service_registry_no_lock),
+    END_COMPONENT_REQUIRES();
 
 /** Component description */
 BEGIN_COMPONENT_METADATA(component_keyring_file)

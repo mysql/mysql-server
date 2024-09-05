@@ -262,9 +262,8 @@ class weak_service_reference {
     if (!keep_active_reference || !hton->function_called) {
       for (unsigned idx = 0; idx < count; idx++) {
         std::string svc(services[idx]);
-        if (svc.starts_with(service_name) &&
-            svc.length() > service_name.length() &&
-            svc[service_name.length()] == '.')
+        if (svc.length() > service_name.length() &&
+            svc[service_name.length()] == '.' && 0 == svc.find(service_name))
           return call_function() ? 1 : 0;
       }
     }

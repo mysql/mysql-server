@@ -24,32 +24,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stdio.h>
 #include "mysql/components/component_implementation.h"
 #include "mysql/components/service_implementation.h"
-#include "mysql/components/services/table_access_service.h"
+#include "mysql/components/services/security_context.h"
 
-namespace table_access_all_empty_spc {
-// TODO: copy the method signatures here and provide them instead of the
-// nullptrs that we currently do
-}  // namespace table_access_all_empty_spc
+namespace mysql_thd_security_context_all_empty_spc {
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_factory_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+static DEFINE_BOOL_METHOD(get, (void * /*_thd*/,
+                                Security_context_handle * /*out_ctx*/)) {
+  return 0;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+static DEFINE_BOOL_METHOD(set, (void * /*_thd*/,
+                                Security_context_handle /*in_ctx*/)) {
+  return 0;
+}
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_index_v1)
-nullptr, nullptr, nullptr, nullptr, nullptr,
-    nullptr END_SERVICE_IMPLEMENTATION();
+}  // namespace mysql_thd_security_context_all_empty_spc
 
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_update_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, field_varchar_access_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_binlog)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_scan_v1)
-nullptr, nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, mysql_thd_security_context)
+mysql_thd_security_context_all_empty_spc::get,
+    mysql_thd_security_context_all_empty_spc::set END_SERVICE_IMPLEMENTATION();

@@ -29,7 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/keyrings/common/component_helpers/include/service_requirements.h>
 #include <components/keyrings/common/operations/operations.h>
 #include <mysql/components/services/log_builtins.h> /* LogComponentErr */
-#include "mysqld_error.h"                           /* Errors */
+#include "mysql/components/component_implementation.h"
+#include "mysql/components/services/registry.h"
+#include "mysqld_error.h" /* Errors */
 
 #include "backend/backend.h"
 #include "config/config.h"
@@ -55,3 +57,10 @@ bool init_or_reinit_keyring(std::string &err);
 bool set_paths(const char *component_path, const char *instance_path);
 
 }  // namespace keyring_file
+
+extern REQUIRES_SERVICE_PLACEHOLDER(registry);
+extern REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry,
+                                       mysql_service_registry_no_lock);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
+                                       mysql_service_registration_no_lock);
