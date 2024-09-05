@@ -81,7 +81,27 @@ void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf) {
 }
 
 void pfs_free(PFS_builtin_memory_class *, size_t, void *ptr) {
-  if (ptr != nullptr) free(ptr);
+  if (ptr == nullptr) {
+    return;
+  }
+
+#ifdef HAVE_POSIX_MEMALIGN
+  /* Allocated with posix_memalign() */
+  free(ptr);
+#else
+#ifdef HAVE_MEMALIGN
+  /* Allocated with memalign() */
+  free(ptr);
+#else
+#ifdef HAVE_ALIGNED_MALLOC
+  /* Allocated with _aligned_malloc() */
+  _aligned_free(ptr);
+#else
+  /* Allocated with malloc() */
+  free(ptr);
+#endif /* HAVE_ALIGNED_MALLOC */
+#endif /* HAVE_MEMALIGN */
+#endif /* HAVE_POSIX_MEMALIGN */
 }
 
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
