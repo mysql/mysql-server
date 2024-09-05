@@ -83,6 +83,7 @@ instrumentation due to their large number of instances. */
 
 #ifdef UNIV_PFS_MUTEX
 /* Key defines to register InnoDB mutexes with performance schema */
+extern mysql_pfs_key_t alter_stage_mutex_key;
 extern mysql_pfs_key_t autoinc_mutex_key;
 extern mysql_pfs_key_t autoinc_persisted_mutex_key;
 #ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
