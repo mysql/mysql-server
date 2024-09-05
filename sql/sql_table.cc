@@ -11893,7 +11893,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     if (table_list->partition_names != nullptr) {
       // Find already loaded partitions and skip unsetting the table's
       // secondary_load flag if not all partitions are unloaded
-      for (auto &part_obj : *table_def->partitions()) {
+      for (auto &part_obj : *table_def->leaf_partitions()) {
         bool is_part_loaded = false;
         assert(part_obj->options().exists("secondary_load"));
         if (part_obj->options().get("secondary_load", &is_part_loaded)) {
