@@ -186,7 +186,7 @@ struct File_cursor : public Load_cursor {
               Alter_stage *stage) noexcept;
 
   /** Destructor. */
-  ~File_cursor() override = default;
+  ~File_cursor() override;
 
   /** Open the cursor.
   @return DB_SUCCESS or error code. */
@@ -225,6 +225,9 @@ struct File_cursor : public Load_cursor {
   /** PFS monitoring. */
   Alter_stage *m_stage{};
 
+  /** Number of rows that were fetched but not yet reported to the PFS. */
+  uint64_t m_processed_rows_to_report{};
+
   friend struct Merge_cursor;
 };
 
@@ -254,6 +257,12 @@ File_cursor::File_cursor(Builder *builder,
   ut_a(m_reader.m_file.is_open());
 }
 
+File_cursor::~File_cursor() {
+  if (m_processed_rows_to_report > 0) {
+    m_stage->inc_progress_if_needed(m_processed_rows_to_report, true);
+  }
+}
+
 dberr_t File_cursor::open() noexcept {
   m_tuple_heap.create(2048, UT_LOCATION_HERE);
 
@@ -264,7 +273,8 @@ dberr_t File_cursor::fetch() noexcept {
   m_tuple_heap.clear();
 
   if (m_stage != nullptr) {
-    m_stage->inc(1);
+    m_processed_rows_to_report++;
+    m_stage->inc_progress_if_needed(m_processed_rows_to_report);
   }
 
   return m_builder->get_error();
@@ -300,7 +310,7 @@ dberr_t File_cursor::fetch(const mrec_t *&mrec, ulint *&offsets) noexcept {
 dberr_t File_cursor::next() noexcept {
   auto err = m_reader.next();
 
-  if (unlikely(err != DB_END_OF_INDEX)) {
+  if (likely(err != DB_END_OF_INDEX)) {
     m_err = err;
   }
 

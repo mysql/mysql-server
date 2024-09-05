@@ -450,6 +450,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_LOCK_FREE_HASH);
   LEVEL_MAP_INSERT(SYNC_MONITOR_MUTEX);
   LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
+  LEVEL_MAP_INSERT(SYNC_ALTER_STAGE);
   LEVEL_MAP_INSERT(SYNC_FIL_SHARD);
   LEVEL_MAP_INSERT(SYNC_DBLWR);
   LEVEL_MAP_INSERT(SYNC_BUF_CHUNKS);
@@ -766,6 +767,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_PARSER:
     case SYNC_DICT:
     case SYNC_AHI_ENABLED:
+    case SYNC_ALTER_STAGE:
 
       /* This is the most typical case, in which we expect requested<held. */
       assert_requested_is_lower_than_held(level, latches);
@@ -1203,6 +1205,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
                   lock_free_hash_mutex_key);
 
   LATCH_ADD_MUTEX(AHI_ENABLED, SYNC_AHI_ENABLED, ahi_enabled_mutex_key);
+
+  LATCH_ADD_MUTEX(ALTER_STAGE, SYNC_ALTER_STAGE, alter_stage_mutex_key);
 
   LATCH_ADD_MUTEX(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
