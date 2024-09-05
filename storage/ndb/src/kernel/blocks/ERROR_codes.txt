@@ -300,7 +300,8 @@ time-out handling. They can also be used to test multiple node failure
 handling.
 
 5045: Crash in PREPARE_COPY_FRAG_REQ
-5046: Crash if LQHKEYREQ (NrCopy) comes when frag-state is incorrect
+5046: Unused
+
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBLQH
 -------------------------------------------------
