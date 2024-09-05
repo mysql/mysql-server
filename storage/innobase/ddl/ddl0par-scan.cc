@@ -244,10 +244,6 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       if (err != DB_SUCCESS && err != DB_END_OF_INDEX) {
         return err;
       }
-
-      if (builder->stage() != nullptr) {
-        builder->stage()->end_phase_read_pk();
-      }
     }
 
     if (latches_released) {
@@ -390,6 +386,13 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
     }
   }
 
+  /* We completed reading the PK, now we can call its end
+  in order to calculate metrics based on it. */
+  for (auto &builder : builders) {
+    if (builder->stage() != nullptr) {
+      builder->stage()->end_phase_read_pk();
+    }
+  }
   return cleanup(m_heaps, err);
 }
 

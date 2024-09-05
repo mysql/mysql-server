@@ -55,15 +55,15 @@ constructor
 begin_phase_read_pk()
   multiple times:
     n_pk_recs_inc() // once per record read
-    inc() // once per page read
+    inc(1) // once per page read
 end_phase_read_pk()
 if any new indexes are being added, for each one:
   begin_phase_sort()
     multiple times:
-      inc() // once per record sorted
+      inc(1) // once per every m_recs_req_for_prog records sorted
   begin_phase_insert()
     multiple times:
-      inc() // once per record inserted
+      inc(1) // once per every m_recs_req_for_prog records inserted
   being_phase_log_index()
     multiple times:
       inc() // once per log-block applied
@@ -83,7 +83,7 @@ class Alter_stage {
   /** Constructor.
   @param[in]    pk      primary key of the old table */
   explicit Alter_stage(const dict_index_t *pk) noexcept
-      : m_pk(pk), m_cur_phase(NOT_STARTED) {}
+      : m_pk(pk), m_recs_req_for_prog(1), m_cur_phase(NOT_STARTED) {}
 
   /** Copy constructor. "Inherits" the current state of rhs.
   @param[in] rhs                Instance to copy current state from. */
@@ -101,17 +101,25 @@ class Alter_stage {
   This is used to get more accurate estimate about the number of
   records per page which is needed because some phases work on
   per-page basis while some work on per-record basis and we want
-  to get the progress as even as possible. */
-  void n_pk_recs_inc();
-
-  /** See simple increment version above.
-  @param[in] n Number fo records read so far. */
-  void n_pk_recs_inc(uint64_t n);
+  to get the progress as even as possible.
+  @param[in] n Number of new records to report. */
+  void n_pk_recs_inc(uint64_t n = 1);
 
   /** Flag either one record or one page processed, depending on the
   current phase.
   @param[in]    inc_val flag this many units processed at once */
   void inc(uint64_t inc_val);
+
+  /** Increment the progress if we have crossed the threshold
+  for unreported records, or if it is the last report.
+  @param[in, out]    unreported_recs  Number of records not updated to
+                                      Alter_stage up till now.
+                                      After reporting sets itself to 0.
+  @param[in]         is_last_report   if true, update the status irrespective
+                                      of number of unreported_recs.
+  */
+  void inc_progress_if_needed(uint64_t &unreported_recs,
+                              bool is_last_report = false);
 
   /** Flag the end of reading of the primary key.
   Here we know the exact number of pages and records and calculate
@@ -146,6 +154,11 @@ class Alter_stage {
   void aggregate(const Alter_stages &alter_stages) noexcept;
 
  private:
+  /** Check whether we have seen enough records to increment the progress.
+  @param[in]    inc_val this many units processed up til now
+  @return true, if we have seen records as much to increment the progress. */
+  bool should_inc_progress(uint64_t inc_val) const;
+
   /** Update the estimate of total work to be done. */
   void reestimate();
 
@@ -162,8 +175,15 @@ class Alter_stage {
   /** Progress counters for the various stages. */
   Stage m_stage{};
 
-  /** Collection of previous stages. */
+  /** Collection of all [previous + current] stages.
+  Can only be modified between stages. */
   Stages m_stages{};
+
+  /** Mutex required to update values for m_n_pk_pages
+  and m_n_flush_pages.
+  We also use this mutex for reestimating & updating the progress,
+  as it is done parallelly by multiple threads.*/
+  IB_mutex m_mutex{LATCH_ID_ALTER_STAGE};
 
   /** Old table PK. Used for calculating the estimate. */
   const dict_index_t *m_pk{};
@@ -172,26 +192,30 @@ class Alter_stage {
   marked records. */
   std::atomic<uint64_t> m_n_pk_recs{};
 
-  /** Number of leaf pages in the primary key. */
+  /** Number of leaf pages in the primary key. Protected by m_mutex. */
   page_no_t m_n_pk_pages{};
 
-  /** Estimated number of records per page in the primary key. */
+  /** Estimated number of records per page in the primary key.
+  Can only be modified between stages. */
   double m_n_recs_per_page{};
 
-  /** Number of indexes that are being added. */
+  /** Number of records for which we increment the progress.
+  For READ_PK phase 1
+  For SORT phase m_n_recs_per_page * m_sort_multi_factor
+  For INSERT phase m_n_recs_per_page
+  Can only be modified between stages. */
+  uint64_t m_recs_req_for_prog{};
+
+  /** Number of indexes that are being added.
+  Is only set during begin_phase_read_pk(). */
   size_t m_n_sort_indexes{};
 
   /** During the sort phase, increment the counter once per this
   many pages processed. This is because sort processes one page more
-  than once. */
+  than once. Can only be modified between stages. */
   uint64_t m_sort_multi_factor{};
 
-  /** Number of records processed during sort & insert phases. We
-  need to increment the counter only once page, or once per
-  recs-per-page records. */
-  uint64_t m_n_inserted{};
-
-  /** Number of pages to flush. */
+  /** Number of pages to flush. Protected by m_mutex. */
   page_no_t m_n_flush_pages{};
 
   /** Current phase. */
@@ -223,7 +247,7 @@ class Alter_stage {
 };
 
 inline Alter_stage::Alter_stage(const Alter_stage &rhs) noexcept
-    : m_pk(rhs.m_pk), m_cur_phase(NOT_STARTED) {}
+    : m_pk(rhs.m_pk), m_recs_req_for_prog(1), m_cur_phase(NOT_STARTED) {}
 
 inline Alter_stage::~Alter_stage() {
   auto progress = m_stage.second.first;
@@ -243,60 +267,44 @@ inline void Alter_stage::n_pk_recs_inc(uint64_t n) {
   m_n_pk_recs.fetch_add(n, std::memory_order_relaxed);
 }
 
-inline void Alter_stage::n_pk_recs_inc() { n_pk_recs_inc(1); }
-
 inline void Alter_stage::inc(uint64_t inc_val) {
   if (m_stages.empty()) {
     return;
   }
 
-  uint64_t multi_factor{1};
-  bool should_proceed{true};
-
-  switch (m_cur_phase) {
-    case NOT_STARTED:
-      ut_error;
-    case READ_PK:
-      ++m_n_pk_pages;
+  ut_a(m_cur_phase != NOT_STARTED);
+  {
+    IB_mutex_guard guard(&m_mutex, UT_LOCATION_HERE);
+    if (m_cur_phase == READ_PK) {
       ut_ad(inc_val == 1);
+      ++m_n_pk_pages;
+
       /* Overall the read pk phase will read all the pages from the
       PK and will do work, proportional to the number of added
       indexes, thus when this is called once per read page we
       increment with 1 + m_n_sort_indexes */
       inc_val = 1 + m_n_sort_indexes;
-      break;
-    case SORT:
-      multi_factor = m_sort_multi_factor;
-      [[fallthrough]];
-    case INSERT: {
-      /* Increment the progress every nth record. During
-      sort and insert phases, this method is called once per
-      record processed. We need fractional point numbers here
-      because "records per page" is such a number naturally and
-      to avoid rounding skew we want, for example: if there are
-      (double) N records per page, then the work_completed
-      should be incremented on the inc() calls round(k*N),
-      for k=1,2,3... */
-      const double every_nth = m_n_recs_per_page * multi_factor;
-      const uint64_t k = static_cast<uint64_t>(round(m_n_inserted / every_nth));
-      const uint64_t nth = static_cast<uint64_t>(round(k * every_nth));
-
-      should_proceed = m_n_inserted == nth;
-
-      ++m_n_inserted;
-      break;
     }
-    case FLUSH:
-    case LOG_INDEX:
-    case LOG_TABLE:
-    case END:
-      break;
-  }
 
-  if (should_proceed) {
     auto progress = m_stages.back().second.first;
     mysql_stage_inc_work_completed(progress, inc_val);
-    reestimate();
+  }
+  reestimate();
+}
+
+inline void Alter_stage::inc_progress_if_needed(uint64_t &unreported_recs,
+                                                bool is_last_report) {
+  if (m_stages.empty()) {
+    return;
+  }
+
+  if (should_inc_progress(unreported_recs) || is_last_report) {
+    /* Total estimate is based on pages. See reestimate()
+    Now that we have done task equivalent to 1 page,
+    increment progress by 1 */
+    inc(1);
+    /* All the rows have been updated to the progress. */
+    unreported_recs = 0;
   }
 }
 
@@ -323,6 +331,8 @@ inline void Alter_stage::begin_phase_read_pk(size_t n_sort_indexes) {
 inline void Alter_stage::end_phase_read_pk() {
   reestimate();
 
+  /* PK reading is complete, and we have the final value for
+  m_n_pk_recs & m_n_pk_pages to calculate m_n_recs_per_page. */
   if (m_n_pk_pages == 0) {
     /* The number of pages in the PK could be 0 if the tree is
     empty. In this case we set m_n_recs_per_page to 1 to avoid
@@ -342,19 +352,23 @@ inline void Alter_stage::begin_phase_sort(double sort_multi_factor) {
   } else {
     m_sort_multi_factor = static_cast<uint64_t>(round(sort_multi_factor));
   }
-
+  m_recs_req_for_prog =
+      static_cast<uint64_t>(m_sort_multi_factor * m_n_recs_per_page);
   change_phase(&srv_stage_alter_table_merge_sort);
 }
 
 inline void Alter_stage::begin_phase_insert() {
   change_phase(&srv_stage_alter_table_insert);
+  m_recs_req_for_prog = static_cast<uint64_t>(m_n_recs_per_page);
 }
 
 inline void Alter_stage::begin_phase_flush(page_no_t n_flush_pages) {
-  m_n_flush_pages = n_flush_pages;
+  {
+    IB_mutex_guard guard(&m_mutex, UT_LOCATION_HERE);
+    m_n_flush_pages = n_flush_pages;
+  }
 
   reestimate();
-
   change_phase(&srv_stage_alter_table_flush);
 }
 
@@ -370,11 +384,18 @@ inline void Alter_stage::begin_phase_end() {
   change_phase(&srv_stage_alter_table_end);
 }
 
+inline bool Alter_stage::should_inc_progress(uint64_t inc_val) const {
+  /* We only need to increment the progress when we have seen
+     m_recs_req_for_prog. */
+  return inc_val >= m_recs_req_for_prog;
+}
+
 inline void Alter_stage::reestimate() {
   if (m_stages.empty()) {
     return;
   }
 
+  IB_mutex_guard guard(&m_mutex, UT_LOCATION_HERE);
   /* During the log table phase we calculate the estimate as
   work done so far + log size remaining. */
   if (m_cur_phase == LOG_TABLE) {
@@ -678,6 +699,11 @@ class Alter_stage {
 
   /** Increment depending on stage. */
   void inc(uint64_t inc_val = 1) {}
+
+  /** Increment the progress if we have crossed the threshold
+  for unreported records. */
+  void inc_progress_if_needed(uint64_t &unreported_recs,
+                              bool is_last_report = false) {}
 
   /** End scan phase. */
   void end_phase_read_pk() {}

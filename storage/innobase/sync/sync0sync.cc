@@ -49,6 +49,7 @@ unsigned int mysql_pfs_key_t::s_count = 0;
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifdef UNIV_PFS_MUTEX
+mysql_pfs_key_t alter_stage_mutex_key;
 /* Key to register autoinc_mutex with performance schema */
 mysql_pfs_key_t autoinc_mutex_key;
 mysql_pfs_key_t autoinc_persisted_mutex_key;
