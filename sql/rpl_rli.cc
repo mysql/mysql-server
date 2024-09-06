@@ -185,8 +185,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       mts_recovery_index(0),
       mts_recovery_group_seen_begin(false),
       mts_group_status(MTS_NOT_IN_GROUP),
-      stats_exec_time(0),
-      stats_read_time(0),
       current_mts_submode(nullptr),
       reported_unsafe_warning(false),
       rli_description_event(nullptr),
@@ -273,16 +271,11 @@ void Relay_log_info::init_workers(ulong n_workers) {
     Parallel slave parameters initialization is done regardless
     whether the feature is or going to be active or not.
   */
-  mts_groups_assigned = 0;
-  mts_events_assigned = 0;
-  mts_online_stat_curr = 0;
-  pending_jobs = 0;
-  wq_size_waits_cnt = 0;
-  mts_wq_excess_cnt = mts_wq_no_underrun_cnt = mts_wq_overfill_cnt = 0;
-  mts_total_wait_overlap = 0;
-  mts_total_wait_worker_avail = 0;
-  mts_last_online_stat = 0;
   mta_coordinator_has_waited_stat = 0;
+  mts_groups_assigned = 0;
+  pending_jobs = 0;
+  mts_wq_excess_cnt = 0;
+  worker_queue_mem_exceeded_count = 0;
 
   workers.reserve(n_workers);
   workers_array_initialized = true;  // set after init
@@ -3320,6 +3313,12 @@ void Relay_log_info::set_applier_source_position_info_invalid(bool invalid) {
 
 bool Relay_log_info::is_applier_source_position_info_invalid() const {
   return m_is_applier_source_position_info_invalid;
+}
+
+cs::apply::instruments::Applier_metrics_interface &
+Relay_log_info::get_applier_metrics() {
+  if (mi->is_metric_collection_enabled()) return m_coordinator_metrics;
+  return m_disabled_metric_aggregator;
 }
 
 std::string Assign_gtids_to_anonymous_transactions_info::get_value() const {

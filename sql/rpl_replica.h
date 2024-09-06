@@ -48,12 +48,7 @@ struct mysql_cond_t;
 struct mysql_mutex_t;
 class Rpl_channel_filters;
 
-/*
-  Statistics go to the error log every # of seconds when
-  --log_error_verbosity > 2
-*/
 const long mts_online_stat_period = 60 * 2;
-const long mts_online_stat_count = 1024;
 
 typedef struct struct_replica_connection LEX_REPLICA_CONNECTION;
 
@@ -364,6 +359,7 @@ extern bool opt_skip_replica_start;
 extern bool opt_log_replica_updates;
 extern char *opt_replica_skip_errors;
 extern ulonglong relay_log_space_limit;
+extern bool opt_collect_replica_applier_metrics;
 
 extern const char *relay_log_index;
 extern const char *relay_log_basename;
@@ -681,6 +677,14 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli);
 bool is_network_error(uint errorno);
 
 int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type);
+
+/// @brief Enables metric collection for replication structures
+/// It affects new and already created and running channels
+void enable_applier_metric_collection();
+
+/// @brief Disables metric collection for replication structures
+/// It affects new and already created and running channels
+void disable_applier_metric_collection();
 
 /**
   @} (end of group Replication)

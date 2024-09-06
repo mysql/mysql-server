@@ -1094,6 +1094,12 @@ SET (RPL_REPLICA_SRCS
   dynamic_ids.cc
   binlog/log_sanitizer.cc
   changestreams/apply/commit_order_queue.cc
+  changestreams/apply/metrics/applier_metrics_stub.cc
+  changestreams/apply/metrics/time_based_metric_stub.cc
+  changestreams/apply/metrics/dummy_worker_metrics.cc
+  changestreams/apply/metrics/applier_metrics.cc
+  changestreams/apply/metrics/time_based_metric.cc
+  changestreams/apply/metrics/mta_worker_metrics.cc
   changestreams/apply/replication_thread_status.cc
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc

@@ -48,6 +48,8 @@ Libraries defined on this level:
 
 \defgroup GroupLibsMysql Libraries
 
+\defgroup GroupLibsMysqlAbiHelpers Abi Helpers
+\ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlAllocators Allocators
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlBinlogEvent Binlog Event

@@ -908,8 +908,13 @@ class Log_event {
 
            todo: to mts-support Old master Load-data related events
   */
-  bool is_mts_sequential_exec() {
-    switch (get_type_code()) {
+  bool is_mts_sequential_exec() const {
+    return is_mts_sequential_exec(get_type_code());
+  }
+
+  static bool is_mts_sequential_exec(
+      mysql::binlog::event::Log_event_type type_code) {
+    switch (type_code) {
       case mysql::binlog::event::STOP_EVENT:
       case mysql::binlog::event::ROTATE_EVENT:
       case mysql::binlog::event::SLAVE_EVENT:
@@ -921,7 +926,6 @@ class Log_event {
     }
   }
 
- private:
   /*
     possible decisions by get_mts_execution_mode().
     The execution mode can be PARALLEL or not (thereby sequential
@@ -947,22 +951,9 @@ class Log_event {
     EVENT_EXEC_CAN_NOT
   };
 
-  /**
-     MTS Coordinator finds out a way how to execute the current event.
-
-     Besides the parallelizable case, some events have to be applied by
-     Coordinator concurrently with Workers and some to require synchronization
-     with Workers (@c see wait_for_workers_to_finish) before to apply them.
-
-     @param mts_in_group      the being group parsing status, true
-                              means inside the group
-
-     @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
-     @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
-     @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
-                                  with synchronization against the Workers
-  */
-  enum enum_mts_event_exec_mode get_mts_execution_mode(bool mts_in_group) {
+  static enum enum_mts_event_exec_mode get_mts_execution_mode(
+      bool mts_in_group, mysql::binlog::event::Log_event_type type_code,
+      uint32 server_id, uint32 log_pos) {
     /*
       Slave workers are unable to handle Format_description_log_event,
       Rotate_log_event and Previous_gtids_log_event correctly.
@@ -991,9 +982,8 @@ class Log_event {
           events that are not in the middle of a transaction will be
           executed in ASYNC mode in that case.
         */
-        (get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT &&
-         ((server_id == (uint32)::server_id) ||
-          (common_header->log_pos == 0))) ||
+        (type_code == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT &&
+         ((server_id == (uint32)::server_id) || (log_pos == 0))) ||
         /*
           All Previous_gtids_log_events in the relay log are generated
           by the slave. They don't have any meaning to the applier, so
@@ -1002,21 +992,42 @@ class Log_event {
           to not feed them to workers because that confuses
           get_slave_worker.
         */
-        (get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) ||
+        (type_code == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) ||
         /*
           Rotate_log_event can occur in the middle of a transaction.
           When this happens, either it is a Rotate event generated on
           the slave which has the slave's server_id, or it is a Rotate
           event that originates from a master but has end_log_pos==0.
         */
-        (get_type_code() == mysql::binlog::event::ROTATE_EVENT &&
+        (type_code == mysql::binlog::event::ROTATE_EVENT &&
          ((server_id == (uint32)::server_id) ||
-          (common_header->log_pos == 0 && mts_in_group))))
+          (log_pos == 0 && mts_in_group))))
       return EVENT_EXEC_ASYNC;
-    else if (is_mts_sequential_exec())
+    else if (is_mts_sequential_exec(type_code))
       return EVENT_EXEC_SYNC;
     else
       return EVENT_EXEC_PARALLEL;
+  }
+
+ private:
+  /**
+     MTS Coordinator finds out a way how to execute the current event.
+
+     Besides the parallelizable case, some events have to be applied by
+     Coordinator concurrently with Workers and some to require synchronization
+     with Workers (@c see wait_for_workers_to_finish) before to apply them.
+
+     @param mts_in_group      the being group parsing status, true
+                              means inside the group
+
+     @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
+     @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
+     @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
+                                  with synchronization against the Workers
+  */
+  enum enum_mts_event_exec_mode get_mts_execution_mode(bool mts_in_group) {
+    return get_mts_execution_mode(mts_in_group, get_type_code(), server_id,
+                                  common_header->log_pos);
   }
 
   /**

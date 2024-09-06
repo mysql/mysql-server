@@ -351,10 +351,8 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
   server_version = version_product(rli->slave_version_split);
   bitmap_shifted = 0;
   workers = c_rli->workers;  // shallow copying is sufficient
-  wq_empty_waits = 0;
-  wq_size_waits_cnt = 0;
-  groups_done = 0;
-  events_done = 0;
+  transactions_handled = 0;
+  worker_queue_mem_exceeded_count = 0;
   curr_jobs = 0;
   usage_partition = 0;
   end_group_sets_max_dbs = false;
@@ -392,6 +390,9 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
          current_mts_submode->get_type());
 
   reset_commit_order_deadlock();
+
+  set_worker_metric_collection_status(rli->mi->is_metric_collection_enabled());
+
   return 0;
 }
 
@@ -1180,7 +1181,7 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
     last_group_done_index = gaq_index;
     last_groups_assigned_index = ptr_g->total_seqno;
     reset_gaq_index();
-    groups_done++;
+    transactions_handled++;
 
   } else {
     if (running_status != STOP_ACCEPTED) {
@@ -2018,6 +2019,12 @@ bool Slave_worker::read_and_apply_events(my_off_t start_relay_pos,
           assign_partition_db(ev);
 
         int ret = slave_worker_exec_event(ev);
+
+        if (ev->get_type_code() !=
+            mysql::binlog::event::Log_event_type::TRANSACTION_PAYLOAD_EVENT) {
+          increment_worker_metrics_for_event(*ev);
+        }
+
         if (ev->worker != nullptr) {
           delete ev;
           ev = nullptr;
@@ -2106,6 +2113,7 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   size_t ev_size = job_item->data->common_header->data_written;
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
+  auto &applier_metrics{rli->get_applier_metrics()};
 
   assert(thd == current_thd);
 
@@ -2131,19 +2139,25 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   while ((!big_event && new_pend_size > rli->mts_pending_jobs_size_max) ||
          (big_event && rli->mts_pending_jobs_size != 0)) {
     rli->mts_wq_oversize = true;
-    rli->wq_size_waits_cnt++;  // waiting due to the total size
+    // waiting due to the total size
+    rli->worker_queue_mem_exceeded_count++;
+    applier_metrics.get_worker_queues_memory_exceeds_max_wait_metric()
+        .start_timer();
     thd->ENTER_COND(&rli->pending_jobs_cond, &rli->pending_jobs_lock,
                     &stage_replica_waiting_worker_to_free_events, &old_stage);
     mysql_cond_wait(&rli->pending_jobs_cond, &rli->pending_jobs_lock);
     mysql_mutex_unlock(&rli->pending_jobs_lock);
     thd->EXIT_COND(&old_stage);
+    applier_metrics.get_worker_queues_memory_exceeds_max_wait_metric()
+        .stop_timer();
+
     if (thd->killed) return true;
-    if (rli->wq_size_waits_cnt % 10 == 1) {
+    if (rli->worker_queue_mem_exceeded_count % 10 == 1) {
       time_t my_now = time(nullptr);
       if ((my_now - rli->mta_coordinator_has_waited_stat) >=
           mts_online_stat_period) {
         LogErr(INFORMATION_LEVEL, ER_RPL_MTA_REPLICA_COORDINATOR_HAS_WAITED,
-               rli->wq_size_waits_cnt, ev_size);
+               rli->worker_queue_mem_exceeded_count, ev_size);
         rli->mta_coordinator_has_waited_stat = my_now;
       }
     }
@@ -2153,8 +2167,6 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   }
   rli->pending_jobs++;
   rli->mts_pending_jobs_size = new_pend_size;
-  rli->mts_events_assigned++;
-  rli->mts_online_stat_curr++;
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
@@ -2184,7 +2196,6 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
        in such case.
     */
     my_sleep(min<ulong>(1000, nap_weight * rli->mts_coordinator_basic_nap));
-    rli->mts_wq_no_underrun_cnt++;
   }
 
   // unclaim ownership of the event log memory
@@ -2203,16 +2214,16 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   while (worker->running_status == Slave_worker::RUNNING && !thd->killed &&
          (ret = worker->jobs.en_queue(job_item)) ==
              Slave_jobs_queue::error_result) {
+    applier_metrics.get_worker_queues_full_wait_metric().start_timer();
     thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
                     &stage_replica_waiting_worker_queue, &old_stage);
     worker->jobs.overfill = true;
     worker->jobs.waited_overfill++;
-    rli->mts_wq_overfill_cnt++;
     mysql_cond_wait(&worker->jobs_cond, &worker->jobs_lock);
     mysql_mutex_unlock(&worker->jobs_lock);
     thd->EXIT_COND(&old_stage);
-
     mysql_mutex_lock(&worker->jobs_lock);
+    applier_metrics.get_worker_queues_full_wait_metric().stop_timer();
   }
   if (ret != Slave_jobs_queue::error_result) {
     worker->curr_jobs++;
@@ -2305,7 +2316,6 @@ static void remove_item_from_jobs(slave_job_item *job_item,
     excess_delta = worker->wq_overrun_cnt - last_overrun;
     worker->excess_cnt += excess_delta;
     rli->mts_wq_excess_cnt += excess_delta;
-    rli->mts_wq_overrun_cnt++;  // statistics
 
     // guarding correctness of incrementing in case of the only one Worker
     assert(rli->workers.size() != 1 ||
@@ -2330,8 +2340,6 @@ static void remove_item_from_jobs(slave_job_item *job_item,
   }
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
-
-  worker->events_done++;
 }
 /**
    Worker's routine to wait for a new assignment through
@@ -2357,7 +2365,6 @@ static struct slave_job_item *pop_jobs_item(Slave_worker *worker,
 
     if (set_max_updated_index_on_stop(worker, job_item)) break;
     if (job_item->data == nullptr) {
-      worker->wq_empty_waits++;
       thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
                       &stage_replica_waiting_event_from_coordinator,
                       &old_stage);
@@ -2444,25 +2451,33 @@ void report_error_to_coordinator(Slave_worker *worker) {
          returns an error code.
  */
 int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
-  struct slave_job_item item = {nullptr, 0, {'\0'}};
+  struct slave_job_item item = {nullptr, 0, {'\0'}, false};
   struct slave_job_item *job_item = &item;
   THD *thd = worker->info_thd;
   bool seen_gtid = false;
+  bool after_gtid = true;
   bool seen_begin = false;
   int error = 0;
   Log_event *ev = nullptr;
   my_off_t start_relay_pos;
   char start_event_relay_log_name[FN_REFLEN + 1];
+  std::size_t transaction_size{0};
+  std::size_t gtid_event_size{0};
 
   DBUG_TRACE;
 
   if (unlikely(worker->trans_retries > 0)) worker->trans_retries = 0;
 
+  worker->get_worker_metrics().set_transaction_type(
+      cs::apply::instruments::Worker_metrics::Transaction_type_info::UNKNOWN);
   job_item = pop_jobs_item(worker, job_item);
   start_relay_pos = job_item->relay_pos;
   strcpy(start_event_relay_log_name, job_item->event_relay_log_name);
 
   PSI_thread *thread = thd_get_psi(thd);
+
+  auto &applier_metrics = rli->get_applier_metrics();
+  auto &worker_metrics = worker->get_worker_metrics();
 
   /* Current event with Worker associator. */
   RLI_current_event_raii worker_curr_ev(worker, ev);
@@ -2504,14 +2519,50 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
     */
     worker_curr_ev.set_current_event(ev);
 
-    if (is_any_gtid_event(ev)) seen_gtid = true;
+    if (seen_gtid && after_gtid) {
+      using cs::apply::instruments::Worker_metrics;
+      if (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT) {
+        auto *query_event = dynamic_cast<Query_log_event const *>(ev);
+        if (strncmp(query_event->query, STRING_WITH_LEN("BEGIN")) != 0 &&
+            strncmp(query_event->query, STRING_WITH_LEN("XA START")) != 0) {
+          worker_metrics.set_transaction_type(
+              Worker_metrics::Transaction_type_info::DDL);
+        } else {
+          worker_metrics.set_transaction_type(
+              Worker_metrics::Transaction_type_info::DML);
+        }
+      } else if (ev->get_type_code() ==
+                 mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT) {
+        // Payload events are always DML. Although they contain a BEGIN event,
+        // they do not visit the code path above that sets the transaction type
+        // for BEGIN events. So we set the type here.
+        worker_metrics.set_transaction_type(
+            Worker_metrics::Transaction_type_info::DML);
+      }
+      after_gtid = false;
+    }
+    if (is_any_gtid_event(ev)) {
+      seen_gtid = true;
+      Gtid_log_event *gtid_ev = dynamic_cast<Gtid_log_event *>(ev);
+      gtid_event_size = gtid_ev->common_header->data_written;
+      transaction_size = gtid_ev->get_trx_length();
+      worker_metrics.set_transaction_ongoing_full_size(transaction_size);
+    }
+    if (ev->get_type_code() ==
+        mysql::binlog::event::Log_event_type::TRANSACTION_PAYLOAD_EVENT) {
+      Transaction_payload_log_event *tp_ev =
+          dynamic_cast<Transaction_payload_log_event *>(ev);
+      std::size_t decompressed_transaction_size =
+          gtid_event_size + tp_ev->get_uncompressed_size();
+      worker_metrics.set_transaction_ongoing_full_size(
+          decompressed_transaction_size);
+      transaction_size = decompressed_transaction_size;
+    }
+
     if (!seen_begin && ev->starts_group()) {
       seen_begin = true;  // The current group is started with B-event
       worker->end_group_sets_max_dbs = true;
     }
-    set_timespec_nsec(&worker->ts_exec[0], 0);  // pre-exec
-    worker->stats_read_time +=
-        diff_timespec(&worker->ts_exec[0], &worker->ts_exec[1]);
     /* Adapting to possible new Format_description_log_event */
     ptr_g = rli->gaq->get_job_group(ev->mts_group_idx);
     if (ptr_g->new_fd_event) {
@@ -2524,11 +2575,19 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
 
     error = worker->slave_worker_exec_event(ev);
 
-    set_timespec_nsec(&worker->ts_exec[1], 0);  // pre-exec
-    worker->stats_exec_time +=
-        diff_timespec(&worker->ts_exec[1], &worker->ts_exec[0]);
+    // Transaction payload events don't have a size, and the calculation for
+    // them is done at Transaction_payload_log_event::apply_payload_event
+    if (ev->get_type_code() !=
+        mysql::binlog::event::Log_event_type::TRANSACTION_PAYLOAD_EVENT) {
+      worker->increment_worker_metrics_for_event(*ev);
+    }
+
     if (error || worker->found_commit_order_deadlock()) {
       worker->prepare_for_retry(*ev);
+
+      // Reset the progress stats
+      worker_metrics.reset_transaction_ongoing_progress_size();
+
       error = worker->retry_transaction(
           start_relay_pos, start_event_relay_log_name, job_item->relay_pos,
           job_item->event_relay_log_name);
@@ -2598,20 +2657,38 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   }
 
 #ifndef NDEBUG
-  DBUG_PRINT("mta", ("Check_replica_debug_group worker %lu mta_checkpoint_group"
-                     " %u processed %lu debug %d\n",
-                     worker->id, opt_mta_checkpoint_group, worker->groups_done,
-                     DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)));
+  DBUG_PRINT("mta",
+             ("Check_replica_debug_group worker %lu mta_checkpoint_group"
+              " %u processed %llu debug %d\n",
+              worker->id, opt_mta_checkpoint_group,
+              static_cast<unsigned long long int>(worker->transactions_handled),
+              DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)));
 
   if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
-      opt_mta_checkpoint_group == worker->groups_done) {
+      opt_mta_checkpoint_group == worker->transactions_handled) {
     DBUG_PRINT("mta", ("Putting worker %lu in busy wait.", worker->id));
     while (true) my_sleep(6000000);
   }
 #endif
 
-  remove_item_from_jobs(job_item, worker, rli);
-  delete ev;
+  {
+    bool is_after_metrics_breakpoint = job_item->m_is_after_metrics_breakpoint;
+    remove_item_from_jobs(job_item, worker, rli);
+    delete ev;
+
+    applier_metrics.inc_events_committed_count(
+        worker->m_events_applied_in_transaction);
+    applier_metrics.inc_transactions_committed_count(1);
+    applier_metrics.inc_transactions_committed_size_sum(transaction_size);
+    if (!is_after_metrics_breakpoint) {
+      applier_metrics.inc_transactions_received_size_sum(transaction_size);
+      applier_metrics.inc_transactions_received_count(1);
+    }
+    worker_metrics.set_transaction_ongoing_full_size(0);
+    worker_metrics.reset_transaction_ongoing_progress_size();
+    worker_metrics.set_transaction_type(
+        cs::apply::instruments::Worker_metrics::Transaction_type_info::UNKNOWN);
+  }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (thread != nullptr) {
@@ -2630,6 +2707,9 @@ err:
                         worker->id, thd->killed.load(), thd->is_error(),
                         worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
+    worker_metrics.reset_transaction_ongoing_progress_size();
+    worker_metrics.set_transaction_type(
+        cs::apply::instruments::Worker_metrics::Transaction_type_info::UNKNOWN);
   }
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (thread != nullptr) {
@@ -2648,3 +2728,8 @@ const uint *Slave_worker::get_table_pk_field_indexes() {
 }
 
 uint Slave_worker::get_channel_field_index() { return LINE_FOR_CHANNEL; }
+
+cs::apply::instruments::Worker_metrics &Slave_worker::get_worker_metrics() {
+  if (m_is_worker_metric_collection_enabled) return m_worker_metrics;
+  return m_disabled_worker_metrics;
+}

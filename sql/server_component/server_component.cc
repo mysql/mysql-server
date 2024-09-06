@@ -55,6 +55,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <new>
 #include <stdexcept>  // std::exception subclasses
 
+#include "applier_metrics_service_imp.h"
 #include "audit_api_connection_service_imp.h"
 #include "audit_api_message_service_imp.h"
 #include "component_status_var_service_imp.h"
@@ -876,6 +877,15 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, my_signal_handler)
 my_signal_handler_imp::add, my_signal_handler_imp::remove,
     END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, replication_applier_metrics)
+Applier_metrics_service_handler::get_applier_metrics,
+    Applier_metrics_service_handler::free_applier_metrics,
+    Applier_metrics_service_handler::get_worker_metrics,
+    Applier_metrics_service_handler::free_worker_metrics,
+    Applier_metrics_service_handler::enable_metric_collection,
+    Applier_metrics_service_handler::disable_metric_collection,
+    END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -1130,6 +1140,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, my_signal_handler),
 
     PROVIDES_SERVICE(mysql_server, table_access_binlog),
+    PROVIDES_SERVICE(mysql_server, replication_applier_metrics),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

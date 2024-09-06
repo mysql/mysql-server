@@ -70,6 +70,7 @@ void Commit_order_manager::register_trx(Slave_worker *worker) {
 }
 
 bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
+  auto &worker_stats = worker->get_worker_metrics();
   auto worker_thd = worker->info_thd;
   bool rollback_status{false};
   raii::Sentry<> wait_status_guard{[&]() -> void {
@@ -103,10 +104,14 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
     raii::Sentry<> ticket_guard{
         [&]() -> void { worker_thd->mdl_context.done_waiting_for(); }};
 
-    struct timespec abs_timeout;
-    set_timespec(&abs_timeout, LONG_TIMEOUT);  // Wait for a year
-    auto wait_status = worker_thd->mdl_context.m_wait.timed_wait(
-        worker_thd, &abs_timeout, true,
+    worker_stats.inc_number_of_waits_on_commit_order();
+    // Time summed is in nanoseconds
+    auto time_increment_func = [&worker_stats](unsigned long value) {
+      worker_stats.inc_waited_time_on_commit_order(value);
+    };
+    unsigned long timeout = LONG_TIMEOUT;  // Wait for a year
+    auto wait_status = worker_thd->mdl_context.m_wait.observable_timed_wait(
+        worker_thd, timeout, true, time_increment_func,
         &stage_worker_waiting_for_its_turn_to_commit);
 
     switch (wait_status) {

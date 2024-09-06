@@ -538,8 +538,8 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
   if ((!rli->info_thd->killed && !is_error) &&
       !clock_leq(last_committed_arg, get_lwm_timestamp(rli, true))) {
     PSI_stage_info old_stage;
-    struct timespec ts[2];
-    set_timespec_nsec(&ts[0], 0);
+    auto &coord_stats = rli->get_applier_metrics();
+    coord_stats.get_transaction_dependency_wait_metric().start_timer();
 
     assert(rli->gaq->get_length() >= 2);  // there's someone to wait
 
@@ -552,8 +552,7 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
     min_waited_timestamp.store(SEQ_UNINIT);  // reset waiting flag
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
-    set_timespec_nsec(&ts[1], 0);
-    rli->mts_total_wait_overlap += diff_timespec(&ts[1], &ts[0]);
+    coord_stats.get_transaction_dependency_wait_metric().stop_timer();
   } else {
     min_waited_timestamp.store(SEQ_UNINIT);
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
@@ -738,6 +737,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
            (rli->gaq->get_length() + jobs_done == 1 + delegated_jobs));
     assert(rli->mts_group_status == Relay_log_info::MTS_IN_GROUP);
 
+    auto &coord_metrics = rli->get_applier_metrics();
     /*
       Under the new group fall the following use cases:
       - events from an OLD (sequence_number unaware) master;
@@ -747,7 +747,13 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
         The malformed group is handled exceptionally each event is executed
         as a solitary group yet by the same (zero id) worker.
     */
-    if (-1 == wait_for_workers_to_finish(rli)) return ER_MTA_INCONSISTENT_DATA;
+    coord_metrics.get_transaction_dependency_wait_metric().start_timer();
+    bool error_on_worker_wait = (-1 == wait_for_workers_to_finish(rli));
+    coord_metrics.get_transaction_dependency_wait_metric().stop_timer();
+
+    if (error_on_worker_wait) {
+      return ER_MTA_INCONSISTENT_DATA;
+    }
 
     rli->mts_group_status = Relay_log_info::MTS_IN_GROUP;  // wait set it to NOT
     assert(min_waited_timestamp == SEQ_UNINIT);
@@ -905,9 +911,8 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
            rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
 
     if (worker == nullptr) {
-      struct timespec ts[2];
-
-      set_timespec_nsec(&ts[0], 0);
+      auto &coord_stats = rli->get_applier_metrics();
+      coord_stats.get_workers_available_wait_metric().start_timer();
       // Update thd info as waiting for workers to finish.
       thd->enter_stage(&stage_replica_waiting_for_workers_to_process_queue,
                        old_stage, __func__, __FILE__, __LINE__);
@@ -930,9 +935,8 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
         worker = get_free_worker(rli);
       }
       THD_STAGE_INFO(thd, *old_stage);
-      set_timespec_nsec(&ts[1], 0);
-      rli->mts_total_wait_worker_avail += diff_timespec(&ts[1], &ts[0]);
-      rli->mts_wq_no_underrun_cnt++;
+      coord_stats.get_workers_available_wait_metric().stop_timer();
+
       /*
         Even OPTION_BEGIN is set, the 'BEGIN' event is not dispatched to
         any worker thread. So The flag is removed and Coordinator thread

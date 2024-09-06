@@ -44,7 +44,10 @@
 #include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "sql/log_event.h"     // Format_description_log_event
+#include "sql/changestreams/apply/metrics/applier_metrics.h"
+#include "sql/changestreams/apply/metrics/dummy_worker_metrics.h"
+#include "sql/changestreams/apply/metrics/mta_worker_metrics.h"
+#include "sql/log_event.h"  // Format_description_log_event
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
 #include "sql/rpl_replica.h"      // MTS_WORKER_UNDEF
@@ -528,13 +531,13 @@ class Slave_worker : public Relay_log_info {
   /*
     Worker runtime statistics
   */
+  /// Number of transaction handled - incremented at slave_worker_ends_group
+  ulong transactions_handled;
+
   // the index in GAQ of the last processed group by this Worker
   volatile ulong last_group_done_index;
   ulonglong
       last_groups_assigned_index;  // index of previous group assigned to worker
-  ulong wq_empty_waits;            // how many times got idle
-  ulong events_done;               // how many events (statements) processed
-  ulong groups_done;               // how many groups (transactions) processed
   std::atomic<int> curr_jobs;      // number of active  assignments
   // number of partitions allocated to the worker at point in time
   long usage_partition;
@@ -558,6 +561,68 @@ class Slave_worker : public Relay_log_info {
   */
   bool fd_change_notified;
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
+
+ private:
+  /// @brief worker statistics
+  cs::apply::instruments::Mta_worker_metrics m_worker_metrics;
+  /// @brief Placehold for stats when metric collection is disabled
+  cs::apply::instruments::Dummy_worker_metrics m_disabled_worker_metrics;
+
+  /// @brief Is worker metric collection enabled
+  bool m_is_worker_metric_collection_enabled{false};
+
+ public:
+  /// @brief Sets the metric collection as on or off
+  /// This should be done at the worker start
+  /// @param status if metrics are enabled or not
+  void set_worker_metric_collection_status(bool status) {
+    m_is_worker_metric_collection_enabled = status;
+  }
+
+  /// @brief gets a reference to the worker statistics.
+  /// @return a reference to the worker statistics.
+  cs::apply::instruments::Worker_metrics &get_worker_metrics();
+
+  /// @brief Copies data and sets the metric collection flag
+  /// @param other the instance to be copied
+  void copy_worker_metrics(Slave_worker *other) {
+    m_worker_metrics.copy_stats_from(other->m_worker_metrics);
+    m_is_worker_metric_collection_enabled =
+        other->m_is_worker_metric_collection_enabled;
+  }
+
+  /// The number of events applied in an ongoing transaction, used to collect
+  /// statistics when the transaction ends.
+  int64_t m_events_applied_in_transaction;
+
+  /// True if this transaction occurred after the _metrics breakpoint_ in the
+  /// relay log.
+  ///
+  /// @see Applier_metrics_interface::is_received_initialized.
+  bool m_is_after_metrics_breakpoint;
+
+  /// Update per-event worker metrics.
+  ///
+  /// This includes:
+  ///
+  /// - APPLYING_TRANSACTION_APPLIED_SIZE_BYTES
+  ///
+  /// - The the number of events in the transaction. This is an internal
+  /// counter, not directly user visible, but used to increment
+  /// EVENTS_COMMITTED_COUNT at commit time. This is set to 1 for the GTID
+  /// event, and incremented for all other events. It does not need to be reset
+  /// at rollback, since the value is only used at commits, and the next GTID
+  /// event will reset the value before the next commit.
+  void increment_worker_metrics_for_event(const Log_event &event) {
+    get_worker_metrics().inc_transaction_ongoing_progress_size(
+        event.common_header->data_written);
+    if (mysql::binlog::event::Log_event_type_helper::is_any_gtid_event(
+            event.get_type_code()))
+      m_events_applied_in_transaction = 1;
+    else
+      ++m_events_applied_in_transaction;
+  }
+
   // WQ current excess above the overrun level
   long wq_overrun_cnt;
   /*

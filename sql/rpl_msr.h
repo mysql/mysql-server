@@ -28,6 +28,8 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <cstdint>   // std::ptrdiff_t
+#include <iterator>  // std::forward_iterator
 #include <map>
 #include <string>
 #include <utility>
@@ -54,6 +56,189 @@ typedef std::map<std::string, Master_info *> mi_map;
 typedef std::map<int, mi_map> replication_channel_map;
 // Maps a replication filter to a channel name.
 typedef std::map<std::string, Rpl_filter *> filter_map;
+
+// Deduce the iterator type for a range/collection/container as the return
+// type for begin(). This is usually either T::iterator or T::const_iterator,
+// depending on the const-ness of T.
+template <class T>
+using Iterator_for = decltype(std::begin(std::declval<T>()));
+
+/// Iterator that provides the elements of a nested map as a linear sequence.
+///
+/// This satisfies std::forward_iterator.
+///
+/// @tparam Outer_iterator_t Forward iterator over the outer map.
+///
+/// @tparam outer_is_map If true, the outer map iterator yields pairs, and the
+/// second component of each pair contains the inner map. If false, the outer
+/// map iterator yields inner maps directly.
+///
+/// @tparam inner_is_map If true, the inner map iterator yields pairs, and the
+/// second component of each pair contains the value. If false, the inner
+/// map iterator yields values directly.
+///
+/// @todo move this to a library
+///
+/// @todo support bidirectional/random_access/contiguous iterators when both
+/// maps support it.
+///
+/// @todo Once we have ranges, remove the build-in map support and let users use
+/// Denested_map_view<Map | std::ranges::value_view> |
+/// std::ranges::value_view instead
+template <std::forward_iterator Outer_iterator_t, bool outer_is_map,
+          bool inner_is_map>
+class Denested_map_iterator {
+  using Self_t =
+      Denested_map_iterator<Outer_iterator_t, outer_is_map, inner_is_map>;
+
+  /// @return Reference to the container that the given outer iterator points
+  /// to, taking the 'second' element of the pair in case the outer iterator is
+  /// a map.
+  static auto &mapped_value(const Outer_iterator_t &outer_iterator) {
+    if constexpr (outer_is_map)
+      return outer_iterator->second;
+    else
+      return *outer_iterator;
+  }
+
+  using Inner_map_t = decltype(mapped_value(Outer_iterator_t()));
+  using Inner_iterator_t = Iterator_for<Inner_map_t>;
+
+  /// @return Reference to the value that the given inner iterator points to,
+  /// taking the 'second' element of the pair in case the inner iterator is a
+  /// map.
+  static auto &mapped_value(const Inner_iterator_t &inner_iterator) {
+    if constexpr (inner_is_map)
+      return inner_iterator->second;
+    else
+      return *inner_iterator;
+  }
+
+ public:
+  using value_type = decltype(mapped_value(Inner_iterator_t()));
+  using difference_type = std::ptrdiff_t;
+
+  /// Default constructor.
+  ///
+  /// The result is an object that is useless in itself since all member
+  /// functions are undefined. It can be assigned or moved to, and it is
+  /// required for iterators to be default-constructible.
+  Denested_map_iterator() = default;
+
+  /// Constructor.
+  ///
+  /// @param outer_begin Iterator to the first element of the nested map.
+  ///
+  /// @param outer_end Iterator to the one-past-the-last element of the nested
+  /// map.
+  ///
+  /// @param at_end If true, position at the end; if false, position at the
+  /// beginning.
+  explicit constexpr Denested_map_iterator(const Outer_iterator_t &outer_begin,
+                                           const Outer_iterator_t &outer_end,
+                                           bool at_end)
+      : m_outer_begin(outer_begin),
+        m_outer_end(outer_end),
+        m_outer_it(at_end ? outer_end : outer_begin),
+        m_inner_it(m_outer_it == outer_end
+                       ? Inner_iterator_t()
+                       : std::begin(mapped_value(m_outer_it))) {
+    skip_inner_end_positions();
+  }
+
+  /// Pre-increment
+  constexpr Self_t &operator++() {
+    ++m_inner_it;
+    skip_inner_end_positions();
+    return *this;
+  }
+
+  /// Post-increment
+  constexpr Self_t operator++(int) {
+    auto tmp = *this;
+    ++*this;
+    return tmp;
+  }
+
+  /// Dereference
+  constexpr decltype(auto) operator*() const {
+    return mapped_value(m_inner_it);
+  }
+
+  /// Comparison
+  constexpr bool operator==(const Self_t &other) const {
+    // Different outer iterators -> different
+    if (m_outer_it != other.m_outer_it) return false;
+    // Both outer iterators positioned at end -> equal (don't compare inner
+    // iterators)
+    if (m_outer_it == m_outer_end) return true;
+    // Outer iterators point to same inner array -> inner iterators determine
+    // equality.
+    return m_inner_it == other.m_inner_it;
+  }
+
+ private:
+  /// Maintain the invariant that *either* m_outer_it points to the end, *or*
+  /// m_inner_it *doesn't* point to the end.
+  ///
+  /// This may moves the iterators forward until the condition is met.
+  constexpr void skip_inner_end_positions() {
+    if (m_outer_it != m_outer_end) {
+      while (m_inner_it == std::end(mapped_value(m_outer_it))) {
+        ++m_outer_it;
+        if (m_outer_it == m_outer_end) break;
+        m_inner_it = std::begin(mapped_value(m_outer_it));
+      }
+    }
+  }
+
+  /// Beginning of outer map.
+  Outer_iterator_t m_outer_begin{};
+
+  /// End of outer map.
+  Outer_iterator_t m_outer_end{};
+
+  /// Iterator to the outer map.
+  Outer_iterator_t m_outer_it{};
+
+  /// Iterator to the inner map, or undefined if the outer map points to the
+  /// end.
+  Inner_iterator_t m_inner_it{};
+};
+
+/// View over a nested map structure, which provides iterators over the elements
+/// of the second-level map.
+///
+/// For example, a view over std::map<int, std::map<std::string, T>> provides
+/// iterators over the T objects.
+///
+/// @tparam Nested_map_t The nested map type.
+///
+/// @tparam outer_is_map If true, the outer map is assumed to be a map, i.e.,
+/// its iterators yield pairs that hold inner maps in their second components.
+/// Otherwise, it is assumed that iterators of the outer map provide inner maps
+/// directly.
+///
+/// @tparam inner_is_map If true, the inner maps are assumed to be maps, i.e.,
+/// their iterators yield pairs and the view's iterator provides the second
+/// components. Otherwise, the view's iterator provides the values of the
+/// iterators of the inner maps directly.
+template <class Nested_map_t, bool outer_is_map, bool inner_is_map>
+class Denested_map_view {
+  using Iterator_t = Denested_map_iterator<Iterator_for<Nested_map_t>,
+                                           outer_is_map, inner_is_map>;
+
+ public:
+  Denested_map_view(Nested_map_t &map) : m_map(&map) {}
+
+  auto begin() { return Iterator_t(m_map->begin(), m_map->end(), false); }
+  auto end() { return Iterator_t(m_map->begin(), m_map->end(), true); }
+  auto begin() const { return Iterator_t(m_map->begin(), m_map->end(), false); }
+  auto end() const { return Iterator_t(m_map->begin(), m_map->end(), true); }
+
+ private:
+  Nested_map_t *m_map;
+};
 
 /**
   Class to store all the Master_info objects of a slave
@@ -323,12 +508,12 @@ class Multisource_info {
   /// @brief Checks if a channel is the group replication applier channel
   /// @param[in] channel Name of the channel to check
   /// @returns true if it is the gr applier channel
-  bool is_group_replication_applier_channel_name(const char *channel);
+  static bool is_group_replication_applier_channel_name(const char *channel);
 
   /// @brief Checks if a channel is the group replication recovery channel
   /// @param[in] channel Name of the channel to check
   /// @returns true if it is the gr recovery channel
-  bool is_group_replication_recovery_channel_name(const char *channel);
+  static bool is_group_replication_recovery_channel_name(const char *channel);
 
   /**
     Returns if a channel name is one of the reserved group replication names
@@ -338,12 +523,12 @@ class Multisource_info {
     @retval      true   the name is a reserved name
     @retval      false  non reserved name
   */
-  bool is_group_replication_channel_name(const char *channel);
+  static bool is_group_replication_channel_name(const char *channel);
 
   /// @brief Check if the channel has an hostname or is a GR channel
   /// @return true if the channel is configured or is a gr channel,
   ///         false otherwise
-  bool is_channel_configured(Master_info *mi) {
+  static bool is_channel_configured(const Master_info *mi) {
     return mi && (mi->host[0] ||
                   is_group_replication_channel_name(mi->get_channel()));
   }
@@ -377,6 +562,16 @@ class Multisource_info {
     }
 
     return empty_mi_map.end();
+  }
+
+  auto all_channels_view() {
+    return Denested_map_view<replication_channel_map, true, true>(
+        rep_channel_map);
+  }
+
+  auto all_channels_view() const {
+    return Denested_map_view<const replication_channel_map, true, true>(
+        rep_channel_map);
   }
 
  private:

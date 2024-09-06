@@ -1848,6 +1848,61 @@ MDL_wait::enum_wait_status MDL_wait::timed_wait(
   return result;
 }
 
+MDL_wait::enum_wait_status MDL_wait::observable_timed_wait(
+    MDL_context_owner *owner, unsigned long abs_timeout,
+    bool set_status_on_timeout,
+    std::function<void(unsigned long)> tracker_function,
+    const PSI_stage_info *wait_state_name) {
+  PSI_stage_info old_stage;
+  enum_wait_status result;
+  struct timespec abstime;
+  ulong time_lapsed = 0;
+
+  mysql_mutex_lock(&m_LOCK_wait_status);
+
+  owner->ENTER_COND(&m_COND_wait_status, &m_LOCK_wait_status, wait_state_name,
+                    &old_stage);
+  thd_wait_begin(nullptr, THD_WAIT_META_DATA_LOCK);
+  while (!m_wait_status && !owner->is_killed() && abs_timeout > time_lapsed) {
+    set_timespec(&abstime, 1);
+    std::chrono::steady_clock::time_point begin =
+        std::chrono::steady_clock::now();
+    mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status, &abstime);
+    std::chrono::steady_clock::time_point end =
+        std::chrono::steady_clock::now();
+    tracker_function(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin)
+            .count());
+    time_lapsed++;
+  }
+  thd_wait_end(nullptr);
+
+  if (m_wait_status == WS_EMPTY) {
+    /*
+      Wait has ended not due to a status being set from another
+      thread but due to this connection/statement being killed or a
+      time out.
+      To avoid races, which may occur if another thread sets
+      GRANTED status before the code which calls this method
+      processes the abort/timeout, we assign the status under
+      protection of the m_LOCK_wait_status, within the critical
+      section. An exception is when set_status_on_timeout is
+      false, which means that the caller intends to restart the
+      wait.
+    */
+    if (owner->is_killed())
+      m_wait_status = KILLED;
+    else if (set_status_on_timeout)
+      m_wait_status = TIMEOUT;
+  }
+  result = m_wait_status;
+
+  mysql_mutex_unlock(&m_LOCK_wait_status);
+  owner->EXIT_COND(&old_stage);
+
+  return result;
+}
+
 /**
   Clear bit corresponding to the type of metadata lock in bitmap representing
   set of such types if list of tickets does not contain ticket with such type.

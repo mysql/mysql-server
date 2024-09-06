@@ -1853,6 +1853,19 @@ class Gtid_set {
     return ret;
   }
 
+  /// @brief Returns the number of GTIDs
+  /// @returns the number of GTIDs on this set
+  std::size_t get_count() const {
+    if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();
+    rpl_sidno max_sidno = get_max_sidno();
+    std::size_t count{0};
+
+    for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++) {
+      count += get_gtid_count(sidno);
+    }
+    return count;
+  }
+
   /**
     Returns true if this Gtid_set contains at least one GTID with
     the given SIDNO.
