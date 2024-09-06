@@ -226,9 +226,48 @@ void ProcessLauncher::start() {
   // as CreateProcess may/will modify the arguments (split filename and args
   // with a \0) keep a copy of it for error-reporting.
   std::string create_process_arguments = arguments;
-  for (const auto &env_var : env_vars) {
-    SetEnvironmentVariable(env_var.first.c_str(), env_var.second.c_str());
+
+  DWORD dwCreationFlags = 0;
+
+  std::vector<TCHAR> env_block;
+
+  if (auto parent_env = GetEnvironmentStrings()) {
+    // copy the whole parent-env-block to the current env.
+    //
+    // ... but first the length of the env-block must be calculated.
+    size_t parent_env_len = 0;
+    auto cur_env = parent_env;
+
+    // env-block is terminated by an empty-string (\0)
+    for (auto cur_len = strlen(cur_env); cur_len != 0;
+         cur_len = strlen(cur_env)) {
+      cur_len += 1;  // env-var terminator (\0)
+
+      parent_env_len += cur_len;
+
+      // skip the current variable.
+      cur_env += cur_len;
+    }
+
+    // copy the parent-env-block to the child-env, without the terminating \0
+    std::copy(parent_env, parent_env + parent_env_len,
+              std::back_insert_iterator(env_block));
+
+    FreeEnvironmentStrings(parent_env);
   }
+
+#ifdef UNICODE
+  dwCreationFlags |= CREATE_UNICODE_ENVIRONMENT;
+#endif
+
+  for (const auto [key, val] : env_vars) {
+    std::copy(key.begin(), key.end(), std::back_insert_iterator(env_block));
+    env_block.push_back('=');
+    std::copy(val.begin(), val.end(), std::back_insert_iterator(env_block));
+
+    env_block.push_back(0);  // terminate env-var
+  }
+  env_block.push_back(0);  // terminate env-block
 
   // The code below makes sure the process we are launching only inherits the
   // in/out pipes FDs
@@ -284,6 +323,9 @@ void ProcessLauncher::start() {
   si_ex.StartupInfo.cb = sizeof(si_ex);
   si_ex.lpAttributeList = attribute_list;
 
+  dwCreationFlags |= EXTENDED_STARTUPINFO_PRESENT;
+  dwCreationFlags |= CREATE_NEW_PROCESS_GROUP;
+
   // launch the process
   BOOL bSuccess =
       CreateProcess(nullptr,                            // lpApplicationName
@@ -291,12 +333,11 @@ void ProcessLauncher::start() {
                     nullptr,                            // lpProcessAttributes
                     nullptr,                            // lpThreadAttributes
                     TRUE,                               // bInheritHandles
-                    CREATE_NEW_PROCESS_GROUP |
-                        EXTENDED_STARTUPINFO_PRESENT,  // dwCreationFlags
-                    nullptr,                           // lpEnvironment
-                    nullptr,                           // lpCurrentDirectory
-                    &si_ex.StartupInfo,                // lpStartupInfo
-                    &pi);                              // lpProcessInformation
+                    dwCreationFlags,                    //
+                    env_block.data(),                   // lpEnvironment
+                    nullptr,                            // lpCurrentDirectory
+                    &si_ex.StartupInfo,                 // lpStartupInfo
+                    &pi);                               // lpProcessInformation
 
   if (!bSuccess) {
     throw std::system_error(last_error_code(),
