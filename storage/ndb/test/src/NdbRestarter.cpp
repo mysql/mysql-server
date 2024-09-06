@@ -259,6 +259,11 @@ NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_p
   return 0;
 }
 
+int NdbRestarter::getNumNodeGroups() {
+  Vector<int> node_group_list;
+  return getNodeGroups(node_group_list);
+}
+
 int NdbRestarter::getNumReplicas()
 {
   Vector<int> node_group_list;

@@ -5311,10 +5311,13 @@ int
 runBug58453(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
-  if (res.getNumDbNodes() < 4)
-  {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
-    return NDBT_OK;
+  if (res.getNumReplicas() < 2) {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 Replicas" << endl;
+    return NDBT_SKIPPED;
+  }
+  if (res.getNumNodeGroups() < 2) {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 Node Groups" << endl;
+    return NDBT_SKIPPED;
   }
 
   Ndb* pNdb = GETNDB(step);
