@@ -4572,8 +4572,12 @@ int runForceStopAndRestart(NDBT_Context *ctx, NDBT_Step *step) {
 
 int runBug58453(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter res;
-  if (res.getNumDbNodes() < 4) {
-    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+  if (res.getNumReplicas() < 2) {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 Replicas" << endl;
+    return NDBT_SKIPPED;
+  }
+  if (res.getNumNodeGroups() < 2) {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 Node Groups" << endl;
     return NDBT_SKIPPED;
   }
 
@@ -4597,7 +4601,8 @@ int runBug58453(NDBT_Context *ctx, NDBT_Step *step) {
         break;
     }
     int node = (int)hugoOps.getTransaction()->getConnectedNodeId();
-    int node0 = res.getRandomNodePreferOtherNodeGroup(node, rand());
+    int node0 = res.getRandomNodeOtherNodeGroup(node, rand());
+
     int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
 
     ndbout_c("node %u err: %u, node: %u err: %u", node0, 5061, node1, err);
