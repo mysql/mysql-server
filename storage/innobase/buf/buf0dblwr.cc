@@ -2697,9 +2697,8 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
   }
 
   bool success;
-  file.m_pfs =
-      os_file_create(innodb_dblwr_file_key, file.m_name.c_str(), mode,
-                     OS_FILE_NORMAL, file_type, srv_read_only_mode, &success);
+  file.m_pfs = os_file_create(innodb_dblwr_file_key, file.m_name.c_str(), mode,
+                              file_type, srv_read_only_mode, &success);
 
   if (!success) {
     ib::error(ER_IB_MSG_DBLWR_1293, file.m_name.c_str());

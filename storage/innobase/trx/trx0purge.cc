@@ -953,7 +953,7 @@ dberr_t start_logging(Tablespace *undo_space) {
   bool ret;
   pfs_os_file_t handle =
       os_file_create(innodb_log_file_key, log_file_name, OS_FILE_CREATE,
-                     OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
+                     OS_LOG_FILE, srv_read_only_mode, &ret);
   if (!ret) {
     return (DB_IO_ERROR);
   }
