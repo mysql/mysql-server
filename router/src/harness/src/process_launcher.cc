@@ -260,7 +260,7 @@ void ProcessLauncher::start() {
   dwCreationFlags |= CREATE_UNICODE_ENVIRONMENT;
 #endif
 
-  for (const auto [key, val] : env_vars) {
+  for (const auto &[key, val] : env_vars) {
     std::copy(key.begin(), key.end(), std::back_insert_iterator(env_block));
     env_block.push_back('=');
     std::copy(val.begin(), val.end(), std::back_insert_iterator(env_block));
