@@ -2,7 +2,6 @@
 #--source include/have_debug.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
---source include/elide_costs.inc
 
 --echo
 --echo # Check access rights for
@@ -73,9 +72,8 @@ eval $query_mem_status_limit;
 --echo # Testing temptable memory key allocation
 connect (con1, localhost, user1);
 SET @@tmp_table_size = 64 * 1024 * 1024;
---replace_regex $elide_costs_and_time_and_row_estimate
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
 disconnect con1;
 connection default;
 eval $query_mem_status_limit;
@@ -104,8 +102,8 @@ connect (con1, localhost, user1);
 SET @@tmp_table_size = 64 * 1024 * 1024;
 --replace_regex /Consumed [0-9]+/Consumed SOME/
 --error ER_DA_CONN_LIMIT
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
 disconnect con1;
 connection default;
 eval $query_mem_status_limit;
@@ -136,9 +134,8 @@ eval $query_mem_status_limit;
 --echo # Testing temptable memory key allocation
 connect (con1, localhost, user1);
 SET @@tmp_table_size = 64 * 1024 * 1024;
---replace_regex $elide_costs_and_time_and_row_estimate
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
 disconnect con1;
 connection default;
 eval $query_mem_status_limit;
@@ -167,8 +164,8 @@ connect (con1, localhost, user1);
 SET @@tmp_table_size = 64 * 1024 * 1024;
 --replace_regex /Consumed [0-9]+/Consumed SOME/
 --error ER_DA_GLOBAL_CONN_LIMIT
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
 disconnect con1;
 connection default;
 eval $query_mem_status_limit;

@@ -54,16 +54,10 @@ include/assert.inc ['expected connection_memory_status_limit is crossed only onc
 
 # Testing temptable memory key allocation
 SET @@tmp_table_size = 64 * 1024 * 1024;
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
-EXPLAIN
--> Aggregate: count(0)  (...) (actual rows=1 loops=1)
-    -> Table scan on subquery  (...) (actual rows=24576 loops=1)
-        -> Materialize  (...) (actual rows=24576 loops=1)
-            -> Table scan on <temporary>  (actual rows=24576 loops=1)
-                -> Aggregate using temporary table  (actual rows=24576 loops=1)
-                    -> Table scan on t1  (...) (actual rows=24576 loops=1)
-
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+COUNT(*)
+24576
 SHOW STATUS LIKE 'count_hit_query_past%';
 Variable_name	Value
 Count_hit_query_past_connection_memory_status_limit	2
@@ -82,8 +76,8 @@ include/assert.inc ['expected connection_memory_status_limit is crossed 3 times 
 
 # Testing temptable memory key allocation
 SET @@tmp_table_size = 64 * 1024 * 1024;
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
 ERROR HY000: Connection closed. Connection memory limit 5242880 bytes exceeded. Consumed SOME bytes.
 SHOW STATUS LIKE 'count_hit_query_past%';
 Variable_name	Value
@@ -110,16 +104,10 @@ include/assert.inc ['expected global_connection_memory_status_limit is crossed 1
 
 # Testing temptable memory key allocation
 SET @@tmp_table_size = 64 * 1024 * 1024;
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
-EXPLAIN
--> Aggregate: count(0)  (...) (actual rows=1 loops=1)
-    -> Table scan on subquery  (...) (actual rows=24576 loops=1)
-        -> Materialize  (...) (actual rows=24576 loops=1)
-            -> Table scan on <temporary>  (actual rows=24576 loops=1)
-                -> Aggregate using temporary table  (actual rows=24576 loops=1)
-                    -> Table scan on t1  (...) (actual rows=24576 loops=1)
-
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+COUNT(*)
+24576
 SHOW STATUS LIKE 'count_hit_query_past%';
 Variable_name	Value
 Count_hit_query_past_connection_memory_status_limit	4
@@ -138,8 +126,8 @@ include/assert.inc ['expected global_connection_memory_status_limit is crossed 3
 
 # Testing temptable memory key allocation
 SET @@tmp_table_size = 64 * 1024 * 1024;
-EXPLAIN ANALYZE SELECT COUNT(*)
-FROM (SELECT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
+SELECT COUNT(*)
+FROM (SELECT SQL_SMALL_RESULT COUNT(*) FROM t1 GROUP By CONCAT(f1,f2)) AS subquery;
 ERROR HY000: Connection closed. Global connection memory limit 25165824 bytes exceeded. Consumed SOME bytes.
 SHOW STATUS LIKE 'count_hit_query_past%';
 Variable_name	Value
