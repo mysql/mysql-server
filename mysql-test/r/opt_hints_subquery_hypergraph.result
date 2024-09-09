@@ -2520,3 +2520,34 @@ EXPLAIN
 Warnings:
 Warning	3126	Hint SEMIJOIN(@`subq`  FIRSTMATCH) is ignored as conflicting/duplicated
 drop table t1, t2, t3;
+#
+# Bug#37008930: Assertion `strategy ==
+#               Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT' failed.
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+EXPLAIN SELECT 1 FROM t1
+WHERE f1 IN (SELECT MIN(f2) FROM (t1 AS t2)
+WHERE NOT EXISTS (SELECT ROW_NUMBER() OVER () FROM t1 AS t3
+WHERE 1 = t2.f2));
+EXPLAIN
+-> Filter: <in_optimizer>(t1.f1,<exists>(select #2))  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(t1.f1) = <ref_null_helper>(min(t2.f2)))  (rows=1)
+            -> Aggregate: min(t2.f2)  (rows=1)
+                -> Filter: exists(select #3) is false  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Select #3 (subquery in condition; dependent)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Window aggregate: row_number() OVER ()   (rows=1)
+                                -> Filter: (1 = t2.f2)  (rows=1)
+                                    -> Table scan on t3  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.f2' of SELECT #3 was resolved in SELECT #2
+SELECT 1 FROM t1
+WHERE f1 IN (SELECT MIN(f2) FROM (t1 AS t2)
+WHERE NOT EXISTS (SELECT ROW_NUMBER() OVER () FROM t1 AS t3
+WHERE 1 = t2.f2));
+1
+DROP TABLE t1;

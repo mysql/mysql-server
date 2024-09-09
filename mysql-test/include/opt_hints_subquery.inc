@@ -1086,3 +1086,17 @@ WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SUBQUERY(@subq INTOEXISTS) */ a FROM t1)
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # Bug#37008930: Assertion `strategy ==
+--echo #               Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT' failed.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+let $query = SELECT 1 FROM t1
+WHERE f1 IN (SELECT MIN(f2) FROM (t1 AS t2)
+             WHERE NOT EXISTS (SELECT ROW_NUMBER() OVER () FROM t1 AS t3
+                                WHERE 1 = t2.f2));
+--replace_regex $elide_costs
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1;

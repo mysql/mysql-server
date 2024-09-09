@@ -371,12 +371,15 @@ bool IsForcedMaterialization(THD *thd, Item *cond) {
   WalkItem(cond, enum_walk::POSTFIX | enum_walk::SUBQUERY,
            [&force_materialization, thd](Item *item) {
              if (item->type() == Item::SUBQUERY_ITEM) {
-               Item_subselect *item_subs = down_cast<Item_subselect *>(item);
+               if (!is_quantified_comp_predicate(item)) return false;
+               Item_in_subselect *item_subs =
+                   down_cast<Item_in_subselect *>(item);
                Query_block *qb = item_subs->query_expr()->first_query_block();
-               force_materialization =
-                   (qb->subquery_strategy(thd) ==
-                    Subquery_strategy::SUBQ_MATERIALIZATION);
-               if (force_materialization) return true;
+               if (qb->subquery_strategy(thd) ==
+                   Subquery_strategy::SUBQ_MATERIALIZATION) {
+                 force_materialization = true;
+                 return true;
+               }
              }
              return false;
            });
