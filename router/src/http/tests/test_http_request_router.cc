@@ -28,6 +28,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <unicode/regex.h>
+#include <unicode/unistr.h>
 #include <unicode/utypes.h>
 
 #include <regex>
@@ -182,10 +183,10 @@ void RegexMatchICUFind(size_t iter) {
       ")*/?)?$",
       0, status);
 
-  const char *stringToTest = "/foo/bar/buz/1";
-
   while ((iter--) != 0) {
-    matcher->reset(stringToTest);
+    // input must outlive ->find()
+    icu::UnicodeString input("/foo/bar/buz/1", -1, US_INV);
+    matcher->reset(input);
     if (matcher->find(0, status)) {
       // happy.
     } else {
@@ -200,10 +201,10 @@ void RegexMatchICUFindSimplified(size_t iter) {
   auto matcher = std::make_unique<icu::RegexMatcher>(
       "^/foo/bar/buz(/([-0-9a-zA-Z._~!$&'()*+,;=:@% ])*/?)?$", 0, status);
 
-  const char *stringToTest = "/foo/bar/buz/1";
-
   while ((iter--) != 0) {
-    matcher->reset(stringToTest);
+    // input must outlive ->find()
+    icu::UnicodeString input("/foo/bar/buz/1", -1, US_INV);
+    matcher->reset(input);
     if (matcher->find(0, status)) {
       // happy.
     } else {
