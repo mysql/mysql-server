@@ -1379,3 +1379,13 @@ SELECT a, GROUPING(a),
 FROM t GROUP BY a WITH ROLLUP
 ORDER BY a;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36804785: `false' in operator at sql/sql_executor.cc
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+SET timestamp=UNIX_TIMESTAMP('2009-04-16 12:46:00');
+SELECT SUM(UTC_DATE()) OVER() FROM t1 GROUP BY UTC_DATE() WITH ROLLUP;
+SET timestamp=default;
+DROP TABLE t1;
