@@ -851,8 +851,8 @@ INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-# With the new hypergraph cost model some of the top-level joins
-# switch to using hash joins instead of nested loop joins.
+# Should use hash joins only, since there are no indexes that could
+# help speed up nested loop joins.
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1)
 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 EXPLAIN

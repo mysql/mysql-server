@@ -558,8 +558,8 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (col1 BIGINT);
 INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 ANALYZE TABLE t1;
---echo # With the new hypergraph cost model some of the top-level joins
---echo # switch to using hash joins instead of nested loop joins.
+--echo # Should use hash joins only, since there are no indexes that could
+--echo # help speed up nested loop joins.
 --replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1)
   FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
