@@ -1170,6 +1170,7 @@ SELECT (SELECT ti1.a
              (SELECT to1.a AS c00,
                      to1.a AS c11
               FROM t1) AS subq_0
+        ORDER BY ti1.a DESC
         LIMIT 1) AS c1
 FROM t1 AS to1
 GROUP BY c1;
@@ -1180,6 +1181,7 @@ SELECT (SELECT ti1.a
              (SELECT to1.a AS c00,
                      to1.a AS c11
               FROM t1) AS subq_0
+        ORDER BY ti1.a DESC
         LIMIT 1) AS c1
 FROM t1 AS to1
 GROUP BY c1;
