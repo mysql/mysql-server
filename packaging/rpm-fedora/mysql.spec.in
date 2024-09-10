@@ -92,6 +92,9 @@ BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel
 BuildRequires:  openssl-devel
+%if 0%{?fedora} > 40
+BuildRequires:  openssl-devel-engine
+%endif
 BuildRequires:  patchelf
 BuildRequires:  perl
 BuildRequires:  perl(Carp)
