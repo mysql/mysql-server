@@ -12910,6 +12910,12 @@ ER_KEYRING_COMPONENT_AWS_READ_ONLY_LIMIT
 ER_KEYRING_COMPONENT_AWS_CANNOT_ENCRYPT_READ_ONLY
   eng "CMK was changed and the keyring must be re-encrypted, but the keyring is read only. Set the read_only config parameter to false for re-encryption and reload the component."
 
+ER_AUTHENTICATION_OPENID_OPTION_REGISTER
+  eng "Option registration failed."
+
+ER_AUTHENTICATION_OPENID_OPTION_DEREGISTER
+  eng "Option deregistration failed."
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.
