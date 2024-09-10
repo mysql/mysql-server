@@ -58,6 +58,13 @@ ENDIF()
 # Change uppercase first letter of Ubuntu/Debian
 string(TOLOWER "${DEB_ID}" DEB_ID)
 
+# Ubuntu 20.04 and 22.04 has too old zlib
+IF(DEB_CODENAME STREQUAL "focal" OR DEB_CODENAME STREQUAL "jammy")
+  SET (DEB_ZLIB_OPTION "bundled")
+ELSE()
+  SET (DEB_ZLIB_OPTION "system")
+ENDIF()
+
 IF (WITH_NDB)
   SET (DEB_BASE_PRODUCT "cluster-")
   SET (DEB_BASE_PRODUCTC "Cluster ")
