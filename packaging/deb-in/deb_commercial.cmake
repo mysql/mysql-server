@@ -36,6 +36,7 @@ SET (DEB_RULES_PROFILE_GENERATE
                 -DSYSCONFDIR=/etc/mysql \\
                 -DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \\
                 -DWITH_MECAB=system \\
+                -DWITH_ZLIB=system \\
                 -DWITH_NUMA=ON \\
                 -DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} - ${DEB_LICENSENAME}\" \\
                 -DCOMPILATION_COMMENT_SERVER=\"MySQL ${DEB_PRODUCTNAMEC} Server - ${DEB_LICENSENAME}\" \\
