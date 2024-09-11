@@ -7819,6 +7819,8 @@ static Create_field *add_functional_index_to_create_list(
     Functional_index_error_handler error_handler(
         {key_spec->name.str, key_spec->name.length}, thd);
 
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
+
     Item *expr = kp->get_expression();
     if (expr->type() == Item::FIELD_ITEM) {
       my_error(ER_FUNCTIONAL_INDEX_ON_FIELD, MYF(0));
