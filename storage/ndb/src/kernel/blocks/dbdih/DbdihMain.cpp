@@ -9344,6 +9344,8 @@ void Dbdih::checkStopMe(Signal *signal, NodeRecordPtr failedNodePtr) {
 void Dbdih::checkStopPermMaster(Signal *signal, NodeRecordPtr failedNodePtr) {
   DihSwitchReplicaRef *const ref = (DihSwitchReplicaRef *)&signal->theData[0];
   jam();
+  /* Node is no longer 'stopping', clear from bitmap */
+  c_stopPermMaster.stoppingNodes.clear(failedNodePtr.i);
   if (c_DIH_SWITCH_REPLICA_REQ_Counter.isWaitingFor(failedNodePtr.i)) {
     jam();
     ndbrequire(c_stopPermMaster.clientRef != 0);
@@ -9353,8 +9355,6 @@ void Dbdih::checkStopPermMaster(Signal *signal, NodeRecordPtr failedNodePtr) {
                DihSwitchReplicaRef::SignalLength, JBB);
     return;
   }  // if
-  /* Node is no longer 'stopping', clear from bitmap */
-  c_stopPermMaster.stoppingNodes.clear(failedNodePtr.i);
 }  // Dbdih::checkStopPermMaster()
 
 void Dbdih::checkStopPermProxy(Signal *signal, NodeId failedNodeId) {
@@ -26196,7 +26196,7 @@ void Dbdih::switchReplica(Signal *signal, Uint32 nodeId, Uint32 tableId,
 
         /* Failure to get stop permission, clear node from stopping bitmap */
         const Uint32 nodeId = refToNode(c_stopPermMaster.clientRef);
-        ndbrequire(c_stopPermMaster.stoppingNodes.get(nodeId));
+        /* Expect bit to be set, unless stopping node failed early */
         c_stopPermMaster.stoppingNodes.clear(nodeId);
       }  // if
 
