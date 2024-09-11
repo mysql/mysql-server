@@ -30,9 +30,7 @@
 #include <array>
 #include <stdexcept>
 #include <string>
-#include <thread>
 
-#include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"
 #include "my_thread.h"  // my_thread_self_setname
@@ -40,12 +38,10 @@
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysql/harness/utility/string.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 #include "mysqlrouter/supported_metadata_cache_options.h"
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
 #include "plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -71,10 +67,8 @@ static metadata_cache::RouterAttributes get_router_attributes(
 
       const bool is_rw_split = routing_section->has("access_mode") &&
                                routing_section->get("access_mode") == "auto";
-      const bool is_rw = !is_rw_split && mysql_harness::utility::ends_with(
-                                             destinations, "PRIMARY");
-      const bool is_ro = !is_rw_split && mysql_harness::utility::ends_with(
-                                             destinations, "SECONDARY");
+      const bool is_rw = !is_rw_split && destinations.ends_with("PRIMARY");
+      const bool is_ro = !is_rw_split && destinations.ends_with("SECONDARY");
 
       if (protocol == "classic") {
         if (is_rw_split)

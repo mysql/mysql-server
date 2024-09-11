@@ -1968,7 +1968,7 @@ void MySQLRouter::show_help() {
 
     // fallback to .ini for each .conf file
     const std::string conf_ext(".conf");
-    if (mysql_harness::utility::ends_with(file, conf_ext)) {
+    if (file.ends_with(conf_ext)) {
       // replace .conf by .ini
       std::string ini_filename =
           file.substr(0, file.size() - conf_ext.size()) + ".ini";
