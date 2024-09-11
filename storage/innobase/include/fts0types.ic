@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+Copyright (c) 2007, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -58,51 +58,35 @@ fts_string_dup(
 }
 
 /******************************************************************//**
-Compare two fts_trx_row_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+Compare two doc_ids.
+ @param[in] id1  1st doc_id to compare
+ @param[in] id2  2nd doc_id to compare
+ @return < 0 if id1 < id2, 0 if id1 == id2, > 0 if id1 > id2 */
 UNIV_INLINE
 int
-fts_trx_row_doc_id_cmp(
-/*===================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
+fts_doc_id_cmp(doc_id_t id1, doc_id_t id2)
 {
-	const fts_trx_row_t*	tr1 = (const fts_trx_row_t*) p1;
-	const fts_trx_row_t*	tr2 = (const fts_trx_row_t*) p2;
-
-	return((int)(tr1->doc_id - tr2->doc_id));
+  if (id1 < id2) {
+    return -1;
+  } else if (id1 > id2) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 /******************************************************************//**
-Compare two fts_ranking_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int
-fts_ranking_doc_id_cmp(
-/*===================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
+Compare doc_ids of 2 objects.
+ @param[in] p1 Pointer to first instance o1 of T
+ @param[in] p2 Pointer to second instance o2 of T
+ @return sign(o1->doc_id - o2->doc_id) */
+template <typename T>
+int fts_doc_id_field_cmp(const void *p1, const void *p2)
 {
-	const fts_ranking_t*	rk1 = (const fts_ranking_t*) p1;
-	const fts_ranking_t*	rk2 = (const fts_ranking_t*) p2;
+  const T *o1 = static_cast<const T *>(p1);
+  const T *o2 = static_cast<const T *>(p2);
 
-	return((int)(rk1->doc_id - rk2->doc_id));
-}
-
-/******************************************************************//**
-Compare two fts_update_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int
-fts_update_doc_id_cmp(
-/*==================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
-{
-	const fts_update_t*	up1 = (const fts_update_t*) p1;
-	const fts_update_t*	up2 = (const fts_update_t*) p2;
-
-	return((int)(up1->doc_id - up2->doc_id));
+  return fts_doc_id_cmp(o1->doc_id, o2->doc_id);
 }
 
 /******************************************************************//**
