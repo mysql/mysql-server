@@ -137,7 +137,7 @@ CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
 DROP TABLE t1;
 
 --echo # Print out functional indexes on a temporary table. Note that
---echo # "Column_name" should be empty (NULL), and Expression should contain the
+--echo # "Column_name" should be NULL, and Expression should contain the
 --echo # expression for the functional index.
 CREATE TEMPORARY TABLE t1(a INT);
 CREATE INDEX idx ON t1 ((ABS(a)));
@@ -667,7 +667,29 @@ CREATE TABLE t1 (
   INDEX i1((FIND_IN_SET('Admin', roles)))
 );
 
-
 --echo
 --echo # Clean up.
+DROP TABLE t1;
+
+--echo
+--echo #
+--echo # Bug#35497623: SHOW INDEXES with generated column may access wrong key-part
+--echo #
+
+--echo
+--echo # SHOW INDEXES on regular table:
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2
+             (UNIQUE i3 TYPE BTREE (c1, (c1 REGEXP c1))) TABLE t1;
+SHOW INDEXES IN t2; /* regular table */
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo
+--echo # SHOW INDEXES on temporary table (different code path!):
+CREATE TABLE t1 (c1 INT);
+CREATE TEMPORARY TABLE t2
+       (UNIQUE i3 TYPE BTREE (c1, (c1 REGEXP c1))) TABLE t1;
+SHOW INDEXES IN t2; /* temporary table */
+DROP TABLE t2;
 DROP TABLE t1;

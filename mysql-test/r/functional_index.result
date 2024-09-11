@@ -158,13 +158,13 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
 DROP TABLE t1;
 # Print out functional indexes on a temporary table. Note that
-# "Column_name" should be empty (NULL), and Expression should contain the
+# "Column_name" should be NULL, and Expression should contain the
 # expression for the functional index.
 CREATE TEMPORARY TABLE t1(a INT);
 CREATE INDEX idx ON t1 ((ABS(a)));
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	1	idx	1		A	0	NULL	NULL	YES	BTREE			YES	abs(`a`)
+t1	1	idx	1	NULL	A	0	NULL	NULL	YES	BTREE			YES	abs(`a`)
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, INDEX ((CONCAT(''))));
 ERROR HY000: The used storage engine cannot index the expression 'concat(_utf8mb4'')'.
@@ -768,4 +768,32 @@ INDEX i1((FIND_IN_SET('Admin', roles)))
 );
 
 # Clean up.
+DROP TABLE t1;
+
+#
+# Bug#35497623: SHOW INDEXES with generated column may access wrong key-part
+#
+
+# SHOW INDEXES on regular table:
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2
+(UNIQUE i3 TYPE BTREE (c1, (c1 REGEXP c1))) TABLE t1;
+SHOW INDEXES IN t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	0	i3	1	c1	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t2	0	i3	2	NULL	A	0	NULL	NULL	YES	BTREE			YES	regexp_like(`c1`,`c1`)
+/* regular table */
+DROP TABLE t2;
+DROP TABLE t1;
+
+# SHOW INDEXES on temporary table (different code path!):
+CREATE TABLE t1 (c1 INT);
+CREATE TEMPORARY TABLE t2
+(UNIQUE i3 TYPE BTREE (c1, (c1 REGEXP c1))) TABLE t1;
+SHOW INDEXES IN t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	0	i3	1	c1	A	0	NULL	NULL	YES	BTREE			YES	NULL
+t2	0	i3	2	NULL	A	0	NULL	NULL	YES	BTREE			YES	regexp_like(`c1`,`c1`)
+/* temporary table */
+DROP TABLE t2;
 DROP TABLE t1;
