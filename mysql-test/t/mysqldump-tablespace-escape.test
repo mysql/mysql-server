@@ -1,0 +1,21 @@
+--source include/mysql_have_debug.inc
+
+--echo #
+--echo # Bug#36816986 - MySQL Shell command injection
+--echo #
+
+let $grep_file= $MYSQLTEST_VARDIR/tmp/bug36816986.sql;
+let $grep_output=boolean;
+
+CREATE DATABASE bug36816986;
+
+--echo -- Run mysqldump with tablespace_injection_test.
+--exec $MYSQL_DUMP --debug="d,tablespace_injection_test" --result-file=$grep_file bug36816986 --all-tablespaces 2>&1
+
+--echo The test injected string must be found:
+let $grep_pattern=qr|  ENGINE=\*/\nsystem touch foo|;
+--source include/grep_pattern.inc
+
+# Cleanup
+--remove_file $grep_file
+DROP DATABASE bug36816986;

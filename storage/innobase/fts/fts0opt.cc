@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+Copyright (c) 2007, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1028,7 +1028,7 @@ fts_table_fetch_doc_ids(
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(trx);
 
-		ib_vector_sort(doc_ids->doc_ids, fts_update_doc_id_cmp);
+		ib_vector_sort(doc_ids->doc_ids, fts_doc_id_field_cmp<fts_update_t>);
 	} else {
 		fts_sql_rollback(trx);
 	}

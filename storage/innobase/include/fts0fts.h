@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+Copyright (c) 2011, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1047,7 +1047,10 @@ fts_drop_index(
 /*===========*/
 	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
 	dict_index_t*	index,	/*!< in: Index to be dropped */
-	trx_t*		trx);	/*!< in: Transaction for the drop */
+	trx_t*		trx,	/*!< in: Transaction for the drop */
+        bool            adding_another = false); /*!< in: Another FTS index is
+                                                      to be added as part of
+                                                      the same transaction */
 
 /****************************************************************//**
 Rename auxiliary tables for all fts index for a table

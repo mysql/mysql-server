@@ -812,17 +812,21 @@ fts_drop_index(
 /*===========*/
 	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
 	dict_index_t*	index,	/*!< in: Index to be dropped */
-	trx_t*		trx)	/*!< in: Transaction for the drop */
+	trx_t*		trx,	/*!< in: Transaction for the drop */
+        bool            adding_another) /*! in: Another FTS index is to be
+                                            added as part of the same
+                                            transaction */
 {
 	ib_vector_t*	indexes = table->fts->indexes;
 	dberr_t		err = DB_SUCCESS;
 
 	ut_a(indexes);
 
-	if ((ib_vector_size(indexes) == 1
+	const bool last_index = (ib_vector_size(indexes) == 1
 	    && (index == static_cast<dict_index_t*>(
 			ib_vector_getp(table->fts->indexes, 0))))
-	   || ib_vector_is_empty(indexes)) {
+	   || ib_vector_is_empty(indexes);
+        if (last_index && !adding_another) {
 		doc_id_t	current_doc_id;
 		doc_id_t	first_doc_id;
 
@@ -2434,7 +2438,8 @@ fts_trx_table_create(
 	ftt->table = table;
 	ftt->fts_trx = fts_trx;
 
-	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
+	ftt->rows = rbt_create(
+                   sizeof(fts_trx_row_t), fts_doc_id_field_cmp<fts_trx_row_t>);
 
 	return(ftt);
 }
@@ -2458,7 +2463,8 @@ fts_trx_table_clone(
 	ftt->table = ftt_src->table;
 	ftt->fts_trx = ftt_src->fts_trx;
 
-	ftt->rows = rbt_create(sizeof(fts_trx_row_t), fts_trx_row_doc_id_cmp);
+	ftt->rows = rbt_create(
+                   sizeof(fts_trx_row_t), fts_doc_id_field_cmp<fts_trx_row_t>);
 
 	/* Copy the rb tree values to the new savepoint. */
 	rbt_merge_uniq(ftt->rows, ftt_src->rows);
@@ -4068,7 +4074,7 @@ fts_sync_add_deleted_cache(
 
 	ut_a(ib_vector_size(doc_ids) > 0);
 
-	ib_vector_sort(doc_ids, fts_update_doc_id_cmp);
+	ib_vector_sort(doc_ids, fts_doc_id_field_cmp<fts_update_t>);
 
 	info = pars_info_create();
 
