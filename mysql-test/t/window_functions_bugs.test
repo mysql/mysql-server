@@ -1,4 +1,6 @@
 --source include/elide_costs.inc
+# difference in '$.steps[*].join_preparation.steps[*].'
+--source include/no_ps_protocol.inc
 
 --echo #
 --echo # Bug#26475312 VALGRIND MEMORY LEAK ( CMP_FIELD_VALUE(FIELD*, LONG) (SQL_EXECUTOR.CC:3598)
