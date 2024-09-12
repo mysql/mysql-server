@@ -499,7 +499,15 @@ void Certifier::clear_certification_info() {
   for (Certification_info::iterator it = certification_info.begin();
        it != certification_info.end(); ++it) {
     // We can only delete the last reference.
-    if (it->second->unlink() == 0) delete it->second;
+    if (it->second->unlink() == 0) {
+      /*
+        Claim Gtid_set_ref used memory to
+        `thread/group_rpl/THD_certifier_broadcast` thread, since this is thread
+        that does release the memory.
+      */
+      it->second->claim_memory_ownership(true);
+      delete it->second;
+    }
   }
 
   certification_info.clear();
@@ -719,6 +727,15 @@ Certification_result Certifier::add_writeset_to_certification_info(
         item_previous_sequence_number != parallel_applier_sequence_number)
       transaction_last_committed = item_previous_sequence_number;
   }
+  /*
+    The memory used by Gtid_set_ref is allocated by
+    `thread/group_rpl/THD_applier_module_receiver`, though it will be released
+    by `thread/group_rpl/THD_certifier_broadcast` thread.  To avoid untracked
+    memory release on `thread/group_rpl/THD_applier_module_receiver` we do
+    dissociate this used memory from this thread.
+  */
+  snapshot_version_value->claim_memory_ownership(false);
+
   return Certification_result::positive;
 }
 
@@ -1043,7 +1060,15 @@ bool Certifier::add_item(const char *item, Gtid_set_ref *snapshot_version,
     *item_previous_sequence_number =
         it->second->get_parallel_applier_sequence_number();
 
-    if (it->second->unlink() == 0) delete it->second;
+    if (it->second->unlink() == 0) {
+      /*
+        Claim Gtid_set_ref used memory to
+        `thread/group_rpl/THD_certifier_broadcast` thread, since this is thread
+        that does release the memory.
+      */
+      it->second->claim_memory_ownership(true);
+      delete it->second;
+    }
 
     it->second = snapshot_version;
     error = false;
@@ -1232,7 +1257,15 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
 
       while (it != certification_info.end()) {
         if (it->second->is_subset_not_equals(stable_gtid_set)) {
-          if (it->second->unlink() == 0) delete it->second;
+          if (it->second->unlink() == 0) {
+            /*
+              Claim Gtid_set_ref used memory to
+              `thread/group_rpl/THD_certifier_broadcast` thread, since this is
+              thread that does release the memory.
+            */
+            it->second->claim_memory_ownership(true);
+            delete it->second;
+          }
           certification_info.erase(it++);
         } else
           ++it;
@@ -1750,6 +1783,15 @@ bool Certifier::set_certification_info_part(
       value->link();
       certification_info.insert(
           std::pair<std::string, Gtid_set_ref *>(key, value));
+      /*
+        The memory used by Gtid_set_ref is allocated by
+        `thread/group_rpl/THD_applier_module_receiver`, though it will be
+        released by `thread/group_rpl/THD_certifier_broadcast` thread.  To avoid
+        untracked memory release on
+        `thread/group_rpl/THD_applier_module_receiver` we do dissociate this
+        used memory from this thread.
+      */
+      value->claim_memory_ownership(false);
     }
 
     return false;
@@ -1999,6 +2041,14 @@ int Certifier::set_certification_info(
     value->link();
     certification_info.insert(
         std::pair<std::string, Gtid_set_ref *>(key, value));
+    /*
+      The memory used by Gtid_set_ref is allocated by
+      `thread/group_rpl/THD_applier_module_receiver`, though it will be released
+      by `thread/group_rpl/THD_certifier_broadcast` thread.  To avoid untracked
+      memory release on `thread/group_rpl/THD_applier_module_receiver` we do
+      dissociate this used memory from this thread.
+    */
+    value->claim_memory_ownership(false);
   }
 
   if (initialize_server_gtid_set()) {

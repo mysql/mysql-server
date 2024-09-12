@@ -1593,6 +1593,14 @@ class Gtid_set {
  public:
   /// Destroy this Gtid_set.
   ~Gtid_set();
+
+  /**
+    Claim ownership of memory.
+
+    @param claim  claim ownership of memory.
+  */
+  void claim_memory_ownership(bool claim);
+
   /**
     Removes all gtids from this Gtid_set.
 
