@@ -375,11 +375,13 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
 
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
-  const auto trace_file = get_data_dir().join(test_params.tracefile).str();
   for (unsigned i = 0; i < kClusterNodesCount; ++i) {
-    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
-        cluster_http_ports[i], cluster_nodes_xports[i]));
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(test_params.tracefile)
+                                         .port(cluster_nodes_ports[i])
+                                         .http_port(cluster_http_ports[i])
+                                         .x_port(cluster_nodes_xports[i])
+                                         .args()));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
@@ -557,11 +559,12 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
 
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
-  const auto trace_file = get_data_dir().join(tracefile).str();
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
-        cluster_http_ports[i]));
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                         .port(cluster_nodes_ports[i])
+                                         .http_port(cluster_http_ports[i])
+                                         .args()));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
@@ -637,11 +640,11 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   uint16_t cluster_http_port = port_pool_.get_next_available();
 
   SCOPED_TRACE("// Launch 1 server mock that will act as our cluster node");
-  const auto trace_file = get_data_dir().join(tracefile).str();
-  std::vector<uint16_t> classic_ports, x_ports;
-  ProcessManager::launch_mysql_server_mock(trace_file, cluster_classic_port,
-                                           EXIT_SUCCESS, false,
-                                           cluster_http_port, cluster_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                  .port(cluster_classic_port)
+                                  .http_port(cluster_http_port)
+                                  .x_port(cluster_x_port)
+                                  .args());
 
   SCOPED_TRACE("// Make our metadata server return 1 cluster node");
   set_mock_metadata(cluster_http_port, kGroupId, {cluster_classic_port},
@@ -715,11 +718,11 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
   uint16_t cluster_http_port = port_pool_.get_next_available();
 
   SCOPED_TRACE("// Launch 1 server mock that will act as our cluster node");
-  const auto trace_file = get_data_dir().join(tracefile).str();
-  std::vector<uint16_t> classic_ports, x_ports;
-  ProcessManager::launch_mysql_server_mock(trace_file, cluster_classic_port,
-                                           EXIT_SUCCESS, false,
-                                           cluster_http_port, cluster_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                  .port(cluster_classic_port)
+                                  .http_port(cluster_http_port)
+                                  .x_port(cluster_x_port)
+                                  .args());
 
   SCOPED_TRACE("// Make our metadata server return 1 metadata server");
   // instrumentate the mock to treat the GR notifications as unsupported
@@ -790,11 +793,13 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
 
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
-  const auto trace_file = get_data_dir().join(tracefile).str();
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
-        cluster_http_ports[i], cluster_nodes_xports[i]));
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                         .port(cluster_nodes_ports[i])
+                                         .http_port(cluster_http_ports[i])
+                                         .x_port(cluster_nodes_xports[i])
+                                         .args()));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
@@ -928,15 +933,16 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
 
   SCOPED_TRACE(
       "// Launch 2 server mocks that will act as our metadata servers");
-  const auto trace_file =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr_incons_md.js").str();
   for (unsigned i = 0; i < kClusterNodesCount; ++i) {
-    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-        trace_file, nodes_ports[i], EXIT_SUCCESS, false, http_ports[i],
-        nodes_xports[i]));
+    cluster_nodes.push_back(&mock_server_spawner().spawn(
+        mock_server_cmdline("metadata_dynamic_nodes_v2_gr_incons_md.js")
+            .port(nodes_ports[i])
+            .http_port(http_ports[i])
+            .x_port(nodes_xports[i])
+            .args()));
 
     set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
-                      /*sent=*/false, nodes_ports);
+                      /*send=*/false, nodes_ports);
 
     SCOPED_TRACE(
         "// Schedule the GR notification to be sent (on first node only)");
@@ -977,9 +983,14 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   nodes_ports.push_back(port_pool_.get_next_available());
   nodes_xports.push_back(port_pool_.get_next_available());
   http_ports.push_back(port_pool_.get_next_available());
-  cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-      trace_file, nodes_ports[2], EXIT_SUCCESS, false, http_ports[2],
-      nodes_xports[2]));
+
+  cluster_nodes.push_back(&mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_dynamic_nodes_v2_gr_incons_md.js")
+          .port(nodes_ports[2])
+          .http_port(http_ports[2])
+          .x_port(nodes_xports[2])
+          .args()));
+
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(*cluster_nodes[2], nodes_ports[2], 5s));
   ASSERT_TRUE(
@@ -1075,11 +1086,13 @@ TEST_F(GrNotificationsTest, AddNode) {
   }
 
   SCOPED_TRACE("// Launch server mocks that will act as our metadata servers");
-  const auto trace_file = get_data_dir().join(tracefile).str();
   for (unsigned i = 0; i < kInitialClusterNodesCount; ++i) {
-    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
-        cluster_http_ports[i], cluster_nodes_xports[i]));
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                         .port(cluster_nodes_ports[i])
+                                         .http_port(cluster_http_ports[i])
+                                         .x_port(cluster_nodes_xports[i])
+                                         .args()));
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,
@@ -1114,10 +1127,13 @@ TEST_F(GrNotificationsTest, AddNode) {
   cluster_http_ports.push_back(port_pool_.get_next_available());
 
   const unsigned kCurrentClusterNodesCount = 3;
-  cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-      trace_file, cluster_nodes_ports[kCurrentClusterNodesCount - 1],
-      EXIT_SUCCESS, false, cluster_http_ports[kCurrentClusterNodesCount - 1],
-      cluster_nodes_xports[kCurrentClusterNodesCount - 1]));
+
+  cluster_nodes.push_back(&mock_server_spawner().spawn(
+      mock_server_cmdline(tracefile)
+          .port(cluster_nodes_ports[kCurrentClusterNodesCount - 1])
+          .http_port(cluster_http_ports[kCurrentClusterNodesCount - 1])
+          .x_port(cluster_nodes_xports[kCurrentClusterNodesCount - 1])
+          .args()));
 
   // let all nodes know about a new node in the Cluster
   for (unsigned i = 0; i < kCurrentClusterNodesCount; ++i) {
@@ -1178,11 +1194,13 @@ TEST_F(GrNotificationsTest, RemoveNode) {
   }
 
   SCOPED_TRACE("// Launch server mocks that will act as our metadata servers");
-  const auto trace_file = get_data_dir().join(tracefile).str();
   for (unsigned i = 0; i < kInitialClusterNodesCount; ++i) {
-    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
-        cluster_http_ports[i], cluster_nodes_xports[i]));
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                         .port(cluster_nodes_ports[i])
+                                         .http_port(cluster_http_ports[i])
+                                         .x_port(cluster_nodes_xports[i])
+                                         .args()));
 
     SCOPED_TRACE("// Make our metadata server return 3 metadata servers");
     set_mock_metadata(cluster_http_ports[i], kGroupId, cluster_nodes_ports,

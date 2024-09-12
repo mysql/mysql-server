@@ -167,11 +167,11 @@ TEST_P(RoutingRetryTest, retry_at_greeting) {
                  "Retry the connect when the greeting fails with 1040 "
                  "max-connections-reached.");
 
-  launch_mysql_server_mock(
-      mysql_server_mock_cmdline_args(
-          get_data_dir().join("max_connections_reached_at_greeting.js").str(),
-          server_port_, 0, 0, "", "127.0.0.1", true),
-      EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("max_connections_reached_at_greeting.js")
+          .port(server_port_)
+          .enable_ssl(true)
+          .args());
 
   auto writer = config_writer(conf_dir_.name());
 
@@ -219,11 +219,11 @@ TEST_P(RoutingRetryTest, retry_at_auth) {
                               (GetParam().client_ssl_mode == kPreferred &&
                                GetParam().server_ssl_mode == kAsClient));
 
-  launch_mysql_server_mock(
-      mysql_server_mock_cmdline_args(
-          get_data_dir().join("max_connections_reached_at_auth.js").str(),
-          server_port_, 0, 0, "", "127.0.0.1", true),
-      EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("max_connections_reached_at_auth.js")
+          .port(server_port_)
+          .enable_ssl(true)
+          .args());
 
   auto writer = config_writer(conf_dir_.name());
 
@@ -276,9 +276,10 @@ TEST_F(RoutingRetryFailTest, explicit_timeout) {
       "Requirement",
       "The connect MUST be retried at max `connect_retry_timeout` seconds.");
 
-  launch_mysql_server_mock(
-      get_data_dir().join("handshake_too_many_con_error.js").str(),
-      server_port_, EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("handshake_too_many_con_error.js")
+          .port(server_port_)
+          .args());
 
   auto writer = config_writer(conf_dir_.name());
 
@@ -325,9 +326,10 @@ TEST_F(RoutingRetryFailTest, default_timeout) {
                  "If `connect_retry_timeout` is not specified, it MUST default "
                  "to 2 seconds.");
 
-  launch_mysql_server_mock(
-      get_data_dir().join("handshake_too_many_con_error.js").str(),
-      server_port_, EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("handshake_too_many_con_error.js")
+          .port(server_port_)
+          .args());
 
   auto writer = config_writer(conf_dir_.name());
 

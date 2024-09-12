@@ -168,13 +168,14 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   // use the json file that adds additional rows to the metadata to increase the
   // packet size to +10MB to verify routing of the big packets
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   TempDirectory bootstrap_dir;
 
   // launch the server mock for bootstrapping
-  launch_mysql_server_mock(
-      json_stmts, server_port, EXIT_SUCCESS,
-      false /*expecting huge data, can't print on the console*/, http_port);
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_port)
+                                  .http_port(http_port)
+                                  .args());
+
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
                     classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
@@ -439,8 +440,8 @@ TEST_F(RouterRoutingTest, ConnectTimeoutTimerCanceledCorrectly) {
   const auto connect_timeout = 1s;
 
   // launch the server mock
-  const std::string json_stmts = get_data_dir().join("my_port.js").str();
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   SCOPED_TRACE("// build router config with connect_timeout=" +
                std::to_string(connect_timeout.count()));
@@ -545,10 +546,10 @@ TEST_F(RouterRoutingTest, EccCertificate) {
   const auto router_classic_ecdh_dsa_port = port_pool_.get_next_available();
   const auto router_classic_ecdsa_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   TempDirectory conf_dir("conf-ecc-certificate");
   auto writer = config_writer(conf_dir.name());
@@ -617,14 +618,14 @@ TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
   const auto server_x_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  // doesn't really matter which file we use here, we are not going to do any
-  // queries
-  const std::string json_stmts =
-      get_data_dir().join("handshake_too_many_con_error.js").str();
-
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           0, server_x_port);
+  mock_server_spawner().spawn(
+      // doesn't really matter which file we use here, we are not going to do
+      // any queries
+      mock_server_cmdline("handshake_too_many_con_error.js")
+          .port(server_classic_port)
+          .x_port(server_x_port)
+          .args());
 
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
       "routing:xproto",
@@ -704,12 +705,11 @@ TEST_F(RouterMaxConnectionsTest, RoutingTooManyConnections) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  // doesn't really matter which file we use here, we are not going to do any
-  // queries
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  mock_server_spawner().spawn(
+      // doesn't really matter which file we use here, we are not going to do
+      // any queries
+      mock_server_cmdline("bootstrap_gr.js").port(server_port).args());
 
   // create a config with routing that has max_connections == 2
   const std::string routing_section =
@@ -747,13 +747,13 @@ TEST_F(RouterMaxConnectionsTest, RoutingTooManyServerConnections) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  // doesn't really matter which file we use here, we are not going to do any
-  // queries
-  const std::string json_stmts =
-      get_data_dir().join("handshake_too_many_con_error.js").str();
-
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  mock_server_spawner().spawn(
+      // doesn't really matter which file we use here, we are not going to do
+      // any queries
+      mock_server_cmdline("handshake_too_many_con_error.js")
+          .port(server_port)
+          .args());
 
   const std::string routing_section = get_static_routing_section(
       "basic", router_port, "", {server_port}, "classic",
@@ -801,10 +801,9 @@ TEST_F(RouterMaxConnectionsTest, RoutingTotalMaxConnectionsExceeded) {
   const auto router_portA = port_pool_.get_next_available();
   const auto router_portB = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("bootstrap_gr.js").port(server_port).args());
 
   // create a config with 2 routing sections and max_total_connections = 2
   const std::string routing_section1 = get_static_routing_section(
@@ -872,12 +871,13 @@ TEST_F(RouterMaxConnectionsTest,
   const auto router_x_rw_port = port_pool_.get_next_available();
   const auto router_x_ro_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
   // launch the server mock that will terminate all our classic and x
   // connections
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   // create a configuration with 4 routes (classic rw, ro, x rw, ro)
   // each has "local" limit of 5 max_connections
@@ -971,12 +971,12 @@ TEST_F(RouterMaxConnectionsTest,
   const auto router_x_rw_port = port_pool_.get_next_available();
   const auto router_x_ro_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
   // launch the server mock that will terminate all our classic and x
   // connections
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   // create a configuration with 4 routes (classic rw, ro, x rw, ro)
   // each has "local" limit of 5 max_connections
@@ -1118,12 +1118,11 @@ TEST_F(RouterMaxConnectionsTest, WarningWhenLocalMaxConGreaterThanTotalMaxCon) {
   const auto server_classic_port = port_pool_.get_next_available();
   const auto router_classic_rw_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
   // launch the server mock that will terminate all our classic and x
   // connections
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("bootstrap_gr.js").port(server_classic_port).args());
 
   // create a configuration with 1 route (classic rw) that has  "local" limit of
   // 600 max_connections the total_max_connections is default 512
@@ -1841,10 +1840,10 @@ TEST_P(RouterRoutingXProtocolInvalidInitMessageTest,
   const auto server_x_port = port_pool_.get_next_available();
   const auto router_x_rw_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   const std::string routing_x_section = get_static_routing_section(
       "x", router_x_rw_port, "", {server_x_port}, "x");
@@ -1944,10 +1943,10 @@ TEST_F(RouterRoutingTest, CloseConnection) {
   const auto server_x_port = port_pool_.get_next_available();
   const auto router_x_rw_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   const std::string routing_x_section = get_static_routing_section(
       "x", router_x_rw_port, "", {server_x_port}, "x");
@@ -1999,10 +1998,10 @@ TEST_F(RouterRoutingTest, ConnectionDebugLogsTcp) {
   const auto router_classic_rw_port = port_pool_.get_next_available();
   const auto router_x_rw_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("my_port.js").str();
-
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline("my_port.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   const std::string routing_classic_section = get_static_routing_section(
       "classic", router_classic_rw_port, "", {server_classic_port}, "classic");
@@ -2092,10 +2091,10 @@ TEST_F(RouterRoutingTest, ConnectionDebugLogsSocket) {
   const auto server_classic_port = port_pool_.get_next_available();
   const auto server_x_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("my_port.js").str();
-
-  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
-                           /*http_port*/ 0, server_x_port);
+  mock_server_spawner().spawn(mock_server_cmdline("my_port.js")
+                                  .port(server_classic_port)
+                                  .x_port(server_x_port)
+                                  .args());
 
   TempDirectory conf_dir("conf");
 
@@ -2343,12 +2342,13 @@ class RoutingSessionReuseTest : public RouterRoutingTest {
       dest_http_ports_.emplace_back(port_pool_.get_next_available());
     }
 
-    const std::string json_stmts = get_data_dir().join("my_port.js").str();
     for (size_t i = 0; i < num; i++) {
-      launch_mysql_server_mock(json_stmts, dest_classic_ports_[i], EXIT_SUCCESS,
-                               false, dest_http_ports_[i], dest_x_ports_[i], "",
-                               "127.0.0.1", 30s,
-                               /*enable_ssl*/ true);
+      mock_server_spawner().spawn(mock_server_cmdline("my_port.js")
+                                      .port(dest_classic_ports_[i])
+                                      .http_port(dest_http_ports_[i])
+                                      .x_port(dest_x_ports_[i])
+                                      .enable_ssl(true)
+                                      .args());
     }
   }
 

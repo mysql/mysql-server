@@ -75,8 +75,8 @@ TEST_F(RoutingConnectionErrorTest, connect_successful) {
   auto rest_port = port_pool_.get_next_available();
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -277,8 +277,8 @@ TEST_F(RoutingConnectionErrorTest, connect_from_connection_pool) {
   auto rest_port = port_pool_.get_next_available();
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::string route_name = "under_test";
 
@@ -383,8 +383,8 @@ TEST_F(RoutingConnectionErrorTest, connect_from_connection_pool) {
 TEST_F(RoutingConnectionErrorTest, connect_close_is_not_an_error) {
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -433,8 +433,8 @@ TEST_F(RoutingConnectionErrorTest, connect_close_is_not_an_error) {
 TEST_F(RoutingConnectionErrorTest, connect_recv_close_is_not_an_error) {
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -492,8 +492,8 @@ TEST_F(RoutingConnectionErrorTest, connect_recv_close_is_not_an_error) {
 TEST_F(RoutingConnectionErrorTest, broken_client_greeting_is_an_error) {
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -549,8 +549,8 @@ TEST_F(RoutingConnectionErrorTest, broken_client_greeting_is_an_error) {
 TEST_F(RoutingConnectionErrorTest, broken_client_greeting_seq_id_is_an_error) {
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -641,8 +641,8 @@ TEST_F(RoutingConnectionErrorTest, broken_client_greeting_seq_id_is_an_error) {
 TEST_F(RoutingConnectionErrorTest, auth_fail_is_not_an_connection_error) {
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -697,8 +697,8 @@ TEST_F(RoutingConnectionErrorTest, auth_fail_is_not_an_connection_error) {
 TEST_F(RoutingConnectionErrorTest, ssl_fail_is_not_an_connection_error) {
   auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"REQUIRED", "PREFERRED", port_pool_.get_next_available()},
@@ -749,8 +749,8 @@ TEST_F(RoutingConnectionErrorTest, ssl_fail_is_not_an_connection_error) {
 TEST_F(RoutingConnectionErrorTest, max_connect_errors) {
   const auto server_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},
@@ -844,8 +844,8 @@ TEST_F(RoutingConnectionErrorTest, error_counters) {
   const uint16_t server_port = port_pool_.get_next_available();
 
   // launch the server mock
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(),
-                           server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   std::array routes{
       // Route{"PASSTHROUGH", "AS_CLIENT", port_pool_.get_next_available()},

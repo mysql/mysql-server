@@ -68,9 +68,10 @@ class RestMockServerScriptTest : public RestMockServerTest {
   RestMockServerScriptTest(const std::string &stmt_file)
       : server_port_{port_pool_.get_next_available()},
         http_port_{port_pool_.get_next_available()},
-        json_stmts_{get_data_dir().join(stmt_file).str()},
-        server_mock_{launch_mysql_server_mock(
-            json_stmts_, server_port_, EXIT_SUCCESS, false, http_port_)} {
+        server_mock_{mock_server_spawner().spawn(mock_server_cmdline(stmt_file)
+                                                     .port(server_port_)
+                                                     .http_port(http_port_)
+                                                     .args())} {
     SCOPED_TRACE("// start mock-server with http-port");
 
     const std::string http_hostname{"127.0.0.1"};
@@ -80,7 +81,6 @@ class RestMockServerScriptTest : public RestMockServerTest {
 
   const uint16_t server_port_;
   const uint16_t http_port_;
-  const std::string json_stmts_;
 
   ProcessWrapper &server_mock_;
 };
@@ -1099,10 +1099,11 @@ TEST_P(RestMockServerConnectThrowsTest, js_test_stmts_is_string) {
 
   const auto server_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
-  const std::string json_stmts =
-      get_data_dir().join(std::get<0>(GetParam())).str();
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
-                                               EXIT_SUCCESS, false, http_port);
+  auto &server_mock =
+      mock_server_spawner().spawn(mock_server_cmdline(std::get<0>(GetParam()))
+                                      .port(server_port)
+                                      .http_port(http_port)
+                                      .args());
 
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
@@ -1149,10 +1150,12 @@ TEST_P(RestMockServerScriptsThrowsTest, scripts_throws) {
 
   const unsigned server_port = port_pool_.get_next_available();
   const unsigned http_port = port_pool_.get_next_available();
-  const std::string json_stmts =
-      get_data_dir().join(std::get<0>(GetParam())).str();
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
-                                               EXIT_SUCCESS, false, http_port);
+
+  auto &server_mock =
+      mock_server_spawner().spawn(mock_server_cmdline(std::get<0>(GetParam()))
+                                      .port(server_port)
+                                      .http_port(http_port)
+                                      .args());
 
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
@@ -1198,9 +1201,11 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
 
   const auto server_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
-  const std::string json_stmts = get_data_dir().join(GetParam()).str();
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
-                                               EXIT_SUCCESS, false, http_port);
+  auto &server_mock =
+      mock_server_spawner().spawn(mock_server_cmdline(GetParam())
+                                      .port(server_port)
+                                      .http_port(http_port)
+                                      .args());
 
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;

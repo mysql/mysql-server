@@ -314,9 +314,11 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
 
   auto &launch_server(uint16_t cluster_port, const std::string &json_file,
                       uint16_t http_port, size_t number_of_servers = 5) {
-    auto &cluster_node = ProcessManager::launch_mysql_server_mock(
-        get_data_dir().join(json_file).str(), cluster_port, EXIT_SUCCESS, false,
-        http_port);
+    auto &cluster_node =
+        mock_server_spawner().spawn(mock_server_cmdline(json_file)
+                                        .port(cluster_port)
+                                        .http_port(http_port)
+                                        .args());
 
     std::vector<uint16_t> nodes_ports;
     nodes_ports.resize(number_of_servers);

@@ -71,10 +71,10 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
     cluster_http_port = port_pool_.get_next_available();
 
     SCOPED_TRACE("// Launch a server mock that will act as our cluster member");
-    const auto trace_file = get_data_dir().join("rest_api_enable.js").str();
-
-    ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
+    mock_server_spawner().spawn(mock_server_cmdline("rest_api_enable.js")
+                                    .port(cluster_node_port)
+                                    .http_port(cluster_http_port)
+                                    .args());
 
     set_globals();
     set_router_accepting_ports();
@@ -981,16 +981,16 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
 
       std::string trace_file;
       if (i == 0 || !failover_successful) {
-        trace_file = get_data_dir()
-                         .join("bootstrap_failover_super_read_only_1_gr.js")
-                         .str();
+        trace_file = "bootstrap_failover_super_read_only_1_gr.js";
       } else {
-        trace_file = get_data_dir().join("rest_api_enable.js").str();
+        trace_file = "rest_api_enable.js";
       }
 
       mock_servers.emplace_back(
-          port, ProcessManager::launch_mysql_server_mock(
-                    trace_file, port, EXIT_SUCCESS, false, cluster_http_port));
+          port, mock_server_spawner().spawn(mock_server_cmdline(trace_file)
+                                                .port(port)
+                                                .http_port(cluster_http_port)
+                                                .args()));
 
       auto &mock_server = mock_servers.back().second;
       ASSERT_NO_FATAL_FAILURE(check_port_ready(mock_server, port));

@@ -358,9 +358,11 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
 
-  /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
-      get_data_dir().join("metadata_1_node_repeat_v2_gr.js").str(),
-      metadata_server_port_, EXIT_SUCCESS, false, metadata_server_http_port_);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_1_node_repeat_v2_gr.js")
+          .port(metadata_server_port_)
+          .http_port(metadata_server_http_port_)
+          .args());
 
   const std::string userfile = create_password_file();
 

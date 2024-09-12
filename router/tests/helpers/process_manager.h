@@ -191,6 +191,179 @@ class ProcessManager {
         .with_core_dump(true);
   }
 
+  class MockServerCmdline {
+   public:
+    MockServerCmdline &filename(std::string filename) {
+      return absolute_filename(get_data_dir().join(std::move(filename)).str());
+    }
+
+    MockServerCmdline &absolute_filename(const std::string &filename) {
+      filename_ = filename;
+
+      return *this;
+    }
+
+    /**
+     * set the port for the classic protocol.
+     *
+     * @param port  number of the port where the mock server will accept
+     * the client connections.
+     */
+    MockServerCmdline &port(uint16_t port) {
+      port_ = port;
+
+      return *this;
+    }
+
+    /**
+     * set the port for the x-protocol.
+     *
+     * @param port  port number where the mock server will accept x client
+     *              connections
+     */
+    MockServerCmdline &x_port(uint16_t port) {
+      x_port_ = port;
+
+      return *this;
+    }
+
+    /**
+     * set the port for the HTTP protocol.
+     *
+     * @param port  port number where the http_server module of the mock
+     * server will accept REST client requests
+     */
+    MockServerCmdline &http_port(uint16_t port) {
+      http_port_ = port;
+
+      return *this;
+    }
+
+    /**
+     * set the bind-address of the mysql_server_mock.
+     *
+     * @param addr listen address for the mock server to bind to
+     */
+    MockServerCmdline &bind_address(const std::string &addr) {
+      bind_address_ = addr;
+
+      return *this;
+    }
+
+    /**
+     * set the prefix for the modules.
+     *
+     * @param prefix base-path for javascript modules used by the tests
+     */
+    MockServerCmdline &module_prefix(const std::string &prefix) {
+      module_prefix_ = prefix;
+
+      return *this;
+    }
+
+    /**
+     * set the logging folder.
+     *
+     * @param folder base-path for logging files.
+     */
+    MockServerCmdline &logging_folder(const std::string &folder) {
+      logging_folder_ = folder;
+
+      return *this;
+    }
+
+    /**
+     * enable the SSL config parts of the arguments.
+     *
+     * @param enable enable SSL connections to the mock server.
+     */
+    MockServerCmdline &enable_ssl(bool enable) {
+      enable_ssl_ = enable;
+
+      return *this;
+    }
+
+    /**
+     * build the arguments according to the configuration.
+     *
+     * @returns arguments as defined by the earlier config.
+     */
+    std::vector<std::string> args() {
+      std::vector<std::string> server_params{
+          "--filename",       filename_,              //
+          "--port",           std::to_string(port_),  //
+          "--bind-address",   bind_address_,
+          "--logging-folder", logging_folder_,
+      };
+
+      server_params.emplace_back("--module-prefix");
+      if (module_prefix_.empty()) {
+        server_params.emplace_back(get_data_dir().str());
+      } else {
+        server_params.emplace_back(module_prefix_);
+      }
+
+      if (http_port_ > 0) {
+        server_params.emplace_back("--http-port");
+        server_params.emplace_back(std::to_string(http_port_));
+      }
+
+      if (x_port_ > 0) {
+        server_params.emplace_back("--xport");
+        server_params.emplace_back(std::to_string(x_port_));
+      }
+
+      if (enable_ssl_) {
+        server_params.emplace_back("--ssl-mode");
+        server_params.emplace_back("PREFERRED");
+        server_params.emplace_back("--ssl-key");
+        server_params.emplace_back(SSL_TEST_DATA_DIR "server-key.pem");
+        server_params.emplace_back("--ssl-cert");
+        server_params.emplace_back(SSL_TEST_DATA_DIR "server-cert.pem");
+      }
+
+      return server_params;
+    }
+
+   private:
+    MockServerCmdline() = default;
+
+    // use mock_server_cmdline()
+    MockServerCmdline(std::string filename)
+        : filename_(get_data_dir().join(std::move(filename)).str()) {}
+
+    friend ProcessManager;
+
+    std::string filename_;
+    std::string module_prefix_;
+    std::string bind_address_{"127.0.0.1"};
+    std::string logging_folder_;
+
+    uint16_t port_{};
+    uint16_t x_port_{};
+    uint16_t http_port_{};
+
+    bool enable_ssl_{false};
+
+    std::vector<std::string> args_;
+  };
+
+  Spawner mock_server_spawner() {
+    return spawner(mysqlserver_mock_exec_.str(), "mockserver.log")
+        .with_core_dump(true);
+  }
+
+  /**
+   * build cmdline argument builder for the mysql_server_mock.
+   *
+   * @param filename  path to the json file containing expected queries
+   * definitions
+   */
+  MockServerCmdline mock_server_cmdline(std::string filename) {
+    return MockServerCmdline(std::move(filename))
+        .logging_folder(get_test_temp_dir_name());
+  }
+
   /** @brief Gets path to the directory used as log output directory
    */
   Path get_logging_dir() const { return logging_dir_.name(); }
@@ -315,46 +488,6 @@ class ProcessManager {
       std::chrono::milliseconds wait_for_notify_ready =
           std::chrono::seconds(30),
       OutputResponder output_responder = kEmptyResponder);
-
-  /** @brief Launches the MySQLServerMock process.
-   *
-   * @param json_file  path to the json file containing expected queries
-   * definitions
-   * @param   port       number of the port where the mock server will accept
-   * the client connections
-   * @param expected_exit_code expected exit-code for ensure_clean_exit()
-   * @param debug_mode if true all the queries and result get printed on the
-   *                     standard output
-   * @param http_port  port number where the http_server module of the mock
-   * server will accept REST client requests
-   * @param x_port  port number where the mock server will accept x client
-   *                  connections
-   * @param module_prefix base-path for javascript modules used by the tests
-   * @param bind_address listen address for the mock server to bind to
-   * @param wait_for_notify_ready if >=0 time in milliseconds - how long the
-   * launching command should wait for the process to notify it is ready.
-   * Otherwise the caller does not want to wait for the notification.
-   * @param enable_ssl enable SSL connections to the mock server.
-   *
-   * @returns handle to the launched process
-   */
-  ProcessWrapper &launch_mysql_server_mock(
-      const std::string &json_file, unsigned port, int expected_exit_code = 0,
-      bool debug_mode = false, uint16_t http_port = 0, uint16_t x_port = 0,
-      const std::string &module_prefix = "",
-      const std::string &bind_address = "127.0.0.1",
-      std::chrono::milliseconds wait_for_notify_ready =
-          std::chrono::seconds(30),
-      bool enable_ssl = false);
-
-  /**
-   * launch mysql_server_mock from cmdline args.
-   */
-  ProcessWrapper &launch_mysql_server_mock(
-      const std::vector<std::string> &server_params, unsigned port,
-      int expected_exit_code = 0,
-      std::chrono::milliseconds wait_for_notify_ready =
-          std::chrono::seconds(30));
 
   /**
    * build cmdline args for mysql_server_mock.

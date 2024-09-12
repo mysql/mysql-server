@@ -276,11 +276,12 @@ TEST_F(NotifyTest, NotifyReadyMetadataCache) {
       "node)");
   auto md_server_port = port_pool_.get_next_available();
   auto md_server_http_port = port_pool_.get_next_available();
-  const std::string json_metadata =
-      get_data_dir().join("metadata_1_node_repeat_v2_gr.js").str();
 
-  /*auto &metadata_server = */ launch_mysql_server_mock(
-      json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
+  /*auto &metadata_server = */ mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_1_node_repeat_v2_gr.js")
+          .port(md_server_port)
+          .http_port(md_server_http_port)
+          .args());
 
   SCOPED_TRACE(
       "// Launch the Router with the routing and metadata_cache configuration");
@@ -356,11 +357,12 @@ TEST_F(NotifyTest, NotifyReadyManyPlugins) {
       "node)");
   auto md_server_port = port_pool_.get_next_available();
   auto md_server_http_port = port_pool_.get_next_available();
-  const std::string json_metadata =
-      get_data_dir().join("metadata_1_node_repeat_v2_gr.js").str();
 
-  /*auto &metadata_server = */ launch_mysql_server_mock(
-      json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
+  /*auto &metadata_server = */ mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_1_node_repeat_v2_gr.js")
+          .port(md_server_port)
+          .http_port(md_server_http_port)
+          .args());
 
   SCOPED_TRACE("// Launch the Router with multiple plugins");
 
@@ -904,11 +906,15 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   TempDirectory temp_test_dir;
 
   SCOPED_TRACE("// Launch our metadata server we bootstrap against");
-  const auto trace_file = get_data_dir().join("bootstrap_gr.js").str();
   const auto metadata_server_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
-  /*auto &md_server =*/ProcessManager::launch_mysql_server_mock(
-      trace_file, metadata_server_port, EXIT_SUCCESS, true, http_port);
+
+  /*auto &metadata_server = */ mock_server_spawner().spawn(
+      mock_server_cmdline("bootstrap_gr.js")
+          .port(metadata_server_port)
+          .http_port(http_port)
+          .args());
+
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
                     classic_ports_to_gr_nodes({metadata_server_port}), 0,
                     {metadata_server_port});

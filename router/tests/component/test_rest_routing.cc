@@ -191,10 +191,10 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   SCOPED_TRACE("// launch the server mock");
-  launch_mysql_server_mock(json_stmts, mock_port_, EXIT_SUCCESS, false);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("bootstrap_gr.js").port(mock_port_).args());
 
   // wait for route being available if we expect it to be and plan to do some
   // connections to it (which are routes: "ro" and "Aaz")
@@ -1099,15 +1099,16 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   std::vector<ProcessWrapper *> nodes;
   std::vector<uint16_t> node_classic_ports;
   uint16_t first_node_http_port{0};
-  const std::string json_metadata =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
   for (size_t i = 0; i < 3; ++i) {
     node_classic_ports.push_back(port_pool_.get_next_available());
     if (i == 0) first_node_http_port = port_pool_.get_next_available();
 
-    nodes.push_back(&launch_mysql_server_mock(
-        json_metadata, node_classic_ports[i], EXIT_SUCCESS, false,
-        i == 0 ? first_node_http_port : 0));
+    nodes.push_back(&mock_server_spawner().spawn(
+        mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+            .port(node_classic_ports[i])
+            .http_port(i == 0 ? first_node_http_port : 0)
+            .args()));
   }
 
   ASSERT_TRUE(MockServerRestClient(first_node_http_port)

@@ -215,19 +215,15 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     out_port = std::string((*result)[0]);
   }
 
-  ProcessWrapper &launch_cluster_node(unsigned cluster_port,
-                                      const std::string &data_dir) {
-    const std::string js_file = Path(data_dir).join("my_port.js").str();
-    auto &cluster_node = ProcessManager::launch_mysql_server_mock(
-        js_file, cluster_port, EXIT_SUCCESS, false);
-
-    return cluster_node;
+  ProcessWrapper &launch_cluster_node(unsigned cluster_port) {
+    return mock_server_spawner().spawn(
+        mock_server_cmdline("my_port.js").port(cluster_port).args());
   }
 
-  ProcessWrapper &launch_standalone_server(unsigned server_port,
-                                           const std::string &data_dir) {
+  ProcessWrapper &launch_standalone_server(unsigned server_port) {
     // it' does the same thing, just an alias  for less confusion
-    return launch_cluster_node(server_port, data_dir);
+    return mock_server_spawner().spawn(
+        mock_server_cmdline("my_port.js").port(server_port).args());
   }
 
   ProcessWrapper &launch_router_static(const std::string &conf_dir,
@@ -333,10 +329,14 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file = get_data_dir().join(tracefile).str();
   const auto http_port = cluster_nodes_http_ports[0];
-  auto &primary_node = launch_mysql_server_mock(
-      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+
+  auto &primary_node =
+      mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                      .port(cluster_nodes_ports[0])
+                                      .http_port(http_port)
+                                      .args());
+
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -347,8 +347,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node =
-        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
+    auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -495,8 +494,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node =
-        launch_standalone_server(server_port, get_data_dir().str());
+    auto &secondary_node = launch_standalone_server(server_port);
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
@@ -583,8 +581,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
   EXPECT_TRUE(wait_for_port_unused(router_port, 200s));
 
   SCOPED_TRACE("// bring back 1st server");
-  server_instances.emplace_back(
-      &launch_standalone_server(server_ports[0], get_data_dir().str()));
+  server_instances.emplace_back(&launch_standalone_server(server_ports[0]));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
   EXPECT_TRUE(wait_for_port_ready(router_port, 10s));
@@ -627,8 +624,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node =
-        launch_standalone_server(server_port, get_data_dir().str());
+    auto &secondary_node = launch_standalone_server(server_port);
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
 
     server_instances.emplace_back(&secondary_node);
@@ -713,8 +709,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
 
   SCOPED_TRACE("// bring back 1st server on port " +
                std::to_string(server_ports[0]));
-  server_instances.emplace_back(
-      &launch_standalone_server(server_ports[0], get_data_dir().str()));
+  server_instances.emplace_back(&launch_standalone_server(server_ports[0]));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
   EXPECT_TRUE(wait_for_port_used(router_port, 200s));
@@ -759,8 +754,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node =
-        launch_standalone_server(server_port, get_data_dir().str());
+    auto &secondary_node = launch_standalone_server(server_port);
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
@@ -825,8 +819,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   EXPECT_TRUE(wait_for_port_unused(router_port, 200s));
 
   SCOPED_TRACE("// bring back 1st server");
-  server_instances.emplace_back(
-      &launch_standalone_server(server_ports[0], get_data_dir().str()));
+  server_instances.emplace_back(&launch_standalone_server(server_ports[0]));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
   SCOPED_TRACE(
@@ -934,8 +927,7 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
   // launch the standalone servers
   std::vector<ProcessWrapper *> server_instances;
   for (auto &server_port : server_ports) {
-    auto &secondary_node =
-        launch_standalone_server(server_port, get_data_dir().str());
+    auto &secondary_node = launch_standalone_server(server_port);
     ASSERT_NO_FATAL_FAILURE(check_port_ready(secondary_node, server_port));
     server_instances.emplace_back(&secondary_node);
   }
@@ -1013,8 +1005,7 @@ TEST_F(RouterRoutingStrategyStatic, SharedQuarantine) {
                                     std::to_string(server_ports[1]) + "'",
                                 500ms));
   SCOPED_TRACE("// bring back 2nd server to life");
-  server_instances[0] =
-      &launch_cluster_node(server_ports[1], get_data_dir().str());
+  server_instances[0] = &launch_cluster_node(server_ports[1]);
   EXPECT_TRUE(wait_log_contains(router,
                                 "Destination candidate '.*" +
                                     std::to_string(server_ports[1]) +
@@ -1045,10 +1036,12 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file =
-      get_data_dir().join("metadata_3_secondaries_pass_v2_gr.js").str();
-  auto &primary_node = launch_mysql_server_mock(
-      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+  auto &primary_node = mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_3_secondaries_pass_v2_gr.js")
+          .port(cluster_nodes_ports[0])
+          .http_port(http_port)
+          .args());
+
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -1059,8 +1052,7 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node =
-        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
+    auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -1122,8 +1114,7 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
                                 500ms));
 
   SCOPED_TRACE("// restore first RO node unavailable");
-  cluster_nodes[1] =
-      &launch_cluster_node(cluster_nodes_ports[1], get_data_dir().str());
+  cluster_nodes[1] = &launch_cluster_node(cluster_nodes_ports[1]);
   EXPECT_TRUE(wait_log_contains(router,
                                 "Destination candidate '.*" +
                                     std::to_string(cluster_nodes_ports[1]) +
@@ -1173,10 +1164,12 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file =
-      get_data_dir().join("metadata_3_secondaries_pass_v2_gr.js").str();
-  auto &primary_node = launch_mysql_server_mock(
-      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+  auto &primary_node = mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_3_secondaries_pass_v2_gr.js")
+          .port(cluster_nodes_ports[0])
+          .http_port(http_port)
+          .args());
+
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -1187,8 +1180,7 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node =
-        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
+    auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -1273,8 +1265,7 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
   }
 
   SCOPED_TRACE("// restore first RO node");
-  cluster_nodes[1] =
-      &launch_cluster_node(cluster_nodes_ports[1], get_data_dir().str());
+  cluster_nodes[1] = &launch_cluster_node(cluster_nodes_ports[1]);
 
   const auto start_point = std::chrono::steady_clock::now();
   EXPECT_TRUE(wait_log_contains(router,
@@ -1319,10 +1310,12 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
-  auto &primary_node = launch_mysql_server_mock(
-      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+  auto &primary_node = mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+          .port(cluster_nodes_ports[0])
+          .http_port(http_port)
+          .args());
+
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -1333,8 +1326,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node =
-        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
+    auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -1410,8 +1402,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
       5s));
 
   SCOPED_TRACE("// restore first RO node");
-  cluster_nodes[1] =
-      &launch_cluster_node(cluster_nodes_ports[1], get_data_dir().str());
+  cluster_nodes[1] = &launch_cluster_node(cluster_nodes_ports[1]);
   set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
@@ -1446,10 +1437,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
-  auto &primary_node = launch_mysql_server_mock(
-      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+  auto &primary_node = mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+          .port(cluster_nodes_ports[0])
+          .http_port(http_port)
+          .args());
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -1460,8 +1452,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node =
-        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
+    auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -1555,10 +1546,12 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file =
-      get_data_dir().join("metadata_3_secondaries_pass_v2_gr.js").str();
-  auto &primary_node = launch_mysql_server_mock(
-      json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+  auto &primary_node = mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_3_secondaries_pass_v2_gr.js")
+          .port(cluster_nodes_ports[0])
+          .http_port(http_port)
+          .args());
+
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -1569,8 +1562,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
-    auto &secondary_node =
-        launch_cluster_node(cluster_nodes_ports[port], get_data_dir().str());
+    auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(secondary_node, cluster_nodes_ports[port]));
@@ -1627,8 +1619,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
                                 500ms));
 
   SCOPED_TRACE("// restore first RO node unavailable");
-  cluster_nodes[1] =
-      &launch_cluster_node(cluster_nodes_ports[1], get_data_dir().str());
+  cluster_nodes[1] = &launch_cluster_node(cluster_nodes_ports[1]);
 
   // Since error_quarantine_interval is very high this will
   // be triggered by the ttl.

@@ -91,9 +91,12 @@ TEST_P(BootstrapDebugLevelOkTest, BootstrapDebugLevelOk) {
 
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t http_port = port_pool_.get_next_available();
-  const std::string json_stmts = get_data_dir().join(tracefile).str();
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
-                           http_port);
+
+  mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                  .port(server_port)
+                                  .http_port(http_port)
+                                  .args());
+
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
                     classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
@@ -138,8 +141,8 @@ TEST_P(BootstrapOverwriteErrorTest, BootstrapOverwriteError) {
   TempDirectory bootstrap_dir;
 
   const uint16_t server_port = port_pool_.get_next_available();
-  const std::string json_stmts = get_data_dir().join(tracefile).str();
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  mock_server_spawner().spawn(
+      mock_server_cmdline(tracefile).port(server_port).args());
 
   // launch the router in bootstrap mode
   std::vector<std::string> cmdline = {
@@ -275,8 +278,8 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteRoutingPort) {
   const std::string overwrite_param =
       "--routing:A.bind_port=" + std::to_string(router_port_overwrite);
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(), server_port,
-                           EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
 
@@ -303,8 +306,8 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteOptionMissingInTheConfig) {
 
   const std::string overwrite_param = "--routing:A.max_connect_errors=1";
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(), server_port,
-                           EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
 
@@ -335,8 +338,8 @@ TEST_P(OverwriteIgnoreUnknownOptionTest, OverwriteIgnoreUnknownOption) {
 
   const std::string overwrite_param = GetParam();
 
-  launch_mysql_server_mock(get_data_dir().join("my_port.js").str(), server_port,
-                           EXIT_SUCCESS);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(server_port).args());
 
   launch_router({"-c", conf_file, overwrite_param,
                  "--DEFAULT.unknown_config_option", "warning"},
@@ -483,11 +486,12 @@ TEST_P(MetadataConfigTest, MetadataConfig) {
   auto md_server_port = port_pool_.get_next_available();
   auto md_server_http_port = port_pool_.get_next_available();
   auto router_port = port_pool_.get_next_available();
-  const std::string json_metadata =
-      get_data_dir().join("metadata_1_node_repeat_v2_gr.js").str();
 
-  /*auto &metadata_server = */ launch_mysql_server_mock(
-      json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
+  /*auto &metadata_server = */ mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_1_node_repeat_v2_gr.js")
+          .port(md_server_port)
+          .http_port(md_server_http_port)
+          .args());
 
   const std::string metadata_cache_section =
       mysql_harness::ConfigBuilder::build_section(

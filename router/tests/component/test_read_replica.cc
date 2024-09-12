@@ -265,17 +265,18 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   }
 
   void launch_static_destinations(const size_t qty) {
-    const auto trace_file = get_data_dir().join("my_port.js").str();
-
     for (size_t i{0}; i < qty; ++i) {
       const auto classic_port = port_pool_.get_next_available();
       const auto http_port = port_pool_.get_next_available();
       router_static_dest_ports.push_back(classic_port);
       router_static_dest_http_ports.push_back(http_port);
 
-      auto &mock_serv = launch_mysql_server_mock(
-          trace_file, router_static_dest_ports.back(), EXIT_SUCCESS, false,
-          router_static_dest_http_ports.back());
+      auto &mock_serv = mock_server_spawner().spawn(
+          mock_server_cmdline("my_port.js")
+              .port(router_static_dest_ports.back())
+              .http_port(router_static_dest_http_ports.back())
+              .args());
+
       ASSERT_NO_FATAL_FAILURE(check_port_ready(mock_serv, http_port));
       EXPECT_TRUE(
           MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
@@ -284,9 +285,8 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
 
   void create_gr_cluster(size_t gr_nodes_number, size_t rr_number,
                          const std::string &read_only_targets) {
-    const auto gr_trace_file =
-        get_data_dir().join("metadata_rr_gr_nodes.js").str();
-    const auto no_gr_trace_file = get_data_dir().join("my_port.js").str();
+    const std::string gr_trace_file = "metadata_rr_gr_nodes.js";
+    const std::string no_gr_trace_file = "my_port.js";
 
     gr_nodes_count_ = gr_nodes_number;
     read_replica_nodes_count_ = rr_number;
@@ -307,9 +307,13 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       const std::string trace_file =
           cluster_node.instance_type == "group-member" ? gr_trace_file
                                                        : no_gr_trace_file;
-      cluster_node.process = &launch_mysql_server_mock(
-          trace_file, cluster_node.classic_port, EXIT_SUCCESS, false,
-          cluster_node.http_port);
+
+      cluster_node.process =
+          &mock_server_spawner().spawn(mock_server_cmdline(trace_file)
+                                           .port(cluster_node.classic_port)
+                                           .http_port(cluster_node.http_port)
+                                           .args());
+
       ASSERT_NO_FATAL_FAILURE(
           check_port_ready(*cluster_node.process, cluster_node.http_port));
       EXPECT_TRUE(MockServerRestClient(cluster_node.http_port)
@@ -321,8 +325,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   }
 
   void create_ar_cluster(size_t ar_nodes_number, size_t rr_number) {
-    const auto ar_trace_file =
-        get_data_dir().join("metadata_dynamic_nodes_v2_ar.js").str();
+    const std::string ar_trace_file = "metadata_dynamic_nodes_v2_ar.js";
 
     gr_nodes_count_ = ar_nodes_number;
     read_replica_nodes_count_ = rr_number;
@@ -339,9 +342,11 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     }
 
     for (auto &cluster_node : cluster_nodes_) {
-      cluster_node.process = &launch_mysql_server_mock(
-          ar_trace_file, cluster_node.classic_port, EXIT_SUCCESS, false,
-          cluster_node.http_port);
+      cluster_node.process =
+          &mock_server_spawner().spawn(mock_server_cmdline(ar_trace_file)
+                                           .port(cluster_node.classic_port)
+                                           .http_port(cluster_node.http_port)
+                                           .args());
       ASSERT_NO_FATAL_FAILURE(
           check_port_ready(*cluster_node.process, cluster_node.http_port));
       EXPECT_TRUE(MockServerRestClient(cluster_node.http_port)
@@ -383,7 +388,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   void add_read_replica_node(std::optional<size_t> classic_port = std::nullopt,
                              bool update_metadata = true,
                              std::optional<size_t> position = std::nullopt) {
-    const auto no_gr_trace_file = get_data_dir().join("my_port.js").str();
+    const std::string no_gr_trace_file = "my_port.js";
 
     NodeData node;
     node.instance_type = "read-replica";
@@ -392,8 +397,11 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     node.uuid = "uuid-" + std::to_string(node.classic_port);
     node.http_port = port_pool_.get_next_available();
     node.process =
-        &launch_mysql_server_mock(no_gr_trace_file, node.classic_port,
-                                  EXIT_SUCCESS, false, node.http_port);
+        &mock_server_spawner().spawn(mock_server_cmdline(no_gr_trace_file)
+                                         .port(node.classic_port)
+                                         .http_port(node.http_port)
+                                         .args());
+
     ASSERT_NO_FATAL_FAILURE(check_port_ready(*node.process, node.http_port));
     EXPECT_TRUE(
         MockServerRestClient(node.http_port).wait_for_rest_endpoint_ready());

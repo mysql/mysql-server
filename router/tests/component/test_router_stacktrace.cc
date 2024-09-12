@@ -95,8 +95,8 @@ TEST_F(RouterStacktraceTest, bootstrap_with_core_file) {
 
   // using a non-bootstrap script makes sure the bootstrap fails early, and
   // still checks that --core-file is accepted.
-  launch_mysql_server_mock(get_data_dir().str() + "/my_port.js", mock_port,
-                           EXIT_SUCCESS, false, 0, 0, get_data_dir().str());
+  mock_server_spawner().spawn(
+      mock_server_cmdline("my_port.js").port(mock_port).args());
 
   TempDirectory tmp_dir;
   // --core-file is added automatically by router_spawner()
@@ -129,9 +129,11 @@ TEST_F(RouterStacktraceTest, crash_me_bootstrap) {
   auto mock_port = port_pool_.get_next_available();
   auto mock_http_port = port_pool_.get_next_available();
 
-  launch_mysql_server_mock(
-      get_data_dir().str() + "/bootstrap_exec_time_2_seconds.js", mock_port,
-      EXIT_SUCCESS, true, mock_http_port, 0, get_data_dir().str());
+  mock_server_spawner().spawn(
+      mock_server_cmdline("bootstrap_exec_time_2_seconds.js")
+          .port(mock_port)
+          .http_port(mock_http_port)
+          .args());
 
   TempDirectory tmp_dir;
   // --core-file is added automatically by router_spawner()

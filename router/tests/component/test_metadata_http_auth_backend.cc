@@ -262,11 +262,12 @@ class MetadataHttpAuthTest : public RouterComponentTest {
     http_server_port = port_pool_.get_next_available();
 
     SCOPED_TRACE("// Launch a server mock that will act as our cluster member");
-    const auto trace_file =
-        get_data_dir().join("metadata_http_auth_backend.js").str();
 
-    cluster_node = &ProcessManager::launch_mysql_server_mock(
-        trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
+    cluster_node = &mock_server_spawner().spawn(
+        mock_server_cmdline("metadata_http_auth_backend.js")
+            .port(cluster_node_port)
+            .http_port(cluster_http_port)
+            .args());
 
     router_port = port_pool_.get_next_available();
 

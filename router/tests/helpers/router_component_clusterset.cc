@@ -31,9 +31,6 @@
 
 void RouterComponentClusterSetTest::create_clusterset(
     ClusterSetOptions &cs_options) {
-  const std::string tracefile_path =
-      get_data_dir().str() + "/" + cs_options.tracefile;
-
   auto &cs_topology = cs_options.topology;
 
   cs_topology.primary_cluster_id = cs_options.primary_cluster_id;
@@ -96,9 +93,12 @@ void RouterComponentClusterSetTest::create_clusterset(
     auto &cluster = cs_topology.clusters[cluster_id];
     for (unsigned node_id = 0; node_id < cluster.nodes.size(); ++node_id) {
       auto &node = cluster.nodes[node_id];
-      node.process = &launch_mysql_server_mock(
-          tracefile_path, node.classic_port, EXIT_SUCCESS, false,
-          node.http_port, node.x_port);
+      node.process =
+          &mock_server_spawner().spawn(mock_server_cmdline(cs_options.tracefile)
+                                           .port(node.classic_port)
+                                           .http_port(node.http_port)
+                                           .x_port(node.x_port)
+                                           .args());
 
       set_mock_clusterset_metadata(node.http_port, cluster_id, node_id,
                                    cs_options);

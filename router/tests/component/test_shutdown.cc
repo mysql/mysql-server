@@ -197,9 +197,6 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   };
   const uint16_t router_port = port_pool_.get_next_available();
 
-  const std::string json_primary_node =
-      get_data_dir().join("test_shutdown.js").str();
-
   // launch cluster
   // NOTE: We reuse the primary's JSON file for all the secondaries just for
   //       convenience. Only the primary is expected to receive queries,
@@ -208,8 +205,11 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   for (size_t i = 0; i < cluster_node_ports.size(); i++) {
     const auto http_port = cluster_node_http_ports[i];
     auto &node =
-        launch_mysql_server_mock(json_primary_node, cluster_node_ports[i],
-                                 EXIT_SUCCESS, false /*debug_mode*/, http_port);
+        mock_server_spawner().spawn(mock_server_cmdline("test_shutdown.js")
+                                        .port(cluster_node_ports[i])
+                                        .http_port(http_port)
+                                        .args());
+
     cluster_nodes.emplace_back(&node);
     set_mock_metadata(http_port, "gr-id",
                       classic_ports_to_gr_nodes(cluster_node_ports), i,

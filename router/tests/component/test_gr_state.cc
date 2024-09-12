@@ -127,10 +127,12 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
   for (size_t i = 0; i < kClusterNodes; ++i) {
     const auto classic_port = port_pool_.get_next_available();
     const auto http_port = port_pool_.get_next_available();
-    const std::string tracefile =
-        get_data_dir().join(GetParam().tracefile).str();
-    cluster_nodes.push_back(&launch_mysql_server_mock(
-        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(GetParam().tracefile)
+                                         .port(classic_port)
+                                         .http_port(http_port)
+                                         .args()));
 
     md_servers_classic_ports.push_back(classic_port);
     md_servers_http_ports.push_back(http_port);
@@ -242,10 +244,12 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
   for (size_t i = 0; i < kClusterNodes; ++i) {
     const auto classic_port = port_pool_.get_next_available();
     const auto http_port = port_pool_.get_next_available();
-    const std::string tracefile =
-        get_data_dir().join(GetParam().tracefile).str();
-    cluster_nodes.push_back(&launch_mysql_server_mock(
-        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    cluster_nodes.push_back(
+        &mock_server_spawner().spawn(mock_server_cmdline(GetParam().tracefile)
+                                         .port(classic_port)
+                                         .http_port(http_port)
+                                         .args()));
 
     md_servers_classic_ports.push_back(classic_port);
     md_servers_http_ports.push_back(http_port);
@@ -359,14 +363,15 @@ class MetadataServerGRErrorStates
  * @test Checks that the Router correctly handles non-ONLINE GR nodes
  */
 TEST_P(MetadataServerGRErrorStates, GRErrorStates) {
-  const std::string tracefile =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
-
   // launch the server mock
   const auto md_servers_classic_port = port_pool_.get_next_available();
   const auto md_servers_http_port = port_pool_.get_next_available();
-  launch_mysql_server_mock(tracefile, md_servers_classic_port, EXIT_SUCCESS,
-                           false, md_servers_http_port);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+          .port(md_servers_classic_port)
+          .http_port(md_servers_http_port)
+          .args());
 
   std::vector<GRNode> gr_nodes{
       {md_servers_classic_port, "uuid-1", GetParam(), "PRIMARY"}};
@@ -435,7 +440,6 @@ class QuorumTest : public GRStateTest,
  */
 TEST_P(QuorumTest, Verify) {
   auto param = GetParam();
-  const std::string json_metadata = get_data_dir().join(param.tracefile).str();
   std::vector<uint16_t> cluster_classic_ports;
   // The ports set via INSTANTIATE_TEST_SUITE_P are only ids
   // (INSTANTIATE_TEST_SUITE_P does not have access to classic_ports vector). We
@@ -460,8 +464,11 @@ TEST_P(QuorumTest, Verify) {
   const bool expect_ro_ok = !param.expected_rw_endpoints.empty();
 
   for (const auto [id, port] : stdx::views::enumerate(classic_ports)) {
-    launch_mysql_server_mock(json_metadata, port, EXIT_SUCCESS, false,
-                             http_ports[id]);
+    mock_server_spawner().spawn(mock_server_cmdline(param.tracefile)
+                                    .port(port)
+                                    .http_port(http_ports[id])
+                                    .args());
+
     set_mock_metadata(http_ports[id], "uuid", param.gr_nodes, 0,
                       param.cluster_nodes);
   }
@@ -623,13 +630,13 @@ class QuorumConnectionLostStandaloneClusterTest : public GRStateTest {
 /* @test Checks that invalid existing connections are dropped when one of the
  * destination nodes is no longer part of the Cluster. */
 TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
-  const std::string json_metadata =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
-
   // launch the 3-nodes cluster, first node is PRIMARY
   for (size_t i = 0; i < classic_ports.size(); ++i) {
-    launch_mysql_server_mock(json_metadata, classic_ports[i], EXIT_SUCCESS,
-                             false, http_ports[i]);
+    mock_server_spawner().spawn(
+        mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+            .port(classic_ports[i])
+            .http_port(http_ports[i])
+            .args());
 
     set_mock_metadata(http_ports[i], "uuid",
                       classic_ports_to_gr_nodes(classic_ports), i,
@@ -807,9 +814,6 @@ class AccessToPartitionWithNoQuorum
 
 // unreachable_quorum_allowed_traffic
 TEST_P(AccessToPartitionWithNoQuorum, Spec) {
-  const std::string json_metadata =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
-
   RecordProperty("Worklog", "15841");
   RecordProperty("RequirementId", GetParam().test_requirements);
   RecordProperty("Description", GetParam().test_description);
@@ -829,8 +833,12 @@ TEST_P(AccessToPartitionWithNoQuorum, Spec) {
                                            {classic_ports[1], "uuid-2"},
                                            {classic_ports[2], "uuid-3"}};
 
-  launch_mysql_server_mock(json_metadata, classic_ports[2], EXIT_SUCCESS, false,
-                           http_ports[2]);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+          .port(classic_ports[2])
+          .http_port(http_ports[2])
+          .args());
+
   const std::string router_options = get_router_options_as_json_str(
       std::nullopt, GetParam().unreachable_quorum_allowed_traffic);
 
@@ -965,9 +973,6 @@ class AccessToBothPartitions
  * there is a group with no quorum and group with a quorum and the Router has an
  * access to both. */
 TEST_P(AccessToBothPartitions, Spec) {
-  const std::string json_metadata =
-      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
-
   // The GR is split into 2 Groups, the second has quorum.
   // The Router has access to both.
   // Regardless of  unreachable_quorum_allowed_traffic it should always use
@@ -996,16 +1001,23 @@ TEST_P(AccessToBothPartitions, Spec) {
       std::nullopt, GetParam().unreachable_quorum_allowed_traffic);
 
   // launch first partition - 1 node
-  launch_mysql_server_mock(json_metadata, classic_ports[0], EXIT_SUCCESS, false,
-                           http_ports[0]);
+
+  mock_server_spawner().spawn(
+      mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+          .port(classic_ports[0])
+          .http_port(http_ports[0])
+          .args());
 
   set_mock_metadata(http_ports[0], "uuid", gr_nodes_partition1, 0,
                     cluster_nodes, 2, false, "127.0.0.1", router_options);
 
   // launch second partition - 2 nodes
   for (size_t i = 1; i <= 2; ++i) {
-    launch_mysql_server_mock(json_metadata, classic_ports[i], EXIT_SUCCESS,
-                             false, http_ports[i]);
+    mock_server_spawner().spawn(
+        mock_server_cmdline("metadata_dynamic_nodes_v2_gr.js")
+            .port(classic_ports[i])
+            .http_port(http_ports[i])
+            .args());
 
     set_mock_metadata(http_ports[i], "uuid", gr_nodes_partition2, i,
                       cluster_nodes, 1, false, "127.0.0.1", router_options);
@@ -1096,9 +1108,6 @@ TEST_P(BootstrapWithNoQuorum, Spec) {
       "Checks that the Router fails to bootstrap if it only has an access to "
       "the subgroup of the Cluster members with no quorum");
 
-  const std::string json_metadata =
-      get_data_dir().join("bootstrap_gr.js").str();
-
   // The GR is plit into 2 partitions, the one with no quorum is used for
   // bootstrap. First partition is: [ONLINE, ONLINE, UNREACHABLE]. The second
   // partition is: [UNREACHABLE, UNREACHABLE, ONLINE ]. We only create the
@@ -1112,8 +1121,11 @@ TEST_P(BootstrapWithNoQuorum, Spec) {
                                            {classic_ports[1], "uuid-2"},
                                            {classic_ports[2], "uuid-3"}};
 
-  launch_mysql_server_mock(json_metadata, classic_ports[0], EXIT_SUCCESS, false,
-                           http_ports[0]);
+  mock_server_spawner().spawn(mock_server_cmdline("bootstrap_gr.js")
+                                  .port(classic_ports[0])
+                                  .http_port(http_ports[0])
+                                  .args());
+
   const std::string router_options = get_router_options_as_json_str(
       std::nullopt, GetParam().unreachable_quorum_allowed_traffic);
 

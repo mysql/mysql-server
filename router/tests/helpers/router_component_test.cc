@@ -226,10 +226,15 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     const auto port =
         mock_server_config.unaccessible ? 0x10000 : mock_server_config.port;
     const auto http_port = mock_server_config.http_port;
+
     mock_servers.emplace_back(
-        launch_mysql_server_mock(mock_server_config.js_filename, port,
-                                 EXIT_SUCCESS, false, http_port),
+        mock_server_spawner().spawn(
+            mock_server_cmdline(mock_server_config.js_filename)
+                .port(port)
+                .http_port(http_port)
+                .args()),
         port);
+
     set_mock_metadata(http_port, mock_server_config.cluster_specific_id,
                       gr_nodes, 0, cluster_nodes, 0, false, "127.0.0.1", "",
                       metadata_version, cluster_name);

@@ -89,8 +89,6 @@ class SocketCloseTest : public RouterComponentTest {
                      const bool no_primary = false) {
     assert(nodes_count > 0);
 
-    const std::string json_metadata = get_data_dir().join(tracefile).str();
-
     for (size_t i = 0; i < nodes_count; ++i) {
       // if we are "relaunching" the cluster we want to use the same port as
       // before as router has them in the configuration
@@ -100,8 +98,10 @@ class SocketCloseTest : public RouterComponentTest {
       }
 
       cluster_nodes.push_back(
-          &launch_mysql_server_mock(json_metadata, node_ports[i], EXIT_SUCCESS,
-                                    false, node_http_ports[i]));
+          &mock_server_spawner().spawn(mock_server_cmdline(tracefile)
+                                           .port(node_ports[i])
+                                           .http_port(node_http_ports[i])
+                                           .args()));
     }
 
     for (size_t i = 0; i < nodes_count; ++i) {
@@ -1313,9 +1313,12 @@ TEST_F(SocketCloseTest, StaticRoundRobinTCPPort) {
                std::to_string(node_ports[0]) +
                " to bring the destination back from "
                "quarantine.");
-  const std::string json_metadata = get_data_dir().join("my_port.js").str();
-  cluster_nodes.push_back(&launch_mysql_server_mock(
-      json_metadata, node_ports[0], EXIT_SUCCESS, false, node_http_ports[0]));
+
+  cluster_nodes.push_back(
+      &mock_server_spawner().spawn(mock_server_cmdline("my_port.js")
+                                       .port(node_ports[0])
+                                       .http_port(node_http_ports[0])
+                                       .args()));
 
   set_mock_metadata(
       node_http_ports[0], "uuid", classic_ports_to_gr_nodes(node_ports), 0,
@@ -1399,9 +1402,12 @@ TEST_F(SocketCloseTest, StaticRoundRobinUnixSocket) {
                std::to_string(node_ports[0]) +
                " to bring the destination back from "
                "quarantine.");
-  const std::string json_metadata = get_data_dir().join("my_port.js").str();
-  cluster_nodes.push_back(&launch_mysql_server_mock(
-      json_metadata, node_ports[0], EXIT_SUCCESS, false, node_http_ports[0]));
+
+  cluster_nodes.push_back(
+      &mock_server_spawner().spawn(mock_server_cmdline("my_port.js")
+                                       .port(node_ports[0])
+                                       .http_port(node_http_ports[0])
+                                       .args()));
 
   set_mock_metadata(
       node_http_ports[0], "uuid", classic_ports_to_gr_nodes(node_ports), 0,

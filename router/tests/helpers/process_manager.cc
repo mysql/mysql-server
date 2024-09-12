@@ -436,79 +436,16 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
     uint16_t x_port, const std::string &module_prefix /* = "" */,
     const std::string &bind_address /*= "127.0.0.1"*/,
     bool enable_ssl /* = false */) {
-  std::vector<std::string> server_params{
-      "--filename",       json_file,             //
-      "--port",           std::to_string(port),  //
-      "--bind-address",   bind_address,
-      "--logging-folder", get_test_temp_dir_name(),
-  };
-
-  server_params.emplace_back("--module-prefix");
-  if (module_prefix.empty()) {
-    server_params.emplace_back(get_data_dir().str());
-  } else {
-    server_params.emplace_back(module_prefix);
-  }
-
-  if (http_port > 0) {
-    server_params.emplace_back("--http-port");
-    server_params.emplace_back(std::to_string(http_port));
-  }
-
-  if (x_port > 0) {
-    server_params.emplace_back("--xport");
-    server_params.emplace_back(std::to_string(x_port));
-  }
-
-  if (enable_ssl) {
-    server_params.emplace_back("--ssl-mode");
-    server_params.emplace_back("PREFERRED");
-    server_params.emplace_back("--ssl-key");
-    server_params.emplace_back(SSL_TEST_DATA_DIR "server-key.pem");
-    server_params.emplace_back("--ssl-cert");
-    server_params.emplace_back(SSL_TEST_DATA_DIR "server-cert.pem");
-  }
-
-  return server_params;
-}
-
-ProcessWrapper &ProcessManager::launch_mysql_server_mock(
-    const std::vector<std::string> &server_params, unsigned port,
-    int expected_exit_code,
-    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/) {
-  auto &result = spawner(mysqlserver_mock_exec_.str())
-                     .expected_exit_code(expected_exit_code)
-                     .wait_for_notify_ready(wait_for_notify_ready)
-                     .catch_stderr(true)
-                     .with_core_dump(true)
-                     .spawn(server_params);
-
-  result.set_logging_path(get_test_temp_dir_name(),
-                          "mock_server_" + std::to_string(port) + ".log");
-
-  return result;
-}
-
-ProcessWrapper &ProcessManager::launch_mysql_server_mock(
-    const std::string &json_file, unsigned port, int expected_exit_code,
-    bool debug_mode, uint16_t http_port, uint16_t x_port,
-    const std::string &module_prefix /* = "" */,
-    const std::string &bind_address /*= "127.0.0.1"*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/,
-    bool enable_ssl /* = false */) {
-  if (mysqlserver_mock_exec_.str().empty())
-    throw std::logic_error("path to mysql-server-mock must not be empty");
-
-  auto server_params =
-      mysql_server_mock_cmdline_args(json_file, port, http_port, x_port,
-                                     module_prefix, bind_address, enable_ssl);
-
-  if (debug_mode) {
-    server_params.emplace_back("--verbose");
-  }
-
-  return launch_mysql_server_mock(server_params, port, expected_exit_code,
-                                  wait_for_notify_ready);
+  return MockServerCmdline()
+      .logging_folder(get_test_temp_dir_name())
+      .absolute_filename(json_file)
+      .port(port)
+      .http_port(http_port)
+      .x_port(x_port)
+      .module_prefix(module_prefix)
+      .bind_address(bind_address)
+      .enable_ssl(enable_ssl)
+      .args();
 }
 
 std::map<std::string, std::string> ProcessManager::get_DEFAULT_defaults()

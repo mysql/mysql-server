@@ -68,8 +68,8 @@ TEST_F(SplicerTest, ssl_mode_default_passthrough) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
 
   auto config = mysql_harness::join(
       std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
@@ -92,8 +92,8 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
 
   auto config = mysql_harness::join(
       std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
@@ -124,10 +124,10 @@ TEST_F(SplicerTest, invalid_metadata) {
   const auto router_port = port_pool_.get_next_available();
 
   SCOPED_TRACE("// start mock-server with TLS enabled");
-  const std::string mock_file =
-      get_data_dir().join("metadata_broken_hostname.js").str();
-  auto mock_server_args =
-      mysql_server_mock_cmdline_args(mock_file, server_port);
+
+  auto mock_server_args = mock_server_cmdline("metadata_broken_hostname.js")
+                              .port(server_port)
+                              .args();
 
   for (const auto &arg :
        std::vector<std::string>{"--ssl-cert"s, valid_ssl_cert_,  //
@@ -136,7 +136,7 @@ TEST_F(SplicerTest, invalid_metadata) {
     mock_server_args.push_back(arg);
   }
 
-  launch_mysql_server_mock(mock_server_args, server_port);
+  mock_server_spawner().spawn(mock_server_args);
 
   SCOPED_TRACE("// start router with TLS enabled");
   auto config = mysql_harness::join(
@@ -255,8 +255,8 @@ TEST_P(SplicerFailParamTest, fails) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
 
   std::string mock_server_host{"127.0.0.1"s};
 
@@ -677,21 +677,20 @@ TEST_P(SplicerConnectParamTest, check) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-
   auto mock_server_cmdline_args =
-      mysql_server_mock_cmdline_args(mock_file, server_port);
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args();
 
-  std::string mock_server_prefix{"mock_server::"};
+  const std::string_view mock_server_prefix("mock_server::");
 
-  for (const auto &arg : GetParam().cmdline_opts) {
-    if (arg.first.substr(0, mock_server_prefix.size()) == mock_server_prefix) {
+  for (const auto &[key, value] : GetParam().cmdline_opts) {
+    if (key.substr(0, mock_server_prefix.size()) == mock_server_prefix) {
       mock_server_cmdline_args.emplace_back(
-          arg.first.substr(mock_server_prefix.size()));
-      mock_server_cmdline_args.emplace_back(arg.second);
+          key.substr(mock_server_prefix.size()));
+      mock_server_cmdline_args.emplace_back(value);
     }
   }
-  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
+
+  mock_server_spawner().spawn(mock_server_cmdline_args);
 
   const std::string destination("localhost:" + std::to_string(server_port));
 
@@ -1863,8 +1862,8 @@ TEST_F(SplicerTest, classic_protocol_default_preferred_as_client) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port);
+  mock_server_spawner().spawn(
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args());
 
   auto config = mysql_harness::join(
       std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
@@ -1921,25 +1920,23 @@ TEST_P(SplicerParamTest, classic_protocol) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-
   auto mock_server_cmdline_args =
-      mysql_server_mock_cmdline_args(mock_file, server_port);
+      mock_server_cmdline("tls_endpoint.js").port(server_port).args();
 
   // enable SSL support on the mock-server.
   if (GetParam().mock_ssl_mode != mysql_ssl_mode::SSL_MODE_DISABLED) {
-    std::initializer_list<std::pair<const char *, const char *>> mock_opts = {
-        {"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
-        {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
-        {"--ssl-mode", "PREFERRED"}};
+    std::initializer_list<std::pair<std::string_view, std::string_view>>
+        mock_opts = {{"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+                     {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+                     {"--ssl-mode", "PREFERRED"}};
 
-    for (const auto &arg : mock_opts) {
-      mock_server_cmdline_args.emplace_back(arg.first);
-      mock_server_cmdline_args.emplace_back(arg.second);
+    for (const auto &[key, value] : mock_opts) {
+      mock_server_cmdline_args.emplace_back(key);
+      mock_server_cmdline_args.emplace_back(value);
     }
   }
 
-  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
+  mock_server_spawner().spawn(mock_server_cmdline_args);
 
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port));
@@ -2062,26 +2059,25 @@ TEST_P(SplicerParamTest, xproto) {
   const auto router_port = port_pool_.get_next_available();
   const auto server_port_x = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-
-  auto mock_server_cmdline_args =
-      mysql_server_mock_cmdline_args(mock_file, server_port, 0,  // http_port
-                                     server_port_x);
+  auto mock_server_cmdline_args = mock_server_cmdline("tls_endpoint.js")
+                                      .port(server_port)
+                                      .x_port(server_port_x)
+                                      .args();
 
   // enable SSL support on the mock-server.
   if (GetParam().mock_ssl_mode != mysql_ssl_mode::SSL_MODE_DISABLED) {
-    std::initializer_list<std::pair<const char *, const char *>> mock_opts = {
-        {"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
-        {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
-        {"--ssl-mode", "PREFERRED"}};
+    std::initializer_list<std::pair<std::string_view, std::string_view>>
+        mock_opts = {{"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+                     {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+                     {"--ssl-mode", "PREFERRED"}};
 
-    for (const auto &arg : mock_opts) {
-      mock_server_cmdline_args.emplace_back(arg.first);
-      mock_server_cmdline_args.emplace_back(arg.second);
+    for (const auto &[key, value] : mock_opts) {
+      mock_server_cmdline_args.emplace_back(key);
+      mock_server_cmdline_args.emplace_back(value);
     }
   }
 
-  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
+  mock_server_spawner().spawn(mock_server_cmdline_args);
 
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port_x));
@@ -2219,26 +2215,25 @@ TEST_P(SplicerParamTest, xproto_compression) {
   const auto router_port = port_pool_.get_next_available();
   const auto server_port_x = port_pool_.get_next_available();
 
-  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-
-  auto mock_server_cmdline_args =
-      mysql_server_mock_cmdline_args(mock_file, server_port, 0,  // http_port
-                                     server_port_x);
+  auto mock_server_cmdline_args = mock_server_cmdline("tls_endpoint.js")
+                                      .port(server_port)
+                                      .x_port(server_port_x)
+                                      .args();
 
   // enable SSL support on the mock-server.
   if (GetParam().mock_ssl_mode != mysql_ssl_mode::SSL_MODE_DISABLED) {
-    std::initializer_list<std::pair<const char *, const char *>> mock_opts = {
-        {"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
-        {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
-        {"--ssl-mode", "PREFERRED"}};
+    std::initializer_list<std::pair<std::string_view, std::string_view>>
+        mock_opts = {{"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+                     {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+                     {"--ssl-mode", "PREFERRED"}};
 
-    for (const auto &arg : mock_opts) {
-      mock_server_cmdline_args.emplace_back(arg.first);
-      mock_server_cmdline_args.emplace_back(arg.second);
+    for (const auto &[key, value] : mock_opts) {
+      mock_server_cmdline_args.emplace_back(key);
+      mock_server_cmdline_args.emplace_back(value);
     }
   }
 
-  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
+  mock_server_spawner().spawn(mock_server_cmdline_args);
 
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port_x));
