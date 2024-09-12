@@ -92,3 +92,6 @@ TARGET_COMPILE_DEFINITIONS(mysql_server_component_services
 TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE extra::rapidjson)
 TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE ext::zlib)
 ADD_DEPENDENCIES(mysql_server_component_services GenError)
+
+TARGET_INCLUDE_DIRECTORIES(mysql_server_component_services SYSTEM PRIVATE 
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)

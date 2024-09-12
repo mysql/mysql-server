@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -865,13 +865,6 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
   )
 
-ADD_COMPILE_FLAGS(
-  iterators/composite_iterators.cc
-  iterators/hash_join_buffer.cc
-  COMPILE_FLAGS
-  -I${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include
-  )
-
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
   ADD_COMPILE_FLAGS(
@@ -963,6 +956,9 @@ MYSQL_ADD_PLUGIN(mysql_native_password
   LINK_LIBRARIES extra::boost
   SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
   STATIC_ONLY DEFAULT)
+
+TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
