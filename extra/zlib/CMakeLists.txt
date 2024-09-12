@@ -34,6 +34,7 @@ ENDIF()
 
 IF(NOT WIN32)
   STRING_APPEND(CMAKE_C_FLAGS " -fvisibility=hidden")
+  REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
 ENDIF()
 
 # Xcode >= 14 makes noise about sprintf, and loss of precision
