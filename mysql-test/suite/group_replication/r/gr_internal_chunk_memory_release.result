@@ -1,0 +1,36 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 1. Populate server with data to alloc memory using
+#    Gtid_set::Interval_chunk key.
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+COMMIT;
+
+############################################################
+# 2. Assert values on thread and global counters before
+#    running garbage collect.
+include/assert.inc [Global counters shall been higher than sum of applier and certifier threads.]
+
+############################################################
+# 3. Wait for execution of another garbage collection
+
+############################################################
+# 4. Assert values on thread and global counters after
+#    running garbage collect.
+include/assert.inc [Global counters shall been higher than sum of applier and certifier threads.]
+
+############################################################
+# 5. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -101,6 +101,17 @@ Gtid_set::Gtid_set(Tsid_map *_tsid_map, const char *text,
   *status = add_gtid_text(text);
 }
 
+void Gtid_set::claim_memory_ownership(bool claim) {
+  m_intervals.claim_memory_ownership(claim);
+
+  Interval_chunk *chunk = chunks;
+  while (chunk != nullptr) {
+    Interval_chunk *next_chunk = chunk->next;
+    my_claim(chunk, claim);
+    chunk = next_chunk;
+  }
+}
+
 void Gtid_set::init() {
   DBUG_TRACE;
   has_cached_string_length = false;
