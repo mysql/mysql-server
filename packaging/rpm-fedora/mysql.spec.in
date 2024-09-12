@@ -520,6 +520,7 @@ mkdir debug
            -DWITH_CURL=system \
            -DWITH_FIDO=system \
            -DWITH_MECAB=system \
+           -DWITH_ZLIB=system \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DUSE_LD_LLD=0 \
@@ -559,6 +560,7 @@ mkdir release
            -DWITH_CURL=system \
            -DWITH_FIDO=system \
            -DWITH_MECAB=system \
+           -DWITH_ZLIB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DUSE_LD_LLD=0 \
