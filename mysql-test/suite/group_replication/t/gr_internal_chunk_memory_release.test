@@ -1,0 +1,89 @@
+################################################################################
+# Validate that primary releases all allocated memory related to
+# "memory/sql/Gtid_set::Interval_chunk" event name.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Populate server with data to alloc memory using
+#    Gtid_set::Interval_chunk key.
+# 2. Assert values on thread and global counters before
+#    running garbage collect.
+# 3. Wait for execution of another garbage collection
+# 4. Assert values on thread and global counters after
+#    running garbage collect.
+# 5. Cleanup
+################################################################################
+
+--source include/have_nodebug.inc
+--source include/not_valgrind.inc
+--source include/not_asan.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Populate server with data to alloc memory using
+--echo #    Gtid_set::Interval_chunk key.
+
+CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+INSERT INTO t1 (c2) values (2);
+COMMIT;
+
+--exec $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=100 --query="INSERT INTO t1 (c2) SELECT c2 FROM t1 LIMIT 5" --concurrency=1 --silent
+
+
+--echo
+--echo ############################################################
+--echo # 2. Assert values on thread and global counters before
+--echo #    running garbage collect.
+
+--let $applier_bytes_used= `SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_by_thread_by_event_name JOIN performance_schema.threads USING(thread_id) WHERE event_name = "memory/sql/Gtid_set::Interval_chunk" AND name = "thread/group_rpl/THD_applier_module_receiver"`
+--let $certifier_bytes_used= `SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_by_thread_by_event_name JOIN performance_schema.threads USING(thread_id) WHERE event_name = "memory/sql/Gtid_set::Interval_chunk" AND name = "thread/group_rpl/THD_certifier_broadcast"`
+--let $global_bytes_used= `SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME = "memory/sql/Gtid_set::Interval_chunk"`
+
+--let $assert_text= Global counters shall been higher than sum of applier and certifier threads.
+--let $assert_cond= [SELECT $applier_bytes_used + $certifier_bytes_used] <= $global_bytes_used
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Wait for execution of another garbage collection
+
+--let $wait_timeout= 150
+--let $wait_condition= SELECT Count_transactions_rows_validating=5 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Assert values on thread and global counters after
+--echo #    running garbage collect.
+
+--let $applier_bytes_used= `SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_by_thread_by_event_name JOIN performance_schema.threads USING(thread_id) WHERE event_name = "memory/sql/Gtid_set::Interval_chunk" AND name = "thread/group_rpl/THD_applier_module_receiver"`
+--let $certifier_bytes_used= `SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_by_thread_by_event_name JOIN performance_schema.threads USING(thread_id) WHERE event_name = "memory/sql/Gtid_set::Interval_chunk" AND name = "thread/group_rpl/THD_certifier_broadcast"`
+--let $global_bytes_used= `SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME = "memory/sql/Gtid_set::Interval_chunk"`
+
+--let $assert_text= Global counters shall been higher than sum of applier and certifier threads.
+--let $assert_cond= [SELECT $applier_bytes_used + $certifier_bytes_used] <= $global_bytes_used
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Cleanup
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

@@ -311,6 +311,15 @@ class Prealloced_array {
   }
 
   /**
+    Claim memory ownership.
+
+    @param  claim take ownership of memory
+  */
+  void claim_memory_ownership(bool claim) {
+    if (!using_inline_buffer()) my_claim(m_ext.m_array_ptr, claim);
+  }
+
+  /**
     Copies an element into the back of the array.
     Complexity: Constant (amortized time, reallocation may happen).
     @return true if out-of-memory, false otherwise
