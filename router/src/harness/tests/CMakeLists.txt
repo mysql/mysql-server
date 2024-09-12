@@ -51,7 +51,6 @@ SET(TEST_MODULE harness)
 
 SET(TESTS
   test_access_rights.cc
-  test_utility_string.cc
   test_loader.cc
   test_loader_lifecycle.cc
   test_logging.cc
@@ -209,4 +208,12 @@ MYSQL_ADD_EXECUTABLE(linux_timestamping linux_timestamping.cc
   SKIP_INSTALL
   LINK_LIBRARIES
   harness_net_ts harness_stdx
+)
+
+ADD_GOOGLETEST_FILE(test_utility_string.cc
+  MODULE harness
+  INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/
+  INCLUDE_DIRS ${MySQLRouter_BINARY_DIR}/src/harness/include/
+  EXTRA_SOURCES
+    ${CMAKE_SOURCE_DIR}/unittest/gunit/benchmark.cc
   )
