@@ -23,6 +23,7 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <atomic>
@@ -566,6 +567,7 @@ inline GRANT_NAME *routine_hash_search(const char *host, const char *ip,
                                        const char *db, const char *user,
                                        const char *tname, bool proc,
                                        bool exact) {
+  assert(proc ? proc_priv_hash : func_priv_hash);
   return name_hash_search(proc ? *proc_priv_hash : *func_priv_hash, host, ip,
                           db, user, tname, exact, true);
 }
@@ -573,6 +575,7 @@ inline GRANT_NAME *routine_hash_search(const char *host, const char *ip,
 inline GRANT_TABLE *table_hash_search(const char *host, const char *ip,
                                       const char *db, const char *user,
                                       const char *tname, bool exact) {
+  assert(column_priv_hash);
   return name_hash_search(*column_priv_hash, host, ip, db, user, tname, exact,
                           false);
 }

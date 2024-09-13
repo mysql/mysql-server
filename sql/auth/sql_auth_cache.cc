@@ -1961,7 +1961,6 @@ static bool acl_load(THD *thd, Table_ref *tables) {
     LogErr(WARNING_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
-  initialized = true;
   return_val = false;
 
 end:
@@ -2596,6 +2595,7 @@ end_unlock:
   t_table->file->ha_index_end();
 end_index_init:
   thd->variables.sql_mode = old_sql_mode;
+  if (!return_val) initialized = true;
   return return_val;
 }
 
@@ -2652,6 +2652,8 @@ static bool grant_reload_procs_priv(Table_ref *table) {
 */
 
 bool grant_reload(THD *thd, bool mdl_locked) {
+  DBUG_EXECUTE_IF("enable_debug_sync_before_grant_reload",
+                  { DEBUG_SYNC(thd, "before_grant_reload"); };);
   MEM_ROOT old_mem;
   bool return_val = true;
   const uint flags = mdl_locked
@@ -2662,9 +2664,6 @@ bool grant_reload(THD *thd, bool mdl_locked) {
   const sql_mode_t old_sql_mode = thd->variables.sql_mode;
 
   DBUG_TRACE;
-
-  /* Don't do anything if running with --skip-grant-tables */
-  if (!initialized) return false;
 
   thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
