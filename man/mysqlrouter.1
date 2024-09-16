@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2024
+.\"      Date: 09/12/2024
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 9.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "05/23/2024" "MySQL 9\&.0" "MySQL Router"
+.TH "MYSQLROUTER" "1" "09/12/2024" "MySQL 9\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1460,11 +1460,9 @@ T}
 .sp 1
 Specifies the number of times MySQL Router should attempt to generate a password when creating user account with the password validation rules\&. The default value is 20\&. The valid range is 1 to 10000\&.
 .sp
-The most likely reason for failure is due to custom validate_password settings with unusual requirements such as a 50 character minimum\&. In that fail scenario, either
+The most likely reason for failure is due to custom validate_password settings with unusual requirements such as a 50 character minimum\&. In that fail scenario, it is likely that
 \fB\-\-force\-password\-validation\fR
-is set to true and/or the
-mysql_native_password
-MySQL Server plugin is disabled (this plugin allows bypassing validation)\&.
+is set to true\&.
 .RE
 .sp
 .RS 4
