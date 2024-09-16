@@ -2,12 +2,12 @@
 .\"     Title: ndb_size.pl
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/31/2024
+.\"      Date: 09/13/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDB_SIZE\&.PL" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "NDB_SIZE\&.PL" "1" "09/13/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -37,6 +37,23 @@ ndb_size.pl \- NDBCLUSTER Size Requirement Estimator
 This is a Perl script that can be used to estimate the amount of space that would be required by a MySQL database if it were converted to use the
 NDBCLUSTER
 storage engine\&. Unlike the other utilities discussed in this section, it does not require access to an NDB Cluster (in fact, there is no reason for it to do so)\&. However, it does need to access the MySQL server on which the database to be tested resides\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fBndb_size\&.pl\fR
+is deprecated, and no longer supported, in NDB 8\&.4\&.3 and later\&. You should expect it to be removed from a future version of the NDB Cluster distribution, and modify any dependent applications accordingly\&.
+.sp .5v
+.RE
 Requirements
 .sp
 .RS 4

@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/31/2024
+.\"      Date: 09/13/2024
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "MYSQL" "1" "09/13/2024" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -3342,6 +3342,37 @@ Do not write line numbers for errors\&. Useful when you want to compare result f
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-skip\-system\-command\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--skip-system-command
+T}
+T{
+Introduced
+T}:T{
+8.4.3
+T}
+.TE
+.sp 1
+Disables the
+system
+(\e!) command\&. Equivalent to
+\fB\-\-system\-command=OFF\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .TS
@@ -3553,6 +3584,59 @@ Mar  7 12:39:28 myhost MysqlClient[20824]:
 .sp
 For more information, see
 the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-system\-command[={ON|OFF}]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--system-command[={ON|OFF}]
+T}
+T{
+Introduced
+T}:T{
+8.4.3
+T}
+T{
+Disabled by
+T}:T{
+skip-system-command
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+ON
+T}
+.TE
+.sp 1
+Enable or disable the
+system
+(\e!) command\&. When this option is disabled, either by
+\fB\-\-system\-command=OFF\fR
+or by
+\fB\-\-skip\-system\-command\fR, the
+system
+command is rejected with an error\&.
 .RE
 .sp
 .RS 4
@@ -4660,6 +4744,11 @@ system \fIcommand\fR,
 \e! \fIcommand\fR
 .sp
 Execute the given command using your default command interpreter\&.
+.sp
+In MySQL 8\&.4\&.3 and later, this command can be disabled by starting the client with
+\fB\-\-system\-command=OFF\fR
+or
+\fB\-\-skip\-system\-command\fR\&.
 .RE
 .sp
 .RS 4
