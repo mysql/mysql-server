@@ -233,8 +233,7 @@ dict_table_t *dict_mem_table_create(const char *name, space_id_t space,
   dict_table_stats_lock() will not be noop. */
   dict_table_stats_latch_create(table, true);
 
-  table->autoinc_lock =
-      static_cast<ib_lock_t *>(mem_heap_alloc(heap, lock_get_size()));
+  table->autoinc_lock = lock_alloc_from_heap(heap);
 
   /* lazy creation of table autoinc latch */
   dict_table_autoinc_create_lazy(table);

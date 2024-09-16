@@ -134,7 +134,7 @@ static inline bool lock_mode_is_next_key_lock(ulint mode) {
 static inline bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
 
 /** Lock struct; protected by lock_sys latches */
-struct lock_t {
+struct alignas(8 /* For efficient Bitmap::find_set */) lock_t {
   /** transaction owning the lock */
   trx_t *trx;
 
@@ -256,7 +256,9 @@ struct lock_t {
   /** @overload */
   Bitset<const byte> bitset() const {
     ut_ad(is_record_lock());
-    static_assert(alignof(uint64_t) <= alignof(lock_t),
+    /* On a 32-bit system alignof(uint64_t) might be 4. Still, the
+    Bitmap::find_set goes into slow path if address is not a multiple of 8. */
+    static_assert(8 <= alignof(lock_t),
                   "lock_t and thus the bitmap after lock_t should be aligned "
                   "for efficient 64-bit access");
     const byte *bitmap = (const byte *)&this[1];

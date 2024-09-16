@@ -248,9 +248,19 @@ class ReadView;
 
 extern bool innobase_deadlock_detect;
 
-/** Gets the size of a lock struct.
- @return size in bytes */
-ulint lock_get_size(void);
+/** Allocates memory suitable for holding a lock_t from specified heap.
+The allocated memory has additional bitmap_bytes right after the returned
+lock_t instance for holding the bitmap used by LOCK_REC type.
+@param[in]     heap
+                 The heap to allocate the memory from
+@param[in]     bitmap_bytes
+                 The number of bytes to reserve right after the lock_t struct
+                 for the bitmap. Defaults to 0, which is ok for LOCK_TABLE.
+@return A pointer to the memory allocated from the heap, aligned as lock_t,
+and of size sizeof(lock_t)+bitmap_bytes. Note that it can contain garbage,
+so it is caller's responsibility to initialize lock_t and the bitmap. */
+lock_t *lock_alloc_from_heap(mem_heap_t *heap, size_t bitmap_bytes = 0);
+
 /** Creates the lock system at database start. */
 void lock_sys_create(
     ulint n_cells); /*!< in: number of slots in lock hash table */
