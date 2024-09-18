@@ -60,11 +60,12 @@ bool Option_usage_data::set(bool is_used) {
     // make sure it's an object
     if (!doc.IsObject()) doc.SetObject();
 
+    auto it = doc.FindMember("used");
     // set the new values
-    if (!doc.HasMember("used"))
-      doc.AddMember("used", true, doc.GetAllocator());
+    if (it == doc.MemberEnd())
+      doc.AddMember("used", is_used, doc.GetAllocator());
     else
-      doc["used"].SetBool(is_used);
+      it->value.SetBool(is_used);
 
     time_t now;
     time(&now);
@@ -72,11 +73,12 @@ bool Option_usage_data::set(bool is_used) {
     strftime(curent_iso8601_datetime, sizeof curent_iso8601_datetime, "%FT%TZ",
              gmtime(&now));
 
-    if (!doc.HasMember("usedDate"))
+    it = doc.FindMember("usedDate");
+    if (it == doc.MemberEnd())
       doc.AddMember("usedDate", rapidjson::StringRef(curent_iso8601_datetime),
                     doc.GetAllocator());
     else
-      doc["usedDate"].SetString(curent_iso8601_datetime, doc.GetAllocator());
+      it->value.SetString(curent_iso8601_datetime, doc.GetAllocator());
 
     // serialize and store
     rapidjson::StringBuffer upated_json;
