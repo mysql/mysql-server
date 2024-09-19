@@ -17,9 +17,6 @@ our encryption key, see https://www.oracle.com/security-alerts/encryptionkey.htm
 We ask that you do not use other channels or contact the project maintainers
 directly.
 
-Non-vulnerability related security issues including ideas for new or improved
-security features are welcome on GitHub Issues.
-
 Security updates, alerts and bulletins
 --------------------------------------
 Security updates will be released on a regular cadence. Many of our projects
