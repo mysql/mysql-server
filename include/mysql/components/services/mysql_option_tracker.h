@@ -90,9 +90,7 @@ END_SERVICE_DEFINITION(mysql_option_tracker_option)
   Sets usage data for a given option.
   Internally stores into the system table.
 
-  It gets the value for cluster_id from the system variable
-  group_replication_group_name (defined by the GR plugin).
-  If the plugin is not installed it uses empty string.
+  Cluster ID is set to empty.
 
   It gets the value for server_id from the system variable
   server_uuid.
