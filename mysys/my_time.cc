@@ -245,6 +245,23 @@ bool check_time_range_quick(const MYSQL_TIME &my_time) {
 }
 
 /**
+  Check Date range according year, month, day value.
+  @param year  year value.
+  @param month  month value.
+  @param day  day value.
+  @retval false on success
+  @retval true  on error
+*/
+static bool check_date_range(uint year, uint month, uint day) {
+  if (year > 9999U || month > 12U || month == 0) return true;
+
+  bool is_leap_year = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+  uint days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  if (is_leap_year) days_in_month[1] = 29;
+  return day > days_in_month[month - 1];
+}
+
+/**
   Check datetime, date, or normalized time (i.e. time without days) range.
   @param my_time  Datetime value.
   @retval false on success
@@ -255,7 +272,7 @@ bool check_datetime_range(const MYSQL_TIME &my_time) {
     In case of MYSQL_TIMESTAMP_TIME hour value can be up to TIME_MAX_HOUR.
     In case of MYSQL_TIMESTAMP_DATETIME it cannot be bigger than 23.
   */
-  return my_time.year > 9999U || my_time.month > 12U || my_time.day > 31U ||
+  return check_date_range(my_time.year, my_time.month, my_time.day) ||
          my_time.minute > 59U || my_time.second > 59U ||
          my_time.second_part > 999999U ||
          (my_time.hour >
