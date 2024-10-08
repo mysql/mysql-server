@@ -4567,7 +4567,12 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
       if (foreign_table) {
         for (auto &fk : foreign_table->foreign_set) {
           if (strcmp(fk->referenced_table_name, tbl_name) != 0) {
-            continue;
+            if (m_table->refresh_fk) {//after alter rename copy, child fk reference table not update,bug-114904
+              fk->referenced_table_name = mem_heap_strdup(fk->heap, tbl_name);
+              dict_mem_referenced_table_name_lookup_set(fk, true);
+            } else {
+              continue;
+            }
           }
 
           if (fk->referenced_table) {
