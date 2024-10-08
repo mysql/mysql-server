@@ -1520,7 +1520,7 @@ int Protocol_classic::read_packet() {
 
   @par Example
   ~~~~~~~~~
-  21 00 00 00 03 01 01 00    01 fe 00 01 61 01 31 73   !....... ....a.1s
+  2B 00 00 00 03 01 01 00    01 fe 00 01 61 01 31 73   +....... ....a.1s
   65 6c 65 63 74 20 40 40    76 65 72 73 69 6f 6e 5f   elect @@version_c
   63 6f 6d 6d 65 6e 74 20    6c 69 6d 69 74 20 31      omment limit 1
 
