@@ -1028,6 +1028,7 @@ static AccessPath *get_best_disjunct_quick(
     bool all_scans_rors = true;
     bool imerge_too_expensive = false;
     AccessPath **cur_child = range_scans;
+    uint cannot_be_used_for_imerge_count = 0;
     for (auto tree_it = imerge->trees.begin(); tree_it != imerge->trees.end();
          ++tree_it, cur_child++) {
       DBUG_EXECUTE("info",
@@ -1056,6 +1057,7 @@ static AccessPath *get_best_disjunct_quick(
       if (!child_param.can_be_used_for_imerge) {
         trace_idx.add("chosen", false)
             .add_alnum("cause", "index has DESC key part");
+        cannot_be_used_for_imerge_count++;
         continue;
       }
 
@@ -1082,7 +1084,9 @@ static AccessPath *get_best_disjunct_quick(
                                   ((non_cpk_scan_records + cpk_scan_records >=
                                     table->file->stats.records) &&
                                    read_cost != DBL_MAX)) &&
-                                 !force_index_merge)) {
+                                 !force_index_merge) ||
+                                (!index_merge_union_allowed && 
+                                cannot_be_used_for_imerge_count == imerge->trees.size())) {
       /*
         Bail out if it is obvious that both index_merge and ROR-union will be
         more expensive
