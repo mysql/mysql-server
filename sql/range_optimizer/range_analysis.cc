@@ -1639,6 +1639,15 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
         goto end;
       }
     }
+  } else if (field->result_type() == INT_RESULT && 
+        value->result_type() == DECIMAL_RESULT && value->const_item()) {
+      my_decimal value1;
+      my_decimal *value2 =value->val_decimal(&value1);
+      if (value2->frac > 0 && decimal_actual_fraction(value2) > 0) {
+          impossible_cond_cause = "int_cannot_be_decimal_with_frac";
+          tree->type = SEL_ROOT::Type::IMPOSSIBLE;
+          goto end;
+    }
   }
 
   switch (type) {
