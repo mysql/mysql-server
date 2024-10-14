@@ -1639,6 +1639,26 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
         goto end;
       }
     }
+  } else if (type == Item_func::EQ_FUNC && value->const_item() &&
+             (field->result_type() == INT_RESULT ||
+              field->result_type() == REAL_RESULT ||
+              field->result_type() == DECIMAL_RESULT) &&
+             field->is_unsigned()) {
+    if ((value->result_type() == INT_RESULT ||
+         value->result_type() == REAL_RESULT ||
+         value->result_type() == DECIMAL_RESULT) &&
+        !(value)->unsigned_flag) {
+      impossible_cond_cause = "unsigned_num_cannot_be_negative";
+      tree->type = SEL_ROOT::Type::IMPOSSIBLE;
+      goto end;
+    } else if (value->result_type() == STRING_RESULT) {
+      double nr = value->val_real();
+      if (nr < 0) {
+        impossible_cond_cause = "unsigned_num_cannot_be_negative";
+        tree->type = SEL_ROOT::Type::IMPOSSIBLE;
+        goto end;
+      }
+    }
   }
 
   switch (type) {
