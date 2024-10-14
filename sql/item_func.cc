@@ -708,6 +708,19 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
         to analyze any argument of the condition formula.
       */
       uchar *arg_v = *arg_p;
+      // fix ebd201b07b74a6e37152e86ccf8eeb3ce13f158b
+      //  bug-113304, equal_fields_propagator ,cmp_context == INVALID_RESULT
+      //  cause zerofill number not convert to string
+      if ((*arg)->cmp_context == INVALID_RESULT &&
+          (*arg)->real_item()->type() == FIELD_ITEM &&
+          cmp_context == REAL_RESULT && data_type() == MYSQL_TYPE_BLOB) {
+        Item_field *field_item = (Item_field *)((*arg)->real_item());
+        if (!field_item->no_constant_propagation &&
+            field_item->field->is_flag_set(ZEROFILL_FLAG) &&
+            IS_NUM(field_item->field->type())) {
+          (*arg)->cmp_context = STRING_RESULT;
+        }
+      }
       Item *new_item = (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
       if (new_item == nullptr) return nullptr;
       if (*arg != new_item) current_thd->change_item_tree(arg, new_item);
