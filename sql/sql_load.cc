@@ -1658,6 +1658,17 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
       while (tag && strcmp(tag->field.c_ptr(), item->item_name.ptr()) != 0)
         tag = xmlit++;
 
+      if (tag) {  // bug-115707 use lower level tag
+        XML_TAG *tmp = xmlit++;
+        while (tmp) {
+          if (strcmp(tmp->field.c_ptr(), item->item_name.ptr()) == 0 &&
+              tmp->level < tag->level) {
+            tag = tmp;
+          }
+          tmp = xmlit++;
+        }
+      }
+
       item = item->real_item();
 
       if (!tag)  // found null
