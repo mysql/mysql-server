@@ -2366,8 +2366,12 @@ static int compare_json_strings(std::string_view str1, std::string_view str2,
         pointer_cast<const uchar *>(str2.data()), str2.size());
   }
 
-  const std::strong_ordering cmp = str1 <=> str2;
-  return std::is_lt(cmp) ? -1 : std::is_eq(cmp) ? 0 : 1;
+const int cmp = str1.compare(str2);
+return cmp < 0 ? -1 : cmp == 0 ? 0 : 1;
+
+
+//const std::strong_ordering cmp = str1 <=> str2;
+  //return std::is_lt(cmp) ? -1 : std::is_eq(cmp) ? 0 : 1;
 }
 
 /// The number of enumerators in the enum_json_type enum.
