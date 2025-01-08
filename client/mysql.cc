@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"
+#include "my_rdtsc.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -1223,9 +1224,8 @@ static void print_table_data_xml(MYSQL_RES *result);
 static void print_tab_data(MYSQL_RES *result);
 static void print_table_data_vertically(MYSQL_RES *result);
 static void print_warnings();
-static ulong start_timer();
-static void end_timer(ulong start_time, char *buff);
-static void mysql_end_timer(ulong start_time, char *buff);
+static void end_timer(ulonglong start_time, char *buff);
+static void mysql_end_timer(ulonglong start_time, char *buff);
 static void nice_time(double sec, char *buff, bool part_second);
 static void kill_query(const char *reason);
 extern "C" void mysql_end(int sig);
@@ -3675,7 +3675,7 @@ static int com_go_impl(String *buffer, char *line [[maybe_unused]]) {
     return 0;
   }
 
-  timer = start_timer();
+  timer = my_timer_microseconds();
   executing_query = true;
   error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length(), true);
 
@@ -5629,15 +5629,6 @@ void tee_putc(int c, FILE *file) {
 #endif
 #endif
 
-static ulong start_timer() {
-#if defined(_WIN32)
-  return clock();
-#else
-  struct tms tms_tmp;
-  return times(&tms_tmp);
-#endif
-}
-
 /**
   Write as many as 52+1 bytes to buff, in the form of a legible duration of
   time.
@@ -5665,16 +5656,16 @@ static void nice_time(double sec, char *buff, bool part_second) {
     buff = my_stpcpy(buff, " min ");
   }
   if (part_second)
-    sprintf(buff, "%.2f sec", sec);
+    sprintf(buff, "%.3f sec", sec);
   else
     sprintf(buff, "%d sec", (int)sec);
 }
 
-static void end_timer(ulong start_time, char *buff) {
-  nice_time((double)(start_timer() - start_time) / CLOCKS_PER_SEC, buff, true);
+static void end_timer(ulonglong start_time, char *buff) {
+  nice_time((double)(my_timer_microseconds() - start_time) / (double)(1000000), buff, true);
 }
 
-static void mysql_end_timer(ulong start_time, char *buff) {
+static void mysql_end_timer(ulonglong start_time, char *buff) {
   buff[0] = ' ';
   buff[1] = '(';
   end_timer(start_time, buff + 2);
