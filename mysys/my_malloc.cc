@@ -51,6 +51,8 @@
 #include "mysql/psi/psi_memory.h"
 #include "mysys_err.h"
 
+#include <cstdlib>
+
 struct PSI_thread;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
