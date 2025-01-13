@@ -88,6 +88,7 @@
 #endif
 
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <string>
 
