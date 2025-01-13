@@ -45,6 +45,8 @@
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
 
+#include <string>
+
 namespace {
 #ifndef _WIN32
 constexpr FILE *nullstream = nullptr;
