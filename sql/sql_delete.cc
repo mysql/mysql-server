@@ -153,9 +153,9 @@ bool Sql_cmd_delete::precheck(THD *thd) {
   DBUG_TRACE;
 
   Table_ref *tables = lex->query_tables;
-
+  Access_bitmask want_priv = lex->query_block->where_cond() ? DELETE_ACL | SELECT_ACL : DELETE_ACL;
   if (!multitable) {
-    if (check_one_table_access(thd, DELETE_ACL, tables)) return true;
+    if (check_one_table_access(thd, want_priv, tables)) return true;
   } else {
     Table_ref *aux_tables = delete_tables->first;
     Table_ref **save_query_tables_own_last = lex->query_tables_own_last;
@@ -169,7 +169,7 @@ bool Sql_cmd_delete::precheck(THD *thd) {
       call check_table_access() safely.
     */
     lex->query_tables_own_last = nullptr;
-    if (check_table_access(thd, DELETE_ACL, aux_tables, false, UINT_MAX,
+    if (check_table_access(thd, want_priv, aux_tables, false, UINT_MAX,
                            false)) {
       lex->query_tables_own_last = save_query_tables_own_last;
       return true;
