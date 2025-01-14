@@ -58,6 +58,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "mysql_time.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/bits/psi_table_bits.h"
@@ -670,6 +671,7 @@ enum legacy_db_type {
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_TEMPTABLE,
   DB_TYPE_FIRST_DYNAMIC = 42,
+  DB_TYPE_SPARROW=77,
   DB_TYPE_DEFAULT = 127  // Must be last
 };
 
@@ -3928,6 +3930,17 @@ class ha_statistics {
         table_in_mem_estimate(IN_MEMORY_ESTIMATE_UNKNOWN) {}
 };
 
+class Time_zone;  // Defined in sql/tztime.h
+
+struct TimeCache {
+	uint32 seconds_;
+	MYSQL_TIME mtime_;
+	const Time_zone* tz_;
+	TimeCache() : seconds_(0), tz_(0) {
+		memset( &mtime_, 0, sizeof(mtime_) );
+	}
+};
+
 /**
   Calculates length of key.
 
@@ -4428,6 +4441,8 @@ class handler {
   uchar *ref;
   /** Pointer to duplicate row */
   uchar *dup_ref;
+
+  TimeCache timeCache_;
 
   ha_statistics stats;
 

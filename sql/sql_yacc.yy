@@ -1399,6 +1399,10 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> URL_SYM                    1202   /* MYSQL */
 %token<lexer.keyword> GENERATE_SYM               1203   /* MYSQL */
 
+%token<lexer.keyword> TADJUST_SYM                1204   /* Infovista */
+%token<lexer.keyword> TADJUSTW_SYM               1205   /* Infovista */
+%token<lexer.keyword> TNEXT_SYM                  1206   /* Infovista */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -11149,6 +11153,30 @@ sum_expr:
         | STD_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
             $$= NEW_PTN Item_sum_std(@$, $3, 0, $5);
+          }
+        | TADJUST_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_tadjust(@$, $3,$6,$7,1,-1);
+          	if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | TNEXT_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_tnext(@$, $3,$6,$7);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | TADJUSTW_SYM '(' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_tadjust(@$, $3,INTERVAL_WEEK,-1,-1);
+          	if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | TADJUSTW_SYM '(' expr ',' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_tadjust(@$, $3,$5,INTERVAL_WEEK,-1,1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
           }
         | VARIANCE_SYM '(' in_sum_expr ')' opt_windowing_clause
           {

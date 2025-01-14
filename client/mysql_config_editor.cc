@@ -501,7 +501,13 @@ static int set_command(void) {
   init_dynamic_string(&path_buf, "", MY_LINE_MAX);
   init_dynamic_string(&file_buf, "", file_size);
 
-  if (tty_password) opt_password = get_tty_password(NullS);
+  if (tty_password)
+  {
+	  if (get_istty_stdin() == 1)
+		 opt_password= get_tty_password_fromstdin();
+	  else
+	    opt_password= get_tty_password(NullS);
+  }  
 
   if (file_size) {
     if (read_and_decrypt_file(&file_buf) == -1) goto error;

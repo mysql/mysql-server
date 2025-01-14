@@ -879,6 +879,7 @@ MySQL clients support the protocol:
 #include "sql_common.h"                // mysql_client_plugin_init
 #include "sql_string.h"
 #include "storage/myisam/ha_myisam.h"  // HA_RECOVER_OFF
+#include "storage/sparrow/handler/hasparrow.h"
 #include "storage/perfschema/pfs_services.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
@@ -2601,6 +2602,8 @@ static void clean_up(bool print_message) {
   DBUG_PRINT("exit", ("clean_up"));
 
   if (set_server_shutting_down()) return;
+
+  Sparrow::SparrowHandler::stop_slave_threads();
 
   ha_pre_dd_shutdown();
   dd::shutdown();
@@ -7880,6 +7883,9 @@ int mysqld_main(int argc, char **argv)
   set_ports();
 
   if (init_server_components()) unireg_abort(MYSQLD_ABORT_EXIT);
+  
+  sql_print_information("%s (mysqld %s) starting as process %lu ...",
+	  my_progname, server_version, (ulong) getpid());
 
   if (!server_id_supplied)
     LogErr(INFORMATION_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);

@@ -1162,6 +1162,8 @@ bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
 #ifdef __cplusplus
 extern "C" {
 #endif
+bool get_istty_stdin(void);
+char *get_tty_password_fromstdin(void);
 char *get_tty_password(const char *opt_message);
 #ifdef __cplusplus
 }

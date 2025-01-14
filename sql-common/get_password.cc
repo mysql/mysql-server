@@ -73,6 +73,44 @@
 #define getpass(A) getpassphrase(A)
 #endif
 
+bool get_istty_stdin(void)
+{
+#if defined (_WIN32)
+	if ( isatty(_fileno(stdin)))
+		return 0;
+#elif defined (__unix)
+	if ( isatty(STDIN_FILENO))
+		return 0;
+#else
+	#error Environment not supported
+#endif
+	return 1;
+}
+
+char *get_tty_password_fromstdin(void)
+{
+	int c = 0;
+	int i=0;
+	char buff[80];
+
+	DBUG_ENTER("get_tty_password_fromstdin");
+	memset(buff,0,sizeof(buff));
+#if defined(_WIN32)
+	while ((c = getc (stdin)) != EOF && !isspace (c) && c!= '\r')
+	{
+		buff[i++] = (char)c;
+	}
+#elif defined (__unix)
+	while ((c = getc (stdin)) != EOF && !isspace (c) && c!= '\r' && c != '\n')
+	{
+		buff[i++] = (char)c;
+	}
+#else
+#error Environment not supported
+#endif
+        DBUG_RETURN(my_strdup(PSI_NOT_INSTRUMENTED, buff, MYF(MY_FAE)));
+}
+
 #if defined(_WIN32)
 /* were just going to fake it here and get input from the keyboard */
 char *get_tty_password(const char *opt_message) {

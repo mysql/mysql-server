@@ -410,6 +410,13 @@ HANDLE my_get_osfhandle(File fd) {
   return GetHandleInfo(fd).handle;
 }
 
+File my_get_filedescr(HANDLE handle, int oflag) {
+  DBUG_TRACE;
+
+  return RegisterHandle(handle, oflag);
+}
+
+
 /**
    Homegrown posix emulation for Windows.
 

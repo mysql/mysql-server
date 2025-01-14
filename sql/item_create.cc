@@ -1678,6 +1678,23 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"WEEKDAY", SQL_FACTORY(Weekday_instantiator)},
     {"WEEKOFYEAR", SQL_FACTORY(Weekofyear_instantiator)},
     {"YEARWEEK", SQL_FACTORY(Yearweek_instantiator)},
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Start of InfoVista functions
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    {"IPTOSTR", SQL_FN(Item_func_iptostr, 1)},
+    {"STRTOIP", SQL_FN(Item_func_strtoip, 1)},
+    {"MASKIP", SQL_FN(Item_func_maskip, 1)},
+    {"GETIPMASK", SQL_FN(Item_func_getipmask, 1)},
+    {"ISIPPRIVATE", SQL_FN(Item_func_isipprivate, 1)},
+    {"GETNEWEST", SQL_FN(Item_func_getnewest, 2)},
+    {"GETOLDEST", SQL_FN(Item_func_getoldest, 2)},
+      
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+  // End of InfoVista functions
+  //////////////////////////////////////////////////////////////////////////////////////////////////////
+
     {"GET_DD_COLUMN_PRIVILEGES",
      SQL_FN_INTERNAL(Item_func_get_dd_column_privileges, 3)},
     {"GET_DD_INDEX_SUB_PART_LENGTH",

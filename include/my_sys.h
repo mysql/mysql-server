@@ -643,6 +643,7 @@ extern int nt_share_delete(const char *name, myf MyFlags);
 #ifdef _WIN32
 /* Windows-only functions (CRT equivalents)*/
 extern HANDLE my_get_osfhandle(File fd);
+extern File my_get_filedescr(HANDLE handle, int oflag);
 extern void my_osmaperr(unsigned long last_error);
 #endif
 

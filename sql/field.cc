@@ -5232,6 +5232,23 @@ bool Field_timestampf::get_date_internal_at(const Time_zone *tz,
   my_timestamp_from_binary(&tm, ptr, dec);
   if (tm.m_tv_sec == 0) return true;
   tz->gmt_sec_to_TIME(ltime, tm);
+
+  TimeCache* cache = (table != 0 && table->file != nullptr) ? &table->file->timeCache_ : nullptr;
+  if (cache != nullptr && tm.m_tv_sec == cache->seconds_ && tz == cache->tz_) {
+	  *ltime = cache->mtime_;
+	  ltime->second_part = tm.m_tv_usec;
+  } else {
+      THD* thd = current_thd;
+	  thd->time_zone()->gmt_sec_to_TIME(ltime, tm);
+
+	  if (cache != nullptr) {
+		  cache->seconds_ = tm.m_tv_sec;
+		  cache->tz_ = tz;
+		  cache->mtime_ = *ltime;
+		  cache->mtime_.second_part = 0;
+	  }
+  }
+
   return false;
 }
 

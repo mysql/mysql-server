@@ -273,6 +273,8 @@ char *octet2hex(char *to, const char *str, unsigned int len);
 bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
                               const char *src, size_t src_size, const char *rnd,
                               size_t rnd_size);
+bool get_istty_stdin(void);
+char *get_tty_password_fromstdin(void);
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 bool my_thread_init(void);

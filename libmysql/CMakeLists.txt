@@ -156,6 +156,8 @@ SET(CLIENT_API_FUNCTIONS
 # Once the decision is taken to have documentation we need to move them to
 # CLIENT_API_FUNCTIONS list.
 SET(CLIENT_API_FUNCTIONS_UNDOCUMENTED
+  get_istty_stdin
+  get_tty_password_fromstdin
   get_tty_password
   # my_load_defaults is a wrapper for load_defaults and it is not documented.
   # We will have a FR to replace this for decent name/functionality and

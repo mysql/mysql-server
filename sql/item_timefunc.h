@@ -1688,6 +1688,84 @@ class Item_func_internal_check_time final : public Item_datetime_func {
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// Start of InfoVista functions
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Item_func_tadjust : public Item_int_func {
+protected:
+
+	const interval_type intervalType_;
+	const int nArg_;
+	const int fdowArg_;
+
+private:
+
+	int getN();
+	int getFdow();
+	longlong getSeconds(MYSQL_TIME* t);
+
+public:
+
+	Item_func_tadjust(const POS &pos, Item* arg1,
+		interval_type intervalType, int nArg, int fdowArg)
+		: Item_int_func(pos, arg1),
+		intervalType_(intervalType), nArg_(nArg), fdowArg_(fdowArg) {
+	}
+
+	Item_func_tadjust(const POS &pos, Item* arg1, Item* arg2,
+		interval_type intervalType, int nArg, int fdowArg)
+		: Item_int_func(pos, arg1, arg2),
+		intervalType_(intervalType), nArg_(nArg), fdowArg_(fdowArg) {
+	}
+	const char* func_name() const override  {
+		return intervalType_ == INTERVAL_WEEK ? "tadjustw" : "tadjust";
+	}
+
+	longlong val_int() override;
+  bool resolve_type(THD *thd) override;
+};
+
+
+class Item_func_tnext : public Item_int_func {
+protected:
+
+	const interval_type intervalType_;
+
+public:
+
+	Item_func_tnext(const POS &pos, Item* arg1, Item* arg2, interval_type intervalType)
+		: Item_int_func(pos, arg1, arg2),
+		intervalType_(intervalType) {
+	}
+	const char* func_name() const override { return "tnext";	}
+	longlong val_int() override;
+  bool resolve_type(THD *thd) override;
+};
+
+
+class Item_func_getnewest : public Item_int_func {
+public:
+	Item_func_getnewest(const POS &pos, Item *a, Item *b)
+		: Item_int_func(pos, a, b) {
+	}
+	const char* func_name() const override { return "getnewest";	}
+  longlong val_int() override;
+  bool resolve_type(THD *thd) override;
+};
+
+class Item_func_getoldest : public Item_int_func {
+public:
+	Item_func_getoldest(const POS &pos, Item *a, Item *b)
+		: Item_int_func(pos, a, b) {
+	}
+	const char* func_name() const override { return "getoldest";	}
+  longlong val_int() override;
+  bool resolve_type(THD *thd) override;
+};
+
+
+
 /* Function prototypes */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,

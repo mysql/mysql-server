@@ -1772,4 +1772,74 @@ class Item_func_internal_get_dd_column_extra final : public Item_str_func {
   String *val_str(String *) override;
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// Start of InfoVista functions
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Item_func_iptostr final : public Item_str_func {
+	String tmp_value;
+
+public:
+  Item_func_iptostr(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+	String* val_str(String* str) override;
+  bool resolve_type(THD *thd) override;
+	const char* func_name() const override { return "iptostr"; }
+};
+
+class Item_func_strtoip final : public Item_str_func {
+	String tmp_value;
+
+public:
+  Item_func_strtoip(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+	String* val_str(String* str) override;
+  bool resolve_type(THD *thd) override;
+	const char* func_name() const override { return "strtoip"; }
+};
+
+class Item_func_maskip final : public Item_str_func {
+	String tmp_value;
+
+public:
+  Item_func_maskip(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+	String* val_str(String* str) override;
+  bool resolve_type(THD *thd) override;
+	const char* func_name() const override { return "maskip"; }
+};
+
+class Item_func_getipmask final : public Item_str_func {
+	String tmp_value;
+
+public:
+  Item_func_getipmask(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+	String* val_str(String* str) override;
+  bool resolve_type(THD *thd) override;
+	const char* func_name() const override { return "getipmask"; }
+};
+
+class Item_func_isipprivate : public Item_int_func {
+public:
+	Item_func_isipprivate(const POS &pos, Item *a) : Item_int_func(pos, a) {}
+  bool resolve_type(THD *thd) override;
+  const char* func_name() const override { return "isipprivate"; }
+	bool is_bool_func() const override { return true;	}
+  uint decimal_precision() const override { return 1; }
+
+	// void fix_length_and_dec() {
+	// 	maybe_null = 1;
+	// 	decimals = 0;
+	// 	max_length = 1;
+	// }
+	bool val_bool() override;
+	longlong val_int() override {
+		return (longlong)val_bool();
+	}
+};
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// End of InfoVista functions
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #endif /* ITEM_STRFUNC_INCLUDED */
