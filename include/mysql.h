@@ -79,6 +79,7 @@ typedef int my_socket;
 #include "field_types.h"
 #include "my_list.h"
 #include "mysql_com.h"
+#include "plugin_auth_common.h"
 
 /* Include declarations of plug-in API */
 #include "mysql/client_plugin.h"  // IWYU pragma: keep
