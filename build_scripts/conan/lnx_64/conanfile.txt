@@ -1,0 +1,7 @@
+[requires]
+openssl/1.1.1s
+boost/1.77.0
+
+[generators]
+compiler_args
+

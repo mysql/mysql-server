@@ -35,3 +35,5 @@ scalability_jobs_*
 *.bak
 
 _build/
+_distrib/
+**generatorfiles*
