@@ -32,7 +32,7 @@ jobs:
       - name: Building binaries
         shell: bash
         env:
-          CI_COMMIT_TAG: ${{ github.ref }}
+          CI_COMMIT_TAG: ${{ github.ref_name }}
         run: |
           echo "Working folder `pwd`"
           echo "Build mode is ${{ env.MODE }}"
