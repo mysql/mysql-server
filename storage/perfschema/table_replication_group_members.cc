@@ -123,6 +123,11 @@ static void set_member_communication_stack(void *const context,
   memcpy(row->member_communication_stack, &value, length);
 }
 
+static void set_member_weight(void *const context, unsigned int value) {
+  auto *row = static_cast<struct st_row_group_members *>(context);
+  row->member_weight = value;
+}
+
 THR_LOCK table_replication_group_members::m_table_lock;
 
 Plugin_table table_replication_group_members::m_table_def(
@@ -139,7 +144,8 @@ Plugin_table table_replication_group_members::m_table_def(
     "  MEMBER_ROLE CHAR(64) collate utf8mb4_bin not null,\n"
     "  MEMBER_VERSION CHAR(64) collate utf8mb4_bin not null,\n"
     "  MEMBER_COMMUNICATION_STACK CHAR(64) collate utf8mb4_bin not "
-    "null\n",
+    "null,\n"
+    "  MEMBER_WEIGHT INTEGER\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -214,12 +220,14 @@ int table_replication_group_members::make_row(uint index) {
   m_row.member_version_length = 0;
   m_row.member_role_length = 0;
   m_row.member_communication_stack_length = 0;
+  m_row.member_weight = 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
   const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS callbacks = {
       &m_row,           &set_channel_name,   &set_member_id,
       &set_member_host, &set_member_port,    &set_member_state,
       &set_member_role, &set_member_version, &set_member_communication_stack,
+      &set_member_weight,
   };
 
   // Query plugin and let callbacks do their job.
@@ -276,6 +284,13 @@ int table_replication_group_members::read_row_values(TABLE *table,
         case 7: /** member_incoming_protocol */
           set_field_char_utf8mb4(f, m_row.member_communication_stack,
                                  m_row.member_communication_stack_length);
+          break;
+        case 8: /** member_weight */
+          if (m_row.member_weight > 0) {
+            set_field_ulong(f, m_row.member_weight);
+          } else {
+            f->set_null();
+          }
           break;
         default:
           assert(false);

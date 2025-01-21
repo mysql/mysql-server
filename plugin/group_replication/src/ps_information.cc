@@ -134,6 +134,8 @@ bool get_group_members_info(
       callbacks.context, *incoming_connection_protocol,
       strlen(incoming_connection_protocol));
 
+  callbacks.set_member_weight(callbacks.context, member_info.get_member_weight());
+
   return false;
 }
 
