@@ -1,0 +1,53 @@
+name: sparrow-ci-workflow
+on:
+  # Triggers the pipeline on push, on PRs to "main", manually
+  push:
+    tags:
+        - '[0-9]+.[0-9]+.[0-9]+**'
+        - '![0-9]+.[0-9]+.[0-9]+-DBG**'
+  workflow_dispatch:
+
+env:
+  DEBUG: ${{ contains(github.ref_name, 'DBG') }}
+  MODE: ${{ contains(github.ref_name, 'DBG') && 'debug' || 'release' }}
+    
+jobs:
+  build-job-lnx8-x64:
+    needs: []
+    runs-on: ubuntu-latest
+    container: 
+      image: ghcr.io/infovista-opensource/mysql-server-timeseries-builder-images/mysql8-build-lnx8:0.48
+      # volumes:
+      #   - /data/conan:/data/conan
+
+    steps:
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-lnx8-x64
+          path: /data/conan
+
+      - uses: actions/checkout@v4
+          
+      - name: Building binaries
+        shell: bash
+        run: |
+          echo "Working folder `pwd`"
+          env | sort
+          chmod a+x build_scripts\linux\build-linux-github.sh
+          build_scripts\linux\build-linux-github.sh  ${{ env.MODE }}
+      
+      - name: Uploading binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnx8-x64-binaries
+          path: |
+            _distrib/lnx8_64/*.tar.gz
+            **/*.log
+      
+      - name: Uploading release assets
+        uses: alexellis/upload-assets@0.4.1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["_distrib/lnx8_64/*.tar.gz"]'        
