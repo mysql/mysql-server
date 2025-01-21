@@ -33,9 +33,13 @@ jobs:
         shell: bash
         run: |
           echo "Working folder `pwd`"
+          echo "Build mode is ${{ env.MODE }}"
           env | sort
-          chmod a+x build_scripts\linux\build-linux-github.sh
-          build_scripts\linux\build-linux-github.sh  ${{ env.MODE }}
+          ls -l
+          echo "Conan package folder contains: `ls -l /data/conan`"
+          conan search
+          chmod a+x build_scripts/linux/build-linux-github.sh
+          build_scripts/linux/build-linux-github.sh  ${{ env.MODE }}
       
       - name: Uploading binaries
         uses: actions/upload-artifact@v4
