@@ -233,8 +233,13 @@
    - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
+
+  80041:
+
+  - Bug#111210 Include MEMBER_WEIGHT in replication_group_members
+
 */
 
-static const uint PFS_DD_VERSION = 80040;
+static const uint PFS_DD_VERSION = 80041;
 
 #endif /* PFS_DD_VERSION_H */
