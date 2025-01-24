@@ -61,10 +61,10 @@ generate_distrib_pack() {
 	echo `date +"%x %X"` "Gathering all required files for a DB server installation." 
 	distrib_folder=_distrib_tmp/mysql_${BUILD_MODE}
 	mkdir -p $distrib_folder
-	cp -r share bin lib $distrib_folder
+	cp -ra share bin lib $distrib_folder
 
 	echo `date +"%x %X"` "Gathering files for libmysqlclient API." 
-	cp lib/libmysqlclient.so  $distrib_folder/lib
+	cp -a lib/libmysqlclient.so*  $distrib_folder/lib
 
 	echo `date +"%x %X"` "Gathering files for Sparrow UDF plugin." 
 	mkdir -p $distrib_folder/lib/plugin
@@ -73,7 +73,6 @@ generate_distrib_pack() {
 	echo `date +"%x %X"` "Packaging everything into the compressed file $3/$4." 
 	cd $distrib_folder
 	tar -czvf  $3/$4.tar.gz  *
-	# zip -r -3  $3/$4  *
 	res=$?
 	if [ $? -ne 0 ]; then
 		echo `date +"%x %X"` "Tar gzip all files into a package failed." 
@@ -100,7 +99,7 @@ generate_mysqlapi_pack() {
 
 	mkdir lib include
 	cp -r ../../include/*  include
-	cp ../../lib/libmysqlclient.so  ../../lib/libmysqlclient.a  lib
+	cp -a ../../lib/libmysqlclient.so*  ../../lib/libmysqlclient.a  lib
 
 	echo `date +"%x %X"` "Packaging everything into the compressed file $3/$4." 
 	tar -czvf  $3/$4.tar.gz  *
@@ -130,8 +129,8 @@ generate_sparrowapi_pack() {
 	cd $distrib_folder
 
 	mkdir lib include
-	cp  ../../lib/libsparrowapi.so  lib
 	cp  -r $SOURCE_ROOT_FOLDER/storage/sparrow/api/include/* include
+	cp  -a ../../lib/libsparrowapi.so*  lib
 
 	echo `date +"%x %X"` "Packaging everything into the compressed file $3/$4." 
 	tar -czvf  $3/$4.tar.gz  *
