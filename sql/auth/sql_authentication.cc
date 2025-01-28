@@ -1896,7 +1896,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   Authentication method Switch Request Packet
 
   If both server and the client support @ref CLIENT_PLUGIN_AUTH capability,
-  server can send this packet tp ask client to use another authentication method.
+  server can send this packet to ask client to use another authentication method.
 
   <table>
   <caption>Payload</caption>
