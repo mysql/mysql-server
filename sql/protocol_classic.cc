@@ -717,7 +717,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   </table>
 
   These rules distinguish whether the packet represents OK or EOF:
-  - OK: header = 0 and length of packet > 7
+  - OK: header = 0 and length of packet >= 7
   - EOF: header = 0xfe and length of packet < 9
 
   To ensure backward compatibility between old (prior to 5.7.5) and
