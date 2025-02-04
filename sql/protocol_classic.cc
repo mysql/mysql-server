@@ -1504,9 +1504,12 @@ int Protocol_classic::read_packet() {
       <td>new_params_bind_flag</td>
       <td>Always 1. Malformed packet error if not 1</td></tr>
   <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
-  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
-      <td>param_type_and_flag</td>
-      <td>Parameter type (2 bytes). The MSB is reserved for unsigned flag</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>parameter_type</td>
+      <td>Parameter type (1 bytes). See ::enum_field_type</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>parameter_flags</td>
+      <td>Parameter flags (1 bytes). Set to 128 if unsigned.</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
     <td>parameter name</td>
     <td>String</td></tr>
@@ -2113,9 +2116,12 @@ int Protocol_classic::read_packet() {
       <td>new_params_bind_flag</td>
       <td>Flag if parameters must be re-bound</td></tr>
   <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
-  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>parameter_type</td>
     <td>Type of the parameter value. See ::enum_field_type</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>parameter_flags</td>
+    <td>Parameter flags (1 bytes). Set to 128 if unsigned.</td></tr>
   <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>parameter_name</td>
