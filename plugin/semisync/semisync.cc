@@ -36,6 +36,48 @@ const unsigned long Trace::kTraceFunction = 0x0040;
 const unsigned char ReplSemiSyncBase::kSyncHeader[2] = {
     ReplSemiSyncBase::kPacketMagicNum, 0};
 
+/* clang-format off */
+/**
+  @page page_protocol_semisync Semisync
+
+  Semisync is a set of two plugins, a server one and a client one.
+  Both plugins enhance the replication protocol.
+
+  @section sect_semisync_source Semisync source
+
+  A source with semisync enabled will prepend binlog events with
+  a semisync request.
+
+  <table>
+  <caption>Semisync Request</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>semisync marker</td>
+      <td>Marker to indicate semisync</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>semisync flag</td>
+      <td>Set to 0x1 to request semisync acknowledgement, otherwise 0x0.</td></tr>
+  </table>
+
+  @section sect_semisync_replica Semisync replica
+
+  A replica with semisync enabled will send acknowledgements to Semisync Requests
+
+  <table>
+  <caption>Semisync Request</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>semisync marker</td>
+      <td>Marker to indicate semisync</td></tr>
+  <tr><td>@ref a_protocol_type_int8 "int&lt;8&gt;"</td>
+      <td>Binlog Position</td>
+      <td>Binlog position of the acknowledgement.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string[EOF]"</td>
+      <td>Binlog File Name</td>
+      <td>Binlog file name of the acknowledgement.</td></tr>
+  </table>
+*/
+
 bool is_sysvar_defined(const char *name) {
   char buffer[256];
   void *value = buffer;

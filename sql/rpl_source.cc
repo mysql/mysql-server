@@ -340,6 +340,11 @@ bool show_replicas(THD *thd) {
 
   In MySQL 5.1.x the @ref sect_protocol_replication_binlog_event_rbr were
   added.
+
+  @section sect_protocol_replication_semisync Semisync
+
+  See:
+  - @subpage page_protocol_semisync
 */
 
 /**
