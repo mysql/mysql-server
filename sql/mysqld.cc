@@ -45,7 +45,7 @@
 
   For other sections, only links are provided, as a starting point into the component.
 
-  For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
+  For the reference manual, see http://dev.mysql.com/doc/en/
 
   This documentation is published for each release, starting with MySQL 8.0.
 
