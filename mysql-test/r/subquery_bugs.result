@@ -2480,3 +2480,19 @@ UNION ALL
 SELECT 1 FROM t;
 f
 DROP TABLE t;
+#
+# Bug#117500: Subquery result error when row compared with scalar subquery using '<=>'
+#
+CREATE TABLE t3 ( c1 varchar(10), c2 int );
+CREATE TABLE t2 LIKE t3;
+CREATE TABLE t1 LIKE t3;
+INSERT INTO t1 VALUES (NULL, 1992), ('a', NULL);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 VALUES ('b', 1995);
+INSERT INTO t1 VALUES ('b', NULL);
+SELECT c1, c2 FROM t1 WHERE (c1, c2) <=> ( SELECT c1, c2 FROM t2 WHERE c1 = ( SELECT c1 FROM t3 ) );
+c1	c2
+SELECT c1, c2 FROM t1 WHERE (c1, c2) <=> ( SELECT c1, c2 FROM t2 ORDER BY t2.c1 LIMIT 1 );
+c1	c2
+NULL	1992
+DROP TABLE t1, t2, t3;

@@ -2138,6 +2138,16 @@ int Arg_comparator::compare_row() {
   return 0;
 }
 
+static bool check_value_unassigned_scalar_subquery(Item *item) {
+  if (item->type() == Item::SUBQUERY_ITEM) {
+    Item_subselect *subquery = down_cast<Item_subselect *>(item);
+    if (subquery->subquery_type() == Item_subselect::SCALAR_SUBQUERY) {
+      return !subquery->is_value_assigned();
+    }
+  }
+  return false;
+}
+
 /**
   Compare two argument items, or a pair of elements from two argument rows,
   for NULL values.
@@ -2149,7 +2159,8 @@ int Arg_comparator::compare_row() {
 
   @returns true if at least one of the items is NULL
 */
-static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
+static bool compare_pair_for_nulls(Arg_comparator *comparator, Item *a, Item *b,
+                                   bool *result) {
   if (a->result_type() == ROW_RESULT) {
     a->bring_value();
     b->bring_value();
@@ -2159,9 +2170,23 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
      are NULL, result is true.
     */
     bool have_null_items = false;
+    Item *item_null = nullptr;
+    bool left_is_value_unassigned_scalar_subquery =
+        check_value_unassigned_scalar_subquery(a);
+    bool right_is_value_unassigned_scalar_subquery =
+        check_value_unassigned_scalar_subquery(b);
+    if (left_is_value_unassigned_scalar_subquery ||
+        right_is_value_unassigned_scalar_subquery) {
+      item_null = new Item_null();
+    }
     for (uint i = 0; i < a->cols(); i++) {
-      if (compare_pair_for_nulls(a->element_index(i), b->element_index(i),
-                                 result)) {
+      if (compare_pair_for_nulls(
+              &comparator->get_child_comparators()[i],
+              left_is_value_unassigned_scalar_subquery ? item_null
+                                                       : a->element_index(i),
+              right_is_value_unassigned_scalar_subquery ? item_null
+                                                        : b->element_index(i),
+              result)) {
         have_null_items = true;
         if (!*result) return true;
       }
@@ -2176,7 +2201,8 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     *result = a_null == b_null;
     return true;
   }
-  *result = false;
+  assert(*comparator->get_left_ptr() == a && comparator->get_right() == b);
+  *result = comparator->compare() == 0;
   return false;
 }
 
@@ -2188,7 +2214,7 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
 */
 bool Arg_comparator::compare_null_values() {
   bool result;
-  (void)compare_pair_for_nulls(*left, *right, &result);
+  (void)compare_pair_for_nulls(this, *left, *right, &result);
   if (current_thd->is_error()) return false;
   return result;
 }
