@@ -145,8 +145,6 @@ field_data can be one of:
 
 - fixlen_integer_format - fixed-length integer, encoded using a fixed number of
   bytes, signed or unsigned
-- varlen_integer_format - variable-length integer field, encoded using 1-9 bytes,
-  depending on the field value
 - floating_point_integer_format - floating point number field:
   - sp_floating_point_integer_format - single precision floating point number
   - dp_floating_point_integer_format - double precision floating point number
@@ -157,7 +155,7 @@ field_data can be one of:
 - message_format - nested message
 - varlen_integer_format - format used to encode signed/unsigned integers using
   1-9 bytes, depending on the integer value. Format is described in detail
-  in the [Variable-length integers](#variable-length-integers).
+  in the [Variable-length integers](#varint).
 
 ```
 {
@@ -198,7 +196,7 @@ String format consists of:
 - string_length - the number of 1 byte elements in the string
 - string characters, 1 byte unsigned integers
 
-#### Variable-length integers
+#### Variable-length integers {#varint}
 
 Variable-length integers are encoded using 1-9 bytes, depending on the
 value of a particular field. Bytes are always stored using in LE byte order.
