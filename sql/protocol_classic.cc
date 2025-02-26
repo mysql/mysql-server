@@ -131,7 +131,7 @@
   @section sect_protocol_basic_dt_string_le Protocol::LengthEncodedString
 
   A length encoded string is a string that is prefixed with length encoded
-  integer describing the length of the string.
+  integer describing the length of the string. NULL if first byte is 0xFB.
 
   It is a special case of @ref sect_protocol_basic_dt_string_var
 
@@ -3099,6 +3099,11 @@ bool Protocol_classic::end_result_metadata() {
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>reserved</td>
       <td>reserved. All 0s.</td></tr>
+  <tr><td colspan="3">if command was COM_FIELD_LIST {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>default value</td>
+      <td>NULL if 0xFB</td></tr>
+  <tr><td colspan="3">}</td></tr>
   </table>
 
   @note `decimals` and `column_length` can be used for text output formatting

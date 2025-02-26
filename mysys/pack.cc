@@ -110,7 +110,7 @@ uint64_t net_field_length_ll(uchar **packet) {
 }
 
 /*
-  Store an integer with simple packing into a output package
+  Store an integer with simple packing into an output package
 
   SYNOPSIS
     net_store_length()
