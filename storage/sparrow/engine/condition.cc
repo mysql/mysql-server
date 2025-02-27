@@ -395,7 +395,7 @@ TimePeriods Condition::get(TABLE* table, Item* item, const bool returnAllIfNone)
 // STATIC
 uint64_t Condition::getBound(Item* item, const bool isTimestamp) {
 	Item_result	res_type = item->result_type();
-	if (res_type == INT_RESULT) {
+	if (res_type == INT_RESULT || res_type == DECIMAL_RESULT) {
 		if (item->val_int() < 0) return -1;
 		return item->val_int() * 1000ULL;
 	} else if (res_type == STRING_RESULT) {
