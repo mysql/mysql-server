@@ -816,12 +816,6 @@ void STDCALL mysql_reset_server_public_key(void);
 
 #define HAVE_MYSQL_REAL_CONNECT
 
-MYSQL *STDCALL mysql_real_connect_dns_srv(MYSQL *mysql,
-                                          const char *dns_srv_name,
-                                          const char *user, const char *passwd,
-                                          const char *db,
-                                          unsigned long client_flag);
-
 enum connect_stage STDCALL mysql_get_connect_nonblocking_stage(MYSQL *mysql);
 
 #ifdef __cplusplus
