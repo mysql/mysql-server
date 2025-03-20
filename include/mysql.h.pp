@@ -833,9 +833,4 @@ int mysql_next_result(MYSQL *mysql);
 int mysql_stmt_next_result(MYSQL_STMT *stmt);
 void mysql_close(MYSQL *sock);
 void mysql_reset_server_public_key(void);
-MYSQL * mysql_real_connect_dns_srv(MYSQL *mysql,
-                                          const char *dns_srv_name,
-                                          const char *user, const char *passwd,
-                                          const char *db,
-                                          unsigned long client_flag);
 enum connect_stage mysql_get_connect_nonblocking_stage(MYSQL *mysql);
