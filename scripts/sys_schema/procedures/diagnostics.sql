@@ -659,9 +659,9 @@ BEGIN
         -- other tables, so include them even though they are no longer optimal solutions and if present get the additional
         -- information from the other tables available.
         IF (@@log_bin = 1) THEN
-            SELECT 'SHOW BINARY LOG STATUS' AS 'The following output is:';
-            SHOW BINARY LOG STATUS;
-        END IF;
+            SELECT 'SHOW BINARY LOGS' AS 'The following output is:';
+            SHOW BINARY LOGS;
+        END IF; 
 
         IF (v_has_replication <> 'NO') THEN
             SELECT 'SHOW REPLICA STATUS' AS 'The following output is:';
